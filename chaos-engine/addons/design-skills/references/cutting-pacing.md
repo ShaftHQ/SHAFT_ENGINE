@@ -52,6 +52,26 @@ Give up the lower ones first.
 - With music, align major cuts to beats within two frames; with no music,
   skip beat alignment.
 
+
+## Beat-sync cut vocabulary (music-led)
+
+When a track drives the cut, build a grid first: `frames_per_beat = (60 / BPM) * fps`.
+Cut on phrases (every 2/4/8 beats), not every beat. Land the biggest visual on
+the drop.
+
+| Move | What it does | When |
+| --- | --- | --- |
+| Hit | Hard cut or snap on the beat | accents, drops |
+| Anticipation | Slow or hold into the beat, then release | builds |
+| Backbeat hold | Hold across the off-beat, cut on the next strong | premium / calm |
+| Match cut | Shared shape/motion across the join | transformations |
+| J / L cut | Audio leads or trails picture | dialogue, scene changes |
+| Speed ramp | Retime into the hit; slowest frame on the beat | impact |
+
+Personality → phrase length: playful ~4 beats; premium 8–16 with long holds;
+corporate ~8 steady; energetic 1–2 at climax. Align marked beat cuts within
+two frames of the onset detector (existing Verify rule).
+
 ## Workflow
 
 1. Watch the assembly once without stopping; note where attention drops.
@@ -83,4 +103,4 @@ Talk and Q&A tightening, cut points and overlay crossfades: [L03](lessons/talk-e
 ## Sources
 
 Walter Murch, *In the Blink of an Eye* (copyrighted: ideas paraphrased, no
-text imported).
+text imported); beat-sync vocabulary re-expressed from iart-ai/motion-design-skills (MIT, pin in INVENTORY).

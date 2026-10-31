@@ -57,6 +57,21 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
   transform and final numbers at done.
 - One motion focus per viewport: no muted video loop beside an animated hero.
 
+## Composition, seams, idle (MG)
+
+- One camera move per beat (push/pan/follow/parallax). Hero moves **800–2000 ms**,
+  ease-in-out (linear only for loops). Enter/exit via **nearest edge** (LTR:
+  right/below; undo reverses). Depth roles: bg ~0.2×, mid ~0.6×, fg ~1.0–1.2× —
+  never two competing primary layers.
+- Title-safe: **9:16 uses [V07](video-craft/shorts-safe-area-captions.md) px map
+  only** (no second gate). Plan other aspects ≈5–8% margins; restack for 9:16,
+  do not side-crop a 16:9 master.
+- Seam continuity: A-exit sets B-enter (axis, direction, speed); cut mid-motion;
+  prefer a carrier (cursor/container/mark). Storyboard vectors; contact-sheet verify.
+- Ban idle wobble (breathe/float/glow with no story). Stillness before climax
+  **0.3–0.75 s**. Gate: `design_qc.py motionstill` (still ≤3.0 s; end-hold ≥30
+  frames; no float overlay to game the meter).
+
 ## Workflow
 
 1. Copy the tokens into CSS variables or scene constants.
@@ -75,6 +90,7 @@ For UI motion tokens and GSAP, see [W02](web-craft/motion-tokens.md) and
 - `design_qc.py fadeonly|springs|motiondur|chrome <src>` pass: entries move,
   at most one visible spring, median move <= 0.6 s, no HUD chrome
   ([C07](craft/motion-graphics-craft.md)).
+- `design_qc.py motionstill` on MG renders.
 - An e2e test or screenshot shows the reduced-motion variant.
 
 Web UI checks (should-it-animate, no `scale(0)`, interruptible
@@ -85,4 +101,4 @@ transitions): [W02](web-craft/motion-tokens.md).
 Thomas and Johnston, *The Illusion of Life* (twelve principles, paraphrased);
 Material 3 motion; Apple HIG motion; NN/g on animation duration; WCAG 2.2
 2.2.2, 2.3.1, 2.3.3; engine-neutral rules re-expressed from
-haidrrrry/claude-remotion-skill (MIT).
+haidrrrry/claude-remotion-skill (MIT); iart-ai/motion-design-skills (MIT, pin INVENTORY) re-expressed; hyperframes motion-doctrine (Apache-2.0) paraphrased; a2e motionstill ideas (PolyForm-NC, own code).

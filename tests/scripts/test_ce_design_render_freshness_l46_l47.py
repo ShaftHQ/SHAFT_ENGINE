@@ -87,8 +87,8 @@ class L46LessonCardTest(unittest.TestCase):
         ext = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
         self.assertIn(card, ext)
         inv = " ".join(INV.read_text(encoding="utf-8").split())
-        self.assertIn("L01-L47", inv)
-        self.assertIn("47 lesson", inv)
+        self.assertIn("L01-L51", inv)
+        self.assertIn("51 lesson", inv)
 
 
 class L47LessonCardTest(unittest.TestCase):

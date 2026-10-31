@@ -745,6 +745,270 @@ def cmd_frozentail(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_motionstill(args: argparse.Namespace) -> int:
+    """Still-span + end-hold gate (a2e motion_check idea; own implementation).
+
+    Fails when any static span exceeds --max-still seconds, or when the final
+    --end-hold-frames sampled frames are not a held still (idle float banned).
+    """
+    probe = ffprobe(args.file)
+    video = video_stream(probe)
+    duration = float(video.get("duration") or probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        raise ValueError("cannot read media duration")
+    fps = float(args.fps)
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={fps},{grid}", "-f", "rawvideo"])
+    frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+    if len(frames) < 2:
+        return report("motionstill", FAIL, hits=["too-few-frames"], error="need >=2 sampled frames")
+    allow = [tuple(float(x) for x in span.split("-")) for span in (args.allow or [])]
+    max_still = float(args.max_still)
+    spans, longest = static_spans(frames, fps, args.thresh, max_still, allow)
+    hits = [
+        f"still {item['start']:.2f}-{item['end']:.2f}s (dur {item['dur']:.2f}s > {max_still}s)"
+        for item in spans
+    ]
+    end_n = max(1, int(args.end_hold_frames))
+    hold_ok = False
+    if len(frames) >= end_n:
+        tail = frames[-end_n:]
+        # All end-hold frames must match the first of the hold window (stillness).
+        deltas = [
+            max(abs(a - b) for a, b in zip(tail[0], frame))
+            for frame in tail[1:]
+        ]
+        hold_ok = all(d < float(args.thresh) for d in deltas) if deltas else True
+        if not hold_ok:
+            hits.append(
+                f"end-hold: last {end_n} frames not still "
+                f"(max cell delta {max(deltas) if deltas else 0:.1f} >= {args.thresh})"
+            )
+    else:
+        hits.append(f"end-hold: need >= {end_n} frames, got {len(frames)}")
+    return report(
+        "motionstill", FAIL if hits else PASS,
+        duration_s=round(duration, 3),
+        longest_static_s=longest,
+        max_still_s=max_still,
+        end_hold_frames=end_n,
+        end_hold_ok=hold_ok,
+        hits=hits,
+        note="max still <=3s; end-hold required; no idle float to game the meter",
+    )
+
+
+def _wardrobe_spec_hits(spec: dict) -> list[str]:
+    """Missing required wardrobe spec keys."""
+    required = ("garment", "sleeve", "buttons_closed", "colour")
+    missing = [key for key in required if key not in spec]
+    return [f"spec-missing:{','.join(missing)}"] if missing else []
+
+
+def _wardrobe_observation_hits(
+    observations: list,
+    spec: dict,
+    *,
+    sample_s: float,
+    duration: float,
+) -> list[str]:
+    """Per-sample collar/button/colour drift vs spec and sample density."""
+    hits: list[str] = []
+    expected_closed = int(spec.get("buttons_closed", -1))
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
+    if len(observations) < max(1, expected_samples - 1):
+        hits.append(f"undersampled:{len(observations)}<{expected_samples} at {sample_s}s")
+    for index, row in enumerate(observations):
+        if not row.get("collar_crop"):
+            hits.append(f"sample[{index}]:missing-collar-crop")
+        closed = row.get("buttons_closed")
+        if closed is None:
+            hits.append(f"sample[{index}]:missing-button-count")
+        elif expected_closed >= 0 and int(closed) != expected_closed:
+            hits.append(
+                f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
+            )
+        if spec.get("colour") and row.get("colour") and row.get("colour") != spec.get("colour"):
+            hits.append(f"sample[{index}]:colour-drift:{row.get('colour')}")
+        if spec.get("sleeve") and row.get("sleeve") and row.get("sleeve") != spec.get("sleeve"):
+            hits.append(f"sample[{index}]:sleeve-drift:{row.get('sleeve')}")
+    return hits
+
+
+def cmd_wardrobe(args: argparse.Namespace) -> int:
+    """L48: wardrobe gate — ref first, collar crop, button counts, 0.5 s samples."""
+    hits: list[str] = []
+    ref = Path(args.ref) if args.ref else None
+    if ref is None or not ref.is_file():
+        return report(
+            "wardrobe", FAIL, hits=["missing-ref"],
+            error="check the REF IMAGE first; --ref is required and must exist",
+        )
+    spec_path = Path(args.spec)
+    if not spec_path.is_file():
+        return report("wardrobe", FAIL, hits=["missing-spec"], error=f"no spec: {spec_path}")
+    try:
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("wardrobe", FAIL, hits=["bad-spec"], error=str(exc))
+    hits.extend(_wardrobe_spec_hits(spec))
+    sample_s = float(getattr(args, "sample", 0.5))
+    if sample_s > 0.5 + 1e-9:
+        hits.append(f"sample-interval:{sample_s}>0.5")
+    render = Path(args.file)
+    if not render.is_file():
+        return report("wardrobe", FAIL, hits=["missing-render"], error=f"no file: {render}")
+    probe = ffprobe(str(render))
+    duration = float(probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        hits.append("unreadable-duration")
+    observations: list = []
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        hits.append("missing-observations")
+        return report(
+            "wardrobe", FAIL, hits=hits,
+            error="--observations required (collar crops + button counts at 0.5s)",
+            observations=0,
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report("wardrobe", FAIL, hits=["missing-observations"], error=f"no file: {op}")
+    observations = json.loads(op.read_text(encoding="utf-8"))
+    if not isinstance(observations, list):
+        return report("wardrobe", FAIL, hits=["bad-observations"], error="observations must be a list")
+    if len(observations) == 0:
+        hits.append("missing-observations")
+    hits.extend(_wardrobe_observation_hits(
+        observations, spec, sample_s=sample_s, duration=duration,
+    ))
+    if spec.get("ref_ok") is False:
+        hits.append("ref-disagrees-spec")
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
+    return report(
+        "wardrobe", FAIL if hits else PASS,
+        hits=hits,
+        ref=str(ref),
+        sample_s=sample_s,
+        duration_s=round(duration, 3) if duration else None,
+        observations=len(observations),
+        expected_samples=expected_samples or None,
+        note="ref first; collar crop; count buttons; sample every 0.5s",
+    )
+
+
+def cmd_rendermeta(args: argparse.Namespace) -> int:
+    """L50: meta.render_rev / sha must match the current render bytes."""
+    target = Path(args.file)
+    if not target.is_file():
+        return report("rendermeta", FAIL, hits=["missing-mp4"], error=f"no file: {target}")
+    meta_path = Path(args.meta)
+    if not meta_path.is_file():
+        return report("rendermeta", FAIL, hits=["missing-meta"], error=f"no meta: {meta_path}")
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("rendermeta", FAIL, hits=["bad-meta"], error=str(exc))
+    hits: list[str] = []
+    file_sha = sha256(target)
+    meta_sha = (
+        meta.get("sha")
+        or meta.get("sha256")
+        or meta.get("render_sha")
+        or meta.get("render_sha256")
+        or ""
+    )
+    meta_sha = str(meta_sha).strip().lower()
+    if not meta_sha:
+        hits.append("missing-meta-sha")
+    elif meta_sha != file_sha:
+        hits.append("sha-mismatch")
+    rev = meta.get("render_rev") or meta.get("rev") or meta.get("revision")
+    expected_rev = getattr(args, "rev", None)
+    if rev is None or str(rev).strip() == "":
+        hits.append("missing-render-rev")
+    elif expected_rev is not None and str(rev).strip() != str(expected_rev).strip():
+        hits.append(f"rev-mismatch:meta={rev} expected={expected_rev}")
+    return report(
+        "rendermeta", FAIL if hits else PASS,
+        hits=hits,
+        sha256=file_sha,
+        meta_sha=meta_sha or None,
+        render_rev=rev,
+        note="regenerate meta on every render; bind rev+sha to file bytes",
+    )
+
+
+_G6_BLOCKED_TOKENS = frozenset({
+    "blocked", "block", "fail", "failed", "yes", "y", "1", "true",
+})
+
+
+def _extendfeas_g6_value(unit: dict) -> object:
+    """Return the first present G6 / price-block field on a unit row."""
+    for key in ("g6", "price_block", "G6"):
+        if key in unit and unit.get(key) is not None:
+            return unit.get(key)
+    return None
+
+
+def _extendfeas_dup_value(unit: dict) -> object:
+    """Return dup_multiple or legacy dup on a unit row."""
+    if unit.get("dup_multiple") is not None:
+        return unit.get("dup_multiple")
+    return unit.get("dup")
+
+
+def _extendfeas_row_hits(unit: dict, min_dup: float) -> tuple[list[str], object, object]:
+    """Score one inventory unit; return (hits, dup, g6)."""
+    dup = _extendfeas_dup_value(unit)
+    g6 = _extendfeas_g6_value(unit)
+    row_hits: list[str] = []
+    if dup is None:
+        row_hits.append("missing-dup-multiple")
+    elif float(dup) < min_dup - 1e-9:
+        row_hits.append(f"dup<{min_dup}:{dup}")
+    if g6 is None:
+        row_hits.append("missing-g6")
+    else:
+        blocked = g6 if isinstance(g6, bool) else str(g6).strip().lower() in _G6_BLOCKED_TOKENS
+        if blocked:
+            row_hits.append("g6-blocked")
+    return row_hits, dup, g6
+
+
+def cmd_extendfeas(args: argparse.Namespace) -> int:
+    """
+    L51: dup multiple >=3x and price-block G6 clear before slotting.
+    """
+    path = Path(args.inventory)
+    if not path.is_file():
+        return report("extendfeas", FAIL, hits=["missing-inventory"], error=f"no file: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("extendfeas", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("extendfeas", FAIL, hits=["bad-inventory"], error="units list required")
+    min_dup = float(getattr(args, "min_dup", 3.0))
+    hits: list[str] = []
+    checked = []
+    for index, unit in enumerate(units):
+        uid = unit.get("id") or unit.get("title") or f"unit[{index}]"
+        row_hits, dup, g6 = _extendfeas_row_hits(unit, min_dup)
+        if row_hits:
+            hits.extend(f"{uid}:{h}" for h in row_hits)
+        checked.append({"id": uid, "dup_multiple": dup, "g6": g6, "ok": not row_hits})
+    return report(
+        "extendfeas", FAIL if hits else PASS,
+        hits=hits,
+        min_dup=min_dup,
+        units=checked,
+        note="feasibility before slot; dup>=3x; G6 clear",
+    )
+
+
 def vo_entries(edl: dict) -> list[dict]:
     audio = edl.get("audio", [])
     flagged = [item for item in audio if item.get("vo")]
@@ -2004,6 +2268,34 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--thresh", type=float, default=3.0, help="grid cell delta for static")
     p.add_argument("--max", type=float, default=0.35,
                    help="static longer than this in checked windows fails (seconds)")
+    p = add("motionstill", cmd_motionstill,
+            "still-span + end-hold (max still 3s; idle float banned)")
+    p.add_argument("file", help="motion / explainer mp4")
+    p.add_argument("--max-still", type=float, default=3.0, dest="max_still",
+                   help="static longer than this fails (default 3.0s)")
+    p.add_argument("--end-hold-frames", type=int, default=30, dest="end_hold_frames",
+                   help="last N sampled frames must be a held still (default 30)")
+    p.add_argument("--fps", type=float, default=10.0, help="sample fps")
+    p.add_argument("--thresh", type=float, default=3.0, help="grid cell delta for static")
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds exempt")
+    p = add("wardrobe", cmd_wardrobe,
+            "L48: ref-first wardrobe; collar crop; buttons; 0.5s samples")
+    p.add_argument("file", help="avatar / talk render")
+    p.add_argument("--ref", required=True, help="wardrobe reference image")
+    p.add_argument("--spec", required=True, help="wardrobe JSON (garment/sleeve/buttons_closed/colour)")
+    p.add_argument("--sample", type=float, default=0.5, help="sample interval seconds (max 0.5)")
+    p.add_argument("--observations", required=True,
+                   help="required JSON list of per-sample collar crops + button counts (0 = FAIL)")
+    p = add("rendermeta", cmd_rendermeta,
+            "L50: meta.render_rev/sha must match current render")
+    p.add_argument("file", help="current render mp4")
+    p.add_argument("--meta", required=True, help="upload/render meta JSON")
+    p.add_argument("--rev", default=None, help="expected render_rev (optional)")
+    p = add("extendfeas", cmd_extendfeas,
+            "L51: dup>=3x + G6 clear before scheduling a slot")
+    p.add_argument("inventory", help="JSON inventory with units[{dup_multiple,g6,...}]")
+    p.add_argument("--min-dup", type=float, default=3.0, dest="min_dup",
+                   help="minimum dup multiple (default 3)")
     p = add("gapfloor", cmd_gapfloor, "noise floor between narration lines")
     p.add_argument("file")
     p.add_argument("--timeline", required=True, help="EDL JSON with lines [{start, end}]")

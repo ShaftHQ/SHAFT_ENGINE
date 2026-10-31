@@ -5,10 +5,10 @@ rules in their own words with attribution; no upstream file is copied into
 this add-on. Refresh a pin deliberately: read the upstream diff, update the
 card, then update the SHA and date here.
 
-Pinned: 2026-10-03.
+Pinned: 2026-10-31.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 16 web-craft cards (W01-W16, references/web-craft), 4 video-craft cards (V07-V10, references/video-craft), 1 stills card (I01, references/stills), 1 data-viz card (G01, references/dataviz), 1 recon-craft card (R01, references/recon-craft), 47 lesson
-cards (L01-L47 incl. L35 video caption handoff + L36-L37 CMS paste + L38 caption phonetic/mute + L39 video sign-off viewer frames + L40-L43 memory-abstraction + L44 min-cue/independent sync + L45 delete-check refusal final + L46 render freshness sha256 + L47 avatar frozen-tail; sources listed per card), the
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 16 web-craft cards (W01-W16, references/web-craft), 4 video-craft cards (V07-V10, references/video-craft), 1 stills card (I01, references/stills), 1 data-viz card (G01, references/dataviz), 1 recon-craft card (R01, references/recon-craft), 51 lesson
+cards (L01-L51 incl. L35 video caption handoff + L36-L37 CMS paste + L38 caption phonetic/mute + L39 video sign-off viewer frames + L40-L43 memory-abstraction + L44 min-cue/independent sync + L45 delete-check refusal final + L46 render freshness sha256 + L47 avatar frozen-tail + L48 wardrobe gate + L49 multi-model sync consensus + L50 render-meta rev/sha + L51 extend-feasibility; sources listed per card), the
 innovation bank, 3 site-builder cards and 1 slides card plus S03 native RTL and S04 pptxgenjs (references/slides). D23 draws on no
 upstream repository; its sources are platform and W3C documentation
 listed in the card.
@@ -23,7 +23,8 @@ listed in the card.
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | `2d228630ba1446365f614a108cb8252f1feda202` | MIT | UI motion, review-animations and apple-design interaction rules re-expressed | W02, W10, D08 |
 | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `0b9b10cab3dbf695642fa1a6c4b4f60df9083689` | MIT | diagram rules re-expressed | W05 |
 | [zarazhangrui/frontend-slides](https://github.com/zarazhangrui/frontend-slides) | `9906a34d640d2111f724544cbc50f7f130569ae1` | MIT | rendered style previews | slides deck-system |
-| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `1a238171ec55896a9cb8452c33e4e0fe1063a60c` | Apache-2.0 | renderer and skill notes, referenced; vertical, captions, overlays, review and sound rules adapted | D01, D09, V07, V08 |
+| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `164d6c7a36eba26e9126b364beab98437e2eeec7` | Apache-2.0 | renderer and skill notes, referenced; vertical, captions, overlays, motion-doctrine and captions-overlay rules adapted; no telemetry/auth | D01, D09, V07, V08 |
+| [iart-ai/motion-design-skills](https://github.com/iart-ai/motion-design-skills) | `3c129f769d90a1328c209c386492333c9ac62312` | MIT | timing, composition, art-direction, beat-sync rules re-expressed (remotion-video / after-effects bodies skipped) | D08, D13, C07, D09 |
 | [jakubkrehel/skills](https://github.com/jakubkrehel/skills) | `019ab7c199154f4509b55f12d84a4f5b578dc606` | MIT | better-typography, better-colors, better-accessibility rules adapted | W06, W08, W09 |
 | [almubarmij/arabic-ai-skills](https://github.com/almubarmij/arabic-ai-skills) | `08d3b9d14c2d1719c0b96f703bced8dccfe2076a` | MIT | cite only (low trust), Arabic type and mirroring | L07 |
 | [sultanalsafran/agent-skills](https://github.com/sultanalsafran/agent-skills) | `fc05be36316e5e5ea2ee0b5ec51519b411d54665` | MIT | arabic-presentations rules re-expressed; script not fetched or run | S03 |
@@ -88,6 +89,16 @@ Evaluated 2026-10-24, reference only and not vendored: UI UX Pro Max
   remotion-dev/skills (company licence; we render with ffmpeg); the
   hyperframes media-use and remove-background parts (sign-in, model
   download); the arabic-presentations repair script.
+
+- OpenMontage (calesthio/OpenMontage, AGPL-3.0): pipeline ideas only; never vendor
+  skill trees or runtime into this MIT add-on.
+- anything2explainer (Vincentwei1021/anything2explainer, PolyForm Noncommercial
+  1.0.0): patterns only for explainer QC and motion still/end-hold thresholds;
+  no template, scripts, or Remotion project.
+- remotion-dev/skills: no root LICENSE; Remotion company licence may be required
+  for org use — keep as documented alternative in D09 only; do not install.
+- HyperFrames `events` telemetry, `feedback --rating`, `auth login`, media-use,
+  and remove-background (HeyGen OAuth / paid paths).
 - getdesign.md catalog entries (third-party brand trade dress, no reuse licence).
 - Piper voices with non-commercial dataset licences (for example lessac).
 - RNNoise community model files without a licence.

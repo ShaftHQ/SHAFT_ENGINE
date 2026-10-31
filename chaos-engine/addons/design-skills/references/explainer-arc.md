@@ -40,6 +40,25 @@ the proof points with sources, the call to action and how it is measured.
   click-through, and one lead indicator (a tagged link). They never block
   delivery; QC and review do.
 
+
+## Four hard checkpoints (stop for owner sign-off)
+
+Before scaling an explainer build, stop for an explicit owner answer at each
+gate. Do not invent defaults.
+
+1. **Length and language** — target duration band and spoken language.
+2. **Narration lock** — full script + chapter labels approved; chapter-boundary
+   join lines reviewed together.
+3. **Voice / TTS** — engine and voice chosen (default remains D17 Kokoro lane
+   unless the owner supplies a finished stem).
+4. **30 s pilot** — render the opening half-minute; approve style, type size,
+   pace, and voice before parallel shot groups.
+
+Parallel build: group shots, run QC per group, then a full-film pass. On-screen
+numbers and named facts need a research URL in the brief (tighten with D01).
+Motion QC: `design_qc.py motionstill` (still ≤3 s; end-hold ≥30 frames) plus
+D08/D20 delivery checks.
+
 ## Workflow
 
 1. Write personas and one message per version into `brief.md`.
@@ -60,4 +79,4 @@ the proof points with sources, the call to action and how it is measured.
 LinkedIn Marketing Solutions B2B video research (first six seconds, 30 s to
 2 min sweet spot, job relevance); Wistia State of Video 2025 (engagement by
 length, in-video CTA conversion); developer-audience surveys (Hackmamba
-2024, Apollo Studio) on real code over slides. Own synthesis.
+2024, Apollo Studio) on real code over slides. Own synthesis. Explainer checkpoint and parallel QC protocol inspired by anything2explainer patterns (PolyForm-NC — our words only; no template or scripts).

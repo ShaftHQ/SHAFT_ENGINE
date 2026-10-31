@@ -45,3 +45,16 @@ Run the [QC script](../../scripts/design_qc.py) `doctor` command first and list 
 PR. Append every gate's JSON line to `qc-results.jsonl`. A design document
 for the video (brief plus storyboard) can go through the core
 [design loop](../../../../references/design-loop.md) before production.
+
+## Four explainer checkpoints (D21)
+
+When the piece is an explainer, halt for owner sign-off on length/language,
+narration lock, voice/TTS, and a 30 s pilot before parallel shot groups.
+Record answers in the working folder (`brief.md` or `STATUS.md`). OpenMontage-
+style pipeline taxonomy (research → concepts → costed path → sample → produce)
+may inform the run order; do not vendor AGPL skill trees.
+
+## Motion still / end-hold
+
+After graphics (step 4) and again at delivery: `design_qc.py motionstill` on
+the cut under review.

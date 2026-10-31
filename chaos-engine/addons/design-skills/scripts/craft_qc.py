@@ -3505,16 +3505,49 @@ def cmd_mincuedur(qc, args) -> int:
 
 
 def _load_independent_onsets(path: Path) -> list[dict]:
-    """Load word onsets from ASR or forced-alignment JSON (independent of cues)."""
+    """Load word onsets from ASR or forced-alignment JSON (independent of cues).
+
+    Walks the raw JSON so builder/injected/source metadata survives (words_of
+    strips those keys).
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
-    words = words_of(data)
-    out = []
-    for entry in words:
-        start = entry.get("start")
-        word = (entry.get("word") or "").strip()
-        if start is None or not word:
-            continue
-        out.append({"word": word, "start": float(start), "end": entry.get("end")})
+    file_source = ""
+    if isinstance(data, dict):
+        file_source = str(data.get("source") or data.get("origin") or "").strip().lower()
+    out: list[dict] = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for value in node:
+                walk(value)
+            return
+        if not isinstance(node, dict):
+            return
+        word = _key(node, WORD_KEYS[:2])
+        if isinstance(word, str) and word.strip():
+            start = _key(node, START_KEYS)
+            if start is None:
+                return
+            source = str(
+                node.get("source") or node.get("origin") or file_source or ""
+            ).strip().lower()
+            injected = bool(
+                node.get("builder")
+                or node.get("injected")
+                or source in {"builder", "snapper", "words.json", "planted"}
+            )
+            end = _key(node, END_KEYS)
+            out.append({
+                "word": word.strip(),
+                "start": float(start),
+                "end": None if end is None else float(end),
+                "builder_injected": injected,
+            })
+            return
+        for value in node.values():
+            walk(value)
+
+    walk(data)
     return out
 
 
@@ -3540,6 +3573,240 @@ def _paths_share_inode(left: Path, right: Path) -> bool:
     except OSError:
         return False
 
+def _capsync_reject_shared_sources(qc, cue_path: Path, onset_path: Path, args) -> int | None:
+    """Fail when onsets share the cue file or snapper words source."""
+    if _paths_share_inode(onset_path, cue_path):
+        return qc.report(
+            "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
+            error="onsets must be an independent ASR/FA file, not the cue file",
+        )
+    snapper = getattr(args, "snapper_words", None)
+    if snapper:
+        snap_path = Path(snapper)
+        if snap_path.is_file() and _paths_share_inode(onset_path, snap_path):
+            return qc.report(
+                "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
+                error="verifier ASR must be a separate run from the snapper word source",
+            )
+    return None
+
+
+def _capsync_load_onsets(qc, onset_path: Path) -> tuple[list[dict] | None, int | None]:
+    """Load onsets or return a FAIL report for empty/injected/echo cases."""
+    onsets = _load_independent_onsets(onset_path)
+    if not onsets:
+        return None, qc.report(
+            "capsync", qc.FAIL, hits=["empty-onsets"],
+            error="onsets JSON has no word start times",
+        )
+    injected = [o for o in onsets if o.get("builder_injected")]
+    if injected:
+        return None, qc.report(
+            "capsync", qc.FAIL, hits=["builder-injected-onset"],
+            error="reject builder/snapper-planted onset rows; use independent ASR/FA",
+            injected=len(injected),
+        )
+    return onsets, None
+
+
+def _capsync_echo_cue_starts(qc, onsets: list[dict], cues: list[dict]) -> int | None:
+    """Fail when onsets are a 1:1 clone of cue starts."""
+    if len(onsets) != len(cues):
+        return None
+    diffs = [abs(onsets[i]["start"] - cues[i]["start"]) for i in range(len(cues))]
+    if diffs and max(diffs) < 1e-4:
+        return qc.report(
+            "capsync", qc.FAIL, hits=["onsets-echo-cue-starts"],
+            error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
+            max_drift_ms=0.0,
+        )
+    return None
+
+
+def _capsync_load_consensus(qc, args, onset_path: Path, cue_path: Path) -> tuple[list[dict], bool, int | None]:
+    """L49: require second onset file unless --single-model (L44)."""
+    if getattr(args, "single_model", False):
+        return [], False, None
+    onset_b_path = getattr(args, "onsets_b", None)
+    if not onset_b_path:
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["missing-onsets-b"],
+            error="L49 requires --onsets-b + consensus; use --single-model for L44",
+        )
+    bpath = Path(onset_b_path)
+    if not bpath.is_file():
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["missing-onsets-b"],
+            error="--onsets-b path missing",
+        )
+    if _paths_share_inode(bpath, onset_path) or _paths_share_inode(bpath, cue_path):
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["onsets-b-not-independent"],
+            error="--onsets-b must be a second independent ASR/FA run",
+        )
+    onsets_b = _load_independent_onsets(bpath)
+    if any(o.get("builder_injected") for o in onsets_b):
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["builder-injected-onset"],
+            error="--onsets-b contains builder-injected rows",
+        )
+    return onsets_b, True, None
+
+
+
+def _capsync_norm_tok(token: str) -> str:
+    return token.casefold().rstrip(".,:;!?")
+
+
+def _capsync_token_overlap(cue_tokens: list[str], window_words: list[str]) -> float:
+    """Fraction of cue tokens present in the onset window (fail-closed coverage)."""
+    cue_set = {_capsync_norm_tok(t) for t in cue_tokens if _capsync_norm_tok(t)}
+    if not cue_set:
+        return 1.0
+    win_set = {_capsync_norm_tok(w) for w in window_words if _capsync_norm_tok(w)}
+    return len(cue_set & win_set) / len(cue_set)
+
+
+def _capsync_window_words(
+    onsets: list[dict], cue: dict, *, pad: float,
+) -> list[str]:
+    start = float(cue["start"]) - pad
+    end = float(cue["end"]) + pad
+    return [
+        o["word"] for o in onsets
+        if start - 1e-9 <= float(o["start"]) <= end + 1e-9
+    ]
+
+
+def _capsync_overlap_hit(
+    index: int, cue: dict, onsets: list[dict], *, tol: float, min_overlap: float,
+) -> str | None:
+    tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
+    words = _capsync_window_words(onsets, cue, pad=tol)
+    score = _capsync_token_overlap(tokens, words)
+    if score + 1e-12 < min_overlap:
+        return (
+            f"cue {index}: token-overlap {score:.2f} < {min_overlap:g} "
+            f"(cue tokens vs onset window)"
+        )
+    return None
+
+
+def _capsync_load_rms_spans(qc, args) -> tuple[list[tuple[float, float]] | None, int | None]:
+    """L49 RMS speech spans from --rms-spans JSON or --media decode."""
+    spans_path = getattr(args, "rms_spans", None)
+    if spans_path:
+        sp = Path(spans_path)
+        if not sp.is_file():
+            return None, qc.report(
+                "capsync", qc.FAIL, hits=["missing-rms-spans"],
+                error=f"--rms-spans path missing: {sp}",
+            )
+        raw = json.loads(sp.read_text(encoding="utf-8"))
+        rows = raw.get("spans", raw) if isinstance(raw, dict) else raw
+        spans = [(float(a), float(b)) for a, b in rows]
+        return spans, None
+    media = getattr(args, "media", None)
+    if not media:
+        return None, None
+    try:
+        return _speech_spans_rms(
+            qc, media,
+            thr=float(getattr(args, "rms_thr", -40.0)),
+            hop=0.05, min_speech=0.05,
+        ), None
+    except Exception as exc:  # noqa: BLE001 — surface decode failures as gate hits
+        return None, qc.report(
+            "capsync", qc.FAIL, hits=["rms-media-unreadable"],
+            error=str(exc),
+        )
+
+
+def _capsync_rms_hits(
+    cues: list[dict], spans: list[tuple[float, float]], *, min_overlap: float = 0.05,
+) -> list[str]:
+    """Fail cues whose time window has no RMS speech overlap."""
+    hits: list[str] = []
+    for index, cue in enumerate(cues, 1):
+        cs, ce = float(cue["start"]), float(cue["end"])
+        overlap = 0.0
+        for ss, se in spans:
+            overlap += max(0.0, min(ce, se) - max(cs, ss))
+        if overlap + 1e-12 < min_overlap:
+            hits.append(
+                f"cue {index}: no-rms-speech in [{cs:.3f},{ce:.3f}] "
+                f"(overlap {overlap:.3f}s < {min_overlap:g}s)"
+            )
+    return hits
+
+
+def _capsync_match_hits(
+    cues: list[dict],
+    onsets: list[dict],
+    onsets_b: list[dict],
+    *,
+    tol: float,
+    cs_tol: float,
+    require_consensus: bool,
+    min_overlap: float = 0.5,
+) -> tuple[list[str], int, float]:
+    """Per-cue drift / consensus / token-overlap adjudication."""
+    hits: list[str] = []
+    worst_ms = 0.0
+    matched = 0
+    for index, cue in enumerate(cues, 1):
+        tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
+        first = tokens[0] if tokens else ""
+        window = max(tol, cs_tol) + 0.05
+        candidates = [
+            o for o in onsets
+            if abs(o["start"] - cue["start"]) <= window + 1e-9
+        ]
+        if first:
+            named = [
+                o for o in candidates
+                if _capsync_norm_tok(o["word"]) == _capsync_norm_tok(first)
+            ]
+            if named:
+                candidates = named
+        if not candidates:
+            hits.append(f"cue {index}: no independent onset near {cue['start']:.3f}s")
+            continue
+        best = min(candidates, key=lambda o: abs(o["start"] - cue["start"]))
+        drift = abs(best["start"] - cue["start"])
+        allow = cs_tol if _is_codeswitch_en(best["word"]) else tol
+        worst_ms = max(worst_ms, drift * 1000.0)
+        matched += 1
+        if drift > allow + 1e-9:
+            hits.append(
+                f"cue {index}: drift {drift * 1000:.1f}ms > {allow * 1000:g}ms "
+                f"(cue={cue['start']:.3f} onset={best['start']:.3f} word={best['word']!r})"
+            )
+        overlap_hit = _capsync_overlap_hit(
+            index, cue, onsets, tol=tol, min_overlap=min_overlap,
+        )
+        if overlap_hit:
+            hits.append(overlap_hit)
+        if require_consensus:
+            peers = [
+                o for o in onsets_b
+                if abs(o["start"] - best["start"]) <= allow + 1e-9
+            ]
+            if first:
+                named_b = [
+                    o for o in peers
+                    if _capsync_norm_tok(o["word"]) == _capsync_norm_tok(first)
+                ]
+                if named_b:
+                    peers = named_b
+            if not peers:
+                hits.append(
+                    f"cue {index}: no consensus onset near {best['start']:.3f}s "
+                    f"(need --onsets-b within tol)"
+                )
+    return hits, matched, worst_ms
+
+
 def cmd_capsync(qc, args) -> int:
     """Caption sync against independent ASR / forced-alignment onsets.
 
@@ -3556,82 +3823,60 @@ def cmd_capsync(qc, args) -> int:
             "capsync", qc.FAIL, hits=["missing-independent-onsets"],
             error="pass --onsets from ASR/forced-alignment on rendered audio",
         )
-    if _paths_share_inode(onset_path, cue_path):
-        return qc.report(
-            "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
-            error="onsets must be an independent ASR/FA file, not the cue file",
-        )
-    snapper = getattr(args, "snapper_words", None)
-    if snapper:
-        snap_path = Path(snapper)
-        if snap_path.is_file() and _paths_share_inode(onset_path, snap_path):
-            return qc.report(
-                "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
-                error="verifier ASR must be a separate run from the snapper word source",
-            )
+    shared = _capsync_reject_shared_sources(qc, cue_path, onset_path, args)
+    if shared is not None:
+        return shared
     cues = qc.parse_cues(cue_path.read_text(encoding="utf-8"))
     if not cues:
         return qc.report("capsync", qc.FAIL, hits=["no cues"])
-    onsets = _load_independent_onsets(onset_path)
-    if not onsets:
-        return qc.report(
-            "capsync", qc.FAIL, hits=["empty-onsets"],
-            error="onsets JSON has no word start times",
-        )
-    # Tautology guard: if every cue start equals some onset start within 1ms
-    # AND onset count == cue count AND all words match cue first tokens, still
-    # OK structurally — but if onsets were fabricated as cue starts with empty
-    # words we already failed empty. Detect cue-start cloning: when each onset
-    # start equals the corresponding cue start within 1e-4 and there is no
-    # other timing diversity, flag as snapper-echo.
-    if len(onsets) == len(cues):
-        diffs = [abs(onsets[i]["start"] - cues[i]["start"]) for i in range(len(cues))]
-        if diffs and max(diffs) < 1e-4:
-            return qc.report(
-                "capsync", qc.FAIL, hits=["onsets-echo-cue-starts"],
-                error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
-                max_drift_ms=0.0,
-            )
+    onsets, fail = _capsync_load_onsets(qc, onset_path)
+    if fail is not None:
+        return fail
+    assert onsets is not None
+    echo = _capsync_echo_cue_starts(qc, onsets, cues)
+    if echo is not None:
+        return echo
+    onsets_b, require_consensus, fail_b = _capsync_load_consensus(
+        qc, args, onset_path, cue_path,
+    )
+    if fail_b is not None:
+        return fail_b
     tol = float(args.tol)
     cs_tol = float(args.codeswitch_tol)
-    hits = []
-    worst_ms = 0.0
-    matched = 0
-    for index, cue in enumerate(cues, 1):
-        # Match: nearest onset at or after cue.start - tol_window, preferring
-        # first content token when available.
-        tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
-        first = tokens[0] if tokens else ""
-        window = max(tol, cs_tol) + 0.05
-        candidates = [
-            o for o in onsets
-            if abs(o["start"] - cue["start"]) <= window + 1e-9
-        ]
-        if first:
-            named = [o for o in candidates if o["word"].casefold() == first.casefold()
-                     or o["word"].casefold().rstrip(".,:;!?") == first.casefold().rstrip(".,:;!?")]
-            if named:
-                candidates = named
-        if not candidates:
-            hits.append(f"cue {index}: no independent onset near {cue['start']:.3f}s")
-            continue
-        best = min(candidates, key=lambda o: abs(o["start"] - cue["start"]))
-        drift = abs(best["start"] - cue["start"])
-        allow = cs_tol if _is_codeswitch_en(best["word"]) else tol
-        worst_ms = max(worst_ms, drift * 1000.0)
-        matched += 1
-        if drift > allow + 1e-9:
-            hits.append(
-                f"cue {index}: drift {drift * 1000:.1f}ms > {allow * 1000:g}ms "
-                f"(cue={cue['start']:.3f} onset={best['start']:.3f} word={best['word']!r})"
-            )
+    min_overlap = float(getattr(args, "min_overlap", 0.5))
+    hits, matched, worst_ms = _capsync_match_hits(
+        cues, onsets, onsets_b,
+        tol=tol, cs_tol=cs_tol, require_consensus=require_consensus,
+        min_overlap=min_overlap,
+    )
+    if require_consensus:
+        spans, rms_fail = _capsync_load_rms_spans(qc, args)
+        if rms_fail is not None:
+            return rms_fail
+        if spans is None:
+            hits.append("missing-rms-media")
+        else:
+            hits.extend(_capsync_rms_hits(cues, spans))
+    if matched == 0:
+        hits.append("zero-measured-cues")
+        return qc.report(
+            "capsync", qc.FAIL,
+            cues=len(cues), onsets=len(onsets), matched=0,
+            max_drift_ms=0.0,
+            tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
+            hits=hits,
+            error="0 measured cues = FAIL; never report drift 0.0 as success",
+        )
     return qc.report(
         "capsync", qc.FAIL if hits else qc.PASS,
         cues=len(cues), onsets=len(onsets), matched=matched,
         max_drift_ms=round(worst_ms, 1),
         tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
+        consensus=require_consensus,
+        min_overlap=min_overlap,
         hits=hits,
     )
+
 
 
 def register(add, qc) -> None:
@@ -4096,10 +4341,24 @@ def register(add, qc) -> None:
     p.add_argument("--min", type=float, default=0.8, help="minimum cue duration seconds (default 0.8)")
 
     p = add("capsync", bind(cmd_capsync),
-            "L44: cue starts vs independent ASR/FA onsets (never snapper echo)")
+            "L44/L49: cue starts vs independent ASR/FA onsets (never snapper echo)")
     p.add_argument("file", help="caption SRT")
     p.add_argument("--onsets", required=True,
                    help="independent ASR or forced-alignment JSON with word start times")
+    p.add_argument("--onsets-b", dest="onsets_b", default=None,
+                   help="second independent ASR/FA JSON (required for L49; skip with --single-model)")
+    p.add_argument("--consensus", action="store_true", default=True,
+                   help="L49 default: require --onsets-b consensus (always on unless --single-model)")
+    p.add_argument("--single-model", action="store_true", dest="single_model",
+                   help="L44 single-ASR path; skips --onsets-b consensus and RMS speech check")
+    p.add_argument("--media", default=None,
+                   help="rendered media for L49 RMS speech check (or pass --rms-spans)")
+    p.add_argument("--rms-spans", dest="rms_spans", default=None,
+                   help="JSON [[start,end],...] speech spans (test/alt to --media)")
+    p.add_argument("--rms-thr", dest="rms_thr", type=float, default=-40.0,
+                   help="RMS dBFS threshold when using --media (default -40)")
+    p.add_argument("--min-overlap", dest="min_overlap", type=float, default=0.5,
+                   help="min cue-token coverage in onset window (default 0.5)")
     p.add_argument("--snapper-words", dest="snapper_words", default=None,
                    help="snapper word-source JSON; fails when identical to --onsets path")
     p.add_argument("--tol", type=float, default=0.15,

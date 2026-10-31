@@ -18,6 +18,9 @@ Beat A becomes beat B. Load after the matching D-card; this card raises the ceil
 
 ## Do
 
+- For music-led Shorts, use the beat-sync vocabulary in [D13](../cutting-pacing.md)
+  (hit, anticipation, backbeat hold, match, J/L, ramp).
+
 - Match on shape, direction, or colour.
 - Use shared-element (container transform) morphs for UI continuity.
 - Motion-blur whip pans across the cut, matched on both sides.
