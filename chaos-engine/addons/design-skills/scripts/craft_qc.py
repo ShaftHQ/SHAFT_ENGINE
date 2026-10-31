@@ -3245,7 +3245,6 @@ def cmd_karaokehumanfrag(qc, args) -> int:
 def cmd_web_ui(qc, args) -> int:
     """L66: web UI gate — layout overflow + 390/1440 render artifacts."""
     import importlib.util
-    import json
 
     helper = (
         Path(__file__).resolve().parents[3] / "rules" / "web_ui_gate.py"
