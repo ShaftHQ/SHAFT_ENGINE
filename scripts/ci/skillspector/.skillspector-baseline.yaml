@@ -180,13 +180,13 @@ fingerprints:
   file: scripts/design_qc.py
   reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
     (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gate helper extract.'
-- hash: sha256:0afdf1792a94c4ff289dbf69ed5e64fe359c8ef8feadd1b90096782b9eebc1d1
+- hash: sha256:d2ba37ab2be9d7cbfae81c0cbea913f5b048c905e40a57d1664a900551117e7b
   rule_id: AE1
   file: SKILL.md
   reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
-    not evasion. Revisit when analyzer budgets rise.'
-- hash: sha256:a25d507cfdc078b209b1e961de746366722ebde183ee415f12f7b50f8cbb10a7
+    not evasion. Fingerprint refreshed after SKILL.md size-budget trim. Revisit when analyzer budgets rise.'
+- hash: sha256:298b1fed17c2a0f6754319716171ecb67379a24557bdaa293c43becc5075b950
   rule_id: AE1
   file: SKILL.md
   reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
-    not evasion. Revisit when analyzer budgets rise.'
+    not evasion. Fingerprint refreshed after SKILL.md size-budget trim. Revisit when analyzer budgets rise.'

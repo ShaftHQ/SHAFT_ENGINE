@@ -118,7 +118,7 @@ class NoticeAndInventoryLicenceTest(unittest.TestCase):
         self.assertIn("3c129f76", inv)
         self.assertIn("164d6c7", inv)
         # No vendored skill bodies from NC/AGPL
-        self.assertNotIn("anything2explainer/", inv.lower() if False else notice.lower())
+        self.assertNotIn("anything2explainer/", notice.lower())
 
 
 class WardrobeGateTest(unittest.TestCase):
