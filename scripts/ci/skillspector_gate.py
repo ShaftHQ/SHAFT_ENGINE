@@ -8,6 +8,10 @@ greater than 50 or any unsuppressed finding has severity HIGH or CRITICAL.
 Local overlay pre-push calls this when skill paths change. If the scanner is
 not installed locally, the hook warns and continues; CI must set
 ``CHAOS_SKILLSPECTOR_REQUIRED=1`` so a missing scanner fails the job.
+
+Baseline refresh: install the pin in PIN.json, triage findings, then
+``skillspector baseline <skill-dir> --no-llm`` and merge reasons into
+``.skillspector-baseline.yaml``. Never add broad AST4 globs.
 """
 
 from __future__ import annotations

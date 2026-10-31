@@ -59,10 +59,13 @@ jobs:
 
       - name: Changed skill paths (PR) or all (dispatch)
         id: paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git diff --name-only "origin/${{ github.base_ref }}...HEAD" > /tmp/ss-changed.txt || true
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only "origin/${BASE_REF}...HEAD" > /tmp/ss-changed.txt || true
           else
             : > /tmp/ss-changed.txt
           fi
@@ -76,9 +79,10 @@ jobs:
         env:
           CHAOS_SKILLSPECTOR_REQUIRED: '1'
           PATH: /home/runner/.local/bin:/usr/bin:/bin
+          SCAN_MODE: ${{ steps.paths.outputs.mode }}
         run: |
           set -euo pipefail
-          if [ "${{ steps.paths.outputs.mode }}" = "all" ]; then
+          if [ "$SCAN_MODE" = "all" ]; then
             python3 scripts/ci/skillspector_gate.py --root . --all --required
           else
             python3 scripts/ci/skillspector_gate.py --root . --paths-file /tmp/ss-changed.txt --required
