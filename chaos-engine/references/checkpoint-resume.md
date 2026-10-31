@@ -23,3 +23,12 @@ re-deriving the plan from chat.
 ## Follow-up
 
 [bot entry](bot-entry.md) Session cap; [task isolation](task-isolation.md).
+
+## Generated assets
+
+When a render, encode, or other generated media file lands, checkpoint or
+commit that **explicit path** in the same turn (L54).
+A box restart must not be the first thing that discovers the file is gone.
+Never rely on `git commit -a` / `git add -A` for this — stage the asset paths
+by name.
+

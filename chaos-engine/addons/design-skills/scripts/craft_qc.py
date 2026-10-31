@@ -3879,6 +3879,113 @@ def cmd_capsync(qc, args) -> int:
 
 
 
+def _adjudic_load_rows(qc, path: Path):
+    """Load adjudication.json cues list or return a FAIL report code."""
+    if not path.is_file():
+        return None, qc.report(
+            "adjudic", qc.FAIL, hits=["missing-adjudication"],
+            error=f"no file: {path}",
+        )
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, qc.report(
+            "adjudic", qc.FAIL, hits=["bad-adjudication"],
+            error=str(exc),
+        )
+    rows = raw.get("cues", raw) if isinstance(raw, dict) else raw
+    if not isinstance(rows, list) or not rows:
+        return None, qc.report(
+            "adjudic", qc.FAIL, hits=["empty-adjudication"],
+            error="adjudication.json needs a non-empty cues list",
+        )
+    return rows, None
+
+
+def _adjudic_snap_hits(row: dict, cue_id, snap_tol: float, center_max: float) -> list[str]:
+    """Return snap-to-clip-start hits for one disputed cue."""
+    hits: list[str] = []
+    local = row.get("local_onset")
+    clip_start = row.get("clip_start")
+    clip_end = row.get("clip_end")
+    discarded = bool(row.get("discard", False))
+    if local is None or clip_start is None or clip_end is None:
+        return hits
+    try:
+        local_f = float(local)
+        cs = float(clip_start)
+        ce = float(clip_end)
+    except (TypeError, ValueError):
+        return [f"cue {cue_id}: bad-local-or-clip-times"]
+    center = (cs + ce) / 2.0
+    off_center = abs(local_f - center)
+    near_start = abs(local_f - cs) <= snap_tol + 1e-9
+    if off_center > center_max + 1e-9 and near_start and not discarded:
+        hits.append(
+            f"cue {cue_id}: snap-to-clip-start "
+            f"|local-center|={off_center:.3f}s > {center_max:g}s "
+            f"near clip_start={cs:.3f} (must discard)"
+        )
+    return hits
+
+
+def _adjudic_cue_hits(row: dict, cue_id, snap_tol: float, center_max: float) -> list[str]:
+    """Validate one disputed cue; return hit strings."""
+    hits: list[str] = []
+    rationale = str(row.get("rationale") or "").strip()
+    if not rationale:
+        hits.append(f"cue {cue_id}: missing-rationale")
+    hits.extend(_adjudic_snap_hits(row, cue_id, snap_tol, center_max))
+    discarded = bool(row.get("discard", False))
+    if bool(row.get("false_lead", False)) and not bool(row.get("rejected", discarded)):
+        hits.append(f"cue {cue_id}: false-lead-not-rejected")
+    bridge = row.get("bridge_after_silence")
+    if isinstance(bridge, dict) and bridge.get("used"):
+        method = str(bridge.get("method") or "").strip()
+        if method != "post_silence_rms_rise":
+            hits.append(
+                f"cue {cue_id}: bad-silence-bridge "
+                f"(need post_silence_rms_rise, got {method!r})"
+            )
+    return hits
+
+
+def cmd_adjudic(qc, args) -> int:
+    """L39c: per-cue sync adjudication.json is the gate source of truth.
+
+    Rules (fail-closed on disputed cues):
+    - Local MMS_FA on a +-1.5s clip that snaps near clip start with
+      |local - clip_center| > 1.0s must be discarded (``discard: true``).
+    - False-lead hits (``false_lead`` / prev-plate word) must be rejected.
+    - Bridge after silence must cite ``post_silence_rms_rise``, not early ASR
+      in the gap.
+    - Every disputed cue needs a non-empty ``rationale``.
+    """
+    rows, early = _adjudic_load_rows(qc, Path(args.file))
+    if early is not None:
+        return early
+    snap_tol = float(getattr(args, "snap_tol", 0.15))
+    center_max = float(getattr(args, "center_max", 1.0))
+    hits: list[str] = []
+    disputed_n = 0
+    for index, row in enumerate(rows, 1):
+        if not isinstance(row, dict):
+            hits.append(f"cue {index}: not an object")
+            continue
+        if not bool(row.get("disputed", False)):
+            continue
+        disputed_n += 1
+        cue_id = row.get("index", index)
+        hits.extend(_adjudic_cue_hits(row, cue_id, snap_tol, center_max))
+    if disputed_n == 0 and getattr(args, "require_disputed", False):
+        hits.append("zero-disputed-cues")
+    return qc.report(
+        "adjudic", qc.FAIL if hits else qc.PASS,
+        cues=len(rows), disputed=disputed_n, hits=hits,
+    )
+
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -4390,3 +4497,13 @@ def register(add, qc) -> None:
     p.add_argument("path")
     p.add_argument("--allow", action="append", default=[],
                    help="rule names to skip (heavy-vfx-meta, todo, …)")
+
+    p = add("adjudic", bind(cmd_adjudic),
+            "L39c: per-cue sync adjudication.json SoT (discard snap FA, false-lead, silence bridge)")
+    p.add_argument("file", help="adjudication.json")
+    p.add_argument("--snap-tol", dest="snap_tol", type=float, default=0.15,
+                   help="|local-onset - clip_start| window that counts as snap (default 0.15s)")
+    p.add_argument("--center-max", dest="center_max", type=float, default=1.0,
+                   help="max |local-onset - clip_center| before discard required (default 1.0s)")
+    p.add_argument("--require-disputed", dest="require_disputed", action="store_true",
+                   help="fail when no disputed cues are present")

@@ -124,6 +124,14 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
      **not** a husk. Recovery: remote repos → re-clone or fetch; local-only →
      `git init` if needed plus one baseline commit of explicit paths (never
      `git add -A`). ChaosEngine install does not create `.git` in non-git dirs.
+  5. **Scripts and commits:** shell scripts that mutate state use `set -e` (or
+     `set -euo pipefail`). Stage **explicit paths** only — never
+     `git commit -a` / `git add -A`. If a pre-commit / overlay pre-push diff is
+     far larger than the planned change, stop and unstage; do not force the
+     oversized commit through.
+  6. **Freshly generated assets** (renders, encodes, contact sheets): checkpoint
+     or commit them in the same turn they appear (L54).
+
 
 ## Delivery ledger
 

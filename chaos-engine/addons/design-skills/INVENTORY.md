@@ -7,8 +7,8 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-31.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 16 web-craft cards (W01-W16, references/web-craft), 4 video-craft cards (V07-V10, references/video-craft), 1 stills card (I01, references/stills), 1 data-viz card (G01, references/dataviz), 1 recon-craft card (R01, references/recon-craft), 51 lesson
-cards (L01-L51 incl. L35 video caption handoff + L36-L37 CMS paste + L38 caption phonetic/mute + L39 video sign-off viewer frames + L40-L43 memory-abstraction + L44 min-cue/independent sync + L45 delete-check refusal final + L46 render freshness sha256 + L47 avatar frozen-tail + L48 wardrobe gate + L49 multi-model sync consensus + L50 render-meta rev/sha + L51 extend-feasibility; sources listed per card), the
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 16 web-craft cards (W01-W16, references/web-craft), 4 video-craft cards (V07-V10, references/video-craft), 1 stills card (I01, references/stills), 1 data-viz card (G01, references/dataviz), 1 recon-craft card (R01, references/recon-craft), 55 lesson
+cards (L01-L55 incl. L35 video caption handoff + L36-L37 CMS paste + L38 caption phonetic/mute + L39 video sign-off viewer frames + L40-L43 memory-abstraction + L44 min-cue/independent sync + L45 delete-check refusal final + L46 render freshness sha256 + L47 avatar frozen-tail + L48 wardrobe gate + L49 multi-model sync consensus + L50 render-meta rev/sha + L51 extend-feasibility + L52 per-cue sync adjudication + L53 freeze METHOD before review + L54 checkpoint generated assets + L55 signed script header; sources listed per card), the
 innovation bank, 3 site-builder cards and 1 slides card plus S03 native RTL and S04 pptxgenjs (references/slides). D23 draws on no
 upstream repository; its sources are platform and W3C documentation
 listed in the card.

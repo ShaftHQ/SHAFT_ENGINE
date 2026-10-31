@@ -22,9 +22,12 @@ spec.
   pipelines) is owned by the design-capable implementer (Designer in multi-bot
   teams). The orchestrator plans, delegates, and accepts or rejects; it does
   not generate those artifacts itself or via its own executors.
-- Loop until the reviewer reports **0 open issues**. Nits count. There is no
-  iteration cap, but a writer `wontfix` that the reviewer reopens is a
-  stalemate: escalate to the owner once.
+- Loop until the reviewer reports **0 open issues**. Nits count. For **media
+  / video / caption** loops: freeze a committed `METHOD.md` plus measurement
+  script **before** round 1 (L53);
+  cap **2 fix rounds**, then the orchestrator adjudicates (do not open a
+  third silent fix). Other design docs keep the open-ended loop, but a writer
+  `wontfix` that the reviewer reopens is a stalemate: escalate to the owner once.
 - Every design document includes **Key Decisions** (with rationale) and a
   **PR Plan** of independently reviewable pull requests.
 - Owner answers to open questions and stalemates are final.

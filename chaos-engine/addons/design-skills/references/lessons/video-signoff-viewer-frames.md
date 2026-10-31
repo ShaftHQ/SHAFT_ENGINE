@@ -64,6 +64,8 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
 - [ ] Reject any on-screen text not intended for viewers
 - [ ] No overlapping ASS Dialogue times / burn+soft both on; legible at phone size
 - [ ] Safe-area check; after upload: watch page with captions OFF
+- [ ] When wardrobe/sync/meta apply: wardrobe / capsync (L49 or L44 --single-model) / rendermeta
+- [ ] Disputed sync cues: design_qc.py adjudic adjudication.json (L52)
 Receipts: attach the JSON stdout of each design_qc command.
 Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.
 ```

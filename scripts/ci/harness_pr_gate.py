@@ -555,6 +555,8 @@ CHECKS = {
             "tests.scripts.test_ce_bugfix_2026_10_31_2",
             "tests.scripts.test_ce_bugfix_2026_10_31_3",
             "tests.scripts.test_ce_bugfix_2026_10_31_4",
+            "tests.scripts.test_ce_design_l39c_adjudic",
+            "tests.scripts.test_ce_retro_2026_10_31_5",
             "tests.scripts.test_ce_design_video_signoff_l39",
             "tests.scripts.test_ce_design_batch3",
             "tests.scripts.test_ce_design_decks",

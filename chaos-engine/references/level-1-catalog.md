@@ -29,6 +29,11 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Harness learn | Tune git-tracked harness from traces; never user-home skill copies | [`harness-learn.md`](harness-learn.md) |
 | ICM Architect | Design/restructure ICM workspaces (advisory companion) | [`icm-architect.md`](icm-architect.md) |
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
+| Fix bug class | Reporter names one path; repair owned-path class + version-hop matrix | [`fix-bug-class.md`](fix-bug-class.md) |
+| Explicit staging | `set -e`; stage named paths only; never `git commit -a` | [`explicit-staging.md`](explicit-staging.md) |
+| Profile slow installs | Install/upgrade times creep across dirs; profile_installs.py | [`profile-slow-installs.md`](profile-slow-installs.md) |
+| Gemini quota wait | Gemini 429/UI grey-out; one-shot wait then resume | [`gemini-quota-wait.md`](gemini-quota-wait.md) |
+| Appium driver npm recover | Appium npm null-package; uninstall then install --source=npm | [`appium-driver-npm-recover.md`](appium-driver-npm-recover.md) |
 | Technical presentations | Plan, build, refactor, or review a technical talk or training deck; never remove slide content | [`../skills/technical-presentations/SKILL.md`](../skills/technical-presentations/SKILL.md) |
 | Pre-done self-review | Before Done, sign-off, or handoff: rules reconciled, gaps cite rule + alternative, views match the table | [`../skills/pre-done-self-review/SKILL.md`](../skills/pre-done-self-review/SKILL.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
