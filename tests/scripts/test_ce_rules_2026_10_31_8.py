@@ -67,7 +67,7 @@ class L78ReviewScratchTest(unittest.TestCase):
         self.assertIn("scratch-kind-not-archive-or-detached-pushed", result["hits"])
 
     def test_archive_under_tmp_passes(self) -> None:
-        with tempfile.TemporaryDirectory(dir="/tmp", prefix="ce-review-ok-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="ce-review-ok-") as tmp:
             obs = {
                 "kind": "archive",
                 "pushed": True,

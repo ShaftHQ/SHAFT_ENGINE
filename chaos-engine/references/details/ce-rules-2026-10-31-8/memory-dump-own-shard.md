@@ -10,7 +10,7 @@ recovered via `ReadTranscript` (required step). The receipt lists `uncaptured_id
 CLI (no hand-merge):
 
 ```
-python3 chaos-engine/rules/memory_full_dump.py \
+python3 .chaos-engine/rules/memory_full_dump.py \
   --batches batches.jsonl --expected N --out dump.md --receipt r.json [--bot ID]
 ```
 
@@ -25,4 +25,4 @@ python3 chaos-engine/rules/memory_full_dump.py \
 - [ ] truncated facts → transcript fallback → recovered or listed in `uncaptured_ids`
 - [ ] `count_ok=true` only when exported == shard_total and uncaptured empty
 
-Module: [`memory_full_dump.py`](../../../rules/memory_full_dump.py).
+Own-shard CLI + merge live in [`memory_full_dump.py`](../../../rules/memory_full_dump.py) (extends the .7 dump).
