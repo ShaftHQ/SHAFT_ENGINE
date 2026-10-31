@@ -17,7 +17,7 @@ already exist in the live inventory / Studio library. Complements
 ## Rules
 
 1. **Inventory first.** Run `design_qc.py scheduledup --inventory <live.json>
-   --title <title> [--start S --end E]` before render or schedule.
+   --title TITLE [--start START --end END]` before render or schedule.
 2. **Title + window.** Normalized title match with the same source window (or
    missing window on the candidate) is a dup.
 3. **Fail closed.** Matches without `--allow-replace` (+ `--yt-id`) → FAIL.

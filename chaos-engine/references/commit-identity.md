@@ -25,7 +25,7 @@ from commit_identity import (
     assert_chaosengine_author_allowed,
 )
 assert len(allowed_remotes()) == 2
-# Pre-commit / `python commit_identity.py --pre-commit` exits 1 on failures:
+# Pre-commit / `commit_identity.py --pre-commit` exits 1 on failures:
 assert pre_commit_identity_failures(
     name="ChaosEngine",
     email="chaosengine@mail.grokbot.com",

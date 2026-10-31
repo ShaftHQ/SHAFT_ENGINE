@@ -29,7 +29,7 @@ defeat review. Scope is a contract with the reviewer.
 
 ```bash
 git diff --name-only {upstream-default}...HEAD > changed.txt
-python scripts/ci/pr_scope_check.py --body pr-body.md --changed changed.txt
+python3 scripts/ci/pr_scope_check.py --body pr-body.md --changed changed.txt  # repo-only
 ```
 
 Missing scope declaration → FAIL. Empty diff → PASS when scope is declared.

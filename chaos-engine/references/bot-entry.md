@@ -48,7 +48,7 @@ Upgrade: [ce-upgrade-on-release](ce-upgrade-on-release.md) (see [VERSION](../VER
 ChaosEngine (`chaos-engine/VERSION`), load it for every task; workers inherit
 via `ce_load` + entry. Cleanup: [cleanup-at-close](cleanup-at-close.md).
 Work order: [work-ordering](work-ordering.md) (open PRs first).
-Commit identity: [commit-identity](commit-identity.md) ([`commit_identity.py`](../commit_identity.py); ChaosEngine author only on the engine repo + user-guide pages repo). PR scope: [pr-scope-check](pr-scope-check.md) (`scripts/ci/pr_scope_check.py`).
+Commit identity: [commit-identity](commit-identity.md) ([`commit_identity.py`](../commit_identity.py)). PR scope: [pr-scope-check](pr-scope-check.md).
 
 Work the queue to the end without waiting for "proceed": after each step or
 delivery, start the next queued item (KEEP-ALIVE). A turn that ends while CI
@@ -71,26 +71,12 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   Never poll a child to keep it alive. Interrupt → new worker from [checkpoint-resume](checkpoint-resume.md).
 
 
-## Radio silence, progress, infra, VERSION
+## Retro gates
 
-1. **Radio silence:** when `CHAOS_RADIO_SILENCE` is armed (or
-   `.chaos-engine-state/radio-silence` exists), do not SendToUser for routine
-   status — orchestrator only ([radio-silence](radio-silence.md); [`radio_silence.py`](../radio_silence.py)).
-2. **Progress log:** after every step append to the task progress log
-   ([progress-log](progress-log.md); [`progress_log.py`](../progress_log.py)) and
-   `tool.py checkpoint`.
-3. **Infra preflight:** if `box_disk_guard.blocked_infra_reasons` is non-empty
-   (disk, swap-missing, apt-mirror-unreachable), set **BLOCKED-INFRA** and do
-   not start heavy workers.
-4. **VERSION bump:** consumer-facing `chaos-engine/` changes require
-   `chaos-engine/VERSION` bump (overlay pre-push) unless explicitly waived.
-5. **Moving-channel pins:** [moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py)) —
-   minimum-within-major for floating vendor channels.
-6. **Ownership + cleanup:** record created paths
-   (`scripts/ci/worker_ownership.py`); cleanup-at-close deletes only manifest
-   entries ([cleanup-at-close](cleanup-at-close.md)).
-7. **Doc-claim review:** [doc-claim-review](doc-claim-review.md) on every gate PR.
-8. **Fail-closed gates:** [gate-fail-closed](gate-fail-closed.md).
+[radio-silence](radio-silence.md) ([`radio_silence.py`](../radio_silence.py));
+[progress-log](progress-log.md) ([`progress_log.py`](../progress_log.py));
+[moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py));
+[doc-claim-review](doc-claim-review.md); [gate-fail-closed](gate-fail-closed.md).
 
 ## Token economy
 
