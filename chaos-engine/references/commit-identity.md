@@ -2,22 +2,20 @@
 
 ## Rule
 
-ChaosEngine `<chaosengine@mail.grokbot.com>` may author commits **only** in these
-two remotes (exactly the set returned by `allowed_remotes()`):
-
-- `ShaftHQ/SHAFT_ENGINE`
-- `ShaftHQ/shafthq.github.io`
-
-Every other remote must use the human **owner** git identity (`user.name` /
-`user.email`). Pre-commit and PreToolUse **block** the commit when ChaosEngine
-authorship would land outside that map (the consumer repo miss class that
-produced six ChaosEngine-authored commits).
+ChaosEngine `<chaosengine@mail.grokbot.com>` may author commits **only** in the
+two remotes returned by `allowed_remotes()` — the public **engine** repo and its
+**user-guide pages** repo (exactly those two `Owner/Name` strings; print them
+with `python3 -c "from commit_identity import allowed_remotes; print(allowed_remotes())"`
+or read the origin-only SPEC). Every other remote must use the human **owner**
+git identity (`user.name` / `user.email`). Pre-commit and PreToolUse **block**
+the commit when ChaosEngine authorship would land outside that map (the
+consumer repo miss class that produced six ChaosEngine-authored commits).
 
 ## Why
 
 Consumer / personal / client repos that inherit a ChaosEngine `user.email`
 pollute history and break attribution. The allow-list is the public engine +
-its user-guide pages only (`ShaftHQ/SHAFT_ENGINE`, `ShaftHQ/shafthq.github.io`).
+its user-guide pages only (`allowed_remotes()`).
 
 ## Check
 
@@ -29,8 +27,6 @@ from commit_identity import (
     assert_chaosengine_author_allowed,
 )
 assert len(allowed_remotes()) == 2
-assert "ShaftHQ/SHAFT_ENGINE" in allowed_remotes()
-assert "ShaftHQ/shafthq.github.io" in allowed_remotes()
 # Pre-commit / `commit_identity.py --pre-commit` exits 1 on failures:
 assert pre_commit_identity_failures(
     name="ChaosEngine",
@@ -72,3 +68,4 @@ and `tool.py entry` surface it before more mis-attributed commits land.
 
 - `bot-entry.md` / `user-guide.md` (identity + push path)
 - `git_hooks.py` (pre-commit wiring)
+- Origin-only names of both remotes: [guides/ce-retro-2026-10-31-6-SPEC.md](../guides/ce-retro-2026-10-31-6-SPEC.md) (H-IDENTITY)

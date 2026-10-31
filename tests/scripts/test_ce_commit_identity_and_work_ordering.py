@@ -56,9 +56,11 @@ class CommitIdentityTest(unittest.TestCase):
         self.assertIn("allowed_remotes", raw)
         self.assertIn("assert_chaosengine_author_allowed", raw)
         self.assertIn("user-guide", raw)
-        self.assertIn("ShaftHQ/SHAFT_ENGINE", raw)
-        self.assertIn("ShaftHQ/shafthq.github.io", raw)
         self.assertIn("CE_OWNER_IDENTITY", raw)
+        self.assertNotIn("ShaftHQ", raw)
+        remotes = load_commit_identity().allowed_remotes()
+        self.assertIn("ShaftHQ/SHAFT_ENGINE", remotes)
+        self.assertIn("ShaftHQ/shafthq.github.io", remotes)
 
 
 class WorkOrderingCardTest(unittest.TestCase):

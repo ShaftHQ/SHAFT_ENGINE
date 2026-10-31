@@ -165,7 +165,7 @@ Personal names and client data stay out of repo text ("the subject" / "the prese
 ### L65 — Motion-graphics gate
 - **Sources:** Carl MG r1 (Coach found 5 misses after indep PASS)
 - **Problem:** OCR/bidi garble, static kinetic text, late captions, unverified transcript, pop-in diagrams shipped.
-- **Rule:** OCR frames vs transcript with U+2066/U+2069 Latin isolates; kinetic static >3s or >6 words FAIL; caption onset ≤150ms; transcript manually verified; diagrams draw-on; caption lines ≤32 chars / 1–2 phrase-split lines; share every sample with owner before acceptance; reviewer briefs list checks.
+- **Rule:** OCR frames vs transcript with U+2066/U+2069 Latin isolates; kinetic static >3s or >6 words FAIL; caption onset ≤150ms; transcript manually verified; diagrams draw-on; caption lines ≤32 chars / 1–2 phrase-split lines; share only reviewed + owner-approved deliverables (Coach acceptance when applicable); minimal reporting = results/decisions/blockers only (no WIP samples or progress chatter); reviewer briefs list checks.
 - **Enforcement:** `motion_graphics_gate.py` + `craft_qc.py mggate`; lesson + checklist; tests.
 - **Acceptance:** Each miss class has a FAIL test; missing observations → FAIL.
 

@@ -8,8 +8,8 @@ Checks (Carl field miss after r1 MG sample passed indep review):
 (d) Transcript manually verified against audio (flag required).
 (e) Diagrams animate draw-on, not pop/fade.
 Plus: caption lines <=32 chars, 1-2 lines split at phrase boundaries;
-sample shared with owner immediately when it exists (before acceptance).
-Missing observations / required keys → FAIL.
+share only reviewed + owner-approved deliverables (Coach when applicable);
+no WIP sample shares. Missing observations / required keys → FAIL.
 """
 from __future__ import annotations
 
@@ -58,12 +58,18 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
     if obs.get("transcript_manually_verified") is not True:
         hits.append("transcript-not-manually-verified")
 
-    # Sample share-with-owner before acceptance (when samples exist)
-    samples = obs.get("samples") or obs.get("sample_paths") or []
-    if samples and obs.get("sample_shared_with_owner") is not True:
-        hits.append("sample-not-shared-with-owner")
-    if obs.get("samples_exist") is True and obs.get("sample_shared_with_owner") is not True:
-        hits.append("sample-not-shared-with-owner")
+    # Share only reviewed + owner-approved deliverables (never WIP samples).
+    shared = obs.get("shared_with_owner") is True or obs.get("deliverable_shared") is True
+    wip_shared = obs.get("wip_sample_shared") is True
+    if wip_shared:
+        hits.append("wip-sample-shared")
+    if shared:
+        if obs.get("reviewed") is not True:
+            hits.append("shared-without-review")
+        if obs.get("owner_approved") is not True:
+            hits.append("shared-without-owner-approval")
+        if obs.get("coach_acceptance_applicable") is True and obs.get("coach_accepted") is not True:
+            hits.append("shared-without-coach-acceptance")
 
     # Reviewer brief must list MG checks
     if obs.get("reviewer_brief_lists_mg_checks") is not True:

@@ -3269,7 +3269,7 @@ def cmd_mggate(qc, args) -> int:
         qc.PASS if result.get("ok") else qc.FAIL,
         hits=result.get("hits") or [],
         error=result.get("error"),
-        note="L65 MG: OCR/bidi, static caps, onset<=150ms, caption<=32/1-2 lines, draw-on, share-sample",
+        note="L65 MG: OCR/bidi, static caps, onset<=150ms, caption<=32/1-2 lines, draw-on, approved-share-only",
     )
 
 

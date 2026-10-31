@@ -2,7 +2,7 @@
 name: motion-graphics-gate
 description: >-
   Use when signing kinetic / motion-graphics video; OCR frames, static text,
-  caption onset/lines, draw-on diagrams, share samples with owner first.
+  caption onset/lines, draw-on diagrams; share only approved deliverables.
 ---
 
 # L65 Motion-graphics gate
@@ -20,8 +20,12 @@ description: >-
 5. **Diagrams draw-on:** diagram animation must be `draw-on` (not pop/fade).
 6. **Caption lines:** each line ≤ **32 chars**; **1–2 lines** only; two-line cues
    must split at phrase boundaries (`phrase_split: true`).
-7. **Share samples immediately:** when a sample (video/image/audio) exists, share
-   it with the owner **before** acceptance gates (`sample_shared_with_owner: true`).
+7. **Share only approved deliverables:** share with the owner only after
+   independent review **and** owner approval (Coach acceptance when applicable).
+   Never share WIP samples. Minimal reporting = results, decisions, blockers —
+   no progress chatter. Observations: `shared_with_owner` / `deliverable_shared`
+   requires `reviewed` + `owner_approved` (+ `coach_accepted` when
+   `coach_acceptance_applicable`); `wip_sample_shared: true` → FAIL.
 8. **Reviewer briefs** must list these MG checks explicitly
    (`reviewer_brief_lists_mg_checks: true`).
 9. Gate: `craft_qc.py mggate <observations.json>` ([helper](../../scripts/motion_graphics_gate.py)).
@@ -35,7 +39,9 @@ description: >-
 - [ ] Caption line 33 chars → FAIL; 2 lines with `phrase_split: false` → FAIL.
 - [ ] `transcript_manually_verified` absent/false → FAIL.
 - [ ] Diagram `animation=pop` → FAIL; `draw-on` → PASS path.
-- [ ] Samples present without `sample_shared_with_owner: true` → FAIL.
+- [ ] `wip_sample_shared: true` → FAIL.
+- [ ] `shared_with_owner: true` without `reviewed` + `owner_approved` → FAIL.
+- [ ] Coach-applicable share without `coach_accepted` → FAIL.
 - [ ] Missing observations file → FAIL (`missing-input`).
 
 ## Why
@@ -43,8 +49,9 @@ description: >-
 An MG sample passed independent review while Coach found five misses (bidi
 garble, static kinetic text, late captions, unverified transcript, pop-in
 diagrams). Enforced observations + reviewer-brief checklist close that gap.
-Caption ≤32 / 1–2 phrase lines keep kinetic type readable. Sharing every sample
-with the owner before gates prevents silent acceptance of bad renders.
+Caption ≤32 / 1–2 phrase lines keep kinetic type readable. Sharing only
+reviewed, owner-approved deliverables (Coach when applicable) — with minimal
+result/decision/blocker reporting — stops WIP noise and premature acceptance.
 
 ## Source
 

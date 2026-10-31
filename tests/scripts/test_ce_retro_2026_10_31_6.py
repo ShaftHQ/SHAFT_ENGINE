@@ -521,7 +521,8 @@ class HScopeCardTest(unittest.TestCase):
         self.assertNotIn("# PR scope check (H-SCOPE)", pr)
         checklist = (ROOT / "chaos-engine/references/design-review-video-checklist.md").read_text(encoding="utf-8")
         self.assertIn("H-PR-SCOPE", checklist)
-        self.assertIn("Share samples immediately", checklist)
+        self.assertIn("Share only approved deliverables", checklist)
+        self.assertNotIn("Share samples immediately", checklist)
         # L41 remains under spoken-lock wording
         self.assertIn("spoken-lock keeps **scope words** (design L41)", checklist)
 
@@ -551,8 +552,8 @@ class MotionGraphicsL65Test(unittest.TestCase):
             "kind": "kinetic",
             "transcript_manually_verified": True,
             "reviewer_brief_lists_mg_checks": True,
-            "sample_shared_with_owner": True,
-            "samples_exist": True,
+            "shared_with_owner": False,
+            "wip_sample_shared": False,
             "ocr_frames": [
                 {"text": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}", "expected": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}"},
             ],
@@ -607,10 +608,28 @@ class MotionGraphicsL65Test(unittest.TestCase):
         bad = dict(good)
         bad["diagrams"] = [{"animation": "pop"}]
         self.assertTrue(any("pop" in h for h in mg.evaluate(bad)["hits"]))
-        # sample not shared
+        # WIP sample shared → FAIL
         bad = dict(good)
-        bad["sample_shared_with_owner"] = False
-        self.assertTrue(any("sample-not-shared" in h for h in mg.evaluate(bad)["hits"]))
+        bad["wip_sample_shared"] = True
+        self.assertTrue(any("wip-sample-shared" in h for h in mg.evaluate(bad)["hits"]))
+        # shared without review/approval → FAIL
+        bad = dict(good)
+        bad["shared_with_owner"] = True
+        hits = mg.evaluate(bad)["hits"]
+        self.assertTrue(any("shared-without-review" in h for h in hits), hits)
+        self.assertTrue(any("shared-without-owner-approval" in h for h in hits), hits)
+        # approved share path
+        bad = dict(good)
+        bad.update({
+            "shared_with_owner": True,
+            "reviewed": True,
+            "owner_approved": True,
+            "coach_acceptance_applicable": True,
+            "coach_accepted": True,
+        })
+        self.assertTrue(mg.evaluate(bad)["ok"], mg.evaluate(bad))
+        bad["coach_accepted"] = False
+        self.assertTrue(any("shared-without-coach" in h for h in mg.evaluate(bad)["hits"]))
         # missing input
         self.assertIn("missing-input", mg.evaluate(None)["hits"])
         # CLI
@@ -631,10 +650,19 @@ class IdentityOwnerBindingTest(unittest.TestCase):
         import commit_identity as ci
 
         card = (ROOT / "chaos-engine/references/commit-identity.md").read_text(encoding="utf-8")
-        self.assertIn("ShaftHQ/SHAFT_ENGINE", card)
-        self.assertIn("ShaftHQ/shafthq.github.io", card)
+        self.assertIn("allowed_remotes", card)
+        self.assertIn("user-guide", card)
         self.assertIn("CE_OWNER_IDENTITY", card)
         self.assertIn("owner-identity", card)
+        # Portable card must not embed org remote tokens; origin-only SPEC names them.
+        self.assertNotIn("ShaftHQ", card)
+        remotes = ci.allowed_remotes()
+        self.assertEqual(2, len(remotes))
+        self.assertIn("ShaftHQ/SHAFT_ENGINE", remotes)
+        self.assertIn("ShaftHQ/shafthq.github.io", remotes)
+        guides = (ROOT / "chaos-engine/guides/ce-retro-2026-10-31-6-SPEC.md").read_text(encoding="utf-8")
+        self.assertIn("ShaftHQ/SHAFT_ENGINE", guides)
+        self.assertIn("ShaftHQ/shafthq.github.io", guides)
         # Portable: owner binding is env/file only — no personal mailbox domains in card
         self.assertNotIn("outlook.com", card.casefold())
         self.assertNotIn("gmail.com", card.casefold())
