@@ -541,8 +541,8 @@ class L45LessonTest(unittest.TestCase):
     def test_card_and_inventory(self) -> None:
         inv = (ROOT / "chaos-engine/addons/design-skills/INVENTORY.md").read_text(encoding="utf-8")
         collapsed = " ".join(inv.split())
-        self.assertIn("L01-L51", collapsed)
-        self.assertIn("51 lesson", collapsed)
+        self.assertIn("L01-L55", collapsed)
+        self.assertIn("55 lesson", collapsed)
         idx = (ROOT / "chaos-engine/addons/design-skills/references/lessons/index.md").read_text(
             encoding="utf-8"
         )
