@@ -5,6 +5,11 @@ description: >-
   up: targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue,
   release and privileged workflows.
 license: MIT
+permissions:
+  - bash
+  - read
+  - write
+  - network
 ---
 
 # CI/CD tiers and PR merge time

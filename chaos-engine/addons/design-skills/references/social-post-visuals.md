@@ -49,7 +49,7 @@ Sizes and the render rule come from [D07](image-graphics.md).
 
 - Real code, real product names, official logos under their usage rules;
   never an invented output line or metric (router iron rule 4).
-- People data: [technical-presentations hard rule 5](../../../skills/technical-presentations/SKILL.md#hard-rules)
+- People data: technical-presentations hard rule 5 (people data / client names out of examples)
   applies to post visuals; client names stay out of examples too.
 - The CTA names the real channel ("message our page to register"), not a
   link that does not exist. When the channel changes, update the CTA in

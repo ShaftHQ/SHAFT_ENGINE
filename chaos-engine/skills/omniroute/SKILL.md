@@ -4,6 +4,12 @@ description: >-
   Use when local-runtimes selected the OmniRoute process for bounded work:
   runner, delegate continuity, capability enforcement and proof of dispatch.
 license: MIT
+permissions:
+  - bash
+  - read
+  - write
+  - env
+  - network
 ---
 
 # OmniRoute

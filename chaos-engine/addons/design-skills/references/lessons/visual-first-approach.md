@@ -30,7 +30,7 @@ QC is about to declare a pass ready for owner review.
    Do not guess the sign or a single delay from one trial.
 4. **Checkpoint long media jobs.** Keep a durable `PROGRESS.md` (or the
    host checkpoint ledger) with a `Resume at:` line so box reboots do not
-   erase state. Pair with [bot-entry](../../../../references/bot-entry.md)
+   drop job progress. Pair with [bot-entry](../../../../references/bot-entry.md)
    session checkpoints.
 
 ## Verify

@@ -4,6 +4,11 @@ description: >-
   Loopback OpenAI-compatible peers (Ollama, LM Studio, llamacpp on 127.0.0.1). Use
   when a narrow task should go to an already READY loopback server.
 license: MIT
+permissions:
+  - bash
+  - read
+  - env
+  - network
 ---
 
 # Local OpenAI-compat runtimes

@@ -568,10 +568,21 @@ def client_name_scrub_failures(
     return list(client_name_scrub.client_name_scrub_failures(root, environ=environ))
 
 
+def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
+    """Run the static SkillSpector gate when first-party skill paths change."""
+    from scripts.ci.skillspector_gate import gate_failures, skill_dirs_from_paths
+
+    if not skill_dirs_from_paths(paths):
+        return []
+    return [f"skillspector: {item}" if not item.startswith("skillspector") else item
+            for item in gate_failures(root, paths=paths)]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
+    failures.extend(skillspector_gate_failures(root, changed))
     if paths is None:
         failures.extend(tracked_mobile_binary_failures(root))
         failures.extend(no_push_guard_failures(root))

@@ -1279,7 +1279,7 @@ def ps_row(command: str, pwsh: str | None) -> dict:
     errors = []
     if pwsh:
         result = subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", PS_PARSE],  # nosec B603
-                                capture_output=True, text=True, check=False, env={**os.environ, "CMD": command})
+                                capture_output=True, text=True, check=False, env={"CMD": command, "PATH": os.environ.get("PATH", ""), "SystemRoot": os.environ.get("SystemRoot", "")})
         errors = [line for line in result.stdout.splitlines() if line.strip()]
     return {"command": command.replace("\n", " / ")[:200], "parse_errors": errors,
             "backslash_continuation": bool(re.search(r"\\\s*$", command, re.MULTILINE))}

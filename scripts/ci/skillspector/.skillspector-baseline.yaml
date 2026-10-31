@@ -1,0 +1,192 @@
+version: 2
+scanner_version: 2.12.0
+rules: []
+fingerprints:
+- hash: sha256:ee0c0d434e74f80d1fa7c49a9f3b77c9b9455a302297ab49ba8d9be36246328f
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:001be12929721e7b99b158b797b297bb6e9aa5267e55e46a083e29d40aea0c6c
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:dbb65511437398335c606ea2364e946cb630d3aca918693589b6228a70f36826
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:bafd3bd2f4d8a93c0213208aa5c0f244c6876404a6c0ff9c82595811fbe5b7d8
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:e4c7768ed0176653d38f92765fee51cc41b319e1ec6826d2ab3a393cbea3e200
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:51f20af5e16a2a10fe628d00bbd07d464b26676844c882a32e620788eeb3fa61
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:8dbbffade1c2bd2d574bd2b79c391737584dcacb0bb579d94b972a82acb777a9
+  rule_id: AST4
+  file: scripts/tests/test_assert_parent_rog_shell.py
+  reason: 'Accepted agency: tip_preflight git + unit-test subprocess with fixed argv.'
+- hash: sha256:08f7ed022ae5413cc7a77a23630c4d0d331fe38d2ea3e627a6624a2c2aef02d2
+  rule_id: AST4
+  file: scripts/tip_preflight.py
+  reason: 'Accepted agency: tip_preflight git + unit-test subprocess with fixed argv.'
+- hash: sha256:d6916e59ae99b554665416bfa47c6ed796408448bd3cb8c4580ab52d6cbedf58
+  rule_id: AST4
+  file: scripts/tip_preflight.py
+  reason: 'Accepted agency: tip_preflight git + unit-test subprocess with fixed argv.'
+- hash: sha256:5da38a4eeead543c43544baf229d2a48f71c35ac7ce79b8b7f8a318bdee118ed
+  rule_id: AS3
+  file: scripts/dispatch.py
+  reason: 'Accepted agency: REQUIRED_CE_POINTERS fail-closed integrity check for CE
+    adapter files.'
+- hash: sha256:0c14916b3685f61a9f90123171e5c0536222d23a655e59eb586f0b1311e147b8
+  rule_id: P7
+  file: references/mechanical-dispatch.md
+  reason: 'FP accepted: mechanical-dispatch doctrine text, not system-prompt extraction.'
+- hash: sha256:875387d1bb208edefc3585f614434c9b9d66c57fa2fff9591610d4554274f288
+  rule_id: AST4
+  file: scripts/probe_hardware.py
+  reason: 'Accepted agency: hardware probe sysctl/nvidia-smi fixed argv.'
+- hash: sha256:7531a9098b1b69d9d2983ed2bafca590ebaebc661eedcba3a3e4215d97ffd1cd
+  rule_id: AST4
+  file: scripts/probe_hardware.py
+  reason: 'Accepted agency: hardware probe sysctl/nvidia-smi fixed argv.'
+- hash: sha256:e56185930cfff2bf5f8a94f423a852ab184976862ca2127bbb133050cef118b2
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: env permission declared for probe runtime; capability detector
+    did not map it (over-declare, low risk).'
+- hash: sha256:cc2d2a74b7afc2a6a12890718805d96fc6d990c65d7017c05bacfdf7ccbf88ac
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:21fee9182a06c1e560311158648d76fa8c42070d6bdc4f52b53067d080b2f0b0
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:498600757300198a49b26e44cdfb29e7aedbbd81ca99e986ee8472f203135318
+  rule_id: LP4
+  file: SKILL.md
+  reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
+    (LP4 over-declare).'
+- hash: sha256:4a9805b3d48d14ce43618310dca4fa0277d5f5db279d6cfbcc7de0d878a166a4
+  rule_id: AST4
+  file: scripts/runner.py
+  reason: 'Accepted agency: identity-qualified local CLI / git subprocess (# nosec
+    B603).'
+- hash: sha256:5e9cc49a9f9b5836f046cef6fbe82b9cd59a0362cf00d965b4e24656dd0e3398
+  rule_id: AST4
+  file: scripts/runner.py
+  reason: 'Accepted agency: identity-qualified local CLI / git subprocess (# nosec
+    B603).'
+- hash: sha256:f6a26faae2046e23796399cf56be2c19677bec48283119ef1ad3cdbb6b905cf2
+  rule_id: AST4
+  file: scripts/runner.py
+  reason: 'Accepted agency: identity-qualified local CLI / git subprocess (# nosec
+    B603).'
+- hash: sha256:028546d105fe81b771c585b909711cfd5e3207bdc8802e3837e8541602f08839
+  rule_id: AST4
+  file: scripts/runner.py
+  reason: 'Accepted agency: identity-qualified local CLI / git subprocess (# nosec
+    B603).'
+- hash: sha256:3c8e9ae0f665c9909f061613c4950ba2a2979bfc381c0d212b0e0657d14e958e
+  rule_id: AST7
+  file: scripts/runner.py
+  reason: 'Accepted agency: getattr on process streams for bounded drain with fixed
+    names.'
+- hash: sha256:514428646084364e532662396178d98cb24a19718421db84c52cb78df5d8e040
+  rule_id: TT2
+  file: scripts/runner.py
+  reason: 'Accepted agency: same launcher env→Popen path as E2/AST4.'
+- hash: sha256:edb97fb39fa2a635c7ebdf16b3e1d547d7aacb0838f655e9f64e212d8f2acfc3
+  rule_id: E2
+  file: scripts/runner.py
+  reason: 'Accepted agency: OmniRoute forwards operator environ to identity-sealed
+    local CLI children; no harvest/send off-box.'
+- hash: sha256:157913a5c0fc2d824fc5ff7053ddecd5ee1a455bf68d26908269fd8e1f18c827
+  rule_id: E2
+  file: scripts/runner.py
+  reason: 'Accepted agency: OmniRoute forwards operator environ to identity-sealed
+    local CLI children; no harvest/send off-box.'
+- hash: sha256:308128d5056b2044faf38c4eccef56bc99520ba90d675c0df2bb30f7a725102f
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:497ba203991b0a95c8819578ab1098e2b63abc6d11e5b3fd920d30906a6927fe
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:98649c0246a282daddafcc6f2d9f0c56f7e03c3dccf3c6335165bce82fc5709e
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:aea047dd67e1c72c2dfac2ff4217989785742d2abe0ab287b62c781ebac7b6df
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:fc07e8999c770a8076251de91950305b0435e93ab455f3da33173045305f4475
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:f8d8685cb7ba4722c7190db553beed4be7e9a813dccd4a9095e8f2b679f0856d
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:18a8000f86bda17b1092477d75a3bd6fdc64673002b4126a89cf1e12e90b2474
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:82bfa06290b4ebb82085ff60506356945e1cea3bac43dbb7d23b7074defbb5f0
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:f88d6585532904439ffb62c1efdbea9cbaa977907c47f4bda4d079b469972ea1
+  rule_id: AST6
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: compile(..., "exec") used only for Python syntax check
+    of local files, never executed.'
+- hash: sha256:70cf126b2fb1edb5d89b810c96e1ac06bb8ef42e0e657c09e10314dd6eaa7998
+  rule_id: AST4
+  file: scripts/linkcheck.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:ce760b40cb20155c4e306b5a4e77ad8c9bf2705f4d9b6750218c9f24affd2f13
+  rule_id: AST4
+  file: scripts/liveseo_gates.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:75e1a2df95b37f2e3498bfa145eae2eed8fe47b45bc6936bbe5cf36952480856
+  rule_id: TT1
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
+    (# nosec B603), no network exfil.'
+- hash: sha256:e558dab56a63c1222bdf61fc2d7807dae68f4ef1c7fb652ebbf673360c37fe24
+  rule_id: AE1
+  file: SKILL.md
+  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
+    not evasion. Revisit when analyzer budgets rise.'
+- hash: sha256:b6c5cab6ea5ad16190e87b88296286ba0b0d0d871c0cc7c65c6e33054b2cc87f
+  rule_id: AE1
+  file: SKILL.md
+  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
+    not evasion. Revisit when analyzer budgets rise.'

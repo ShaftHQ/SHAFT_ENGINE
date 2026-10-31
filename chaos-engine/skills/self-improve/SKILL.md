@@ -3,6 +3,9 @@ name: self-improve
 description: >-
   Use when running ChaosEngine Learning Session self-improve. Harness lessons
   are GitHub issues only. Product lessons may queue after delivery or on request.
+permissions:
+  - read
+  - write
 ---
 
 # self-improve — ChaosEngine learning & adapting

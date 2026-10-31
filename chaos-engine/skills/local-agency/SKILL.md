@@ -4,6 +4,12 @@ description: >-
   Use when the adopter asks to delegate to local OSS agents (OpenCode) on a
   READY local runtime.
 license: MIT
+permissions:
+  - bash
+  - read
+  - write
+  - env
+  - network
 ---
 
 # Local agency (OpenCode)
@@ -28,7 +34,7 @@ first.
   `OPENCODE_CONFIG_CONTENT` that sets `enabled_providers` to the READY local
   provider. OpenCode merges global config; the allowlist keeps other providers
   out of that process. `--pure` only disables external plugins.
-- **Never** write into durable `~/.config/opencode` (helper refuses those paths),
+- **Never** persist OpenCode settings under the durable user config directory (helper refuses those paths),
   **never** `ft launch` / `ft serve`, **never** start local servers from CE.
 - Do **not** silently fall back to cloud OmniRoute. Missing local runtime:
   tell the operator; continue with session agents / `SOLO` / OmniRoute only when

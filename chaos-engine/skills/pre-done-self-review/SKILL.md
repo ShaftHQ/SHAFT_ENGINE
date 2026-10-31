@@ -5,6 +5,8 @@ description: >-
   with all standing rules, cite rule and alternative for each gap, check views.
   On demand only.
 license: MIT
+permissions:
+  - read
 ---
 
 # Pre-done self-review

@@ -1,6 +1,10 @@
 ---
 name: git-cleanup
 description: Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.
+permissions:
+  - bash
+  - read
+  - write
 ---
 
 # Git cleanup
