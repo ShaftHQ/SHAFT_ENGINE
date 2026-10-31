@@ -175,11 +175,11 @@ fingerprints:
   file: scripts/liveseo_gates.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:75e1a2df95b37f2e3498bfa145eae2eed8fe47b45bc6936bbe5cf36952480856
+- hash: sha256:1f7580328eba0fe42826bff6a22ab8a009a67ed198904eb4271891bf3538f682
   rule_id: TT1
   file: scripts/design_qc.py
   reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
-    (# nosec B603), no network exfil.'
+    (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gate inserts.'
 - hash: sha256:e558dab56a63c1222bdf61fc2d7807dae68f4ef1c7fb652ebbf673360c37fe24
   rule_id: AE1
   file: SKILL.md

@@ -15,8 +15,8 @@ buttons, colour). Extends [L20](avatar-voice-first.md).
 1. **Check the REF IMAGE first.** Veo and similar copy the reference; if the
    ref is wrong, every frame is wrong. Gate fails closed when the ref is
    missing or disagrees with the signed wardrobe spec.
-2. **Crop the collar / placket** for inspection; do not judge from a wide face
-   crop alone.
+2. **Crop the collar / placket** for inspection; a wide face crop alone is not
+   enough.
 3. **Count each button** open vs closed against the spec (Digital Mohab = navy
    half-sleeve polo, buttons properly closed, friendly presenter — unless the signed
    script says otherwise).
