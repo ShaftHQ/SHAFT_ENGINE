@@ -64,4 +64,4 @@ End-to-end order for a product video:
 with the [runbook](references/pipelines/runbook.md) (detached build, fast
 gates, idle QC, review, then deliver).
 Project packs add brand facts; this add-on is project-neutral.
-Upstream pins and licences: [INVENTORY.md](INVENTORY.md).
+Upstream pins and licences: [INVENTORY.md](INVENTORY.md). Third-party notices: [NOTICE](NOTICE).

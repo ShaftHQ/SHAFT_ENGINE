@@ -798,6 +798,43 @@ def cmd_motionstill(args: argparse.Namespace) -> int:
     )
 
 
+def _wardrobe_spec_hits(spec: dict) -> list[str]:
+    """Missing required wardrobe spec keys."""
+    required = ("garment", "sleeve", "buttons_closed", "colour")
+    missing = [key for key in required if key not in spec]
+    return [f"spec-missing:{','.join(missing)}"] if missing else []
+
+
+def _wardrobe_observation_hits(
+    observations: list,
+    spec: dict,
+    *,
+    sample_s: float,
+    duration: float,
+) -> list[str]:
+    """Per-sample collar/button/colour drift vs spec and sample density."""
+    hits: list[str] = []
+    expected_closed = int(spec.get("buttons_closed", -1))
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
+    if len(observations) < max(1, expected_samples - 1):
+        hits.append(f"undersampled:{len(observations)}<{expected_samples} at {sample_s}s")
+    for index, row in enumerate(observations):
+        if not row.get("collar_crop"):
+            hits.append(f"sample[{index}]:missing-collar-crop")
+        closed = row.get("buttons_closed")
+        if closed is None:
+            hits.append(f"sample[{index}]:missing-button-count")
+        elif expected_closed >= 0 and int(closed) != expected_closed:
+            hits.append(
+                f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
+            )
+        if spec.get("colour") and row.get("colour") and row.get("colour") != spec.get("colour"):
+            hits.append(f"sample[{index}]:colour-drift:{row.get('colour')}")
+        if spec.get("sleeve") and row.get("sleeve") and row.get("sleeve") != spec.get("sleeve"):
+            hits.append(f"sample[{index}]:sleeve-drift:{row.get('sleeve')}")
+    return hits
+
+
 def cmd_wardrobe(args: argparse.Namespace) -> int:
     """L48: wardrobe gate — ref first, collar crop, button counts, 0.5 s samples."""
     hits: list[str] = []
@@ -814,10 +851,7 @@ def cmd_wardrobe(args: argparse.Namespace) -> int:
         spec = json.loads(spec_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return report("wardrobe", FAIL, hits=["bad-spec"], error=str(exc))
-    required = ("garment", "sleeve", "buttons_closed", "colour")
-    missing = [key for key in required if key not in spec]
-    if missing:
-        hits.append(f"spec-missing:{','.join(missing)}")
+    hits.extend(_wardrobe_spec_hits(spec))
     sample_s = float(getattr(args, "sample", 0.5))
     if sample_s > 0.5 + 1e-9:
         hits.append(f"sample-interval:{sample_s}>0.5")
@@ -828,9 +862,8 @@ def cmd_wardrobe(args: argparse.Namespace) -> int:
     duration = float(probe.get("format", {}).get("duration") or 0.0)
     if duration <= 0:
         hits.append("unreadable-duration")
-    # Structural observations from --observations JSON (CV workers attach crops).
+    observations: list = []
     obs_path = getattr(args, "observations", None)
-    observations = []
     if obs_path:
         op = Path(obs_path)
         if not op.is_file():
@@ -838,32 +871,14 @@ def cmd_wardrobe(args: argparse.Namespace) -> int:
         observations = json.loads(op.read_text(encoding="utf-8"))
         if not isinstance(observations, list):
             return report("wardrobe", FAIL, hits=["bad-observations"], error="observations must be a list")
-    expected_closed = int(spec.get("buttons_closed", -1))
-    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
-    if observations:
-        if len(observations) < max(1, expected_samples - 1):
-            hits.append(
-                f"undersampled:{len(observations)}<{expected_samples} at {sample_s}s"
-            )
-        for index, row in enumerate(observations):
-            if not row.get("collar_crop"):
-                hits.append(f"sample[{index}]:missing-collar-crop")
-            closed = row.get("buttons_closed")
-            if closed is None:
-                hits.append(f"sample[{index}]:missing-button-count")
-            elif expected_closed >= 0 and int(closed) != expected_closed:
-                hits.append(
-                    f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
-                )
-            if spec.get("colour") and row.get("colour") and row.get("colour") != spec.get("colour"):
-                hits.append(f"sample[{index}]:colour-drift:{row.get('colour')}")
-            if spec.get("sleeve") and row.get("sleeve") and row.get("sleeve") != spec.get("sleeve"):
-                hits.append(f"sample[{index}]:sleeve-drift:{row.get('sleeve')}")
+        hits.extend(_wardrobe_observation_hits(
+            observations, spec, sample_s=sample_s, duration=duration,
+        ))
     elif getattr(args, "require_observations", False):
         hits.append("missing-observations")
-    # Ref agreement flag from spec or sidecar
     if spec.get("ref_ok") is False:
         hits.append("ref-disagrees-spec")
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
     return report(
         "wardrobe", FAIL if hits else PASS,
         hits=hits,

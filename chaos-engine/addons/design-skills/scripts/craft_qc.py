@@ -3573,22 +3573,8 @@ def _paths_share_inode(left: Path, right: Path) -> bool:
     except OSError:
         return False
 
-def cmd_capsync(qc, args) -> int:
-    """Caption sync against independent ASR / forced-alignment onsets.
-
-    Never derive onsets from the cue file or from the snapper that produced
-    those cues — that is a tautology and always measures ~0 ms. Require an
-    external ``--onsets`` JSON (Whisper/word-level ASR or forced alignment)
-    timed on the rendered audio. Code-switched English/Latin tokens may use
-    a wider tolerance.
-    """
-    cue_path = Path(args.file)
-    onset_path = Path(args.onsets)
-    if not onset_path.is_file():
-        return qc.report(
-            "capsync", qc.FAIL, hits=["missing-independent-onsets"],
-            error="pass --onsets from ASR/forced-alignment on rendered audio",
-        )
+def _capsync_reject_shared_sources(qc, cue_path: Path, onset_path: Path, args) -> int | None:
+    """Fail when onsets share the cue file or snapper words source."""
     if _paths_share_inode(onset_path, cue_path):
         return qc.report(
             "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
@@ -3602,66 +3588,81 @@ def cmd_capsync(qc, args) -> int:
                 "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
                 error="verifier ASR must be a separate run from the snapper word source",
             )
-    cues = qc.parse_cues(cue_path.read_text(encoding="utf-8"))
-    if not cues:
-        return qc.report("capsync", qc.FAIL, hits=["no cues"])
+    return None
+
+
+def _capsync_load_onsets(qc, onset_path: Path) -> tuple[list[dict] | None, int | None]:
+    """Load onsets or return a FAIL report for empty/injected/echo cases."""
     onsets = _load_independent_onsets(onset_path)
     if not onsets:
-        return qc.report(
+        return None, qc.report(
             "capsync", qc.FAIL, hits=["empty-onsets"],
             error="onsets JSON has no word start times",
         )
     injected = [o for o in onsets if o.get("builder_injected")]
     if injected:
-        return qc.report(
+        return None, qc.report(
             "capsync", qc.FAIL, hits=["builder-injected-onset"],
             error="reject builder/snapper-planted onset rows; use independent ASR/FA",
             injected=len(injected),
         )
-    # Tautology guard: if every cue start equals some onset start within 1ms
-    # AND onset count == cue count AND all words match cue first tokens, still
-    # OK structurally — but if onsets were fabricated as cue starts with empty
-    # words we already failed empty. Detect cue-start cloning: when each onset
-    # start equals the corresponding cue start within 1e-4 and there is no
-    # other timing diversity, flag as snapper-echo.
-    if len(onsets) == len(cues):
-        diffs = [abs(onsets[i]["start"] - cues[i]["start"]) for i in range(len(cues))]
-        if diffs and max(diffs) < 1e-4:
-            return qc.report(
-                "capsync", qc.FAIL, hits=["onsets-echo-cue-starts"],
-                error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
-                max_drift_ms=0.0,
-            )
-    # Optional second onset file: consensus within tol of primary match.
-    onsets_b = []
+    return onsets, None
+
+
+def _capsync_echo_cue_starts(qc, onsets: list[dict], cues: list[dict]) -> int | None:
+    """Fail when onsets are a 1:1 clone of cue starts."""
+    if len(onsets) != len(cues):
+        return None
+    diffs = [abs(onsets[i]["start"] - cues[i]["start"]) for i in range(len(cues))]
+    if diffs and max(diffs) < 1e-4:
+        return qc.report(
+            "capsync", qc.FAIL, hits=["onsets-echo-cue-starts"],
+            error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
+            max_drift_ms=0.0,
+        )
+    return None
+
+
+def _capsync_load_consensus(qc, args, onset_path: Path, cue_path: Path) -> tuple[list[dict], bool, int | None]:
+    """Optional second onset file for multi-model consensus."""
+    onsets_b: list[dict] = []
     onset_b_path = getattr(args, "onsets_b", None)
-    if onset_b_path:
-        bpath = Path(onset_b_path)
-        if not bpath.is_file():
-            return qc.report(
-                "capsync", qc.FAIL, hits=["missing-onsets-b"],
-                error="--onsets-b path missing",
-            )
-        if _paths_share_inode(bpath, onset_path) or _paths_share_inode(bpath, cue_path):
-            return qc.report(
-                "capsync", qc.FAIL, hits=["onsets-b-not-independent"],
-                error="--onsets-b must be a second independent ASR/FA run",
-            )
-        onsets_b = _load_independent_onsets(bpath)
-        if any(o.get("builder_injected") for o in onsets_b):
-            return qc.report(
-                "capsync", qc.FAIL, hits=["builder-injected-onset"],
-                error="--onsets-b contains builder-injected rows",
-            )
-    require_consensus = bool(getattr(args, "consensus", False) or onsets_b)
-    tol = float(args.tol)
-    cs_tol = float(args.codeswitch_tol)
-    hits = []
+    if not onset_b_path:
+        return onsets_b, bool(getattr(args, "consensus", False)), None
+    bpath = Path(onset_b_path)
+    if not bpath.is_file():
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["missing-onsets-b"],
+            error="--onsets-b path missing",
+        )
+    if _paths_share_inode(bpath, onset_path) or _paths_share_inode(bpath, cue_path):
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["onsets-b-not-independent"],
+            error="--onsets-b must be a second independent ASR/FA run",
+        )
+    onsets_b = _load_independent_onsets(bpath)
+    if any(o.get("builder_injected") for o in onsets_b):
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["builder-injected-onset"],
+            error="--onsets-b contains builder-injected rows",
+        )
+    return onsets_b, True, None
+
+
+def _capsync_match_hits(
+    cues: list[dict],
+    onsets: list[dict],
+    onsets_b: list[dict],
+    *,
+    tol: float,
+    cs_tol: float,
+    require_consensus: bool,
+) -> tuple[list[str], int, float]:
+    """Per-cue drift / consensus adjudication."""
+    hits: list[str] = []
     worst_ms = 0.0
     matched = 0
     for index, cue in enumerate(cues, 1):
-        # Match: nearest onset at or after cue.start - tol_window, preferring
-        # first content token when available.
         tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
         first = tokens[0] if tokens else ""
         window = max(tol, cs_tol) + 0.05
@@ -3670,8 +3671,11 @@ def cmd_capsync(qc, args) -> int:
             if abs(o["start"] - cue["start"]) <= window + 1e-9
         ]
         if first:
-            named = [o for o in candidates if o["word"].casefold() == first.casefold()
-                     or o["word"].casefold().rstrip(".,:;!?") == first.casefold().rstrip(".,:;!?")]
+            named = [
+                o for o in candidates
+                if o["word"].casefold() == first.casefold()
+                or o["word"].casefold().rstrip(".,:;!?") == first.casefold().rstrip(".,:;!?")
+            ]
             if named:
                 candidates = named
         if not candidates:
@@ -3705,6 +3709,49 @@ def cmd_capsync(qc, args) -> int:
                     f"cue {index}: no consensus onset near {best['start']:.3f}s "
                     f"(need --onsets-b within tol)"
                 )
+    return hits, matched, worst_ms
+
+
+def cmd_capsync(qc, args) -> int:
+    """Caption sync against independent ASR / forced-alignment onsets.
+
+    Never derive onsets from the cue file or from the snapper that produced
+    those cues — that is a tautology and always measures ~0 ms. Require an
+    external ``--onsets`` JSON (Whisper/word-level ASR or forced alignment)
+    timed on the rendered audio. Code-switched English/Latin tokens may use
+    a wider tolerance.
+    """
+    cue_path = Path(args.file)
+    onset_path = Path(args.onsets)
+    if not onset_path.is_file():
+        return qc.report(
+            "capsync", qc.FAIL, hits=["missing-independent-onsets"],
+            error="pass --onsets from ASR/forced-alignment on rendered audio",
+        )
+    shared = _capsync_reject_shared_sources(qc, cue_path, onset_path, args)
+    if shared is not None:
+        return shared
+    cues = qc.parse_cues(cue_path.read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("capsync", qc.FAIL, hits=["no cues"])
+    onsets, fail = _capsync_load_onsets(qc, onset_path)
+    if fail is not None:
+        return fail
+    assert onsets is not None
+    echo = _capsync_echo_cue_starts(qc, onsets, cues)
+    if echo is not None:
+        return echo
+    onsets_b, require_consensus, fail_b = _capsync_load_consensus(
+        qc, args, onset_path, cue_path,
+    )
+    if fail_b is not None:
+        return fail_b
+    tol = float(args.tol)
+    cs_tol = float(args.codeswitch_tol)
+    hits, matched, worst_ms = _capsync_match_hits(
+        cues, onsets, onsets_b,
+        tol=tol, cs_tol=cs_tol, require_consensus=require_consensus,
+    )
     if matched == 0:
         hits.append("zero-measured-cues")
         return qc.report(
@@ -3723,6 +3770,7 @@ def cmd_capsync(qc, args) -> int:
         consensus=require_consensus,
         hits=hits,
     )
+
 
 
 def register(add, qc) -> None:
