@@ -417,8 +417,10 @@ def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
     if git is None:
         return restored
     for relative in _managed_checkout_paths(primary):
-        # Skip paths the consumer edited in this worktree.
-        if _path_has_local_edit(session, relative):
+        # Skip paths the consumer edited — except CE-owned overlay / agents,
+        # which upgrade-session always reconciles (including staged prior-CE
+        # overlays that would otherwise trip OverlayLocalEditError).
+        if _path_has_local_edit(session, relative) and not _is_ce_owned_relative(relative):
             continue
         listed = _git(primary, "ls-files", relative)
         if not listed:
@@ -434,6 +436,22 @@ def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
             restored.append(relative)
     return restored
 
+
+
+
+def _is_ce_owned_relative(relative: str) -> bool:
+    """True for overlay paths and ChaosEngine agent files upgrade may overwrite."""
+    rel = relative.replace("\\", "/")
+    while rel.startswith("./"):
+        rel = rel[2:]
+    if rel == TREE or rel.startswith(f"{TREE}/"):
+        return True
+    name = Path(rel).name
+    if name.startswith("chaos-engine-") and name.endswith((".md", ".toml")):
+        parent = Path(rel).parent.as_posix()
+        if parent in {".claude/agents", ".codex/agents"}:
+            return True
+    return False
 
 
 def _ce_owned_upgrade_relatives(primary: Path) -> list[str]:
@@ -479,17 +497,20 @@ def _path_is_ignored(session: Path, relative: str) -> bool:
 
 
 def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
-    """Seed the materialize manifest for stale gitignored CE-owned session files.
+    """Seed the materialize manifest for stale CE-owned session files.
 
     When a worktree carries an older overlay (or agents) with no / lost
     ``.overlay-materialize.json``, ``materialize`` would refuse unknown
-    provenance. Recording the current session hashes for CE-owned ignored
-    paths lets the existing stale-upgrade branch overwrite them from primary.
+    provenance. Recording the current session hashes for CE-owned paths lets
+    the existing stale-upgrade branch overwrite them from primary.
 
-    CE itself may rewrite owned files (for example ``always-loaded-budget.json``)
-    without updating the materialize manifest. Treat any CE-owned ignored /
-    untracked divergence as stale CE state — never as a consumer edit — and
-    always adopt so upgrade-session can overwrite from primary.
+    CE itself may rewrite owned files (for example ``always-loaded-budget.json``
+    or ``VERSION``) without updating the materialize manifest. A prior
+    upgrade may also leave CE-owned files **staged but uncommitted** in the
+    worktree index (force-added overlay). Those are still CE-owned — never a
+    consumer edit — whether gitignored, untracked, or staged. Always adopt so
+    upgrade-session can overwrite from primary. Consumer-edited non-CE files
+    (for example ``AGENTS.md``) stay off this list and keep strict provenance.
     """
     adopted: list[str] = []
     if not (primary / TREE).is_dir():
@@ -503,8 +524,8 @@ def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
         dest = session / relative
         if not source.is_file() or not dest.is_file():
             continue
-        if not _path_is_ignored(session, relative):
-            continue
+        # Adopt CE-owned paths even when staged/tracked. The previous
+        # ignore-only gate skipped force-added overlay files (HRSD VERSION).
         src_hash = _file_sha256(source)
         dest_hash = _file_sha256(dest)
         if dest_hash == src_hash:
