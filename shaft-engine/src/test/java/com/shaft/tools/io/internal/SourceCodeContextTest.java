@@ -64,6 +64,18 @@ public class SourceCodeContextTest {
     }
 
     @Test
+    public void renderEscapesLocationAndShowsRecordedLineWhenSnippetMissing() {
+        var frame = new StackTraceElement("customer.Test", "execute", "Test.java", 7);
+        String location = "src/<evil>&" + "\"" + "'" + "/Test.java";
+        String html = SourceCodeAttachment.render(frame, location, SourceCodeContext.read(null, 7));
+        Assert.assertTrue(html.contains("Recorded line: 7"), html);
+        Assert.assertTrue(html.contains("&lt;evil&gt;"), html);
+        Assert.assertTrue(html.contains("&amp;"), html);
+        Assert.assertFalse(html.contains("<evil>"), html);
+        Assert.assertTrue(html.contains("customer.Test.execute"), html);
+    }
+
+    @Test
     public void sourceMetadataResolvesNestedClassButCannotTraversePaths() {
         var nested = new StackTraceElement(getClass().getName() + "$Nested", "call", "SourceCodeContextTest.java", 1);
         Path source = java.util.Objects.requireNonNull(SourceCodeContext.findSourceFile(nested, getClass()),
