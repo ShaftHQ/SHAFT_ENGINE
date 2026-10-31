@@ -5118,6 +5118,134 @@ def status_subset_of_doctor(
     return sorted(violations)
 
 
+
+def _promote_hosts_into_components(result: dict[str, object], components: dict[str, dict[str, object]]) -> None:
+    """Surface top-level hosts failures as a component row (#2026.10.31.4)."""
+    hosts = result.get("hosts")
+    if not isinstance(hosts, dict):
+        return
+    host_status = str(hosts.get("status") or "")
+    if not host_status or host_status in DOCTOR_NON_ESCALATING_STATUSES | {"not-detected", "healthy"}:
+        return
+    row: dict[str, object] = {
+        "status": host_status,
+        "taskImpact": "required",
+    }
+    for key in ("code", "detail", "fixNext", "reason"):
+        if key in hosts:
+            row[key] = hosts[key]
+    components["hosts"] = row
+
+
+def _finalize_doctor_component_rows(
+    result: dict[str, object],
+    project: Path,
+    components: dict[str, dict[str, object]],
+) -> None:
+    """Apply drift/handoff notes and escalate overall status from component rows."""
+    result["components"] = components
+    drift = reflection_controller_drift(project)
+    if drift:
+        result["reflectionControllerDrift"] = drift
+    apply_merge_handoff_fix_next(project, components)
+    if any(component_escalates_overall(item) for item in components.values()):
+        result["status"] = "recovery-required"
+    elif result.get("status") == "recovery-required":
+        # Soft/advisory-only findings must not keep a prior false overall escalation.
+        result["status"] = "healthy"
+
+
+def _apply_host_adapter_drift(
+    result: dict[str, object],
+    *,
+    host_adapter_drift: bool,
+    host_error: BaseException | None = None,
+) -> None:
+    """Mark hosts recovery-required for CE_HOST_ADAPTER_DRIFT without short-circuiting doctor."""
+    if not host_adapter_drift and host_error is None:
+        return
+    result["status"] = "recovery-required"
+    hosts_row = result.get("hosts")
+    if not isinstance(hosts_row, dict):
+        hosts_row = {}
+        result["hosts"] = hosts_row
+    hosts_row["status"] = "recovery-required"
+    hosts_row.setdefault("code", "CE_HOST_ADAPTER_DRIFT")
+    if host_error is not None:
+        hosts_row.setdefault("detail", str(host_error))
+
+
+def _verify_hosts_into_doctor_result(
+    result: dict[str, object],
+    project: Path,
+    host_controller: object,
+    manifest: dict[str, object],
+    *,
+    host_adapter_drift: bool,
+    pending_rollback: object | None,
+) -> None:
+    """Populate result['hosts']; on healable drift mark recovery-required and continue."""
+    try:
+        if pending_rollback is not None:
+            result["hosts"] = host_controller.verify(project)
+            result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+        else:
+            result["hosts"] = host_controller.verify(
+                project,
+                core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
+            )
+    except (OSError, RuntimeError, ValueError) as host_error:
+        if host_adapter_drift or _is_healable_host_drift(host_error):
+            _apply_host_adapter_drift(
+                result, host_adapter_drift=True, host_error=host_error
+            )
+        else:
+            raise
+    if host_adapter_drift:
+        _apply_host_adapter_drift(result, host_adapter_drift=True)
+    if result["hosts"]["status"] != "healthy":  # type: ignore[index]
+        result["status"] = "recovery-required"
+
+
+
+
+def _attach_learning_session_gate(
+    components: dict[str, dict[str, object]], target: Path
+) -> None:
+    """Annotate hooks with Learning Session Stop-gate visibility."""
+    skill = target / "skills/self-improve/SKILL.md"
+    finalize = target / "learning_session.py"
+    guard = target / "hooks/guard.py"
+    try:
+        gate_source = guard.read_text(encoding="utf-8") if guard.is_file() else ""
+    except OSError:
+        gate_source = ""
+    gate_installed = (
+        "def learning_session_reason" in gate_source
+        and "def confirmed_delivery_command" in gate_source
+        and "delivery-complete" in gate_source
+    )
+    learning_status = (
+        "healthy"
+        if skill.is_file() and finalize.is_file() and gate_installed
+        else "absent"
+    )
+    hooks = components.get("hooks")
+    if isinstance(hooks, dict):
+        hooks["learningSession"] = {
+            "status": learning_status,
+            "enforcedBy": "Stop",
+            "skillPresent": skill.is_file(),
+            "finalizePresent": finalize.is_file(),
+            "gateInstalled": gate_installed,
+            "detail": (
+                "Stop requires Learning Session after delivery-complete "
+                "(delivery-status or gh pr merge); chaos-engine untouched is not a skip"
+            ),
+        }
+
+
+
 def attach_component_status(
     result: dict[str, object],
     project: Path,
@@ -5194,36 +5322,7 @@ def attach_component_status(
             healthy = bool(host_controller.retrieval_configs_healthy(project))
         components[name] = {"status": "healthy" if healthy else "absent", **capabilities[name]}
     # Learning Session Stop-gate visibility (parity with companion doctor surfaces).
-    skill = target / "skills/self-improve/SKILL.md"
-    finalize = target / "learning_session.py"
-    guard = target / "hooks/guard.py"
-    gate_source = ""
-    try:
-        gate_source = guard.read_text(encoding="utf-8") if guard.is_file() else ""
-    except OSError:
-        gate_source = ""
-    gate_installed = (
-        "def learning_session_reason" in gate_source
-        and "def confirmed_delivery_command" in gate_source
-        and "delivery-complete" in gate_source
-    )
-    learning_status = (
-        "healthy"
-        if skill.is_file() and finalize.is_file() and gate_installed
-        else "absent"
-    )
-    if isinstance(components.get("hooks"), dict):
-        components["hooks"]["learningSession"] = {
-            "status": learning_status,
-            "enforcedBy": "Stop",
-            "skillPresent": skill.is_file(),
-            "finalizePresent": finalize.is_file(),
-            "gateInstalled": gate_installed,
-            "detail": (
-                "Stop requires Learning Session after delivery-complete "
-                "(delivery-status or gh pr merge); chaos-engine untouched is not a skip"
-            ),
-        }
+    _attach_learning_session_gate(components, target)
     for name in ("tools", "memory", "mempalace", "graphify"):
         components[name] = {"status": dependency_health, **capabilities[name]}
     if inspect_retrieval_state:
@@ -5277,28 +5376,8 @@ def attach_component_status(
             }
     # Surface top-level hosts failures as a component row so they cannot mask
     # later checks (and later checks cannot hide hosts) (#2026.10.31.4).
-    hosts = result.get("hosts")
-    if isinstance(hosts, dict):
-        host_status = str(hosts.get("status") or "")
-        if host_status and host_status not in DOCTOR_NON_ESCALATING_STATUSES | {"not-detected", "healthy"}:
-            row = {
-                "status": host_status,
-                "taskImpact": "required",
-            }
-            for key in ("code", "detail", "fixNext", "reason"):
-                if key in hosts:
-                    row[key] = hosts[key]
-            components["hosts"] = row
-    result["components"] = components
-    drift = reflection_controller_drift(project)
-    if drift:
-        result["reflectionControllerDrift"] = drift
-    apply_merge_handoff_fix_next(project, components)
-    if any(component_escalates_overall(item) for item in components.values()):
-        result["status"] = "recovery-required"
-    elif result.get("status") == "recovery-required":
-        # Soft/advisory-only findings must not keep a prior false overall escalation.
-        result["status"] = "healthy"
+    _promote_hosts_into_components(result, components)
+    _finalize_doctor_component_rows(result, project, components)
 
 
 def status_with_dependencies(project: Path, *, active_probes: bool = False) -> dict[str, object]:
@@ -5351,35 +5430,14 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 )
                 return result
             pending_rollback = read_cross_rollback_journal(project)
-            try:
-                if pending_rollback is not None:
-                    result["hosts"] = host_controller.verify(project)
-                    result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
-                else:
-                    result["hosts"] = host_controller.verify(
-                        project,
-                        core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
-                    )
-            except (OSError, RuntimeError, ValueError) as host_error:
-                if host_adapter_drift or _is_healable_host_drift(host_error):
-                    result["hosts"] = {
-                        "status": "recovery-required",
-                        "code": "CE_HOST_ADAPTER_DRIFT",
-                        "detail": str(host_error),
-                    }
-                    result["status"] = "recovery-required"
-                else:
-                    raise
-            if host_adapter_drift:
-                result["status"] = "recovery-required"
-                hosts_row = result.get("hosts")
-                if not isinstance(hosts_row, dict):
-                    hosts_row = {}
-                    result["hosts"] = hosts_row
-                hosts_row["status"] = "recovery-required"
-                hosts_row.setdefault("code", "CE_HOST_ADAPTER_DRIFT")
-            if result["hosts"]["status"] != "healthy":  # type: ignore[index]
-                result["status"] = "recovery-required"
+            _verify_hosts_into_doctor_result(
+                result,
+                project,
+                host_controller,
+                manifest,
+                host_adapter_drift=host_adapter_drift,
+                pending_rollback=pending_rollback,
+            )
             if active_probes:
                 # Grok CLI trust/loaded-hooks probe is host-environment, not install-owned (#5699).
                 # Untrusted/incomplete hooks are sync-advisory only; never flip overall/hosts

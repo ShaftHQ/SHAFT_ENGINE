@@ -937,44 +937,33 @@ def _doctor_unhealthy_components(document: dict) -> list[tuple[str, dict]]:
     return rows
 
 
-def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
-    """Repair every degraded doctor component, then re-run doctor (fail closed)."""
-    primary, session = Path(primary).resolve(), Path(session).resolve()
-    module = _load_install_module(session)
+def _post_upgrade_no_module_fallback(primary: Path, session: Path) -> dict:
+    """CLI or lightweight-hash path when install.py cannot be imported."""
     repaired: list[str] = []
-    if module is None:
-        has_installer = (session / TREE / "install.py").is_file() or (
-            session / "chaos-engine" / "install.py"
-        ).is_file()
-        if has_installer:
-            if _try_repair_component_cli(session, "hosts"):
-                repaired.append("hosts")
-            doctor_ok = _try_doctor_cli_ok(session)
-            return {
-                "doctor_ok": doctor_ok,
-                "repaired": repaired,
-                "remaining": [] if doctor_ok else ["doctor-cli"],
-                "mode": "cli-fallback",
-            }
-        half = session_is_half_applied(primary, session)
-        return {
-            "doctor_ok": not half,
-            "repaired": repaired,
-            "remaining": ["half-applied"] if half else [],
-            "mode": "lightweight-hash",
-        }
-    try:
-        document = module.doctor_with_dependencies(session, verify_clients=False)
-    except Exception as error:  # nosec B110
+    has_installer = (session / TREE / "install.py").is_file() or (
+        session / "chaos-engine" / "install.py"
+    ).is_file()
+    if has_installer:
         if _try_repair_component_cli(session, "hosts"):
             repaired.append("hosts")
         doctor_ok = _try_doctor_cli_ok(session)
         return {
             "doctor_ok": doctor_ok,
             "repaired": repaired,
-            "remaining": [] if doctor_ok else [f"doctor-error:{type(error).__name__}"],
-            "mode": "exception-fallback",
+            "remaining": [] if doctor_ok else ["doctor-cli"],
+            "mode": "cli-fallback",
         }
+    half = session_is_half_applied(primary, session)
+    return {
+        "doctor_ok": not half,
+        "repaired": repaired,
+        "remaining": ["half-applied"] if half else [],
+        "mode": "lightweight-hash",
+    }
+
+
+def _unhealthy_with_hosts(document: dict) -> list[tuple[str, dict]]:
+    """Doctor component failures plus top-level hosts when unhealthy."""
     unhealthy = _doctor_unhealthy_components(document)
     hosts_top = document.get("hosts")
     if isinstance(hosts_top, dict) and str(hosts_top.get("status") or "") in {
@@ -982,34 +971,39 @@ def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
     }:
         if not any(name == "hosts" for name, _ in unhealthy):
             unhealthy.append(("hosts", hosts_top))
-    seen_repair: set[str] = set()
+    return unhealthy
+
+
+def _repair_choices_for_unhealthy(module: object, unhealthy: list[tuple[str, dict]]) -> list[str]:
+    """Map unhealthy doctor rows to unique REPAIRABLE_COMPONENTS choices."""
+    choices: list[str] = []
+    seen: set[str] = set()
+    mapper = getattr(module, "doctor_check_repair_component", None)
+    repairable = getattr(module, "REPAIRABLE_COMPONENTS", frozenset())
     for name, item in unhealthy:
-        choice = None
-        mapper = getattr(module, "doctor_check_repair_component", None)
-        if callable(mapper):
-            choice = mapper(name, item)
-        if not choice:
-            repairable = getattr(module, "REPAIRABLE_COMPONENTS", frozenset())
-            if name in repairable:
-                choice = name
-        if not choice or choice in seen_repair:
-            continue
-        seen_repair.add(choice)
+        choice = mapper(name, item) if callable(mapper) else None
+        if not choice and name in repairable:
+            choice = name
+        if choice and choice not in seen:
+            seen.add(choice)
+            choices.append(choice)
+    return choices
+
+
+def _run_repairs(module: object, session: Path, choices: list[str]) -> list[str]:
+    repaired: list[str] = []
+    for choice in choices:
         try:
             module.repair_component(session, choice)
             repaired.append(choice)
         except Exception:  # nosec B110
             if _try_repair_component_cli(session, choice):
                 repaired.append(choice)
-    try:
-        after = module.doctor_with_dependencies(session, verify_clients=False)
-    except Exception as error:  # nosec B110
-        return {
-            "doctor_ok": False,
-            "repaired": repaired,
-            "remaining": [f"doctor-error:{type(error).__name__}"],
-            "mode": "module",
-        }
+    return repaired
+
+
+def _blocking_doctor_failures(after: dict) -> list[str]:
+    """Required/degraded failures that must fail upgrade-session."""
     remaining = [name for name, _item in _doctor_unhealthy_components(after)]
     blocking: list[str] = []
     components = after.get("components") if isinstance(after.get("components"), dict) else {}
@@ -1032,10 +1026,43 @@ def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
     }:
         if "hosts" not in blocking:
             blocking.append("hosts")
+    return blocking
+
+
+def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
+    """Repair every degraded doctor component, then re-run doctor (fail closed)."""
+    primary, session = Path(primary).resolve(), Path(session).resolve()
+    module = _load_install_module(session)
+    if module is None:
+        return _post_upgrade_no_module_fallback(primary, session)
+    repaired: list[str] = []
+    try:
+        document = module.doctor_with_dependencies(session, verify_clients=False)
+    except Exception as error:  # nosec B110
+        if _try_repair_component_cli(session, "hosts"):
+            repaired.append("hosts")
+        doctor_ok = _try_doctor_cli_ok(session)
+        return {
+            "doctor_ok": doctor_ok,
+            "repaired": repaired,
+            "remaining": [] if doctor_ok else [f"doctor-error:{type(error).__name__}"],
+            "mode": "exception-fallback",
+        }
+    choices = _repair_choices_for_unhealthy(module, _unhealthy_with_hosts(document))
+    repaired = _run_repairs(module, session, choices)
+    try:
+        after = module.doctor_with_dependencies(session, verify_clients=False)
+    except Exception as error:  # nosec B110
+        return {
+            "doctor_ok": False,
+            "repaired": repaired,
+            "remaining": [f"doctor-error:{type(error).__name__}"],
+            "mode": "module",
+        }
+    blocking = _blocking_doctor_failures(after)
     overall = str(after.get("status") or "")
-    doctor_ok = overall == "healthy" and not blocking
     return {
-        "doctor_ok": doctor_ok,
+        "doctor_ok": overall == "healthy" and not blocking,
         "repaired": repaired,
         "remaining": blocking,
         "overall": overall,
