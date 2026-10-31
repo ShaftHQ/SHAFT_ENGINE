@@ -66,7 +66,7 @@ def record_local_usage_from_chat(
     usage: dict[str, object],
     project: Path | None = None,
 ) -> dict[str, object] | None:
-    """Record chat usage when known. Omits model/provider fields entirely."""
+    """Record local runtime token usage when known. Omits model/provider fields entirely."""
     if not session_id:
         return None
     prompt = usage.get("prompt_tokens", usage.get("promptTokens", 0))

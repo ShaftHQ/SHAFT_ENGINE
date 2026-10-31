@@ -12,6 +12,8 @@
 
 # ChaosEngine
 
+[![SkillSpector](https://img.shields.io/badge/SkillSpector-static_gate_pass-brightgreen)](https://github.com/ShaftHQ/SHAFT_ENGINE/blob/main/.github/workflows/skillspector.yml)
+
 ChaosEngine is a provider-neutral operating system for agentic software work.
 It gives an agent one canonical entrypoint for research, planning,
 implementation, verification, review, delivery, and learning—without tying the

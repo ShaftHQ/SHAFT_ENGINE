@@ -1,6 +1,9 @@
 ---
 name: icm-architect
 description: "Advisory ICM workspace architect (folder structure as agent architecture). Use only when the task is ICM, workspace structure, or 'ICM this' design work."
+permissions:
+  - read
+  - write
 ---
 
 # ICM Architect

@@ -1,6 +1,12 @@
 ---
 name: design-skills
 description: Use when a task designs or edits a web surface, image, motion graphic, or video and needs one verified design card plus objective QC.
+permissions:
+  - bash
+  - read
+  - write
+  - env
+  - network
 ---
 
 # Design skills (add-on)

@@ -11,7 +11,7 @@ Uploading a talk / podcast / long-form cut in YouTube Studio (native scheduler o
 
 ## Rules
 
-1. Order: **upload** → set **video language** in the upload dialog (target locale, not Auto-detect) → **schedule** → Details: set **title/description language** → **save** → **captions**.
+1. Order: **upload** → set **video language** in the YouTube Studio upload form (target locale, not Auto-detect) → **schedule** → Details: set **title/description language** → **save** → **captions**.
 2. Setting the video language may auto-add an English dub / auto-dub row — **expected**; leave it.
 3. Description line 1 equals the locked title. Audience: not made for kids unless the owner says otherwise.
 4. Long-form uses the series playlist — never a Shorts playlist.

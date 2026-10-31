@@ -4,6 +4,9 @@ description: >-
   Use when work has several deliverables, tickets, or delegates: board, WIP 1
   writer + 2 review, pull rule, Definition of Done, findings fixed or filed.
 license: MIT
+permissions:
+  - read
+  - write
 ---
 
 # Kanban task flow

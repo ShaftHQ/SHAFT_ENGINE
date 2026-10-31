@@ -5,6 +5,11 @@ description: >-
   when the local-runtimes table points a job at FreeToken rather than a loopback
   server.
 license: MIT
+permissions:
+  - bash
+  - read
+  - env
+  - network
 ---
 
 # FreeToken

@@ -5,6 +5,9 @@ description: >-
   training decks: story arc, claim titles, visual evidence, code slides,
   checkpoints. On demand only.
 license: MIT
+permissions:
+  - read
+  - write
 ---
 
 # Technical presentations

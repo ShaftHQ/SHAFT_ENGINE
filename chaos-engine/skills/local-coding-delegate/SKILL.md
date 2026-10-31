@@ -4,6 +4,10 @@ description: >-
   Hardware size-class probe. Use when you must learn which local model size this
   machine can host.
 license: MIT
+permissions:
+  - bash
+  - read
+  - env
 ---
 
 # Local coding delegate (folded)

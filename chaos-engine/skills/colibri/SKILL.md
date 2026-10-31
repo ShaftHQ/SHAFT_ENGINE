@@ -4,6 +4,11 @@ description: >-
   Frontier MoE through a disk/RAM/VRAM hierarchy via the optional Colibri process.
   Use when a large-model offline job needs Colibri; not OmniRoute or FreeToken.
 license: MIT
+permissions:
+  - bash
+  - read
+  - env
+  - network
 ---
 
 # Colibri

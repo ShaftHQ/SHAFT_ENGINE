@@ -1,6 +1,8 @@
 ---
 name: caveman
 description: "Ultra-compressed communication companion. Use on every reply at ultra intensity; mandatory on the implementation path. Stop only with 'stop caveman' or 'normal mode'."
+permissions:
+  - read
 ---
 
 # Caveman

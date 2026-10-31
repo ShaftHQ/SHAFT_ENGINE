@@ -5,6 +5,9 @@ description: >-
   ADR, contracts, resilience, security, observability, refactor, debug, review,
   debt.
 license: MIT
+permissions:
+  - read
+  - write
 ---
 
 # Architect

@@ -4,6 +4,11 @@ description: >-
   Use when choosing an optional local inference runtime for a narrow mechanical
   or offline job.
 license: MIT
+permissions:
+  - bash
+  - read
+  - env
+  - network
 ---
 
 # Local runtimes

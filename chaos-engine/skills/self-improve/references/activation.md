@@ -41,7 +41,7 @@ Activate the full protocol:
    hand-edit `.memory/**` sidecars. If a body changed outside
    `memory save`, run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash <sidecar>`
    before push ([tip-churn preflight](../../../references/tip-churn-preflight.md)).
-6. Do **not** auto-edit skills/hooks. Propose a harness change as a GitHub issue.
+6. Do **not** automatically change skill or hook files. Propose a harness change as a GitHub issue.
 7. Do not report harness lesson text. Product counts may be `product queued N`
    or `nothing durable`.
 8. Close with one retrospective: what happened, why it happened, continue
