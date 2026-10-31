@@ -4,13 +4,10 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-import os
 import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
-import threading
-import time
 import unittest
 from pathlib import Path
 from unittest import mock

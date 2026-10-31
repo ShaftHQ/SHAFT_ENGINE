@@ -5069,9 +5069,24 @@ class StaleGraphRefreshOnInstall6234Test(unittest.TestCase):
         }
 
     def test_stale_graph_is_refreshed(self):
-        calls, stores = self.stores({"status": "degraded", "detail": "stale"})
+        # Degraded → force refresh (if_stale=False). When the row heals, report refreshed
+        # without the auto-repair path (that path is covered by the 2026.10.31.1 suite).
+        calls = []
+        rows = iter(
+            (
+                {"status": "degraded", "detail": "stale"},
+                {"status": "healthy", "detail": "ok"},
+            )
+        )
+        stores = {
+            "graphify_doctor_row": lambda _project: next(rows),
+            "refresh": lambda project, **kwargs: calls.append(kwargs),
+        }
         self.assertEqual("refreshed", MODULE.refresh_stale_graph(Path("."), stores=stores))
-        self.assertEqual([{"if_stale": True, "components": frozenset({"graphify"})}], calls)
+        self.assertEqual(
+            [{"if_stale": False, "components": frozenset({"graphify"})}],
+            calls,
+        )
 
     def test_fresh_or_absent_graph_is_left_alone(self):
         for row, expected in (({"status": "healthy"}, "current"), (None, "absent")):
