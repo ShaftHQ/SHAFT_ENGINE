@@ -7,8 +7,8 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -159,7 +159,7 @@ class L80TestRunBudgetTest(unittest.TestCase):
                 hits.append("test-run-budget-still-default-35")
             return {"ok": not hits, "hits": hits}
 
-        bad = {"kind": "test-run", "minutes": 35, "explicit": False}
+        bad = {"kind": "test-run", "applied_budget": 35, "minutes": 35, "explicit": False}
         # Force a red by checking resolver itself would NOT produce the hit —
         # instead prove the *anti-pattern* receipt fails a policy wrapper.
         def policy(obs):
@@ -170,7 +170,7 @@ class L80TestRunBudgetTest(unittest.TestCase):
 
         result = self.proven.prove_red(
             policy,
-            {"kind": "test-run", "applied_budget": 35},
+            bad,
             expected_hit_substr="test-run-budget-still-default-35",
         )
         self.assertFalse(result["ok"])
@@ -435,7 +435,6 @@ class MemoryDumpOwnShardTest(unittest.TestCase):
         self.assertEqual([full], texts)
 
     def test_cli_merges_batches_jsonl(self) -> None:
-        import json
         import tempfile
         from pathlib import Path as P
 
@@ -493,8 +492,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
 
     def test_read_response_retries_ssl_eof(self) -> None:
         import ssl
-        from unittest import mock
-
+        
         good = mock.MagicMock()
         good.read.side_effect = [b"ok-body", b""]
         good.__enter__.return_value = good
@@ -518,8 +516,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
     def test_local_clone_fallback_after_network_failure(self) -> None:
         import tempfile
         from pathlib import Path as P
-        from unittest import mock
-
+        
         with tempfile.TemporaryDirectory() as tmp:
             dest = P(tmp) / "dest"
             dest.mkdir()
@@ -547,7 +544,6 @@ class InstallDownloadRetryTest(unittest.TestCase):
         """L74: GnuTLS fetch failure is retried (Cortex field report)."""
         tool = _load("ce_tool_318", CE / "tool.py")
         from pathlib import Path as P
-        from unittest import mock
         import subprocess
 
         calls = {"fetch": 0}

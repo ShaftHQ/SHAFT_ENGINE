@@ -15,7 +15,6 @@ import argparse
 import hashlib
 import json
 import re
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
@@ -316,7 +315,7 @@ def _apply_known_ids(
 ) -> bool:
     """Fill missing known ids via transcript; extend uncaptured/notes. Returns need_transcript."""
     need_transcript = False
-    seen_keys = {fingerprint(normalize_text(t) + "||") for t in ordered}  # unused; re-ingest via merge
+    seen_keys = {fingerprint(normalize_text(t) + "||") for t in ordered}
 
     def already(nid: str) -> bool:
         if nid in by_id:
@@ -328,6 +327,7 @@ def _apply_known_ids(
         if not nid or already(nid):
             continue
         need_transcript = True
+        recovered_ok = False
         if transcript_lookup is not None:
             probe = MemoryFact(text="", fact_id=raw_id, bot=bot, truncated=True)
             recovered = transcript_lookup(probe)
@@ -341,12 +341,13 @@ def _apply_known_ids(
                 )
                 if fact.text:
                     key = fact.dedupe_key()
-                    # append if new
-                    if fact.text not in ordered:
+                    if key not in seen_keys:
+                        seen_keys.add(key)
                         ordered.append(fact.text)
                     by_id[normalize_id(raw_id) or nid] = fact
-                    if already(nid):
-                        continue
+                    recovered_ok = True
+        if recovered_ok:
+            continue
         uncaptured.append(raw_id)
         notes.append(f"uncaptured shard id after transcript fallback: {raw_id}")
     return need_transcript
