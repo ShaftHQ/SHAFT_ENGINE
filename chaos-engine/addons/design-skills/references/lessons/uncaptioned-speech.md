@@ -11,7 +11,7 @@ description: >-
 
 1. Every ASR speech span with duration **≥ 300 ms** must be covered **≥ 50%**
    by human (non-hall) cues.
-2. Gate: `craft_qc.py uncaptionedspeech --cues cues.json --asr asr.json`.
+2. Gate: `craft_qc.py uncaptionedspeech --cues cues.json --asr asr.json` ([helper](../../scripts/uncaptioned_speech.py)).
 3. Missing cues or ASR input → **FAIL** (fail-closed).
 4. Hall / non-speech cue text (`[music]`, applause, filler) does not count as coverage.
 

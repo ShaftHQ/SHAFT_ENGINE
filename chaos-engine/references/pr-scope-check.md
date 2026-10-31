@@ -28,8 +28,8 @@ defeat review. Scope is a contract with the reviewer.
 ## Check
 
 ```bash
-git diff --name-only origin/main...HEAD > /tmp/changed.txt
-python scripts/ci/pr_scope_check.py --body /tmp/pr-body.md --changed /tmp/changed.txt
+git diff --name-only origin/main...HEAD > changed.txt
+python scripts/ci/pr_scope_check.py --body pr-body.md --changed changed.txt
 ```
 
 Missing scope declaration → FAIL. Empty diff → PASS when scope is declared.

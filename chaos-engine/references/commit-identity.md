@@ -33,7 +33,7 @@ assert pre_commit_identity_failures(
 )
 ```
 
-Git hook (`git_hooks.py` pre-commit) runs `commit_identity.py --pre-commit`
+Git hook ([`git_hooks.py`](../git_hooks.py) pre-commit) runs [`commit_identity.py`](../commit_identity.py) `--pre-commit`
 after the secret guard. Guard PreToolUse calls
 `commit_identity_pre_commit_reason` on `git commit`.
 
