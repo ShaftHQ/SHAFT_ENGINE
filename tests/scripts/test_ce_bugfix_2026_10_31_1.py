@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
+import unittest.mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -115,7 +115,7 @@ class UvToolLockTest(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, "", "")
 
             cmd = ["uv", "tool", "install", "--force", "graphifyy==0.9.97"]
-            with mock.patch.object(deps, "default_uv_tools_dir", return_value=tools):
+            with unittest.mock.patch.object(deps, "default_uv_tools_dir", return_value=tools):
                 result = deps.run_uv_tool_install_with_lock(
                     cmd, Path(temporary), run_command=flaky
                 )
@@ -165,7 +165,7 @@ class GraphifyAutoRepairTest(unittest.TestCase):
             refreshes.append(if_stale)
 
         stores = {"graphify_doctor_row": doctor_row, "refresh": refresh}
-        with mock.patch.object(install, "_auto_repair_graphify_after_upgrade") as auto:
+        with unittest.mock.patch.object(install, "_auto_repair_graphify_after_upgrade") as auto:
             result = install.refresh_stale_graph(Path("."), stores=stores)
         self.assertEqual("repaired", result)
         self.assertEqual([False, False], refreshes)
