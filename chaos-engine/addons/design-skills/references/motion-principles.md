@@ -57,54 +57,20 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
   transform and final numbers at done.
 - One motion focus per viewport: no muted video loop beside an animated hero.
 
+## Composition, seams, idle (MG)
 
-## Composition and camera (motion graphics)
-
-- One camera move per beat: push, pan, follow, or parallax — not stacked.
-  Hero camera moves last **800–2000 ms** with ease-in-out; never linear
-  except continuous loops.
-- Elements enter and exit through the **nearest frame edge**, following
-  reading direction (LTR: new content from right/below; back/undo reverses).
-  Ease-out on enter, ease-in on exit.
-- Depth layers map to motion roles: background = ambient (parallax ~0.2×),
-  midground = secondary (~0.6×), foreground = primary (~1.0–1.2×). Never
-  give two layers competing primary motion.
-
-## Title-safe and aspect margins
-
-Keep critical content (text, logos, faces, CTAs) inside title-safe margins.
-**9:16 Shorts** use the pixel map in [V07](video-craft/shorts-safe-area-captions.md)
-(top 168 px keep-out; content band y 168–1330 on 1080×1920) — do not invent a
-second 9:16 gate. Percentage table below is for planning and for aspects
-V07 does not cover; convert to pixels at the delivery size and cross-check
-V07 when the cut is vertical.
-
-| Aspect | Title-safe (plan) | Notes |
-| --- | --- | --- |
-| 16:9 | ~5% all sides | YouTube / web hero |
-| 9:16 | see V07 px map | platform UI eats top and bottom |
-| 1:1 | ~6–8% all sides | feed |
-| 4:5 | ~6% sides, ~8% top/bottom | taller feed |
-
-Restack horizontal layouts for 9:16; do not crop the sides off a 16:9 master.
-
-## Seam / vector continuity (multi-scene MG)
-
-When scenes join, how A exits sets how B enters: same axis, same direction,
-matched speed, cut mid-motion on both sides. Prefer a concrete carrier
-(cursor, container, mark) across the cut. Do not vendor seam-gate scripts;
-record exit/entry vectors in the storyboard and verify on a contact sheet.
-
-## Idle motion and climax holds
-
-- Ban idle wobble used only to fill time (breathe, float, glow-pulse loops
-  with no story). Every held phase needs a named route: staged reveals,
-  intentional camera, sequenced UI life, or animated action.
-- Stillness before climax: schedule a **0.3–0.75 s** pause between the major
-  action and its result.
-- Measurable: `design_qc.py motionstill` — longest still ≤3.0 s; end-hold
-  ≥30 frames at delivery fps; no float/breathe overlays added only to game
-  the meter.
+- One camera move per beat (push/pan/follow/parallax). Hero moves **800–2000 ms**,
+  ease-in-out (linear only for loops). Enter/exit via **nearest edge** (LTR:
+  right/below; undo reverses). Depth roles: bg ~0.2×, mid ~0.6×, fg ~1.0–1.2× —
+  never two competing primary layers.
+- Title-safe: **9:16 uses [V07](video-craft/shorts-safe-area-captions.md) px map
+  only** (no second gate). Plan other aspects ≈5–8% margins; restack for 9:16,
+  do not side-crop a 16:9 master.
+- Seam continuity: A-exit sets B-enter (axis, direction, speed); cut mid-motion;
+  prefer a carrier (cursor/container/mark). Storyboard vectors; contact-sheet verify.
+- Ban idle wobble (breathe/float/glow with no story). Stillness before climax
+  **0.3–0.75 s**. Gate: `design_qc.py motionstill` (still ≤3.0 s; end-hold ≥30
+  frames; no float overlay to game the meter).
 
 ## Workflow
 
@@ -124,6 +90,7 @@ For UI motion tokens and GSAP, see [W02](web-craft/motion-tokens.md) and
 - `design_qc.py fadeonly|springs|motiondur|chrome <src>` pass: entries move,
   at most one visible spring, median move <= 0.6 s, no HUD chrome
   ([C07](craft/motion-graphics-craft.md)).
+- `design_qc.py motionstill` on MG renders.
 - An e2e test or screenshot shows the reduced-motion variant.
 
 Web UI checks (should-it-animate, no `scale(0)`, interruptible
@@ -134,4 +101,4 @@ transitions): [W02](web-craft/motion-tokens.md).
 Thomas and Johnston, *The Illusion of Life* (twelve principles, paraphrased);
 Material 3 motion; Apple HIG motion; NN/g on animation duration; WCAG 2.2
 2.2.2, 2.3.1, 2.3.3; engine-neutral rules re-expressed from
-haidrrrry/claude-remotion-skill (MIT); composition and camera rules re-expressed from iart-ai/motion-design-skills (MIT, pin in INVENTORY); seam / idle-wobble / stillness-before-climax paraphrased from heygen-com/hyperframes motion-doctrine (Apache-2.0); motionstill thresholds inspired by anything2explainer patterns (PolyForm-NC — own implementation, no upstream code).
+haidrrrry/claude-remotion-skill (MIT); iart-ai/motion-design-skills (MIT, pin INVENTORY) re-expressed; hyperframes motion-doctrine (Apache-2.0) paraphrased; a2e motionstill ideas (PolyForm-NC, own code).
