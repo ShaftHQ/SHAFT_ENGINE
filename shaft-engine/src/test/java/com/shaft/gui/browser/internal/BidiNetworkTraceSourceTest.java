@@ -529,6 +529,55 @@ public class BidiNetworkTraceSourceTest {
         Assert.assertEquals(BidiNetworkActivitySource.decodeBytesValue(null), new byte[0]);
     }
 
+    @Test
+    public void nullRequestAndResponseBodySizesFallBackWithoutDoubleGetters() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
+        RequestData request = Mockito.mock(RequestData.class);
+        Mockito.when(request.getRequestId()).thenReturn("null-bodies");
+        Mockito.when(request.getMethod()).thenReturn("POST");
+        Mockito.when(request.getUrl()).thenReturn("https://example.test/null-bodies");
+        Mockito.when(request.getBodySize()).thenReturn(null);
+        Mockito.when(request.getHeaders()).thenReturn(List.of());
+        ResponseData response = Mockito.mock(ResponseData.class);
+        Mockito.when(response.getStatus()).thenReturn(204);
+        Mockito.when(response.getHeaders()).thenReturn(List.of());
+        Mockito.when(response.getBodySize()).thenReturn(null);
+        Mockito.when(response.getBytesReceived()).thenReturn(17L);
+        ResponseDetails completed = Mockito.mock(ResponseDetails.class);
+        Mockito.when(completed.getRequest()).thenReturn(request);
+        Mockito.when(completed.getResponseData()).thenReturn(response);
+
+        source.handleBeforeRequestSent(before(request));
+        source.handleResponseCompleted(completed);
+
+        var events = BrowserObservabilityRecorder.snapshot(owner);
+        Assert.assertEquals(events.size(), 1);
+        Assert.assertEquals(events.getFirst().requestSizeBytes(), 0L);
+        Assert.assertEquals(events.getFirst().responseSizeBytes(), 17L);
+        source.close();
+    }
+
+    @Test
+    public void missingResponseDataPublishesZeroResponseSize() {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
+        RequestData request = request("no-response", "GET", "https://example.test/no-response", 0L, List.of());
+        ResponseDetails completed = Mockito.mock(ResponseDetails.class);
+        Mockito.when(completed.getRequest()).thenReturn(request);
+        Mockito.when(completed.getResponseData()).thenReturn(null);
+
+        source.handleBeforeRequestSent(before(request));
+        source.handleResponseCompleted(completed);
+
+        var events = BrowserObservabilityRecorder.snapshot(owner);
+        Assert.assertEquals(events.size(), 1);
+        Assert.assertEquals(events.getFirst().responseSizeBytes(), 0L);
+        source.close();
+    }
+
     private static ResponseDetails completed(RequestData request) {
         ResponseData response = Mockito.mock(ResponseData.class);
         Mockito.when(response.getStatus()).thenReturn(200);

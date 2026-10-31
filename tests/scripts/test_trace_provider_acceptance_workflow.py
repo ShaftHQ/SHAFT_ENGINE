@@ -18,8 +18,10 @@ class TraceProviderAcceptanceWorkflowTest(unittest.TestCase):
 
         steps = {step.get("name"): step for step in job["steps"] if step.get("name")}
         install = steps["Install Playwright browser"]["run"]
+        reactor = steps["Install reactor modules locally"]["run"]
         acceptance = steps["Run native trace parity acceptance"]["run"]
 
+        self.assertIn("mvn -pl shaft-engine -am install", reactor)
         self.assertIn("com.microsoft.playwright.CLI", install)
         self.assertIn('install --with-deps ${{ matrix.browser }}', install)
         self.assertIn("PlaywrightTraceParityAcceptanceTest", acceptance)
@@ -29,6 +31,7 @@ class TraceProviderAcceptanceWorkflowTest(unittest.TestCase):
     def test_offline_job_provisions_and_runs_both_allure_acceptance_tests(self):  # #6752
         workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
         steps = {step.get("name"): step for step in workflow["jobs"]["chromium"]["steps"] if step.get("name")}
+        self.assertIn("mvn -pl shaft-engine -am install", steps["Install reactor modules locally"]["run"])
         provision = steps["Provision the Allure 2 and Allure 3 CLIs"]["run"]
         acceptance = steps["Run offline trace viewer acceptance"]["run"]
 

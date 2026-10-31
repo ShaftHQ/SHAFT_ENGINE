@@ -64,9 +64,12 @@ final class SourceCodeContext {
         }
         Path module = moduleRoot(caller);
         if (module != null && absolute.startsWith(module)) {
-            return module.getFileName() + "/" + module.relativize(absolute).toString().replace('\\', '/');
+            Path moduleName = module.getFileName();
+            String prefix = moduleName == null ? module.toString() : moduleName.toString();
+            return prefix + "/" + module.relativize(absolute).toString().replace('\\', '/');
         }
-        return sourceFile.getFileName().toString();
+        Path fileName = sourceFile.getFileName();
+        return fileName == null ? sourceFile.toString() : fileName.toString();
     }
 
     @Nullable
@@ -81,9 +84,12 @@ final class SourceCodeContext {
             }
             Path output = Path.of(source.getLocation().toURI()).toAbsolutePath().normalize();
             Path parent = output.getParent();
-            if (parent != null && "target".equals(parent.getFileName().toString())
-                    && ("test-classes".equals(output.getFileName().toString())
-                    || "classes".equals(output.getFileName().toString()))) {
+            Path parentName = parent == null ? null : parent.getFileName();
+            Path outputName = output.getFileName();
+            if (parent != null && parentName != null && outputName != null
+                    && "target".equals(parentName.toString())
+                    && ("test-classes".equals(outputName.toString())
+                    || "classes".equals(outputName.toString()))) {
                 return parent.getParent();
             }
         } catch (java.net.URISyntaxException | RuntimeException ignored) {

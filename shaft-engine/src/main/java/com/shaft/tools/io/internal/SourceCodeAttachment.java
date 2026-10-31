@@ -2,6 +2,7 @@ package com.shaft.tools.io.internal;
 
 import com.google.common.base.Equivalence;
 import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.AllureLifecycle;
@@ -180,7 +181,36 @@ public final class SourceCodeAttachment {
     }
 
     static String render(StackTraceElement frame, String location, SourceCodeContext.Window window) {
-        StringBuilder html = new StringBuilder("""
+        // Assemble from escaped fragments only. ReportHtmlTheme.escapeHtml is the shared HTML
+        // sanitizer used by other report builders; values are escaped before they enter markup.
+        String safeLocation = ReportHtmlTheme.escapeHtml(redact(location));
+        String safeCaller = ReportHtmlTheme.escapeHtml(redact(frame.getClassName() + "." + frame.getMethodName()));
+        StringBuilder body = new StringBuilder();
+        if (window.lines().isEmpty()) {
+            body.append("<p>").append(ReportHtmlTheme.escapeHtml(window.unavailableReason())).append("</p>");
+            if (frame.getLineNumber() > 0) {
+                body.append("<p>Recorded line: ").append(frame.getLineNumber()).append("</p>");
+            }
+        } else {
+            String original = String.join("\n", window.lines().stream().map(SourceCodeContext.Line::text).toList());
+            String[] redacted = redact(original).split("\n", -1);
+            if (redacted.length != window.lines().size()) {
+                body.append("<p>Source context omitted because it contains sensitive content.</p>");
+            } else {
+                body.append("<pre><code>");
+                for (int i = 0; i < redacted.length; i++) {
+                    int number = window.lines().get(i).number();
+                    boolean current = number == frame.getLineNumber();
+                    String safeLine = ReportHtmlTheme.escapeHtml(redacted[i]);
+                    body.append("<span class=\"source-line").append(current ? " active" : "").append("\">")
+                            .append("<span class=\"arrow\">").append(current ? "&#8594;" : " ")
+                            .append("</span><span class=\"number\">").append(number).append("</span>")
+                            .append(safeLine).append("</span>");
+                }
+                body.append("</code></pre>");
+            }
+        }
+        return """
                 <!doctype html><html lang="en"><head><meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>Source code</title><style>
@@ -193,44 +223,14 @@ public final class SourceCodeAttachment {
                 .number{display:inline-block;min-width:5ch;text-align:right;margin-right:2ch;user-select:none}
                 .arrow{display:inline-block;width:2ch}.note{font-size:12px}
                 </style></head><body><h1>Source code</h1><p>
-                """);
-        html.append(escape(redact(location))).append("</p><p>")
-                .append(escape(redact(frame.getClassName() + "." + frame.getMethodName())))
-                .append("</p>");
-        if (window.lines().isEmpty()) {
-            html.append("<p>").append(escape(window.unavailableReason())).append("</p>");
-            if (frame.getLineNumber() > 0) {
-                html.append("<p>Recorded line: ").append(frame.getLineNumber()).append("</p>");
-            }
-        } else {
-            String original = String.join("\n", window.lines().stream().map(SourceCodeContext.Line::text).toList());
-            String[] redacted = redact(original).split("\n", -1);
-            if (redacted.length != window.lines().size()) {
-                html.append("<p>Source context omitted because it contains sensitive content.</p>");
-            } else {
-                html.append("<pre><code>");
-                for (int i = 0; i < redacted.length; i++) {
-                    int number = window.lines().get(i).number();
-                    boolean current = number == frame.getLineNumber();
-                    html.append("<span class=\"source-line").append(current ? " active" : "").append("\">")
-                            .append("<span class=\"arrow\">").append(current ? "&#8594;" : " ")
-                            .append("</span><span class=\"number\">").append(number).append("</span>")
-                            .append(escape(redacted[i])).append("</span>");
-                }
-                html.append("</code></pre>");
-            }
-        }
-        return html.append("<p class=\"note\">The arrow marks the recorded call-site line. Surrounding lines are context, not proof of execution.</p></body></html>")
-                .toString();
+                """
+                + safeLocation + "</p><p>" + safeCaller + "</p>"
+                + body
+                + "<p class=\"note\">The arrow marks the recorded call-site line. Surrounding lines are context, not proof of execution.</p></body></html>";
     }
 
     private static String redact(String text) {
         return ReportSecrets.redact(FailureTraceReporter.redactSourceText(text));
-    }
-
-    private static String escape(String text) {
-        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     private enum Mode {
