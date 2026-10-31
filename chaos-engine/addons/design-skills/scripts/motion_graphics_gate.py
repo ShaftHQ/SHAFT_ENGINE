@@ -134,18 +134,15 @@ _SELF_CLOCK_METHODS = frozenset({
 
 
 def _independent_asr_word_match(row: dict[str, Any], obs: dict[str, Any] | None = None) -> bool:
-    """True when onset is backed by an ASR word time, not the cue alone.
-
-    Accept explicit flags or an ``asr_words`` / obs-level word whose ``start``
-    is within tolerance of the row onset AND whose text matches the cue/caption.
-    """
+    """True when onset is backed by an ASR word time, not the cue alone."""
     if row.get("asr_word_matched") is True or row.get("independent_asr_match") is True:
         return True
-    if obs and (obs.get("asr_word_matched") is True or obs.get("independent_asr_match") is True):
+    if obs and (
+        obs.get("asr_word_matched") is True or obs.get("independent_asr_match") is True
+    ):
         return True
-    onset_raw = row.get("phrase_onset", row.get("onset", row.get("onset_s")))
     try:
-        onset = float(onset_raw)
+        onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
     except (TypeError, ValueError):
         return False
     words = row.get("asr_words") or row.get("words")
@@ -171,51 +168,68 @@ def _independent_asr_word_match(row: dict[str, Any], obs: dict[str, Any] | None 
     return False
 
 
-def self_clock_hits(obs: dict[str, Any], captions: list[Any] | None = None) -> list[str]:
-    """L81: reject onset rows whose onset equals the cue without independent ASR proof.
+def _row_self_clock_hit(index: int, row: dict[str, Any], obs: dict[str, Any]) -> str | None:
+    """Return a self-clock hit for one onset row, or None when the row is clean."""
+    method = str(row.get("onset_method") or row.get("method") or "").strip().casefold()
+    try:
+        cue_s = float(row.get("cue_s", row.get("cue_start", row.get("start"))))
+        onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
+    except (TypeError, ValueError):
+        if method in _SELF_CLOCK_METHODS:
+            return f"onset_rows[{index}]:self-clock-unreadable"
+        return None
+    if abs(cue_s - onset) > 1e-4:
+        return None
+    if _independent_asr_word_match(row, obs):
+        return None
+    return f"onset_rows[{index}]:self-clock:{method or 'unnamed'}"
 
-    Detection is by **value** (onset ≈ cue_s), not by method-name allowlist.
-    Named self-clock methods remain an extra signal when values are unreadable.
+
+def _obs_self_clock_hit(obs: dict[str, Any]) -> str | None:
+    """Top-level obs onset==cue without independent ASR proof."""
+    method = str(obs.get("onset_method") or "").strip().casefold()
+    if obs.get("phrase_onset") is None or obs.get("cue_s", obs.get("cue_start")) is None:
+        return None
+    try:
+        onset = float(obs["phrase_onset"])
+        cue_s = float(obs.get("cue_s", obs.get("cue_start")))
+    except (TypeError, ValueError):
+        if method in _SELF_CLOCK_METHODS:
+            return f"obs-self-clock-unreadable:{method}"
+        return None
+    if abs(onset - cue_s) > 1e-4:
+        return None
+    rowish = {
+        "phrase_onset": obs.get("phrase_onset"),
+        "asr_word_matched": obs.get("asr_word_matched"),
+        "independent_asr_match": obs.get("independent_asr_match"),
+        "asr_words": obs.get("asr_words"),
+        "caption": obs.get("caption") or obs.get("word"),
+    }
+    if _independent_asr_word_match(rowish, obs):
+        return None
+    return f"obs-self-clock:{method or 'unnamed'}"
+
+
+def self_clock_hits(obs: dict[str, Any], captions: list[Any] | None = None) -> list[str]:
+    """Reject onset rows whose onset equals the cue without independent ASR proof.
+
+    Detection is by value (onset ≈ cue_s), not by method-name allowlist.
     """
     del captions  # reserved for future caption cross-check
     hits: list[str] = []
     rows = obs.get("onset_rows") or obs.get("gate_rows") or obs.get("cue_onsets")
     if isinstance(rows, list):
         for index, row in enumerate(rows):
-            if not isinstance(row, dict):
-                continue
-            method = str(row.get("onset_method") or row.get("method") or "").strip().casefold()
-            try:
-                cue_s = float(row.get("cue_s", row.get("cue_start", row.get("start"))))
-                onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
-            except (TypeError, ValueError):
-                if method in _SELF_CLOCK_METHODS:
-                    hits.append(f"onset_rows[{index}]:self-clock-unreadable")
-                continue
-            if abs(cue_s - onset) <= 1e-4:
-                if not _independent_asr_word_match(row, obs):
-                    label = method or "unnamed"
-                    hits.append(f"onset_rows[{index}]:self-clock:{label}")
-    # Builder flag that admits cue-derived onsets
+            if isinstance(row, dict):
+                hit = _row_self_clock_hit(index, row, obs)
+                if hit:
+                    hits.append(hit)
     if obs.get("onset_from_cue") is True or obs.get("self_clock") is True:
         hits.append("onset-from-cue-flag")
-    method = str(obs.get("onset_method") or "").strip().casefold()
-    if obs.get("phrase_onset") is not None and obs.get("cue_s", obs.get("cue_start")) is not None:
-        try:
-            if abs(float(obs["phrase_onset"]) - float(obs.get("cue_s", obs.get("cue_start")))) <= 1e-4:
-                rowish = {
-                    "phrase_onset": obs.get("phrase_onset"),
-                    "asr_word_matched": obs.get("asr_word_matched"),
-                    "independent_asr_match": obs.get("independent_asr_match"),
-                    "asr_words": obs.get("asr_words"),
-                    "caption": obs.get("caption") or obs.get("word"),
-                }
-                if not _independent_asr_word_match(rowish, obs):
-                    label = method or "unnamed"
-                    hits.append(f"obs-self-clock:{label}")
-        except (TypeError, ValueError):
-            if method in _SELF_CLOCK_METHODS:
-                hits.append(f"obs-self-clock-unreadable:{method}")
+    top = _obs_self_clock_hit(obs)
+    if top:
+        hits.append(top)
     return hits
 
 

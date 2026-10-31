@@ -526,7 +526,7 @@ class MemoryDumpOwnShardTest(TestCase):
             {"text": "same", "bot": "carl", "date": "d1", "type": "t1", "id": "i1"},
             {"text": "same", "bot": "carl", "date": "d1", "type": "t2", "id": "i2"},
         ]
-        texts, report = self.mod.merge_batches(
+        _texts, report = self.mod.merge_batches(
             [],
             bot="carl",
             shard_total=2,
@@ -613,10 +613,9 @@ class MemoryDumpOwnShardTest(TestCase):
         self.assertEqual([full], texts)
 
     def test_cli_merges_batches_jsonl(self) -> None:
-        from pathlib import Path as P
 
         with tempfile.TemporaryDirectory() as tmp:
-            root = P(tmp)
+            root = Path(tmp)
             batches = root / "batches.jsonl"
             line = json.dumps(
                 {
@@ -673,7 +672,7 @@ class InstallDownloadRetryTest(TestCase):
 
     def test_read_response_retries_ssl_eof(self) -> None:
         import ssl
-        
+
         good = mock.MagicMock()
         good.read.side_effect = [b"ok-body", b""]
         good.__enter__.return_value = good
@@ -695,11 +694,9 @@ class InstallDownloadRetryTest(TestCase):
         sleeper.assert_called()
 
     def test_local_clone_fallback_after_network_failure(self) -> None:
-        import tempfile
-        from pathlib import Path as P
-        
+
         with tempfile.TemporaryDirectory() as tmp:
-            dest = P(tmp) / "dest"
+            dest = Path(tmp) / "dest"
             dest.mkdir()
             # Point env at this worktree as the local clone.
             with mock.patch.dict(
@@ -772,7 +769,6 @@ class InstallDownloadRetryTest(TestCase):
     def test_maintain_fetch_retries_gnutls(self) -> None:
         """L74: GnuTLS fetch failure is retried (Cortex field report)."""
         tool = _load("ce_tool_318", CE / "tool.py")
-        from pathlib import Path as P
         import subprocess
 
         calls = {"fetch": 0}
@@ -802,7 +798,7 @@ class InstallDownloadRetryTest(TestCase):
             with mock.patch.object(tool, "time") as time_mod:
                 time_mod.sleep = mock.Mock()
                 with tempfile.TemporaryDirectory() as _td:
-                    ok, msg = tool.maintain_sync(P(_td), runner=runner)
+                    ok, _msg = tool.maintain_sync(Path(_td), runner=runner)
         self.assertTrue(ok)
         self.assertGreaterEqual(calls["fetch"], 3)
 
