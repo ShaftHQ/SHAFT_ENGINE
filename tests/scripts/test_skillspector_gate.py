@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import mock
+from unittest import TestCase, main, mock
 
 from scripts.ci.skillspector_gate import (
     evaluate_report,
@@ -15,7 +14,7 @@ from scripts.ci.skillspector_gate import (
 )
 
 
-class SkillDirsFromPathsTest(unittest.TestCase):
+class SkillDirsFromPathsTest(TestCase):
     def test_maps_nested_skill_paths(self) -> None:
         paths = [
             "chaos-engine/skills/omniroute/scripts/runner.py",
@@ -33,7 +32,7 @@ class SkillDirsFromPathsTest(unittest.TestCase):
         )
 
 
-class EvaluateReportTest(unittest.TestCase):
+class EvaluateReportTest(TestCase):
     def test_score_over_threshold_fails(self) -> None:
         report = {
             "skill": {"name": "demo"},
@@ -66,7 +65,7 @@ class EvaluateReportTest(unittest.TestCase):
         self.assertEqual(evaluate_report(report), [])
 
 
-class GateFailuresTest(unittest.TestCase):
+class GateFailuresTest(TestCase):
     def test_missing_scanner_warns_unless_required(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -79,7 +78,9 @@ class GateFailuresTest(unittest.TestCase):
             skill = root / "chaos-engine/skills/demo"
             skill.mkdir(parents=True)
             (skill / "SKILL.md").write_text("---\nname: demo\n---\n", encoding="utf-8")
-            with mock.patch("scripts.ci.skillspector_gate.resolve_skillspector", return_value=None):
+            with mock.patch(
+                "scripts.ci.skillspector_gate.resolve_skillspector", return_value=None
+            ):
                 self.assertEqual(
                     gate_failures(root, paths=["chaos-engine/skills/demo/SKILL.md"], required=False),
                     [],
@@ -91,4 +92,4 @@ class GateFailuresTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
