@@ -131,8 +131,13 @@ class WardrobeGateTest(unittest.TestCase):
             spec.write_text(json.dumps({
                 "garment": "polo", "sleeve": "half", "buttons_closed": 2, "colour": "navy",
             }), encoding="utf-8")
+            obs = root / "obs.json"
+            obs.write_text(json.dumps([
+                {"t": 0.0, "collar_crop": "a.png", "buttons_closed": 2, "colour": "navy", "sleeve": "half"},
+            ]), encoding="utf-8")
             code, payload = run_qc(
                 "wardrobe", str(mp4), "--ref", str(root / "missing.png"), "--spec", str(spec),
+                "--observations", str(obs),
             )
             self.assertEqual(1, code, payload)
             self.assertIn("missing-ref", payload.get("hits", []))
@@ -161,6 +166,32 @@ class WardrobeGateTest(unittest.TestCase):
             hits = payload.get("hits", [])
             self.assertTrue(any("sample-interval" in h for h in hits), hits)
             self.assertTrue(any("buttons_closed" in h for h in hits), hits)
+
+    def test_without_observations_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            mp4 = root / "out.mp4"
+            ref = root / "ref.png"
+            ref.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32)
+            make_color_mp4(mp4, color="navy", seconds=1.0)
+            spec = root / "spec.json"
+            spec.write_text(json.dumps({
+                "garment": "polo", "sleeve": "half", "buttons_closed": 2, "colour": "navy",
+            }), encoding="utf-8")
+            # argparse requires --observations → non-zero exit; never PASS
+            code, payload = run_qc(
+                "wardrobe", str(mp4), "--ref", str(ref), "--spec", str(spec),
+            )
+            self.assertNotEqual(0, code, payload)
+            # Empty observations list also FAIL
+            obs = root / "empty.json"
+            obs.write_text("[]", encoding="utf-8")
+            code, payload = run_qc(
+                "wardrobe", str(mp4), "--ref", str(ref), "--spec", str(spec),
+                "--observations", str(obs),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn("missing-observations", payload.get("hits", []))
 
 
 class RenderMetaGateTest(unittest.TestCase):
@@ -240,6 +271,7 @@ class CapsyncL49Test(unittest.TestCase):
             write_srt(srt, [(0.0, 1.0, "hello"), (1.2, 2.0, "world")])
             onsets = root / "onsets.json"
             onsets.write_text(json.dumps({"words": []}), encoding="utf-8")
+            # Early fail on empty onsets still works without --onsets-b
             code, payload = run_qc("capsync", str(srt), "--onsets", str(onsets))
             self.assertEqual(1, code, payload)
             hits = payload.get("hits", [])
@@ -259,6 +291,21 @@ class CapsyncL49Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertIn("builder-injected-onset", payload.get("hits", []))
 
+    def test_consensus_required_without_onsets_b(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            srt = root / "c.srt"
+            write_srt(srt, [(0.0, 1.0, "hello")])
+            a = root / "a.json"
+            a.write_text(json.dumps({
+                "words": [{"word": "hello", "start": 0.05, "end": 0.4}]
+            }), encoding="utf-8")
+            code, payload = run_qc(
+                "capsync", str(srt), "--onsets", str(a), "--tol", "0.15",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn("missing-onsets-b", payload.get("hits", []))
+
     def test_drift_over_150ms_fails_and_consensus(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -268,13 +315,15 @@ class CapsyncL49Test(unittest.TestCase):
             a.write_text(json.dumps({
                 "words": [{"word": "hello", "start": 0.16, "end": 0.5}]
             }), encoding="utf-8")
+            # L44 single-model path still measures drift
             code, payload = run_qc(
-                "capsync", str(srt), "--onsets", str(a), "--tol", "0.15", "--codeswitch-tol", "0.15",
+                "capsync", str(srt), "--onsets", str(a), "--single-model",
+                "--tol", "0.15", "--codeswitch-tol", "0.15",
             )
             self.assertEqual(1, code, payload)
             self.assertTrue(any("drift" in h for h in payload.get("hits", [])), payload)
 
-            # Within tol + consensus second model
+            # Within tol + consensus second model + RMS spans
             a.write_text(json.dumps({
                 "words": [{"word": "hello", "start": 0.05, "end": 0.4}]
             }), encoding="utf-8")
@@ -282,11 +331,69 @@ class CapsyncL49Test(unittest.TestCase):
             b.write_text(json.dumps({
                 "words": [{"word": "hello", "start": 0.06, "end": 0.4}]
             }), encoding="utf-8")
+            rms = root / "rms.json"
+            rms.write_text(json.dumps({"spans": [[0.0, 1.0]]}), encoding="utf-8")
             code, payload = run_qc(
                 "capsync", str(srt), "--onsets", str(a),
-                "--onsets-b", str(b), "--consensus", "--tol", "0.15", "--codeswitch-tol", "0.15",
+                "--onsets-b", str(b), "--rms-spans", str(rms),
+                "--tol", "0.15", "--codeswitch-tol", "0.15",
             )
             self.assertEqual(0, code, payload)
+
+    def test_token_overlap_and_rms_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            srt = root / "c.srt"
+            write_srt(srt, [(0.0, 1.5, "hello brave world")])
+            a = root / "a.json"
+            # Only first token in window → overlap 1/3 < 0.5
+            a.write_text(json.dumps({
+                "words": [{"word": "hello", "start": 0.05, "end": 0.3}]
+            }), encoding="utf-8")
+            b = root / "b.json"
+            b.write_text(json.dumps({
+                "words": [{"word": "hello", "start": 0.06, "end": 0.3}]
+            }), encoding="utf-8")
+            rms = root / "rms.json"
+            rms.write_text(json.dumps({"spans": [[0.0, 1.5]]}), encoding="utf-8")
+            code, payload = run_qc(
+                "capsync", str(srt), "--onsets", str(a),
+                "--onsets-b", str(b), "--rms-spans", str(rms),
+                "--tol", "0.15",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("token-overlap" in h for h in payload.get("hits", [])), payload)
+
+            # Full tokens but no RMS speech
+            a.write_text(json.dumps({
+                "words": [
+                    {"word": "hello", "start": 0.05},
+                    {"word": "brave", "start": 0.4},
+                    {"word": "world", "start": 0.8},
+                ]
+            }), encoding="utf-8")
+            b.write_text(json.dumps({
+                "words": [
+                    {"word": "hello", "start": 0.06},
+                    {"word": "brave", "start": 0.41},
+                    {"word": "world", "start": 0.81},
+                ]
+            }), encoding="utf-8")
+            rms.write_text(json.dumps({"spans": [[5.0, 6.0]]}), encoding="utf-8")
+            code, payload = run_qc(
+                "capsync", str(srt), "--onsets", str(a),
+                "--onsets-b", str(b), "--rms-spans", str(rms),
+                "--tol", "0.15",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("no-rms-speech" in h for h in payload.get("hits", [])), payload)
+            # Missing rms entirely
+            code, payload = run_qc(
+                "capsync", str(srt), "--onsets", str(a), "--onsets-b", str(b),
+                "--tol", "0.15",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn("missing-rms-media", payload.get("hits", []))
 
 
 class TitleSafeDedupeTest(unittest.TestCase):

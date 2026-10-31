@@ -864,18 +864,24 @@ def cmd_wardrobe(args: argparse.Namespace) -> int:
         hits.append("unreadable-duration")
     observations: list = []
     obs_path = getattr(args, "observations", None)
-    if obs_path:
-        op = Path(obs_path)
-        if not op.is_file():
-            return report("wardrobe", FAIL, hits=["missing-observations"], error=f"no file: {op}")
-        observations = json.loads(op.read_text(encoding="utf-8"))
-        if not isinstance(observations, list):
-            return report("wardrobe", FAIL, hits=["bad-observations"], error="observations must be a list")
-        hits.extend(_wardrobe_observation_hits(
-            observations, spec, sample_s=sample_s, duration=duration,
-        ))
-    elif getattr(args, "require_observations", False):
+    if not obs_path:
         hits.append("missing-observations")
+        return report(
+            "wardrobe", FAIL, hits=hits,
+            error="--observations required (collar crops + button counts at 0.5s)",
+            observations=0,
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report("wardrobe", FAIL, hits=["missing-observations"], error=f"no file: {op}")
+    observations = json.loads(op.read_text(encoding="utf-8"))
+    if not isinstance(observations, list):
+        return report("wardrobe", FAIL, hits=["bad-observations"], error="observations must be a list")
+    if len(observations) == 0:
+        hits.append("missing-observations")
+    hits.extend(_wardrobe_observation_hits(
+        observations, spec, sample_s=sample_s, duration=duration,
+    ))
     if spec.get("ref_ok") is False:
         hits.append("ref-disagrees-spec")
     expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
@@ -2278,10 +2284,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--ref", required=True, help="wardrobe reference image")
     p.add_argument("--spec", required=True, help="wardrobe JSON (garment/sleeve/buttons_closed/colour)")
     p.add_argument("--sample", type=float, default=0.5, help="sample interval seconds (max 0.5)")
-    p.add_argument("--observations", default=None,
-                   help="JSON list of per-sample collar crops + button counts")
-    p.add_argument("--require-observations", action="store_true", dest="require_observations",
-                   help="fail when --observations omitted")
+    p.add_argument("--observations", required=True,
+                   help="required JSON list of per-sample collar crops + button counts (0 = FAIL)")
     p = add("rendermeta", cmd_rendermeta,
             "L50: meta.render_rev/sha must match current render")
     p.add_argument("file", help="current render mp4")

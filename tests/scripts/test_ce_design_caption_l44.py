@@ -84,7 +84,7 @@ class CapSyncTest(unittest.TestCase):
                 ]}),
                 encoding="utf-8",
             )
-            code, payload = run_qc("capsync", str(cues), "--onsets", str(onsets))
+            code, payload = run_qc("capsync", str(cues), "--onsets", str(onsets), "--single-model")
             self.assertEqual(1, code, payload)
             self.assertIn("onsets-echo-cue-starts", payload.get("hits", []))
 
@@ -100,7 +100,7 @@ class CapSyncTest(unittest.TestCase):
                 ]}),
                 encoding="utf-8",
             )
-            code, payload = run_qc("capsync", str(cues), "--onsets", str(onsets))
+            code, payload = run_qc("capsync", str(cues), "--onsets", str(onsets), "--single-model")
             self.assertEqual(0, code, payload)
             self.assertGreaterEqual(payload.get("max_drift_ms", 0), 50.0)
 
@@ -109,7 +109,8 @@ class CapSyncTest(unittest.TestCase):
             cues = Path(folder) / "c.srt"
             write_srt(cues, [(0.0, 1.0, "Hello")])
             code, payload = run_qc(
-                "capsync", str(cues), "--onsets", str(Path(folder) / "missing.json")
+                "capsync", str(cues), "--onsets", str(Path(folder) / "missing.json"),
+                "--single-model",
             )
             self.assertEqual(1, code, payload)
             self.assertIn("missing-independent-onsets", payload.get("hits", []))

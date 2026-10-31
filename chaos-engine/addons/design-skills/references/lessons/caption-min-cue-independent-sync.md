@@ -31,7 +31,7 @@ Short. Extends [L17](caption-micro-gap-snap.md) and [L35](video-caption-handoff.
 
 - [ ] `design_qc.py mincuedur cues.srt` fails a 0.4 s cue; passes after merge
       into a ≥0.8 s neighbour.
-- [ ] `design_qc.py capsync cues.srt --onsets asr.json` fails when onsets equal
+- [ ] `design_qc.py capsync --single-model cues.srt --onsets asr.json` fails when onsets equal
       cue starts exactly; passes with independent ASR/FA within tol.
 - [ ] `capsync … --onsets a.json --snapper-words a.json` fails
       `onsets-share-snapper-words`.

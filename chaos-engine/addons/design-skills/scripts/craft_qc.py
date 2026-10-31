@@ -3624,11 +3624,15 @@ def _capsync_echo_cue_starts(qc, onsets: list[dict], cues: list[dict]) -> int | 
 
 
 def _capsync_load_consensus(qc, args, onset_path: Path, cue_path: Path) -> tuple[list[dict], bool, int | None]:
-    """Optional second onset file for multi-model consensus."""
-    onsets_b: list[dict] = []
+    """L49: require second onset file unless --single-model (L44)."""
+    if getattr(args, "single_model", False):
+        return [], False, None
     onset_b_path = getattr(args, "onsets_b", None)
     if not onset_b_path:
-        return onsets_b, bool(getattr(args, "consensus", False)), None
+        return [], True, qc.report(
+            "capsync", qc.FAIL, hits=["missing-onsets-b"],
+            error="L49 requires --onsets-b + consensus; use --single-model for L44",
+        )
     bpath = Path(onset_b_path)
     if not bpath.is_file():
         return [], True, qc.report(
@@ -3649,6 +3653,93 @@ def _capsync_load_consensus(qc, args, onset_path: Path, cue_path: Path) -> tuple
     return onsets_b, True, None
 
 
+
+def _capsync_norm_tok(token: str) -> str:
+    return token.casefold().rstrip(".,:;!?")
+
+
+def _capsync_token_overlap(cue_tokens: list[str], window_words: list[str]) -> float:
+    """Fraction of cue tokens present in the onset window (fail-closed coverage)."""
+    cue_set = {_capsync_norm_tok(t) for t in cue_tokens if _capsync_norm_tok(t)}
+    if not cue_set:
+        return 1.0
+    win_set = {_capsync_norm_tok(w) for w in window_words if _capsync_norm_tok(w)}
+    return len(cue_set & win_set) / len(cue_set)
+
+
+def _capsync_window_words(
+    onsets: list[dict], cue: dict, *, pad: float,
+) -> list[str]:
+    start = float(cue["start"]) - pad
+    end = float(cue["end"]) + pad
+    return [
+        o["word"] for o in onsets
+        if start - 1e-9 <= float(o["start"]) <= end + 1e-9
+    ]
+
+
+def _capsync_overlap_hit(
+    index: int, cue: dict, onsets: list[dict], *, tol: float, min_overlap: float,
+) -> str | None:
+    tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
+    words = _capsync_window_words(onsets, cue, pad=tol)
+    score = _capsync_token_overlap(tokens, words)
+    if score + 1e-12 < min_overlap:
+        return (
+            f"cue {index}: token-overlap {score:.2f} < {min_overlap:g} "
+            f"(cue tokens vs onset window)"
+        )
+    return None
+
+
+def _capsync_load_rms_spans(qc, args) -> tuple[list[tuple[float, float]] | None, int | None]:
+    """L49 RMS speech spans from --rms-spans JSON or --media decode."""
+    spans_path = getattr(args, "rms_spans", None)
+    if spans_path:
+        sp = Path(spans_path)
+        if not sp.is_file():
+            return None, qc.report(
+                "capsync", qc.FAIL, hits=["missing-rms-spans"],
+                error=f"--rms-spans path missing: {sp}",
+            )
+        raw = json.loads(sp.read_text(encoding="utf-8"))
+        rows = raw.get("spans", raw) if isinstance(raw, dict) else raw
+        spans = [(float(a), float(b)) for a, b in rows]
+        return spans, None
+    media = getattr(args, "media", None)
+    if not media:
+        return None, None
+    try:
+        return _speech_spans_rms(
+            qc, media,
+            thr=float(getattr(args, "rms_thr", -40.0)),
+            hop=0.05, min_speech=0.05,
+        ), None
+    except Exception as exc:  # noqa: BLE001 — surface decode failures as gate hits
+        return None, qc.report(
+            "capsync", qc.FAIL, hits=["rms-media-unreadable"],
+            error=str(exc),
+        )
+
+
+def _capsync_rms_hits(
+    cues: list[dict], spans: list[tuple[float, float]], *, min_overlap: float = 0.05,
+) -> list[str]:
+    """Fail cues whose time window has no RMS speech overlap."""
+    hits: list[str] = []
+    for index, cue in enumerate(cues, 1):
+        cs, ce = float(cue["start"]), float(cue["end"])
+        overlap = 0.0
+        for ss, se in spans:
+            overlap += max(0.0, min(ce, se) - max(cs, ss))
+        if overlap + 1e-12 < min_overlap:
+            hits.append(
+                f"cue {index}: no-rms-speech in [{cs:.3f},{ce:.3f}] "
+                f"(overlap {overlap:.3f}s < {min_overlap:g}s)"
+            )
+    return hits
+
+
 def _capsync_match_hits(
     cues: list[dict],
     onsets: list[dict],
@@ -3657,8 +3748,9 @@ def _capsync_match_hits(
     tol: float,
     cs_tol: float,
     require_consensus: bool,
+    min_overlap: float = 0.5,
 ) -> tuple[list[str], int, float]:
-    """Per-cue drift / consensus adjudication."""
+    """Per-cue drift / consensus / token-overlap adjudication."""
     hits: list[str] = []
     worst_ms = 0.0
     matched = 0
@@ -3673,8 +3765,7 @@ def _capsync_match_hits(
         if first:
             named = [
                 o for o in candidates
-                if o["word"].casefold() == first.casefold()
-                or o["word"].casefold().rstrip(".,:;!?") == first.casefold().rstrip(".,:;!?")
+                if _capsync_norm_tok(o["word"]) == _capsync_norm_tok(first)
             ]
             if named:
                 candidates = named
@@ -3691,6 +3782,11 @@ def _capsync_match_hits(
                 f"cue {index}: drift {drift * 1000:.1f}ms > {allow * 1000:g}ms "
                 f"(cue={cue['start']:.3f} onset={best['start']:.3f} word={best['word']!r})"
             )
+        overlap_hit = _capsync_overlap_hit(
+            index, cue, onsets, tol=tol, min_overlap=min_overlap,
+        )
+        if overlap_hit:
+            hits.append(overlap_hit)
         if require_consensus:
             peers = [
                 o for o in onsets_b
@@ -3699,8 +3795,7 @@ def _capsync_match_hits(
             if first:
                 named_b = [
                     o for o in peers
-                    if o["word"].casefold().rstrip(".,:;!?")
-                    == first.casefold().rstrip(".,:;!?")
+                    if _capsync_norm_tok(o["word"]) == _capsync_norm_tok(first)
                 ]
                 if named_b:
                     peers = named_b
@@ -3748,10 +3843,20 @@ def cmd_capsync(qc, args) -> int:
         return fail_b
     tol = float(args.tol)
     cs_tol = float(args.codeswitch_tol)
+    min_overlap = float(getattr(args, "min_overlap", 0.5))
     hits, matched, worst_ms = _capsync_match_hits(
         cues, onsets, onsets_b,
         tol=tol, cs_tol=cs_tol, require_consensus=require_consensus,
+        min_overlap=min_overlap,
     )
+    if require_consensus:
+        spans, rms_fail = _capsync_load_rms_spans(qc, args)
+        if rms_fail is not None:
+            return rms_fail
+        if spans is None:
+            hits.append("missing-rms-media")
+        else:
+            hits.extend(_capsync_rms_hits(cues, spans))
     if matched == 0:
         hits.append("zero-measured-cues")
         return qc.report(
@@ -3768,6 +3873,7 @@ def cmd_capsync(qc, args) -> int:
         max_drift_ms=round(worst_ms, 1),
         tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
         consensus=require_consensus,
+        min_overlap=min_overlap,
         hits=hits,
     )
 
@@ -4240,9 +4346,19 @@ def register(add, qc) -> None:
     p.add_argument("--onsets", required=True,
                    help="independent ASR or forced-alignment JSON with word start times")
     p.add_argument("--onsets-b", dest="onsets_b", default=None,
-                   help="optional second independent ASR/FA JSON for consensus (L49)")
-    p.add_argument("--consensus", action="store_true",
-                   help="require --onsets-b consensus within tol (L49)")
+                   help="second independent ASR/FA JSON (required for L49; skip with --single-model)")
+    p.add_argument("--consensus", action="store_true", default=True,
+                   help="L49 default: require --onsets-b consensus (always on unless --single-model)")
+    p.add_argument("--single-model", action="store_true", dest="single_model",
+                   help="L44 single-ASR path; skips --onsets-b consensus and RMS speech check")
+    p.add_argument("--media", default=None,
+                   help="rendered media for L49 RMS speech check (or pass --rms-spans)")
+    p.add_argument("--rms-spans", dest="rms_spans", default=None,
+                   help="JSON [[start,end],...] speech spans (test/alt to --media)")
+    p.add_argument("--rms-thr", dest="rms_thr", type=float, default=-40.0,
+                   help="RMS dBFS threshold when using --media (default -40)")
+    p.add_argument("--min-overlap", dest="min_overlap", type=float, default=0.5,
+                   help="min cue-token coverage in onset window (default 0.5)")
     p.add_argument("--snapper-words", dest="snapper_words", default=None,
                    help="snapper word-source JSON; fails when identical to --onsets path")
     p.add_argument("--tol", type=float, default=0.15,
