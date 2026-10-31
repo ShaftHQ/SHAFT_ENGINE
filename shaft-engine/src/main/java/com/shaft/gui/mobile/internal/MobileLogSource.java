@@ -54,11 +54,9 @@ public final class MobileLogSource {
                 provider.addMessageHandler(state.messageHandler);
                 provider.addErrorHandler(state.errorHandler);
                 if (!listening) {
+                    // Null URL: startAt falls back to no-arg broadcast (mock drivers /
+                    // executors that are not AppiumCommandExecutor). Host:port used when known.
                     URL remoteServer = serverUrl(driver);
-                    if (remoteServer == null) {
-                        throw new UnsupportedOperationException(
-                                "Cannot resolve Appium server URL for device-log broadcast.");
-                    }
                     broadcastStartAttempted = true;
                     provider.start(remoteServer);
                 }
@@ -296,7 +294,7 @@ public final class MobileLogSource {
 
         void addErrorHandler(Consumer<Throwable> handler);
 
-        void start(URL serverUrl);
+        void start(@Nullable URL serverUrl);
     }
 
     private interface Starter {

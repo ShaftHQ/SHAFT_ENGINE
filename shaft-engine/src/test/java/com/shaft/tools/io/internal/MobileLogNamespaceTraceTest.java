@@ -87,6 +87,8 @@ public class MobileLogNamespaceTraceTest {
         CopyOnWriteArrayList<Consumer<String>> messages = new CopyOnWriteArrayList<>();
         CopyOnWriteArrayList<Consumer<Throwable>> errors = new CopyOnWriteArrayList<>();
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId(id));
+        // No AppiumCommandExecutor → MobileLogSource uses no-arg broadcast start.
+        Mockito.when(driver.getCommandExecutor()).thenReturn(null);
         Mockito.when(driver.getLogcatClient()).thenReturn(client);
         Mockito.when(client.isListening()).thenReturn(false);
         Mockito.when(client.getMessageHandlers()).thenReturn(messages);
