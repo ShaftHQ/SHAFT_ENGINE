@@ -1,6 +1,7 @@
 """CE 2026.10.31.6 consolidated retro gates (H-* + L60–L65 + H-IDENTITY/H-SCOPE/H-PR-SCOPE)."""
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -555,6 +556,7 @@ class MotionGraphicsL65Test(unittest.TestCase):
         return path
 
     def _good(self, asr_path: Path) -> dict:
+        digest = hashlib.sha256(asr_path.read_bytes()).hexdigest()
         return {
             "kind": "kinetic",
             "transcript_manually_verified": True,
@@ -569,9 +571,9 @@ class MotionGraphicsL65Test(unittest.TestCase):
             ],
             "static_text_blocks": [{"text": "ok", "duration_s": 2.0, "words": 1}],
             "asr_path": str(asr_path),
-            "asr_sha256": "fixture",
+            "asr_sha256": digest,
             "asr_tool": "test-aligner",
-            "asr_independent_proof": True,
+            "asr_source": "whisper",
             "captions": [
                 {
                     "start": 1.10,
@@ -688,9 +690,9 @@ class MotionGraphicsL65Test(unittest.TestCase):
                 "ocr_frames": [{"text": "ok", "expected": "ok"}],
                 "static_text_blocks": [{"text": "ok", "duration_s": 1.0, "words": 1}],
                 "asr_path": str(asr),
-                "asr_sha256": "fixture",
+                "asr_sha256": hashlib.sha256(asr.read_bytes()).hexdigest(),
                 "asr_tool": "test-aligner",
-                "asr_independent_proof": True,
+                "asr_source": "whisper",
                 "captions": [{
                     "start": 1.00,
                     "onset_ms_vs_speech": 50,
