@@ -6330,6 +6330,7 @@ def status_json(project: Path, *, active_probes: bool = False) -> dict[str, obje
                 # Status stays fail-closed via existing component/file checks.
                 pass
         apply_static_overlay_doctor(state, project.resolve())
+    apply_git_husk_doctor(state, Path(project).resolve())
     payload = {
         "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
         "identity": CANONICAL_IDENTITY,
@@ -6918,7 +6919,7 @@ def parser() -> argparse.ArgumentParser:
             "List them with: install.py addons --project ."
         ),
     )
-    install_command.add_argument("--project", required=True, type=Path)
+    install_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     install_command.add_argument("--source", type=Path)
     install_command.add_argument("--commit")
     install_command.add_argument(
@@ -7001,7 +7002,7 @@ def parser() -> argparse.ArgumentParser:
         "repair",
         help="Targeted zero-LLM repair for one component (no full wipe).",
     )
-    repair_command.add_argument("--project", required=True, type=Path)
+    repair_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     repair_command.add_argument(
         "--component",
         required=True,
@@ -7010,7 +7011,7 @@ def parser() -> argparse.ArgumentParser:
     repair_command.add_argument("--json", action="store_true")
     for name in ("status", "doctor", "rollback", "uninstall"):
         command = commands.add_parser(name)
-        command.add_argument("--project", required=True, type=Path)
+        command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
         if name in {"status", "doctor"}:
             command.add_argument("--json", action="store_true")
             command.add_argument(
@@ -7031,12 +7032,12 @@ def parser() -> argparse.ArgumentParser:
     addons_command = commands.add_parser(
         "addons", help="List optional add-ons, installed and available (never installs)."
     )
-    addons_command.add_argument("--project", required=True, type=Path)
+    addons_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     addons_command.add_argument("--source", type=Path, default=Path(__file__).resolve().parent)
     addons_command.add_argument("--json", action="store_true")
     explain = commands.add_parser("explain")
     explain.add_argument("event")
-    explain.add_argument("--project", required=True, type=Path)
+    explain.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     explain.add_argument(
         "--host", choices=("codex", "claude", "gemini", "grok", "copilot"), required=True
     )
@@ -7380,6 +7381,99 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
     )
 
 
+
+def resolve_git_common_dir(project: Path) -> Path | None:
+    """Return the git common directory for ``project``, or None when absent."""
+    marker = Path(project) / ".git"
+    if not marker.exists():
+        return None
+    if marker.is_file():
+        try:
+            raw = marker.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+        for line in raw.splitlines():
+            if line.startswith("gitdir:"):
+                target = Path(line.split(":", 1)[1].strip())
+                if not target.is_absolute():
+                    target = (marker.parent / target).resolve()
+                # linked worktree: gitdir points at …/worktrees/<name>; common is parent of that
+                if target.name and (target.parent.parent / "objects").is_dir():
+                    return target.parent.parent
+                return target
+        return None
+    return marker.resolve()
+
+
+def is_husk_git(project: Path) -> bool:
+    """True when ``.git`` exists but has no objects/refs content (box-restart husk).
+
+    Coach: after a box restart a consumer checkout's ``.git`` held only
+    HEAD/config/hooks — no objects or refs. ChaosEngine install does not create
+    a ``.git`` skeleton in non-git dirs; a husk usually means the repo metadata
+    did not survive the restart or an empty ``git init`` was left behind.
+    """
+    common = resolve_git_common_dir(project)
+    if common is None:
+        return False
+    objects = common / "objects"
+    refs = common / "refs"
+    if not objects.is_dir() or not refs.is_dir():
+        return True
+    has_object = any(path.is_file() for path in objects.rglob("*"))
+    has_ref = any(path.is_file() for path in refs.rglob("*"))
+    return not (has_object or has_ref)
+
+
+def git_husk_status(project: Path | None = None) -> tuple[str, ...]:
+    """Doctor tip: detect a husk ``.git`` and explain recovery."""
+    root = Path(project) if project is not None else installed_project()
+    if root is None:
+        return ("pass",)
+    try:
+        root = Path(root).resolve()
+    except OSError:
+        return ("pass",)
+    if not (root / ".git").exists():
+        return ("pass", "(no .git)")
+    if not is_husk_git(root):
+        return ("pass",)
+    return (
+        "fail",
+        (
+            "husk .git (HEAD/config/hooks without objects/refs). "
+            "Recover: re-clone or `git fetch` from the remote into a fresh clone, "
+            "copy work files from /workspace, then reinstall ChaosEngine. "
+            "Do not `git init` over a lost repo. See box-durability in bot-entry.md."
+        ),
+    )
+
+
+def apply_git_husk_doctor(result: dict[str, object], project: Path) -> None:
+    """Attach a recovery-required row when ``.git`` is a restart husk."""
+    if not is_husk_git(project):
+        return
+    components = result.get("components")
+    if not isinstance(components, dict):
+        components = {}
+        result["components"] = components
+    components["git-husk"] = {
+        "status": "recovery-required",
+        "taskImpact": "required",
+        "detail": (
+            "husk .git: metadata present but objects/refs are empty "
+            "(typical after a box restart that did not preserve git objects)"
+        ),
+        "fixNext": (
+            "Re-clone the repository (or restore objects from a remote/backup), "
+            "copy in-progress work from /workspace, then rerun ChaosEngine install. "
+            "ChaosEngine does not create .git in non-git dirs; do not git init to 'fix' a husk. "
+            "See references/bot-entry.md box-durability."
+        ),
+    }
+    result["status"] = "recovery-required"
+
+
 def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> str:
     """Load bootstrap host onboarding cards for human doctor output."""
     bootstrap_path = Path(__file__).resolve().with_name("bootstrap.py")
@@ -7479,10 +7573,29 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
 
 
 def _dedupe_severity_rows(lines: list[str]) -> list[str]:
-    """Drop repeated ``[severity]`` rows in one report, keeping first order (#6363)."""
+    """Drop repeated ``[severity]`` rows and duplicate host-onboarding blocks (#6363)."""
     seen: set[str] = set()
     result: list[str] = []
+    skipping_dup_onboarding = False
+    saw_onboarding = False
     for line in lines:
+        if line.startswith("Host onboarding cards:"):
+            if saw_onboarding:
+                skipping_dup_onboarding = True
+                continue
+            saw_onboarding = True
+            skipping_dup_onboarding = False
+        if skipping_dup_onboarding:
+            # Skip until a blank line ends the duplicate card block, or a new section.
+            if line.strip() == "":
+                skipping_dup_onboarding = False
+            elif line.startswith("Host onboarding cards:"):
+                continue
+            elif line.startswith("[") or line.startswith("ChaosEngine ") or line.startswith("commit:"):
+                skipping_dup_onboarding = False
+            else:
+                # still inside the duplicate card table
+                continue
         if line.startswith("[") and line in seen:
             continue
         if line.startswith("["):
@@ -7633,9 +7746,14 @@ def format_agent_summary(document: dict[str, object]) -> str:
             "backup-remote: " + " ".join(backup_remote_advisory(project)),
             "backups-watch: " + " ".join(backups_watch_advisory()),
             "secret-guard: " + " ".join(secret_guard_status(project)),
+            "git-husk: " + " ".join(git_husk_status(project)),
         ]
     )
-    if delete_guard_status()[0] != "pass" or lines[-1].startswith("secret-guard: fail"):
+    if (
+        delete_guard_status()[0] != "pass"
+        or any(line.startswith("secret-guard: fail") for line in lines)
+        or any(line.startswith("git-husk: fail") for line in lines)
+    ):
         lines[0] = "doctor: fail"
     kept = kept_addons_line(installed_project())
     if kept:
@@ -8034,6 +8152,24 @@ _HANDLED = object()
 
 
 
+
+def normalize_install_source(source: Path) -> Path:
+    """Accept ``<repo>/chaos-engine`` or the clone root that contains it.
+
+    Cortex: ``--source`` pointed at the clone root raised FileNotFoundError for
+    ``dependencies.py``. When ``source`` is already the CE source tree, keep it;
+    when it is a repo root with ``chaos-engine/install.py`` + ``VERSION``, use the
+    nested directory.
+    """
+    source = Path(source).expanduser().resolve()
+    if (source / "install.py").is_file() and (source / "VERSION").is_file():
+        return source
+    nested = source / "chaos-engine"
+    if (nested / "install.py").is_file() and (nested / "VERSION").is_file():
+        return nested.resolve()
+    return source
+
+
 def detect_repo_chaos_engine_source(project: Path) -> Path | None:
     """Return ``<repo>/chaos-engine`` when the project sits in an engine source tree."""
     root = Path(project).resolve()
@@ -8073,11 +8209,13 @@ def apply_install_source_defaults(args: argparse.Namespace) -> None:
     """Auto-detect ``--source <repo>/chaos-engine`` and ``--commit`` HEAD (40-hex)."""
     if getattr(args, "from_bundle", None) is not None:
         return
-    project = Path(getattr(args, "project", Path.cwd())).resolve()
+    project = Path(getattr(args, "project", Path.cwd()) or Path.cwd()).resolve()
     if getattr(args, "source", None) is None:
         detected = detect_repo_chaos_engine_source(project)
         if detected is not None:
             args.source = detected
+    elif getattr(args, "source", None) is not None:
+        args.source = normalize_install_source(Path(args.source))
     if getattr(args, "commit", None) is None:
         sha = detect_full_commit(project)
         if sha is not None:
@@ -8165,6 +8303,7 @@ def _run_install_command(args, requested, removed) -> object:
         apply_install_source_defaults(args)
         if args.source is None or args.commit is None:
             raise ValueError(_local_source_required_message())
+        args.source = normalize_install_source(Path(args.source))
         if COMMIT_PATTERN.fullmatch(str(args.commit)) is None:
             args.commit = resolve_commit_sha(
                 str(args.commit), cwd=Path(args.source).resolve().parent
@@ -8457,22 +8596,24 @@ def _emit_result(args, result) -> int:
             print(load_source_controller("hosts").doctor_digest(result))
             return agent_summary_exit_code(result)
         if getattr(args, "fix_next_only", False):
-            print(format_fix_next_only(result), end="")
+            body = format_fix_next_only(result)
         else:
-            print(format_health_report(result, kind=args.command), end="")
+            body = format_health_report(result, kind=args.command)
+        print(body, end="")
         if args.command == "doctor":
             migration = result.get("migration")
             if isinstance(migration, dict) and migration.get("hardCut"):
                 print(f"WARNING: {migration['hardCut']}")
             clients = result.get("clients")
-            print(
-                format_doctor_host_onboarding(
-                    clients if isinstance(clients, dict) else {}
-                ),
-                end="",
+            onboarding = format_doctor_host_onboarding(
+                clients if isinstance(clients, dict) else {}
             )
+            # Cortex: host/copilot+grok cards were printed twice; keep one block.
+            if onboarding and "Host onboarding cards:" not in body:
+                print(onboarding, end="")
             return doctor_exit_code(result)
         return 0
+
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return doctor_exit_code(result) if args.command == "doctor" else 0
 

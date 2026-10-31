@@ -117,6 +117,10 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
      `/workspace` (never rely on `$HOME` alone for work product).
   3. Update Bot's Computer runs only when no bot is busy — go idle when asked
      so the update can proceed.
+  4. A `.git` directory can become a **husk** after restart (HEAD/config/hooks
+     remain; `objects/` and `refs/` are empty). Doctor reports `git-husk`.
+     Recover by re-cloning or restoring from the remote — never `git init` over
+     a lost repo. ChaosEngine install does not create `.git` in non-git dirs.
 
 ## Delivery ledger
 
