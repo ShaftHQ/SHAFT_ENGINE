@@ -3505,16 +3505,49 @@ def cmd_mincuedur(qc, args) -> int:
 
 
 def _load_independent_onsets(path: Path) -> list[dict]:
-    """Load word onsets from ASR or forced-alignment JSON (independent of cues)."""
+    """Load word onsets from ASR or forced-alignment JSON (independent of cues).
+
+    Walks the raw JSON so builder/injected/source metadata survives (words_of
+    strips those keys).
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
-    words = words_of(data)
-    out = []
-    for entry in words:
-        start = entry.get("start")
-        word = (entry.get("word") or "").strip()
-        if start is None or not word:
-            continue
-        out.append({"word": word, "start": float(start), "end": entry.get("end")})
+    file_source = ""
+    if isinstance(data, dict):
+        file_source = str(data.get("source") or data.get("origin") or "").strip().lower()
+    out: list[dict] = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for value in node:
+                walk(value)
+            return
+        if not isinstance(node, dict):
+            return
+        word = _key(node, WORD_KEYS[:2])
+        if isinstance(word, str) and word.strip():
+            start = _key(node, START_KEYS)
+            if start is None:
+                return
+            source = str(
+                node.get("source") or node.get("origin") or file_source or ""
+            ).strip().lower()
+            injected = bool(
+                node.get("builder")
+                or node.get("injected")
+                or source in {"builder", "snapper", "words.json", "planted"}
+            )
+            end = _key(node, END_KEYS)
+            out.append({
+                "word": word.strip(),
+                "start": float(start),
+                "end": None if end is None else float(end),
+                "builder_injected": injected,
+            })
+            return
+        for value in node.values():
+            walk(value)
+
+    walk(data)
     return out
 
 
@@ -3578,6 +3611,13 @@ def cmd_capsync(qc, args) -> int:
             "capsync", qc.FAIL, hits=["empty-onsets"],
             error="onsets JSON has no word start times",
         )
+    injected = [o for o in onsets if o.get("builder_injected")]
+    if injected:
+        return qc.report(
+            "capsync", qc.FAIL, hits=["builder-injected-onset"],
+            error="reject builder/snapper-planted onset rows; use independent ASR/FA",
+            injected=len(injected),
+        )
     # Tautology guard: if every cue start equals some onset start within 1ms
     # AND onset count == cue count AND all words match cue first tokens, still
     # OK structurally — but if onsets were fabricated as cue starts with empty
@@ -3592,6 +3632,28 @@ def cmd_capsync(qc, args) -> int:
                 error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
                 max_drift_ms=0.0,
             )
+    # Optional second onset file: consensus within tol of primary match.
+    onsets_b = []
+    onset_b_path = getattr(args, "onsets_b", None)
+    if onset_b_path:
+        bpath = Path(onset_b_path)
+        if not bpath.is_file():
+            return qc.report(
+                "capsync", qc.FAIL, hits=["missing-onsets-b"],
+                error="--onsets-b path missing",
+            )
+        if _paths_share_inode(bpath, onset_path) or _paths_share_inode(bpath, cue_path):
+            return qc.report(
+                "capsync", qc.FAIL, hits=["onsets-b-not-independent"],
+                error="--onsets-b must be a second independent ASR/FA run",
+            )
+        onsets_b = _load_independent_onsets(bpath)
+        if any(o.get("builder_injected") for o in onsets_b):
+            return qc.report(
+                "capsync", qc.FAIL, hits=["builder-injected-onset"],
+                error="--onsets-b contains builder-injected rows",
+            )
+    require_consensus = bool(getattr(args, "consensus", False) or onsets_b)
     tol = float(args.tol)
     cs_tol = float(args.codeswitch_tol)
     hits = []
@@ -3625,11 +3687,40 @@ def cmd_capsync(qc, args) -> int:
                 f"cue {index}: drift {drift * 1000:.1f}ms > {allow * 1000:g}ms "
                 f"(cue={cue['start']:.3f} onset={best['start']:.3f} word={best['word']!r})"
             )
+        if require_consensus:
+            peers = [
+                o for o in onsets_b
+                if abs(o["start"] - best["start"]) <= allow + 1e-9
+            ]
+            if first:
+                named_b = [
+                    o for o in peers
+                    if o["word"].casefold().rstrip(".,:;!?")
+                    == first.casefold().rstrip(".,:;!?")
+                ]
+                if named_b:
+                    peers = named_b
+            if not peers:
+                hits.append(
+                    f"cue {index}: no consensus onset near {best['start']:.3f}s "
+                    f"(need --onsets-b within tol)"
+                )
+    if matched == 0:
+        hits.append("zero-measured-cues")
+        return qc.report(
+            "capsync", qc.FAIL,
+            cues=len(cues), onsets=len(onsets), matched=0,
+            max_drift_ms=0.0,
+            tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
+            hits=hits,
+            error="0 measured cues = FAIL; never report drift 0.0 as success",
+        )
     return qc.report(
         "capsync", qc.FAIL if hits else qc.PASS,
         cues=len(cues), onsets=len(onsets), matched=matched,
         max_drift_ms=round(worst_ms, 1),
         tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
+        consensus=require_consensus,
         hits=hits,
     )
 
@@ -4096,10 +4187,14 @@ def register(add, qc) -> None:
     p.add_argument("--min", type=float, default=0.8, help="minimum cue duration seconds (default 0.8)")
 
     p = add("capsync", bind(cmd_capsync),
-            "L44: cue starts vs independent ASR/FA onsets (never snapper echo)")
+            "L44/L49: cue starts vs independent ASR/FA onsets (never snapper echo)")
     p.add_argument("file", help="caption SRT")
     p.add_argument("--onsets", required=True,
                    help="independent ASR or forced-alignment JSON with word start times")
+    p.add_argument("--onsets-b", dest="onsets_b", default=None,
+                   help="optional second independent ASR/FA JSON for consensus (L49)")
+    p.add_argument("--consensus", action="store_true",
+                   help="require --onsets-b consensus within tol (L49)")
     p.add_argument("--snapper-words", dest="snapper_words", default=None,
                    help="snapper word-source JSON; fails when identical to --onsets path")
     p.add_argument("--tol", type=float, default=0.15,
