@@ -22,6 +22,9 @@ ADVISORY_ORIGIN_MAIN_TOOLS = frozenset({"mempalace", "mempalace-mcp", "graphify"
 # #6216: the default branch is resolved from origin/HEAD, never hard-coded; these
 # conventional names are only the fallback when origin/HEAD is unset.
 DEFAULT_REMOTE = "origin"
+FETCH_RETRY_ATTEMPTS = 4
+FETCH_RETRY_BASE_SECONDS = 1.0
+
 DEFAULT_BRANCH_FALLBACKS = ("main", "master")
 HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
@@ -226,7 +229,37 @@ def maintain_sync(project: Path, *, runner=subprocess.run) -> tuple[bool, str]:
     current = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
     if current != branch:
         return True, f"sync: skipped (on {current or 'detached HEAD'}, not {branch})"
-    if git("fetch", DEFAULT_REMOTE, branch).returncode != 0:
+    # Cortex 2026-10-31: GnuTLS handshake / non-proper TLS termination on fetch.
+    fetch_ok = False
+    fetch_detail = ""
+    for attempt in range(FETCH_RETRY_ATTEMPTS):
+        if attempt:
+            time.sleep(FETCH_RETRY_BASE_SECONDS * (2 ** (attempt - 1)))
+        fetched = git("fetch", DEFAULT_REMOTE, branch)
+        if fetched.returncode == 0:
+            fetch_ok = True
+            break
+        fetch_detail = (fetched.stderr or fetched.stdout or "").strip()
+        blob = fetch_detail.upper()
+        transient = any(
+            marker in blob
+            for marker in (
+                "GNUTLS",
+                "TLS",
+                "SSL",
+                "UNEXPECTED_EOF",
+                "CONNECTION RESET",
+                "HTTP/2",
+                "RPC FAILED",
+                "CURL",
+            )
+        )
+        if not transient and attempt + 1 < FETCH_RETRY_ATTEMPTS:
+            # Unknown failure: still retry once more (network blips vary by lib).
+            continue
+        if not transient:
+            break
+    if not fetch_ok:
         return False, f"sync: failed (git fetch {DEFAULT_REMOTE} {branch})"
     behind = git("rev-list", "--count", f"HEAD..{DEFAULT_REMOTE}/{branch}").stdout.strip()
     if behind in {"", "0"}:

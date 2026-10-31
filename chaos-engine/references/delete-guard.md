@@ -137,3 +137,9 @@ the owner-code flow too.
   do not treat "it is under backups/" as durable. Incident 2026-10-29: an
   unpushed `carl-cleanup-*` parking folder vanished with no delete-guard
   log because a raw `mv`/`rm` path had bypassed the old shell-word trigger.
+
+## Reviewer scratch (L78)
+
+Create reviewer copies with `scripts/ci/review_scratch.py` (`archive` under
+temp, or `detach` at a pushed sha). Dirty linked worktrees need an owner
+delete code (Ev: review-7661).
