@@ -19,7 +19,7 @@ description: Use when ChaosEngine install or upgrade-session is slow across many
 
 Run [`profile_installs.py`](../profile_installs.py):
 
-`python3 chaos-engine/profile_installs.py --log <upgrade-session.jsonl-or-dir>`
+`python3 chaos-engine/profile_installs.py --log timing.jsonl` (repo-only)
 summarises `elapsed_s` by session path when receipts are available.
 
 ## Why
