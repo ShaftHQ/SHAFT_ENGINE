@@ -115,7 +115,7 @@ class LessonCardTest(unittest.TestCase):
         index = (LESSONS / "index.md").read_text(encoding="utf-8")
         self.assertIn(CARD, index)
         inv = (DESIGN / "INVENTORY.md").read_text(encoding="utf-8")
-        self.assertIn("L01-L64", inv)
+        self.assertIn("L01-L65", inv)
         self.assertIn("video sign-off viewer frames", inv)
 
 

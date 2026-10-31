@@ -137,23 +137,37 @@ Personal names and client data stay out of repo text ("the subject" / "the prese
 ### H-IDENTITY — Pre-commit ChaosEngine authorship guard
 - **Sources:** Carl; designer-workspace had 6 ChaosEngine-authored commits outside allow-list
 - **Problem:** ChaosEngine `<chaosengine@mail.grokbot.com>` authorship leaked into non-engine remotes.
-- **Rule:** Repo→identity map: ChaosEngine email ONLY for `ShaftHQ/SHAFT_ENGINE` and `ShaftHQ/shafthq.github.io`. Every other repo must use the owner identity. Pre-commit + PreToolUse **block** otherwise.
+- **Rule:** Repo→identity map: ChaosEngine email ONLY for `ShaftHQ/SHAFT_ENGINE` and `ShaftHQ/shafthq.github.io` (named in card Rule prose). Every other repo must use the owner identity. Optional host `CE_OWNER_IDENTITY` / `.chaos-engine-state/owner-identity` (untracked) binds the expected owner — no personal name/email in the portable tree. Pre-commit + PreToolUse **block** otherwise.
 - **Enforcement:** `commit_identity.pre_commit_identity_failures` / `python commit_identity.py --pre-commit`; wired in `git_hooks.py` pre-commit and `hooks/guard.py` `commit_identity_pre_commit_reason`; card `references/commit-identity.md`.
 - **Acceptance:** ChaosEngine identity + designer-workspace origin → FAIL; same identity on SHAFT_ENGINE → PASS; owner identity anywhere → PASS.
 
 ### L64 — Uncaptioned speech coverage gate
 - **Sources:** Carl designer-workspace `lib/uncaptioned_speech.py`
 - **Problem:** ASR heard speech ≥300ms with <50% human-cue cover shipped past phrase karaoke checks.
-- **Rule:** Each ASR speech span ≥300ms needs ≥50% coverage by human (non-hall) cues; missing cues/asr → FAIL.
+- **Rule:** Each ASR speech span ≥300ms needs ≥50% coverage by cues with JSON `human: true` (non-hall text without the flag does not count); missing cues/asr → FAIL. Shared `human_cue` helper documents L63 ASS vs L64 JSON predicates.
 - **Enforcement:** Portable `chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py` + `craft_qc.py uncaptionedspeech`; lesson `uncaptioned-speech.md`; L39 checklist bullet; tests.
 - **Acceptance:** Uncovered 500ms span → FAIL; ≥50% cover → PASS; missing input → FAIL.
 
-### H-SCOPE — Pre-merge PR diff vs stated scope
-- **Sources:** Carl scope-discipline retro
+### H-PR-SCOPE — Pre-merge PR diff vs stated scope
+- **Sources:** Carl scope-discipline retro (PR-path half)
 - **Problem:** PR body claimed a narrow gate while the diff wandered; reviewers missed churn.
 - **Rule:** Diff paths must match stated scope (`## Scope` bullets or `<!-- chaos-engine:scope ... -->`); else stop. Missing declaration → FAIL.
-- **Enforcement:** `scripts/ci/pr_scope_check.py` + `references/pr-scope-check.md` checklist; unit tests.
-- **Acceptance:** Path outside prefixes → FAIL; all paths under prefixes → PASS; no scope block → FAIL.
+- **Enforcement:** `scripts/ci/pr_scope_check.py` + `references/pr-scope-check.md`; wired into `overlay_pre_push.pr_scope_failures` and `harness_pr_gate.pr_scope_gate_failures` for agentic PRs; unit tests.
+- **Acceptance:** Path outside prefixes → FAIL; all paths under prefixes → PASS; no scope block → FAIL; pre-push path calls `pr_scope_failures`.
+
+### H-SCOPE — Spoken-lock + one-task / path-claim
+- **Sources:** Carl H-SCOPE brief (spoken-lock scope words + one-task-of-a-kind / no two workers same file)
+- **Problem:** PR reused H-SCOPE for the PR-diff gate; L41 + sequential-wip + parallel_stream_conflict were not linked under Carl's id.
+- **Rule:** Spoken-lock titles keep scope nouns (L41 / `title_scope_gate`); one In progress per bot (`sequential-wip`); exclusive writable path claims (`parallel-streams` + `parallel_stream_conflict.py`).
+- **Enforcement:** `references/h-scope.md` card linking those surfaces; checklist keeps L41 under spoken-lock.
+- **Acceptance:** Card names L41 + sequential-wip + parallel_stream_conflict; checklist does not equate H-SCOPE with `pr_scope_check` only.
+
+### L65 — Motion-graphics gate
+- **Sources:** Carl MG r1 (Coach found 5 misses after indep PASS)
+- **Problem:** OCR/bidi garble, static kinetic text, late captions, unverified transcript, pop-in diagrams shipped.
+- **Rule:** OCR frames vs transcript with U+2066/U+2069 Latin isolates; kinetic static >3s or >6 words FAIL; caption onset ≤150ms; transcript manually verified; diagrams draw-on; caption lines ≤32 chars / 1–2 phrase-split lines; share every sample with owner before acceptance; reviewer briefs list checks.
+- **Enforcement:** `motion_graphics_gate.py` + `craft_qc.py mggate`; lesson + checklist; tests.
+- **Acceptance:** Each miss class has a FAIL test; missing observations → FAIL.
 
 
 ## Dropped / deferred (with reason)
@@ -180,7 +194,7 @@ Personal names and client data stay out of repo text ("the subject" / "the prese
 
 | Bucket | Count |
 | --- | --- |
-| Implement (H-* + L60–L64 + H-IDENTITY/H-SCOPE) | 16 |
+| Implement (H-* + L60–L65 + H-IDENTITY/H-SCOPE/H-PR-SCOPE) | 18 |
 | Already shipped DUP | 20+ |
 | Dropped/deferred | 14 |
 

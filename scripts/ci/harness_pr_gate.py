@@ -1555,6 +1555,26 @@ def ungated_script_modules(root: Path) -> list[str]:
     return missing
 
 
+def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]:
+    """H-PR-SCOPE enforceability surface for harness_pr_gate (agentic bodies)."""
+    text = body or ""
+    folded = text.casefold()
+    agentic = "chaos-engine:agentic" in folded or "<!-- chaos-engine:agentic" in folded
+    has_scope = "chaos-engine:scope" in folded or "## scope" in folded
+    if not text or (not agentic and not has_scope):
+        return []
+    try:
+        from scripts.ci.pr_scope_check import evaluate
+    except Exception:  # nosec B110
+        return []
+    result = evaluate(text, list(paths))
+    if result.get("ok"):
+        return []
+    return [f"pr-scope (H-PR-SCOPE): {result.get('error')}"] + [
+        f"pr-scope: {h}" for h in (result.get("hits") or [])
+    ]
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
@@ -2155,7 +2175,34 @@ def main() -> int:
         if args.plan_only and args.write_generated:
             raise GateError("plan-only cannot write generated artifacts")
         root = args.root.resolve()
-        plan = plan_for_changes(changed_paths(root, args.base, args.head), root)
+        changed = changed_paths(root, args.base, args.head)
+        plan = plan_for_changes(changed, root)
+        _event_body = ""
+        _event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if _event_path and Path(_event_path).is_file():
+            try:
+                _payload = json.loads(Path(_event_path).read_text(encoding="utf-8"))
+                _event_body = str(((_payload.get("pull_request") or {}).get("body")) or "")
+            except (OSError, ValueError, TypeError):
+                _event_body = ""
+        _scope_hits = pr_scope_gate_failures(root, [str(p) for p in changed], _event_body)
+        if _scope_hits:
+            payload = {
+                "schema": 1,
+                "valid": False,
+                "error": "; ".join(_scope_hits),
+                "pr_scope": _scope_hits,
+            }
+            exit_code = 1
+            serialized = json.dumps(payload, indent=2, sort_keys=True)
+            if args.output:
+                args.output.write_text(serialized + "\n", encoding="utf-8")
+            if args.format == "json":
+                print(serialized)
+            else:
+                for _hit in _scope_hits:
+                    print(_hit, file=sys.stderr)
+            return exit_code
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(

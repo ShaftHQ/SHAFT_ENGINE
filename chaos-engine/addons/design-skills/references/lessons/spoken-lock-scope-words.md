@@ -26,4 +26,4 @@ Titling a cut that is ear-locked to a spoken answer frame (Q&A, long-form chapte
 
 - Indexed via [`index-extension.md`](index-extension.md) (avoids primary-index / craft_qc collision with the sibling video sign-off lesson).
 
-- Field reject where a retitle dropped the scope noun while similarity still passed.
+- Field reject class Q25: retitle collapsed "penetration testing" → "testing" while similarity still passed.

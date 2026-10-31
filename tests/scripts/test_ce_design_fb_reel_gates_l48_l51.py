@@ -89,8 +89,8 @@ class LessonCardsL48L51Test(unittest.TestCase):
     def test_cards_and_index(self) -> None:
         ext = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
         inv = " ".join(INV.read_text(encoding="utf-8").split())
-        self.assertIn("L01-L64", inv)
-        self.assertIn("63 lesson", inv)
+        self.assertIn("L01-L65", inv)
+        self.assertIn("64 lesson", inv)
         for card, needles in self.CASES:
             with self.subTest(card=card):
                 raw = (LESSONS / card).read_text(encoding="utf-8")

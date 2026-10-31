@@ -573,6 +573,32 @@ NO_VERSION_BUMP_MARKER = "<!-- chaos-engine:no-version-bump -->"
 VERSION_FILE = "chaos-engine/VERSION"
 
 
+def pr_scope_failures(root: Path, paths: list[str], *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
+    """H-PR-SCOPE: agentic open PR diff must match ## Scope / scope comment.
+
+    Soft-skips when there is no open PR, no gh, or the PR is not agentic.
+    """
+    pr = pr_fetcher(root)
+    if not pr or not isinstance(pr.get("body"), str):
+        return []
+    try:
+        from scripts.ci.pr_scope_check import is_agentic_pr, evaluate
+    except Exception:  # nosec B110 - missing helper must not block push
+        return []
+    if not is_agentic_pr(pr):
+        return []
+    result = evaluate(pr["body"], list(paths))
+    if result.get("ok"):
+        return []
+    number = pr.get("number") or "?"
+    error = result.get("error") or "diff outside stated scope"
+    hits = result.get("hits") or []
+    return [
+        f"pr-scope (H-PR-SCOPE): PR #{number} {error}; "
+        "declare ## Scope / <!-- chaos-engine:scope ... --> matching git diff paths"
+    ] + [f"pr-scope: {h}" for h in hits]
+
+
 def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
     """
     Require VERSION bump when consumer-facing chaos-engine/ paths change.
@@ -630,6 +656,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))
         failures.extend(pr_body_failures(root))
+        failures.extend(pr_scope_failures(root, changed))
     if any(path.replace("\\", "/").removeprefix("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):

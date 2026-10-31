@@ -3198,12 +3198,17 @@ def cmd_karaokehumanfrag(qc, args) -> int:
         style = parts[3].strip()
         name = parts[4].strip()
         text = parts[9]
-        human = (
-            "human" in style.casefold()
-            or name.casefold() == "human"
-            or "human=true" in text.casefold()
-        )
-        if not human:
+        try:
+            from human_cue import is_human_ass_dialogue
+        except ImportError:
+            import importlib.util as _ilu
+            _hp = Path(__file__).resolve().parent / "human_cue.py"
+            _sp = _ilu.spec_from_file_location("ce_human_cue_k", _hp)
+            _hm = _ilu.module_from_spec(_sp)
+            assert _sp.loader is not None
+            _sp.loader.exec_module(_hm)
+            is_human_ass_dialogue = _hm.is_human_ass_dialogue
+        if not is_human_ass_dialogue(style=style, name=name, text=text):
             continue
         for match in _re.finditer(r"\\[kK]f?(\d+)", text):
             dur = int(match.group(1)) / 100.0
@@ -3233,6 +3238,38 @@ def cmd_karaokehumanfrag(qc, args) -> int:
         "karaokehumanfrag", qc.FAIL if hits else qc.PASS,
         hits=hits, min_s=min_s,
         note="no karaoke fragments < min inside human cues",
+    )
+
+
+def cmd_mggate(qc, args) -> int:
+    """L65: motion-graphics observations gate (OCR/bidi, static, onset, caption lines)."""
+    import importlib.util
+
+    helper = Path(__file__).resolve().parent / "motion_graphics_gate.py"
+    if not helper.is_file():
+        return qc.report(
+            "mggate", qc.FAIL, hits=["missing-helper"],
+            error=f"no helper: {helper}",
+        )
+    spec = importlib.util.spec_from_file_location("ce_motion_graphics_gate", helper)
+    if spec is None or spec.loader is None:
+        return qc.report("mggate", qc.FAIL, hits=["missing-helper"], error="load failed")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    obs_path = Path(str(args.file))
+    obs = mod.load_observations(obs_path)
+    if obs is None:
+        return qc.report(
+            "mggate", qc.FAIL, hits=["missing-input"],
+            error="observations JSON required (fail-closed)",
+        )
+    result = mod.evaluate(obs)
+    return qc.report(
+        "mggate",
+        qc.PASS if result.get("ok") else qc.FAIL,
+        hits=result.get("hits") or [],
+        error=result.get("error"),
+        note="L65 MG: OCR/bidi, static caps, onset<=150ms, caption<=32/1-2 lines, draw-on, share-sample",
     )
 
 
@@ -4500,6 +4537,10 @@ def register(add, qc) -> None:
     p.add_argument("--min", type=float, default=0.8, help="min frag seconds (default 0.8)")
     p.add_argument("--cues-json", dest="cues_json", default=None,
                    help="optional JSON cues with human + karaoke_frag_s")
+    p = add("mggate", bind(cmd_mggate),
+            "L65 motion-graphics observations: OCR/bidi, static, onset, caption lines, draw-on")
+    p.add_argument("file", help="observations JSON (fail-closed when missing)")
+
     p = add("askaraoke", bind(cmd_askaraoke),
             "L35: fail raw ASR karaoke / unattested captions")
     p.add_argument("file", help="caption SRT")

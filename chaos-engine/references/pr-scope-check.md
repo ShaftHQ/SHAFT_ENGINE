@@ -1,4 +1,4 @@
-# PR scope check (H-SCOPE)
+# PR scope check (H-PR-SCOPE)
 
 ## Rule
 
@@ -20,6 +20,10 @@ or:
 - tests/scripts/
 ```
 
+This gate id is **H-PR-SCOPE** (PR diff vs stated scope). Do **not** confuse it
+with **H-SCOPE** (spoken-lock scope words + one-task / path-claim) —
+see [h-scope.md](h-scope.md).
+
 ## Why
 
 PRs that claim a narrow gate but ship unrelated tree churn hide regressions and
@@ -34,6 +38,10 @@ python3 scripts/ci/pr_scope_check.py --body pr-body.md --changed changed.txt  # 
 
 Missing scope declaration → FAIL. Empty diff → PASS when scope is declared.
 
+Wired into `scripts/ci/overlay_pre_push.py` (`pr_scope_failures`) and
+`scripts/ci/harness_pr_gate.py` for agentic PRs (body marker
+`<!-- chaos-engine:agentic -->` or label `agentic`).
+
 ## Pre-merge checklist
 
 - [ ] PR body has `## Scope` or `<!-- chaos-engine:scope ... -->`
@@ -42,5 +50,6 @@ Missing scope declaration → FAIL. Empty diff → PASS when scope is declared.
 
 ## See also
 
+- [h-scope.md](h-scope.md) (H-SCOPE — spoken-lock + WIP/file-claim)
 - `overlay_pre_push.py` (push gates)
 - `commit-identity.md` (H-IDENTITY)

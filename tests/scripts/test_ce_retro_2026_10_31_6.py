@@ -1,4 +1,4 @@
-"""CE 2026.10.31.6 consolidated retro gates (H-* + L60–L64 + H-IDENTITY/H-SCOPE)."""
+"""CE 2026.10.31.6 consolidated retro gates (H-* + L60–L65 + H-IDENTITY/H-SCOPE/H-PR-SCOPE)."""
 from __future__ import annotations
 
 import json
@@ -368,9 +368,13 @@ class DocAndCardPresenceTest(unittest.TestCase):
             "chaos-engine/addons/design-skills/references/lessons/karaoke-human-frag.md",
             "chaos-engine/addons/design-skills/references/lessons/uncaptioned-speech.md",
             "chaos-engine/references/pr-scope-check.md",
+            "chaos-engine/references/h-scope.md",
             "chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md",
             "chaos-engine/guides/ce-retro-2026-10-31-6-SPEC.md",
             "chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py",
+            "chaos-engine/addons/design-skills/scripts/human_cue.py",
+            "chaos-engine/addons/design-skills/scripts/motion_graphics_gate.py",
+            "chaos-engine/addons/design-skills/references/lessons/motion-graphics-gate.md",
             "scripts/ci/pr_scope_check.py",
         ):
             self.assertTrue((ROOT / rel).is_file(), rel)
@@ -420,6 +424,18 @@ class UncaptionedSpeechL64Test(unittest.TestCase):
             )
             self.assertEqual(1, code, payload)
             self.assertIn("missing-input", payload.get("hits", []))
+            # Non-hall cue without human:true must NOT cover (H-DOC-CLAIM / Carl fix 4).
+            cues.write_text(
+                json.dumps([
+                    {"s": 0.0, "e": 0.50, "t": "hello world"},
+                ]),
+                encoding="utf-8",
+            )
+            code, payload = run_design(
+                "uncaptionedspeech", "--cues", str(cues), "--asr", str(asr),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertTrue(payload.get("hits"), payload)
 
 
 class PrScopeCheckTest(unittest.TestCase):
@@ -465,6 +481,187 @@ class IdentityPreCommitCliTest(unittest.TestCase):
             remote_url="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
         )
         self.assertEqual([], ok)
+
+
+
+
+class HumanCueSharedHelperTest(unittest.TestCase):
+    def test_json_vs_ass_predicates(self) -> None:
+        sys.path.insert(0, str(ROOT / "chaos-engine/addons/design-skills/scripts"))
+        import human_cue as hc
+
+        self.assertTrue(hc.is_human_json_cue({"human": True, "t": "hi"}))
+        self.assertFalse(hc.is_human_json_cue({"human": False, "t": "hi"}))
+        self.assertFalse(hc.is_human_json_cue({"t": "hi"}))
+        self.assertTrue(hc.is_human_ass_dialogue(style="Human", name="", text="x"))
+        self.assertTrue(hc.is_human_ass_dialogue(style="Default", name="Human", text="x"))
+        self.assertTrue(hc.is_human_ass_dialogue(style="Default", name="", text="{\\an8}human=true hi"))
+        self.assertFalse(hc.is_human_ass_dialogue(style="Default", name="", text="hello"))
+        note = hc.human_predicate_note()
+        self.assertIn("L63", note)
+        self.assertIn("L64", note)
+        # Lesson cards document the split.
+        l64 = (ROOT / "chaos-engine/addons/design-skills/references/lessons/uncaptioned-speech.md").read_text(encoding="utf-8")
+        self.assertIn("human: true", l64)
+        self.assertIn("is_human_json_cue", l64)
+        l63 = (ROOT / "chaos-engine/addons/design-skills/references/lessons/karaoke-human-frag.md").read_text(encoding="utf-8")
+        self.assertIn("is_human_ass_dialogue", l63)
+
+
+class HScopeCardTest(unittest.TestCase):
+    def test_h_scope_links_carl_surfaces_not_pr_diff_only(self) -> None:
+        card = (ROOT / "chaos-engine/references/h-scope.md").read_text(encoding="utf-8")
+        for needle in (
+            "L41", "title_scope_gate", "sequential-wip", "parallel_stream_conflict",
+            "H-PR-SCOPE", "spoken-lock",
+        ):
+            self.assertIn(needle, card)
+        pr = (ROOT / "chaos-engine/references/pr-scope-check.md").read_text(encoding="utf-8")
+        self.assertIn("H-PR-SCOPE", pr)
+        self.assertNotIn("# PR scope check (H-SCOPE)", pr)
+        checklist = (ROOT / "chaos-engine/references/design-review-video-checklist.md").read_text(encoding="utf-8")
+        self.assertIn("H-PR-SCOPE", checklist)
+        self.assertIn("Share samples immediately", checklist)
+        # L41 remains under spoken-lock wording
+        self.assertIn("spoken-lock keeps **scope words** (design L41)", checklist)
+
+
+class PrScopeWiredTest(unittest.TestCase):
+    def test_overlay_and_harness_call_pr_scope(self) -> None:
+        opp = (ROOT / "scripts/ci/overlay_pre_push.py").read_text(encoding="utf-8")
+        self.assertIn("def pr_scope_failures", opp)
+        self.assertIn("pr_scope_failures(root, changed)", opp)
+        harness = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")
+        self.assertIn("def pr_scope_gate_failures", harness)
+        self.assertIn("pr_scope_gate_failures(", harness)
+        sys.path.insert(0, str(ROOT))
+        from scripts.ci.pr_scope_check import pr_scope_failures, is_agentic_pr
+
+        body = "<!-- chaos-engine:agentic -->\n<!-- chaos-engine:scope chaos-engine/ -->\n"
+        self.assertTrue(is_agentic_pr({"body": body, "labels": []}))
+        hits = pr_scope_failures(body, ["src/X.java"], require_agentic=True, pr={"body": body})
+        self.assertTrue(hits)
+        ok = pr_scope_failures(body, ["chaos-engine/VERSION"], require_agentic=True, pr={"body": body})
+        self.assertEqual([], ok)
+
+
+class MotionGraphicsL65Test(unittest.TestCase):
+    def _good(self) -> dict:
+        return {
+            "kind": "kinetic",
+            "transcript_manually_verified": True,
+            "reviewer_brief_lists_mg_checks": True,
+            "sample_shared_with_owner": True,
+            "samples_exist": True,
+            "ocr_frames": [
+                {"text": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}", "expected": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}"},
+            ],
+            "static_text_blocks": [{"text": "ok", "duration_s": 2.0, "words": 1}],
+            "captions": [
+                {
+                    "onset_ms_vs_speech": 100,
+                    "lines": ["Hello there friends"],
+                    "phrase_split": True,
+                }
+            ],
+            "diagrams": [{"animation": "draw-on"}],
+        }
+
+    def test_pass_and_key_failures(self) -> None:
+        sys.path.insert(0, str(ROOT / "chaos-engine/addons/design-skills/scripts"))
+        import motion_graphics_gate as mg
+
+        good = self._good()
+        self.assertTrue(mg.evaluate(good)["ok"], mg.evaluate(good))
+        # bidi unisolated
+        bad = dict(good)
+        bad["ocr_frames"] = [{"text": "مرحبا SHAFT", "expected": "مرحبا SHAFT"}]
+        self.assertFalse(mg.evaluate(bad)["ok"])
+        self.assertTrue(any("bidi" in h for h in mg.evaluate(bad)["hits"]))
+        # static too long
+        bad = dict(good)
+        bad["static_text_blocks"] = [{"text": "one two three four five six seven", "duration_s": 4.0}]
+        hits = mg.evaluate(bad)["hits"]
+        self.assertTrue(any("duration" in h or "words" in h for h in hits), hits)
+        # onset
+        bad = dict(good)
+        bad["captions"] = [{"onset_ms_vs_speech": 200, "lines": ["Short line"], "phrase_split": True}]
+        self.assertTrue(any("onset" in h for h in mg.evaluate(bad)["hits"]))
+        # caption line >32
+        bad = dict(good)
+        bad["captions"] = [{
+            "onset_ms_vs_speech": 50,
+            "lines": ["x" * 33],
+            "phrase_split": True,
+        }]
+        self.assertTrue(any("32chars" in h or ">32" in h for h in mg.evaluate(bad)["hits"]))
+        # phrase split false
+        bad = dict(good)
+        bad["captions"] = [{
+            "onset_ms_vs_speech": 50,
+            "lines": ["Hello-", "world"],
+            "phrase_split": False,
+        }]
+        self.assertTrue(any("mid-phrase" in h for h in mg.evaluate(bad)["hits"]))
+        # diagram pop
+        bad = dict(good)
+        bad["diagrams"] = [{"animation": "pop"}]
+        self.assertTrue(any("pop" in h for h in mg.evaluate(bad)["hits"]))
+        # sample not shared
+        bad = dict(good)
+        bad["sample_shared_with_owner"] = False
+        self.assertTrue(any("sample-not-shared" in h for h in mg.evaluate(bad)["hits"]))
+        # missing input
+        self.assertIn("missing-input", mg.evaluate(None)["hits"])
+        # CLI
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            obs = root / "obs.json"
+            obs.write_text(json.dumps(good), encoding="utf-8")
+            code, payload = run_design("mggate", str(obs))
+            self.assertEqual(0, code, payload)
+            obs.write_text(json.dumps({"kind": "kinetic"}), encoding="utf-8")
+            code, payload = run_design("mggate", str(obs))
+            self.assertEqual(1, code, payload)
+
+
+class IdentityOwnerBindingTest(unittest.TestCase):
+    def test_ce_owner_identity_binding_and_card_names_remotes(self) -> None:
+        sys.path.insert(0, str(ROOT / "chaos-engine"))
+        import commit_identity as ci
+
+        card = (ROOT / "chaos-engine/references/commit-identity.md").read_text(encoding="utf-8")
+        self.assertIn("ShaftHQ/SHAFT_ENGINE", card)
+        self.assertIn("ShaftHQ/shafthq.github.io", card)
+        self.assertIn("CE_OWNER_IDENTITY", card)
+        self.assertIn("owner-identity", card)
+        # Portable: owner binding is env/file only — no personal mailbox domains in card
+        self.assertNotIn("outlook.com", card.casefold())
+        self.assertNotIn("gmail.com", card.casefold())
+        self.assertNotIn("yahoo.com", card.casefold())
+        # Unset → owner@example.com still ok
+        hits = ci.pre_commit_identity_failures(
+            name="Owner",
+            email="owner@example.com",
+            remote_url="https://github.com/example/designer-workspace.git",
+            environ={},
+        )
+        self.assertEqual([], hits)
+        # Set → mismatch fails
+        hits = ci.pre_commit_identity_failures(
+            name="Other",
+            email="other@example.com",
+            remote_url="https://github.com/example/designer-workspace.git",
+            environ={"CE_OWNER_IDENTITY": "Owner <owner@example.com>"},
+        )
+        self.assertTrue(hits)
+        hits = ci.pre_commit_identity_failures(
+            name="Owner",
+            email="owner@example.com",
+            remote_url="https://github.com/example/designer-workspace.git",
+            environ={"CE_OWNER_IDENTITY": "Owner <owner@example.com>"},
+        )
+        self.assertEqual([], hits)
 
 
 

@@ -154,7 +154,23 @@ def merge_asr_spans(
 
 
 def human_cues(cues: list[dict]) -> list[dict]:
-    """Return speech cues that count toward coverage."""
+    """Return speech cues that count toward coverage.
+
+    Coverage requires JSON ``human: true`` (see ``human_cue.is_human_json_cue``).
+    ASS Style/Name ``Human`` is L63-only and does **not** count here.
+    """
+    # Local import keeps the helper optional for consumers that only ship this file.
+    try:
+        from human_cue import is_human_json_cue  # type: ignore
+    except ImportError:  # pragma: no cover - same-dir load via craft_qc
+        import importlib.util
+        helper = Path(__file__).resolve().parent / "human_cue.py"
+        spec = importlib.util.spec_from_file_location("ce_human_cue", helper)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        is_human_json_cue = mod.is_human_json_cue
+
     out: list[dict] = []
     for cue in cues:
         if not isinstance(cue, dict):
@@ -162,8 +178,8 @@ def human_cues(cues: list[dict]) -> list[dict]:
         text = str(cue.get("t") or cue.get("text") or cue.get("content") or "")
         if is_hall_text(text):
             continue
-        # Carl: only human-attested cues cover speech (fail-closed on raw ASR karaoke).
-        if cue.get("human") is not True:
+        # L64: JSON human: true only (non-hall text without the flag does not count).
+        if not is_human_json_cue(cue):
             continue
         span = _span_seconds(cue)
         if span is None:

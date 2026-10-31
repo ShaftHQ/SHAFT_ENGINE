@@ -21,6 +21,13 @@ ASS / cue QC after human caption correction, before SIGN. Extends L35
 3. **Missing file** → FAIL (`missing-input`).
 4. Raw ASR karaoke without human attestation remains an `askaraoke` FAIL.
 
+## Human predicate (vs L64)
+
+L63 uses ASS Style/Name containing `Human` or inline `human=true` via
+`human_cue.is_human_ass_dialogue`. L64 coverage requires JSON
+`human: true` only (`human_cue.is_human_json_cue`) — see
+[uncaptioned-speech](uncaptioned-speech.md).
+
 ## Verify
 
 - [ ] Human Dialogue line with `\k40` (0.40 s) → FAIL.

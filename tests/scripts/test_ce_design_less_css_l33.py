@@ -61,8 +61,8 @@ class LessCssLessonCardTest(unittest.TestCase):
         self.assertIn("L33 ", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("63 lesson", inv)
-        self.assertIn("L01-L64", inv)
+        self.assertIn("64 lesson", inv)
+        self.assertIn("L01-L65", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("LESS CSS", craft)
         sq = (DESIGN / "references/site-builders/squarespace-7-1.md").read_text(

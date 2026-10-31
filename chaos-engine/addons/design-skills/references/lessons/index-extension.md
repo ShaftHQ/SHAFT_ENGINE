@@ -1,4 +1,4 @@
-# Lesson index extension (L40–L64)
+# Lesson index extension (L40–L65)
 
 Rows for Phase 1 memory-abstraction lessons plus 2026-10-31 retro cards. Kept separate from
 `index.md` so a sibling video sign-off lesson PR can own L39 + the

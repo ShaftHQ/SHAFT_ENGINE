@@ -2,18 +2,22 @@
 
 ## Rule
 
-ChaosEngine `<chaosengine@mail.grokbot.com>` may author commits **only** in the
-two remotes returned by `allowed_remotes()` (public engine repo + its
-user-guide pages repo). Every other remote must use the human **owner** git
-identity (`user.name` / `user.email`). Pre-commit and PreToolUse **block** the
-commit when ChaosEngine authorship would land outside that map (the consumer
-repo miss class that produced six ChaosEngine-authored commits).
+ChaosEngine `<chaosengine@mail.grokbot.com>` may author commits **only** in these
+two remotes (exactly the set returned by `allowed_remotes()`):
+
+- `ShaftHQ/SHAFT_ENGINE`
+- `ShaftHQ/shafthq.github.io`
+
+Every other remote must use the human **owner** git identity (`user.name` /
+`user.email`). Pre-commit and PreToolUse **block** the commit when ChaosEngine
+authorship would land outside that map (the consumer repo miss class that
+produced six ChaosEngine-authored commits).
 
 ## Why
 
 Consumer / personal / client repos that inherit a ChaosEngine `user.email`
 pollute history and break attribution. The allow-list is the public engine +
-its user-guide pages only.
+its user-guide pages only (`ShaftHQ/SHAFT_ENGINE`, `ShaftHQ/shafthq.github.io`).
 
 ## Check
 
@@ -25,6 +29,8 @@ from commit_identity import (
     assert_chaosengine_author_allowed,
 )
 assert len(allowed_remotes()) == 2
+assert "ShaftHQ/SHAFT_ENGINE" in allowed_remotes()
+assert "ShaftHQ/shafthq.github.io" in allowed_remotes()
 # Pre-commit / `commit_identity.py --pre-commit` exits 1 on failures:
 assert pre_commit_identity_failures(
     name="ChaosEngine",
@@ -43,6 +49,18 @@ On any non-allow-listed remote, set the owner's name and email before
 committing. ChaosEngine must not remain as the local `user.email` in those
 clones.
 
+When the host configures an expected owner (local, **untracked** — never commit
+personal name/email into the portable tree):
+
+- Env: `CE_OWNER_IDENTITY="Name <email@example.com>"` (or `CE_OWNER_NAME` +
+  `CE_OWNER_EMAIL`)
+- Or file: `.chaos-engine-state/owner-identity` (one line, same shape; path is
+  gitignored)
+
+…then non-ChaosEngine commits on non-allow-listed remotes must match that
+configured identity (email required; name when provided). When unset, any
+non-ChaosEngine identity still passes (portable default). Org bot charters may
+point operators at the env/file without putting personal addresses in-repo.
 
 ## Entry / doctor warning
 

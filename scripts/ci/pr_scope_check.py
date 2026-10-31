@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-H-SCOPE: pre-merge PR diff must match stated scope in the PR body / plan.
+H-PR-SCOPE: pre-merge PR diff must match stated scope in the PR body / plan.
 
 Declare scope as either:
 
@@ -104,6 +104,42 @@ def evaluate(body: str, changed: list[str]) -> dict:
         "error": None if not outsiders else "diff paths outside stated scope",
     }
 
+
+
+def is_agentic_pr(pr: dict | None) -> bool:
+    """True when PR body/labels mark the change agentic."""
+    if not isinstance(pr, dict):
+        return False
+    body = str(pr.get("body") or "")
+    if "chaos-engine:agentic" in body.casefold() or "<!-- chaos-engine:agentic" in body.casefold():
+        return True
+    labels = {
+        str(item.get("name") or "").casefold()
+        for item in (pr.get("labels") or [])
+        if isinstance(item, dict)
+    }
+    return "agentic" in labels
+
+
+def pr_scope_failures(
+    body: str,
+    changed: list[str],
+    *,
+    require_agentic: bool = False,
+    pr: dict | None = None,
+) -> list[str]:
+    """Return human-readable failures for H-PR-SCOPE (empty = pass / soft-skip).
+
+    When ``require_agentic`` is True and *pr* is not agentic, return [] (soft skip).
+    """
+    if require_agentic and pr is not None and not is_agentic_pr(pr):
+        return []
+    result = evaluate(body or "", list(changed or []))
+    if result.get("ok"):
+        return []
+    hits = result.get("hits") or []
+    error = result.get("error") or "pr scope check failed"
+    return [f"pr-scope (H-PR-SCOPE): {error}"] + [f"pr-scope: {h}" for h in hits]
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
