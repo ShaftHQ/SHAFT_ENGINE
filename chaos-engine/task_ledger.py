@@ -43,6 +43,12 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,96}$")
 DEFAULT_BUDGET_MINUTES = 35
 BUDGET_WARN_MINUTES = 5
 HOST_CAP_MINUTES = 50
+# L80: per-task kind overrides (explicit --minutes/--budget still wins).
+KIND_BUDGET_MINUTES = {
+    "test-run": 90.0,
+    "testrun": 90.0,
+    "test_run": 90.0,
+}
 MISSING_NEXT = "(missing: rerun checkpoint with --next \"<exact next step>\")"
 STOP_NOW = "stop: push WIP, checkpoint --next, end turn"
 OWNER_FINISH_CONTINUE = (
@@ -81,9 +87,9 @@ def entries(name: str) -> list[dict]:
 
 
 def record(name: str, step: str, *, branch: str = "", pr: str = "", next_action: str = "",
-           start: bool = False, now: float | None = None, spec: str = "") -> dict:
+           start: bool = False, now: float | None = None, spec: str = "", kind: str = "") -> dict:
     row = {"t": round(now if now is not None else time.time()), "step": step}
-    for key, value in (("branch", branch), ("pr", pr), ("next", next_action), ("spec", spec)):
+    for key, value in (("branch", branch), ("pr", pr), ("next", next_action), ("spec", spec), ("kind", kind)):
         if value:
             row[key] = value
     if start:
@@ -147,6 +153,44 @@ def session_start(rows: list[dict]) -> float | None:
         if row.get("start") or gap:
             return float(row["t"])
     return float(rows[0]["t"]) if rows else None
+
+
+
+def kind_budget_minutes(kind: str | None) -> float | None:
+    """L80: return override minutes for a task kind, or None for default."""
+    if not kind:
+        return None
+    return KIND_BUDGET_MINUTES.get(str(kind).strip().casefold())
+
+
+def resolve_budget_minutes(
+    *,
+    kind: str | None = None,
+    minutes: float | None = None,
+    explicit: bool = False,
+) -> float:
+    """Pick session budget: explicit minutes win; else kind override; else 35.
+
+    *explicit* is True when the caller passed ``--minutes`` / ``--budget`` with
+    a non-default value, or any ``--budget N``.
+    """
+    if explicit and minutes is not None:
+        return float(minutes)
+    override = kind_budget_minutes(kind)
+    if override is not None:
+        return float(override)
+    if minutes is not None:
+        return float(minutes)
+    return float(DEFAULT_BUDGET_MINUTES)
+
+
+def ledger_kind(name: str) -> str | None:
+    """Most recent ``kind`` recorded on the task ledger, if any."""
+    for row in reversed(entries(name)):
+        kind = row.get("kind")
+        if kind:
+            return str(kind)
+    return None
 
 
 def over_budget(name: str, minutes: float, now: float | None = None) -> tuple[bool, float]:
@@ -220,13 +264,39 @@ def checkpoint_step(ns: argparse.Namespace) -> int:
     if ns.step != DONE and spec is None:
         print(SPEC_REFUSAL.format(task=ns.task, default=spec_dir() / f"spec-{ns.task}.md"), file=sys.stderr)
         return 4
-    record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start,
-           spec=str(spec) if ns.spec and spec else "")
+    kind = getattr(ns, "kind", "") or ""
+    record(
+        ns.task,
+        ns.step,
+        branch=ns.branch,
+        pr=ns.pr,
+        next_action=ns.next_action,
+        start=ns.start,
+        spec=str(spec) if ns.spec and spec else "",
+        kind=kind,
+    )
     if ns.step != DONE and not ns.next_action:
-        print(f"{ns.task}: no --next; 'Resume at' keeps the last one. Pass --next \"<exact next step>\"",
-              file=sys.stderr)
-    return session_gate(ns.task, ns.budget or ns.minutes) if ns.step != DONE else 0
-
+        print(
+            f"{ns.task}: no --next; 'Resume at' keeps the last one. "
+            'Pass --next "<exact next step>"',
+            file=sys.stderr,
+        )
+    if ns.step == DONE:
+        return 0
+    # L80: kind=test-run → 90 min unless --minutes/--budget set explicitly.
+    explicit = False
+    minutes_arg = float(ns.minutes)
+    if ns.budget is not None and ns.budget > 0:
+        explicit = True
+        minutes_arg = float(ns.budget)
+    elif abs(minutes_arg - float(DEFAULT_BUDGET_MINUTES)) > 1e-9:
+        explicit = True
+    minutes = resolve_budget_minutes(
+        kind=kind or ledger_kind(ns.task),
+        minutes=minutes_arg,
+        explicit=explicit,
+    )
+    return session_gate(ns.task, minutes)
 
 
 def write_owner_finish_goal(
@@ -316,6 +386,7 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
             help="exit 3 once the session budget (MINUTES, default --minutes) is spent",
         )
         parser.add_argument("--minutes", type=float, default=DEFAULT_BUDGET_MINUTES)
+        parser.add_argument("--kind", default="", help="task kind (L80: test-run → 90 min budget)")
         parser.add_argument("--item", help="delivery-ledger item (issue/PR/task id)")
         parser.add_argument("--group", default="", help="target PR group for --item")
         parser.add_argument("--status", default="todo", help="todo|in-progress|pr #N|merged|blocked: why")
@@ -328,6 +399,13 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
         if ns.budget is not None:
             if ns.budget > 0:
                 ns.minutes = ns.budget
+                explicit = True
+            else:
+                explicit = False
+            kind = getattr(ns, "kind", "") or ledger_kind(ns.task)
+            ns.minutes = resolve_budget_minutes(
+                kind=kind, minutes=float(ns.minutes), explicit=explicit and ns.budget > 0,
+            )
             spent, elapsed = over_budget(ns.task, ns.minutes)
             if spent and owner_finish_goal_active():
                 print(

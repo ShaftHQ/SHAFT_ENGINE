@@ -20,6 +20,13 @@ L65 follow-ups / L73 (CE 2026.10.31.7):
 3. Duplicate tokens match sequentially (consume ASR hits in order).
 4. Perfect 0 ms max across all cues is suspect without independent proof
    (derived from data: ASR timings must not be cue-synced; builder ``asr_independent_proof`` is ignored).
+
+L81 NO-SELF-CLOCK (CE 2026.10.31.8):
+- Never take onset from the cue under test; audio-only ASR onsets only.
+- ``onset_method`` in {mid_speech_voiced, self_clock, cue_start, ...} with
+  phrase_onset == cue_start → FAIL (hid 360–940 ms errors in cartoon r3).
+- No measurable onset → FAIL (never report 0 ms from a missing clock).
+- Mutant: one mid-speech cue shifted +500 ms vs committed ASR must FAIL.
 """
 from __future__ import annotations
 
@@ -119,6 +126,44 @@ def _normalize_asr_words(raw: Any) -> list[dict[str, Any]]:
 _CUE_ALIGNED = frozenset({
     "cue-aligned", "cue_aligned", "from-cues", "from_cues", "builder", "builder-asr",
 })
+
+_SELF_CLOCK_METHODS = frozenset({
+    "mid_speech_voiced", "self_clock", "self-clock", "cue_start", "cue-start",
+    "onset_eq_cue", "cue_as_onset",
+})
+
+
+def self_clock_hits(obs: dict[str, Any], captions: list[Any] | None = None) -> list[str]:
+    """L81: reject onset rows that used the cue start as the reference clock."""
+    hits: list[str] = []
+    rows = obs.get("onset_rows") or obs.get("gate_rows") or obs.get("cue_onsets")
+    if isinstance(rows, list):
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                continue
+            method = str(row.get("onset_method") or row.get("method") or "").strip().casefold()
+            if method not in _SELF_CLOCK_METHODS:
+                continue
+            try:
+                cue_s = float(row.get("cue_s", row.get("cue_start", row.get("start"))))
+                onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
+            except (TypeError, ValueError):
+                hits.append(f"onset_rows[{index}]:self-clock-unreadable")
+                continue
+            if abs(cue_s - onset) <= 1e-4:
+                hits.append(f"onset_rows[{index}]:self-clock:{method}")
+    # Builder flag that admits cue-derived onsets
+    if obs.get("onset_from_cue") is True or obs.get("self_clock") is True:
+        hits.append("onset-from-cue-flag")
+    method = str(obs.get("onset_method") or "").strip().casefold()
+    if method in _SELF_CLOCK_METHODS and obs.get("phrase_onset") is not None:
+        try:
+            if abs(float(obs["phrase_onset"]) - float(obs.get("cue_s", obs.get("cue_start", -1)))) <= 1e-4:
+                hits.append(f"obs-self-clock:{method}")
+        except (TypeError, ValueError):
+            hits.append(f"obs-self-clock-unreadable:{method}")
+    return hits
+
 
 
 def asr_provenance_hits(obs: dict[str, Any]) -> list[str]:
@@ -443,6 +488,7 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
     if obs.get("reviewer_brief_lists_mg_checks") is not True:
         hits.append("reviewer-brief-missing-mg-checks")
     hits.extend(asr_provenance_hits(obs))
+    hits.extend(self_clock_hits(obs, obs.get("captions") if isinstance(obs.get("captions"), list) else None))
     _check_ocr(obs.get("ocr_frames"), hits)
     _check_static(obs, hits)
     _check_captions(obs.get("captions"), extract_asr_words(obs), hits, obs=obs)

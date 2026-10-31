@@ -64,7 +64,7 @@ def load_rows(source: Path) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--log", required=True, help="JSON/JSONL file or directory of receipts")
-    parser.add_argument("--slow", type=float, default=25.0, help="flag rows slower than this (s)")
+    parser.add_argument("--slow", type=float, default=30.0, help="flag rows slower than this (s)")
     args = parser.parse_args(argv)
     source = Path(args.log)
     if not source.exists():

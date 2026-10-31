@@ -83,3 +83,10 @@ against independent word-level ASR closes that class.
 ## Source
 
 Carl field retro 2026-10-31 (MG r1 + r2 onset). Companions: L02, L39, L41, L49, L64.
+
+## L81 NO-SELF-CLOCK (CE 2026.10.31.8)
+
+- Onsets from audio-only ASR (`asr_path`) committed before comparison.
+- `onset_method=mid_speech_voiced` (or kin) with `phrase_onset == cue_start` → FAIL.
+- No measurable onset → FAIL (never 0 from a missing clock).
+- Mutant: one mid-speech cue shifted +500 ms vs fixed ASR → FAIL.

@@ -58,3 +58,9 @@ one lesson card.
 | [L76 preview real width](preview-at-real-width.md) | Coach PASS at real container width |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
+
+| [review-scratch-cleanup](review-scratch-cleanup.md) | L78 reviewer scratch via archive/detached pushed sha |
+| [cms-block-identity](cms-block-identity.md) | L79 CMS block readback before paste/save |
+| [no-self-clock](no-self-clock.md) | L81 no self-clock caption onset |
+| [memory dump own shard](memory-dump-own-shard.md) | count_ok vs own shard; transcript fallback required; CLI merge |
+| [install download retry](install-download-retry.md) | SSL EOF / GnuTLS per-file retry + local-clone fallback |
