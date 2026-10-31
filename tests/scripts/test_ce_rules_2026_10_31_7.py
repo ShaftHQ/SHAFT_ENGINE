@@ -567,5 +567,165 @@ class DesignerAvatarLicenseBannedTest(unittest.TestCase):
 
 
 
+
+class AdversarialWebUiArtifactsTest(unittest.TestCase):
+    """r2: missing/[] render_artifacts FAIL; 390+1440 path+sha256 vs bytes."""
+
+    def setUp(self) -> None:
+        self.mod = _load("ce_web_ui_r2", CE / "rules/web_ui_gate.py")
+
+    def _receipt(self) -> dict:
+        return {
+            "bidi_ok": True,
+            "no_raw_urls_in_copy": True,
+            "min_contrast_ratio": 4.5,
+            "alignment_ok": True,
+            "render_widths_px": [390, 1440],
+            "independent_visual_review": True,
+            "viewport": {"x": 0, "y": 0, "w": 390, "h": 800},
+            "container": {"x": 0, "y": 0, "w": 390, "h": 800},
+            "elements": [
+                {
+                    "id": "ok",
+                    "bbox": {"x": 10, "y": 10, "w": 100, "h": 40},
+                    "scrollWidth": 100,
+                    "clientWidth": 100,
+                }
+            ],
+        }
+
+    def _write_png(self, path: Path, tag: bytes) -> str:
+        path.write_bytes(b"PNGFIXTURE-" + tag)
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_missing_render_artifacts_fails(self) -> None:
+        obs = self._receipt()
+        result = self.mod.evaluate(obs)
+        self.assertFalse(result["ok"])
+        self.assertTrue(
+            any("missing-render-artifacts" in h for h in result["hits"]),
+            result["hits"],
+        )
+
+    def test_empty_render_artifacts_fails(self) -> None:
+        obs = self._receipt()
+        obs["render_artifacts"] = []
+        result = self.mod.evaluate(obs)
+        self.assertFalse(result["ok"])
+        self.assertTrue(
+            any("missing-render-artifacts" in h for h in result["hits"]),
+            result["hits"],
+        )
+
+    def test_sha256_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            p390 = root / "w390.png"
+            p1440 = root / "w1440.png"
+            digest390 = self._write_png(p390, b"390")
+            digest1440 = self._write_png(p1440, b"1440")
+            obs = self._receipt()
+            obs["render_artifacts"] = [
+                {"width_px": 390, "path": str(p390), "sha256": "deadbeef" * 8},
+                {"width_px": 1440, "path": str(p1440), "sha256": digest1440},
+            ]
+            result = self.mod.evaluate(obs)
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("sha256-mismatch" in h for h in result["hits"]),
+                result["hits"],
+            )
+            # sanity: real digests differ from forged
+            self.assertNotEqual(digest390, "deadbeef" * 8)
+
+    def test_missing_width_pair_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            only = root / "w390.png"
+            digest = self._write_png(only, b"only390")
+            obs = self._receipt()
+            obs["render_artifacts"] = [
+                {"width_px": 390, "path": str(only), "sha256": digest},
+            ]
+            result = self.mod.evaluate(obs)
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("missing-390-or-1440-render-artifact" in h for h in result["hits"]),
+                result["hits"],
+            )
+
+    def test_good_artifacts_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            p390 = root / "w390.png"
+            p1440 = root / "w1440.png"
+            obs = self._receipt()
+            obs["render_artifacts"] = [
+                {
+                    "width_px": 390,
+                    "path": str(p390),
+                    "sha256": self._write_png(p390, b"390"),
+                },
+                {
+                    "width_px": 1440,
+                    "path": str(p1440),
+                    "sha256": self._write_png(p1440, b"1440"),
+                },
+            ]
+            result = self.mod.evaluate(obs)
+            self.assertTrue(result["ok"], result["hits"])
+
+
+class CraftQcWebUiCommandTest(unittest.TestCase):
+    """r2: craft_qc web_ui wires rules/web_ui_gate (mggate pattern)."""
+
+    def test_web_ui_command_fails_on_empty_artifacts(self) -> None:
+        import subprocess
+
+        design_qc = CE / "addons/design-skills/scripts/design_qc.py"
+        self.assertTrue(design_qc.is_file())
+        self.assertTrue(
+            (CE / "addons/design-skills/scripts/craft_qc.py").is_file()
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            obs_path = Path(tmp) / "obs.json"
+            obs_path.write_text(
+                json.dumps(
+                    {
+                        "bidi_ok": True,
+                        "no_raw_urls_in_copy": True,
+                        "min_contrast_ratio": 4.5,
+                        "alignment_ok": True,
+                        "render_widths_px": [390, 1440],
+                        "independent_visual_review": True,
+                        "render_artifacts": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            proc = subprocess.run(  # nosec B603
+                [sys.executable, str(design_qc), "web_ui", str(obs_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=str(ROOT),
+            )
+            self.assertNotEqual(0, proc.returncode, proc.stdout + proc.stderr)
+            payload = {}
+            for line in (proc.stdout or "").splitlines():
+                line = line.strip()
+                if line.startswith("{") and line.endswith("}"):
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+            hits = payload.get("hits") or []
+            self.assertTrue(
+                any("missing-render-artifacts" in str(h) for h in hits),
+                payload,
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()

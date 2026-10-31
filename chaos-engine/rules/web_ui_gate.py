@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
 from typing import Any
 
 
@@ -125,19 +127,57 @@ def _receipt_hits(obs: dict[str, Any]) -> list[str]:
     return hits
 
 
-def _artifact_hits(obs: dict[str, Any]) -> list[str]:
+def _artifact_width(art: dict[str, Any]) -> int | None:
+    raw = art.get("width_px")
+    if raw is None:
+        raw = art.get("width")
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _one_artifact_hits(index: int, art: Any) -> tuple[list[str], int | None]:
+    """Validate one render artifact; return hits + width when known."""
+    if not isinstance(art, dict):
+        return [f"render_artifacts[{index}]:bad-row"], None
     hits: list[str] = []
-    artifacts = obs.get("render_artifacts") or []
-    if not isinstance(artifacts, list):
-        return hits
+    path_value = str(art.get("path") or "").strip()
+    path: Path | None = None
+    if not path_value:
+        hits.append(f"render_artifacts[{index}]:missing-path")
+    else:
+        path = Path(path_value)
+        if not path.is_file():
+            hits.append(f"render_artifacts[{index}]:path-missing-file")
+    claimed = str(art.get("sha256") or art.get("hash") or "").strip().casefold()
+    if not claimed:
+        hits.append(f"render_artifacts[{index}]:missing-hash")
+    elif path is not None and path.is_file():
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest().casefold()
+        except OSError:
+            hits.append(f"render_artifacts[{index}]:sha256-unreadable")
+        else:
+            if claimed != digest:
+                hits.append(f"render_artifacts[{index}]:sha256-mismatch")
+    return hits, _artifact_width(art)
+
+
+def _artifact_hits(obs: dict[str, Any]) -> list[str]:
+    """Require 390 + 1440 render artifacts with path + sha256 verified vs bytes."""
+    artifacts = obs.get("render_artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return ["missing-render-artifacts"]
+    hits: list[str] = []
+    have_widths: set[int] = set()
     for index, art in enumerate(artifacts):
-        if not isinstance(art, dict):
-            hits.append(f"render_artifacts[{index}]:bad-row")
-            continue
-        if not str(art.get("path") or "").strip():
-            hits.append(f"render_artifacts[{index}]:missing-path")
-        if not str(art.get("sha256") or art.get("hash") or "").strip():
-            hits.append(f"render_artifacts[{index}]:missing-hash")
+        row_hits, width = _one_artifact_hits(index, art)
+        hits.extend(row_hits)
+        if width in (390, 1440):
+            have_widths.add(width)  # type: ignore[arg-type]
+    if not ({390, 1440} <= have_widths):
+        hits.append("missing-390-or-1440-render-artifact")
     return hits
 
 
