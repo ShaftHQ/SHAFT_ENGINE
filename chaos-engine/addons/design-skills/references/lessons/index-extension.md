@@ -32,3 +32,4 @@ test reads this file together with `index.md`.
 | [L62 Signed-renders store](signed-renders-store.md) | copy-on-SIGN; signed-renders never-touch |
 | [L63 Karaoke human frag](karaoke-human-frag.md) | no <0.8s karaoke fragments inside human cues |
 | [L64 Uncaptioned speech](uncaptioned-speech.md) | ASR speech ≥300ms needs ≥50% human-cue cover |
+| [L65 Motion-graphics gate](motion-graphics-gate.md) | kinetic/MG: OCR/bidi, static ≤3s/≤6 words, onset ≤150ms, ≤32chars/1–2 phrase lines, draw-on, approved-share-only |

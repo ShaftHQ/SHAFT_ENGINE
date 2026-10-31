@@ -39,6 +39,9 @@ L63 uses ASS Style/Name containing `Human` or inline `human=true` via
 A continuous karaoke fragment inside a human cue (dur &lt; 0.8 s) shipped past
 SIGN; template fix followed. Gate makes the miss fail closed.
 
+
+Shared helper: [`human_cue.py`](../../scripts/human_cue.py).
+
 ## Sources
 
 Field retro 2026-10-31. Companions: L35, L44, L39.

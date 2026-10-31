@@ -577,13 +577,25 @@ def pr_scope_failures(root: Path, paths: list[str], *, pr_fetcher=_gh_open_pr_fo
     """H-PR-SCOPE: agentic open PR diff must match ## Scope / scope comment.
 
     Soft-skips when there is no open PR, no gh, or the PR is not agentic.
+    Loads via importlib so overlay stays free of a new scripts.* import (#6843).
     """
     pr = pr_fetcher(root)
     if not pr or not isinstance(pr.get("body"), str):
         return []
+    helper = root / "scripts" / "ci" / "pr_scope_check.py"
+    if not helper.is_file():
+        return []
     try:
-        from scripts.ci.pr_scope_check import is_agentic_pr, evaluate
+        spec = importlib.util.spec_from_file_location("chaos_engine_pr_scope_check", helper)
+        if spec is None or spec.loader is None:
+            return []
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
     except Exception:  # nosec B110 - missing helper must not block push
+        return []
+    is_agentic_pr = getattr(module, "is_agentic_pr", None)
+    evaluate = getattr(module, "evaluate", None)
+    if not callable(is_agentic_pr) or not callable(evaluate):
         return []
     if not is_agentic_pr(pr):
         return []

@@ -172,7 +172,8 @@ sends you there; the rest by
 - [CE upgrade on release](../../chaos-engine/references/ce-upgrade-on-release.md): VERSION calver + upgrade-session for linked worktrees
 - [Work ordering](../../chaos-engine/references/work-ordering.md): close open PRs before new work; bugs → features → epics
 - [Commit identity](../../chaos-engine/references/commit-identity.md): ChaosEngine author only on the engine repo + user-guide pages repo
-- [PR scope check](../../chaos-engine/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-SCOPE)
+- [PR scope check](../../chaos-engine/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-PR-SCOPE)
+- [H-SCOPE](../../chaos-engine/references/h-scope.md): L41 title-scope + sequential-wip + parallel_stream_conflict / path-claim
 - [CE retro 2026.10.31.6 SPEC](../../chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md): pointer to origin-only guides SPEC (H-IDENTITY / L64 / H-SCOPE)
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns

@@ -34,6 +34,9 @@ Uncaptioned speech shipped past phrase-only karaoke checks when ASR heard
 talking but human cues left a hole. Coverage against ASR is the gate. Doc must
 name the `human: true` JSON flag so H-DOC-CLAIM holds.
 
+
+Shared helper: [`human_cue.py`](../../scripts/human_cue.py).
+
 ## Source
 
 Carl field retro 2026-10-31 (designer-workspace coverage helper, ported

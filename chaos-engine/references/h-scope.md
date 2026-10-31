@@ -7,8 +7,7 @@
 
 1. **Spoken-lock titles keep scope words (L41).** Ear-locked titles must retain
    the speaker's scope noun phrase. Do not collapse "penetration testing" →
-   "testing". Gate: `title_scope_gate.py` + lesson
-   [spoken-lock-scope-words](../addons/design-skills/references/lessons/spoken-lock-scope-words.md).
+   "testing". Gate: `title_scope_gate.py` + design-skills lesson L41 `spoken-lock-scope-words` (load from the design-skills add-on index).
 2. **One task of a kind.** At most one In progress item per bot/stream —
    [sequential-wip.md](sequential-wip.md).
 3. **Exclusive file/path claims.** Two active workers must not share a writable
