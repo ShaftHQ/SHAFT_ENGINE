@@ -1240,7 +1240,7 @@ def cmd_softjump(qc, args) -> int:
 
 # Arabic binder pronouns / demonstratives that open a land cue weakly (G17).
 # Opener class must match binder class: هو/هم → --noun-ho; هي/دي/ده/… → --noun.
-# Project nouns stay on flags (Automatest lists live in brain).
+# Project nouns stay on flags (project-specific lists live outside the overlay).
 WEAK_OPEN = frozenset({"هو", "هي", "هم", "هن", "ده", "دي", "دا", "دول", "هذا", "هذه"})
 HO_OPEN = frozenset({"هو", "هم", "هذا"})  # masculine / "he" class
 

@@ -25,7 +25,11 @@ def default_manifest_path(
     override = str(env.get(ENV_MANIFEST, "")).strip()
     if override:
         return Path(override)
-    base = Path(checkpoints_dir) if checkpoints_dir is not None else Path("/workspace/checkpoints")
+    if checkpoints_dir is not None:
+        base = Path(checkpoints_dir)
+    else:
+        configured = str(env.get("CHAOS_CHECKPOINTS_DIR", "")).strip()
+        base = Path(configured) if configured else Path.cwd() / "checkpoints"
     safe = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in task.strip()) or "task"
     return base / f"{safe}-ownership.json"
 
