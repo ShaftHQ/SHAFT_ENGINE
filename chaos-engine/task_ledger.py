@@ -49,6 +49,22 @@ KIND_BUDGET_MINUTES = {
     "testrun": 90.0,
     "test_run": 90.0,
 }
+
+# Evidence that the task is a real test run (not a budget-bypass label).
+TEST_RUN_CMD_RE = re.compile(
+    r"(?i)(?:^|[;&|\s])("
+    r"mvn(?:\s+\S+)*\s+test\b|"
+    r"gradlew?(?:\s+\S+)*\s+test\b|"
+    r"pytest\b|"
+    r"python(?:3)?\s+-m\s+(?:pytest|unittest)\b|"
+    r"npm(?:\s+run)?\s+test\b|"
+    r"cargo\s+test\b|"
+    r"go\s+test\b"
+    r")"
+)
+TEST_RUN_ABUSE_CLASSES = frozenset({
+    "cleanup", "pr", "design", "docs", "review", "chore", "release",
+})
 MISSING_NEXT = "(missing: rerun checkpoint with --next \"<exact next step>\")"
 STOP_NOW = "stop: push WIP, checkpoint --next, end turn"
 OWNER_FINISH_CONTINUE = (
@@ -163,21 +179,95 @@ def kind_budget_minutes(kind: str | None) -> float | None:
     return KIND_BUDGET_MINUTES.get(str(kind).strip().casefold())
 
 
+def test_run_cmd_matches(cmd: str | None) -> bool:
+    """True when *cmd* looks like a test-runner invocation."""
+    if not cmd:
+        return False
+    return TEST_RUN_CMD_RE.search(str(cmd)) is not None
+
+
+def test_run_proof_ok(
+    *,
+    task_cmd: str | None = None,
+    command: str | None = None,
+    cmd: str | None = None,
+    ledger_has_test_cmd: bool = False,
+    test_run_proof: bool = False,
+    suite_id: str | None = None,
+) -> bool:
+    """L80: 90-minute test-run budget requires recorded test-runner proof."""
+    if test_run_cmd_matches(task_cmd) or test_run_cmd_matches(command) or test_run_cmd_matches(cmd):
+        return True
+    if ledger_has_test_cmd and (test_run_proof or test_run_cmd_matches(task_cmd)):
+        return True
+    if suite_id and str(suite_id).strip() and test_run_cmd_matches(task_cmd or command or cmd or ""):
+        return True
+    # Explicit proof flag alone is insufficient without a matching cmd.
+    return False
+
+
+def evaluate_test_run_kind(obs: dict | None) -> dict:
+    """Fail-closed policy for kind=test-run budget claims."""
+    if obs is None or not isinstance(obs, dict):
+        return {"ok": False, "hits": ["missing-input"], "error": "obs required"}
+    hits: list[str] = []
+    kind = str(obs.get("kind") or "").strip().casefold()
+    if kind not in KIND_BUDGET_MINUTES:
+        return {"ok": True, "hits": [], "error": None}
+    task_class = str(obs.get("task_class") or obs.get("class") or "").strip().casefold()
+    if task_class in TEST_RUN_ABUSE_CLASSES:
+        hits.append("test-run-kind-abuse")
+    if not test_run_proof_ok(
+        task_cmd=obs.get("task_cmd") or obs.get("command") or obs.get("cmd"),
+        ledger_has_test_cmd=bool(obs.get("ledger_has_test_cmd")),
+        test_run_proof=bool(obs.get("test_run_proof")),
+        suite_id=obs.get("suite_id"),
+    ):
+        hits.append("test-run-missing-proof")
+    return {
+        "ok": not hits,
+        "hits": hits,
+        "error": None if not hits else "L80 test-run budget gate failed",
+    }
+
+
 def resolve_budget_minutes(
     *,
     kind: str | None = None,
     minutes: float | None = None,
     explicit: bool = False,
+    task_cmd: str | None = None,
+    command: str | None = None,
+    cmd: str | None = None,
+    ledger_has_test_cmd: bool = False,
+    test_run_proof: bool = False,
+    suite_id: str | None = None,
+    task_class: str | None = None,
 ) -> float:
     """Pick session budget: explicit minutes win; else kind override; else 35.
 
     *explicit* is True when the caller passed ``--minutes`` / ``--budget`` with
     a non-default value, or any ``--budget N``.
+
+    L80: ``kind=test-run`` only yields 90 minutes when test-runner proof is
+    present (task cmd matches mvn/gradle/pytest/… or ledger-recorded proof).
+    Abuse classes (cleanup/pr/design/…) always keep the default 35.
     """
     if explicit and minutes is not None:
         return float(minutes)
     override = kind_budget_minutes(kind)
     if override is not None:
+        abuse = str(task_class or "").strip().casefold() in TEST_RUN_ABUSE_CLASSES
+        proof = test_run_proof_ok(
+            task_cmd=task_cmd,
+            command=command,
+            cmd=cmd,
+            ledger_has_test_cmd=ledger_has_test_cmd,
+            test_run_proof=test_run_proof,
+            suite_id=suite_id,
+        )
+        if abuse or not proof:
+            return float(DEFAULT_BUDGET_MINUTES)
         return float(override)
     if minutes is not None:
         return float(minutes)

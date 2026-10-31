@@ -2302,11 +2302,24 @@ def record_install_source(project: Path, repository: str, branch: str | None) ->
     path.write_text(json.dumps(record) + "\n", encoding="utf-8")
 
 
+def git_blob_sha1(content: bytes) -> str:
+    """Git blob oid for *content* (sha1 of blob header + NUL + bytes)."""
+    digest = hashlib.sha1()
+    digest.update(b"blob " + str(len(content)).encode("ascii") + bytes([0]))
+    digest.update(content)
+    return digest.hexdigest()
+
+
+
 def _select_source_blobs(
     tree: list,
-) -> tuple[list[tuple[PurePosixPath, int]], int, set[PurePosixPath]]:
-    """Bounded ChaosEngine and pack blobs to download, their total size, and the ``100755`` ones."""
-    selected: list[tuple[PurePosixPath, int]] = []
+) -> tuple[list[tuple[PurePosixPath, int, str]], int, set[PurePosixPath]]:
+    """Bounded ChaosEngine and pack blobs to download, their total size, and the ``100755`` ones.
+
+    Each selected row is ``(path, size, blob_sha)`` so ``fetch_blob`` can verify
+    content against the tree oid after download/retry (not size alone).
+    """
+    selected: list[tuple[PurePosixPath, int, str]] = []
     executable: set[PurePosixPath] = set()
     total = 0
     for entry in tree:
@@ -2324,10 +2337,13 @@ def _select_source_blobs(
         size = entry.get("size")
         if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
             raise ValueError("ChaosEngine source file exceeds the download limit")
+        sha = entry.get("sha")
+        if not isinstance(sha, str) or len(sha) != 40:
+            raise ValueError("ChaosEngine source tree entry is missing a blob sha")
         if entry.get("mode") == "100755":
             executable.add(path)
         if is_pack_path(path):
-            selected.append((path, size))
+            selected.append((path, size, sha))
             total += size
             continue
         relative = PurePosixPath(*path.parts[1:])
@@ -2338,7 +2354,7 @@ def _select_source_blobs(
             "STANDALONE.md",
         }:
             continue
-        selected.append((path, size))
+        selected.append((path, size, sha))
         total += size
     return selected, total, executable
 
@@ -2490,8 +2506,8 @@ def download_source_remote(
     source.mkdir()
     mkdir_lock = threading.Lock()
 
-    def fetch_blob(item: tuple[PurePosixPath, int]) -> None:
-        repository_path, expected_size = item
+    def fetch_blob(item: tuple[PurePosixPath, int, str]) -> None:
+        repository_path, expected_size, expected_sha = item
         encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in repository_path.parts)
         content = read_response(
             opener,
@@ -2501,6 +2517,11 @@ def download_source_remote(
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
+        actual_sha = git_blob_sha1(content)
+        if actual_sha.casefold() != expected_sha.casefold():
+            raise ValueError(
+                "ChaosEngine source file hash does not match the resolved tree"
+            )
         target = destination.joinpath(*repository_path.parts)
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)

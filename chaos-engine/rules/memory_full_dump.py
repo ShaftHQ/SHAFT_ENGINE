@@ -353,6 +353,141 @@ def _apply_known_ids(
     return need_transcript
 
 
+def host_derived_shard_total(
+    *,
+    known_shard_ids: Iterable[str] = (),
+    by_id: dict[str, MemoryFact] | None = None,
+    cap_incomplete: bool = False,
+) -> tuple[int | None, list[str]]:
+    """Derive own-shard expected count from host evidence, not a caller claim.
+
+    Prefer the unique normalized ``known_shard_ids`` set (exhaustive host list /
+    ReadTranscript inventory). Else, when queries were exhaustive
+    (``cap_incomplete`` is false), use the unique fact ids already captured in
+    ``by_id``. Returns ``(derived_or_None, notes)``.
+    """
+    notes: list[str] = []
+    known = {
+        nid
+        for raw in known_shard_ids
+        for nid in [normalize_id(str(raw))]
+        if nid
+    }
+    if known:
+        return len(known), notes
+    ids = {
+        nid
+        for key in (by_id or {})
+        for nid in [normalize_id(str(key))]
+        if nid
+    }
+    # Also count facts whose fact_id is on the value.
+    if by_id:
+        for fact in by_id.values():
+            nid = normalize_id(fact.fact_id)
+            if nid:
+                ids.add(nid)
+    if not ids:
+        notes.append(
+            "no host-derived shard total: pass known_shard_ids "
+            "(or ensure batch hits carry fact ids)"
+        )
+        return None, notes
+    if cap_incomplete:
+        notes.append(
+            "cannot derive shard total under top-N cap without known_shard_ids"
+        )
+        return None, notes
+    return len(ids), notes
+
+
+
+def _resolve_expected_total(
+    *,
+    bot: str,
+    host_total: int | None,
+    shard_total: int | None,
+    shared_total: int | None,
+    other_bots_total: int | None,
+    known_shard_ids: Iterable[str],
+    by_id: dict[str, MemoryFact],
+    cap_incomplete: bool,
+    notes: list[str],
+) -> tuple[int | None, bool]:
+    """Host-derived expected total + whether caller claim mismatches it."""
+    derived, derive_notes = host_derived_shard_total(
+        known_shard_ids=known_shard_ids,
+        by_id=by_id,
+        cap_incomplete=cap_incomplete,
+    )
+    notes.extend(derive_notes)
+    claimed = shard_total
+    if derived is not None:
+        if claimed is not None and int(claimed) != int(derived):
+            notes.append(
+                f"claimed shard_total={claimed} mismatches host-derived={derived}"
+            )
+            return derived, True
+        return derived, False
+    expected = shard_expected_total(
+        host_total,
+        shard_total=None,
+        shared_total=shared_total,
+        other_bots_total=other_bots_total,
+        require_shard=bool(bot),
+    )
+    if expected is None and claimed is not None:
+        notes.append(
+            "shard_total/expected is caller-only; count_ok requires "
+            "host-derived known_shard_ids or exhaustive fact ids"
+        )
+    if bot and expected is None and host_total is not None and claimed is None:
+        notes.append(
+            "host_total spans shared/other bots; pass known_shard_ids "
+            "(own shard only) — count_ok stays false until then"
+        )
+    return expected, False
+
+
+def _count_ok_for_dump(
+    *,
+    bot: str,
+    expected: int | None,
+    exported: int,
+    uncaptured: list[str],
+    cap_incomplete: bool,
+    claimed_mismatch: bool,
+    notes: list[str],
+) -> bool:
+    """Decide count_ok; append explanatory notes."""
+    if expected is None:
+        if bot and "shard_total/expected is caller-only" not in " ".join(notes):
+            notes.append(
+                "shard total unknown; count_ok requires host-derived "
+                "own-shard total (known_shard_ids or exhaustive ids)"
+            )
+        elif not bot:
+            notes.append(
+                "host total unknown; count_ok requires exported==total "
+                "(pass host_total from the memory host)"
+            )
+        if cap_incomplete:
+            notes.append(
+                "at least one query hit top-N cap — "
+                "re-run with more seeds or ReadTranscript fallback"
+            )
+        return False
+    if exported != expected:
+        notes.append(f"count mismatch: exported={exported} shard_total={expected}")
+    if cap_incomplete and exported < expected:
+        notes.append("cap incomplete: need more queries or transcript fallback")
+    if uncaptured or claimed_mismatch or exported != expected:
+        return False
+    if cap_incomplete and exported < expected:
+        return False
+    return True
+
+
 def merge_batches(
     batches: Sequence[QueryBatch],
     *,
@@ -407,53 +542,32 @@ def merge_batches(
     ):
         need_transcript = True
 
-    expected = shard_expected_total(
-        host_total,
+    expected, claimed_mismatch = _resolve_expected_total(
+        bot=bot,
+        host_total=host_total,
         shard_total=shard_total,
         shared_total=shared_total,
         other_bots_total=other_bots_total,
-        require_shard=bool(bot),
+        known_shard_ids=known_shard_ids,
+        by_id=by_id,
+        cap_incomplete=cap_incomplete,
+        notes=notes,
     )
-    if bot and expected is None and host_total is not None and shard_total is None:
-        notes.append(
-            "host_total spans shared/other bots; pass shard_total "
-            "(own shard only) — count_ok stays false until then"
-        )
 
     exported = len(ordered)
     if uncaptured:
         need_transcript = True
         notes.append(TRANSCRIPT_FALLBACK_REQUIRED)
 
-    if expected is None:
-        count_ok = False
-        if bot:
-            notes.append(
-                "shard total unknown; count_ok requires exported==shard_total "
-                "(own shard only; pass shard_total)"
-            )
-        else:
-            notes.append(
-                "host total unknown; count_ok requires exported==total "
-                "(pass host_total from the memory host)"
-            )
-        if cap_incomplete:
-            notes.append(
-                "at least one query hit top-N cap — "
-                "re-run with more seeds or ReadTranscript fallback"
-            )
-    else:
-        count_ok = (
-            exported == expected
-            and not uncaptured
-            and not (cap_incomplete and exported < expected)
-        )
-        if exported != expected:
-            notes.append(f"count mismatch: exported={exported} shard_total={expected}")
-        if cap_incomplete and exported < expected:
-            notes.append("cap incomplete: need more queries or transcript fallback")
-        if uncaptured:
-            count_ok = False
+    count_ok = _count_ok_for_dump(
+        bot=bot,
+        expected=expected,
+        exported=exported,
+        uncaptured=uncaptured,
+        cap_incomplete=cap_incomplete,
+        claimed_mismatch=claimed_mismatch,
+        notes=notes,
+    )
 
     report = DumpReport(
         exported_unique=exported,
@@ -566,7 +680,11 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         "--expected",
         type=int,
         required=True,
-        help="Own-shard expected total (NOT the cross-bot host pool)",
+        help=(
+            "Claimed own-shard total (NOT the cross-bot host pool). "
+            "Must match host-derived count from --known-ids / exhaustive fact ids "
+            "or count_ok fails."
+        ),
     )
     parser.add_argument("--out", type=Path, required=True, help="Markdown dump path")
     parser.add_argument("--receipt", type=Path, required=True, help="JSON receipt path")
