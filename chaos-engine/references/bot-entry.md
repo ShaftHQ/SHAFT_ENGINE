@@ -48,7 +48,7 @@ Upgrade: [ce-upgrade-on-release](ce-upgrade-on-release.md) (see [VERSION](../VER
 ChaosEngine (`chaos-engine/VERSION`), load it for every task; workers inherit
 via `ce_load` + entry. Cleanup: [cleanup-at-close](cleanup-at-close.md).
 Work order: [work-ordering](work-ordering.md) (open PRs first).
-Commit identity: [commit-identity](commit-identity.md) (ChaosEngine author only on the engine repo + user-guide pages repo).
+Commit identity: [commit-identity](commit-identity.md) ([`commit_identity.py`](../commit_identity.py)). PR scope: [pr-scope-check](pr-scope-check.md).
 
 Work the queue to the end without waiting for "proceed": after each step or
 delivery, start the next queued item (KEEP-ALIVE). A turn that ends while CI
@@ -69,6 +69,15 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 - Parent: one issue per background run; split batches. On "interrupted
   before it finished", re-dispatch with `tool.py resume TASK` as the brief.
   Never poll a child to keep it alive. Interrupt → new worker from [checkpoint-resume](checkpoint-resume.md).
+
+
+## Retro gates
+
+[radio-silence](radio-silence.md) ([`radio_silence.py`](../radio_silence.py));
+[progress-log](progress-log.md) ([`progress_log.py`](../progress_log.py));
+[moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py));
+[doc-claim-review](doc-claim-review.md); [gate-fail-closed](gate-fail-closed.md).
+SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md) (full copy under `guides/`).
 
 ## Token economy
 
@@ -149,7 +158,7 @@ manifest, conflict check, disk gate, no force-push under review).
 After every final delivery (owner approval, completed publish, or final
 merge), DoD in order: [post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup)
 (mandatory; hygiene proofs; own items only), disk/cache inventory via
-`box_disk_guard`, Learning Session per the
+`box_disk_guard`, Learning Session after every final delivery per the
 [router contract](router-contract.md#learning-session), then
 `python3 .chaos-engine/tool.py maintain` before the next task.
 

@@ -12,7 +12,10 @@ not installed locally, the hook warns and continues; CI must set
 
 Baseline refresh: install the pin in PIN.json, triage findings, then
 ``skillspector baseline <skill-dir> --no-llm`` and merge reasons into
-``.skillspector-baseline.yaml``. Never add broad AST4 globs.
+``.skillspector-baseline.yaml``. Prefer
+``scripts/ci/skillspector/semantic_baseline.py`` so suppressions key by
+``rule_id:file`` semantic id (hash updates in place; reason kept).
+Never add broad AST4 globs.
 """
 
 from __future__ import annotations

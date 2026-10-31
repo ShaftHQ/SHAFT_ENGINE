@@ -95,7 +95,7 @@ class CommitIdentityEntryTest(unittest.TestCase):
             )
             warn = ci.entry_identity_warning(root)
             self.assertIn("commit-identity:", warn)
-            self.assertIn("outside allowed_remotes", warn)
+            self.assertIn("allowed only on", warn)
             with self.assertRaises(PermissionError):
                 ci.assert_local_identity_matches_remote(root)
 

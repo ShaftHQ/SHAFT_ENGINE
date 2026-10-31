@@ -5,7 +5,8 @@
 1. **Clean at item close** only after the stream's delivery is pushed and
    verified (merged PR tip on origin, or upload + watch-page receipt for media).
    Never delete the only copy of unpushed work. Remove only paths the agent
-   itself created and recorded in the ownership manifest.
+   itself created and recorded in the ownership manifest. Never touch
+   `signed-renders/**` under the workspace root (delete-guard never-touch; L62).
 2. **Ordered actions after verify:**
    1. **Finals hold** — keep final `mp4` / `png` / signed `json` until upload
       and watch-page verify; archive to the shared backups directory only if the

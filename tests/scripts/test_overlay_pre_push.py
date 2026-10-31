@@ -30,6 +30,14 @@ def _playbook(text: str) -> str:
     return text
 
 
+
+def _stage_version(root: Path) -> None:
+    """Satisfy ce_version_bump when tests stage chaos-engine/ paths for other contracts."""
+    version = root / "chaos-engine" / "VERSION"
+    version.parent.mkdir(parents=True, exist_ok=True)
+    if not version.is_file():
+        version.write_text("0.0.0-test\n", encoding="utf-8")
+
 class OverlayPrePushTest(unittest.TestCase):
     def test_over_budget_fixture_fails(self):
         text = ("x" * 16385) + "\n" + "\n".join(PINNED)
@@ -91,6 +99,7 @@ class OverlayPrePushTest(unittest.TestCase):
             playbook = root / PLAYBOOK
             playbook.parent.mkdir(parents=True)
             playbook.write_text(("z" * 16385) + "\n" + "\n".join(PINNED), encoding="utf-8")
+            _stage_version(root)
             git = shutil.which("git")
             self.assertIsNotNone(git)
             subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)  # nosec B603
@@ -124,6 +133,7 @@ class OverlayPrePushTest(unittest.TestCase):
             playbook = root / PLAYBOOK
             playbook.parent.mkdir(parents=True)
             playbook.write_text(("z" * 16385) + "\n" + "\n".join(PINNED), encoding="utf-8")
+            _stage_version(root)
             subprocess.run([git, "add", "-A"], cwd=root, check=True, capture_output=True)  # nosec B603
             previous = Path.cwd()
             captured: list[list[str]] = []
@@ -200,7 +210,7 @@ class OverlayPrePushTest(unittest.TestCase):
         text = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
         self.assertEqual([], playbook_contract_failures(text))
         failures = overlay_pre_push_failures(
-            ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md"]
+            ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/VERSION"]
         )
         self.assertEqual([], failures)
 
@@ -340,7 +350,7 @@ class CheapCiContractTest(unittest.TestCase):
         from scripts.ci import overlay_pre_push as gate
 
         root = Path(__file__).resolve().parents[2]
-        changed = ["chaos-engine/references/bot-entry.md", "scripts/ci/harness_pr_gate.py"]
+        changed = ["chaos-engine/references/bot-entry.md", "chaos-engine/VERSION", "scripts/ci/harness_pr_gate.py"]
         self.assertEqual([], gate.cheap_ci_contract_failures(root, changed))
 
 

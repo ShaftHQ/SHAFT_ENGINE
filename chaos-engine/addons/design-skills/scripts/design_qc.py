@@ -867,6 +867,37 @@ def _wardrobe_observation_hits(
 
 
 
+_REAL_REF_KINDS = frozenset({"real_photo", "yt_frame", "real_audio"})
+_BANNED_REF_KINDS = frozenset({"ai_still", "ai_speech", "prior_generation", "ai"})
+
+
+def _likenessvoice_ref_hits(axis: str, refs: list) -> list[str]:
+    """Require real-source provenance on every likeness/voice ref (L60)."""
+    hits: list[str] = []
+    for index, ref in enumerate(refs):
+        label = f"{axis}-ref[{index}]"
+        if isinstance(ref, str):
+            hits.append(f"{label}-missing-provenance")
+            continue
+        if not isinstance(ref, dict):
+            hits.append(f"{label}-bad-ref")
+            continue
+        kind = str(ref.get("kind") or "").strip().lower()
+        if not kind:
+            hits.append(f"{label}-missing-kind")
+        elif kind in _BANNED_REF_KINDS:
+            hits.append(f"{label}-banned-kind:{kind}")
+        elif kind not in _REAL_REF_KINDS:
+            hits.append(f"{label}-bad-kind:{kind}")
+        sha = str(ref.get("sha256") or "").strip()
+        if not sha:
+            hits.append(f"{label}-missing-sha256")
+        source = str(ref.get("source_url") or ref.get("source_path") or "").strip()
+        if not source:
+            hits.append(f"{label}-missing-source")
+    return hits
+
+
 def _likenessvoice_axis_hits(axis: str, block: object) -> list[str]:
     """FAIL closed on missing/doubt/fail for one likeness or voice axis."""
     hits: list[str] = []
@@ -875,6 +906,8 @@ def _likenessvoice_axis_hits(axis: str, block: object) -> list[str]:
     refs = block.get("refs")
     if not isinstance(refs, list) or len(refs) == 0:
         hits.append(f"{axis}-missing-refs")
+    else:
+        hits.extend(_likenessvoice_ref_hits(axis, refs))
     if block.get("side_by_side") is not True:
         hits.append(f"{axis}-not-side-by-side")
     verdict = block.get("verdict")
@@ -1088,6 +1121,76 @@ def cmd_retainmp4(args: argparse.Namespace) -> int:
         public_url=public_url or None,
         mp4_present=bool(present),
         note="keep final mp4 until public URL proof",
+    )
+
+
+
+def _norm_title(value: object) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def _window_of(unit: dict) -> tuple[str, str]:
+    start = str(unit.get("start") or unit.get("window_start") or unit.get("src_start") or "")
+    end = str(unit.get("end") or unit.get("window_end") or unit.get("src_end") or "")
+    return start.strip(), end.strip()
+
+
+def cmd_scheduledup(args: argparse.Namespace) -> int:
+    """L61: title+window dup vs live inventory before rebuild/schedule."""
+    inv_path = getattr(args, "inventory", None)
+    if not inv_path:
+        return report(
+            "scheduledup", FAIL, hits=["missing-inventory"],
+            error="--inventory required (live inventory JSON)",
+        )
+    path = Path(str(inv_path))
+    if not path.is_file():
+        return report(
+            "scheduledup", FAIL, hits=["missing-inventory"], error=f"no file: {path}",
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("scheduledup", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("scheduledup", FAIL, hits=["bad-inventory"], error="units list required")
+    candidate_title = _norm_title(getattr(args, "title", "") or "")
+    candidate_window = (
+        str(getattr(args, "start", "") or "").strip(),
+        str(getattr(args, "end", "") or "").strip(),
+    )
+    if not candidate_title:
+        return report("scheduledup", FAIL, hits=["missing-title"], error="--title required")
+    allow = getattr(args, "allow_replace", False) is True
+    hits: list[str] = []
+    matches = 0
+    for index, unit in enumerate(units):
+        if not isinstance(unit, dict):
+            continue
+        title = _norm_title(unit.get("title") or unit.get("name"))
+        window = _window_of(unit)
+        if title == candidate_title and (
+            not candidate_window[0]
+            or not candidate_window[1]
+            or window == candidate_window
+            or window == ("", "")
+        ):
+            matches += 1
+            label = unit.get("id") or unit.get("yt_id") or index
+            hits.append(f"dup-title-window:{label}")
+    if matches and not allow:
+        return report(
+            "scheduledup", FAIL, hits=hits, matches=matches,
+            note="dup vs live inventory before rebuild/schedule",
+        )
+    if matches and allow and not str(getattr(args, "yt_id", "") or "").strip():
+        return report(
+            "scheduledup", FAIL, hits=["allow-replace-missing-yt-id"], matches=matches,
+        )
+    return report(
+        "scheduledup", PASS, hits=[], matches=matches,
+        note="dup vs live inventory before rebuild/schedule",
     )
 
 
@@ -2547,6 +2650,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file", help="digital-human / avatar / talk render")
     p.add_argument("--observations", required=True,
                    help="required JSON: independent_reviewer, blind, likeness{}, voice{}")
+    p = add("scheduledup", cmd_scheduledup,
+            "L61: title+window dup vs live inventory before rebuild/schedule")
+    p.add_argument("--inventory", required=True, help="live inventory JSON")
+    p.add_argument("--title", required=True, help="candidate title")
+    p.add_argument("--start", default="", help="candidate source window start")
+    p.add_argument("--end", default="", help="candidate source window end")
+    p.add_argument("--allow-replace", action="store_true", dest="allow_replace")
+    p.add_argument("--yt-id", default="", dest="yt_id", help="required with --allow-replace")
     p = add("ytprecheck", cmd_ytprecheck,
             "L57: YouTube Studio search before upload; dups fail closed")
     p.add_argument("--observations", required=True,

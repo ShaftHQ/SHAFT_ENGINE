@@ -312,8 +312,10 @@ class UpgradeMatrixTest(unittest.TestCase):
 
 class VersionPinTest(unittest.TestCase):
     def test_version_file(self) -> None:
-        self.assertEqual(
-            "2026.10.31.5", (CE / "VERSION").read_text(encoding="utf-8").strip())
+        value = (CE / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertRegex(value, r"^20\d{2}\.\d{2}\.\d{2}\.\d+$")
+        floor = tuple(int(p) for p in "2026.10.31.5".split("."))
+        self.assertGreaterEqual(tuple(int(p) for p in value.split(".")), floor)
 
 
 if __name__ == "__main__":

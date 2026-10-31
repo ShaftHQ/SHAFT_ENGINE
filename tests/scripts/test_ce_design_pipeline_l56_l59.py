@@ -65,8 +65,8 @@ class LessonCardsTest(unittest.TestCase):
                 self.assertIn(needle, text, msg=f"{name}: {needle}")
         inv = (DESIGN / "INVENTORY.md").read_text(encoding="utf-8")
         collapsed = " ".join(inv.split())
-        self.assertIn("L01-L59", collapsed)
-        self.assertIn("59 lesson", collapsed)
+        self.assertIn("L01-L65", collapsed)
+        self.assertIn("64 lesson", collapsed)
         idx = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
         for needle in ("L56", "L57", "L58", "L59"):
             self.assertIn(needle, idx)
@@ -100,12 +100,12 @@ class LikenessVoiceGateTest(unittest.TestCase):
                         "blind": True,
                         "likeness": {
                             "verdict": "doubt",
-                            "refs": ["ref.jpg"],
+                            "refs": [{"kind": "real_photo", "sha256": "abc", "source_path": "ref.jpg"}],
                             "side_by_side": True,
                         },
                         "voice": {
                             "verdict": "pass",
-                            "refs": ["ref.wav"],
+                            "refs": [{"kind": "real_audio", "sha256": "def", "source_path": "ref.wav"}],
                             "side_by_side": True,
                         },
                     }
@@ -125,12 +125,12 @@ class LikenessVoiceGateTest(unittest.TestCase):
                         "reviewer_id": "reviewer-b",
                         "likeness": {
                             "verdict": "pass",
-                            "refs": ["ref.jpg"],
+                            "refs": [{"kind": "real_photo", "sha256": "abc", "source_path": "ref.jpg"}],
                             "side_by_side": True,
                         },
                         "voice": {
                             "verdict": "pass",
-                            "refs": ["ref.wav"],
+                            "refs": [{"kind": "real_audio", "sha256": "def", "source_path": "ref.wav"}],
                             "side_by_side": True,
                         },
                     }

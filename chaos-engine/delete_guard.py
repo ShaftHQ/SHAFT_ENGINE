@@ -91,7 +91,7 @@ ACK_ENV = "CHAOS_DELETE_ACK"
 CODE_TTL = 600
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 # No code unlocks these: a path segment matching a name, or a browser profile dir.
-NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired")
+NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired", "signed-renders")
 # Old renders inside yt/ (not yt/meta/) such as clip.r3.mp4 go through the owner-code flow.
 YT_RENDER = re.compile(r".+\.r\d+\.mp4")
 NEVER_PATTERNS = (

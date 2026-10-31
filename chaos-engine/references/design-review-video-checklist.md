@@ -17,10 +17,11 @@ design-skills add-on lesson index; load them on demand from that add-on.
 5. **Orchestrator SIGN** after indep PASS + gate JSON. PDCA ≤ ~5 rounds then escalate.
 6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads.
 7. **Retro** defects → ChaosEngine gate + review-brief block.
+8. **Share only approved deliverables** — after independent review + owner approval (named acceptance gate when applicable). Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).
 
 ### Video / caption (build + review + SIGN)
 - Ear-lock title to kept speech; spoken-lock keeps **scope words** (design L41);
-  run `title_scope_gate`.
+  run `title_scope_gate` (H-SCOPE / L41 — see [h-scope.md](h-scope.md)).
 - Title polarity / claim ⊆ kept spans; near-title similarity when titles must differ.
 - Long vs Short dedupe (design L43): titles differ; overlap only if long is proper ≥3×
   superset.
@@ -59,6 +60,7 @@ captions; auto-dub leave alone; desc L1 = title; series playlist not Shorts.
 - Never ship metadata-only retitle without chrome re-render.
 - Never let overlays bleed onto the endcard.
 - Never upload or schedule from the design implementer role.
+- Never share WIP samples or progress chatter; share only reviewed + owner-approved deliverables.
 
 ## Why
 
@@ -76,3 +78,15 @@ on the worker brief (`ce_load: required` + `tool.py entry`).
 
 [sequential WIP](sequential-wip.md), [multi-agent PDCA](multi-agent-pdca.md),
 design-skills lesson index (+ index-extension for L40–L43), sibling video sign-off lesson.
+
+### Doc-claim vs code (required on every lesson/gate PR)
+- [ ] Each Verify bullet maps to a real command/flag/test in this diff
+- [ ] Missing/empty input has a FAIL test (see [gate-fail-closed](gate-fail-closed.md))
+- [ ] Defaults match the card (fail-closed, not silent opt-in)
+- [ ] See [doc-claim-review](doc-claim-review.md)
+
+- [ ] L64 uncaptionedspeech --cues cues.json --asr asr.json (JSON `human: true`; fail-closed)
+- [ ] L65 mggate observations.json (OCR/bidi, static, onset≤150ms, ≤32chars/1–2 phrase lines, draw-on, approved-share-only, brief lists checks)
+- [ ] H-PR-SCOPE pr_scope_check.py on PR diff vs ## Scope (not H-SCOPE)
+- [ ] H-SCOPE: L41 title_scope_gate + sequential-wip + parallel_stream_conflict (see h-scope.md)
+- [ ] H-IDENTITY commit_identity --pre-commit

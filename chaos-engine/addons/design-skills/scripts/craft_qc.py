@@ -1240,7 +1240,7 @@ def cmd_softjump(qc, args) -> int:
 
 # Arabic binder pronouns / demonstratives that open a land cue weakly (G17).
 # Opener class must match binder class: هو/هم → --noun-ho; هي/دي/ده/… → --noun.
-# Project nouns stay on flags (Automatest lists live in brain).
+# Project nouns stay on flags (project-specific lists live outside the overlay).
 WEAK_OPEN = frozenset({"هو", "هي", "هم", "هن", "ده", "دي", "دا", "دول", "هذا", "هذه"})
 HO_OPEN = frozenset({"هو", "هم", "هذا"})  # masculine / "he" class
 
@@ -3128,6 +3128,151 @@ def cmd_askaraoke(qc, args) -> int:
     )
 
 
+
+
+
+def cmd_uncaptionedspeech(qc, args) -> int:
+    """L64: ASR speech spans >=300ms need >=50% human-cue coverage."""
+    import importlib.util
+
+    helper = Path(__file__).resolve().parent / "uncaptioned_speech.py"
+    if not helper.is_file():
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-helper"],
+            error=f"no helper: {helper}",
+        )
+    spec = importlib.util.spec_from_file_location("ce_uncaptioned_speech", helper)
+    if spec is None or spec.loader is None:
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-helper"], error="load failed",
+        )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    cues_path = Path(str(args.cues))
+    asr_path = Path(str(args.asr))
+    cues = mod.load_json_list(cues_path)
+    asr = mod.load_json_list(asr_path)
+    if cues is None or asr is None:
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-input"],
+            error="cues and asr JSON required (fail-closed)",
+        )
+    min_ms = int(getattr(args, "min_speech_ms", mod.MIN_SPEECH_MS))
+    result = mod.evaluate(
+        cues, asr,
+        min_speech_s=float(min_ms) / 1000.0,
+        min_covered_ratio=float(getattr(args, "min_covered", mod.MIN_COVERED_RATIO)),
+    )
+    return qc.report(
+        "uncaptionedspeech",
+        qc.PASS if result.get("ok") else qc.FAIL,
+        hits=result.get("hits") or [],
+        uncovered=result.get("uncovered") or [],
+        speech_spans=result.get("speech_spans"),
+        human_cues=result.get("human_cues"),
+        note="ASR speech >=min_ms needs >=ratio human-cue cover",
+        error=result.get("error"),
+    )
+
+
+def cmd_karaokehumanfrag(qc, args) -> int:
+    """L63: fail short karaoke fragments inside human-marked cues."""
+    import re as _re
+
+    target = Path(args.file)
+    if not target.is_file():
+        return qc.report(
+            "karaokehumanfrag", qc.FAIL, hits=["missing-input"],
+            error=f"no file: {target}",
+        )
+    body = target.read_text(encoding="utf-8")
+    min_s = float(getattr(args, "min", 0.8))
+    hits: list[str] = []
+    for line_no, line in enumerate(body.splitlines(), 1):
+        if not line.startswith("Dialogue:"):
+            continue
+        payload = line.split(":", 1)[1]
+        parts = payload.split(",", 9)
+        if len(parts) < 10:
+            continue
+        style = parts[3].strip()
+        name = parts[4].strip()
+        text = parts[9]
+        try:
+            from human_cue import is_human_ass_dialogue
+        except ImportError:
+            import importlib.util as _ilu
+            _hp = Path(__file__).resolve().parent / "human_cue.py"
+            _sp = _ilu.spec_from_file_location("ce_human_cue_k", _hp)
+            _hm = _ilu.module_from_spec(_sp)
+            assert _sp.loader is not None
+            _sp.loader.exec_module(_hm)
+            is_human_ass_dialogue = _hm.is_human_ass_dialogue
+        if not is_human_ass_dialogue(style=style, name=name, text=text):
+            continue
+        for match in _re.finditer(r"\\[kK]f?(\d+)", text):
+            dur = int(match.group(1)) / 100.0
+            if dur + 1e-9 < min_s:
+                hits.append(
+                    f"line {line_no}: karaoke frag {dur:.2f}s < {min_s:g}s inside human cue"
+                )
+    cues_json = getattr(args, "cues_json", None)
+    if cues_json:
+        cj = Path(str(cues_json))
+        if not cj.is_file():
+            hits.append("missing-cues-json")
+        else:
+            raw = json.loads(cj.read_text(encoding="utf-8"))
+            cues = raw.get("cues") if isinstance(raw, dict) else raw
+            if isinstance(cues, list):
+                for index, cue in enumerate(cues):
+                    if not isinstance(cue, dict) or not cue.get("human"):
+                        continue
+                    dur = float(cue.get("karaoke_frag_s") or cue.get("frag_s") or 0)
+                    if dur and dur + 1e-9 < min_s:
+                        hits.append(
+                            f"cue {index}: karaoke frag {dur:.2f}s < {min_s:g}s "
+                            f"inside human cue"
+                        )
+    return qc.report(
+        "karaokehumanfrag", qc.FAIL if hits else qc.PASS,
+        hits=hits, min_s=min_s,
+        note="no karaoke fragments < min inside human cues",
+    )
+
+
+def cmd_mggate(qc, args) -> int:
+    """L65: motion-graphics observations gate (OCR/bidi, static, onset, caption lines)."""
+    import importlib.util
+
+    helper = Path(__file__).resolve().parent / "motion_graphics_gate.py"
+    if not helper.is_file():
+        return qc.report(
+            "mggate", qc.FAIL, hits=["missing-helper"],
+            error=f"no helper: {helper}",
+        )
+    spec = importlib.util.spec_from_file_location("ce_motion_graphics_gate", helper)
+    if spec is None or spec.loader is None:
+        return qc.report("mggate", qc.FAIL, hits=["missing-helper"], error="load failed")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    obs_path = Path(str(args.file))
+    obs = mod.load_observations(obs_path)
+    if obs is None:
+        return qc.report(
+            "mggate", qc.FAIL, hits=["missing-input"],
+            error="observations JSON required (fail-closed)",
+        )
+    result = mod.evaluate(obs)
+    return qc.report(
+        "mggate",
+        qc.PASS if result.get("ok") else qc.FAIL,
+        hits=result.get("hits") or [],
+        error=result.get("error"),
+        note="L65 MG: OCR/bidi, static caps, ASR-measured onset<=150ms, caption<=32/1-2 lines, draw-on, approved-share-only",
+    )
+
+
 def cmd_scriptfilter(qc, args) -> int:
     """Fail unexpected-script / emoji-only garbage and filler token loops."""
     cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
@@ -4379,6 +4524,22 @@ def register(add, qc) -> None:
     p.add_argument("--max-gap", type=float, default=0.08, dest="max_gap")
     p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
     p.add_argument("--out", default=None, help="write snapped SRT")
+
+    p = add("uncaptionedspeech", bind(cmd_uncaptionedspeech),
+            "L64: ASR speech spans need human-cue coverage (fail-closed)")
+    p.add_argument("--cues", required=True, help="human cues JSON list")
+    p.add_argument("--asr", required=True, help="ASR segments JSON list")
+    p.add_argument("--min-speech-ms", type=int, default=300, dest="min_speech_ms")
+    p.add_argument("--min-covered", type=float, default=0.50, dest="min_covered")
+    p = add("karaokehumanfrag", bind(cmd_karaokehumanfrag),
+            "L63: no short karaoke fragments inside human cues")
+    p.add_argument("file", help="ASS / caption file")
+    p.add_argument("--min", type=float, default=0.8, help="min frag seconds (default 0.8)")
+    p.add_argument("--cues-json", dest="cues_json", default=None,
+                   help="optional JSON cues with human + karaoke_frag_s")
+    p = add("mggate", bind(cmd_mggate),
+            "L65 motion-graphics observations: OCR/bidi, static, onset, caption lines, draw-on")
+    p.add_argument("file", help="observations JSON (fail-closed when missing)")
 
     p = add("askaraoke", bind(cmd_askaraoke),
             "L35: fail raw ASR karaoke / unattested captions")
