@@ -558,6 +558,7 @@ CHECKS = {
             "tests.scripts.test_ce_design_l39c_adjudic",
             "tests.scripts.test_ce_design_pipeline_l56_l59",
             "tests.scripts.test_ce_retro_2026_10_31_6",
+            "tests.scripts.test_ce_rules_2026_10_31_7",
             "tests.scripts.test_ce_retro_2026_10_31_5",
             "tests.scripts.test_ce_design_video_signoff_l39",
             "tests.scripts.test_ce_design_batch3",

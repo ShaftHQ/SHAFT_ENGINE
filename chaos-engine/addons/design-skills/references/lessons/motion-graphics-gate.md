@@ -39,12 +39,27 @@ description: >-
 9. Gate: `craft_qc.py mggate <observations.json>` ([helper](../../scripts/motion_graphics_gate.py)).
 10. Missing observations / required keys / ASR → **FAIL** (fail-closed).
 
+## L65 follow-ups + L73 (CE 2026.10.31.7)
+
+1. Require `asr_path` + `asr_sha256` + `asr_tool` in the gate report; reject inline
+   builder `asr_words` without a path; reject `asr_source` in
+   `{cue-aligned, cue_aligned, from-cues, builder}`.
+2. Unmatched cue text → FAIL (no nearest-start fallback).
+3. Duplicate tokens match sequentially (consume ASR hits in order).
+4. Perfect 0 ms max across cues without `asr_independent_proof: true` → FAIL.
+
 ## Verify
 
 - [ ] OCR frame text ≠ transcript → FAIL; unisolated Latin in RTL OCR → FAIL.
 - [ ] Kinetic static block 4 s or 7 words → FAIL.
 - [ ] Obs claims `onset_ms_vs_speech: 50` while ASR `|cue_start−word_start| > 150ms` → FAIL.
-- [ ] Missing/empty `asr_words` (or path) → FAIL (`missing-asr-words` / `empty-asr-words`).
+- [ ] Missing `asr_path` / `asr_sha256` / `asr_tool` → FAIL.
+- [ ] Inline `asr_words` without path → FAIL.
+- [ ] `asr_source=cue-aligned` → FAIL.
+- [ ] Unmatched cue text (no nearest fallback) → FAIL.
+- [ ] Duplicate token first-hit false-FAIL avoided via sequential consume.
+- [ ] All-zero measured onset without `asr_independent_proof` → FAIL.
+- [ ] Missing/empty ASR words from path → FAIL (`missing-asr-words` / `empty-asr-words`).
 - [ ] Cue start aligned to ASR word within 150 ms → PASS path (builder onset field ignored).
 - [ ] Caption line 33 chars → FAIL; 2 lines with `phrase_split: false` → FAIL.
 - [ ] `transcript_manually_verified` absent/false → FAIL.

@@ -3241,6 +3241,53 @@ def cmd_karaokehumanfrag(qc, args) -> int:
     )
 
 
+
+def cmd_web_ui(qc, args) -> int:
+    """L66: web UI gate — layout overflow + 390/1440 render artifacts."""
+    import importlib.util
+
+    helper = (
+        Path(__file__).resolve().parents[3] / "rules" / "web_ui_gate.py"
+    )
+    if not helper.is_file():
+        return qc.report(
+            "web_ui", qc.FAIL, hits=["missing-helper"],
+            error=f"no helper: {helper}",
+        )
+    spec = importlib.util.spec_from_file_location("ce_web_ui_gate", helper)
+    if spec is None or spec.loader is None:
+        return qc.report("web_ui", qc.FAIL, hits=["missing-helper"], error="load failed")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    obs_path = Path(str(args.file))
+    if not obs_path.is_file():
+        return qc.report(
+            "web_ui", qc.FAIL, hits=["missing-input"],
+            error="observations JSON required (fail-closed)",
+        )
+    try:
+        data = json.loads(obs_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return qc.report(
+            "web_ui", qc.FAIL, hits=["missing-input"],
+            error="observations JSON unreadable (fail-closed)",
+        )
+    obs = data.get("observations") if isinstance(data, dict) and isinstance(data.get("observations"), dict) else data
+    if not isinstance(obs, dict):
+        return qc.report(
+            "web_ui", qc.FAIL, hits=["missing-input"],
+            error="observations JSON object required (fail-closed)",
+        )
+    result = mod.evaluate(obs)
+    return qc.report(
+        "web_ui",
+        qc.PASS if result.get("ok") else qc.FAIL,
+        hits=result.get("hits") or [],
+        error=None if result.get("ok") else "web-ui gate failed",
+        note="L66: bidi/WCAG/390+1440 hashed artifacts, layout overflow/clip",
+    )
+
+
 def cmd_mggate(qc, args) -> int:
     """L65: motion-graphics observations gate (OCR/bidi, static, onset, caption lines)."""
     import importlib.util
@@ -4539,6 +4586,9 @@ def register(add, qc) -> None:
                    help="optional JSON cues with human + karaoke_frag_s")
     p = add("mggate", bind(cmd_mggate),
             "L65 motion-graphics observations: OCR/bidi, static, onset, caption lines, draw-on")
+    p.add_argument("file", help="observations JSON (fail-closed when missing)")
+    p = add("web_ui", bind(cmd_web_ui),
+            "L66 web UI: layout overflow/clip + 390/1440 hashed render artifacts")
     p.add_argument("file", help="observations JSON (fail-closed when missing)")
 
     p = add("askaraoke", bind(cmd_askaraoke),

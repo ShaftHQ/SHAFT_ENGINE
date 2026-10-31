@@ -652,12 +652,36 @@ def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
             for item in gate_failures(root, paths=paths)]
 
 
+
+def remote_credential_failures(root: Path) -> list[str]:
+    """L77: refuse push when git remotes embed credentials (never print values)."""
+    helper = root / "chaos-engine" / "rules" / "remote_credential_guard.py"
+    if not helper.is_file():
+        # Fail-closed when the rules package exists but the module was deleted;
+        # incomplete test fixtures without rules/ stay silent.
+        if (root / "chaos-engine" / "rules").is_dir():
+            return ["L77-no-token-in-remote: remote_credential_guard.py missing"]
+        return []
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "chaos_engine_remote_credential_guard", helper
+        )
+        module = importlib.util.module_from_spec(spec)
+        if spec is None or spec.loader is None:
+            return ["L77-no-token-in-remote: load-failed (missing-loader)"]
+        spec.loader.exec_module(module)
+    except Exception as error:  # nosec B110
+        return [f"L77-no-token-in-remote: load-failed ({type(error).__name__})"]
+    return list(module.pre_push_failures(root))
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     failures.extend(skillspector_gate_failures(root, changed))
     failures.extend(ce_version_bump_failures(root, changed))
+    failures.extend(remote_credential_failures(root))
     if paths is None:
         failures.extend(tracked_mobile_binary_failures(root))
         failures.extend(no_push_guard_failures(root))

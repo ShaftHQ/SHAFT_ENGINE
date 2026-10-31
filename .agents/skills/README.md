@@ -175,6 +175,7 @@ sends you there; the rest by
 - [PR scope check](../../chaos-engine/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-PR-SCOPE)
 - [H-SCOPE](../../chaos-engine/references/h-scope.md): L41 title-scope + sequential-wip + parallel_stream_conflict / path-claim
 - [CE retro 2026.10.31.6 SPEC](../../chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md): pointer to origin-only guides SPEC (H-IDENTITY / L64 / H-SCOPE)
+- [CE rules 2026.10.31.7 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-7-SPEC.md): WoW + memory dump + L66–L77 pointer
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
