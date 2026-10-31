@@ -19,7 +19,7 @@ DESIGN = ROOT / "chaos-engine/addons/design-skills"
 REF = DESIGN / "references"
 QC = DESIGN / "scripts/design_qc.py"
 HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
-HYPERFRAMES = "1a238171ec55896a9cb8452c33e4e0fe1063a60c"
+HYPERFRAMES = "164d6c7a36eba26e9126b364beab98437e2eeec7"
 PINS = (HYPERFRAMES, "019ab7c199154f4509b55f12d84a4f5b578dc606", "08d3b9d14c2d1719c0b96f703bced8dccfe2076a",
         "fc05be36316e5e5ea2ee0b5ec51519b411d54665", "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
         "aed9cfd3277740755f6bfc1155c7aa645403b760", "c172996495bed0fcd26896a9416b2093fd7073f0",

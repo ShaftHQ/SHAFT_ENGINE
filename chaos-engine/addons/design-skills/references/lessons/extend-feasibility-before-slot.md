@@ -1,6 +1,6 @@
 ---
 name: extend-feasibility-before-slot
-description: Use before scheduling an extend/recut unit; prove dup-multiple and price-block gates before assigning a slot.
+description: Use before scheduling an extend/recut unit; prove dup-multiple and G6 block gates before assigning a slot.
 ---
 
 # L51 Extend feasibility before slot
@@ -16,8 +16,8 @@ Extends [L43](lq-vs-short-dup.md).
    assigning a calendar/unit slot.
 2. **Dup multiple ≥3×** when the long cut overlaps a Short window (L43
    superset rule). Below 3× → do not schedule.
-3. **Price-block G6** (or the current sheet's price/block column) must be
-   clear; a blocked price fails closed.
+3. **G6 block column** (or the current sheet's block column) must be clear; a
+   blocked unit fails closed.
 4. Gate: `design_qc.py extendfeas` with the inventory sheet / JSON.
 
 ## Verify

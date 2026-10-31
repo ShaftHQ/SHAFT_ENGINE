@@ -40,5 +40,5 @@ Extends [D20 delivery QC](../delivery-qc.md) and [D15 mix and loudness](../audio
 
 ## Sources
 
-- [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/1a238171ec55896a9cb8452c33e4e0fe1063a60c/skills/hyperframes/references) @ `1a238171ec55896a9cb8452c33e4e0fe1063a60c`
+- [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/164d6c7a36eba26e9126b364beab98437e2eeec7/skills/hyperframes/references) @ `164d6c7a36eba26e9126b364beab98437e2eeec7`
   (Apache-2.0, adapted): `review.md`, `sound.md`.
