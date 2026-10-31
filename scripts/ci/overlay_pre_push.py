@@ -569,7 +569,7 @@ def client_name_scrub_failures(
 
 
 def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
-    """SkillSpector static gate when first-party skill paths change (CE SkillSpector gate)."""
+    """Run the static SkillSpector gate when first-party skill paths change."""
     from scripts.ci.skillspector_gate import gate_failures, skill_dirs_from_paths
 
     if not skill_dirs_from_paths(paths):

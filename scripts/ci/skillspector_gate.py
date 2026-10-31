@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""SkillSpector static gate for ChaosEngine skills (#skillspector / CE SkillSpector gate).
+"""
+SkillSpector static gate for ChaosEngine skills (#skillspector / CE SkillSpector gate).
 
 Scans first-party skill directories with a pinned NVIDIA SkillSpector build
 (`--no-llm`) and the checked-in baseline. Fails when any skill's risk score is
@@ -121,7 +122,7 @@ def run_scan(
     # Scrub provider/secret env for the child.
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "HOME": os.environ.get("HOME", "/tmp"),
+        "HOME": os.environ.get("HOME") or str(Path.home()),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "TERM": "dumb",
     }
@@ -165,8 +166,6 @@ def evaluate_report(report: dict[str, Any], *, max_score: int = MAX_SCORE) -> li
 
 def _purge_pycache(skill_dir: Path) -> None:
     """Drop untracked bytecode so SkillSpector does not score __pycache__ as SC8/SC9."""
-    import shutil
-
     for path in skill_dir.rglob("__pycache__"):
         if path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
