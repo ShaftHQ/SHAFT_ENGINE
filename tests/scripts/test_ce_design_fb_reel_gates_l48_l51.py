@@ -17,7 +17,7 @@ DESIGN = ROOT / "chaos-engine/addons/design-skills"
 LESSONS = DESIGN / "references/lessons"
 QC = DESIGN / "scripts/design_qc.py"
 INV = DESIGN / "INVENTORY.md"
-NOTICE = DESIGN / "NOTICE"
+NOTICE = DESIGN / "NOTICE.md"
 
 
 def run_qc(*args: str, env: dict | None = None) -> tuple[int, dict]:

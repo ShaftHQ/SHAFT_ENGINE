@@ -175,17 +175,17 @@ fingerprints:
   file: scripts/liveseo_gates.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:1f7580328eba0fe42826bff6a22ab8a009a67ed198904eb4271891bf3538f682
+- hash: sha256:bacddcfec38181f48f1a8d8494850949225b179306d3c53cad10512ad6b6e4ec
   rule_id: TT1
   file: scripts/design_qc.py
   reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
-    (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gate inserts.'
-- hash: sha256:e558dab56a63c1222bdf61fc2d7807dae68f4ef1c7fb652ebbf673360c37fe24
+    (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gate helper extract.'
+- hash: sha256:0afdf1792a94c4ff289dbf69ed5e64fe359c8ef8feadd1b90096782b9eebc1d1
   rule_id: AE1
   file: SKILL.md
   reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
     not evasion. Revisit when analyzer budgets rise.'
-- hash: sha256:b6c5cab6ea5ad16190e87b88296286ba0b0d0d871c0cc7c65c6e33054b2cc87f
+- hash: sha256:a25d507cfdc078b209b1e961de746366722ebde183ee415f12f7b50f8cbb10a7
   rule_id: AE1
   file: SKILL.md
   reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
