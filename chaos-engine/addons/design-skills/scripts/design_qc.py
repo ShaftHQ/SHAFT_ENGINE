@@ -933,8 +933,48 @@ def cmd_rendermeta(args: argparse.Namespace) -> int:
     )
 
 
+_G6_BLOCKED_TOKENS = frozenset({
+    "blocked", "block", "fail", "failed", "yes", "y", "1", "true",
+})
+
+
+def _extendfeas_g6_value(unit: dict) -> object:
+    """Return the first present G6 / price-block field on a unit row."""
+    for key in ("g6", "price_block", "G6"):
+        if key in unit and unit.get(key) is not None:
+            return unit.get(key)
+    return None
+
+
+def _extendfeas_dup_value(unit: dict) -> object:
+    """Return dup_multiple or legacy dup on a unit row."""
+    if unit.get("dup_multiple") is not None:
+        return unit.get("dup_multiple")
+    return unit.get("dup")
+
+
+def _extendfeas_row_hits(unit: dict, min_dup: float) -> tuple[list[str], object, object]:
+    """Score one inventory unit; return (hits, dup, g6)."""
+    dup = _extendfeas_dup_value(unit)
+    g6 = _extendfeas_g6_value(unit)
+    row_hits: list[str] = []
+    if dup is None:
+        row_hits.append("missing-dup-multiple")
+    elif float(dup) < min_dup - 1e-9:
+        row_hits.append(f"dup<{min_dup}:{dup}")
+    if g6 is None:
+        row_hits.append("missing-g6")
+    else:
+        blocked = g6 if isinstance(g6, bool) else str(g6).strip().lower() in _G6_BLOCKED_TOKENS
+        if blocked:
+            row_hits.append("g6-blocked")
+    return row_hits, dup, g6
+
+
 def cmd_extendfeas(args: argparse.Namespace) -> int:
-    """L51: dup multiple >=3x and price-block G6 clear before slotting."""
+    """
+    L51: dup multiple >=3x and price-block G6 clear before slotting.
+    """
     path = Path(args.inventory)
     if not path.is_file():
         return report("extendfeas", FAIL, hits=["missing-inventory"], error=f"no file: {path}")
@@ -950,42 +990,10 @@ def cmd_extendfeas(args: argparse.Namespace) -> int:
     checked = []
     for index, unit in enumerate(units):
         uid = unit.get("id") or unit.get("title") or f"unit[{index}]"
-        if unit.get("schedule") or unit.get("slot") or unit.get("assign_slot"):
-            # Feasibility required before any schedule/slot claim
-            pass
-        dup = unit.get("dup_multiple")
-        if dup is None:
-            dup = unit.get("dup")
-        g6 = unit.get("g6")
-        if g6 is None:
-            g6 = unit.get("price_block")
-        if g6 is None:
-            g6 = unit.get("G6")
-        row_hits = []
-        if dup is None:
-            row_hits.append("missing-dup-multiple")
-        elif float(dup) < min_dup - 1e-9:
-            row_hits.append(f"dup<{min_dup}:{dup}")
-        # G6 clear: treat blocked/true/"blocked"/"fail" as blocked
-        blocked = False
-        if isinstance(g6, bool):
-            blocked = g6  # True means blocked
-        elif g6 is None:
-            row_hits.append("missing-g6")
-        else:
-            blocked = str(g6).strip().lower() in {
-                "blocked", "block", "fail", "failed", "yes", "y", "1", "true",
-            }
-        if blocked:
-            row_hits.append("g6-blocked")
+        row_hits, dup, g6 = _extendfeas_row_hits(unit, min_dup)
         if row_hits:
             hits.extend(f"{uid}:{h}" for h in row_hits)
-        checked.append({
-            "id": uid,
-            "dup_multiple": dup,
-            "g6": g6,
-            "ok": not row_hits,
-        })
+        checked.append({"id": uid, "dup_multiple": dup, "g6": g6, "ok": not row_hits})
     return report(
         "extendfeas", FAIL if hits else PASS,
         hits=hits,
