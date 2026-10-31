@@ -568,6 +568,43 @@ def client_name_scrub_failures(
     return list(client_name_scrub.client_name_scrub_failures(root, environ=environ))
 
 
+
+NO_VERSION_BUMP_MARKER = "<!-- chaos-engine:no-version-bump -->"
+VERSION_FILE = "chaos-engine/VERSION"
+
+
+def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
+    """Require VERSION bump when consumer-facing chaos-engine/ paths change.
+
+    Waive with PR body marker ``<!-- chaos-engine:no-version-bump -->`` or label
+    ``ce-no-version-bump`` (checked when an open PR exists for HEAD).
+    """
+    normalized = [p.replace("\\", "/").removeprefix("./") for p in paths]
+    ce_hits = [p for p in normalized if p.startswith("chaos-engine/")]
+    if not ce_hits:
+        return []
+    if VERSION_FILE in ce_hits or any(p == VERSION_FILE for p in normalized):
+        return []
+    # Allow waive via marker file staged beside VERSION for local pre-push tests
+    waive = root / ".chaos-engine-state" / "no-version-bump"
+    if waive.is_file():
+        return []
+    pr = _gh_open_pr_for_head(root)
+    if isinstance(pr, dict):
+        body = str(pr.get("body") or "")
+        labels = {
+            str(item.get("name") or "").lower()
+            for item in (pr.get("labels") or [])
+            if isinstance(item, dict)
+        }
+        if NO_VERSION_BUMP_MARKER in body or "ce-no-version-bump" in labels:
+            return []
+    return [
+        "ce-version-bump: chaos-engine/ changed without chaos-engine/VERSION; "
+        "bump VERSION or add <!-- chaos-engine:no-version-bump --> / label ce-no-version-bump"
+    ]
+
+
 def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
     """Run the static SkillSpector gate when first-party skill paths change."""
     from scripts.ci.skillspector_gate import gate_failures, skill_dirs_from_paths
@@ -583,6 +620,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     failures.extend(skillspector_gate_failures(root, changed))
+    failures.extend(ce_version_bump_failures(root, changed))
     if paths is None:
         failures.extend(tracked_mobile_binary_failures(root))
         failures.extend(no_push_guard_failures(root))

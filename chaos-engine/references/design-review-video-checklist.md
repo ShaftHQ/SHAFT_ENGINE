@@ -76,3 +76,9 @@ on the worker brief (`ce_load: required` + `tool.py entry`).
 
 [sequential WIP](sequential-wip.md), [multi-agent PDCA](multi-agent-pdca.md),
 design-skills lesson index (+ index-extension for L40–L43), sibling video sign-off lesson.
+
+### Doc-claim vs code (required on every lesson/gate PR)
+- [ ] Each Verify bullet maps to a real command/flag/test in this diff
+- [ ] Missing/empty input has a FAIL test (see [gate-fail-closed](gate-fail-closed.md))
+- [ ] Defaults match the card (fail-closed, not silent opt-in)
+- [ ] See [doc-claim-review](doc-claim-review.md)

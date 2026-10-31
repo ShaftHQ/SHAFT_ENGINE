@@ -70,6 +70,28 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   before it finished", re-dispatch with `tool.py resume TASK` as the brief.
   Never poll a child to keep it alive. Interrupt → new worker from [checkpoint-resume](checkpoint-resume.md).
 
+
+## Radio silence, progress, infra, VERSION
+
+1. **Radio silence:** when `CHAOS_RADIO_SILENCE` is armed (or
+   `.chaos-engine-state/radio-silence` exists), do not SendToUser for routine
+   status — orchestrator only ([radio-silence](radio-silence.md); [`radio_silence.py`](../radio_silence.py)).
+2. **Progress log:** after every step append to the task progress log
+   ([progress-log](progress-log.md); [`progress_log.py`](../progress_log.py)) and
+   `tool.py checkpoint`.
+3. **Infra preflight:** if `box_disk_guard.blocked_infra_reasons` is non-empty
+   (disk, swap-missing, apt-mirror-unreachable), set **BLOCKED-INFRA** and do
+   not start heavy workers.
+4. **VERSION bump:** consumer-facing `chaos-engine/` changes require
+   `chaos-engine/VERSION` bump (overlay pre-push) unless explicitly waived.
+5. **Moving-channel pins:** [moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py)) —
+   minimum-within-major for floating vendor channels.
+6. **Ownership + cleanup:** record created paths
+   (`scripts/ci/worker_ownership.py`); cleanup-at-close deletes only manifest
+   entries ([cleanup-at-close](cleanup-at-close.md)).
+7. **Doc-claim review:** [doc-claim-review](doc-claim-review.md) on every gate PR.
+8. **Fail-closed gates:** [gate-fail-closed](gate-fail-closed.md).
+
 ## Token economy
 
 - One round trip per PR: `overlay_pre_push.py` also checks the open PR body

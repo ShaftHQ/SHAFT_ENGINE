@@ -1,4 +1,4 @@
-# Lesson index extension (L40–L59)
+# Lesson index extension (L40–L63)
 
 Rows for Phase 1 memory-abstraction lessons plus 2026-10-31 retro cards. Kept separate from
 `index.md` so a sibling video sign-off lesson PR can own L39 + the
@@ -27,3 +27,8 @@ test reads this file together with `index.md`.
 | [L57 YouTube Studio pre-upload check](youtube-studio-preupload-check.md) | content-library receipt before upload; dup Shorts fail closed |
 | [L58 Inventory yt_id backfill](inventory-yt-id-backfill.md) | after schedule/upload backfill yt_id; no stale nulls |
 | [L59 Retain mp4 until public URL](retain-mp4-until-public-url.md) | keep final mp4 until public watch URL proof |
+| [L60 Likeness real-ref provenance](avatar-likeness-voice-gate.md) | harden L56: real_* kind + sha256 + source; ban AI oracle |
+| [L61 Schedule dup before rebuild](schedule-dup-before-rebuild.md) | title+window vs live inventory before rebuild/schedule |
+| [L62 Signed-renders store](signed-renders-store.md) | copy-on-SIGN; signed-renders never-touch |
+| [L63 Karaoke human frag](karaoke-human-frag.md) | no <0.8s karaoke fragments inside human cues |
+

@@ -3128,6 +3128,68 @@ def cmd_askaraoke(qc, args) -> int:
     )
 
 
+
+def cmd_karaokehumanfrag(qc, args) -> int:
+    """L63: fail short karaoke fragments inside human-marked cues."""
+    import re as _re
+
+    target = Path(args.file)
+    if not target.is_file():
+        return qc.report(
+            "karaokehumanfrag", qc.FAIL, hits=["missing-input"],
+            error=f"no file: {target}",
+        )
+    body = target.read_text(encoding="utf-8")
+    min_s = float(getattr(args, "min", 0.8))
+    hits: list[str] = []
+    for line_no, line in enumerate(body.splitlines(), 1):
+        if not line.startswith("Dialogue:"):
+            continue
+        payload = line.split(":", 1)[1]
+        parts = payload.split(",", 9)
+        if len(parts) < 10:
+            continue
+        style = parts[3].strip()
+        name = parts[4].strip()
+        text = parts[9]
+        human = (
+            "human" in style.casefold()
+            or name.casefold() == "human"
+            or "human=true" in text.casefold()
+        )
+        if not human:
+            continue
+        for match in _re.finditer(r"\\[kK]f?(\d+)", text):
+            dur = int(match.group(1)) / 100.0
+            if dur + 1e-9 < min_s:
+                hits.append(
+                    f"line {line_no}: karaoke frag {dur:.2f}s < {min_s:g}s inside human cue"
+                )
+    cues_json = getattr(args, "cues_json", None)
+    if cues_json:
+        cj = Path(str(cues_json))
+        if not cj.is_file():
+            hits.append("missing-cues-json")
+        else:
+            raw = json.loads(cj.read_text(encoding="utf-8"))
+            cues = raw.get("cues") if isinstance(raw, dict) else raw
+            if isinstance(cues, list):
+                for index, cue in enumerate(cues):
+                    if not isinstance(cue, dict) or not cue.get("human"):
+                        continue
+                    dur = float(cue.get("karaoke_frag_s") or cue.get("frag_s") or 0)
+                    if dur and dur + 1e-9 < min_s:
+                        hits.append(
+                            f"cue {index}: karaoke frag {dur:.2f}s < {min_s:g}s "
+                            f"inside human cue"
+                        )
+    return qc.report(
+        "karaokehumanfrag", qc.FAIL if hits else qc.PASS,
+        hits=hits, min_s=min_s,
+        note="no karaoke fragments < min inside human cues",
+    )
+
+
 def cmd_scriptfilter(qc, args) -> int:
     """Fail unexpected-script / emoji-only garbage and filler token loops."""
     cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
@@ -4380,6 +4442,12 @@ def register(add, qc) -> None:
     p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
     p.add_argument("--out", default=None, help="write snapped SRT")
 
+    p = add("karaokehumanfrag", bind(cmd_karaokehumanfrag),
+            "L63: no short karaoke fragments inside human cues")
+    p.add_argument("file", help="ASS / caption file")
+    p.add_argument("--min", type=float, default=0.8, help="min frag seconds (default 0.8)")
+    p.add_argument("--cues-json", dest="cues_json", default=None,
+                   help="optional JSON cues with human + karaoke_frag_s")
     p = add("askaraoke", bind(cmd_askaraoke),
             "L35: fail raw ASR karaoke / unattested captions")
     p.add_argument("file", help="caption SRT")

@@ -28,12 +28,13 @@ A digital-human, avatar, or talking-head render claims to match a real
    audio to **real reference audio** of the subject (same script window when
    available). Wrong timbre, identity, or language rhythm is a hard FAIL —
    voice stays the first dealbreaker ([L20](avatar-voice-first.md)).
-4. **Any doubt = FAIL.** Hesitation, "close enough", or unresolved disagreement
+4. **Real-source provenance (L60).** Every likeness and voice ref is an object with `kind` in `{real_photo, yt_frame, real_audio}`, `sha256`, and `source_url` or `source_path`. `kind` in `{ai_still, ai_speech, prior_generation}` is a hard FAIL. String-only refs (no provenance) FAIL. AI→AI oracles are banned.
+5. **Any doubt = FAIL.** Hesitation, "close enough", or unresolved disagreement
    fails. Only an unambiguous pass on **both** axes may proceed.
-5. **No sign-off without both.** A SIGN that skips likeness, skips voice, or
+6. **No sign-off without both.** A SIGN that skips likeness, skips voice, or
    records only one axis is void. Gate: `design_qc.py likenessvoice` with a
    required observations JSON (independent + blind + likeness + voice).
-6. **Personal names stay out of repo text.** Cards, gates, and receipts say
+7. **Personal names stay out of repo text.** Cards, gates, and receipts say
    "the subject" / "the presenter", never a personal name.
 
 ## Verify
@@ -44,6 +45,8 @@ A digital-human, avatar, or talking-head render claims to match a real
       likeness refs, or voice refs → FAIL.
 - [ ] `verdict` of `doubt` or `fail` on either axis → FAIL; both `pass` with
       side-by-side refs → PASS.
+- [ ] AI-kind or string-only refs → FAIL (`*-banned-kind` / `*-missing-provenance`).
+- [ ] Real provenance (`kind` + `sha256` + source) required for PASS.
 - [ ] L39 done-checklist includes the likeness + voice block; a SIGN without
       both receipts is void.
 

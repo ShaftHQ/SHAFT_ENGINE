@@ -140,9 +140,14 @@ sends you there; the rest by
 - [selected shaft profile](../../shaft-skills/ce-pack/entrypoint.md)
 - [shaft profile.json](../../shaft-skills/ce-pack/profile.json)
 - [routing](../../shaft-skills/ce-pack/references/routing.md)
+- [doc-claim review](../../chaos-engine/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
 - [execution workflows](../../chaos-engine/references/execution-workflows.md)
+- [gate fail-closed](../../chaos-engine/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
+- [moving-channel pin](../../chaos-engine/references/moving-channel-pin.md): pin policy for upstream channels that keep shipping newer builds
+- [progress log](../../chaos-engine/references/progress-log.md): workers append a progress line after every step
+- [radio silence](../../chaos-engine/references/radio-silence.md): block routine SendToUser while radio silence is on
 - [roles](../../chaos-engine/references/roles.md)
 - [heuristics](../../chaos-engine/references/heuristics.md)
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)

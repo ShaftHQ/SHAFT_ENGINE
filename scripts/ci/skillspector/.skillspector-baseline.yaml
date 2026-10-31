@@ -120,11 +120,12 @@ fingerprints:
   file: scripts/runner.py
   reason: 'Accepted agency: OmniRoute forwards operator environ to identity-sealed
     local CLI children; no harvest/send off-box.'
-- hash: sha256:aa7ad4338bb60d5ffdf5f05cd043b0c98e42c5b6cf0fdef7690769008734d20a
+- hash: sha256:eed198eabf31eb14d5537a761dac2f7a95f347f151f4922e5a35a2a8079070f6
   rule_id: AST4
   file: scripts/craft_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
+    B603); fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AST4:scripts/craft_qc.py
 - hash: sha256:f2ab712e6bdee39b4fec330ca32cf350d5b8d49752d172885972af985708299a
   rule_id: AST4
   file: scripts/craft_qc.py
@@ -140,11 +141,12 @@ fingerprints:
   file: scripts/craft_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:eac56700679cc9027c40da4736e81a712d0548d66475951829bdb2d843b2f8c9
+- hash: sha256:451e4877e26387ac97add8189f008f390b2627ee8649dd6a2ae0dd4054185b28
   rule_id: AST4
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
+    B603); fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AST4:scripts/design_qc.py
 - hash: sha256:66bcbb03e0cbe98cec06dc806f80ae409e65d4d23af5af7a80e677fe86ca0e34
   rule_id: AST4
   file: scripts/design_qc.py
@@ -160,44 +162,45 @@ fingerprints:
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:19ca213d7933797eea2762b72f582658b74c844abbf481bfb2157328111d91e7
+- hash: sha256:efd56c1627f79f368f30052401b052fd41d3ad225f23dbbcee2300d92ebb3eb9
   rule_id: AST6
   file: scripts/design_qc.py
   reason: 'Accepted agency: compile(..., "exec") used only for Python syntax check
-    of local files, never executed.'
+    of local files, never executed; fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AST6:scripts/design_qc.py
 - hash: sha256:70cf126b2fb1edb5d89b810c96e1ac06bb8ef42e0e657c09e10314dd6eaa7998
   rule_id: AST4
   file: scripts/linkcheck.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
+    B603); fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AST4:scripts/linkcheck.py
 - hash: sha256:ce760b40cb20155c4e306b5a4e77ad8c9bf2705f4d9b6750218c9f24affd2f13
   rule_id: AST4
   file: scripts/liveseo_gates.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:bd14500a19d662bf7ec6d1308ccef4c9e0d756af9d310d0a3cd6a0ce4b4783e9
+    B603); fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AST4:scripts/liveseo_gates.py
+- hash: sha256:9003598b05da6ec78330a452db8b58d7853f6bedfc4c00c3a3fcd7c21362eb1f
   rule_id: TT1
   file: scripts/design_qc.py
-  reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
-    (# nosec B603), no network exfil. Fingerprint refreshed after Carl M1–M3 wardrobe/capsync
-    fail-closed.'
-- hash: sha256:d2ba37ab2be9d7cbfae81c0cbea913f5b048c905e40a57d1664a900551117e7b
-  rule_id: AE1
-  file: SKILL.md
-  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
-    not evasion. Fingerprint refreshed after Carl M1–M3. Revisit when analyzer budgets
-    rise.'
+  reason: 'Accepted QC gate: ps_row passes CMD under test into fixed pwsh -Command
+    parse harness; PATH/SystemRoot only from env; not credential exfil. Fingerprint
+    refreshed after CE 2026.10.31.6 retro (schedule-dup / provenance).'
+  semantic_id: TT1:scripts/design_qc.py
 - hash: sha256:298b1fed17c2a0f6754319716171ecb67379a24557bdaa293c43becc5075b950
   rule_id: AE1
   file: SKILL.md
   reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
     not evasion. Fingerprint refreshed after Carl M1–M3. Revisit when analyzer budgets
-    rise.'
-- hash: sha256:3849537da49251cea0b69da6b9b80729f5820f6f186efbcf55bd25f0d2d75530
-  rule_id: TT1
-  file: scripts/design_qc.py
-  reason: 'Accepted QC gate: ps_row passes CMD under test into fixed pwsh -Command
-    parse harness; not credential exfil.'
+    rise; fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AE1:SKILL.md
+- hash: sha256:d2ba37ab2be9d7cbfae81c0cbea913f5b048c905e40a57d1664a900551117e7b
+  rule_id: AE1
+  file: SKILL.md
+  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
+    not evasion. Fingerprint refreshed after Carl M1–M3. Revisit when analyzer budgets
+    rise; fingerprint refreshed CE 2026.10.31.6.'
+  semantic_id: AE1:SKILL.md
 - hash: sha256:5763257869368e91aa035bda6e6d9f9683ad167d407f2075e10960ac81dc5285
   rule_id: AST4
   file: scripts/design_qc.py

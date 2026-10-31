@@ -412,6 +412,19 @@ def disk_used_percent(path: Path | str, *, used: int | None = None, total: int |
     return (used_bytes / total_bytes) * 100.0
 
 
+def swap_total_kib() -> int | None:
+    """Return MemTotal swap KiB from /proc/meminfo, or None when unavailable."""
+    meminfo = Path("/proc/meminfo")
+    if not meminfo.is_file():
+        return None
+    for line in meminfo.read_text(encoding="utf-8").splitlines():
+        if line.startswith("SwapTotal:"):
+            parts = line.split()
+            if len(parts) >= 2 and parts[1].isdigit():
+                return int(parts[1])
+    return None
+
+
 def blocked_infra_reasons(
     path: Path | str,
     *,
@@ -419,9 +432,10 @@ def blocked_infra_reasons(
     used_percent: float | None = None,
     used: int | None = None,
     total: int | None = None,
+    swap_kib: int | None = None,
+    apt_mirror_ok: bool | None = None,
 ) -> list[str]:
-    """
-        Return BLOCKED-INFRA reasons (free-GiB warn/block and ≥80% used).
+    """Return BLOCKED-INFRA reasons (disk, swap, optional apt mirror).
 
     Free-GiB tiers still refuse new workers via ``refuse_new_worker``. This
     helper is the board/alert surface: any non-empty result means set
@@ -440,6 +454,11 @@ def blocked_infra_reasons(
     )
     if pct >= DISK_USED_PCT_BLOCKED_INFRA:
         reasons.append("disk-used-pct-ge-80")
+    swap = swap_total_kib() if swap_kib is None else swap_kib
+    if swap is not None and swap <= 0:
+        reasons.append("swap-missing")
+    if apt_mirror_ok is False:
+        reasons.append("apt-mirror-unreachable")
     return reasons
 
 
