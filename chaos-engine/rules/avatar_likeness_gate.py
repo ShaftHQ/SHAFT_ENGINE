@@ -31,34 +31,47 @@ def _ref_hits(obs: dict[str, Any]) -> list[str]:
     return hits
 
 
+def _threshold_hit(obs: dict[str, Any], key: str, minimum: float, label: str) -> str | None:
+    try:
+        value = float(obs.get(key))
+    except (TypeError, ValueError):
+        return f"missing-{label}"
+    if value < minimum:
+        return f"{label}-below-threshold:{value}"
+    return None
+
+
+def _identity_hit(obs: dict[str, Any]) -> str | None:
+    raw = obs.get("identity_score")
+    if raw is None:
+        raw = obs.get("identity")
+    try:
+        identity = float(raw)
+    except (TypeError, ValueError):
+        if obs.get("identity_score_pass") is not True:
+            return "missing-identity-score"
+        return None
+    if identity < IDENTITY_MIN:
+        return f"identity-below-threshold:{identity}"
+    return None
+
+
 def _likeness_hits(obs: dict[str, Any]) -> list[str]:
     hits: list[str] = []
     if obs.get("glasses_present") is not True:
         hits.append("glasses-missing")
     if obs.get("age_within_refs") is not True:
         hits.append("age-outside-refs")
-    try:
-        mean = float(obs.get("sface_mean"))
-        if mean < SFACE_MEAN_MIN:
-            hits.append(f"sface-mean-below-threshold:{mean}")
-    except (TypeError, ValueError):
-        hits.append("missing-sface-mean")
-    try:
-        smin = float(obs.get("sface_min"))
-        if smin < SFACE_MIN_MIN:
-            hits.append(f"sface-min-below-threshold:{smin}")
-    except (TypeError, ValueError):
-        hits.append("missing-sface-min")
-    try:
-        raw = obs.get("identity_score")
-        if raw is None:
-            raw = obs.get("identity")
-        identity = float(raw)
-        if identity < IDENTITY_MIN:
-            hits.append(f"identity-below-threshold:{identity}")
-    except (TypeError, ValueError):
-        if obs.get("identity_score_pass") is not True:
-            hits.append("missing-identity-score")
+    for key, minimum, label in (
+        ("sface_mean", SFACE_MEAN_MIN, "sface-mean"),
+        ("sface_min", SFACE_MIN_MIN, "sface-min"),
+    ):
+        hit = _threshold_hit(obs, key, minimum, label)
+        if hit:
+            hits.append(hit)
+    identity_hit = _identity_hit(obs)
+    if identity_hit:
+        hits.append(identity_hit)
     if obs.get("fresh_side_by_side_review") is not True:
         hits.append("missing-fresh-side-by-side")
     if obs.get("doubt") is True:

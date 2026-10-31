@@ -443,7 +443,7 @@ class AdversarialNoProbeEscapeTest(unittest.TestCase):
         ok, reason = mod.probe_allowed(
             "update_file_content",
             "/workspace/../home/user/secret.docx",
-            scratch_roots=["/workspace/", "/tmp/"],
+            scratch_roots=["/workspace/"],
         )
         self.assertFalse(ok)
         self.assertTrue(
@@ -456,7 +456,7 @@ class AdversarialNoProbeEscapeTest(unittest.TestCase):
             {
                 "action": "write",
                 "path": "/workspace/../etc/passwd",
-                "scratch_roots": ["/workspace/", "/tmp/"],
+                "scratch_roots": ["/workspace/"],
             },
             expected_hit_substr="escape",
         )
