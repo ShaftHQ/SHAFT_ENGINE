@@ -145,7 +145,7 @@ Personal names and client data stay out of repo text ("the subject" / "the prese
 - **Sources:** Carl designer-workspace `lib/uncaptioned_speech.py`
 - **Problem:** ASR heard speech ≥300ms with <50% human-cue cover shipped past phrase karaoke checks.
 - **Rule:** Each ASR speech span ≥300ms needs ≥50% coverage by human (non-hall) cues; missing cues/asr → FAIL.
-- **Enforcement:** Portable `addons/design-skills/scripts/uncaptioned_speech.py` + `craft_qc.py uncaptionedspeech`; lesson `uncaptioned-speech.md`; L39 checklist bullet; tests.
+- **Enforcement:** Portable `chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py` + `craft_qc.py uncaptionedspeech`; lesson `uncaptioned-speech.md`; L39 checklist bullet; tests.
 - **Acceptance:** Uncovered 500ms span → FAIL; ≥50% cover → PASS; missing input → FAIL.
 
 ### H-SCOPE — Pre-merge PR diff vs stated scope
