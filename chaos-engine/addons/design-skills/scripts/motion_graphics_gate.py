@@ -31,7 +31,6 @@ _DRAW_ON = frozenset({"draw-on", "draw_on", "drawon", "none", "n/a", "static"})
 _POP_FADE = frozenset({"pop", "fade", "fade-in", "appear"})
 _WORD_KEYS = ("word", "w", "t", "text")
 _START_KEYS = ("start", "s", "start_s", "t_start")
-_END_KEYS = ("end", "e", "end_s", "t_end")
 _ASR_KEYS = ("asr_words", "aligner_words", "asr", "words")
 
 
