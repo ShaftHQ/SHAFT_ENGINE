@@ -1,4 +1,7 @@
-"""CE bugfix batch 2026.10.31.2 regression tests."""
+"""CE bugfix batch 2026.10.31.2 regression tests.
+
+Covers staged adopt, husk git doctor, source/project CLI, host dedupe.
+"""
 from __future__ import annotations
 
 import hashlib
