@@ -657,7 +657,7 @@ def remote_credential_failures(root: Path) -> list[str]:
     """L77: refuse push when git remotes embed credentials (never print values)."""
     helper = root / "chaos-engine" / "rules" / "remote_credential_guard.py"
     if not helper.is_file():
-        return []
+        return ["L77-no-token-in-remote: remote_credential_guard.py missing"]
     try:
         spec = importlib.util.spec_from_file_location(
             "chaos_engine_remote_credential_guard", helper

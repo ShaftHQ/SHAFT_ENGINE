@@ -11,11 +11,48 @@ _WRITE_ACTIONS = frozenset({
 })
 
 
-def is_scratch_path(path: str | Path, *, scratch_roots: list[str] | None = None) -> bool:
+def _resolve(path: str | Path) -> Path | None:
+    """Resolve *path*; reject ``..`` escapes that leave the declared prefix tree."""
     text = str(path).replace("\\", "/")
+    if not text:
+        return None
+    # Reject raw .. segments before resolve so relative escapes are obvious.
+    parts = Path(text).parts
+    if ".." in parts:
+        # Still resolve for callers that need the absolute form, but mark unsafe
+        # via returning a sentinel only used by is_scratch_path / probe_allowed.
+        try:
+            return Path(text).resolve()
+        except (OSError, RuntimeError):
+            return None
+    try:
+        return Path(text).resolve()
+    except (OSError, RuntimeError):
+        return None
+
+
+def _under_root(resolved: Path, root: str | Path) -> bool:
+    try:
+        root_res = Path(root).resolve()
+    except (OSError, RuntimeError):
+        return False
+    try:
+        resolved.relative_to(root_res)
+        return True
+    except ValueError:
+        return False
+
+
+def is_scratch_path(path: str | Path, *, scratch_roots: list[str] | None = None) -> bool:
     # Path-prefix allowlist for probe targets; does not create temp files.
     roots = scratch_roots or ["/tmp/", "/workspace/"]  # nosec B108
-    return any(text.startswith(root.rstrip("/") + "/") or text == root.rstrip("/") for root in roots)
+    # Reject any path that still contains .. after string form (escape attempt).
+    if ".." in Path(str(path)).parts:
+        return False
+    resolved = _resolve(path)
+    if resolved is None:
+        return False
+    return any(_under_root(resolved, root) for root in roots)
 
 
 def probe_allowed(
@@ -32,9 +69,13 @@ def probe_allowed(
         return True, "non-write"
     if allow_live:
         return True, "allow_live"
-    text = str(path).replace("\\", "/")
+    if ".." in Path(str(path)).parts:
+        return False, "probe-write-path-escape"
+    resolved = _resolve(path)
+    if resolved is None:
+        return False, "probe-write-unresolvable"
     lives = live_roots or []
-    if lives and any(text.startswith(root.rstrip("/") + "/") or text.startswith(root) for root in lives):
+    if lives and any(_under_root(resolved, root) for root in lives):
         return False, "probe-write-on-live-path"
     if not is_scratch_path(path, scratch_roots=scratch_roots):
         # Outside known scratch → treat as live-ish fail-closed for write probes.

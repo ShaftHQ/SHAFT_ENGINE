@@ -8088,16 +8088,20 @@ def backup_remote_advisory(project: Path | None, root: Path | None = None) -> tu
 
 def remote_credential_status(project: Path | None, root: Path | None = None) -> tuple[str, ...]:
     """L77: fail when any git remote URL embeds credentials (values never printed)."""
-    path = (root or Path(__file__).resolve().parent) / "rules" / "rules/remote_credential_guard.py"
-    if project is None or not path.is_file():
-        return ("pass", "(unavailable)")
+    path = (root or Path(__file__).resolve().parent) / "rules" / "remote_credential_guard.py"
+    if not path.is_file():
+        return ("fail", "(remote_credential_guard.py missing)")
+    if project is None:
+        return ("fail", "(project missing)")
     try:
         spec = importlib.util.spec_from_file_location("ce_remote_credential_doctor", path)
         module = importlib.util.module_from_spec(spec)
+        if spec is None or spec.loader is None:
+            return ("fail", "(remote_credential_guard.py missing-loader)")
         spec.loader.exec_module(module)
         status, reason = module.doctor_check(Path(project))
     except Exception as error:  # nosec B110 - doctor reports, never crashes
-        return ("warn", f"({type(error).__name__})")
+        return ("fail", f"({type(error).__name__})")
     return (status,) if not reason else (status, f"({reason})")
 
 

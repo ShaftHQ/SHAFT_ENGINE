@@ -67,12 +67,55 @@ def save(path: Path | str, data: dict[str, Any]) -> None:
     )
 
 
-def _norm(path: str | Path) -> str:
-    return str(Path(path)).replace("\\", "/").rstrip("/")
+def _project_root(
+    *,
+    project_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
+) -> Path | None:
+    if project_root is not None:
+        return Path(project_root)
+    env = environ if environ is not None else os.environ
+    configured = str(env.get("CHAOS_PROJECT_ROOT", "")).strip()
+    return Path(configured) if configured else None
 
 
-def paths_overlap(left: str, right: str) -> bool:
-    a, b = _norm(left), _norm(right)
+def _norm(
+    path: str | Path,
+    *,
+    project_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
+) -> str:
+    """Normalize so rel and abs forms of the same file collide.
+
+    Resolves against ``project_root`` / ``CHAOS_PROJECT_ROOT`` when relative;
+    always ``normpath``; ``resolve`` when the target exists.
+    """
+    raw = str(path).strip()
+    if not raw:
+        return ""
+    root = _project_root(project_root=project_root, environ=environ)
+    candidate = Path(raw)
+    if not candidate.is_absolute() and root is not None:
+        candidate = root / candidate
+    candidate = Path(os.path.normpath(str(candidate)))
+    try:
+        if candidate.exists():
+            candidate = candidate.resolve()
+    except (OSError, RuntimeError):
+        # Path may be a not-yet-created claim target; keep normpath form.
+        pass
+    return str(candidate).replace(chr(92), "/").rstrip("/")
+
+
+def paths_overlap(
+    left: str,
+    right: str,
+    *,
+    project_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
+) -> bool:
+    a = _norm(left, project_root=project_root, environ=environ)
+    b = _norm(right, project_root=project_root, environ=environ)
     if not a or not b:
         return False
     return a == b or a.startswith(b + "/") or b.startswith(a + "/")
@@ -96,6 +139,8 @@ def conflicting_claims(
     *,
     exclude_claim_id: str | None = None,
     exclude_owner: str | None = None,
+    project_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Return active claims that overlap *proposed_paths*."""
     conflicts: list[dict[str, Any]] = []
@@ -114,7 +159,7 @@ def conflicting_claims(
         if not isinstance(owned, list):
             continue
         for prop in proposed_paths:
-            if any(paths_overlap(prop, str(peer)) for peer in owned):
+            if any(paths_overlap(prop, str(peer), project_root=project_root, environ=environ) for peer in owned):
                 conflicts.append(row)
                 break
     return conflicts
@@ -125,10 +170,16 @@ def refuse_claim(
     data: dict[str, Any],
     *,
     exclude_claim_id: str | None = None,
+    project_root: Path | str | None = None,
+    environ: dict[str, str] | None = None,
 ) -> bool:
     return bool(
         conflicting_claims(
-            proposed_paths, data, exclude_claim_id=exclude_claim_id
+            proposed_paths,
+            data,
+            exclude_claim_id=exclude_claim_id,
+            project_root=project_root,
+            environ=environ,
         )
     )
 
@@ -173,12 +224,19 @@ def claim(
     kind: str = "",
     path: Path | str | None = None,
     environ: dict[str, str] | None = None,
+    project_root: Path | str | None = None,
 ) -> dict[str, Any]:
     """Record an exclusive claim; raise ``PermissionError`` on overlap / kind WIP."""
     target = Path(path) if path is not None else default_claims_path(environ=environ)
     data = load(target)
-    if refuse_claim(paths, data, exclude_claim_id=claim_id):
-        peers = conflicting_claims(paths, data, exclude_claim_id=claim_id)
+    if refuse_claim(
+        paths, data, exclude_claim_id=claim_id,
+        project_root=project_root, environ=environ,
+    ):
+        peers = conflicting_claims(
+            paths, data, exclude_claim_id=claim_id,
+            project_root=project_root, environ=environ,
+        )
         peer_ids = [str(p.get("id") or p.get("claim_id") or "?") for p in peers]
         raise PermissionError(
             f"file-claim overlap with active claim(s): {', '.join(peer_ids)}"
@@ -194,7 +252,9 @@ def claim(
         {
             "id": claim_id,
             "owner": owner,
-            "paths": [_norm(p) for p in paths],
+            "paths": [
+                _norm(p, project_root=project_root, environ=environ) for p in paths
+            ],
             "kind": kind,
             "status": "active",
             "claimed_at": _now(),

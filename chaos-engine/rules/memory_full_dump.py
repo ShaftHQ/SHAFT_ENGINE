@@ -79,14 +79,17 @@ def merge_batches(
     exported = len(ordered)
     notes: list[str] = []
     if host_total is None:
-        count_ok = not cap_incomplete
+        # Fail-closed: exported==total cannot be proven without host_total.
+        count_ok = False
+        notes.append(
+            "host total unknown; count_ok requires exported==total "
+            "(pass host_total from the memory host)"
+        )
         if cap_incomplete:
             notes.append(
-                "host total unknown; at least one query hit top-N cap — "
+                "at least one query hit top-N cap — "
                 "re-run with more seeds or ReadTranscript fallback"
             )
-        else:
-            notes.append("host total unknown; no query hit top-N cap")
     else:
         count_ok = exported == host_total and not (
             cap_incomplete and exported < host_total

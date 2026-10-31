@@ -1,6 +1,7 @@
 """CE 2026.10.31.7: WoW + memory dump + L65-fu/L66–L77 (L74 proven-red)."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -132,12 +133,39 @@ class ProvenRedMixin:
 
 
 class L66WebUiProvenRedTest(unittest.TestCase, ProvenRedMixin):
-    def test_proven_red(self) -> None:
+    def test_proven_red_bidi(self) -> None:
         self._prove(
             CE / "rules/web_ui_gate.py",
             {"bidi_ok": False, "schema_only_done": True},
             "bidi",
         )
+
+    def test_proven_red_overflow_fluid_engine(self) -> None:
+        """L74: prove overflow/clip FE off-centre defect, not just bidi."""
+        bad = {
+            "bidi_ok": True,
+            "no_raw_urls_in_copy": True,
+            "min_contrast_ratio": 4.5,
+            "alignment_ok": True,
+            "render_widths_px": [390, 1440],
+            "independent_visual_review": True,
+            "viewport": {"x": 0, "y": 0, "w": 390, "h": 800},
+            "container": {"x": 0, "y": 0, "w": 190, "h": 400},
+            "elements": [
+                {
+                    "id": "fe-cell",
+                    "engine": "fluid",
+                    "style": "left: calc(50% - 95px)",
+                    "bbox": {"x": -40, "y": 0, "w": 200, "h": 100},
+                    "scrollWidth": 220,
+                    "clientWidth": 190,
+                    "clipping_ancestors": [
+                        {"bbox": {"x": 0, "y": 0, "w": 190, "h": 400}}
+                    ],
+                }
+            ],
+        }
+        self._prove(CE / "rules/web_ui_gate.py", bad, "overflow-scrollwidth")
 
 
 class L70CoachProvenRedTest(unittest.TestCase, ProvenRedMixin):
@@ -148,14 +176,40 @@ class L70CoachProvenRedTest(unittest.TestCase, ProvenRedMixin):
             "coach-gate",
         )
 
+    def test_proven_red_linkedin_without_coach(self) -> None:
+        self._prove(
+            CE / "rules/coach_pre_publish.py",
+            {"surface": "linkedin"},
+            "coach-gate",
+        )
+
 
 class L71AvatarProvenRedTest(unittest.TestCase, ProvenRedMixin):
-    def test_proven_red(self) -> None:
+    def test_proven_red_glasses(self) -> None:
         self._prove(
             CE / "rules/avatar_likeness_gate.py",
             {"from_scratch": True, "glasses_present": False},
             "glasses",
         )
+
+    def test_proven_red_sface_below_threshold(self) -> None:
+        """L74: prove SFace threshold defect."""
+        bad = {
+            "reference_conditioned": True,
+            "real_photo_edit": True,
+            "source_ref_photo_path": "/refs/real.jpg",
+            "edit_provenance": "masked-edit-v1",
+            "glasses_present": True,
+            "age_within_refs": True,
+            "sface_mean": 0.50,
+            "sface_min": 0.50,
+            "identity_score": 0.50,
+            "fresh_side_by_side_review": True,
+            "license": "mit",
+            "stack": "opencv pillow",
+            "tools_receipt": ["opencv", "pillow"],
+        }
+        self._prove(CE / "rules/avatar_likeness_gate.py", bad, "sface-mean-below")
 
 
 class L75NoProbeProvenRedTest(unittest.TestCase, ProvenRedMixin):
@@ -193,6 +247,7 @@ class L65FollowupsTest(unittest.TestCase):
         )
 
     def _base_obs(self, asr_path: Path) -> dict:
+        digest = hashlib.sha256(asr_path.read_bytes()).hexdigest()
         return {
             "transcript_manually_verified": True,
             "reviewer_brief_lists_mg_checks": True,
@@ -201,9 +256,9 @@ class L65FollowupsTest(unittest.TestCase):
             "ocr_frames": [{"text": "hi", "expected": "hi"}],
             "diagrams": [{"animation": "draw-on"}],
             "asr_path": str(asr_path),
-            "asr_sha256": "abc",
+            "asr_sha256": digest,
             "asr_tool": "whisper-fixture",
-            "asr_independent_proof": True,
+            "asr_source": "whisper",
             "captions": [
                 {"start": 0.0, "lines": ["hello"], "phrase_split": True},
             ],
@@ -245,8 +300,8 @@ class L65FollowupsTest(unittest.TestCase):
             asr.write_text(
                 json.dumps(
                     [
-                        {"word": "go", "start": 0.0},
-                        {"word": "go", "start": 1.0},
+                        {"word": "go", "start": 0.05},
+                        {"word": "go", "start": 1.05},
                     ]
                 ),
                 encoding="utf-8",
@@ -287,6 +342,39 @@ class L65FollowupsTest(unittest.TestCase):
                 any("perfect-zero" in h for h in result["hits"])
             )
 
+    def test_forged_independent_proof_cue_synced_fails(self) -> None:
+        """L73: builder asr_independent_proof ignored; cue-synced ASR FAILS."""
+        with tempfile.TemporaryDirectory() as tmp:
+            asr = Path(tmp) / "asr.json"
+            asr.write_text(
+                json.dumps([{"word": "hello", "start": 0.0}]), encoding="utf-8"
+            )
+            obs = self._base_obs(asr)
+            obs["asr_independent_proof"] = True  # forged — must not help
+            result = self.mod.evaluate(obs)
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("perfect-zero" in h or "cue-correlated" in h for h in result["hits"]),
+                result["hits"],
+            )
+
+    def test_forged_asr_sha256_fails(self) -> None:
+        """Adversarial #2 / L73: claimed hash must match file bytes."""
+        with tempfile.TemporaryDirectory() as tmp:
+            asr = Path(tmp) / "asr.json"
+            asr.write_text(
+                json.dumps([{"word": "hello", "start": 0.05}]), encoding="utf-8"
+            )
+            obs = self._base_obs(asr)
+            obs["asr_sha256"] = "deadbeef" * 8
+            obs["captions"] = [{"start": 0.0, "lines": ["hello"], "phrase_split": True}]
+            result = self.mod.evaluate(obs)
+            self.assertFalse(result["ok"])
+            self.assertTrue(
+                any("asr-sha256-mismatch" in h for h in result["hits"]),
+                result["hits"],
+            )
+
 
 class SpecAndDocsTest(unittest.TestCase):
     def test_spec_and_wow_exist(self) -> None:
@@ -325,6 +413,158 @@ class VersionPinFloorTest(unittest.TestCase):
             for p in (CE / "VERSION").read_text(encoding="utf-8").strip().split(".")
         )
         self.assertGreaterEqual(current, floor)
+
+
+
+class AdversarialDoctorL77Test(unittest.TestCase):
+    def test_doctor_path_loads_and_missing_fails_closed(self) -> None:
+        install = _load("ce_install_doctor", CE / "install.py")
+        # Correct path must exist under chaos-engine/rules/
+        # When module missing → fail (not pass/unavailable)
+        missing = install.remote_credential_status(
+            ROOT, root=Path("/nonexistent-ce-root-for-test")
+        )
+        self.assertEqual("fail", missing[0])
+        self.assertTrue(
+            any("missing" in str(x).casefold() for x in missing[1:]),
+            missing,
+        )
+        # Real load with clean remotes should be pass or fail on actual remotes —
+        # at least must not return pass+unavailable from doubled rules/ path.
+        real = install.remote_credential_status(ROOT, root=CE)
+        joined = " ".join(real)
+        self.assertNotIn("unavailable", joined)
+        self.assertTrue((CE / "rules/remote_credential_guard.py").is_file())
+
+
+class AdversarialNoProbeEscapeTest(unittest.TestCase):
+    def test_dotdot_escape_fails(self) -> None:
+        mod = _load("ce_no_probe_live", CE / "rules/no_probe_live.py")
+        ok, reason = mod.probe_allowed(
+            "update_file_content",
+            "/workspace/../home/user/secret.docx",
+            scratch_roots=["/workspace/", "/tmp/"],
+        )
+        self.assertFalse(ok)
+        self.assertTrue(
+            "escape" in reason or "outside" in reason or "live" in reason,
+            reason,
+        )
+        proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
+        proven.prove_red(
+            mod.evaluate,
+            {
+                "action": "write",
+                "path": "/workspace/../etc/passwd",
+                "scratch_roots": ["/workspace/", "/tmp/"],
+            },
+            expected_hit_substr="escape",
+        )
+
+
+class AdversarialFileClaimRelAbsTest(unittest.TestCase):
+    def test_rel_abs_same_file_overlaps(self) -> None:
+        mod = _load("ce_file_claim_lock", ROOT / "scripts/ci/file_claim_lock.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "chaos-engine" / "foo.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("x", encoding="utf-8")
+            claims = root / "claims.json"
+            mod.claim(
+                "a", "w1", ["chaos-engine/foo.py"],
+                path=claims, kind="k1", project_root=root,
+            )
+            with self.assertRaises(PermissionError):
+                mod.claim(
+                    "b", "w2", [str(target.resolve())],
+                    path=claims, kind="k2", project_root=root,
+                )
+
+
+class AdversarialMemoryHostTotalTest(unittest.TestCase):
+    def test_host_total_none_fails_count(self) -> None:
+        mod = _load("ce_memory_full_dump", CE / "rules/memory_full_dump.py")
+        batches = [mod.QueryBatch("q1", ["a", "b"], top_n=50)]
+        _, report = mod.merge_batches(batches, host_total=None)
+        self.assertFalse(report.count_ok)
+
+
+class AdversarialAvatarRealPhotoTest(unittest.TestCase):
+    def test_missing_real_photo_edit_fails(self) -> None:
+        mod = _load("ce_avatar", CE / "rules/avatar_likeness_gate.py")
+        proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
+        proven.prove_red(
+            mod.evaluate,
+            {
+                "reference_conditioned": True,
+                "glasses_present": True,
+                "age_within_refs": True,
+                "sface_mean": 0.9,
+                "sface_min": 0.8,
+                "identity_score": 0.9,
+                "fresh_side_by_side_review": True,
+                "license": "mit",
+                "stack": "opencv",
+                "tools_receipt": ["opencv"],
+                # missing real_photo_edit + ref path
+            },
+            expected_hit_substr="real-photo",
+        )
+
+
+class DesignerL72ProvenRedTest(unittest.TestCase, ProvenRedMixin):
+    def test_proven_red_cards_after_cap2(self) -> None:
+        self._prove(
+            CE / "rules/design_fix_loop.py",
+            {"full_regen_failures": 2, "localized_masked_edit": False},
+            "localized-masked-edit",
+        )
+
+
+class DesignerAvatarLicenseBannedTest(unittest.TestCase):
+    def test_banned_stack_and_bad_license_fail(self) -> None:
+        mod = _load("ce_avatar2", CE / "rules/avatar_likeness_gate.py")
+        obs = {
+            "reference_conditioned": True,
+            "real_photo_edit": True,
+            "source_ref_photo_path": "/refs/a.jpg",
+            "edit_provenance": "edit",
+            "glasses_present": True,
+            "age_within_refs": True,
+            "sface_mean": 0.9,
+            "sface_min": 0.8,
+            "identity_score": 0.9,
+            "fresh_side_by_side_review": True,
+            "license": "proprietary",
+            "stack": "insightface",
+            "tools_receipt": ["insightface"],
+        }
+        result = mod.evaluate(obs)
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("license-not-allowed" in h for h in result["hits"]))
+        self.assertTrue(any("banned-stack" in h for h in result["hits"]))
+
+    def test_missing_tools_receipt_fail_closed(self) -> None:
+        mod = _load("ce_avatar3", CE / "rules/avatar_likeness_gate.py")
+        obs = {
+            "reference_conditioned": True,
+            "real_photo_edit": True,
+            "source_ref_photo_path": "/refs/a.jpg",
+            "edit_provenance": "edit",
+            "glasses_present": True,
+            "age_within_refs": True,
+            "sface_mean": 0.9,
+            "sface_min": 0.8,
+            "identity_score": 0.9,
+            "fresh_side_by_side_review": True,
+            "license": "mit",
+            # no stack, no tools_receipt
+        }
+        result = mod.evaluate(obs)
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("missing-tools-receipt" in h for h in result["hits"]))
+
 
 
 if __name__ == "__main__":

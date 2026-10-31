@@ -17,7 +17,7 @@
 | L67 | [l67-reject-to-rule](../references/details/ce-rules-2026-10-31-7/l67-reject-to-rule.md) | (process) |
 | L70 | [coach-pre-publish](../references/details/ce-rules-2026-10-31-7/coach-pre-publish.md) | [coach_pre_publish.py](../rules/coach_pre_publish.py) |
 | L71 | [avatar-likeness-gate](../references/details/ce-rules-2026-10-31-7/avatar-likeness-gate.md) | [avatar_likeness_gate.py](../rules/avatar_likeness_gate.py) |
-| L72 | [l72-design-fix-loop](../references/details/ce-rules-2026-10-31-7/l72-design-fix-loop.md) | (process) |
+| L72 | [l72-design-fix-loop](../references/details/ce-rules-2026-10-31-7/l72-design-fix-loop.md) | [design_fix_loop.py](../rules/design_fix_loop.py) |
 | L74 | [gate-proven-red](../references/details/ce-rules-2026-10-31-7/gate-proven-red.md) | [gate_proven_red.py](../rules/gate_proven_red.py) |
 | L75 | [no-probe-live](../references/details/ce-rules-2026-10-31-7/no-probe-live.md) | [no_probe_live.py](../rules/no_probe_live.py) |
 | L76 | [preview-at-real-width](../references/details/ce-rules-2026-10-31-7/preview-at-real-width.md) | [preview_at_real_width.py](../rules/preview_at_real_width.py) |

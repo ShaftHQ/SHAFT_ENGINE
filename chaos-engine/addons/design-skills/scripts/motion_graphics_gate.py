@@ -19,10 +19,11 @@ L65 follow-ups / L73 (CE 2026.10.31.7):
 2. Unmatched cue text → FAIL (no nearest-start fallback).
 3. Duplicate tokens match sequentially (consume ASR hits in order).
 4. Perfect 0 ms max across all cues is suspect without independent proof
-   (``asr_independent_proof: true``).
+   (derived from data: ASR timings must not be cue-synced; builder ``asr_independent_proof`` is ignored).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -133,8 +134,19 @@ def asr_provenance_hits(obs: dict[str, Any]) -> list[str]:
         path = Path(str(path_value))
         if not path.is_file():
             hits.append("asr-path-missing-file")
-    if not str(obs.get("asr_sha256") or obs.get("asr_hash") or "").strip():
+    claimed = str(obs.get("asr_sha256") or obs.get("asr_hash") or "").strip().casefold()
+    if not claimed:
         hits.append("missing-asr-sha256")
+    elif path_value:
+        path = Path(str(path_value))
+        if path.is_file():
+            try:
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            except OSError:
+                hits.append("asr-sha256-unreadable")
+            else:
+                if claimed != digest.casefold():
+                    hits.append("asr-sha256-mismatch")
     if not str(obs.get("asr_tool") or obs.get("aligner_tool") or "").strip():
         hits.append("missing-asr-tool")
     # Inline builder words without a path are rejected (path is SoT).
@@ -204,6 +216,39 @@ def matched_word_start_s(
             used.add(index)
             return float(row["start"])
     return None
+
+
+
+def _cue_asr_starts_correlated(
+    captions: list[Any],
+    asr_words: list[dict[str, Any]],
+    *,
+    eps_s: float = 1e-3,
+) -> bool:
+    """True when most cue starts equal an ASR word start (cue-derived timings)."""
+    if not captions or not asr_words:
+        return False
+    asr_starts: list[float] = []
+    for word in asr_words:
+        try:
+            asr_starts.append(float(word.get("start", word.get("start_s", 0))))
+        except (TypeError, ValueError):
+            continue
+    if not asr_starts:
+        return False
+    matched = 0
+    considered = 0
+    for cue in captions:
+        if not isinstance(cue, dict):
+            continue
+        try:
+            cue_start = float(cue.get("start", cue.get("start_s", 0)))
+        except (TypeError, ValueError):
+            continue
+        considered += 1
+        if any(abs(cue_start - s) <= eps_s for s in asr_starts):
+            matched += 1
+    return considered > 0 and matched == considered
 
 
 def measured_onset_ms(
@@ -359,13 +404,12 @@ def _check_captions(
         _check_caption_onset(
             cue, index, words, hits, consumed=consumed, measured=measured,
         )
-    # L73: perfect 0ms across all measured cues needs independent proof.
-    if (
-        measured
-        and max(measured) <= 1e-9
-        and not (obs or {}).get("asr_independent_proof") is True
-    ):
-        hits.append("suspect-perfect-zero-onset-without-independent-proof")
+    # L73: perfect 0ms / cue-synced ASR is not independent — ignore builder
+    # ``asr_independent_proof`` boolean; derive from measured onsets + correlation.
+    if measured and max(measured) <= 1e-9:
+        hits.append("suspect-perfect-zero-onset-cue-correlated")
+    elif measured and _cue_asr_starts_correlated(captions, words):
+        hits.append("asr-timings-cue-correlated")
 
 
 def _check_diagrams(diagrams: Any, hits: list[str]) -> None:
