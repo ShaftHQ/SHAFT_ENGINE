@@ -885,10 +885,6 @@ def _adopt_ce_owned(primary: Path, session: Path, *, force: bool = False) -> lis
     return adopted
 
 
-# Back-compat name used by older call sites / tests.
-_adopt_ignored_ce_owned = _adopt_ce_owned
-
-
 def _try_repair_hosts_light(session: Path) -> bool:
     """Copy missing host pointer files only; no marketplace."""
     # materialize already synced HOST_FILES; nothing more required for light path.

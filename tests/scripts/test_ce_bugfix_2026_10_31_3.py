@@ -115,11 +115,9 @@ class HuskFalsePositiveTest(unittest.TestCase):
             (git_dir / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
             (git_dir / "refs").mkdir()
             advice = install._husk_recovery_advice(husk)
-            self.assertIn("Local-only", advice)
-            self.assertIn("baseline commit", advice)
-            self.assertNotIn("re-clone", advice.casefold().split("local-only")[0] if False else advice)
-            # local advice should not lead with re-clone
             self.assertTrue(advice.startswith("Local-only"))
+            self.assertIn("baseline commit", advice)
+            self.assertNotIn("Remote repo:", advice)
 
 
 class GenericAdoptTomlTest(unittest.TestCase):
