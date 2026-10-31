@@ -140,27 +140,27 @@ fingerprints:
   file: scripts/craft_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:fc07e8999c770a8076251de91950305b0435e93ab455f3da33173045305f4475
+- hash: sha256:b74d036d614e1effc8a3afd8db0bcab3fa551847e6c5ee1370af24b97ea0c102
   rule_id: AST4
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:f8d8685cb7ba4722c7190db553beed4be7e9a813dccd4a9095e8f2b679f0856d
+- hash: sha256:ea74ca08998ce67497fad3e2114ab97065ff468a2471ae38f6a94260cfeb0c7b
   rule_id: AST4
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:18a8000f86bda17b1092477d75a3bd6fdc64673002b4126a89cf1e12e90b2474
+- hash: sha256:a235ace3fe5adc28ffb5193581faa0a0258681fc59fa87ca0343ff80c284680b
   rule_id: AST4
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:82bfa06290b4ebb82085ff60506356945e1cea3bac43dbb7d23b7074defbb5f0
+- hash: sha256:3a8c66fa383282191f5278914a714f9356afd8e589986bea1d47baa52f62ba97
   rule_id: AST4
   file: scripts/design_qc.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:f88d6585532904439ffb62c1efdbea9cbaa977907c47f4bda4d079b469972ea1
+- hash: sha256:2f740c9a76d0beac44bf771b2189f7fd6f92927ddcc022a97bb38c1ed20499dd
   rule_id: AST6
   file: scripts/design_qc.py
   reason: 'Accepted agency: compile(..., "exec") used only for Python syntax check
@@ -175,11 +175,11 @@ fingerprints:
   file: scripts/liveseo_gates.py
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603).'
-- hash: sha256:bacddcfec38181f48f1a8d8494850949225b179306d3c53cad10512ad6b6e4ec
+- hash: sha256:ddfe77869d1a39994bdcb61a150b86965d1e6df5c08dceb8496773f460f6b716
   rule_id: TT1
   file: scripts/design_qc.py
   reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
-    (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gate helper extract.'
+    (# nosec B603), no network exfil. Fingerprint refreshed after L48–L51 gates + extendfeas helper extract.'
 - hash: sha256:d2ba37ab2be9d7cbfae81c0cbea913f5b048c905e40a57d1664a900551117e7b
   rule_id: AE1
   file: SKILL.md
