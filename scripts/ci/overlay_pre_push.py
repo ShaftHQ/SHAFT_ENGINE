@@ -574,7 +574,8 @@ VERSION_FILE = "chaos-engine/VERSION"
 
 
 def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
-    """Require VERSION bump when consumer-facing chaos-engine/ paths change.
+    """
+    Require VERSION bump when consumer-facing chaos-engine/ paths change.
 
     Waive with PR body marker ``<!-- chaos-engine:no-version-bump -->`` or label
     ``ce-no-version-bump`` (checked when an open PR exists for HEAD).

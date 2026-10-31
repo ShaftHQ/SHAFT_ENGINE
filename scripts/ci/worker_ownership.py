@@ -1,4 +1,5 @@
-"""Worker ownership manifest (CE 2026.10.31.6 / H-OWNERSHIP).
+"""
+Worker ownership manifest (CE 2026.10.31.6 / H-OWNERSHIP).
 
 Workers record paths they create. Cleanup-at-close may delete only entries
 listed here (delete-guard never-touch still wins).

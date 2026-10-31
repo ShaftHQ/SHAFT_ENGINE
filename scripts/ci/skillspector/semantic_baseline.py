@@ -1,4 +1,5 @@
-"""SkillSpector baseline refresh keyed by semantic id (H-SKILLSPECTOR).
+"""
+SkillSpector baseline refresh keyed by semantic id (H-SKILLSPECTOR).
 
 Native SkillSpector baselines match content hashes. Skill wording churn
 rewrites hashes for the same finding. This helper keys entries by

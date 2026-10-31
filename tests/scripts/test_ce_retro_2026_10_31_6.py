@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import tempfile
@@ -15,7 +14,7 @@ CRAFT_QC = ROOT / "chaos-engine/addons/design-skills/scripts/craft_qc.py"
 
 
 def run_design(*argv: str) -> tuple[int, dict]:
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603 — fixed argv: local design_qc + test paths
         [sys.executable, str(DESIGN_QC), *argv],
         check=False,
         capture_output=True,

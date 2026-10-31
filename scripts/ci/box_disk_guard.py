@@ -435,7 +435,8 @@ def blocked_infra_reasons(
     swap_kib: int | None = None,
     apt_mirror_ok: bool | None = None,
 ) -> list[str]:
-    """Return BLOCKED-INFRA reasons (disk, swap, optional apt mirror).
+    """
+    Return BLOCKED-INFRA reasons (disk, swap, optional apt mirror).
 
     Free-GiB tiers still refuse new workers via ``refuse_new_worker``. This
     helper is the board/alert surface: any non-empty result means set
