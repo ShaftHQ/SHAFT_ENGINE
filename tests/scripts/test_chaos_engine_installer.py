@@ -3233,6 +3233,8 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertEqual(before, tree_digest(project / ".chaos-engine-runtime"))
 
     def test_status_rejects_missing_host_adapter(self):
+        # 2026.10.31.4: doctor/status must not short-circuit on host-adapter drift;
+        # report recovery-required with CE_HOST_ADAPTER_DRIFT so other rows still appear.
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
@@ -3244,8 +3246,15 @@ module.install_with_dependencies(project, source, "3" * 40)
             )
             project.joinpath(".agents/skills/chaos-engine/SKILL.md").unlink()
 
-            with self.assertRaisesRegex(ValueError, "host adapter drift"):
-                MODULE.status_with_dependencies(project)
+            status = MODULE.status_with_dependencies(project)
+            self.assertEqual("recovery-required", status["status"])
+            self.assertEqual("recovery-required", status["hosts"]["status"])
+            self.assertEqual("CE_HOST_ADAPTER_DRIFT", status["hosts"]["code"])
+            self.assertIn("host adapter drift", status["hosts"]["detail"])
+            self.assertEqual(
+                "CE_HOST_ADAPTER_DRIFT",
+                status["components"]["hosts"]["code"],
+            )
 
     def test_dependency_failure_compensates_only_a_core_published_by_this_call(self):
         with tempfile.TemporaryDirectory() as temporary:

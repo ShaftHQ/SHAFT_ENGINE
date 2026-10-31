@@ -608,7 +608,7 @@ def apply_mempalace_backend_doctor(
             ),
         }
         result["status"] = "recovery-required"
-        return
+        # Do not return: owned-excludes and other mempalace checks must still run.
     selected = (os.environ if environ is None else environ).get("MEMPALACE_BACKEND")
     if selected and selected != MEMPALACE_BACKEND:
         components["mempalace-backend"] = {
@@ -653,7 +653,7 @@ def apply_mempalace_owned_excludes_doctor(result: dict[str, object], project: Pa
         "reason": "owned-excludes-missing",
         "missingCount": len(missing),
         "fixNext": (
-            "python3 .chaos-engine/install.py repair --project . --component retrieval-config "
+            "python3 .chaos-engine/install.py repair --project . --component mempalace "
             "(merges missing owned exclude_patterns into mempalace.yaml; user entries stay; removed owned patterns are re-added by design)"
         ),
     }

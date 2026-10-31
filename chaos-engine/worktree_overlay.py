@@ -632,10 +632,12 @@ def _installer_owned_relatives(primary: Path) -> list[str]:
 def upgrade_session(
     primary: Path, session: Path, *, repair_plugins: bool | None = None, recover: bool = False
 ) -> dict:
-    """One command: bring ``session`` to primary CE version (materialize + host repair).
+    """One command: bring ``session`` to primary CE version (materialize + verify).
 
     Skips the slow plugin marketplace round-trip when VERSION already matches
-    unless ``repair_plugins=True``. Returns a result dict with timings.
+    unless ``repair_plugins=True``. Always runs full auto-repair for every
+    degraded doctor component, then a full doctor post-verify. Never reports
+    success when doctor still shows drift (#2026.10.31.4).
 
     ``recover=True`` force-adopts CE-owned paths first (half-applied worktrees).
     """
@@ -667,17 +669,25 @@ def upgrade_session(
         plugins_ran = _try_repair_plugins(session)
     else:
         hosts_repaired = _try_repair_hosts_light(session)
+    post_verify = _post_upgrade_repair_and_verify(primary, session)
     elapsed = time.perf_counter() - started
-    return {
+    result = {
         "written": written,
         "primary_version": primary_ver,
         "session_version": session_ver_after,
         "plugins_repaired": plugins_ran,
         "hosts_light_repaired": hosts_repaired,
         "recovered": recover,
+        "post_verify": post_verify,
+        "doctor_ok": bool(post_verify.get("doctor_ok")),
         "elapsed_s": round(elapsed, 3),
         "budget_s": MATERIALIZE_BUDGET_S_PER_WORKTREE if not plugins_ran else UPGRADE_WITH_PLUGINS_BUDGET_S,
     }
+    if not result["doctor_ok"]:
+        result["status"] = "doctor-failed"
+    else:
+        result["status"] = "ok"
+    return result
 
 
 def recover_session(primary: Path, session: Path) -> dict:
@@ -885,6 +895,221 @@ def _adopt_ce_owned(primary: Path, session: Path, *, force: bool = False) -> lis
     return adopted
 
 
+
+def _load_install_module(session: Path):
+    """Load install.py from the session overlay (or source tree) for doctor/repair."""
+    installer = session / TREE / "install.py"
+    if not installer.is_file():
+        installer = session / "chaos-engine" / "install.py"
+    if not installer.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location(
+        f"ce_upgrade_install_{abs(hash(str(session))) & 0xFFFF}",
+        installer,
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:  # nosec B110 - upgrade continues with subprocess fallback
+        return None
+    return module
+
+
+def _doctor_unhealthy_components(document: dict) -> list[tuple[str, dict]]:
+    components = document.get("components")
+    if not isinstance(components, dict):
+        return []
+    rows: list[tuple[str, dict]] = []
+    for name in sorted(str(item) for item in components):
+        item = components[name]
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "")
+        impact = str(item.get("taskImpact") or "required")
+        if status in {"healthy", "compatible-legacy", "not-detected", "sync-advisory"}:
+            continue
+        if status == "absent" and impact == "optional":
+            continue
+        if status in {"degraded", "recovery-required", "failed", "broken", "absent", "invalid"}:
+            rows.append((name, item))
+    return rows
+
+
+def _post_upgrade_no_module_fallback(primary: Path, session: Path) -> dict:
+    """CLI or lightweight-hash path when install.py cannot be imported."""
+    repaired: list[str] = []
+    has_installer = (session / TREE / "install.py").is_file() or (
+        session / "chaos-engine" / "install.py"
+    ).is_file()
+    if has_installer:
+        if _try_repair_component_cli(session, "hosts"):
+            repaired.append("hosts")
+        doctor_ok = _try_doctor_cli_ok(session)
+        return {
+            "doctor_ok": doctor_ok,
+            "repaired": repaired,
+            "remaining": [] if doctor_ok else ["doctor-cli"],
+            "mode": "cli-fallback",
+        }
+    half = session_is_half_applied(primary, session)
+    return {
+        "doctor_ok": not half,
+        "repaired": repaired,
+        "remaining": ["half-applied"] if half else [],
+        "mode": "lightweight-hash",
+    }
+
+
+def _unhealthy_with_hosts(document: dict) -> list[tuple[str, dict]]:
+    """Doctor component failures plus top-level hosts when unhealthy."""
+    unhealthy = _doctor_unhealthy_components(document)
+    hosts_top = document.get("hosts")
+    if isinstance(hosts_top, dict) and str(hosts_top.get("status") or "") in {
+        "recovery-required", "broken", "absent", "failed"
+    }:
+        if not any(name == "hosts" for name, _ in unhealthy):
+            unhealthy.append(("hosts", hosts_top))
+    return unhealthy
+
+
+def _repair_choices_for_unhealthy(module: object, unhealthy: list[tuple[str, dict]]) -> list[str]:
+    """Map unhealthy doctor rows to unique REPAIRABLE_COMPONENTS choices."""
+    choices: list[str] = []
+    seen: set[str] = set()
+    mapper = getattr(module, "doctor_check_repair_component", None)
+    repairable = getattr(module, "REPAIRABLE_COMPONENTS", frozenset())
+    for name, item in unhealthy:
+        choice = mapper(name, item) if callable(mapper) else None
+        if not choice and name in repairable:
+            choice = name
+        if choice and choice not in seen:
+            seen.add(choice)
+            choices.append(choice)
+    return choices
+
+
+def _run_repairs(module: object, session: Path, choices: list[str]) -> list[str]:
+    repaired: list[str] = []
+    for choice in choices:
+        try:
+            module.repair_component(session, choice)
+            repaired.append(choice)
+        except Exception:  # nosec B110
+            if _try_repair_component_cli(session, choice):
+                repaired.append(choice)
+    return repaired
+
+
+def _blocking_doctor_failures(after: dict) -> list[str]:
+    """Required/degraded failures that must fail upgrade-session."""
+    remaining = [name for name, _item in _doctor_unhealthy_components(after)]
+    blocking: list[str] = []
+    components = after.get("components") if isinstance(after.get("components"), dict) else {}
+    for name in remaining:
+        item = components.get(name) if isinstance(components, dict) else None
+        if not isinstance(item, dict):
+            blocking.append(name)
+            continue
+        status = str(item.get("status") or "")
+        impact = str(item.get("taskImpact") or "required")
+        if impact in {"advisory", "optional"} and status in {"degraded", "absent", "sync-advisory"}:
+            continue
+        if status in {"degraded", "recovery-required", "failed", "broken", "invalid"}:
+            blocking.append(name)
+        elif status == "absent" and impact == "required":
+            blocking.append(name)
+    hosts_after = after.get("hosts")
+    if isinstance(hosts_after, dict) and str(hosts_after.get("status") or "") in {
+        "recovery-required", "broken", "failed"
+    }:
+        if "hosts" not in blocking:
+            blocking.append("hosts")
+    return blocking
+
+
+def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
+    """Repair every degraded doctor component, then re-run doctor (fail closed)."""
+    primary, session = Path(primary).resolve(), Path(session).resolve()
+    module = _load_install_module(session)
+    if module is None:
+        return _post_upgrade_no_module_fallback(primary, session)
+    repaired: list[str] = []
+    try:
+        document = module.doctor_with_dependencies(session, verify_clients=False)
+    except Exception as error:  # nosec B110
+        if _try_repair_component_cli(session, "hosts"):
+            repaired.append("hosts")
+        doctor_ok = _try_doctor_cli_ok(session)
+        return {
+            "doctor_ok": doctor_ok,
+            "repaired": repaired,
+            "remaining": [] if doctor_ok else [f"doctor-error:{type(error).__name__}"],
+            "mode": "exception-fallback",
+        }
+    choices = _repair_choices_for_unhealthy(module, _unhealthy_with_hosts(document))
+    repaired = _run_repairs(module, session, choices)
+    try:
+        after = module.doctor_with_dependencies(session, verify_clients=False)
+    except Exception as error:  # nosec B110
+        return {
+            "doctor_ok": False,
+            "repaired": repaired,
+            "remaining": [f"doctor-error:{type(error).__name__}"],
+            "mode": "module",
+        }
+    blocking = _blocking_doctor_failures(after)
+    overall = str(after.get("status") or "")
+    return {
+        "doctor_ok": overall == "healthy" and not blocking,
+        "repaired": repaired,
+        "remaining": blocking,
+        "overall": overall,
+        "mode": "module",
+    }
+
+
+def _try_repair_component_cli(session: Path, component: str) -> bool:
+    installer = session / TREE / "install.py"
+    if not installer.is_file():
+        installer = session / "chaos-engine" / "install.py"
+    if not installer.is_file():
+        return False
+    py = sys.executable or "python3"
+    try:
+        result = subprocess.run(  # nosec B603
+            [py, str(installer), "repair", "--project", str(session), "--component", component],
+            cwd=session, capture_output=True, text=True, timeout=180, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+def _try_doctor_cli_ok(session: Path) -> bool:
+    installer = session / TREE / "install.py"
+    if not installer.is_file():
+        installer = session / "chaos-engine" / "install.py"
+    if not installer.is_file():
+        return False
+    py = sys.executable or "python3"
+    try:
+        result = subprocess.run(  # nosec B603
+            [py, str(installer), "doctor", "--project", str(session), "--json"],
+            cwd=session, capture_output=True, text=True, timeout=180, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode != 0:
+        return False
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return False
+    return str(payload.get("status") or "") == "healthy"
+
+
 def _try_repair_hosts_light(session: Path) -> bool:
     """Copy missing host pointer files only; no marketplace."""
     # materialize already synced HOST_FILES; nothing more required for light path.
@@ -958,6 +1183,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{args.command} refused: {error}", file=sys.stderr)
             return 2
         print(json.dumps(result, sort_keys=True))
+        if result.get("status") == "doctor-failed" or not result.get("doctor_ok", True):
+            return 1
         return 0
     try:
         copied = materialize(args.primary, args.session)
