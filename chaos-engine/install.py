@@ -7405,13 +7405,108 @@ def resolve_git_common_dir(project: Path) -> Path | None:
     return marker.resolve()
 
 
-def is_husk_git(project: Path) -> bool:
-    """True when ``.git`` exists but has no objects/refs content (box-restart husk).
+def _git_head_text(common: Path) -> str:
+    head = common / "HEAD"
+    if not head.is_file():
+        return ""
+    try:
+        return head.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
 
-    Coach: after a box restart a consumer checkout's ``.git`` held only
-    HEAD/config/hooks — no objects or refs. ChaosEngine install does not create
-    a ``.git`` skeleton in non-git dirs; a husk usually means the repo metadata
-    did not survive the restart or an empty ``git init`` was left behind.
+
+def _packed_ref_sha(common: Path, ref: str) -> str | None:
+    packed = common / "packed-refs"
+    if not packed.is_file():
+        return None
+    try:
+        lines = packed.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if not line or line.startswith("#") or line.startswith("^"):
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[-1] == ref:
+            return parts[0]
+    return None
+
+
+def git_head_is_unborn_dir(common: Path) -> bool:
+    """True when HEAD is a symbolic ref whose target does not exist yet (valid empty repo)."""
+    text = _git_head_text(common)
+    if not text.startswith("ref:"):
+        return False
+    ref = text[4:].strip()
+    if not ref:
+        return False
+    if (common / ref).is_file():
+        return False
+    return _packed_ref_sha(common, ref) is None
+
+
+def _git_head_target_sha(common: Path) -> str | None:
+    """Resolve HEAD to an object id when the repo is born; None when unborn/unreadable."""
+    text = _git_head_text(common)
+    if not text:
+        return None
+    if text.startswith("ref:"):
+        ref = text[4:].strip()
+        ref_path = common / ref
+        if ref_path.is_file():
+            try:
+                return ref_path.read_text(encoding="utf-8", errors="replace").strip() or None
+            except OSError:
+                return None
+        return _packed_ref_sha(common, ref)
+    # detached HEAD
+    return text if len(text) >= 7 else None
+
+
+def _git_object_exists(common: Path, sha: str) -> bool:
+    sha = (sha or "").strip()
+    if len(sha) < 4:
+        return False
+    loose = common / "objects" / sha[:2] / sha[2:]
+    if loose.is_file():
+        return True
+    pack_dir = common / "objects" / "pack"
+    if not pack_dir.is_dir():
+        return False
+    # Presence of pack files is enough for doctor; detailed pack lookup needs git.
+    return any(pack_dir.glob("*.pack"))
+
+
+def _git_has_remote(project: Path) -> bool:
+    git = shutil.which("git")
+    if git is None:
+        return False
+    try:
+        result = subprocess.run(  # nosec B603
+            [git, "remote"],
+            cwd=project, capture_output=True, text=True, timeout=15, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return bool(result.stdout.strip()) if result.returncode == 0 else False
+
+
+def _secret_guard_blocked_by_git(project: Path) -> bool:
+    """True when secret-guard install would fail because git metadata is broken."""
+    common = resolve_git_common_dir(project)
+    if common is None:
+        return False
+    objects = common / "objects"
+    refs = common / "refs"
+    return not objects.is_dir() or not refs.is_dir()
+
+
+def is_husk_git(project: Path) -> bool:
+    """True for a real husk ``.git``, not a valid empty (unborn HEAD) repository.
+
+    A husk is: missing ``objects/`` or ``refs/`` directories, or a born HEAD whose
+    target object is missing. A fresh ``git init`` (unborn HEAD with empty
+    objects/refs dirs present) is valid and returns False.
     """
     common = resolve_git_common_dir(project)
     if common is None:
@@ -7420,13 +7515,37 @@ def is_husk_git(project: Path) -> bool:
     refs = common / "refs"
     if not objects.is_dir() or not refs.is_dir():
         return True
-    has_object = any(path.is_file() for path in objects.rglob("*"))
-    has_ref = any(path.is_file() for path in refs.rglob("*"))
-    return not (has_object or has_ref)
+    if git_head_is_unborn_dir(common):
+        return False
+    sha = _git_head_target_sha(common)
+    if sha is None:
+        # Born-looking but unreadable HEAD with no objects → husk.
+        has_object = any(
+            path.is_file()
+            for path in objects.rglob("*")
+            if path.is_file() and "info" not in path.parts[-2:]
+        )
+        return not has_object
+    return not _git_object_exists(common, sha)
+
+
+def _husk_recovery_advice(project: Path) -> str:
+    if _git_has_remote(project):
+        return (
+            "Remote repo: re-clone or `git fetch` into a fresh clone, copy work "
+            "files from /workspace, then reinstall ChaosEngine. Do not `git init` "
+            "over a lost remote history. See box-durability in bot-entry.md."
+        )
+    return (
+        "Local-only repo (no remote): keep the working tree; run `git init` only "
+        "if `.git` is missing, then make one baseline commit of explicit "
+        "tracked-safe paths (never `git add -A`). Re-clone is impossible without "
+        "a remote. See box-durability in bot-entry.md."
+    )
 
 
 def git_husk_status(project: Path | None = None) -> tuple[str, ...]:
-    """Doctor tip: detect a husk ``.git`` and explain recovery."""
+    """Doctor tip: detect a husk ``.git`` and explain recovery (warn, not hard fail)."""
     root = Path(project) if project is not None else installed_project()
     if root is None:
         return ("pass",)
@@ -7438,40 +7557,32 @@ def git_husk_status(project: Path | None = None) -> tuple[str, ...]:
         return ("pass", "(no .git)")
     if not is_husk_git(root):
         return ("pass",)
-    return (
-        "fail",
-        (
-            "husk .git (HEAD/config/hooks without objects/refs). "
-            "Recover: re-clone or `git fetch` from the remote into a fresh clone, "
-            "copy work files from /workspace, then reinstall ChaosEngine. "
-            "Do not `git init` over a lost repo. See box-durability in bot-entry.md."
-        ),
-    )
+    level = "fail" if _secret_guard_blocked_by_git(root) else "warn"
+    return (level, f"husk .git. {_husk_recovery_advice(root)}")
 
 
 def apply_git_husk_doctor(result: dict[str, object], project: Path) -> None:
-    """Attach a recovery-required row when ``.git`` is a restart husk."""
+    """Attach a git-husk row. WARN by default; recovery-required only if secret guard cannot run."""
     if not is_husk_git(project):
         return
     components = result.get("components")
     if not isinstance(components, dict):
         components = {}
         result["components"] = components
+    secret_blocked = _secret_guard_blocked_by_git(project)
+    advice = _husk_recovery_advice(project)
     components["git-husk"] = {
-        "status": "recovery-required",
-        "taskImpact": "required",
+        "status": "recovery-required" if secret_blocked else "warn",
+        "taskImpact": "required" if secret_blocked else "advisory",
         "detail": (
-            "husk .git: metadata present but objects/refs are empty "
-            "(typical after a box restart that did not preserve git objects)"
+            "husk .git: missing objects/refs dirs or born HEAD with missing objects "
+            "(typical after a box restart that did not preserve git objects). "
+            "Valid empty repos (unborn HEAD) are not husks."
         ),
-        "fixNext": (
-            "Re-clone the repository (or restore objects from a remote/backup), "
-            "copy in-progress work from /workspace, then rerun ChaosEngine install. "
-            "ChaosEngine does not create .git in non-git dirs; do not git init to 'fix' a husk. "
-            "See references/bot-entry.md box-durability."
-        ),
+        "fixNext": advice,
     }
-    result["status"] = "recovery-required"
+    if secret_blocked:
+        result["status"] = "recovery-required"
 
 
 def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> str:

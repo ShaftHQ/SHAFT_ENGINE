@@ -134,13 +134,15 @@ class WorktreeReconcileTest(unittest.TestCase):
         # upgrade_session must reconcile tracked + gitignored CE before materialize
         start = source.index("def upgrade_session")
         body = source[start : source.index("\ndef ", start + 1)]
+        materialize_call = "materialize(primary, session, transactional=True)"
+        self.assertIn(materialize_call, body)
         self.assertLess(
             body.index("_maybe_checkout_tracked_ce"),
-            body.index("materialize(primary, session)"),
+            body.index(materialize_call),
         )
         self.assertLess(
-            body.index("_adopt_ignored_ce_owned"),
-            body.index("materialize(primary, session)"),
+            body.index("_adopt_ce_owned"),
+            body.index(materialize_call),
         )
 
 

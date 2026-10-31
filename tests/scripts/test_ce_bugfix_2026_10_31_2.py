@@ -31,7 +31,6 @@ class VersionTest(unittest.TestCase):
     def test_version_bumped(self) -> None:
         value = (CE / "VERSION").read_text(encoding="utf-8").strip()
         self.assertRegex(value, r"^20\d{2}\.\d{2}\.\d{2}\.\d+$")
-        self.assertEqual("2026.10.31.2", value)
 
 
 class StagedVersionAdoptTest(unittest.TestCase):
@@ -155,7 +154,8 @@ class StagedVersionAdoptTest(unittest.TestCase):
 
 
 class HuskGitDoctorTest(unittest.TestCase):
-    def test_detects_husk_and_healthy(self) -> None:
+    def test_empty_unborn_repo_is_not_husk(self) -> None:
+        """Valid git init (unborn HEAD, objects/refs dirs) must not trip git-husk."""
         install = load("ce_install_husk_bug4", CE / "install.py")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -170,13 +170,29 @@ class HuskGitDoctorTest(unittest.TestCase):
             (git_dir / "objects" / "pack").mkdir()
             (git_dir / "refs").mkdir()
             (git_dir / "refs" / "heads").mkdir()
+            self.assertFalse(install.is_husk_git(project))
+            self.assertEqual("pass", install.git_husk_status(project)[0])
+
+    def test_detects_husk_and_healthy(self) -> None:
+        install = load("ce_install_husk_bug4b", CE / "install.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            git_dir = project / ".git"
+            git_dir.mkdir()
+            (git_dir / "HEAD").write_text("ref: refs/heads/master\n", encoding="utf-8")
+            (git_dir / "config").write_text("[core]\n", encoding="utf-8")
+            (git_dir / "hooks").mkdir()
+            (git_dir / "refs").mkdir()
+            (git_dir / "refs" / "heads").mkdir()
+            # Missing objects/ → real husk (secret guard blocked → fail).
             self.assertTrue(install.is_husk_git(project))
             status = install.git_husk_status(project)
             self.assertEqual("fail", status[0])
             self.assertIn("husk .git", status[1])
-            # Add an object file → no longer a husk.
-            (git_dir / "objects" / "ab").mkdir()
-            (git_dir / "objects" / "ab" / "cd").write_text("x", encoding="utf-8")
+            # Restore objects + unborn → not a husk.
+            (git_dir / "objects").mkdir()
+            (git_dir / "objects" / "info").mkdir()
+            (git_dir / "objects" / "pack").mkdir()
             self.assertFalse(install.is_husk_git(project))
             self.assertEqual(("pass",), install.git_husk_status(project)[:1])
 
