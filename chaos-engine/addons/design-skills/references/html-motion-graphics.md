@@ -16,7 +16,8 @@ type. Timing rules come from D08.
 HyperFrames (Apache-2.0) is the default renderer: HTML compositions,
 `lint`, a snapshot contact sheet, and a deterministic headless render to MP4,
 WebM, or alpha MOV. Pin the CLI version in the project; read upstream skill
-notes at the SHA in INVENTORY.md. Do not run its skill auto-update command.
+notes at the SHA in INVENTORY.md. Do not run its skill auto-update command. Never enable `events` telemetry,
+`feedback`, `auth login`, or HeyGen media-use paths.
 Remotion (custom licence, company use may need a paid licence) and Motion
 Canvas (MIT) are documented alternatives, not defaults.
 
@@ -53,6 +54,24 @@ Canvas (MIT) are documented alternatives, not defaults.
   between the last two words as the fallback.
 - Transparent overlays render with alpha (ProRes 4444 or VP9 with alpha) and
   are composited in D12.
+
+
+## Logo sting / stinger patterns (engine-neutral)
+
+Pick **one** technique per sting: stroke draw-on, mask wipe, staggered build,
+morph (icon↔wordmark), or idle loop for loaders. Reveals last **0.8–2.5 s**.
+Do not distort brand geometry; scale and fade are safe. Keep clearspace free
+of motion debris. Always ship a static end-frame for reduced-motion and
+posters. When a sound-logo exists, land the final settle on the sonic accent.
+HTML/CSS/WAAPI (or HyperFrames) is the default path; do not pull Remotion or
+After Effects bodies into this card.
+
+## Motion doctrine refresh (continuity)
+
+Multi-scene HTML films follow D08 seam / vector continuity and the idle-wobble
+ban. Author a short vector ledger (exit axis+direction → entry match) before
+composing seams. Contact-sheet the cut mid-motion on both sides. Stillness
+before climax (0.3–0.75 s) applies to HTML scenes as well as timeline edits.
 
 ## Screenshot and code camera
 
@@ -99,5 +118,5 @@ Canvas (MIT) are documented alternatives, not defaults.
 
 ## Sources
 
-heygen-com/hyperframes (Apache-2.0, referenced by pin, not vendored);
-Remotion and Motion Canvas documentation.
+heygen-com/hyperframes (Apache-2.0, referenced by pin, not vendored; motion-doctrine paraphrased, no seam-gate scripts or telemetry);
+logo-sting patterns re-expressed from iart-ai/motion-design-skills (MIT); Remotion and Motion Canvas documentation (alternatives only).

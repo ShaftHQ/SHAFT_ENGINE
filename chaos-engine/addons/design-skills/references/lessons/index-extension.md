@@ -1,4 +1,4 @@
-# Lesson index extension (L40–L47)
+# Lesson index extension (L40–L51)
 
 Rows for Phase 1 memory-abstraction lessons. Kept separate from
 `index.md` so a sibling video sign-off lesson PR can own L39 + the
@@ -15,4 +15,7 @@ test reads this file together with `index.md`.
 | [L45 Delete-check refusal final](delete-check-refusal-final.md) | delete-check refusal is final; no raw-rm bypass; session-manifest self-delete |
 | [L46 Render freshness sha256](render-freshness-sha256.md) | fix-round mp4 sha256 ≠ prior; REUSE_MP4 fails |
 | [L47 Avatar frozen-tail](avatar-frozen-tail.md) | frame-diff last 2s + after speech; static fails |
-
+| [L48 Avatar wardrobe gate](avatar-wardrobe-gate.md) | avatar/I2V wardrobe vs ref; collar crop; buttons; 0.5 s samples |
+| [L49 Caption sync multi-model consensus](caption-sync-multimodel-consensus.md) | ≥2 ASR/FA + RMS; no builder rows; 0 measured or >150 ms = FAIL |
+| [L50 Render meta rev/sha](render-meta-rev-sha.md) | meta.render_rev/sha must match current render |
+| [L51 Extend feasibility before slot](extend-feasibility-before-slot.md) | dup ≥3× + G6 clear before scheduling |

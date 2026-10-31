@@ -21,6 +21,25 @@ requirement, not an option.
 | Gap between cues | 2 frames or more, or none |
 | Sync | within 100 ms of the spoken word |
 
+
+## Captions as overlay (talking-head / launch)
+
+Captions are an **overlay composited on top of the film**, not a reserved
+bottom band that forces content to shift up. Center the composition on the
+true vertical center. Content may run full-bleed; avoid parking critical
+small readable text exactly under the caption line.
+
+Phrase roles:
+
+| Role | Meaning | Presentation |
+| --- | --- | --- |
+| drop | filler, stutters | omit |
+| rail | default verbatim speech | clean lower-third / burned line in front |
+| embed | scarce climax word | large type, at most one per beat, spaced |
+
+Rail carries most text; embed is earned (≤1 per beat, never two co-visible).
+9:16 safe placement still follows [V07](video-craft/shorts-safe-area-captions.md).
+
 ## Rules
 
 - One source string per line: captions, on-screen text, and TTS input are
@@ -67,3 +86,5 @@ Mixed RTL and Latin captions: [L02](lessons/mixed-script-captions.md); hook card
 
 Netflix Timed Text Style Guide (English); BBC Subtitle Guidelines; WCAG 2.2
 success criteria 1.2.2 and 1.2.5 (W3C Understanding documents).
+
+Overlay doctrine paraphrased from heygen-com/hyperframes captions-overlay (Apache-2.0, pin in INVENTORY); no upstream skill install.

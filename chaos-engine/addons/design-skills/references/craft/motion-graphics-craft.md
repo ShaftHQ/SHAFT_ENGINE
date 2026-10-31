@@ -38,6 +38,24 @@ Kinetic type, UI animation, or graphic scenes are built (with D08/D09). Load aft
 | Word stagger | 2-12 f by mode | SKILL.md:55 | review |
 | Motion band | mean 64x36 luma diff 0.5-6 | motion.md sec 1.7, calibrated on its comparison films | `motionband` |
 
+
+## Motion art-direction checklist (review gate)
+
+Fill before animating. Pick **one** cell on calm↔kinetic × soft↔sharp and one
+named personality (playful / premium / corporate / energetic). Lock a motion
+language: one easing family, one base timing unit, one transition family, one
+stagger rhythm, one intensity budget, one hold discipline.
+
+| Check | Pass when |
+| --- | --- |
+| Tone | One matrix cell; no mixing calm-soft with kinetic-sharp in one piece |
+| Hierarchy | Exactly one hero per frame; support and texture do not compete |
+| Restraint | Motion that carries no meaning is cut; at most one "wow" moment |
+| Consistency | Comparable moves share ease and duration multiples of the base unit |
+| Hold | ≥0.3 s stillness after each beat unless the beat is continuous action |
+
+Demote competing elements. Direction defects are fixed before craft polish.
+
 ## Anti-patterns
 
 - Everything bounces.
@@ -60,3 +78,5 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 ## References
 
 Twenty verified references with techniques: [research/motion-graphics-craft.md](../research/motion-graphics-craft.md).
+
+Art-direction checklist re-expressed from iart-ai/motion-design-skills (MIT, pin in INVENTORY).

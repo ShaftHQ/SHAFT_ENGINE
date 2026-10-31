@@ -26,6 +26,9 @@ the product claims will cite (doc URLs, command output, files).
   acronyms the audience has not seen yet.
 - Every product claim carries `evidence` (URL, command plus output, or file
   path). No evidence, no claim. Mockups say "mockup" on screen.
+- **On-screen claims:** every number, proper name, year, or English term
+  shown on screen cites a research URL in the brief or `claims.json`.
+  Unverified facts stay off screen and out of narration.
 - Storyboard rows are data, not prose. Keep `storyboard.json` beside
   `brief.md` and commit both.
 - Narration that asserts something visible gets a `claims` entry (line,

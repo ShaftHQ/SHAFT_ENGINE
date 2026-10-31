@@ -15,7 +15,9 @@ and [L06](../lessons/caption-video-qc.md).
 
 1. **UI map in px:** nothing in the top 168 px; every word inside y
    168-1330; below 1330 px decoration only; no text under the right action
-   rail (its width depends on the platform: measure it).
+   rail (its width depends on the platform: measure it). This px map is
+   the sole 9:16 title-safe gate. D08's percentage table is for planning
+   and other aspects only — never run a second conflicting 9:16 margin.
 2. **Frame 0 is the thumbnail and the hook:** a face, the result or one
    bold line on screen; never black, never a logo. Captions start
    0.1-0.3 s in; a cue at exactly 0 s looks pre-existing.
@@ -75,5 +77,5 @@ and [L06](../lessons/caption-video-qc.md).
 
 ## Sources
 
-- [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/1a238171ec55896a9cb8452c33e4e0fe1063a60c/skills/hyperframes/references) @ `1a238171ec55896a9cb8452c33e4e0fe1063a60c`
+- [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes/tree/164d6c7a36eba26e9126b364beab98437e2eeec7/skills/hyperframes/references) @ `164d6c7a36eba26e9126b364beab98437e2eeec7`
   (Apache-2.0, adapted): `types/vertical.md`, `captions.md`, `overlays.md`.
