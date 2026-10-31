@@ -51,7 +51,7 @@ Personal names and client data stay out of repo text ("the subject" / "the prese
 - **Sources:** chaos.md L4; Carl issue 7651 M1–M3 (gates passed on empty input)
 - **Problem:** New gates defaulted open when inputs absent.
 - **Rule:** Every new observation/receipt gate FAIL when required input missing/empty. Shared helper + test scaffold.
-- **Enforcement:** `chaos-engine/addons/design-skills/scripts/gate_fail_closed.py` (`require_file`, `require_observations`, `fail_hits`); docs in `references/gate-fail-closed.md`; scaffold test module.
+- **Enforcement:** `chaos-engine/gate_fail_closed.py` (`require_file`, `require_observations`, `fail_hits`); docs in `references/gate-fail-closed.md`; scaffold test module.
 - **Acceptance:** Helper returns FAIL hits for missing path / empty observations; template test fails open-gate stub.
 
 ### H-DOC-CLAIM — Doc-claim vs code in review checklist
