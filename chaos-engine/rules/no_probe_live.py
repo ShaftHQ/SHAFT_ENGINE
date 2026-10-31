@@ -13,7 +13,8 @@ _WRITE_ACTIONS = frozenset({
 
 def is_scratch_path(path: str | Path, *, scratch_roots: list[str] | None = None) -> bool:
     text = str(path).replace("\\", "/")
-    roots = scratch_roots or ["/tmp/", "/workspace/"]
+    # Path-prefix allowlist for probe targets; does not create temp files.
+    roots = scratch_roots or ["/tmp/", "/workspace/"]  # nosec B108
     return any(text.startswith(root.rstrip("/") + "/") or text == root.rstrip("/") for root in roots)
 
 

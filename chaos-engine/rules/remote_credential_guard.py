@@ -1,9 +1,10 @@
-"""L77: refuse git remotes with embedded credentials (never print values)."""
+"""
+L77: refuse git remotes with embedded credentials (never print values)."""
 
 from __future__ import annotations
 
 import re
-import subprocess
+import subprocess  # nosec B404 — git remote get-url only, fixed argv
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urlsplit, urlunsplit
@@ -37,7 +38,8 @@ def redact_url(url: str) -> str:
 
 
 def url_embeds_credentials(url: str) -> str | None:
-    """Return a short reason code when *url* embeds credentials; else None.
+    """
+    Return a short reason code when *url* embeds credentials; else None.
 
     Reason codes never include the secret. Empty / missing URL → None.
     """

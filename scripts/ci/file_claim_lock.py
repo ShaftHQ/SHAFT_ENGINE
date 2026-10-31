@@ -1,4 +1,5 @@
-"""File-claim lock: one writer per file path; one task of a kind (WoW §3).
+"""
+File-claim lock: one writer per file path; one task of a kind (WoW §3).
 
 Workers claim exclusive writable paths before edit. Overlapping active claims
 refuse. Complements ``parallel_stream_conflict.py`` (stream ownership) with a

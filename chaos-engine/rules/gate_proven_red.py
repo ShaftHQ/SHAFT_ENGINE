@@ -1,4 +1,5 @@
-"""L74: prove each new gate FAIL on a known-bad fixture first."""
+"""
+L74: prove each new gate FAIL on a known-bad fixture first."""
 
 from __future__ import annotations
 

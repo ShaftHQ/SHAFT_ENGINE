@@ -176,7 +176,7 @@ class L76PreviewProvenRedTest(unittest.TestCase, ProvenRedMixin):
         self._prove(
             CE / "rules/preview_at_real_width.py",
             {
-                "coach_pass": True,
+                "coach_accepted": True,
                 "preview_width_px": 1440,
                 "real_container_width_px": 320,
                 "live_paste": True,

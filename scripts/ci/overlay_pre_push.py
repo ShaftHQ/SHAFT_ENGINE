@@ -663,7 +663,8 @@ def remote_credential_failures(root: Path) -> list[str]:
             "chaos_engine_remote_credential_guard", helper
         )
         module = importlib.util.module_from_spec(spec)
-        assert spec and spec.loader
+        if spec is None or spec.loader is None:
+            return ["L77-no-token-in-remote: load-failed (missing-loader)"]
         spec.loader.exec_module(module)
     except Exception as error:  # nosec B110
         return [f"L77-no-token-in-remote: load-failed ({type(error).__name__})"]

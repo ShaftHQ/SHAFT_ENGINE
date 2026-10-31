@@ -144,7 +144,8 @@ def asr_provenance_hits(obs: dict[str, Any]) -> list[str]:
 
 
 def extract_asr_words(obs: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Return ASR/aligner words from ``asr_path`` (preferred) or None when absent.
+    """
+    Return ASR/aligner words from ``asr_path`` (preferred) or None when absent.
 
     Inline ``asr_words`` alone are insufficient (L65-fu1). Builder onset fields
     alone are not ASR.
@@ -183,7 +184,8 @@ def matched_word_start_s(
     *,
     consumed: set[int] | None = None,
 ) -> float | None:
-    """Pick ASR word start for *cue* by sequential token match (no nearest fallback).
+    """
+    Pick ASR word start for *cue* by sequential token match (no nearest fallback).
 
     L65-fu2: unmatched cue text → None (FAIL upstream).
     L65-fu3: duplicate tokens consume ASR hits in order via *consumed* indices.
