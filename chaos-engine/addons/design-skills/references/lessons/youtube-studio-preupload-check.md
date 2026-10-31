@@ -1,27 +1,27 @@
 ---
 name: youtube-studio-preupload-check
 description: >-
-  Use before uploading or scheduling a Short or cut to YouTube; search Studio
-  for an existing upload and fail closed on duplicates.
+  Use before uploading or scheduling a Short or cut; prove the content library
+  has no conflicting title, and fail closed on duplicates.
 ---
 
 # L57 YouTube Studio pre-upload check
 
 ## Use when
 
-About to upload or schedule a Short, LQ, or chapter to YouTube Studio.
-Extends [L40](youtube-upload-language-order.md) and [L43](lq-vs-short-dup.md).
+About to upload or schedule a Short, LQ, or chapter. Extends
+[L40](youtube-upload-language-order.md) and [L43](lq-vs-short-dup.md).
 
 ## Rules
 
-1. **Search Studio first.** Before the upload dialog commits, query YouTube
-   Studio (content list / search) for the normalized title and, when known, the
-   source / render identity.
-2. **Existing upload = FAIL** unless the brief explicitly records
+1. **Content-library receipt first.** Before committing a new upload, record a
+   content-library receipt that the normalized title (and source / render id
+   when known) was checked against already-listed items.
+2. **Existing item = FAIL** unless the brief explicitly records
    `allow_replace` with the existing `yt_id` and owner approval. Silent
    re-uploads that create duplicate Shorts are forbidden.
 3. Gate: `design_qc.py ytprecheck` with an observations JSON proving the
-   Studio search ran (`queried: true`) and listing `matches`.
+   check ran (`queried: true`) and listing `matches`.
 
 ## Verify
 
@@ -31,8 +31,8 @@ Extends [L40](youtube-upload-language-order.md) and [L43](lq-vs-short-dup.md).
 
 ## Why
 
-Uploading without a Studio search created duplicate Shorts that inventory and
-L43 could not see until too late.
+Uploading without a content-library receipt created duplicate Shorts that
+inventory and L43 could not see until too late.
 
 ## Sources
 

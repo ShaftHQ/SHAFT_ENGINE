@@ -24,6 +24,6 @@ test reads this file together with `index.md`.
 | [L54 Checkpoint generated assets](checkpoint-generated-assets.md) | checkpoint/commit renders immediately; explicit paths |
 | [L55 Signed script header](signed-script-header.md) | mark script header signed on design sign-off |
 | [L56 Digital-human likeness + voice](avatar-likeness-voice-gate.md) | blind likeness+voice vs real refs; fresh independent reviewer; doubt=FAIL |
-| [L57 YouTube Studio pre-upload check](youtube-studio-preupload-check.md) | Studio search before upload; dup Shorts fail closed |
+| [L57 YouTube Studio pre-upload check](youtube-studio-preupload-check.md) | content-library receipt before upload; dup Shorts fail closed |
 | [L58 Inventory yt_id backfill](inventory-yt-id-backfill.md) | after schedule/upload backfill yt_id; no stale nulls |
 | [L59 Retain mp4 until public URL](retain-mp4-until-public-url.md) | keep final mp4 until public watch URL proof |

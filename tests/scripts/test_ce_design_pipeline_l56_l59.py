@@ -53,7 +53,7 @@ class LessonCardsTest(unittest.TestCase):
     def test_cards_and_index(self) -> None:
         for name, needles in (
             ("avatar-likeness-voice-gate.md", ("L56", "likenessvoice", "doubt", "subject")),
-            ("youtube-studio-preupload-check.md", ("L57", "ytprecheck", "Studio")),
+            ("youtube-studio-preupload-check.md", ("L57", "ytprecheck", "content-library")),
             ("inventory-yt-id-backfill.md", ("L58", "ytidbackfill", "yt_id")),
             ("retain-mp4-until-public-url.md", ("L59", "retainmp4", "public")),
             ("freeze-method-before-review.md", ("fixed sample set", "Independent sync")),
