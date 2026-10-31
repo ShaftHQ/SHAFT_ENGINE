@@ -558,11 +558,19 @@ class MotionGraphicsL65Test(unittest.TestCase):
                 {"text": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}", "expected": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}"},
             ],
             "static_text_blocks": [{"text": "ok", "duration_s": 2.0, "words": 1}],
+            # Word-level ASR timings (seconds); cue start aligned within 100ms.
+            "asr_words": [
+                {"word": "Hello", "start": 1.00, "end": 1.20},
+                {"word": "there", "start": 1.25, "end": 1.40},
+                {"word": "friends", "start": 1.45, "end": 1.70},
+            ],
             "captions": [
                 {
-                    "onset_ms_vs_speech": 100,
+                    "start": 1.10,
                     "lines": ["Hello there friends"],
                     "phrase_split": True,
+                    # Builder self-attest ignored for pass/fail.
+                    "onset_ms_vs_speech": 50,
                 }
             ],
             "diagrams": [{"animation": "draw-on"}],
@@ -584,14 +592,20 @@ class MotionGraphicsL65Test(unittest.TestCase):
         bad["static_text_blocks"] = [{"text": "one two three four five six seven", "duration_s": 4.0}]
         hits = mg.evaluate(bad)["hits"]
         self.assertTrue(any("duration" in h or "words" in h for h in hits), hits)
-        # onset
+        # measured onset >150ms (cue early vs ASR)
         bad = dict(good)
-        bad["captions"] = [{"onset_ms_vs_speech": 200, "lines": ["Short line"], "phrase_split": True}]
-        self.assertTrue(any("onset" in h for h in mg.evaluate(bad)["hits"]))
+        bad["captions"] = [{
+            "start": 0.50,
+            "onset_ms_vs_speech": 50,
+            "lines": ["Hello there friends"],
+            "phrase_split": True,
+        }]
+        hits = mg.evaluate(bad)["hits"]
+        self.assertTrue(any("onset>" in h for h in hits), hits)
         # caption line >32
         bad = dict(good)
         bad["captions"] = [{
-            "onset_ms_vs_speech": 50,
+            "start": 1.10,
             "lines": ["x" * 33],
             "phrase_split": True,
         }]
@@ -599,7 +613,7 @@ class MotionGraphicsL65Test(unittest.TestCase):
         # phrase split false
         bad = dict(good)
         bad["captions"] = [{
-            "onset_ms_vs_speech": 50,
+            "start": 1.10,
             "lines": ["Hello-", "world"],
             "phrase_split": False,
         }]
@@ -642,6 +656,51 @@ class MotionGraphicsL65Test(unittest.TestCase):
             obs.write_text(json.dumps({"kind": "kinetic"}), encoding="utf-8")
             code, payload = run_design("mggate", str(obs))
             self.assertEqual(1, code, payload)
+
+    def test_builder_onset_lie_fails_against_asr(self) -> None:
+        """Carl r2: obs claims ≤150ms but ASR delta >150ms → FAIL; missing ASR → FAIL."""
+        sys.path.insert(0, str(ROOT / "chaos-engine/addons/design-skills/scripts"))
+        import motion_graphics_gate as mg
+
+        # Builder swears 50ms; cue at 1.0s vs ASR word at 2.6s → 1600ms measured.
+        lie = {
+            "kind": "kinetic",
+            "transcript_manually_verified": True,
+            "reviewer_brief_lists_mg_checks": True,
+            "shared_with_owner": False,
+            "wip_sample_shared": False,
+            "ocr_frames": [{"text": "ok", "expected": "ok"}],
+            "static_text_blocks": [{"text": "ok", "duration_s": 1.0, "words": 1}],
+            "asr_words": [{"word": "Hello", "start": 2.60, "end": 2.80}],
+            "captions": [{
+                "start": 1.00,
+                "onset_ms_vs_speech": 50,
+                "onset_ms": 50,
+                "lines": ["Hello"],
+                "phrase_split": True,
+            }],
+            "diagrams": [{"animation": "draw-on"}],
+        }
+        hits = mg.evaluate(lie)["hits"]
+        self.assertFalse(mg.evaluate(lie)["ok"], hits)
+        self.assertTrue(any("onset>" in h for h in hits), hits)
+        # Lone builder onset field, no ASR → FAIL missing-asr-words
+        no_asr = dict(lie)
+        del no_asr["asr_words"]
+        hits = mg.evaluate(no_asr)["hits"]
+        self.assertIn("missing-asr-words", hits)
+        self.assertFalse(mg.evaluate(no_asr)["ok"])
+        # Empty ASR list → FAIL
+        empty = dict(lie)
+        empty["asr_words"] = []
+        self.assertIn("empty-asr-words", mg.evaluate(empty)["hits"])
+        # Lesson documents word-level ASR measurement
+        lesson = (
+            ROOT / "chaos-engine/addons/design-skills/references/lessons/motion-graphics-gate.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("word-level", lesson.lower())
+        self.assertIn("asr_words", lesson)
+        self.assertIn("insufficient", lesson.lower())
 
 
 class IdentityOwnerBindingTest(unittest.TestCase):
