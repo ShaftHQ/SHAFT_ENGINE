@@ -1,8 +1,3 @@
-# ChaosEngine SkillSpector baseline (static --no-llm).
-# Each fingerprint is an accepted finding with an audit reason (REVIEW.md).
-# Do NOT add broad rule-id globs that would hide new malicious scripts.
-# Regenerate fingerprints after intentional skill edits: scripts/ci/skillspector_gate.py --refresh-baseline
-# Pinned scanner: see PIN.json
 version: 2
 scanner_version: 2.12.0
 rules: []
@@ -22,76 +17,6 @@ fingerprints:
   file: SKILL.md
   reason: 'Accepted: permissions declare intended probe capabilities; detector under-reported
     (LP4 over-declare).'
-- hash: sha256:308128d5056b2044faf38c4eccef56bc99520ba90d675c0df2bb30f7a725102f
-  rule_id: AST4
-  file: scripts/craft_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:497ba203991b0a95c8819578ab1098e2b63abc6d11e5b3fd920d30906a6927fe
-  rule_id: AST4
-  file: scripts/craft_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:98649c0246a282daddafcc6f2d9f0c56f7e03c3dccf3c6335165bce82fc5709e
-  rule_id: AST4
-  file: scripts/craft_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:aea047dd67e1c72c2dfac2ff4217989785742d2abe0ab287b62c781ebac7b6df
-  rule_id: AST4
-  file: scripts/craft_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:fc07e8999c770a8076251de91950305b0435e93ab455f3da33173045305f4475
-  rule_id: AST4
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:f8d8685cb7ba4722c7190db553beed4be7e9a813dccd4a9095e8f2b679f0856d
-  rule_id: AST4
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:18a8000f86bda17b1092477d75a3bd6fdc64673002b4126a89cf1e12e90b2474
-  rule_id: AST4
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:82bfa06290b4ebb82085ff60506356945e1cea3bac43dbb7d23b7074defbb5f0
-  rule_id: AST4
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:f88d6585532904439ffb62c1efdbea9cbaa977907c47f4bda4d079b469972ea1
-  rule_id: AST6
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: compile(..., "exec") used only for Python syntax check
-    of local files, never executed.'
-- hash: sha256:70cf126b2fb1edb5d89b810c96e1ac06bb8ef42e0e657c09e10314dd6eaa7998
-  rule_id: AST4
-  file: scripts/linkcheck.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:ce760b40cb20155c4e306b5a4e77ad8c9bf2705f4d9b6750218c9f24affd2f13
-  rule_id: AST4
-  file: scripts/liveseo_gates.py
-  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
-    B603).'
-- hash: sha256:75e1a2df95b37f2e3498bfa145eae2eed8fe47b45bc6936bbe5cf36952480856
-  rule_id: TT1
-  file: scripts/design_qc.py
-  reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
-    (# nosec B603), no network exfil.'
-- hash: sha256:1e861ff309c5637b84395f51043ab7b193ed1e20befea20803bbd583c61373f3
-  rule_id: AE1
-  file: SKILL.md
-  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
-    not evasion. Revisit when analyzer budgets rise.'
-- hash: sha256:1f84a9db6a643eadd4f6c28a520cda67054a013cd2b60ab33c4edabe67da3e58
-  rule_id: AE1
-  file: SKILL.md
-  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
-    not evasion. Revisit when analyzer budgets rise.'
 - hash: sha256:bafd3bd2f4d8a93c0213208aa5c0f244c6876404a6c0ff9c82595811fbe5b7d8
   rule_id: LP4
   file: SKILL.md
@@ -184,7 +109,7 @@ fingerprints:
 - hash: sha256:514428646084364e532662396178d98cb24a19718421db84c52cb78df5d8e040
   rule_id: TT2
   file: scripts/runner.py
-  reason: "Accepted agency: same launcher env\u2192Popen path as E2/AST4."
+  reason: 'Accepted agency: same launcher env→Popen path as E2/AST4.'
 - hash: sha256:edb97fb39fa2a635c7ebdf16b3e1d547d7aacb0838f655e9f64e212d8f2acfc3
   rule_id: E2
   file: scripts/runner.py
@@ -195,3 +120,73 @@ fingerprints:
   file: scripts/runner.py
   reason: 'Accepted agency: OmniRoute forwards operator environ to identity-sealed
     local CLI children; no harvest/send off-box.'
+- hash: sha256:308128d5056b2044faf38c4eccef56bc99520ba90d675c0df2bb30f7a725102f
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:497ba203991b0a95c8819578ab1098e2b63abc6d11e5b3fd920d30906a6927fe
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:98649c0246a282daddafcc6f2d9f0c56f7e03c3dccf3c6335165bce82fc5709e
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:aea047dd67e1c72c2dfac2ff4217989785742d2abe0ab287b62c781ebac7b6df
+  rule_id: AST4
+  file: scripts/craft_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:fc07e8999c770a8076251de91950305b0435e93ab455f3da33173045305f4475
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:f8d8685cb7ba4722c7190db553beed4be7e9a813dccd4a9095e8f2b679f0856d
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:18a8000f86bda17b1092477d75a3bd6fdc64673002b4126a89cf1e12e90b2474
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:82bfa06290b4ebb82085ff60506356945e1cea3bac43dbb7d23b7074defbb5f0
+  rule_id: AST4
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:f88d6585532904439ffb62c1efdbea9cbaa977907c47f4bda4d079b469972ea1
+  rule_id: AST6
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: compile(..., "exec") used only for Python syntax check
+    of local files, never executed.'
+- hash: sha256:70cf126b2fb1edb5d89b810c96e1ac06bb8ef42e0e657c09e10314dd6eaa7998
+  rule_id: AST4
+  file: scripts/linkcheck.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:ce760b40cb20155c4e306b5a4e77ad8c9bf2705f4d9b6750218c9f24affd2f13
+  rule_id: AST4
+  file: scripts/liveseo_gates.py
+  reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
+    B603).'
+- hash: sha256:75e1a2df95b37f2e3498bfa145eae2eed8fe47b45bc6936bbe5cf36952480856
+  rule_id: TT1
+  file: scripts/design_qc.py
+  reason: 'Accepted agency: pwsh parse-only receives CMD via minimal env; fixed argv
+    (# nosec B603), no network exfil.'
+- hash: sha256:e558dab56a63c1222bdf61fc2d7807dae68f4ef1c7fb652ebbf673360c37fe24
+  rule_id: AE1
+  file: SKILL.md
+  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
+    not evasion. Revisit when analyzer budgets rise.'
+- hash: sha256:b6c5cab6ea5ad16190e87b88296286ba0b0d0d871c0cc7c65c6e33054b2cc87f
+  rule_id: AE1
+  file: SKILL.md
+  reason: 'Accepted: SkillSpector partial coverage on large intentional QC helpers/cards;
+    not evasion. Revisit when analyzer budgets rise.'
