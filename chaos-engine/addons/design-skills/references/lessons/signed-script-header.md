@@ -1,13 +1,13 @@
 ---
 name: signed-script-header
-description: Use when Coach (or the design owner) signs a video/avatar script; mark the script header as signed in the same edit.
+description: Use when the design owner signs a video/avatar script; mark the script header as signed in the same edit.
 ---
 
 # L55 Signed script header
 
 ## Use when
 
-A script receives design/Coach sign-off before shot generation.
+A script receives design sign-off before shot generation.
 
 ## Rules
 
@@ -24,4 +24,4 @@ A script receives design/Coach sign-off before shot generation.
 
 ## Sources
 
-Field retro 2026-10-31 (Coach sign-off). Companions: L48, L53.
+Field retro 2026-10-31 (script sign-off). Companions: L48, L53.

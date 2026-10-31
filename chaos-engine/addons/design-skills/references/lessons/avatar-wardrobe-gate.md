@@ -17,9 +17,11 @@ buttons, colour). Extends [L20](avatar-voice-first.md).
    missing or disagrees with the signed wardrobe spec.
 2. **Crop the collar / placket** for inspection; a wide face crop alone is not
    enough.
-3. **Count each button** open vs closed against the spec (Locked avatar wardrobe = navy
-   half-sleeve polo, buttons properly closed, friendly presenter — unless the signed
-   script says otherwise).
+3. **Per-button check (digital-human / avatar).** Spec `buttons` is an ordered list
+   of `{id, closed}` (or equivalent). Each sample must record the same list; a
+   single aggregate `buttons_closed` count alone is not enough when `buttons` is
+   present. Locked presenter wardrobe = navy half-sleeve polo, each button properly
+   closed, friendly presenter — unless the signed script says otherwise.
 4. **Sample every 0.5 s** across the speech window (and any held tail). A single
    hero frame is not enough. **0 observations = FAIL** (never pass without
    collar/button samples).
@@ -30,8 +32,9 @@ buttons, colour). Extends [L20](avatar-voice-first.md).
 
 - [ ] `design_qc.py wardrobe out.mp4 --ref ref.png --spec wardrobe.json` without
       `--observations` fails (`missing-observations` / argparse required).
-- [ ] With `--observations`, fails when ref is missing, button count drifts,
-      sample interval >0.5 s, or the observations list is empty.
+- [ ] With `--observations`, fails when ref is missing, aggregate button count
+      drifts, **any per-button row disagrees**, sample interval >0.5 s, or the
+      observations list is empty.
 - [ ] Pass attaches collar crops at 0.5 s steps.
 
 ## Why

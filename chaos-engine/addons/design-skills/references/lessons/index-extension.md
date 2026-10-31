@@ -1,4 +1,4 @@
-# Lesson index extension (L40–L55)
+# Lesson index extension (L40–L59)
 
 Rows for Phase 1 memory-abstraction lessons plus 2026-10-31 retro cards. Kept separate from
 `index.md` so a sibling video sign-off lesson PR can own L39 + the
@@ -22,5 +22,8 @@ test reads this file together with `index.md`.
 | [L52 Per-cue sync adjudication](per-cue-sync-adjudication.md) | disputed cues: discard snap FA; false-lead; silence bridge; adjudic.json SoT |
 | [L53 Freeze METHOD before review](freeze-method-before-review.md) | METHOD.md+script before review; AMBIG rules; cap 2 fix rounds |
 | [L54 Checkpoint generated assets](checkpoint-generated-assets.md) | checkpoint/commit renders immediately; explicit paths |
-| [L55 Signed script header](signed-script-header.md) | mark script header signed on Coach/design sign-off |
-
+| [L55 Signed script header](signed-script-header.md) | mark script header signed on design sign-off |
+| [L56 Digital-human likeness + voice](avatar-likeness-voice-gate.md) | blind likeness+voice vs real refs; fresh independent reviewer; doubt=FAIL |
+| [L57 YouTube Studio pre-upload check](youtube-studio-preupload-check.md) | Studio search before upload; dup Shorts fail closed |
+| [L58 Inventory yt_id backfill](inventory-yt-id-backfill.md) | after schedule/upload backfill yt_id; no stale nulls |
+| [L59 Retain mp4 until public URL](retain-mp4-until-public-url.md) | keep final mp4 until public watch URL proof |

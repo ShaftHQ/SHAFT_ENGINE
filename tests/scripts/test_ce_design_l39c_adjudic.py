@@ -37,7 +37,7 @@ class LessonCardsTest(unittest.TestCase):
     def test_cards_exist(self) -> None:
         for name, needles in (
             ("per-cue-sync-adjudication.md", ("L52", "adjudic", "discard", "false_lead", "post_silence_rms_rise")),
-            ("freeze-method-before-review.md", ("L53", "METHOD.md", "2 fix", "AMBIG")),
+            ("freeze-method-before-review.md", ("L53", "METHOD.md", "2 fix", "AMBIG", "fixed sample set")),
             ("checkpoint-generated-assets.md", ("L54", "checkpoint", "explicit")),
             ("signed-script-header.md", ("L55", "signed")),
             ("caption-min-cue-independent-sync.md", ("token-overlap", "--single-model")),

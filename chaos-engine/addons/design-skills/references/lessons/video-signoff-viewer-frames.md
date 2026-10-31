@@ -66,6 +66,16 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
 - [ ] Safe-area check; after upload: watch page with captions OFF
 - [ ] When wardrobe/sync/meta apply: wardrobe / capsync (L49 or L44 --single-model) / rendermeta
 - [ ] Disputed sync cues: design_qc.py adjudic adjudication.json (L52)
+- [ ] Digital-human / avatar claiming the subject: design_qc.py likenessvoice <mp4> --observations <json> (L56)
+- [ ] Likeness: fresh independent reviewer, blind side-by-side vs real photo/video refs; any doubt = FAIL
+- [ ] Voice: same reviewer, blind vs real reference audio; any doubt = FAIL; no SIGN without both
+- [ ] Rerender: design_qc.py rendermeta <mp4> --meta upload.meta (L50; regen every render)
+- [ ] Before slotting extend/LQ: design_qc.py extendfeas <inventory.json> (L51)
+- [ ] Sync: independent anchors + frozen METHOD.md fixed sample set (L49/L44 + L53)
+- [ ] Wardrobe: per-button samples when spec.buttons present (L48)
+- [ ] Before YouTube upload: design_qc.py ytprecheck --observations <json> (L57)
+- [ ] After schedule/upload: design_qc.py ytidbackfill <inventory.json> (L58)
+- [ ] Retain final mp4 until public URL: design_qc.py retainmp4 --observations <json> (L59)
 Receipts: attach the JSON stdout of each design_qc command.
 Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.
 ```

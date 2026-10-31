@@ -805,6 +805,44 @@ def _wardrobe_spec_hits(spec: dict) -> list[str]:
     return [f"spec-missing:{','.join(missing)}"] if missing else []
 
 
+def _wardrobe_button_hits(index: int, row: dict, spec: dict) -> list[str]:
+    """Aggregate and per-button wardrobe hits for one sample."""
+    hits: list[str] = []
+    expected_closed = int(spec.get("buttons_closed", -1))
+    closed = row.get("buttons_closed")
+    if closed is None and not isinstance(spec.get("buttons"), list):
+        hits.append(f"sample[{index}]:missing-button-count")
+    elif closed is not None and expected_closed >= 0 and int(closed) != expected_closed:
+        hits.append(
+            f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
+        )
+    spec_buttons = spec.get("buttons")
+    if isinstance(spec_buttons, list) and len(spec_buttons) > 0:
+        got = row.get("buttons")
+        if not isinstance(got, list) or len(got) == 0:
+            hits.append(f"sample[{index}]:missing-per-button")
+        else:
+            by_id = {
+                str(item.get("id")): item
+                for item in got
+                if isinstance(item, dict) and item.get("id") is not None
+            }
+            for expected in spec_buttons:
+                if not isinstance(expected, dict):
+                    continue
+                bid = str(expected.get("id"))
+                sample = by_id.get(bid)
+                if sample is None:
+                    hits.append(f"sample[{index}]:button-missing:{bid}")
+                    continue
+                if bool(sample.get("closed")) != bool(expected.get("closed")):
+                    hits.append(
+                        f"sample[{index}]:button[{bid}]:"
+                        f"closed={sample.get('closed')}!=spec:{expected.get('closed')}"
+                    )
+    return hits
+
+
 def _wardrobe_observation_hits(
     observations: list,
     spec: dict,
@@ -814,25 +852,243 @@ def _wardrobe_observation_hits(
 ) -> list[str]:
     """Per-sample collar/button/colour drift vs spec and sample density."""
     hits: list[str] = []
-    expected_closed = int(spec.get("buttons_closed", -1))
     expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
     if len(observations) < max(1, expected_samples - 1):
         hits.append(f"undersampled:{len(observations)}<{expected_samples} at {sample_s}s")
     for index, row in enumerate(observations):
         if not row.get("collar_crop"):
             hits.append(f"sample[{index}]:missing-collar-crop")
-        closed = row.get("buttons_closed")
-        if closed is None:
-            hits.append(f"sample[{index}]:missing-button-count")
-        elif expected_closed >= 0 and int(closed) != expected_closed:
-            hits.append(
-                f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
-            )
+        hits.extend(_wardrobe_button_hits(index, row, spec))
         if spec.get("colour") and row.get("colour") and row.get("colour") != spec.get("colour"):
             hits.append(f"sample[{index}]:colour-drift:{row.get('colour')}")
         if spec.get("sleeve") and row.get("sleeve") and row.get("sleeve") != spec.get("sleeve"):
             hits.append(f"sample[{index}]:sleeve-drift:{row.get('sleeve')}")
     return hits
+
+
+
+def _likenessvoice_axis_hits(axis: str, block: object) -> list[str]:
+    """FAIL closed on missing/doubt/fail for one likeness or voice axis."""
+    hits: list[str] = []
+    if not isinstance(block, dict):
+        return [f"missing-{axis}"]
+    refs = block.get("refs")
+    if not isinstance(refs, list) or len(refs) == 0:
+        hits.append(f"{axis}-missing-refs")
+    if block.get("side_by_side") is not True:
+        hits.append(f"{axis}-not-side-by-side")
+    verdict = block.get("verdict")
+    if verdict is None:
+        hits.append(f"{axis}-missing-verdict")
+    elif str(verdict).lower() in {"doubt", "fail", "ambiguous", "unsure"}:
+        hits.append(f"{axis}-{str(verdict).lower()}")
+    elif str(verdict).lower() != "pass":
+        hits.append(f"{axis}-bad-verdict:{verdict}")
+    return hits
+
+
+def _likenessvoice_obs_hits(obs: dict) -> list[str]:
+    """Independent + blind + dual-axis hits for digital-human acceptance."""
+    hits: list[str] = []
+    if obs.get("independent_reviewer") is not True:
+        hits.append("missing-independent-reviewer")
+    if obs.get("blind") is not True:
+        hits.append("missing-blind")
+    builder = obs.get("builder_id")
+    reviewer = obs.get("reviewer_id")
+    if builder and reviewer and str(builder) == str(reviewer):
+        hits.append("reviewer-same-as-builder")
+    hits.extend(_likenessvoice_axis_hits("likeness", obs.get("likeness")))
+    hits.extend(_likenessvoice_axis_hits("voice", obs.get("voice")))
+    return hits
+
+
+def cmd_likenessvoice(args: argparse.Namespace) -> int:
+    """L56: blind likeness + voice vs real refs; fresh independent reviewer."""
+    render = Path(args.file)
+    if not render.is_file():
+        return report(
+            "likenessvoice", FAIL, hits=["missing-render"],
+            error=f"no file: {render}",
+        )
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        return report(
+            "likenessvoice", FAIL, hits=["missing-observations"],
+            error="--observations required (independent+blind likeness+voice)",
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report(
+            "likenessvoice", FAIL, hits=["missing-observations"],
+            error=f"no file: {op}",
+        )
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("likenessvoice", FAIL, hits=["bad-observations"], error=str(exc))
+    if not isinstance(raw, dict):
+        return report(
+            "likenessvoice", FAIL, hits=["bad-observations"],
+            error="observations must be an object",
+        )
+    hits = _likenessvoice_obs_hits(raw)
+    return report(
+        "likenessvoice", FAIL if hits else PASS,
+        hits=hits,
+        render=str(render),
+        note="fresh independent reviewer; blind likeness+voice; any doubt=FAIL",
+    )
+
+
+
+
+def _ytprecheck_load(obs_path: object) -> tuple[dict | None, list[str], str | None]:
+    """Load ytprecheck observations; return (raw, hits, error)."""
+    if not obs_path:
+        return None, ["missing-observations"], "--observations required (Studio search receipt)"
+    op = Path(str(obs_path))
+    if not op.is_file():
+        return None, ["missing-observations"], f"no file: {op}"
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, ["bad-observations"], str(exc)
+    if not isinstance(raw, dict):
+        return None, ["bad-observations"], "observations must be an object"
+    return raw, [], None
+
+
+def _ytprecheck_matches_list(search: dict) -> tuple[list, list[str]]:
+    """Normalize matches list; return (matches, hits)."""
+    matches = search.get("matches")
+    if matches is None:
+        return [], ["missing-matches"]
+    if not isinstance(matches, list):
+        return [], ["bad-matches"]
+    return matches, []
+
+
+def _ytprecheck_allow_hits(raw: dict, matches: list) -> list[str]:
+    """Hits for allow_replace vs existing Studio matches."""
+    if not matches:
+        return []
+    allow = raw.get("allow_replace") is True
+    if not allow:
+        return [f"existing-upload:{len(matches)}"]
+    allow_id = str(raw.get("yt_id") or raw.get("allow_yt_id") or "").strip()
+    if not allow_id:
+        return ["allow-replace-missing-yt-id"]
+    ids = {
+        str(m.get("yt_id") or m.get("id") or "")
+        for m in matches if isinstance(m, dict)
+    }
+    if allow_id not in ids:
+        return [f"allow-yt-id-not-in-matches:{allow_id}"]
+    return []
+
+
+def _ytprecheck_match_hits(raw: dict) -> tuple[list[str], int]:
+    """Score Studio search matches / allow_replace."""
+    hits: list[str] = []
+    search = raw.get("studio_search") if isinstance(raw.get("studio_search"), dict) else raw
+    if search.get("queried") is not True:
+        hits.append("studio-not-queried")
+    matches, match_hits = _ytprecheck_matches_list(search)
+    hits.extend(match_hits)
+    hits.extend(_ytprecheck_allow_hits(raw, matches))
+    return hits, len(matches)
+
+
+def cmd_ytprecheck(args: argparse.Namespace) -> int:
+    """L57: Studio search before upload; existing matches fail closed."""
+    raw, hits, err = _ytprecheck_load(getattr(args, "observations", None))
+    if raw is None:
+        return report("ytprecheck", FAIL, hits=hits, error=err)
+    match_hits, match_count = _ytprecheck_match_hits(raw)
+    hits.extend(match_hits)
+    return report(
+        "ytprecheck", FAIL if hits else PASS,
+        hits=hits,
+        matches=match_count,
+        note="search Studio before upload; dups fail closed",
+    )
+
+
+def _ytid_row_needs_id(unit: dict) -> bool:
+    status = str(unit.get("status") or unit.get("state") or "").strip().lower()
+    return status in {"scheduled", "uploaded", "public", "live", "published"}
+
+
+def cmd_ytidbackfill(args: argparse.Namespace) -> int:
+    """L58: scheduled/uploaded rows must carry a non-empty yt_id."""
+    path = Path(args.inventory)
+    if not path.is_file():
+        return report("ytidbackfill", FAIL, hits=["missing-inventory"], error=f"no file: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("ytidbackfill", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("ytidbackfill", FAIL, hits=["bad-inventory"], error="units list required")
+    hits: list[str] = []
+    checked = 0
+    for index, unit in enumerate(units):
+        if not isinstance(unit, dict) or not _ytid_row_needs_id(unit):
+            continue
+        checked += 1
+        yt_id = unit.get("yt_id") or unit.get("youtube_id") or unit.get("video_id")
+        if yt_id is None or str(yt_id).strip() == "" or str(yt_id).strip().lower() == "null":
+            label = unit.get("id") or unit.get("title") or index
+            hits.append(f"stale-null-yt-id:{label}")
+    return report(
+        "ytidbackfill", FAIL if hits else PASS,
+        hits=hits,
+        checked=checked,
+        note="backfill yt_id after every schedule; no stale nulls",
+    )
+
+
+def cmd_retainmp4(args: argparse.Namespace) -> int:
+    """L59: keep final mp4 until public URL proof exists."""
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        return report(
+            "retainmp4", FAIL, hits=["missing-observations"],
+            error="--observations required (final_mp4 + public_url proof)",
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report("retainmp4", FAIL, hits=["missing-observations"], error=f"no file: {op}")
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("retainmp4", FAIL, hits=["bad-observations"], error=str(exc))
+    if not isinstance(raw, dict):
+        return report("retainmp4", FAIL, hits=["bad-observations"], error="observations must be an object")
+    hits: list[str] = []
+    public_url = str(raw.get("public_url") or "").strip()
+    mp4_path = raw.get("final_mp4") or raw.get("mp4")
+    present = raw.get("mp4_present")
+    if mp4_path:
+        on_disk = Path(str(mp4_path)).is_file()
+        if present is None:
+            present = on_disk
+        elif present and not on_disk:
+            hits.append("mp4-claimed-present-missing")
+    if present is None:
+        hits.append("missing-mp4-present")
+        present = False
+    if not public_url and not present:
+        hits.append("mp4-dropped-before-public-url")
+    return report(
+        "retainmp4", FAIL if hits else PASS,
+        hits=hits,
+        public_url=public_url or None,
+        mp4_present=bool(present),
+        note="keep final mp4 until public URL proof",
+    )
 
 
 def cmd_wardrobe(args: argparse.Namespace) -> int:
@@ -2286,6 +2542,22 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--sample", type=float, default=0.5, help="sample interval seconds (max 0.5)")
     p.add_argument("--observations", required=True,
                    help="required JSON list of per-sample collar crops + button counts (0 = FAIL)")
+    p = add("likenessvoice", cmd_likenessvoice,
+            "L56: blind likeness+voice vs real refs; fresh independent reviewer")
+    p.add_argument("file", help="digital-human / avatar / talk render")
+    p.add_argument("--observations", required=True,
+                   help="required JSON: independent_reviewer, blind, likeness{}, voice{}")
+    p = add("ytprecheck", cmd_ytprecheck,
+            "L57: YouTube Studio search before upload; dups fail closed")
+    p.add_argument("--observations", required=True,
+                   help="JSON: studio_search.queried + matches; optional allow_replace")
+    p = add("ytidbackfill", cmd_ytidbackfill,
+            "L58: scheduled/uploaded inventory rows must have yt_id")
+    p.add_argument("inventory", help="inventory JSON with units[{status,yt_id,...}]")
+    p = add("retainmp4", cmd_retainmp4,
+            "L59: keep final mp4 until public URL proof")
+    p.add_argument("--observations", required=True,
+                   help="JSON: final_mp4, mp4_present, public_url")
     p = add("rendermeta", cmd_rendermeta,
             "L50: meta.render_rev/sha must match current render")
     p.add_argument("file", help="current render mp4")
