@@ -15,7 +15,7 @@ generated artifact under a volatile path. Extends
 ## Rules
 
 1. **Checkpoint or commit immediately.** As soon as a generated asset lands,
-   run `tool.py checkpoint` naming the asset path **or** stage only those named paths and commit (never `git add -A` / `commit -a`). Do not wait for the full
+   run `tool.py checkpoint` naming the asset path **or** stage only those explicit named paths and commit (never `git add -A` / `commit -a`). Do not wait for the full
    QC pass if a box restart would drop the file.
 2. **Keep finals under `/workspace`.** Scratch outside `/workspace` is lost on
    Update Bot / recover.
