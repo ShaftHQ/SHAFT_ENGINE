@@ -25,7 +25,7 @@ public interface Internal extends EngineProperties<Internal> {
      * @return the configured value of {@code shaftEngineVersion}
      */
     @Key("shaftEngineVersion")
-    @DefaultValue("10.4.20261101")
+    @DefaultValue("10.4.20261102")
     String shaftEngineVersion();
 
     /**
