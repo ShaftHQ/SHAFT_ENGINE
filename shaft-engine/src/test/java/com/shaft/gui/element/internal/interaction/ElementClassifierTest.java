@@ -239,6 +239,44 @@ public class ElementClassifierTest {
         }
     }
 
+    @Test(description = "#7669: safeNativeAttribute never sends empty or Android-only names to the driver")
+    public void safeNativeAttributeNeverQueriesAndroidOnlySkips() {
+        String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        String originalBrowser = com.shaft.driver.SHAFT.Properties.mobile.browserName();
+        String originalAutomation = com.shaft.driver.SHAFT.Properties.mobile.automationName();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("iOS");
+        com.shaft.driver.SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        try {
+            WebElement element = mock(WebElement.class);
+            when(element.getDomAttribute(anyString())).thenAnswer(invocation -> {
+                String name = invocation.getArgument(0);
+                if (name == null || name.isEmpty() || "password".equals(name) || "package".equals(name)) {
+                    throw new org.openqa.selenium.WebDriverException("unknown attribute '" + name + "'");
+                }
+                if ("type".equals(name)) {
+                    return "XCUIElementTypeButton";
+                }
+                if ("enabled".equals(name)) {
+                    return "true";
+                }
+                return null;
+            });
+            Assert.assertNull(ElementClassifier.safeNativeAttribute(element, "password"));
+            Assert.assertNull(ElementClassifier.safeNativeAttribute(element, "package"));
+            Assert.assertEquals(ElementClassifier.safeNativeAttribute(element, "class"), "XCUIElementTypeButton");
+            ElementClassifier.fromNativeElement(element);
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.never()).getDomAttribute("");
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.never()).getDomAttribute("password");
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.never()).getDomAttribute("package");
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.never()).getDomAttribute("class");
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.atLeastOnce()).getDomAttribute("type");
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.atLeastOnce()).getDomAttribute("enabled");
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+            com.shaft.driver.SHAFT.Properties.mobile.set().browserName(originalBrowser).automationName(originalAutomation);
+        }
+    }
+
     @Test(description = "Web classify reads class from getAttribute when getDomAttribute throws")
     public void webClassifyReadsClassFromGetAttributeWhenDomAttributeThrows() {
         String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();

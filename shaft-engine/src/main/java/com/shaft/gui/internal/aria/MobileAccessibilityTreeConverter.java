@@ -146,7 +146,8 @@ public final class MobileAccessibilityTreeConverter {
         return "";
     }
 
-    private static String attribute(Element element, String name) {
+    /** Package-visible so #7669 unit tests can assert the empty-issued short-circuit. */
+    static String attribute(Element element, String name) {
         String issued = IosXcuiAttributeNames.issued(name);
         if (issued.isEmpty()) {
             return "";

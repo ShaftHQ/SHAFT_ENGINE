@@ -347,9 +347,9 @@ public final class ElementClassifier {
         return "FlutterIntegration".equalsIgnoreCase(com.shaft.driver.SHAFT.Properties.mobile.automationName());
     }
 
-    private static String safeNativeAttribute(WebElement element, String name) {
+    static String safeNativeAttribute(WebElement element, String name) {
         try {
-            return element.getDomAttribute(IosXcuiAttributeNames.issued(name));
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
         } catch (RuntimeException ignored) {
             return null;
         }

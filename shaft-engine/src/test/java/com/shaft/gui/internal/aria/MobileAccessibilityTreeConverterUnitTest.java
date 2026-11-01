@@ -4,6 +4,12 @@ import com.shaft.driver.SHAFT;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.StringReader;
 import java.util.List;
 
 public class MobileAccessibilityTreeConverterUnitTest {
@@ -177,5 +183,29 @@ public class MobileAccessibilityTreeConverterUnitTest {
         Assert.assertEquals(MobileAccessibilityTreeConverter.convert(xml), List.of(
                 new AriaNode("button", "Sign in", List.of())
         ));
+    }
+
+    @Test(description = "#7669: iOS empty-issued attrs short-circuit without reading Android-only XML names")
+    public void iosEmptyIssuedAttributeShortCircuits() throws Exception {
+        String platform = SHAFT.Properties.platform.targetPlatform();
+        String browser = SHAFT.Properties.mobile.browserName();
+        String automation = SHAFT.Properties.mobile.automationName();
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        try {
+            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(
+                    new InputSource(new StringReader(
+                            "<XCUIElementTypeButton password=\"true\" package=\"com.app\" label=\"Go\" content-desc=\"ignored\"/>")));
+            Element element = document.getDocumentElement();
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "password"), "");
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "package"), "");
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "content-desc"), "Go");
+            Assert.assertEquals(MobileAccessibilityTreeConverter.convert(
+                    "<XCUIElementTypeButton type=\"XCUIElementTypeButton\" label=\"Sign in\"/>"),
+                    List.of(new AriaNode("button", "Sign in", List.of())));
+        } finally {
+            SHAFT.Properties.platform.set().targetPlatform(platform);
+            SHAFT.Properties.mobile.set().browserName(browser).automationName(automation);
+        }
     }
 }

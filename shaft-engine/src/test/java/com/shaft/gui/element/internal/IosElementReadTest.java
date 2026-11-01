@@ -115,9 +115,17 @@ public class IosElementReadTest {
             Assert.assertEquals(actions.get().attribute(LOCATOR, "scrollable"), "false");
             Assert.assertEquals(actions.get().attribute(LOCATOR, "clickable"), "true");
             Assert.assertEquals(actions.get().attribute(LOCATOR, "resource-id"), "login_button");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "content-desc"), "Sign in");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "checked"), "true");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "bounds"), "{{0,0},{10,10}}");
             Assert.assertNull(actions.get().attribute(LOCATOR, "checkable"));
             Assert.assertNull(actions.get().attribute(LOCATOR, "long-clickable"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "password"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "package"));
             Assert.assertEquals(actions.get().domAttribute(LOCATOR, "scrollable"), "false");
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "content-desc"), "Sign in");
+            Assert.assertNull(actions.get().domAttribute(LOCATOR, "password"));
+            Assert.assertNull(actions.get().domAttribute(LOCATOR, "package"));
         }
         verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
         verify(element, org.mockito.Mockito.never()).getDomAttribute("scrollable");
@@ -125,10 +133,23 @@ public class IosElementReadTest {
         verify(element, org.mockito.Mockito.never()).getAttribute("long-clickable");
         verify(element, org.mockito.Mockito.never()).getAttribute("clickable");
         verify(element, org.mockito.Mockito.never()).getAttribute("resource-id");
+        verify(element, org.mockito.Mockito.never()).getAttribute("content-desc");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("content-desc");
+        verify(element, org.mockito.Mockito.never()).getAttribute("password");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("password");
+        verify(element, org.mockito.Mockito.never()).getAttribute("package");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("package");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checked");
+        verify(element, org.mockito.Mockito.never()).getAttribute("bounds");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("");
         verify(element).getAttribute("type");
-        verify(element).getDomAttribute("type");
+        verify(element, org.mockito.Mockito.atLeastOnce()).getDomAttribute("type");
         verify(element).getAttribute("hittable");
         verify(element).getAttribute("name");
+        verify(element).getAttribute("label");
+        verify(element).getDomAttribute("label");
+        verify(element).getAttribute("selected");
+        verify(element).getAttribute("rect");
     }
 
     @Test(description = "#7669: scrollable is true when XCUI type is a scroll container")
@@ -153,8 +174,39 @@ public class IosElementReadTest {
         Assert.assertEquals(IosXcuiAttributeNames.issued("scrollable"), "scrollable");
         Assert.assertEquals(IosXcuiAttributeNames.issued("clickable"), "clickable");
         Assert.assertEquals(IosXcuiAttributeNames.issued("resource-id"), "resource-id");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("content-desc"), "content-desc");
         Assert.assertEquals(IosXcuiAttributeNames.issued("checkable"), "checkable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("password"), "password");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("package"), "package");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("bounds"), "bounds");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checked"), "checked");
         Assert.assertEquals(IosXcuiAttributeNames.interpret("scrollable", "true"), "true");
+    }
+
+    @Test(description = "#7669: iOS issued() covers full Expected table including skips")
+    public void iosIssuedCoversFullExpectedTable() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("content-desc"), "label");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("contentDesc"), "label");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("bounds"), "rect");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checked"), "selected");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("password"), "");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("package"), "");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("longClickable"), "");
+        Assert.assertNull(IosXcuiAttributeNames.readDomAttribute(element(), "password"));
+        Assert.assertNull(IosXcuiAttributeNames.readDomAttribute(element(), "package"));
+        Assert.assertNull(IosXcuiAttributeNames.readAttribute(element(), "password"));
+    }
+
+    @Test(description = "#7669: soft read swallows driver errors")
+    public void softReadSwallowsDriverErrors() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement element = element();
+        when(element.getAttribute("type")).thenThrow(new WebDriverException("transient"));
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "scrollable"));
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "password"));
     }
 
     @Test(description = "#7669: IosXcuiAttributeNames.read maps scrollable via type and never asks for scrollable")
@@ -335,13 +387,24 @@ public class IosElementReadTest {
         if ("name".equals(name)) {
             return "login_button";
         }
+        if ("label".equals(name)) {
+            return "Sign in";
+        }
+        if ("selected".equals(name)) {
+            return "true";
+        }
+        if ("rect".equals(name)) {
+            return "{{0,0},{10,10}}";
+        }
         if ("class".equals(name)) {
             return "android.widget.Button";
         }
         if ("scrollable".equals(name) || "checkable".equals(name) || "clickable".equals(name)
-                || "long-clickable".equals(name) || "resource-id".equals(name)) {
+                || "long-clickable".equals(name) || "resource-id".equals(name)
+                || "content-desc".equals(name) || "password".equals(name) || "package".equals(name)
+                || "checked".equals(name) || "bounds".equals(name) || "".equals(name)) {
             throw new WebDriverException("The attribute '" + name
-                    + "' is unknown. Valid attribute names are: (type, hittable, name, wdType)");
+                    + "' is unknown. Valid attribute names are: (type, hittable, name, label, selected, rect, wdType)");
         }
         throw new WebDriverException("The attribute '" + name + "' is unknown. Valid attribute names are: (type, wdType)");
     }
