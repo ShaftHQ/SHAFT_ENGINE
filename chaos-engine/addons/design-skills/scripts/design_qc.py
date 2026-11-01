@@ -266,11 +266,37 @@ def tokenizer_unk_rate(tokens: list[str], *, unk_token: str = "<unk>") -> float:
 
 
 
+# Common English sentence-starters / greetings — not proper nouns (L96 / Carl L4).
+_SENTENCE_START_DENYLIST = frozenset(
+    {
+        "a", "an", "the", "this", "that", "these", "those",
+        "i", "we", "you", "he", "she", "it", "they",
+        "my", "our", "your", "his", "her", "its", "their",
+        "in", "on", "at", "to", "for", "of", "from", "with", "by", "as",
+        "and", "but", "or", "so", "yet", "nor",
+        "if", "when", "while", "where", "what", "who", "whom", "whose",
+        "which", "why", "how",
+        "is", "are", "was", "were", "be", "been", "being", "am",
+        "do", "does", "did", "have", "has", "had",
+        "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+        "not", "no", "yes", "here", "there", "now", "then",
+        "today", "tomorrow", "yesterday",
+        "hello", "hi", "hey", "please", "thanks", "thank", "welcome", "dear",
+        "after", "before", "during", "until", "unless", "although", "though",
+        "because", "since",
+        "also", "just", "only", "even", "still", "already", "always", "never",
+        "often", "first", "second", "next", "last", "once", "again",
+        "let", "lets", "ok", "okay",
+    }
+)
+
+
 def extract_proper_nouns(script: str) -> list[str]:
     """
     Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
 
-    Sentence-initial bare words are skipped unless CamelCase or multi-word Title Case.
+    Sentence-initial Capitalized tokens are kept unless they match the common
+    English starter denylist (Carl L4 / Mohab→Moheb at script start).
     Explicit ``--proper-noun`` values are merged by the caller.
     """
     found: list[str] = []
@@ -287,6 +313,12 @@ def extract_proper_nouns(script: str) -> list[str]:
         re.M,
     ):
         found.append(m.group(1))
+    # Sentence-initial Capitalized tokens (L96): keep names, skip common starters.
+    for m in re.finditer(r"(?:^|[.!?\n]\s+)([A-Z][a-zA-Z0-9]{1,})\b", script, re.M):
+        token = m.group(1)
+        if token.lower() in _SENTENCE_START_DENYLIST:
+            continue
+        found.append(token)
     # Dedupe preserving order
     out: list[str] = []
     seen: set[str] = set()

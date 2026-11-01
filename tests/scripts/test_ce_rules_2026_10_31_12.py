@@ -360,6 +360,52 @@ class L93L96FailClosedCmdTtsTest(TestCase):
         self.assertIn("Mohab", nouns)
         self.assertIn("Automatest", nouns)
 
+    def test_extract_sentence_initial_name_not_denylisted(self) -> None:
+        filler = " ".join(["word"] * 40)
+        nouns = self.qc.extract_proper_nouns(f"Mohab built Automatest and then {filler}")
+        self.assertIn("Mohab", nouns)
+        self.assertIn("Automatest", nouns)
+        self.assertNotIn("Hello", self.qc.extract_proper_nouns("Hello world today here"))
+
+    def test_cmd_tts_sentence_initial_mohab_miss_fails_default_wer(self) -> None:
+        """Carl L4 / L96: Mohab→Moheb at script start must FAIL under default WER 15%."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "s.txt"
+            heard = root / "h.txt"
+            tokens = root / "tok.txt"
+            filler = " ".join(["word"] * 40)
+            script_text = f"Mohab built Automatest and then {filler}"
+            heard_text = f"Moheb built Automatest and then {filler}"
+            script.write_text(script_text, encoding="utf-8")
+            heard.write_text(heard_text, encoding="utf-8")
+            tokens.write_text(script_text, encoding="utf-8")
+            ns = SimpleNamespace(
+                script=str(script),
+                transcript=str(heard),
+                fold=[],
+                max_wer=0.15,  # default WER ceiling; single-name mangling alone is <<15%
+                lang="en",
+                cer=False,
+                max_cer=0.15,
+                tokens=str(tokens),
+                max_unk=0.05,
+                language_id="en",
+                expect_language=None,
+                proper_noun=[],
+                duration=None,
+                min_wpm=140,
+                max_wpm=160,
+            )
+            # Prove hole would pass on WER alone: ~1/45 ≈ 2.2%
+            wer = self.qc.word_error_rate(
+                self.qc.words(script_text), self.qc.words(heard_text)
+            )
+            self.assertLessEqual(wer, 0.15)
+            self.assertIn("Mohab", self.qc.extract_proper_nouns(script_text))
+            code = self.qc.cmd_tts(ns)
+            self.assertEqual(1, code)
+
     def test_cmd_tts_proper_noun_miss_without_flag(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
