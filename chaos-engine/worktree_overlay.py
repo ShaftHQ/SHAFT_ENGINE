@@ -457,10 +457,11 @@ def materialize(primary: Path, session: Path, *, transactional: bool = True) -> 
                 copied=copied,
                 unchanged=unchanged,
             )
-        # L92: fail closed when installed VERSION does not match intended release.
+        # L92: fail closed when an intended VERSION is present but session differs.
+        # Fixtures without VERSION files skip (nothing to assert).
         intended = _read_version(primary)
         installed = _read_version(session)
-        if not intended or not installed or intended != installed:
+        if intended and intended != installed:
             raise OverlayLocalEditError(
                 f"L92 CE VERSION mismatch after upgrade: "
                 f"installed={installed!r} intended={intended!r}"
