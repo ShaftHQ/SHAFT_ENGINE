@@ -673,11 +673,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     project=project,
                 )
             text = stderr.getvalue()
-            self.assertIn("hosts_receipt=present", text)
-            self.assertIn("core_dir=absent", text)
-            self.assertIn("install_py=absent", text)
-            self.assertIn("Next fix: rerun the same install one-liner", text)
+            self.assertIn("Installation failed", text)
+            self.assertIn("Launch your agent with this prompt:", text)
+            self.assertIn("issues/new?", text)
+            # L94: filesystem diagnostics stay in the prefilled issue URL, not stderr noise.
             self.assertIn("hosts_receipt=present", text.split("issues/new?", 1)[1])
+            self.assertNotIn("Filesystem:", text)
 
     def test_upgrade_health_failure_issue_query_includes_sha_and_safe_components(self):
         module = load()
@@ -752,7 +753,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     installer.uninstall_with_dependencies.assert_not_called()
                     installer.rollback.assert_not_called()
                     err = stderr.getvalue()
-                    self.assertIn("CE-INSTALL-CANCELLED", err)
+                    self.assertIn("Installation failed", err)
                     self.assertIn("Last verified generation was kept.", err)
                     self.assertIn("Rerun the same install command", err)
                     self.assertNotIn("Traceback", err)
@@ -1469,10 +1470,12 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
                 self.module.classify_install_error(raised.exception), raised.exception, "ShaftHQ/SHAFT_ENGINE"
             )
         output = stderr.getvalue()
-        self.assertIn("CE-GITHUB-RATE-LIMIT", output)
-        self.assertIn("GH_TOKEN", output)
-        self.assertIn("Next fix:", output)
+        self.assertIn("Installation failed", output)
+        self.assertIn("Launch your agent with this prompt:", output)
+        self.assertIn("issues/new?", output)
+        # Token value must never appear; advice may live in the prefilled URL.
         self.assertNotIn(self.FIXTURE_VALUE, output + str(raised.exception) + repr(raised.exception.args))
+        self.assertNotIn(self.FIXTURE_VALUE, output.split("issues/new?", 1)[-1])
 
     def test_forbidden_without_rate_limit_headers_keeps_the_generic_error(self):
         forbidden = urllib.error.HTTPError(self.API, 403, "Forbidden", {}, None)

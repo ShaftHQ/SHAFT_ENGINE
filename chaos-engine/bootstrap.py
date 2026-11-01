@@ -618,20 +618,24 @@ def heal_handoff_prompt(
         return (
             "Continue ChaosEngine install in this folder. Load ChaosEngine if present. "
             f"{restore}. "
-            f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
-            "Ask the user whether they want to attempt a fix by opening an upstream PR "
-            "linked to that issue."
+            "Diagnose and fix the install failure (auto-provision missing JDK/mvn/"
+            "JAVA_HOME/PATH when possible). "
+            f"Open {issue_ref} with full diagnostics and open or update an upstream "
+            "issue/PR in the ChaosEngine upstream repository (chaos-engine/ tree) that fixes the installer. "
+            "Comment findings, solutions, and troubleshooting steps on the issue."
         )
     return (
         "Continue ChaosEngine install in this folder. Load ChaosEngine. "
         f"Read {read_clause}. "
         "Do not rerun the install one-liner unless the portable core is missing. "
+        "Diagnose and fix the install failure (auto-provision missing JDK/mvn/"
+        "JAVA_HOME/PATH when possible). "
         "Continue unhealthy components with "
         f"{cli} .chaos-engine/install.py repair --project . --component <name> "
         f"and {doctor_command} until required components are healthy. "
-        f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
-        "Ask the user whether they want to attempt a fix by opening an upstream PR "
-        "linked to that issue."
+        f"Open {issue_ref} with full diagnostics and open or update an upstream "
+        "issue/PR in the ChaosEngine upstream repository (chaos-engine/ tree) that fixes the installer. "
+        "Comment findings, solutions, and troubleshooting steps on the issue."
     )
 
 
@@ -1430,7 +1434,7 @@ class InstallReporter:
                     "Overlay handoff",
                     "Core is installed. Owned overlay bytes still diverge from local SOURCE. "
                     "Details: .chaos-engine-state/overlay-handoff.md",
-                    "Agent prompt (copy the backtick block):",
+                    "Launch your agent with this prompt:",
                     f"`{prompt}`",
                 ]
             )
@@ -1459,7 +1463,7 @@ class InstallReporter:
                     + HEAL_HANDOFF_RELATIVE,
                     "Open issue:" if "issues/new?" in issue_url else "GitHub issue:",
                     issue_url,
-                    "Agent prompt (copy the backtick block):",
+                    "Launch your agent with this prompt:",
                     f"`{prompt}`",
                 ]
             )
@@ -3127,13 +3131,13 @@ def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
         (
             "java_home" in cause
             or "environment variable is needed" in cause
+            or "mvn path unresolved" in cause
+            or "auto-provision" in cause
             or ("jdk" in cause and "javac" in cause and "fix-next" in cause),
             (
-                "set JAVA_HOME to a JDK 25+ home with bin/java and bin/javac, add its bin "
-                "to PATH, reopen the shell, then rerun the install. PowerShell: "
-                "[Environment]::SetEnvironmentVariable('JAVA_HOME','<jdk>','User') and add "
-                "%JAVA_HOME%\\bin to User PATH. bash: export JAVA_HOME='<jdk>'; "
-                'export PATH="$JAVA_HOME/bin:$PATH".'
+                "ChaosEngine already tried to auto-provision JDK/mvn/JAVA_HOME/PATH; "
+                "open the prefilled issue link and launch your agent with the printed "
+                "prompt so it can fix the install and open an upstream issue."
             ),
         ),
         (
@@ -3192,6 +3196,7 @@ def emit_install_failure(
     opener=urllib.request.urlopen,
     token: str | None = None,
 ) -> str | None:
+    """Print only three user-facing items (L94); details go to heal-handoff/issue."""
     unicode = stream_supports_unicode(sys.stderr)
     color = (
         reporter.color_enabled
@@ -3199,113 +3204,67 @@ def emit_install_failure(
         else terminal_color_enabled(tty=stream_is_tty(sys.stderr))
     )
     prefix = installer_cli_prefix(project)
+    status_command = f"{prefix} status --project . --json" if prefix else "not available"
+    doctor_command = f"{prefix} doctor --project . --json" if prefix else "not available"
     print(file=sys.stderr)
     print(
         "  "
         + _report_style(status_glyph("fail", unicode=unicode), "31", enabled=color)
         + " "
-        + _report_style(f"Installation failed ({code})", "31", enabled=color),
+        + _report_style("Installation failed", "31", enabled=color),
         file=sys.stderr,
     )
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
-        print(f"{code}: installation interrupted", file=sys.stderr)
-        print("Last verified generation was kept.", file=sys.stderr)
+        # Cancellation is not a defect report; keep the short resume hint only.
+        print("Installation interrupted. Last verified generation was kept.", file=sys.stderr)
         print("Rerun the same install command to continue.", file=sys.stderr)
-    else:
-        print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
-        rollback_line = install_rollback_summary(error)
-        if rollback_line:
-            print(rollback_line, file=sys.stderr)
-        print(f"Next fix: {next_fix_hint(code, error, prefix)}", file=sys.stderr)
-    print(file=sys.stderr)
-    if project is not None:
-        try:
-            root = Path(project).resolve()
-            receipt = root / ".chaos-engine-hosts.json"
-            core = root / ".chaos-engine"
-            install_py = core / "install.py"
-            print(
-                "Filesystem: "
-                f"hosts_receipt={'present' if receipt.is_file() else 'absent'}; "
-                f"core_dir={'present' if core.is_dir() else 'absent'}; "
-                f"install_py={'present' if install_py.is_file() else 'absent'}",
-                file=sys.stderr,
-            )
-            trace = root / ".chaos-engine-state" / "install-trace.json"
-            if trace.is_file():
-                print(
-                    "Install trace: .chaos-engine-state/install-trace.json",
-                    file=sys.stderr,
-                )
-                print(
-                    "Attach .chaos-engine-state/install-trace.json to the GitHub issue.",
-                    file=sys.stderr,
-                )
-            print(
-                "Attach .chaos-engine-state/install-console.log and "
-                ".chaos-engine-state/doctor-failure.json when present.",
-                file=sys.stderr,
-            )
-        except OSError:
-            # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
-            pass
-    print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
-    status_command = f"{prefix} status --project . --json" if prefix else None
-    doctor_command = f"{prefix} doctor --project . --json" if prefix else None
-    if prefix:
-        print(f"Status: {status_command}", file=sys.stderr)
-        print(f"Doctor: {doctor_command}", file=sys.stderr)
-    else:
-        print("Installer CLI is not on disk.", file=sys.stderr)
-        print("Rerun the same install command to continue.", file=sys.stderr)
-        status_command = "not available"
-        doctor_command = "not available"
-    if code != "CE-INSTALL-CANCELLED":
-        fields = installer_issue_fields(
-            code,
-            error,
-            reporter,
-            project,
-            status_command or "not available",
-            doctor_command or "not available",
-        )
-        fields["fix_next"] = next_fix_hint(code, error, prefix)
-        issue_url = publish_installer_issue(
-            repository,
-            code,
-            fields,
-            opener=opener,
-            token=token,
-            extra=upgrade_query_extras(error),
-        )
-        if project is not None and core_install_py(project):
-            write_heal_handoff(project, fields, issue_url)
-        artifacts = present_state_artifacts(project) if project is not None else []
-        prompt = heal_handoff_prompt(
-            fields["doctor_command"], issue_url, artifacts=artifacts
-        )
-        if "issues/new?" in issue_url:
-            print("Open issue:", file=sys.stderr)
-        else:
-            print("GitHub issue:", file=sys.stderr)
-        print(
-            terminal_issue_link(
-                issue_url,
-                saved=project is not None and core_install_py(project),
-                live=stream_is_tty(sys.stderr) and color and unicode,
-            ),
-            file=sys.stderr,
-        )
-        print(file=sys.stderr)
-        print("Agent prompt (copy the backtick block):", file=sys.stderr)
-        print(f"`{prompt}`", file=sys.stderr)
         if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
             traceback.print_exc()
-        return issue_url
+        return None
+    fields = installer_issue_fields(
+        code,
+        error,
+        reporter,
+        project,
+        status_command,
+        doctor_command,
+    )
+    fields["fix_next"] = next_fix_hint(code, error, prefix)
+    issue_url = publish_installer_issue(
+        repository,
+        code,
+        fields,
+        opener=opener,
+        token=token,
+        extra=upgrade_query_extras(error),
+    )
+    if project is not None and core_install_py(project):
+        write_heal_handoff(project, fields, issue_url)
+    artifacts = present_state_artifacts(project) if project is not None else []
+    prompt = heal_handoff_prompt(
+        fields["doctor_command"], issue_url, artifacts=artifacts
+    )
+    # (2) prefilled GitHub issue link (diagnostics live in the URL / handoff)
+    if "issues/new?" in issue_url:
+        print("Open issue:", file=sys.stderr)
+    else:
+        print("GitHub issue:", file=sys.stderr)
+    print(
+        terminal_issue_link(
+            issue_url,
+            saved=project is not None and core_install_py(project),
+            live=stream_is_tty(sys.stderr) and color and unicode,
+        ),
+        file=sys.stderr,
+    )
+    print(file=sys.stderr)
+    # (3) copy-paste agent prompt
+    print("Launch your agent with this prompt:", file=sys.stderr)
+    print(f"`{prompt}`", file=sys.stderr)
     if os.environ.get("CHAOS_ENGINE_DEBUG") == "1":
         traceback.print_exc()
-    return None
+    return issue_url
 
 
 def pack_post_installs(project: Path) -> list[dict]:

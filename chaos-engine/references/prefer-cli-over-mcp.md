@@ -1,5 +1,5 @@
 ---
-description: Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured.
+description: Use when CLI and MCP both fit; prefer CLI (gh when it fits).
 ---
 
 # Prefer CLI over MCP

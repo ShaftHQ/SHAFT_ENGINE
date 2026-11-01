@@ -17,9 +17,11 @@ from tests.scripts.test_chaos_engine_installer import MODULE
 
 class MavenToolsJavaPreflightTest(TestCase):
     def test_mutant_build_calls_preflight_before_package(self) -> None:
-        """Removing preflight_maven_tools_jdk from the build path must turn RED."""
+        """Removing preflight/self-provision from the build path must turn RED."""
         source = inspect.getsource(MODULE._build_and_publish_maven_tools)
         self.assertIn("preflight_maven_tools_jdk", source)
+        self.assertIn("resolve_maven_tools_build_cli", source)
+        self.assertIn("apply_jdk_environment", source)
         self.assertLess(
             source.index("preflight_maven_tools_jdk"),
             source.index("clean"),
@@ -54,7 +56,7 @@ class MavenToolsJavaPreflightTest(TestCase):
                 java_major=lambda path: 25,
                 java_compiler_present=lambda path: False,
             )
-            with self.assertRaisesRegex(ValueError, "javac"):
+            with self.assertRaisesRegex(ValueError, "auto-provision failed|javac"):
                 MODULE.preflight_maven_tools_jdk(hosts, java, required_major=25)
 
     def test_preflight_rejects_old_major_with_fix_next(self) -> None:
@@ -74,10 +76,7 @@ class MavenToolsJavaPreflightTest(TestCase):
                 MODULE.preflight_maven_tools_jdk(hosts, java, required_major=25)
             message = str(caught.exception)
             self.assertIn("fix-next:", message)
-            if os.name == "nt":
-                self.assertIn("SetEnvironmentVariable", message)
-            else:
-                self.assertIn("export JAVA_HOME", message)
+            self.assertIn("auto-provision", message.casefold())
 
     def test_windows_fix_next_path_uses_literal_jdk_not_stale_env(self) -> None:
         import types
@@ -97,27 +96,16 @@ class MavenToolsJavaPreflightTest(TestCase):
         self.assertIn("+$jdk+", path_section)
         self.assertIn("SetEnvironmentVariable", win)
 
-    def test_missing_wrapper_fix_next_excludes_java_home(self) -> None:
-        hosts = SimpleNamespace(
-            java_major=lambda path: 25,
-            java_compiler_present=lambda path: True,
-        )
+    def test_missing_wrapper_falls_back_without_java_home_advice(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            java = Path(temporary) / "jdk" / "bin" / ("java.exe" if os.name == "nt" else "java")
-            java.parent.mkdir(parents=True)
-            java.write_text("java\n", encoding="utf-8")
-            (java.parent / ("javac.exe" if os.name == "nt" else "javac")).write_text(
-                "javac\n", encoding="utf-8"
-            )
-            missing = Path(temporary) / "missing-mvnw"
+            source = Path(temporary) / "source"
+            source.mkdir()
+            hosts = SimpleNamespace(ensure_managed_maven=mock.Mock(return_value=None))
             with self.assertRaises(ValueError) as caught:
-                MODULE.preflight_maven_tools_jdk(
-                    hosts, java, required_major=25, wrapper=missing
-                )
+                MODULE.resolve_maven_tools_build_cli(source, hosts, {}, opener=None)
             message = str(caught.exception)
-            self.assertIn("wrapper is missing", message)
+            self.assertIn("mvn path unresolved", message)
             self.assertIn("fix-next:", message)
-            self.assertNotIn("JAVA_HOME", message)
             self.assertNotIn("SetEnvironmentVariable", message)
 
     def test_preflight_accepts_usable_jdk_home(self) -> None:
@@ -174,7 +162,7 @@ class MavenToolsJavaPreflightTest(TestCase):
                     side_effect=AssertionError("must not publish")
                 ),
             )
-            with self.assertRaisesRegex(ValueError, "fix-next:"):
+            with self.assertRaisesRegex(ValueError, "fix-next:|auto-provision"):
                 MODULE._build_and_publish_maven_tools(
                     hosts,
                     runner,
@@ -201,11 +189,12 @@ class MavenToolsJavaPreflightTest(TestCase):
         spec.loader.exec_module(boot)
         hint = boot.next_fix_hint(
             "CE-INSTALL-FAILED",
-            ValueError("JAVA_HOME is unset or unusable"),
+            ValueError("JAVA_HOME is unset or unusable after auto-provision"),
             "py -3 .chaos-engine/install.py",
         )
-        self.assertIn("JAVA_HOME", hint)
-        self.assertIn("SetEnvironmentVariable", hint)
+        self.assertIn("auto-provision", hint.casefold())
+        self.assertIn("prefilled issue", hint.casefold())
+        self.assertNotIn("SetEnvironmentVariable", hint)
 
     def test_heal_handoff_writes_cause_and_fix_next(self) -> None:
         from importlib.util import module_from_spec, spec_from_file_location
