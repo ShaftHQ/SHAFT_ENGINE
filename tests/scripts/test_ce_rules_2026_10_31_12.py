@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import os
-import re
 import sys
 import tempfile
 import unittest.mock as mock

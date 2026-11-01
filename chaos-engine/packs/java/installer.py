@@ -480,7 +480,8 @@ def _persist_windows_user_jdk(java_home: str, bin_dir: str) -> None:
 
 
 def _persist_posix_user_jdk(java_home: str, bin_dir: str) -> None:
-    """Persist JDK env for POSIX users via ChaosEngine user-data ``env.sh`` (L95).
+    """
+    Persist JDK env for POSIX users via ChaosEngine user-data ``env.sh`` (L95).
 
     Matches ``dependencies.publish_user_tool_paths``: we do **not** rewrite
     ``~/.profile`` / ``bashrc`` / ``zshrc``. New shells source the file when
