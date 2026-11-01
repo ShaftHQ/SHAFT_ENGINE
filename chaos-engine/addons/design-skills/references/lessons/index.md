@@ -56,5 +56,11 @@ one lesson card.
 | [L74 gate proven red](gate-proven-red.md) | FAIL known-bad fixture first |
 | [L75 no probe live](no-probe-live.md) | write probes on scratch only |
 | [L76 preview real width](preview-at-real-width.md) | Coach PASS at real container width |
+| [L78 review-scratch cleanup](review-scratch-cleanup.md) | reviewer scratch via archive/detached pushed sha |
+| [L79 CMS block identity](cms-block-identity.md) | CMS block readback before paste/save |
+| [L81 no self-clock](no-self-clock.md) | no self-clock caption onset; audio-only |
+| [L82 memory dump own shard](memory-dump-own-shard.md) | count_ok vs own shard; transcript required; CLI |
+| [L83 install download retry](install-download-retry.md) | SSL EOF / GnuTLS retry + local-clone fallback |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
+

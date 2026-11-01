@@ -23,11 +23,11 @@ def _load(name: str, path: Path):
 
 
 class VersionBumpTest(unittest.TestCase):
-    def test_version_is_31_7(self) -> None:
-        self.assertEqual(
-            "2026.10.31.7",
-            (CE / "VERSION").read_text(encoding="utf-8").strip(),
-        )
+    def test_version_is_at_least_31_7(self) -> None:
+        # Soft floor: later CE rules PRs bump VERSION; keep .7 artifacts present.
+        version = (CE / "VERSION").read_text(encoding="utf-8").strip()
+        floor = tuple(int(p) for p in "2026.10.31.7".split("."))
+        self.assertGreaterEqual(tuple(int(p) for p in version.split(".")), floor)
 
 
 class FileClaimLockTest(unittest.TestCase):

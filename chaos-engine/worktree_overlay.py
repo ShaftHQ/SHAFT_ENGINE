@@ -89,6 +89,8 @@ SKIP_PARTS = {"__pycache__", ".pytest_cache"}
 # Timing budget note (seconds) for callers / docs.
 MATERIALIZE_BUDGET_S_PER_WORKTREE = 5.0
 UPGRADE_WITH_PLUGINS_BUDGET_S = 15.0
+# Carl 2026-10-31: designer-workspace 43s > 30s slow mark.
+SLOW_INSTALL_MARK_S = 30.0
 
 
 class OverlayLocalEditError(RuntimeError):
@@ -682,6 +684,9 @@ def upgrade_session(
         "doctor_ok": bool(post_verify.get("doctor_ok")),
         "elapsed_s": round(elapsed, 3),
         "budget_s": MATERIALIZE_BUDGET_S_PER_WORKTREE if not plugins_ran else UPGRADE_WITH_PLUGINS_BUDGET_S,
+        "slow_mark_s": SLOW_INSTALL_MARK_S,
+        "slow": elapsed >= SLOW_INSTALL_MARK_S,
+        "doctor_passes": (post_verify or {}).get("doctor_passes"),
     }
     if not result["doctor_ok"]:
         result["status"] = "doctor-failed"
@@ -1030,7 +1035,11 @@ def _blocking_doctor_failures(after: dict) -> list[str]:
 
 
 def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
-    """Repair every degraded doctor component, then re-run doctor (fail closed)."""
+    """Repair every degraded doctor component, then re-run doctor (fail closed).
+
+    PERF (CE 2026.10.31.8): when the first doctor pass is already healthy, skip
+    repair + second doctor (designer-workspace was 43s with a double pass).
+    """
     primary, session = Path(primary).resolve(), Path(session).resolve()
     module = _load_install_module(session)
     if module is None:
@@ -1047,8 +1056,21 @@ def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
             "repaired": repaired,
             "remaining": [] if doctor_ok else [f"doctor-error:{type(error).__name__}"],
             "mode": "exception-fallback",
+            "doctor_passes": 1,
         }
-    choices = _repair_choices_for_unhealthy(module, _unhealthy_with_hosts(document))
+    overall_first = str(document.get("status") or "")
+    unhealthy = _unhealthy_with_hosts(document)
+    blocking_first = _blocking_doctor_failures(document)
+    if overall_first == "healthy" and not unhealthy and not blocking_first:
+        return {
+            "doctor_ok": True,
+            "repaired": [],
+            "remaining": [],
+            "overall": "healthy",
+            "mode": "module-fast",
+            "doctor_passes": 1,
+        }
+    choices = _repair_choices_for_unhealthy(module, unhealthy)
     repaired = _run_repairs(module, session, choices)
     try:
         after = module.doctor_with_dependencies(session, verify_clients=False)
@@ -1058,6 +1080,7 @@ def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
             "repaired": repaired,
             "remaining": [f"doctor-error:{type(error).__name__}"],
             "mode": "module",
+            "doctor_passes": 2,
         }
     blocking = _blocking_doctor_failures(after)
     overall = str(after.get("status") or "")
@@ -1067,6 +1090,7 @@ def _post_upgrade_repair_and_verify(primary: Path, session: Path) -> dict:
         "remaining": blocking,
         "overall": overall,
         "mode": "module",
+        "doctor_passes": 2,
     }
 
 

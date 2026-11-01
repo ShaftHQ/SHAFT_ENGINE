@@ -7,7 +7,7 @@ description: Use when ChaosEngine install or upgrade-session is slow across many
 
 ## Rule
 
-1. When install / `upgrade-session` exceeds ~25 s per directory under normal
+1. When install / `upgrade-session` exceeds 30 s per directory (Carl slow mark) under normal
    load (or 40–80 s outliers), record **per-dir elapsed** from the JSON
    receipt (`elapsed_s`) or `tool.py` / installer logs under
    `.chaos-engine-state/logs/`.
@@ -26,3 +26,6 @@ summarises `elapsed_s` by session path when receipts are available.
 
 Parallel load pushed install/doctor from ~7 s to ~25 s and some dirs to 40–83 s
 without a per-dir breakdown, so the slow outlier stayed invisible.
+
+
+`SLOW_INSTALL_MARK_S = 30`; healthy upgrade = one doctor pass (`module-fast`).

@@ -32,3 +32,6 @@ A box restart must not be the first thing that discovers the file is gone.
 Never rely on `git commit -a` / `git add -A` for this — stage the asset paths
 by name.
 
+## Per-task budget override (L80)
+
+`--kind test-run` → 90 min budget (default 35). Explicit `--minutes` wins.

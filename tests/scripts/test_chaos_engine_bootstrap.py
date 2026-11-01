@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import hashlib
 import json
 import os
 import subprocess  # nosec B404 - tests run fixed local Git commands only.
@@ -38,6 +39,25 @@ def load():
     module = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(module)
     return module
+
+
+
+def git_blob_sha1_bytes(content: bytes) -> str:
+    digest = hashlib.sha1()
+    digest.update(b"blob " + str(len(content)).encode("ascii") + bytes([0]))
+    digest.update(content)
+    return digest.hexdigest()
+
+
+def blob_tree_entry(path: str, content: bytes, *, mode: str = "100644") -> dict:
+    """GitHub-style tree blob with oid so download_source can verify content."""
+    return {
+        "path": path,
+        "mode": mode,
+        "type": "blob",
+        "size": len(content),
+        "sha": git_blob_sha1_bytes(content),
+    }
 
 
 def source_payload(marker: str) -> dict[str, bytes]:
@@ -767,15 +787,10 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             payload = source_payload(marker)
             if "/git/trees/" in url:
                 tree = [
-                    {
-                        "path": f"chaos-engine/{relative}",
-                        "mode": "100644",
-                        "type": "blob",
-                        "size": len(content),
-                    }
+                    blob_tree_entry(f"chaos-engine/{relative}", content)
                     for relative, content in payload.items()
                 ] + [
-                    {"path": path, "mode": "100644", "type": "blob", "size": len(content)}
+                    blob_tree_entry(path, content)
                     for path, content in pack_payload().items()
                 ]
                 return Response(json.dumps({"tree": tree, "truncated": False}).encode())
@@ -1220,11 +1235,11 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         tree = {
             "truncated": False,
             "tree": [
-                {"path": "chaos-engine/skills/chaos-engine/SKILL.md", "type": "blob", "mode": "100644", "size": 5},
-                {"path": "chaos-engine/assets/brand/symbol-light.svg", "type": "blob", "mode": "100644", "size": 5},
-                {"path": "chaos-engine/RESEARCH.md", "type": "blob", "mode": "100644", "size": 8},
-                {"path": "chaos-engine/STANDALONE.md", "type": "blob", "mode": "100644", "size": 9},
-                {"path": "chaos-engine/assets/memory-v5/config.schema.json", "type": "blob", "mode": "100644", "size": 6},
+                blob_tree_entry("chaos-engine/skills/chaos-engine/SKILL.md", b"skill"),
+                blob_tree_entry("chaos-engine/assets/brand/symbol-light.svg", b"brand"),
+                blob_tree_entry("chaos-engine/RESEARCH.md", b"research"),
+                blob_tree_entry("chaos-engine/STANDALONE.md", b"standalone"),
+                blob_tree_entry("chaos-engine/assets/memory-v5/config.schema.json", b"schema"),
             ],
         }
         requested: list[str] = []
@@ -1272,8 +1287,8 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         tree = {
             "truncated": False,
             "tree": [
-                {"path": "chaos-engine/skills/chaos-engine/SKILL.md", "type": "blob", "mode": "100644", "size": 5},
-                {"path": "chaos-engine/install.sh", "type": "blob", "mode": "100755", "size": 2},
+                blob_tree_entry("chaos-engine/skills/chaos-engine/SKILL.md", b"skill"),
+                blob_tree_entry("chaos-engine/install.sh", b"#!", mode="100755"),
             ],
         }
 
@@ -1299,21 +1314,11 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
         tree = {
             "truncated": False,
             "tree": [
-                {
-                    "path": f"chaos-engine/file-{index}.txt",
-                    "type": "blob",
-                    "mode": "100644",
-                    "size": 4,
-                }
+                blob_tree_entry(f"chaos-engine/file-{index}.txt", b"data")
                 for index in range(6)
             ]
             + [
-                {
-                    "path": "chaos-engine/skills/chaos-engine/SKILL.md",
-                    "type": "blob",
-                    "mode": "100644",
-                    "size": 5,
-                }
+                blob_tree_entry("chaos-engine/skills/chaos-engine/SKILL.md", b"skill")
             ],
         }
         lock = threading.Lock()
@@ -1334,7 +1339,7 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                 in_flight -= 1
             if url.endswith("SKILL.md"):
                 return Response(b"skill")
-            return Response(b"blob")
+            return Response(b"data")
 
         with tempfile.TemporaryDirectory() as temporary:
             source = module.download_source(

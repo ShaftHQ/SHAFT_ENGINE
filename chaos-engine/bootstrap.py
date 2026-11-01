@@ -17,6 +17,7 @@ import re
 import shlex
 import runpy
 import shutil
+import ssl
 import subprocess  # nosec B404 - fixed `gh auth token` argv, never a shell.
 import sys
 import tempfile
@@ -92,6 +93,18 @@ MAX_READ_ATTEMPTS = 4
 MAX_RETRY_AFTER_SECONDS = 60.0
 RETRY_BASE_SECONDS = 1.0
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+# Coach 2026-10-31: SSL UNEXPECTED_EOF mid raw.githubusercontent download (~590 files).
+TRANSIENT_SSL_MARKERS = (
+    "UNEXPECTED_EOF_WHILE_READING",
+    "UNEXPECTED_EOF",
+    "GNUTLS",
+    "TLS CONNECTION WAS NON-PROPERLY TERMINATED",
+    "SSLV3_ALERT",
+    "BAD_RECORD_MAC",
+    "DECRYPTION_FAILED",
+    "CONNECTION RESET BY PEER",
+)
+LOCAL_CLONE_ENV = "CHAOS_ENGINE_LOCAL_CLONE"
 CYBERNETIC_RED = "\x1b[38;2;255;59;77m"
 ION_BLUE = "\x1b[38;2;47;125;255m"
 OPTICAL_WHITE = "\x1b[38;2;242;247;255m"
@@ -2037,7 +2050,28 @@ def valid_branch(branch: str) -> bool:
     )
 
 
+def is_transient_network_error(error: BaseException) -> bool:
+    """True for blips worth a bounded exponential backoff (SSL EOF, GnuTLS, resets)."""
+    if isinstance(error, urllib.error.HTTPError):
+        retry_after = error.headers.get("Retry-After") if error.headers is not None else None
+        return error.code in TRANSIENT_HTTP_STATUS or (
+            error.code == 403 and retry_after is not None
+        )
+    if isinstance(error, (ConnectionError, TimeoutError, urllib.error.URLError)):
+        return True
+    if isinstance(error, ssl.SSLError):
+        return True
+    blob = f"{type(error).__name__}: {error}".upper()
+    return any(marker in blob for marker in TRANSIENT_SSL_MARKERS)
+
+
 def retry_delay(error: BaseException, attempt: int) -> float | None:
+    """Per-attempt backoff; None means do not retry.
+
+    CE 2026.10.31.8: ``ssl.SSLEOFError`` / UNEXPECTED_EOF used to return None
+    (bare OSError path) and abort a 590-file raw download mid-tree. Treat SSL
+    and marker-matched OSErrors as transient with exponential backoff.
+    """
     if isinstance(error, urllib.error.HTTPError):
         retry_after = error.headers.get("Retry-After") if error.headers is not None else None
         if error.code not in TRANSIENT_HTTP_STATUS and not (
@@ -2051,7 +2085,8 @@ def retry_delay(error: BaseException, attempt: int) -> float | None:
             return delay
         if error.code == 429:
             return MAX_RETRY_AFTER_SECONDS
-    elif not isinstance(error, (ConnectionError, TimeoutError, urllib.error.URLError)):
+        return RETRY_BASE_SECONDS * (2**attempt)
+    if not is_transient_network_error(error):
         return None
     return RETRY_BASE_SECONDS * (2**attempt)
 
@@ -2267,11 +2302,24 @@ def record_install_source(project: Path, repository: str, branch: str | None) ->
     path.write_text(json.dumps(record) + "\n", encoding="utf-8")
 
 
+def git_blob_sha1(content: bytes) -> str:
+    """Git blob oid for *content* (sha1 of blob header + NUL + bytes)."""
+    digest = hashlib.sha1()
+    digest.update(b"blob " + str(len(content)).encode("ascii") + bytes([0]))
+    digest.update(content)
+    return digest.hexdigest()
+
+
+
 def _select_source_blobs(
     tree: list,
-) -> tuple[list[tuple[PurePosixPath, int]], int, set[PurePosixPath]]:
-    """Bounded ChaosEngine and pack blobs to download, their total size, and the ``100755`` ones."""
-    selected: list[tuple[PurePosixPath, int]] = []
+) -> tuple[list[tuple[PurePosixPath, int, str]], int, set[PurePosixPath]]:
+    """Bounded ChaosEngine and pack blobs to download, their total size, and the ``100755`` ones.
+
+    Each selected row is ``(path, size, blob_sha)`` so ``fetch_blob`` can verify
+    content against the tree oid after download/retry (not size alone).
+    """
+    selected: list[tuple[PurePosixPath, int, str]] = []
     executable: set[PurePosixPath] = set()
     total = 0
     for entry in tree:
@@ -2289,10 +2337,13 @@ def _select_source_blobs(
         size = entry.get("size")
         if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
             raise ValueError("ChaosEngine source file exceeds the download limit")
+        sha = entry.get("sha")
+        if not isinstance(sha, str) or len(sha) != 40:
+            raise ValueError("ChaosEngine source tree entry is missing a blob sha")
         if entry.get("mode") == "100755":
             executable.add(path)
         if is_pack_path(path):
-            selected.append((path, size))
+            selected.append((path, size, sha))
             total += size
             continue
         relative = PurePosixPath(*path.parts[1:])
@@ -2303,7 +2354,7 @@ def _select_source_blobs(
             "STANDALONE.md",
         }:
             continue
-        selected.append((path, size))
+        selected.append((path, size, sha))
         total += size
     return selected, total, executable
 
@@ -2314,7 +2365,107 @@ def mark_executable(path: Path) -> None:
     path.chmod(mode | ((mode & 0o444) >> 2))
 
 
+def resolve_local_clone(explicit: str | Path | None = None) -> Path | None:
+    """Return a usable local repo root containing ``chaos-engine/``, or None.
+
+    Order: explicit arg → ``CHAOS_ENGINE_LOCAL_CLONE`` env → this source tree.
+    No absolute machine paths are embedded (portable-core guard).
+    """
+    candidates: list[Path] = []
+    if explicit is not None:
+        candidates.append(Path(explicit))
+    env = os.environ.get(LOCAL_CLONE_ENV, "").strip()
+    if env:
+        candidates.append(Path(env))
+    # The checkout that shipped this bootstrap.py (same repo the bot is in).
+    candidates.append(Path(__file__).resolve().parents[1])
+    seen: set[Path] = set()
+    for candidate in candidates:
+        try:
+            root = candidate.resolve()
+        except OSError:
+            continue
+        if root in seen:
+            continue
+        seen.add(root)
+        ce = root / "chaos-engine"
+        if not ce.is_dir():
+            # Allow pointing straight at chaos-engine/
+            if (root / "install.py").is_file() and (root / "VERSION").is_file():
+                return root.parent if root.name == "chaos-engine" else root
+            continue
+        if (ce / "install.py").is_file() and (ce / "VERSION").is_file():
+            return root
+    return None
+
+
+def copy_source_from_local_clone(
+    local_root: Path,
+    destination: Path,
+    *,
+    reporter: InstallReporter | None = None,
+) -> Path:
+    """Copy the bounded ChaosEngine subtree from a local clone (network fallback)."""
+    local_root = Path(local_root).resolve()
+    source_src = local_root / "chaos-engine"
+    if not source_src.is_dir():
+        raise ValueError(f"local clone missing chaos-engine/: {local_root}")
+    source = destination / "chaos-engine"
+    if source.exists():
+        shutil.rmtree(source)
+    ignore = shutil.ignore_patterns(
+        "__pycache__",
+        ".pytest_cache",
+        "*.pyc",
+        ".git",
+        "assets",
+        "RESEARCH.md",
+        "STANDALONE.md",
+    )
+    shutil.copytree(source_src, source, ignore=ignore)
+    if not (source / "skills/chaos-engine/SKILL.md").is_file():
+        raise ValueError("local ChaosEngine clone is incomplete")
+    if reporter is not None:
+        reporter.trace(f"local-clone fallback from {local_root}")
+    return source
+
+
 def download_source(
+    repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener=urllib.request.urlopen,
+    reporter: InstallReporter | None = None,
+    local_clone: str | Path | None = None,
+) -> Path:
+    """Per-file download with SSL retries; fall back to a local clone on network failure."""
+    try:
+        return download_source_remote(
+            repository, commit, destination, opener=opener, reporter=reporter
+        )
+    except (RuntimeError, OSError, urllib.error.URLError) as error:
+        blob = f"{type(error).__name__}: {error}".upper()
+        networkish = (
+            is_transient_network_error(error)
+            or "UNABLE TO RESOLVE" in blob
+            or any(marker in blob for marker in TRANSIENT_SSL_MARKERS)
+            or isinstance(error, RuntimeError)
+        )
+        if not networkish:
+            raise
+        root = resolve_local_clone(local_clone)
+        if root is None:
+            raise
+        if reporter is not None:
+            reporter.trace(
+                f"download failed ({type(error).__name__}); "
+                f"falling back to local clone {root}"
+            )
+        return copy_source_from_local_clone(root, destination, reporter=reporter)
+
+
+def download_source_remote(
     repository: str,
     commit: str,
     destination: Path,
@@ -2355,8 +2506,8 @@ def download_source(
     source.mkdir()
     mkdir_lock = threading.Lock()
 
-    def fetch_blob(item: tuple[PurePosixPath, int]) -> None:
-        repository_path, expected_size = item
+    def fetch_blob(item: tuple[PurePosixPath, int, str]) -> None:
+        repository_path, expected_size, expected_sha = item
         encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in repository_path.parts)
         content = read_response(
             opener,
@@ -2366,6 +2517,11 @@ def download_source(
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
+        actual_sha = git_blob_sha1(content)
+        if actual_sha.casefold() != expected_sha.casefold():
+            raise ValueError(
+                "ChaosEngine source file hash does not match the resolved tree"
+            )
         target = destination.joinpath(*repository_path.parts)
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)
