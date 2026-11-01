@@ -1824,7 +1824,7 @@ public class TouchActions extends FluentWebDriverAction {
         return true;
     }
 
-    private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
+    private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, @Nullable By scrollableElementLocator, @Nullable By targetElementLocator) {
         var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \"" + swipeDirection + "\"";
         if (targetElementLocator != null) {
             logMessage += ", TargetElementLocator \"" + targetElementLocator + "\"";
@@ -2026,7 +2026,7 @@ public class TouchActions extends FluentWebDriverAction {
             }
         }
         if (container == null) {
-            return performW3cCompliantScroll(prepareParameters(swipeDirection, null, null), false);
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null), false);
         }
         return performIosDragFromTo(iosDriver, swipeDirection, container);
     }
@@ -2050,6 +2050,7 @@ public class TouchActions extends FluentWebDriverAction {
         return !before.equals(after);
     }
 
+    @Nullable
     private String iosPageFingerprint(IOSDriver iosDriver) {
         try {
             return iosDriver.getPageSource();

@@ -5,6 +5,8 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -29,6 +31,7 @@ public final class IosScrollView {
      * Pick the tallest displayed scroll view that intersects the screen.
      * Short header/toolbar scroll views lose to the main list.
      */
+    @Nullable
     public static WebElement pickTallest(List<WebElement> candidates, int screenWidth, int screenHeight) {
         if (candidates == null || candidates.isEmpty()) {
             return null;
@@ -117,6 +120,7 @@ public final class IosScrollView {
         return drag;
     }
 
+    @Nullable
     private static Scored score(WebElement element, int screenWidth, int screenHeight) {
         boolean displayed;
         Rectangle rect;
