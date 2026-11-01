@@ -939,4 +939,22 @@ public class TerminalActionsUnitTest {
                 .set(target, value);
     }
 
+
+
+    @Test
+    public void localPerformTerminalCommandsShouldCaptureStdoutAndEnv() {
+        TerminalActions terminal = TerminalActions.getInstance(false, false, true);
+        Assert.assertFalse(terminal.isRemoteTerminal());
+        Assert.assertFalse(terminal.isDockerizedTerminal());
+        String echoed = terminal.performTerminalCommand("printf hello-coverage");
+        Assert.assertTrue(echoed.contains("hello-coverage"), echoed);
+        String withEnv = terminal.performTerminalCommand("printf \"$COVERAGE_MARK\"",
+                java.util.Map.of("COVERAGE_MARK", "env-ok"));
+        Assert.assertTrue(withEnv.contains("env-ok"), withEnv);
+        String multi = terminal.performTerminalCommands(java.util.List.of("printf a", "printf b"));
+        Assert.assertTrue(multi.contains("a") || multi.contains("b"), multi);
+        terminal.close();
+    }
+
+
 }
