@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "appium": "3.8.0",
+    "appium": "3.9.0",
     "appium-inspector-plugin": "2026.9.2",
     "appium-windows-driver": "6.3.1"
   },
