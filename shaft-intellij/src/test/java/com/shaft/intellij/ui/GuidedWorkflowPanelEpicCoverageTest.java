@@ -272,4 +272,38 @@ class GuidedWorkflowPanelEpicCoverageTest {
 
     private record CapturedInvocation(String toolName, JsonObject arguments) {
     }
+
+    @Test
+    void parseStepsSkipsNonObjectLeavesAndSortsBySequence() {
+        com.google.gson.JsonObject status = com.google.gson.JsonParser.parseString("""
+                {
+                  "steps": [
+                    {"stepId":"later","sequence":9,"action":"type","locatorStrategy":"css","locatorValue":"#q","risky":false},
+                    {"stepId":"earlier","sequence":1,"action":"click","locatorStrategy":"id","locatorValue":"go","risky":true},
+                    7,
+                    null,
+                    {"stepId":"no-seq","action":"noop"}
+                  ],
+                  "checkpoints": [
+                    {"id":"ck","description":"done","kind":"ASSERTION","sequence":5}
+                  ]
+                }
+                """).getAsJsonObject();
+        var rows = GuidedWorkflowPanel.parseSteps(status);
+        assertTrue(rows.size() >= 3);
+        int earlier = -1;
+        int later = -1;
+        for (int i = 0; i < rows.size(); i++) {
+            if ("earlier".equals(rows.get(i).stepId())) {
+                earlier = i;
+            }
+            if ("later".equals(rows.get(i).stepId())) {
+                later = i;
+            }
+        }
+        assertTrue(earlier >= 0 && later > earlier);
+        assertTrue(rows.stream().anyMatch(r -> "ck".equals(r.stepId())));
+        assertTrue(rows.stream().anyMatch(GuidedWorkflowPanel.StepRow::risky));
+    }
+
 }

@@ -102,4 +102,48 @@ public class FileActionsUnitTest {
         Assert.assertTrue(Path.of(userDirectory).toFile().isDirectory(),
                 "Working directory should remain after protected delete attempts.");
     }
+
+    @Test
+    public void listCopyChecksumAndAbsolutePathHelpers() throws Exception {
+        testFileActions.createFolder(TEMP_DIR.toString());
+        testFileActions.writeToFile(TEMP_DIR.resolve("listed.txt").toString(), "listed");
+        String plainList = testFileActions.listFilesInDirectory(TEMP_DIR.toString());
+        Assert.assertTrue(plainList.contains("listed.txt"), plainList);
+        Assert.assertFalse(testFileActions.getFileList(TEMP_DIR.toString()).isEmpty());
+
+        String absRel = testFileActions.getAbsolutePath(TEMP_DIR.resolve("listed.txt").toString());
+        Assert.assertTrue(new File(absRel).isAbsolute());
+
+        Path nested = TEMP_DIR.resolve("nested-src");
+        testFileActions.createFolder(nested.toString());
+        testFileActions.writeToFile(nested.resolve("inner.txt").toString(), "inner");
+        Path dest = TEMP_DIR.resolve("nested-dest");
+        testFileActions.copyFolder(nested.toString(), dest.toString());
+        Assert.assertTrue(testFileActions.doesFileExist(dest.resolve("inner.txt").toString()));
+
+        testFileActions.writeToFile(TEMP_DIR.toString() + File.separator, "lines.txt",
+                java.util.List.of("one", "two"));
+        Assert.assertTrue(testFileActions.readFile(TEMP_DIR.toString(), "lines.txt").contains("one"));
+        Assert.assertTrue(testFileActions.readFile(TEMP_DIR.resolve("lines.txt").toString()).contains("two"));
+
+        Assert.assertThrows(Throwable.class,
+                () -> testFileActions.readPDF(TEMP_DIR.resolve("missing.pdf").toString()));
+
+        testFileActions.deleteFolder(dest.toString());
+        Assert.assertFalse(dest.toFile().exists());
+    }
+
+    @Test
+    public void writeByteArrayOverloadsAndFolderFileExistenceRetries() {
+        testFileActions.createFolder(TEMP_DIR.toString());
+        byte[] payload = "payload-bytes".getBytes(StandardCharsets.UTF_8);
+        Path payloadPath = TEMP_DIR.resolve("payload.bin");
+        testFileActions.writeToFile(payloadPath.toString(), payload);
+        Assert.assertEquals(testFileActions.readFileAsByteArray(payloadPath.toString()), payload);
+        Assert.assertTrue(testFileActions.doesFileExist(TEMP_DIR.toString() + File.separator, "payload.bin", 2));
+        Assert.assertFalse(testFileActions.doesFileExist(TEMP_DIR.toString() + File.separator, "nope.bin", 1));
+        testFileActions.writeToFile(TEMP_DIR.resolve("text-path.txt").toString(), "hello");
+        Assert.assertEquals(testFileActions.readFile(TEMP_DIR.resolve("text-path.txt").toString()), "hello");
+    }
+
 }

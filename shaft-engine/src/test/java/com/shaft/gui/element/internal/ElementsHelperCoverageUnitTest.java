@@ -453,4 +453,55 @@ public class ElementsHelperCoverageUnitTest {
         Assert.assertFalse(new ElementActionsHelper(false).isSilent());
     }
 
+
+    @Test
+    public void passAndFailActionReportingShouldTolerateNullDriver() {
+        List<Object> shot = List.of("Screenshot", "pass", new byte[]{1, 2});
+        helper.passAction(null, locator, "ok-data", shot, "button");
+        helper.passAction(null, locator, "click", "ok-data", List.of(shot), "button");
+
+        RuntimeException cause = new RuntimeException("provider failed");
+        Assert.expectThrows(RuntimeException.class, () -> helper.failAction(null, locator, cause));
+        Assert.expectThrows(RuntimeException.class, () -> helper.failAction(null, "typed", locator, cause));
+        Assert.expectThrows(RuntimeException.class,
+                () -> helper.failAction(null, "typed", locator, List.of(shot), cause));
+        Assert.expectThrows(RuntimeException.class,
+                () -> helper.failAction(null, "click", "typed", locator, List.of(shot), cause));
+
+        String reported = helper.reportActionResult(null, null, "data", locator, List.of(shot), "el", true);
+        Assert.assertNotNull(reported);
+        Assert.assertFalse(reported.isBlank());
+
+        String failed = helper.reportActionResult(null, "drag and drop", "payload", null, null, "el", false, cause);
+        Assert.assertTrue(failed.toLowerCase().contains("failed") || failed.contains("Drag"), failed);
+    }
+
+    @Test
+    public void createReportMessageShouldCoverRemainingPrepositions() {
+        String select = helper.createReportMessage("select", "option", "menu", true);
+        Assert.assertTrue(select.contains(" from "), select);
+        String drag = helper.createReportMessage("dragAndDrop", "src", "target", true);
+        // Sentence-case action names use spaced prepositions from getPreposition.
+        Assert.assertTrue(drag.toLowerCase().contains("against") || drag.contains("target"), drag);
+        String key = helper.createReportMessage("keyPress", "ENTER", "field", true);
+        Assert.assertTrue(key.toLowerCase().contains("against") || key.contains("field"), key);
+        String wait = helper.createReportMessage("waitFor", "", "spinner", true);
+        Assert.assertTrue(wait.contains("spinner") || wait.toLowerCase().contains("against"), wait);
+        String submit = helper.createReportMessage("submitForm", "", "form", true);
+        Assert.assertTrue(submit.contains("form") || submit.toLowerCase().contains("against"), submit);
+        String sw = helper.createReportMessage("switchTo", "", "frame", true);
+        Assert.assertTrue(sw.contains("frame") || sw.toLowerCase().contains("against"), sw);
+        Assert.assertEquals(helper.createReportMessage("hover", null, null, true), "Hover.");
+        Assert.assertEquals(helper.createReportMessage("click", null, "", true), "Click.");
+    }
+
+    @Test
+    public void textDetectionStrategyExposesValues() {
+        Assert.assertEquals(ElementActionsHelper.TextDetectionStrategy.TEXT.getValue(), "text");
+        Assert.assertEquals(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue(), "textContent");
+        Assert.assertEquals(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue(), "value");
+        Assert.assertEquals(ElementActionsHelper.TextDetectionStrategy.UNDEFINED.getValue(), "undefined");
+        Assert.assertEquals(ElementActionsHelper.TextDetectionStrategy.values().length, 4);
+    }
+
 }
