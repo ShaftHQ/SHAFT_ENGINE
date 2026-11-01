@@ -11,6 +11,8 @@ name: Dependabot auto-merge
 # workflow_dispatch re-arm open Dependabot PRs that lost their queue seat.
 # Schedule/dispatch skips drafts and CONFLICTING PRs and soft-fails per PR
 # (::warning, exit 0) so one unarmable PR cannot spam ~72 red runs/day.
+# No checkout: every `gh` call passes `-R "$GITHUB_REPOSITORY"` so schedule
+# runners (cwd has no .git) still list/arm PRs (empty-list false success).
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers]
@@ -46,12 +48,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         # Merge queue on main: omit --squash/--merge/--rebase so GitHub picks
         # the queue's required method.
         run: |
           set -euo pipefail
-          gh pr merge --auto "$PR_URL"
-          state="$(gh pr view "$PR_URL" --json state,autoMergeRequest,mergeStateStatus)"
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          gh pr merge --auto -R "$repo" "$PR_URL"
+          state="$(gh pr view -R "$repo" "$PR_URL" --json state,autoMergeRequest,mergeStateStatus)"
           echo "post-arm: $state"
           echo "$state" | jq -e '
             .autoMergeRequest != null
@@ -63,10 +67,12 @@ jobs:
         if: github.event_name != 'pull_request_target'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
           mapfile -t urls < <(
-            gh pr list --author 'app/dependabot' --state open --limit 50 \
+            gh pr list -R "$repo" --author 'app/dependabot' --state open --limit 50 \
               --json url,autoMergeRequest,isDraft,mergeable \
               --jq '.[]
                 | select(.autoMergeRequest == null)
@@ -81,12 +87,12 @@ jobs:
           warned=0
           for url in "${urls[@]}"; do
             echo "Re-arming $url"
-            if ! gh pr merge --auto "$url"; then
+            if ! gh pr merge --auto -R "$repo" "$url"; then
               echo "::warning::gh pr merge --auto failed for $url (left unarmed)"
               warned=$((warned + 1))
               continue
             fi
-            state="$(gh pr view "$url" --json state,autoMergeRequest,mergeStateStatus)"
+            state="$(gh pr view -R "$repo" "$url" --json state,autoMergeRequest,mergeStateStatus)"
             echo "post-arm: $state"
             if ! echo "$state" | jq -e '
               .autoMergeRequest != null
