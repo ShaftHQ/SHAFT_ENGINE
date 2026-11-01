@@ -39,10 +39,11 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/automerge-rearm.md`: Auto-merge re-arm and scheduled soft-fail
 - `references/bot-entry.md`: Bot entry
 - `references/catalog.md`: Catalog
-- `references/ce-retro-2026-10-31-6-SPEC.md`: CE .31.6 retro (pointer)
-- `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11 L94 (pointer)
-- `references/ce-rules-2026-10-31-7-SPEC.md`: CE .31.7 rules (pointer)
-- `references/ce-rules-2026-10-31-8-SPEC.md`: CE .31.8 (pointer)
+- `references/ce-retro-2026-10-31-6-SPEC.md`: CE .31.6
+- `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11
+- `references/ce-rules-2026-10-31-12-SPEC.md`: CE .31.12
+- `references/ce-rules-2026-10-31-7-SPEC.md`: CE .31.7
+- `references/ce-rules-2026-10-31-8-SPEC.md`: CE .31.8
 - `references/ce-upgrade-on-release.md`: ChaosEngine upgrade on release
 - `references/checkpoint-resume.md`: Checkpoint and resume after interruption
 - `references/ci-status-economy.md`: CI status economy (babysit, digest, one channel)

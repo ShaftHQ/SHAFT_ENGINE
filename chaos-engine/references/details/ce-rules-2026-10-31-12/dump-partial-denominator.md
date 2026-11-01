@@ -1,0 +1,5 @@
+# L85 DUMP-PARTIAL-DENOMINATOR
+
+RecallMemory / memory dump has a ~4 KB per-call cap. `count_ok` is never true
+without a known host `own_shard` id set. Until full-entry export exists, report
+partial with an explicit denominator.

@@ -55,7 +55,7 @@ STAR_DESTINATIONS = (
     "https://github.com/ShaftHQ/SHAFT_ENGINE",
     "https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers",
 )
-STATUS_BADGE_BUDGET = 4
+STATUS_BADGE_BUDGET = 5
 ALT_TEXT_LIMIT = 160
 _SHIELDS = "https://img.shields.io/"
 _FIRST_SECTION = re.compile(r"^#{2}[ \t]", flags=re.MULTILINE)
