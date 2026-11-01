@@ -56,7 +56,7 @@ function Assert-ChaosEngineMavenToolsJdkPreflight {
     $java = Join-Path $home "bin\java.exe"
     $javac = Join-Path $home "bin\javac.exe"
     if (-not (Test-Path -LiteralPath $java -PathType Leaf) -or -not (Test-Path -LiteralPath $javac -PathType Leaf)) {
-        throw "CE-INSTALL-FAILED: JAVA_HOME='$home' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: [Environment]::SetEnvironmentVariable('JAVA_HOME','C:\Program Files\Eclipse Adoptium\jdk-25.x.x-hotspot','User'); add %JAVA_HOME%\bin to User PATH; reopen PowerShell; verify java -version / javac -version; rerun install."
+        throw "CE-INSTALL-FAILED: JAVA_HOME='$home' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: [Environment]::SetEnvironmentVariable('JAVA_HOME','<Adoptium-JDK-25-home>','User'); add %JAVA_HOME%\bin to User PATH; reopen PowerShell; verify java -version / javac -version; rerun install."
     }
 }
 

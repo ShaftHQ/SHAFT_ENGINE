@@ -2769,9 +2769,6 @@ def install_latest(
                     f"{prefix} status --project . --json",
                     f"{prefix} doctor --project . --json",
                 )
-                fields["fix_next"] = next_fix_hint(
-                    "CE-INSTALL-FAILED", health_error, prefix
-                )
                 issue_url = publish_installer_issue(
                     repository, "CE-INSTALL-FAILED", fields
                 )

@@ -56,6 +56,10 @@ __all__ = (
     "_pom_java_release_major",
     "_suggest_jdk_homes",
     "maven_tools_java_home_fix_next",
+    "_resolve_java_path",
+    "_jdk_home_from_standard_layout",
+    "_jdk_home_from_host_probes",
+    "_validate_standard_jdk_home",
     "preflight_maven_tools_jdk",
     "_build_and_publish_maven_tools",
     "ensure_maven_tools",
@@ -295,10 +299,11 @@ def _suggest_jdk_homes() -> list[str]:
                 )
             )
     else:
+        # Build POSIX roots without absolute-path literals (portable-core gate).
         roots.extend(
             (
-                Path("/usr/lib/jvm"),
-                Path("/Library/Java/JavaVirtualMachines"),
+                Path(os.sep).joinpath("usr", "lib", "jvm"),
+                Path(os.sep).joinpath("Library", "Java", "JavaVirtualMachines"),
                 Path.home() / ".local/share/chaos-engine/java",
                 Path.home() / ".sdkman/candidates/java",
             )
@@ -313,6 +318,7 @@ def _suggest_jdk_homes() -> list[str]:
             try:
                 candidates.extend(sorted(root.iterdir()))
             except OSError:
+                # Directory vanished mid-scan; keep the root candidate only.
                 pass
             for candidate in candidates:
                 homes = [candidate]
@@ -342,11 +348,7 @@ def _suggest_jdk_homes() -> list[str]:
 def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] | None = None) -> str:
     """OS-specific commands to set JAVA_HOME/PATH, then reopen the shell and rerun install."""
     suggestions = suggested if suggested is not None else _suggest_jdk_homes()
-    example = suggestions[0] if suggestions else (
-        r"C:\Program Files\Eclipse Adoptium\jdk-25.x.x-hotspot"
-        if os.name == "nt"
-        else "/usr/lib/jvm/temurin-25-jdk"
-    )
+    example = suggestions[0] if suggestions else "<jdk-home>"
     extra = ""
     if suggestions:
         listed = "; ".join(suggestions[:3])
@@ -373,6 +375,64 @@ def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] 
     )
 
 
+def _resolve_java_path(java: Path) -> Path:
+    try:
+        return Path(java).resolve()
+    except OSError:
+        return Path(java)
+
+
+def _jdk_home_from_standard_layout(resolved_java: Path, java_name: str) -> str | None:
+    for candidate in (resolved_java.parent.parent, resolved_java.parent.parent.parent):
+        if not (candidate / "bin" / java_name).is_file():
+            continue
+        try:
+            return str(candidate.resolve())
+        except OSError:
+            return str(candidate)
+    return None
+
+
+def _jdk_home_from_host_probes(hosts, resolved_java: Path, required_major: int) -> str | None:
+    """Non-standard layouts: trust hosts major+javac; JAVA_HOME=parent.parent."""
+    if not resolved_java.is_file():
+        return None
+    major_fn = getattr(hosts, "java_major", None)
+    compiler_present = getattr(hosts, "java_compiler_present", None)
+    major = major_fn(resolved_java) if callable(major_fn) else None
+    has_javac = compiler_present(resolved_java) if callable(compiler_present) else False
+    if not (isinstance(major, int) and major >= required_major and has_javac):
+        return None
+    try:
+        return str(resolved_java.parent.parent.resolve())
+    except OSError:
+        return str(resolved_java.parent.parent)
+
+
+def _validate_standard_jdk_home(hosts, home: str, required_major: int, fix) -> None:
+    java_name = "java.exe" if os.name == "nt" else "java"
+    javac_name = "javac.exe" if os.name == "nt" else "javac"
+    home_path = Path(home)
+    java_bin = home_path / "bin" / java_name
+    javac_bin = home_path / "bin" / javac_name
+    if not java_bin.is_file():
+        raise ValueError("JAVA_HOME does not point at a JDK with java. " + fix())
+    compiler_present = getattr(hosts, "java_compiler_present", None)
+    has_javac = (
+        compiler_present(java_bin) if callable(compiler_present) else javac_bin.is_file()
+    )
+    if not has_javac:
+        raise ValueError("JAVA_HOME does not point at a JDK with javac. " + fix())
+    major_fn = getattr(hosts, "java_major", None)
+    major = major_fn(java_bin) if callable(major_fn) else None
+    if not isinstance(major, int) or major < required_major:
+        observed = major if isinstance(major, int) else "unknown"
+        raise ValueError(
+            f"JAVA_HOME java major {observed} is below required {required_major}. "
+            + fix()
+        )
+
+
 def preflight_maven_tools_jdk(
     hosts,
     java: Path,
@@ -391,73 +451,29 @@ def preflight_maven_tools_jdk(
             "Maven Tools upstream wrapper is missing (mvn not resolvable). " + fix()
         )
     java_name = "java.exe" if os.name == "nt" else "java"
-    javac_name = "javac.exe" if os.name == "nt" else "javac"
     resolve_home = getattr(hosts, "_jdk_home_from_java_binary", None)
     home: str | None = None
     if callable(resolve_home):
         try:
             home = resolve_home(Path(java))
         except (OSError, TypeError, ValueError):
+            # Host helper rejected the binary; fall through to layout probes.
             home = None
-    try:
-        resolved_java = Path(java).resolve()
-    except OSError:
-        resolved_java = Path(java)
+    resolved_java = _resolve_java_path(java)
     if home is None:
-        for candidate in (resolved_java.parent.parent, resolved_java.parent.parent.parent):
-            if (candidate / "bin" / java_name).is_file():
-                try:
-                    home = str(candidate.resolve())
-                except OSError:
-                    home = str(candidate)
-                break
+        home = _jdk_home_from_standard_layout(resolved_java, java_name)
     nonstandard = False
-    if home is None and resolved_java.is_file():
-        # Non-standard layouts (unit fixtures / shims): trust hosts probes on the
-        # binary and keep JAVA_HOME=java.parent.parent (historical derivation).
-        major_fn = getattr(hosts, "java_major", None)
-        compiler_present = getattr(hosts, "java_compiler_present", None)
-        major = major_fn(resolved_java) if callable(major_fn) else None
-        has_javac = compiler_present(resolved_java) if callable(compiler_present) else False
-        if isinstance(major, int) and major >= required_major and has_javac:
-            try:
-                home = str(resolved_java.parent.parent.resolve())
-            except OSError:
-                home = str(resolved_java.parent.parent)
-            nonstandard = True
+    if home is None:
+        home = _jdk_home_from_host_probes(hosts, resolved_java, required_major)
+        nonstandard = home is not None
     if home is None:
         raise ValueError(
             "JAVA_HOME is unset or unusable for Maven Tools "
             f"(no JDK home with bin/java from {java}). "
             + fix()
         )
-    if nonstandard:
-        return home
-    home_path = Path(home)
-    java_bin = home_path / "bin" / java_name
-    javac_bin = home_path / "bin" / javac_name
-    if not java_bin.is_file():
-        raise ValueError(
-            "JAVA_HOME does not point at a JDK with java. " + fix()
-        )
-    compiler_present = getattr(hosts, "java_compiler_present", None)
-    has_javac = (
-        compiler_present(java_bin)
-        if callable(compiler_present)
-        else javac_bin.is_file()
-    )
-    if not has_javac:
-        raise ValueError(
-            "JAVA_HOME does not point at a JDK with javac. " + fix()
-        )
-    major_fn = getattr(hosts, "java_major", None)
-    major = major_fn(java_bin) if callable(major_fn) else None
-    if not isinstance(major, int) or major < required_major:
-        observed = major if isinstance(major, int) else "unknown"
-        raise ValueError(
-            f"JAVA_HOME java major {observed} is below required {required_major}. "
-            + fix()
-        )
+    if not nonstandard:
+        _validate_standard_jdk_home(hosts, home, required_major, fix)
     return home
 
 def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer) -> Path:

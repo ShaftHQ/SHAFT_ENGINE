@@ -133,7 +133,7 @@ assert_maven_tools_jdk_preflight() {
     return 0
   fi
   if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
-    fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='/usr/lib/jvm/temurin-25-jdk'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
+    fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
   fi
 }
 
