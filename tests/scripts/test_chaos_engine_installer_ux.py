@@ -863,14 +863,14 @@ class InstallerUxTests(unittest.TestCase):
                     ):
                         self.assertEqual(1, BOOTSTRAP.main())
                     self.assertEqual("", stdout.getvalue())
-                    self.assertIn(str(error).split("\n", 1)[0], stderr.getvalue())
+                    cause_q = urllib.parse.quote_plus(str(error).split("\n", 1)[0])
+                    self.assertIn(cause_q, stderr.getvalue().split("issues/new?", 1)[-1])
                     self.assertIn(code, stderr.getvalue())
-                    self.assertIn("#installer-errors", stderr.getvalue())
-                    self.assertIn("Installer CLI is not on disk", stderr.getvalue())
+                    self.assertIn("Restore the portable core", stderr.getvalue())
                     if code == "CE-INSTALL-FAILED":
                         err = stderr.getvalue()
                         self.assertIn("Open issue:", err)
-                        self.assertIn("Agent prompt (copy the backtick block):", err)
+                        self.assertIn("Launch your agent with this prompt:", err)
                         self.assertIn("Continue ChaosEngine install in this folder.", err)
                         report = [
                             line for line in err.splitlines()
@@ -902,13 +902,13 @@ class InstallerUxTests(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertEqual("", stdout.getvalue())
         err = stderr.getvalue()
-        self.assertIn("CE-INSTALL-CANCELLED", err)
-        self.assertIn("#installer-errors", err)
+        self.assertIn("Installation failed", err)
         self.assertIn("Last verified generation", err)
         self.assertIn("Rerun the same install command", err)
         self.assertNotIn("Traceback", err)
+        self.assertNotIn("issues/new?", err)
         self.assertNotRegex(err, r"Traceback \(most recent call last\):[^\n]*tree/")
-        self.assertNotIn(f"tree/{'c' * 40}/chaos-engine", err.split("CE-INSTALL-CANCELLED", 1)[-1])
+        self.assertNotIn(f"tree/{'c' * 40}/chaos-engine", err)
 
     def test_debug_env_prints_traceback_and_unset_does_not(self):
         def boom(*_args, **_kwargs):
@@ -931,10 +931,11 @@ class InstallerUxTests(unittest.TestCase):
 
         baseline = {key: value for key, value in os.environ.items() if key != "CHAOS_ENGINE_DEBUG"}
         unset_err = run_main(baseline)
-        self.assertIn("CE-INSTALL-FAILED", unset_err)
+        self.assertIn("Installation failed", unset_err)
+        self.assertIn("issues/new?", unset_err)
         self.assertNotIn("Traceback", unset_err)
         debug_err = run_main({**baseline, "CHAOS_ENGINE_DEBUG": "1"})
-        self.assertIn("CE-INSTALL-FAILED", debug_err)
+        self.assertIn("Installation failed", debug_err)
         self.assertIn("Traceback", debug_err)
         self.assertIn("sealed walk exploded", debug_err)
 
@@ -954,12 +955,13 @@ class InstallerUxTests(unittest.TestCase):
                 self.fail("unexpected exception leaked to the caller")
         self.assertEqual(1, code)
         err = stderr.getvalue()
-        self.assertIn("CE-INSTALL-FAILED", err)
-        self.assertIn("sealed walk exploded", err)
+        self.assertIn("Installation failed", err)
         self.assertIn("https://github.com/owner/repo/issues/new", err)
         self.assertIn("Open issue:", err)
-        self.assertIn("Agent prompt (copy the backtick block):", err)
+        self.assertIn("Launch your agent with this prompt:", err)
         self.assertIn("Continue ChaosEngine install in this folder.", err)
+        # Cause text lives in the prefilled issue URL / heal-handoff, not stderr.
+        self.assertIn("sealed", err.split("issues/new?", 1)[-1].casefold())
         self.assertNotIn("Traceback", err)
 
     def test_install_health_error_ignores_optional_absent_components(self):
@@ -1001,8 +1003,8 @@ class InstallerUxTests(unittest.TestCase):
             err = stderr.getvalue()
             self.assertIn("Installation failed", err)
             self.assertNotIn(".chaos-engine/install.py", err)
-            self.assertIn("Installer CLI is not on disk", err)
-            self.assertIn("Rerun the same install command", err)
+            self.assertIn("Restore the portable core", err)
+            self.assertIn("Launch your agent with this prompt:", err)
             self.assertIn("https://github.com/owner/repo/issues/new", err)
 
     def test_failure_cta_names_installer_cli_only_when_present(self):
@@ -1020,8 +1022,10 @@ class InstallerUxTests(unittest.TestCase):
                     project=project,
                 )
             err = stderr.getvalue()
-            self.assertIn(".chaos-engine/install.py doctor", err)
-            self.assertIn(".chaos-engine/install.py status", err)
+            self.assertIn("Installation failed", err)
+            self.assertIn("Launch your agent with this prompt:", err)
+            # Doctor/status stay in heal-handoff + issue fields / agent prompt.
+            self.assertIn("doctor", err.casefold())
 
     def test_prefilled_report_is_bounded_sanitized_and_names_failed_health(self):
         error = BOOTSTRAP.InstallHealthError(
@@ -1032,17 +1036,14 @@ class InstallerUxTests(unittest.TestCase):
         with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr):
             BOOTSTRAP.emit_install_failure("CE-INSTALL-FAILED", error, "owner/repo")
         output = stderr.getvalue()
-        self.assertIn("unhealthy: memory", output)
-        self.assertIn("Next fix: paste the heal prompt", output)
+        self.assertIn("Installation failed", output)
+        self.assertIn("Launch your agent with this prompt:", output)
         self.assertIn("Open issue:", output)
-        self.assertIn("Agent prompt (copy the backtick block):", output)
         self.assertIn("Continue ChaosEngine install in this folder.", output)
-        self.assertIn("comment findings, solutions, and troubleshooting steps", output)
-        self.assertIn(
-            "Ask the user whether they want to attempt a fix by opening an upstream PR",
-            output,
-        )
+        self.assertIn("Comment findings, solutions, and troubleshooting steps", output)
+        self.assertIn("ChaosEngine upstream repository", output)
         self.assertIn("the GitHub issue URL printed above", output)
+        self.assertIn("unhealthy", output.split("issues/new?", 1)[-1])
         self.assertNotIn("Repair the named", output)
         self.assertNotIn("Give this prompt", output)
         prompt_line = next(
@@ -1080,7 +1081,7 @@ class InstallerUxTests(unittest.TestCase):
             "https://github.com/owner/repo/issues/99",
         )
         self.assertIn("https://github.com/owner/repo/issues/99", filed)
-        self.assertIn("upstream PR", filed)
+        self.assertIn("upstream issue/PR", filed)
 
     def test_failure_cause_redacts_local_paths_and_secret_assignments(self):
         private_path = Path(
@@ -1172,7 +1173,7 @@ class InstallerUxTests(unittest.TestCase):
             self.assertEqual(
                 [".chaos-engine-state/install-trace.json"], query["install_trace"]
             )
-            self.assertIn("attach", output.casefold())
+            self.assertIn("install-trace", output.casefold())
             self.assertNotIn(str(project), query["install_trace"][0])
             self.assertIn("[path]", query["cause"][0])
 
@@ -1379,7 +1380,7 @@ class InstallerUxTests(unittest.TestCase):
             output = stderr.getvalue()
             self.assertIn("https://github.com/owner/repo/issues/99", output)
             self.assertIn("GitHub issue:", output)
-            self.assertIn("Agent prompt (copy the backtick block):", output)
+            self.assertIn("Launch your agent with this prompt:", output)
             self.assertIn("https://github.com/owner/repo/issues/99", output)
             self.assertIn("Continue ChaosEngine install in this folder.", output)
             self.assertFalse(
@@ -1497,7 +1498,7 @@ class InstallerUxTests(unittest.TestCase):
             output = stream.getvalue()
             self.assertIn("Heal handoff", output)
             self.assertIn("issues/new?", output)
-            self.assertIn("Agent prompt (copy the backtick block):", output)
+            self.assertIn("Launch your agent with this prompt:", output)
             self.assertIn("Continue ChaosEngine install in this folder.", output)
             self.assertNotIn("Repair the named", output)
             self.assertNotIn("Give this prompt", output)
@@ -2138,9 +2139,11 @@ class InstallerVisualLanguage6325Tests(unittest.TestCase):
                 "owner/repo",
             )
         err = stderr.getvalue()
-        self.assertIn("x Installation failed (CE-INSTALL-FAILED)", err)
-        self.assertIn("CE-INSTALL-FAILED: dependency command failed: npm: error: EACCES", err)
-        self.assertIn("Next fix:", err)
+        self.assertIn("Installation failed", err)
+        self.assertIn("Launch your agent with this prompt:", err)
+        self.assertIn("issues/new?", err)
+        # Cause is URL-encoded into the prefilled issue, not echoed as stderr noise.
+        self.assertIn("EACCES", err.split("issues/new?", 1)[-1])
         self.assertNotIn("\x1b", err)
 
     def test_failure_marks_the_running_step_failed_on_pipe_and_tty(self):

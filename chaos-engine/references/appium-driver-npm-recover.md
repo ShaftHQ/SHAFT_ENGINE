@@ -1,6 +1,6 @@
 ---
 name: appium-driver-npm-recover
-description: Use when Appium driver install hits npm's null-package error; uninstall then reinstall from npm at the pinned version.
+description: Use when Appium npm null-package; reinstall from catalog.
 ---
 
 # Appium driver npm null-package recover

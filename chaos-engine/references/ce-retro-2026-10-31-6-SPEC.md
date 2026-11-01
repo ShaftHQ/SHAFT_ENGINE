@@ -1,4 +1,4 @@
-# CE 2026.10.31.6 consolidated retro SPEC (pointer)
+# CE .31.6 retro (pointer)
 
 Full origin-only SPEC: [guides/ce-retro-2026-10-31-6-SPEC.md](../guides/ce-retro-2026-10-31-6-SPEC.md).
 

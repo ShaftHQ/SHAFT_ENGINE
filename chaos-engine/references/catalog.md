@@ -50,7 +50,7 @@ routes are reached through `local-runtimes`; roles through their adapters.
 | Draft skill PR | Use when an opt-in eval-gated draft skill pull request is requested. The default is off. | `references/draft-skill-pr.md` | [route](../references/draft-skill-pr.md) |
 | Token budget | Use when triage or the environment selects an ultra-lean, balanced, or deep token budget. | `references/token-budget-modes.md` | [route](../references/token-budget-modes.md) |
 | Eliminate waste | Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped. | `references/eliminate-waste.md` | [route](../references/eliminate-waste.md) |
-| Prefer CLI over MCP | Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured. | `references/prefer-cli-over-mcp.md` | [route](../references/prefer-cli-over-mcp.md) |
+| Prefer CLI over MCP | Use when CLI and MCP both fit the same job; prefer the CLI, and gh when it is configured. | `references/prefer-cli-over-mcp.md` | [route](../references/prefer-cli-over-mcp.md) |
 | No proxy | Use when a task would install, pin, or wrap a traffic proxy. Never install one. | `references/no-proxy.md` | [route](../references/no-proxy.md) |
 | GAP-EXIT2 UX | Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies. | `references/host-parity-matrix.md` | [route](../references/host-parity-matrix.md) |
 | Add-ons | Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one. | `references/addons.md` | [route](../references/addons.md) |

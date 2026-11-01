@@ -652,7 +652,12 @@ def fingerprint_detail(detail: str) -> str:
 
 def installer_failure_detail(value: str) -> str:
     headline = next(
-        (line.strip() for line in value.splitlines() if "CE-INSTALL-" in line),
+        (
+            line.strip()
+            for line in value.splitlines()
+            if "CE-INSTALL-" in line or line.strip() == "Installation failed"
+            or line.strip().endswith("Installation failed")
+        ),
         None,
     )
     if headline is None:

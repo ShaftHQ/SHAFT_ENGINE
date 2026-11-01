@@ -1,6 +1,6 @@
 ---
 name: profile-slow-installs
-description: Use when ChaosEngine install or upgrade-session is slow across many worktrees; profile per-dir timing and prune stale dirs.
+description: Use when CE install/upgrade is slow across worktrees.
 ---
 
 # Profile slow installs

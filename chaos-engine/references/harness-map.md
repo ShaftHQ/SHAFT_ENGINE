@@ -35,12 +35,13 @@ By [harness_map.py](../harness_map.py); `--check`.
 ## References
 
 - `references/addons.md`: Use when a task fits an optional add-on (design, video, or a project…
-- `references/appium-driver-npm-recover.md`: Use when Appium driver install hits npm's null-package error; uninsta…
+- `references/appium-driver-npm-recover.md`: Use when Appium npm null-package; reinstall from catalog.
 - `references/automerge-rearm.md`: Auto-merge re-arm and scheduled soft-fail
 - `references/bot-entry.md`: Bot entry
 - `references/catalog.md`: Catalog
-- `references/ce-retro-2026-10-31-6-SPEC.md`: CE 2026.10.31.6 consolidated retro SPEC (pointer)
-- `references/ce-rules-2026-10-31-7-SPEC.md`: CE 2026.10.31.7 rules SPEC (pointer)
+- `references/ce-retro-2026-10-31-6-SPEC.md`: CE .31.6 retro (pointer)
+- `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11 L94 (pointer)
+- `references/ce-rules-2026-10-31-7-SPEC.md`: CE .31.7 rules (pointer)
 - `references/ce-rules-2026-10-31-8-SPEC.md`: CE .31.8 (pointer)
 - `references/ce-upgrade-on-release.md`: ChaosEngine upgrade on release
 - `references/checkpoint-resume.md`: Checkpoint and resume after interruption
@@ -108,9 +109,9 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/parallel-streams.md`: Parallel streams (orchestrator fan-out)
 - `references/permanent-rules.md`: Permanent rules (single home)
 - `references/pr-scope-check.md`: PR scope check (H-PR-SCOPE)
-- `references/prefer-cli-over-mcp.md`: Use when both a CLI and an MCP server can do the same job. Prefer the…
+- `references/prefer-cli-over-mcp.md`: Use when CLI and MCP both fit the same job; prefer the CLI, and gh wh…
 - `references/process-owner-scrum-master.md`: process-owner
-- `references/profile-slow-installs.md`: Use when ChaosEngine install or upgrade-session is slow across many w…
+- `references/profile-slow-installs.md`: Use when CE install/upgrade is slow across worktrees.
 - `references/progress-log.md`: Progress log (every step)
 - `references/prompt-evolution.md`: Prompt and skill evolution (eval-scored)
 - `references/public-landing.md`: Use when a public calling card or product landing page must convince…

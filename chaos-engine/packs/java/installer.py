@@ -60,6 +60,13 @@ __all__ = (
     "_windows_jdk_search_roots",
     "maven_tools_java_home_fix_next",
     "maven_tools_wrapper_fix_next",
+    "maven_tools_unfixable_fix_next",
+    "_user_env_persist_enabled",
+    "_chaos_user_data_dir",
+    "_persist_windows_user_jdk",
+    "_persist_posix_user_jdk",
+    "apply_jdk_environment",
+    "resolve_maven_tools_build_cli",
     "_resolve_java_path",
     "_jdk_home_from_standard_layout",
     "_jdk_home_from_host_probes",
@@ -400,14 +407,139 @@ def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] 
 
 
 def maven_tools_wrapper_fix_next() -> str:
-    """Fix-next when the upstream Maven Tools mvnw/mvnw.cmd is missing after clone."""
+    """Legacy wording kept for heal-handoff when both wrapper and managed Maven fail."""
     wrapper = "mvnw.cmd" if os.name == "nt" else "mvnw"
     return (
         "fix-next: the Maven Tools upstream wrapper "
-        f"({wrapper}) is missing from the cloned source (mvn not resolvable). "
-        "Re-run the ChaosEngine install so the pinned tag is re-cloned; confirm git/network "
-        f"succeed and the tag contains {wrapper}; then rerun install. "
-        "Do not change JDK settings for this failure — repair the wrapper/clone first."
+        f"({wrapper}) is missing and managed Maven could not be provisioned "
+        "(mvn not resolvable). Open the prefilled installer issue and paste the "
+        "agent prompt so ChaosEngine can repair upstream provisioning."
+    )
+
+
+def maven_tools_unfixable_fix_next(*, required_major: int) -> str:
+    """Fix-next only when JDK/Maven auto-provision truly cannot complete."""
+    return (
+        "fix-next: ChaosEngine could not auto-provision a Temurin JDK "
+        f"{required_major}+ with javac and/or a Maven CLI for Maven Tools. "
+        "Open the prefilled GitHub issue link and launch your agent with the "
+        "printed prompt so it can fix the install and open an upstream issue."
+    )
+
+
+def _user_env_persist_enabled() -> bool:
+    """Persist user JAVA_HOME/PATH during a real install; tests opt in."""
+    flag = os.environ.get("CHAOS_ENGINE_USER_PATHS", "").strip().casefold()
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    argv = " ".join(sys.argv)
+    under_test = any(token in argv for token in ("unittest", "pytest", "tests/scripts"))
+    if under_test:
+        return flag in {"1", "true", "yes", "on"}
+    return True
+
+
+def _chaos_user_data_dir() -> Path:
+    override = os.environ.get("CHAOS_ENGINE_USER_DIR", "").strip()
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    return base / "chaos-engine"
+
+
+def _persist_windows_user_jdk(java_home: str, bin_dir: str) -> None:
+    try:
+        import winreg
+    except ImportError:
+        return
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ | winreg.KEY_SET_VALUE
+        ) as key:
+            winreg.SetValueEx(key, "JAVA_HOME", 0, winreg.REG_EXPAND_SZ, java_home)
+            try:
+                current, _kind = winreg.QueryValueEx(key, "Path")
+            except FileNotFoundError:
+                current = ""
+            existing = [part for part in str(current).split(os.pathsep) if part]
+            if bin_dir not in existing:
+                winreg.SetValueEx(
+                    key,
+                    "Path",
+                    0,
+                    winreg.REG_EXPAND_SZ,
+                    os.pathsep.join([bin_dir, *existing]),
+                )
+    except OSError:
+        return
+
+
+def _persist_posix_user_jdk(java_home: str, bin_dir: str) -> None:
+    root = _chaos_user_data_dir()
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        env_file = root / "env.sh"
+        env_file.write_text(
+            "# Managed by ChaosEngine installer (L94). Do not put secrets here.\n"
+            f'export JAVA_HOME="{java_home}"\n'
+            f'export PATH="{bin_dir}:$PATH"\n',
+            encoding="utf-8",
+        )
+    except OSError:
+        return
+
+
+def apply_jdk_environment(java_home: str, *, persist_user: bool | None = None) -> None:
+    """Apply JAVA_HOME + bin on PATH for this process; persist to the user env when enabled."""
+    home = str(Path(java_home))
+    bin_dir = str(Path(home) / "bin")
+    os.environ["JAVA_HOME"] = home
+    parts = [part for part in os.environ.get("PATH", "").split(os.pathsep) if part]
+    if bin_dir in parts:
+        parts = [part for part in parts if part != bin_dir]
+    os.environ["PATH"] = os.pathsep.join([bin_dir, *parts])
+    if persist_user is None:
+        persist_user = _user_env_persist_enabled()
+    if not persist_user:
+        return
+    if os.name == "nt":
+        _persist_windows_user_jdk(home, bin_dir)
+    else:
+        _persist_posix_user_jdk(home, bin_dir)
+
+
+def resolve_maven_tools_build_cli(
+    source: Path,
+    hosts,
+    specification: dict[str, object] | None,
+    *,
+    opener=None,
+    reporter=None,
+    confirmer=None,
+) -> Path:
+    """Prefer upstream mvnw; otherwise auto-provision managed Maven (L94)."""
+    wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
+    if wrapper.is_file():
+        if os.name != "nt":
+            wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        return wrapper
+    ensure_maven = getattr(hosts, "ensure_managed_maven", None)
+    managed = None
+    if callable(ensure_maven):
+        managed = ensure_maven(
+            specification, opener=opener, reporter=reporter, confirmer=confirmer,
+        )
+    if managed is not None and Path(managed).is_file():
+        return Path(managed)
+    raise ValueError(
+        "Maven Tools build CLI is missing (mvn path unresolved) and managed Maven "
+        "auto-provision failed. "
+        + maven_tools_wrapper_fix_next()
     )
 
 
@@ -475,43 +607,66 @@ def preflight_maven_tools_jdk(
     *,
     required_major: int,
     wrapper: Path | None = None,
+    specification: dict[str, object] | None = None,
+    opener=None,
+    reporter=None,
+    confirmer=None,
 ) -> str:
     """
     Validate the JDK home used for Maven Tools before `mvn package`.
 
-    Returns the usable JAVA_HOME string. Raises ValueError with an OS-specific
-    fix-next when JAVA_HOME/javac/java major/wrapper checks fail.
+    When the candidate is unusable, auto-provision managed Temurin (L94) and
+    re-validate. Wrapper absence is handled by ``resolve_maven_tools_build_cli``.
+    Returns the usable JAVA_HOME string.
     """
-    fix = lambda: maven_tools_java_home_fix_next(required_major=required_major)
+    fix = lambda: maven_tools_unfixable_fix_next(required_major=required_major)
+    # Wrapper check kept for callers that still pass it; prefer managed Maven fallback.
     if wrapper is not None and not wrapper.is_file():
-        raise ValueError(
-            "Maven Tools upstream wrapper is missing (mvn not resolvable). "
-            + maven_tools_wrapper_fix_next()
-        )
+        # Soft signal only when caller has not yet resolved a CLI; build path
+        # uses resolve_maven_tools_build_cli instead of failing here.
+        pass
     java_name = "java.exe" if os.name == "nt" else "java"
-    resolve_home = getattr(hosts, "_jdk_home_from_java_binary", None)
-    home: str | None = None
-    if callable(resolve_home):
-        try:
-            home = resolve_home(Path(java))
-        except (OSError, TypeError, ValueError):
-            # Host helper rejected the binary; fall through to layout probes.
-            home = None
-    resolved_java = _resolve_java_path(java)
+
+    def _home_from_java(candidate: Path) -> str | None:
+        resolve_home = getattr(hosts, "_jdk_home_from_java_binary", None)
+        home: str | None = None
+        if callable(resolve_home):
+            try:
+                home = resolve_home(Path(candidate))
+            except (OSError, TypeError, ValueError):
+                home = None
+        resolved_java = _resolve_java_path(candidate)
+        if home is None:
+            home = _jdk_home_from_standard_layout(resolved_java, java_name)
+        nonstandard = False
+        if home is None:
+            home = _jdk_home_from_host_probes(hosts, resolved_java, required_major)
+            nonstandard = home is not None
+        if home is None:
+            return None
+        if not nonstandard:
+            try:
+                _validate_standard_jdk_home(hosts, home, required_major, fix)
+            except ValueError:
+                return None
+        return home
+
+    home = _home_from_java(java)
     if home is None:
-        home = _jdk_home_from_standard_layout(resolved_java, java_name)
-    nonstandard = False
-    if home is None:
-        home = _jdk_home_from_host_probes(hosts, resolved_java, required_major)
-        nonstandard = home is not None
+        provision = getattr(hosts, "ensure_managed_temurin_jdk", None)
+        managed = None
+        if callable(provision):
+            managed = provision(
+                specification, opener=opener, reporter=reporter, confirmer=confirmer,
+            )
+        if managed is not None:
+            home = _home_from_java(Path(managed))
     if home is None:
         raise ValueError(
-            "JAVA_HOME is unset or unusable for Maven Tools "
-            f"(no JDK home with bin/java from {java}). "
+            "JAVA_HOME is unset or unusable for Maven Tools and managed Temurin "
+            f"JDK auto-provision failed (candidate={java}). "
             + fix()
         )
-    if not nonstandard:
-        _validate_standard_jdk_home(hosts, home, required_major, fix)
     return home
 
 def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer) -> Path:
@@ -552,8 +707,8 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
         raise ValueError(
             "Temurin JDK "
             f"{java_minimum_major} with javac is required for Maven Tools MCP "
-            "(JRE-only Java is not enough); install a matching JDK or set CHAOSENGINE_JAVA. "
-            + maven_tools_java_home_fix_next(required_major=java_minimum_major)
+            "(JRE-only Java is not enough) and managed JDK auto-provision failed. "
+            + maven_tools_unfixable_fix_next(required_major=java_minimum_major)
         )
     return java
 
@@ -561,8 +716,9 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
 def _build_and_publish_maven_tools(
     hosts, runner, java: Path, version: str, tag: str, *, confirmer, reporter,
     specification: dict[str, object] | None = None,
+    opener=None,
 ) -> None:
-    """Clone the pinned tag, build it with the upstream wrapper and publish the JAR to the cache."""
+    """Clone the pinned tag, build with mvnw or managed Maven, publish the JAR."""
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
@@ -581,28 +737,40 @@ def _build_and_publish_maven_tools(
         ).stdout.strip().casefold()
         if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
             raise ValueError("Maven Tools stable tag did not resolve to an immutable commit")
-        wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
-        if not wrapper.is_file():
-            raise ValueError(
-                "Maven Tools upstream wrapper is missing. "
-                + maven_tools_wrapper_fix_next()
-            )
-        if os.name != "nt":
-            wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         required_major = _maven_tools_required_major(specification, source)
-        # Preflight before mvn package: fail closed with OS-specific fix-next.
+        # Self-provision JDK env + Maven CLI before package (L94).
         java_home = preflight_maven_tools_jdk(
-            hosts, java, required_major=required_major, wrapper=wrapper,
+            hosts,
+            java,
+            required_major=required_major,
+            specification=specification,
+            opener=opener,
+            reporter=reporter,
+            confirmer=confirmer,
+        )
+        apply_jdk_environment(java_home)
+        maven_cli = resolve_maven_tools_build_cli(
+            source,
+            hosts,
+            specification,
+            opener=opener,
+            reporter=reporter,
+            confirmer=confirmer,
         )
         environment = os.environ.copy()
         environment["JAVA_HOME"] = java_home
+        bin_dir = str(Path(java_home) / "bin")
+        path_parts = [part for part in environment.get("PATH", "").split(os.pathsep) if part]
+        if bin_dir in path_parts:
+            path_parts = [part for part in path_parts if part != bin_dir]
+        environment["PATH"] = os.pathsep.join([bin_dir, *path_parts])
         if confirmer is not None:
             confirmer("Build and install Maven Tools")
         # Upstream tests are skipped: they are upstream CI's job, and a crashing
         # upstream test (#6339) must not block installing a tagged release.
         try:
             runner(
-                [str(wrapper), "-B", "clean", "package", "-Pci", "-DskipTests"],
+                [str(maven_cli), "-B", "clean", "package", "-Pci", "-DskipTests"],
                 cwd=source,
                 env=environment,
                 check=True,
@@ -612,8 +780,9 @@ def _build_and_publish_maven_tools(
             detail = ((error.stderr or error.stdout or "") + " " + str(error)).casefold()
             if "environment variable" in detail or "java_home" in detail:
                 raise ValueError(
-                    "Maven Tools build failed because JAVA_HOME is missing or unusable. "
-                    + maven_tools_java_home_fix_next(required_major=required_major)
+                    "Maven Tools build failed because JAVA_HOME is missing or unusable "
+                    "after auto-provision. "
+                    + maven_tools_unfixable_fix_next(required_major=required_major)
                 ) from error
             raise
         built = source / f"target/maven-tools-mcp-{version}.jar"
@@ -626,6 +795,7 @@ def _build_and_publish_maven_tools(
             receipt = {"version": version, "commit": revision, "jar": jar.name, "sha256": file_sha256(jar)}
             (staging / hosts.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
             hosts.publish_maven_tools_cache(staging)
+
 
 
 def ensure_maven_tools(
@@ -660,7 +830,7 @@ def ensure_maven_tools(
         )
     _build_and_publish_maven_tools(
         hosts, runner, java, version, tag, confirmer=confirmer, reporter=reporter,
-        specification=specification,
+        specification=specification, opener=opener,
     )
     runtime = hosts.discover_maven_tools_runtime()
     probe = hosts.probe_maven_tools_runtime
