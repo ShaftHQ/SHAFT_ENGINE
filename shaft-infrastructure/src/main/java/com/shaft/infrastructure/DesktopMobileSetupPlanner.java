@@ -20,9 +20,9 @@ final class DesktopMobileSetupPlanner {
     private static final Pattern WINDOWS_SPEC = Pattern.compile(
             "wad=" + Pattern.quote(WINAPPDRIVER_VERSION) + ",appiumPort=([0-9]+)");
     static final String IOS_LOCK_SHA256 =
-            "sha256:89c45e5a13010f0b93059ea4b58da894fbff069c039f72801285ab4d71470dba";
+            "sha256:b805495dabfcff603d249ccd372238fec045c5fc6531c19b7d724d90ed191719";
     static final String WINDOWS_LOCK_SHA256 =
-            "sha256:fb44d3f4e996aeab49be0ffba556be3f9e590f2995da69f427a9a9f0ac14d7e0";
+            "sha256:fffc3d354a058fab4914372b77becaf2a588c5713e7dfc967f5bacedc9b7d2dd";
 
     private static final String APPIUM_SHA256 =
             "9157726cb1dbc86090168b7fd559a80313151d28bb31ee115c73c8bc4ac601d1";
