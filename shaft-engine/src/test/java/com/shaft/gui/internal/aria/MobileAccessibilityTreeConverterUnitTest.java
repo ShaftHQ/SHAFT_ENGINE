@@ -208,4 +208,27 @@ public class MobileAccessibilityTreeConverterUnitTest {
             SHAFT.Properties.mobile.set().browserName(browser).automationName(automation);
         }
     }
+
+    @Test(description = "#7669: iOS mapped attr falls back to original XML name when issued attr absent")
+    public void iosMappedAttributeFallsBackToOriginalName() throws Exception {
+        String platform = SHAFT.Properties.platform.targetPlatform();
+        String browser = SHAFT.Properties.mobile.browserName();
+        String automation = SHAFT.Properties.mobile.automationName();
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        try {
+            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(
+                    new InputSource(new StringReader(
+                            "<XCUIElementTypeButton content-desc=\"OnlyDesc\" clickable=\"true\"/>")));
+            Element element = document.getDocumentElement();
+            // issued(content-desc)=label absent -> fall back to content-desc
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "content-desc"), "OnlyDesc");
+            // issued(clickable)=hittable absent -> fall back to clickable
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "clickable"), "true");
+            Assert.assertEquals(MobileAccessibilityTreeConverter.attribute(element, "password"), "");
+        } finally {
+            SHAFT.Properties.platform.set().targetPlatform(platform);
+            SHAFT.Properties.mobile.set().browserName(browser).automationName(automation);
+        }
+    }
 }
