@@ -5337,16 +5337,8 @@ def attach_component_status(
         empty = _mempalace_empty_finding(project, index)
         if empty is not None and components["mempalace"].get("status") == "healthy":
             components["mempalace"] = {**components["mempalace"], **empty}
-        sqlite_miss = _mempalace_sqlite_missing_finding(project)
-        if sqlite_miss is not None:
-            components["mempalace"] = {**components["mempalace"], **sqlite_miss}
-        previous_empty = _mempalace_empty_previous_finding(project)
-        if previous_empty is not None:
-            components["mempalace"] = {**components["mempalace"], **previous_empty}
+    _attach_l84_l92_doctor_findings(project, target, components)
     _apply_shared_store_doctor(project, components)
-    version_row = _ce_version_after_upgrade_finding(project, target)
-    if version_row is not None:
-        components["ce-version"] = version_row
     # #6336: judge the version runtime discovery selects (configured JAR, then the
     # newest verified cache), never a pinned release the installer did not pick.
     selected = getattr(host_controller, "selected_maven_tools_cache_status", None)
@@ -7771,6 +7763,25 @@ def reflection_controller_drift(project: Path) -> str:
         "controller the gate executes."
     )
 
+
+
+
+def _attach_l84_l92_doctor_findings(
+    project: Path, target: Path, components: dict[str, object]
+) -> None:
+    """L84/L92: attach mempalace sqlite/previous and CE VERSION doctor rows."""
+    mempalace = components.get("mempalace")
+    if isinstance(mempalace, dict):
+        sqlite_miss = _mempalace_sqlite_missing_finding(project)
+        if sqlite_miss is not None:
+            components["mempalace"] = {**mempalace, **sqlite_miss}
+            mempalace = components["mempalace"]
+        previous_empty = _mempalace_empty_previous_finding(project)
+        if previous_empty is not None and isinstance(mempalace, dict):
+            components["mempalace"] = {**mempalace, **previous_empty}
+    version_row = _ce_version_after_upgrade_finding(project, target)
+    if version_row is not None:
+        components["ce-version"] = version_row
 
 
 def _mempalace_sqlite_missing_finding(project: Path) -> dict[str, object] | None:

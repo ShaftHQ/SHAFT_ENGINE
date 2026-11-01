@@ -1871,6 +1871,7 @@ def set_aside_mempalace_index(project: Path) -> Path | None:
             aside.rmdir()
             aside = None
     except OSError:
+        # Best-effort cleanup; a busy aside must not fail the full mine.
         pass
     _remove_empty_mempalace_previous(palace.parent)
     return aside
@@ -1889,6 +1890,7 @@ def _remove_empty_mempalace_previous(parent: Path) -> list[str]:
                 child.rmdir()
                 removed.append(child.name)
         except OSError:
+            # Skip unreadable previous-* dirs; doctor will still flag leftovers.
             continue
     return removed
 
