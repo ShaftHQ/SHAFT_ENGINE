@@ -157,4 +157,29 @@ class ShaftAssistantPanelCoverageHelpersTest {
     void disposeLivePanelsIsSafeWhenNoPanelsAreRegistered() {
         ShaftAssistantPanel.disposeLivePanels();
     }
+
+    @Test
+    void toolRunNarrationCoversKnownLongRunningTools() {
+        for (String tool : java.util.List.of(
+                "capture_generate_replay",
+                "capture_code_blocks",
+                "capture_start",
+                "doctor_analyze_failed_allure",
+                "healer_run_failed_test",
+                "shaft_project_create",
+                "test_automation_scenarios")) {
+            String narration = ShaftAssistantPanel.toolRunNarration(tool);
+            assertTrue(narration != null);
+        }
+        assertEquals("", ShaftAssistantPanel.toolRunNarration("not_a_tool"));
+    }
+
+    @Test
+    void fileNameHandlesMixedSeparatorsAndTrailingSlash() {
+        assertEquals("pom.xml", ShaftAssistantPanel.fileName("/repo/module/pom.xml"));
+        assertEquals("pom.xml", ShaftAssistantPanel.fileName("C:\\repo\\module\\pom.xml"));
+        assertEquals("/", ShaftAssistantPanel.fileName("/"));
+        assertEquals("\\", ShaftAssistantPanel.fileName("\\"));
+    }
+
 }
