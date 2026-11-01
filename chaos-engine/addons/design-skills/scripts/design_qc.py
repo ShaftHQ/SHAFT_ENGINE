@@ -296,7 +296,7 @@ def extract_proper_nouns(script: str) -> list[str]:
     Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
 
     Sentence-initial Capitalized tokens are kept unless they match the common
-    English starter denylist (Carl L4 / Mohab→Moheb at script start).
+    English starter denylist (Carl L4: leading TitleCase names).
     Explicit ``--proper-noun`` values are merged by the caller.
     """
     found: list[str] = []
