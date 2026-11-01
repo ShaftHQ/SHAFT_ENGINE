@@ -476,7 +476,8 @@ def preflight_maven_tools_jdk(
     required_major: int,
     wrapper: Path | None = None,
 ) -> str:
-    """Validate the JDK home used for Maven Tools before `mvn package`.
+    """
+    Validate the JDK home used for Maven Tools before `mvn package`.
 
     Returns the usable JAVA_HOME string. Raises ValueError with an OS-specific
     fix-next when JAVA_HOME/javac/java major/wrapper checks fail.

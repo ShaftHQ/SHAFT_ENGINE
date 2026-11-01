@@ -73,36 +73,22 @@ class MavenToolsJavaPreflightTest(TestCase):
                 self.assertIn("export JAVA_HOME", message)
 
     def test_windows_fix_next_path_uses_literal_jdk_not_stale_env(self) -> None:
-        message = MODULE.maven_tools_java_home_fix_next(
-            required_major=25, suggested=[r"C:\Program Files\Eclipse Adoptium\jdk-25"]
-        )
-        # Force-shape check independent of host OS: call with patched os.name via rebuild text.
-        # On posix hosts the returned text is export-style; assert the Windows branch content
-        # by evaluating the function body with os.name == "nt".
         import types
 
-        installer_path = Path(__file__).resolve().parents[2] / "chaos-engine/packs/java/installer.py"
-        source = installer_path.read_text(encoding="utf-8")
-        start = source.index("def maven_tools_java_home_fix_next")
-        end = source.index("\ndef maven_tools_wrapper_fix_next")
-        ns: dict = {"os": types.SimpleNamespace(name="nt")}
-        exec(
-            "def _suggest_jdk_homes():\n    return []\n" + source[start:end],
-            ns,
-        )
-        win = ns["maven_tools_java_home_fix_next"](
-            required_major=25,
-            suggested=[r"C:\Program Files\Eclipse Adoptium\jdk-25"],
-        )
+        fake_os = types.SimpleNamespace(name="nt")
+        target = MODULE.maven_tools_java_home_fix_next
+        with mock.patch.dict(target.__globals__, {"os": fake_os}):
+            win = target(
+                required_major=25,
+                suggested=[r"C:\Program Files\Eclipse Adoptium\jdk-25"],
+            )
         self.assertIn("$env:JAVA_HOME=$jdk", win)
         path_section = win.split("GetEnvironmentVariable('Path','User')", 1)[1].split(
             "then open", 1
         )[0]
         self.assertNotIn("$env:JAVA_HOME", path_section)
         self.assertIn("+$jdk+", path_section)
-        # silence unused when host is already nt
-        if os.name == "nt":
-            self.assertIn("SetEnvironmentVariable", message)
+        self.assertIn("SetEnvironmentVariable", win)
 
     def test_missing_wrapper_fix_next_excludes_java_home(self) -> None:
         hosts = SimpleNamespace(
