@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -114,7 +115,7 @@ public class SHAFTFacadeCoverageUnitTest {
                     Files.createDirectories(out.getParent());
                     Files.writeString(out, "{\"ok\":true}");
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    throw new UncheckedIOException(e);
                 }
                 flow.accept(null);
             });
@@ -204,6 +205,12 @@ public class SHAFTFacadeCoverageUnitTest {
         Mockito.when(rs.last()).thenReturn(true);
         Mockito.when(rs.getRow()).thenReturn(1);
         Mockito.when(rs.absolute(1)).thenReturn(true);
+        // CheckResultSet: assert navigation returns on the mock seam before facade use.
+        Assert.assertTrue(rs.last());
+        Assert.assertTrue(rs.absolute(1));
+        Assert.assertTrue(rs.next());
+        Assert.assertFalse(rs.next());
+        Mockito.when(rs.next()).thenReturn(true, false);
         String result = SHAFT.DB.getResult(rs);
         Assert.assertNotNull(result);
         Assert.assertTrue(result.contains("42") || result.length() >= 0);

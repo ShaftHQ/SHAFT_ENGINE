@@ -14,7 +14,6 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
 import com.shaft.gui.playwright.validation.PlaywrightElementValidationsBuilder;
-import com.shaft.gui.driver.ElementAssertions;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.annotations.AfterMethod;
@@ -178,19 +177,19 @@ public class PlaywrightElementActionsUnitTest {
         Assert.assertSame(actions.typeFileLocationForUpload(locator, "/tmp/a.txt"), actions);
         Assert.assertEquals(actions.getElementsCount(locator), 3);
 
-        verify(locator, Mockito.atLeastOnce()).click();
+        verify(locator, atLeastOnce()).click();
         verify(locator).evaluate("element => element.click()");
         verify(locator).scrollIntoViewIfNeeded();
         verify(locator).dblclick();
         verify(locator).hover();
         verify(locator).dragTo(destination);
         verify(locator).selectOption("Option A");
-        verify(locator, Mockito.atLeastOnce()).fill("hello");
+        verify(locator, atLeastOnce()).fill("hello");
         verify(locator).clear();
         verify(locator).setInputFiles(java.nio.file.Path.of("/tmp/a.txt"));
-        verify(locator, Mockito.atLeastOnce()).fill("secret");
-        verify(mouse, Mockito.atLeastOnce()).down();
-        verify(mouse, Mockito.atLeastOnce()).up();
+        verify(locator, atLeastOnce()).fill("secret");
+        verify(mouse, atLeastOnce()).down();
+        verify(mouse, atLeastOnce()).up();
     }
 
     @Test

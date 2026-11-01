@@ -323,7 +323,7 @@ public class PlaywrightBrowserActionsUnitTest {
         verify(context).clearCookies();
         verify(page).evaluate(contains("document.cookie"), eq("sid"));
 
-        when(session.networkInterceptor()).thenReturn(new com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor(context));
+        when(session.networkInterceptor()).thenReturn(new PlaywrightNetworkInterceptor(context));
         Assert.assertSame(actions.capturePageSnapshot(), actions);
         Assert.assertSame(actions.clearNetworkInterceptors(), actions);
         Assert.assertSame(actions.getNativeContext(), context);
