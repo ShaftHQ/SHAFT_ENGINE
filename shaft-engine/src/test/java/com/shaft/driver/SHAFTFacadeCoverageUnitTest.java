@@ -184,6 +184,25 @@ public class SHAFTFacadeCoverageUnitTest {
         Assert.assertNotNull(SHAFT.Properties.reporting);
         Assert.assertNotNull(SHAFT.Properties.timeouts);
         Assert.assertNotNull(SHAFT.Properties.infrastructure);
+        Assert.assertNotNull(SHAFT.Properties.api);
+        Assert.assertNotNull(SHAFT.Properties.mobile);
+        Assert.assertNotNull(SHAFT.Properties.visuals);
+        Assert.assertNotNull(SHAFT.Properties.healenium);
+        Assert.assertNotNull(SHAFT.Properties.healing);
+        Assert.assertNotNull(SHAFT.Properties.browserStack);
+        Assert.assertNotNull(SHAFT.Properties.jira);
+        Assert.assertNotNull(SHAFT.Properties.tinkey);
+        Assert.assertNotNull(SHAFT.Properties.pattern);
+        Assert.assertNotNull(SHAFT.Properties.paths);
+        Assert.assertNotNull(SHAFT.Properties.playwright);
+        Assert.assertNotNull(SHAFT.Properties.ocr);
+        Assert.assertNotNull(SHAFT.Properties.allure);
+        Assert.assertNotNull(SHAFT.Properties.performance);
+        Assert.assertNotNull(SHAFT.Properties.lambdaTest);
+        Assert.assertNotNull(SHAFT.Properties.pilot);
+        Assert.assertNotNull(SHAFT.Properties.managedLocalAi);
+        Assert.assertNotNull(SHAFT.Properties.naturalActions);
+        Assert.assertNotNull(SHAFT.Properties.capture);
     }
 
     @Test

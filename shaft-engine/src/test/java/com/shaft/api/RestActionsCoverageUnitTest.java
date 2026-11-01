@@ -823,4 +823,30 @@ public class RestActionsCoverageUnitTest {
                 com.shaft.api.internal.ApiSettings.missingSpecUrlMessage(
                         com.shaft.api.internal.ApiSettings.SWAGGER_ENABLED_KEY));
     }
+
+    @Test
+    public void getResponseJSONValueAsListShouldParseArraysAndFallbackObjects() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.asPrettyString()).thenReturn("{\"items\":[{\"id\":1},{\"id\":2}]}");
+        List<Object> items = RestActions.getResponseJSONValueAsList(response, "$.items");
+        Assert.assertNotNull(items);
+        Assert.assertEquals(items.size(), 2);
+
+        Mockito.when(response.asPrettyString()).thenReturn("not-json-prefix {\"items\":[{\"id\":9}]} trailing");
+        List<Object> recovered = RestActions.getResponseJSONValueAsList(response, "$.items");
+        Assert.assertNotNull(recovered);
+    }
+
+    @Test
+    public void addHeaderVariableShouldAccumulateOnTheSession() {
+        RestActions actions = new RestActions("https://example.test/");
+        Assert.assertSame(actions.addHeaderVariable("X-Coverage", "1"), actions);
+        Assert.assertSame(actions.addHeaderVariable("X-Coverage", "2"), actions);
+        Assert.assertEquals(actions.getHeaders().get("X-Coverage"), "2");
+        RequestSpecification spec = actions.prepareRequestSpecs(
+                null, null, null, ContentType.JSON, Map.of(), Map.of(),
+                RestAssuredConfig.config(), true, true);
+        Assert.assertNotNull(spec);
+    }
+
 }
