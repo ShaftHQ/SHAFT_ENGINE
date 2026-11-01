@@ -308,6 +308,22 @@ class L84DoctorProductTest(TestCase):
 
 
 class L92DoctorProductTest(TestCase):
+
+    def test_version_mismatch_folds_into_core(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            target = project / "src-ce"
+            target.mkdir()
+            installed = project / ".chaos-engine"
+            installed.mkdir()
+            (installed / "VERSION").write_text("2026.10.31.11\n", encoding="utf-8")
+            (target / "VERSION").write_text("2026.10.31.12\n", encoding="utf-8")
+            components = {"core": {"status": "healthy", "owner": "installer", "scope": "project",
+                                   "lifecycle": "receipt-owned", "taskImpact": "required"}}
+            MODULE._attach_l84_l92_doctor_findings(project, target, components)
+            self.assertNotIn("ce-version", components)
+            self.assertEqual("invalid", components["core"]["status"])
+
     def test_version_mismatch_finding_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)

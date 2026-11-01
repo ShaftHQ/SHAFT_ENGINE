@@ -7769,19 +7769,45 @@ def reflection_controller_drift(project: Path) -> str:
 def _attach_l84_l92_doctor_findings(
     project: Path, target: Path, components: dict[str, object]
 ) -> None:
-    """L84/L92: attach mempalace sqlite/previous and CE VERSION doctor rows."""
+    """L84/L92: attach mempalace sqlite/previous findings and VERSION mismatch on core.
+
+    Do not invent a new component key (status capability set is closed). Skip
+    sqlite overwrite when mempalace is already migration/recovery classified.
+    """
     mempalace = components.get("mempalace")
     if isinstance(mempalace, dict):
-        sqlite_miss = _mempalace_sqlite_missing_finding(project)
-        if sqlite_miss is not None:
-            components["mempalace"] = {**mempalace, **sqlite_miss}
-            mempalace = components["mempalace"]
-        previous_empty = _mempalace_empty_previous_finding(project)
-        if previous_empty is not None and isinstance(mempalace, dict):
-            components["mempalace"] = {**mempalace, **previous_empty}
+        status = str(mempalace.get("status") or "")
+        if status in {"healthy", "initialization-required", "degraded", "absent"}:
+            sqlite_miss = _mempalace_sqlite_missing_finding(project)
+            if sqlite_miss is not None:
+                components["mempalace"] = {**mempalace, **sqlite_miss}
+                mempalace = components["mempalace"]
+                status = str(mempalace.get("status") or status)
+        if status in {"healthy", "initialization-required", "degraded", "invalid", "absent"}:
+            previous_empty = _mempalace_empty_previous_finding(project)
+            if previous_empty is not None and isinstance(mempalace, dict):
+                # Keep a stronger invalid sqlite miss over a degraded previous-* note.
+                if str(mempalace.get("status") or "") != "invalid":
+                    components["mempalace"] = {**mempalace, **previous_empty}
+                else:
+                    components["mempalace"] = {
+                        **mempalace,
+                        "detail": str(mempalace.get("detail") or "")
+                        + "; "
+                        + str(previous_empty.get("detail") or ""),
+                    }
     version_row = _ce_version_after_upgrade_finding(project, target)
-    if version_row is not None:
-        components["ce-version"] = version_row
+    if version_row is not None and version_row.get("status") == "invalid":
+        core = components.get("core")
+        if isinstance(core, dict):
+            components["core"] = {
+                **core,
+                "status": "invalid",
+                "detail": version_row["detail"],
+                "fixNext": version_row.get("fixNext"),
+                "installedVersion": version_row.get("installedVersion"),
+                "intendedVersion": version_row.get("intendedVersion"),
+            }
 
 
 def _mempalace_sqlite_missing_finding(project: Path) -> dict[str, object] | None:
