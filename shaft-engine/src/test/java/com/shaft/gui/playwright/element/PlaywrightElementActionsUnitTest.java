@@ -4,6 +4,8 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.BoundingBox;
 import com.microsoft.playwright.Page;
 import com.shaft.gui.internal.locator.CompositeLocator;
+import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.driver.ElementTarget;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
@@ -355,6 +357,95 @@ public class PlaywrightElementActionsUnitTest {
         verify(range).fill("7");
         verify(color).fill("#fff");
         verify(masked).pressSequentially("1234");
+    }
+
+
+    @Test
+    public void byAndShaftLocatorOverloadsShouldResolveThroughPage() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        Locator locator = mock(Locator.class);
+        Locator destination = mock(Locator.class);
+        com.microsoft.playwright.Mouse mouse = mock(com.microsoft.playwright.Mouse.class);
+        when(session.page()).thenReturn(page);
+        when(page.locator("[id=\"cov\"]")).thenReturn(locator);
+        when(page.locator("[id=\"dest\"]")).thenReturn(destination);
+        when(page.mouse()).thenReturn(mouse);
+        when(locator.count()).thenReturn(1);
+        BoundingBox box = new BoundingBox();
+        box.x = 10;
+        box.y = 20;
+        box.width = 30;
+        box.height = 40;
+        when(locator.boundingBox()).thenReturn(box);
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "text", "role", "textbox", "isContentEditable", "false"));
+        when(locator.inputValue()).thenReturn("base");
+        when(locator.page()).thenReturn(page);
+        when(locator.screenshot(any())).thenReturn(new byte[] {9, 8, 7});
+        when(destination.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "BUTTON", "type", "button", "role", "button", "isContentEditable", "false"));
+
+        ElementActions actions = new ElementActions(session);
+        By by = By.id("cov");
+        ShaftLocator shaft = ShaftLocator.from(by);
+        By destBy = By.id("dest");
+        ShaftLocator destShaft = ShaftLocator.from(destBy);
+
+        Assert.assertSame(actions.click(by), actions);
+        Assert.assertSame(actions.click(shaft), actions);
+        Assert.assertSame(actions.clickUsingJavascript(by), actions);
+        Assert.assertSame(actions.clickUsingJavascript(shaft), actions);
+        Assert.assertSame(actions.scrollToElement(by), actions);
+        Assert.assertSame(actions.scrollToElement(shaft), actions);
+        Assert.assertSame(actions.clickAndHold(by), actions);
+        Assert.assertSame(actions.clickAndHold(shaft), actions);
+        Assert.assertSame(actions.doubleClick(by), actions);
+        Assert.assertSame(actions.doubleClick(shaft), actions);
+        Assert.assertSame(actions.hover(by), actions);
+        Assert.assertSame(actions.hover(shaft), actions);
+        Assert.assertSame(actions.dragAndDrop(by, destBy), actions);
+        Assert.assertSame(actions.dragAndDrop(shaft, destShaft), actions);
+        Assert.assertSame(actions.dragAndDropByOffset(by, 2, 3), actions);
+        Assert.assertSame(actions.dragAndDropByOffset(shaft, 2, 3), actions);
+        Assert.assertSame(actions.select(by, "Opt"), actions);
+        Assert.assertSame(actions.select(shaft, "Opt"), actions);
+        Assert.assertSame(actions.type(by, "typed"), actions);
+        Assert.assertSame(actions.type(shaft, "typed"), actions);
+        Assert.assertSame(actions.clear(by), actions);
+        Assert.assertSame(actions.clear(shaft), actions);
+        Assert.assertSame(actions.typeAppend(by, " more"), actions);
+        Assert.assertSame(actions.typeAppend(shaft, " more"), actions);
+        Assert.assertSame(actions.typeSecure(by, "secret"), actions);
+        Assert.assertSame(actions.typeSecure(shaft, "secret"), actions);
+        Assert.assertSame(actions.typeFileLocationForUpload(by, "/tmp/u.bin"), actions);
+        Assert.assertSame(actions.typeFileLocationForUpload(shaft, "/tmp/u.bin"), actions);
+        Assert.assertSame(actions.setValueUsingJavaScript(by, "js"), actions);
+        Assert.assertSame(actions.setValueUsingJavaScript(shaft, "js"), actions);
+        Assert.assertSame(actions.submitFormUsingJavaScript(by), actions);
+        Assert.assertSame(actions.submitFormUsingJavaScript(shaft), actions);
+        Assert.assertSame(actions.captureScreenshot(by), actions);
+        Assert.assertSame(actions.captureScreenshot(shaft), actions);
+        Assert.assertEquals(actions.getElementsCount(by), 1);
+        Assert.assertEquals(actions.getElementsCount(shaft), 1);
+        // aria/table By overloads need divergent evaluate payloads; covered via Locator APIs elsewhere.
+        Assert.assertNotNull(actions.assertThat(by));
+        Assert.assertNotNull(actions.assertThat(shaft));
+        Assert.assertNotNull(actions.assertThat(ElementTarget.located(shaft)));
+        Assert.assertNotNull(actions.verifyThat(by));
+        Assert.assertNotNull(actions.verifyThat(shaft));
+        Assert.assertNotNull(actions.verifyThat(ElementTarget.located(shaft)));
+        Assert.assertSame(actions.hoverAndClick(List.of(by), destBy), actions);
+
+        verify(locator, atLeastOnce()).click();
+        verify(locator, atLeastOnce()).dblclick();
+        verify(locator, atLeastOnce()).hover();
+        verify(locator, atLeastOnce()).clear();
+        verify(locator, atLeastOnce()).selectOption("Opt");
+        verify(locator, atLeastOnce()).fill(anyString());
+        verify(locator, atLeastOnce()).setInputFiles(java.nio.file.Path.of("/tmp/u.bin"));
+        verify(locator, atLeastOnce()).screenshot(any());
+        verify(locator, atLeastOnce()).dragTo(destination);
     }
 
     private static final class TestCompositeLocator extends By implements CompositeLocator {

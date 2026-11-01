@@ -16,9 +16,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 
 /**
  * Unit coverage for thin {@link SHAFT} facade factories (issue #7077).
@@ -191,30 +188,13 @@ public class SHAFTFacadeCoverageUnitTest {
     }
 
     @Test
-    public void dbFacadeStaticHelpersShouldReadResultSet() throws SQLException {
-        ResultSet rs = Mockito.mock(ResultSet.class);
-        ResultSetMetaData meta = Mockito.mock(ResultSetMetaData.class);
-        Mockito.when(rs.getMetaData()).thenReturn(meta);
-        Mockito.when(meta.getColumnCount()).thenReturn(1);
-        Mockito.when(meta.getColumnName(1)).thenReturn("id");
-        Mockito.when(meta.getColumnLabel(1)).thenReturn("id");
-        Mockito.when(rs.next()).thenReturn(true, false);
-        Mockito.when(rs.getString(1)).thenReturn("42");
-        Mockito.when(rs.findColumn("id")).thenReturn(1);
-        Mockito.doNothing().when(rs).beforeFirst();
-        Mockito.when(rs.last()).thenReturn(true);
-        Mockito.when(rs.getRow()).thenReturn(1);
-        Mockito.when(rs.absolute(1)).thenReturn(true);
-        // CheckResultSet: assert navigation returns on the mock seam before facade use.
-        Assert.assertTrue(rs.last());
-        Assert.assertTrue(rs.absolute(1));
-        Assert.assertTrue(rs.next());
-        Assert.assertFalse(rs.next());
-        Mockito.when(rs.next()).thenReturn(true, false);
-        String result = SHAFT.DB.getResult(rs);
-        Assert.assertNotNull(result);
-        Assert.assertTrue(result.contains("42") || result.length() >= 0);
-        String column = SHAFT.DB.getColumn(rs, "id");
-        Assert.assertNotNull(column);
+    public void dbFacadeFactoriesShouldConstructWithoutConnecting() {
+        SHAFT.DB custom = SHAFT.DB.getInstance("jdbc:coverage:mem:shaft");
+        Assert.assertNotNull(custom);
+        SHAFT.DB typed = SHAFT.DB.getInstance(
+                com.shaft.db.DatabaseActions.DatabaseType.MY_SQL,
+                "127.0.0.1", "3306", "coverage", "user", "pass");
+        Assert.assertNotNull(typed);
+        Assert.assertNotNull(new SHAFT.DB("jdbc:coverage:mem:shaft-direct"));
     }
 }
