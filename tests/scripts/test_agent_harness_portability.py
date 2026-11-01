@@ -857,6 +857,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertNotIn("print('{}')", command)
         self.assertNotIn('print("{}")', command)
         with tempfile.TemporaryDirectory() as temporary:
+            # #7667: short command needs launch.py under cwd; guard still absent.
+            launch_dir = Path(temporary) / ".chaos-engine/hooks"
+            launch_dir.mkdir(parents=True)
+            shutil.copy2(ROOT / "chaos-engine/hooks/launch.py", launch_dir / "launch.py")
             inline = subprocess.run(  # nosec B602 - tracked fixed hook command.
                 command,
                 shell=True,

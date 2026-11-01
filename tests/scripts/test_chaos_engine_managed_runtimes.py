@@ -342,9 +342,14 @@ class ManagedRuntimeCliTest(TestCase):
         node = Path("/owned/node")
         lifecycle = json.loads(HOSTS.lifecycle_hooks_document("codex", managed_python=python))
         command = lifecycle["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-        self.assertIn("exec python3 -c", command)
+        # #7667: short command points at launch.py; pointer lives in the launcher.
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, command)
+        self.assertLessEqual(len(command), HOSTS.HOOK_COMMAND_MAX_CHARS)
         self.assertNotIn(str(python), command)
-        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.hook_command_source(command))
+        self.assertIn(
+            HOSTS.HOOK_PYTHON_POINTER,
+            (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8"),
+        )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             HOSTS.write_hook_python_pointer(project, python)
