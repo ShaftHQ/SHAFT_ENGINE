@@ -34,6 +34,32 @@ function ConvertTo-ChaosEngineAddOnFlags([string[]]$tokens) {
     return $flags
 }
 
+
+function Assert-ChaosEngineMavenToolsJdkPreflight {
+    # Fail closed before bootstrap when Maven Tools will run and JAVA_HOME is unusable.
+    # Managed Temurin can still heal an unset JAVA_HOME inside Python; a set-but-broken
+    # JAVA_HOME must not reach `mvn package` with a cryptic env-var error.
+    param(
+        [switch]$WithMavenTools,
+        [string]$MavenToolsMode = "native"
+    )
+    if ($MavenToolsMode -eq "docker") { return }
+    $project = (Get-Location).Path
+    $autoJava = Test-Path -LiteralPath (Join-Path $project "pom.xml")
+    if (-not ($WithMavenTools -or $autoJava)) { return }
+    $home = [string]$env:JAVA_HOME
+    if ([string]::IsNullOrWhiteSpace($home)) {
+        # Unset is OK: Python may provision managed Temurin. Hint only.
+        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; Maven Tools preflight will validate the JDK before mvn package.")
+        return
+    }
+    $java = Join-Path $home "bin\java.exe"
+    $javac = Join-Path $home "bin\javac.exe"
+    if (-not (Test-Path -LiteralPath $java -PathType Leaf) -or -not (Test-Path -LiteralPath $javac -PathType Leaf)) {
+        throw "CE-INSTALL-FAILED: JAVA_HOME='$home' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: [Environment]::SetEnvironmentVariable('JAVA_HOME','C:\Program Files\Eclipse Adoptium\jdk-25.x.x-hotspot','User'); add %JAVA_HOME%\bin to User PATH; reopen PowerShell; verify java -version / javac -version; rerun install."
+    }
+}
+
 function Get-ChaosEnginePython {
     # Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
     $floor = "import sys; sys.exit(sys.version_info < (3, 11))"
@@ -296,6 +322,7 @@ if ($env:CHAOS_ENGINE_RESOLVE_ONLY -eq "1") {
     Write-Output "$repository|$branch|$localFlag|$bootstrapUrl"
     return
 }
+Assert-ChaosEngineMavenToolsJdkPreflight -WithMavenTools:$WithMavenTools -MavenToolsMode $MavenToolsMode
 $python = Get-ChaosEnginePython
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ("chaos-engine-bootstrap-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $work | Out-Null

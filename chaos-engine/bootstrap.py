@@ -754,6 +754,8 @@ def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) ->
         if rel != HEAL_HANDOFF_RELATIVE
     ]
     listed = [HEAL_HANDOFF_RELATIVE, *existing]
+    cause = str(fields.get("cause") or "").strip()
+    fix_next = str(fields.get("fix_next") or "").strip()
     lines = [
         "# Heal handoff",
         "",
@@ -766,14 +768,22 @@ def write_heal_handoff(project: Path, fields: dict[str, str], issue_url: str) ->
         f"Unhealthy: {fields.get('unhealthy', '')}",
         f"Doctor details: {fields.get('doctor_details', '')}",
         f"Doctor: `{fields.get('doctor_command', '')}`",
-        "",
-        "Local artifacts:",
-        "",
-        *[f"- `{rel}`" for rel in listed],
-        "",
-        "Do not rerun the install one-liner unless `.chaos-engine/install.py` is missing.",
-        "",
     ]
+    if cause:
+        lines.extend(["", f"Cause: {cause}"])
+    if fix_next:
+        lines.extend(["", f"Fix-next: {fix_next}"])
+    lines.extend(
+        [
+            "",
+            "Local artifacts:",
+            "",
+            *[f"- `{rel}`" for rel in listed],
+            "",
+            "Do not rerun the install one-liner unless `.chaos-engine/install.py` is missing.",
+            "",
+        ]
+    )
     target.write_text("\n".join(lines), encoding="utf-8")
     return target
 
@@ -2759,6 +2769,9 @@ def install_latest(
                     f"{prefix} status --project . --json",
                     f"{prefix} doctor --project . --json",
                 )
+                fields["fix_next"] = next_fix_hint(
+                    "CE-INSTALL-FAILED", health_error, prefix
+                )
                 issue_url = publish_installer_issue(
                     repository, "CE-INSTALL-FAILED", fields
                 )
@@ -3115,6 +3128,18 @@ def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
             f"`gh auth login`), {rerun}",
         ),
         (
+            "java_home" in cause
+            or "environment variable is needed" in cause
+            or ("jdk" in cause and "javac" in cause and "fix-next" in cause),
+            (
+                "set JAVA_HOME to a JDK 25+ home with bin/java and bin/javac, add its bin "
+                "to PATH, reopen the shell, then rerun the install. PowerShell: "
+                "[Environment]::SetEnvironmentVariable('JAVA_HOME','<jdk>','User') and add "
+                "%JAVA_HOME%\\bin to User PATH. bash: export JAVA_HOME='<jdk>'; "
+                'export PATH="$JAVA_HOME/bin:$PATH".'
+            ),
+        ),
+        (
             "maven tools" in cause
             and any(token in cause for token in ("checksum", "crc", "receipt validation")),
             f"run `{prefix or 'python3 .chaos-engine/install.py'} repair --project . "
@@ -3248,6 +3273,7 @@ def emit_install_failure(
             status_command or "not available",
             doctor_command or "not available",
         )
+        fields["fix_next"] = next_fix_hint(code, error, prefix)
         issue_url = publish_installer_issue(
             repository,
             code,

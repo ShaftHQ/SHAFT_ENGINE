@@ -112,6 +112,33 @@ for argument in "$@"; do
   esac
 done
 
+
+assert_maven_tools_jdk_preflight() {
+  # Fail closed before bootstrap when Maven Tools will run and JAVA_HOME is unusable.
+  # Unset JAVA_HOME is allowed: Python may provision managed Temurin.
+  maven_tools_mode=${1:-native}
+  with_maven_tools=${2:-}
+  if [ "$maven_tools_mode" = "docker" ]; then
+    return 0
+  fi
+  auto_java=
+  if [ -f "$(pwd)/pom.xml" ]; then
+    auto_java=1
+  fi
+  if [ -z "$with_maven_tools" ] && [ -z "$auto_java" ]; then
+    return 0
+  fi
+  if [ -z "${JAVA_HOME:-}" ]; then
+    echo "ChaosEngine: JAVA_HOME unset; Maven Tools preflight will validate the JDK before mvn package." >&2
+    return 0
+  fi
+  if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
+    fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='/usr/lib/jvm/temurin-25-jdk'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
+  fi
+}
+
+assert_maven_tools_jdk_preflight "$maven_tools_mode" "$with_maven_tools"
+
 if command -v python3 >/dev/null 2>&1; then
   python="python3"
 elif command -v python >/dev/null 2>&1; then
