@@ -256,13 +256,13 @@ class Lessons20261101GatesTest(TestCase):
         self.assertFalse(self.mod.evaluate_ar_vo_script("ثلاث تحديات")["ok"])
         self.assertTrue(self.mod.evaluate_ar_vo_script("تلات تحديات")["ok"])
         self.assertFalse(
-            self.mod.evaluate_coach_pass_not_publish(
-                {"coach_pass": True, "published": True}
+            self.mod.evaluate_coach_approved_not_publish(
+                {"coach_approved": True, "published": True}
             )["ok"]
         )
         self.assertTrue(
-            self.mod.evaluate_coach_pass_not_publish(
-                {"coach_pass": True, "published": True, "owner_signoff": True}
+            self.mod.evaluate_coach_approved_not_publish(
+                {"coach_approved": True, "published": True, "owner_signoff": True}
             )["ok"]
         )
 

@@ -1,4 +1,5 @@
-"""Fail-closed gates for CE lessons L82–L85 and L87–L92.
+"""
+Fail-closed gates for CE lessons L82–L85 and L87–L92.
 
 Each ``evaluate_*`` returns ``{"ok": bool, "hits": list, "error": str|None}``.
 Callers (tests, tip-preflight, doctor) treat ``ok is False`` as a hard failure.

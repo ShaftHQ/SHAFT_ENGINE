@@ -76,14 +76,24 @@ class L86VerifyDroppedTest(TestCase):
 
     def test_redo_with_already_exists_passes(self) -> None:
         result = self.mod.evaluate(
-            "VERIFY-DROPPED: redo coverage? already exists https://github.com/ShaftHQ/SHAFT_ENGINE/pull/7679"
+            "VERIFY-DROPPED: redo coverage? board owner Chaos; "
+            "already exists https://github.com/ShaftHQ/SHAFT_ENGINE/pull/7679"
         )
         self.assertTrue(result["ok"])
+
+    def test_dropped_without_board_owner_fails(self) -> None:
+        result = self.mod.evaluate(
+            "VERIFY-DROPPED: redo coverage? already exists "
+            "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/7679"
+        )
+        self.assertFalse(result["ok"])
+        self.assertIn("missing-board-owner-check", result["hits"])
 
     def test_proven_red_mutant_drops_live_marker(self) -> None:
         source = Path(self.mod.__file__).read_text(encoding="utf-8")
         self.assertIn("already exists", source)
         self.assertIn("VERIFY-DROPPED", source)
+        self.assertIn("board owner", source)
 
 
 class L97MegaPrTest(TestCase):

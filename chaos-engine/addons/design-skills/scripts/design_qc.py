@@ -267,7 +267,8 @@ def tokenizer_unk_rate(tokens: list[str], *, unk_token: str = "<unk>") -> float:
 
 
 def extract_proper_nouns(script: str) -> list[str]:
-    """Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
+    """
+    Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
 
     Sentence-initial bare words are skipped unless CamelCase or multi-word Title Case.
     Explicit ``--proper-noun`` values are merged by the caller.

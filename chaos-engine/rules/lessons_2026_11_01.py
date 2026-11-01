@@ -1,4 +1,5 @@
-"""Fail-closed gates for CE 2026.11.01 batch (L98–L101, H1–H6, C1–C6, E1–E4, Carl L5–L8).
+"""
+Fail-closed gates for CE 2026.11.01 batch (L98–L101, H1–H6, C1–C6, E1–E4, Carl L5–L8).
 
 Carl L1–L4/L9 and Cleo stop-all prose dedupe to L90/L93/L96 (already shipped).
 Each evaluate_* returns {"ok": bool, "hits": list, "error": str|None}.
@@ -320,7 +321,7 @@ def evaluate_ar_vo_script(script: str) -> dict[str, Any]:
 
 
 # ----- C6 coach pass != publish -----
-def evaluate_coach_pass_not_publish(record: dict[str, Any]) -> dict[str, Any]:
+def evaluate_coach_approved_not_publish(record: dict[str, Any]) -> dict[str, Any]:
     hits: list[str] = []
     if not isinstance(record, dict):
         return _result(["record"], "C6 coach-pass-not-publish gate failed")
@@ -328,7 +329,7 @@ def evaluate_coach_pass_not_publish(record: dict[str, Any]) -> dict[str, Any]:
         record.get("owner_signoff")
     ):
         hits.append("publish-without-owner-signoff")
-    if record.get("coach_pass") and record.get("published") and not (
+    if record.get("coach_approved") and record.get("published") and not (
         record.get("owner_signoff")
     ):
         hits.append("coach-pass-treated-as-publish")
