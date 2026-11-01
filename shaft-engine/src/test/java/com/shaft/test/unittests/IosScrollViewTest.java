@@ -106,6 +106,7 @@ public class IosScrollViewTest {
                 Assert.assertEquals(toX, insetLeft + usableWidth * 80 / 100);
                 Assert.assertTrue(fromX < toX, "LEFT reveals content to the left: finger moves right");
             }
+            default -> Assert.fail("unexpected direction: " + direction);
         }
     }
 
