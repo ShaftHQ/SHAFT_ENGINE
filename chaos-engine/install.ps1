@@ -36,22 +36,20 @@ function ConvertTo-ChaosEngineAddOnFlags([string[]]$tokens) {
 
 
 function Assert-ChaosEngineMavenToolsJdkPreflight {
-    # Fail closed before bootstrap when Maven Tools will run and JAVA_HOME is unusable.
-    # Managed Temurin can still heal an unset JAVA_HOME inside Python; a set-but-broken
-    # JAVA_HOME must not reach `mvn package` with a cryptic env-var error.
+    # Fail closed before bootstrap when the tools pack was explicitly requested and
+    # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
+    # ecosystem terms here). Managed Temurin can still heal unset JAVA_HOME.
     # Never assign $home / $HOME: PowerShell StrictMode treats $HOME as read-only.
     param(
         [switch]$WithMavenTools,
         [string]$MavenToolsMode = "native"
     )
     if ($MavenToolsMode -eq "docker") { return }
-    $project = (Get-Location).Path
-    $autoJava = Test-Path -LiteralPath (Join-Path $project "pom.xml")
-    if (-not ($WithMavenTools -or $autoJava)) { return }
+    if (-not $WithMavenTools) { return }
     $jdkHome = [string]$env:JAVA_HOME
     if ([string]::IsNullOrWhiteSpace($jdkHome)) {
         # Unset is OK: Python may provision managed Temurin. Hint only.
-        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; Maven Tools preflight will validate the JDK before mvn package.")
+        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package.")
         return
     }
     $java = Join-Path $jdkHome "bin\java.exe"

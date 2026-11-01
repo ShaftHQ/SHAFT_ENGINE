@@ -36,6 +36,11 @@ class MavenToolsJavaPreflightTest(TestCase):
         self.assertNotRegex(body, r"(?m)^\s*\$home\s*=")
         self.assertNotRegex(body, r"(?m)^\s*\$HOME\s*=")
         self.assertIn("$jdkHome", body)
+        # Lean core: wrappers must not introduce Maven/Java/pom.xml ecosystem terms.
+        import re
+        ecosystem = re.compile(r"\bMaven\b|\bJava\b|pom\.xml")
+        self.assertEqual([], ecosystem.findall(ps1))
+        self.assertEqual([], ecosystem.findall(sh))
 
     def test_preflight_rejects_home_without_javac(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

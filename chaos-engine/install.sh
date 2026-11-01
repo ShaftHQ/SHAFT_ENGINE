@@ -114,22 +114,19 @@ done
 
 
 assert_maven_tools_jdk_preflight() {
-  # Fail closed before bootstrap when Maven Tools will run and JAVA_HOME is unusable.
-  # Unset JAVA_HOME is allowed: Python may provision managed Temurin.
+  # Fail closed before bootstrap when the tools pack was explicitly requested and
+  # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
+  # ecosystem terms here). Unset JAVA_HOME is allowed: Python may provision Temurin.
   maven_tools_mode=${1:-native}
   with_maven_tools=${2:-}
   if [ "$maven_tools_mode" = "docker" ]; then
     return 0
   fi
-  auto_java=
-  if [ -f "$(pwd)/pom.xml" ]; then
-    auto_java=1
-  fi
-  if [ -z "$with_maven_tools" ] && [ -z "$auto_java" ]; then
+  if [ -z "$with_maven_tools" ]; then
     return 0
   fi
   if [ -z "${JAVA_HOME:-}" ]; then
-    echo "ChaosEngine: JAVA_HOME unset; Maven Tools preflight will validate the JDK before mvn package." >&2
+    echo "ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package." >&2
     return 0
   fi
   if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
