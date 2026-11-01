@@ -121,4 +121,19 @@ public class PlaywrightElementValidationsBuilderCoverageUnitTest {
         }
     }
 
+
+    @Test
+    public void trimmedCssPropertyAndOcrSeamsShouldReturnBuilders() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        PlaywrightElementValidationsBuilder builder = new PlaywrightElementValidationsBuilder(
+                ValidationEnums.ValidationCategory.SOFT_ASSERT, session, locator, "cov-seams");
+        Assert.assertNotNull(builder.textTrimmed());
+        Assert.assertNotNull(builder.cssProperty("color"));
+        Assert.assertNotNull(builder.property("value"));
+        Assert.assertNotNull(builder.domAttribute("data-x"));
+        Assert.assertNotNull(builder.domProperty("value"));
+    }
+
+
 }

@@ -173,6 +173,26 @@ class AssistantLocalAgentRunnerStreamEventMapperTest {
                 AssistantLocalAgentRunner.StructuredStreamParser.Format.CLAUDE);
     }
 
+    @Test
+    void codexMapsAgentMessageAndWebSearchItems() {
+        CodexStreamEventMapper mapper = new CodexStreamEventMapper(codexState());
+        JsonObject agent = JsonParser.parseString(
+                "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"hello from agent\"}}")
+                .getAsJsonObject();
+        MapResult agentResult = mapper.map(agent);
+        assertInstanceOf(MapResult.Rendered.class, agentResult);
+        assertTrue(((MapResult.Rendered) agentResult).text().contains("hello from agent"));
+
+        JsonObject search = JsonParser.parseString(
+                "{\"type\":\"item.completed\",\"item\":{\"type\":\"web_search\",\"query\":\"shaft coverage\"}}")
+                .getAsJsonObject();
+        MapResult searchResult = mapper.map(search);
+        assertInstanceOf(MapResult.Rendered.class, searchResult);
+        assertTrue(((MapResult.Rendered) searchResult).text().toLowerCase().contains("search")
+                || ((MapResult.Rendered) searchResult).text().contains("shaft coverage"));
+    }
+
+
     private static AssistantLocalAgentRunner.StructuredStreamParser codexState() {
         return new AssistantLocalAgentRunner.StructuredStreamParser(
                 AssistantLocalAgentRunner.StructuredStreamParser.Format.CODEX);

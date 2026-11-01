@@ -222,4 +222,24 @@ public class HttpContractRecorderTest {
         Mockito.when(body.asString()).thenReturn(bodyText);
         return response;
     }
+    @Test
+    public void isSensitiveKeyShouldMatchConfiguredNames() {
+        Assert.assertTrue(HttpContractRecorder.isSensitiveKey("Authorization"));
+        Assert.assertTrue(HttpContractRecorder.isSensitiveKey("x-api-key"));
+        Assert.assertTrue(HttpContractRecorder.isSensitiveKey("password"));
+        Assert.assertFalse(HttpContractRecorder.isSensitiveKey("content-type"));
+    }
+
+    @Test
+    public void isVolatileKeyAndValueShouldDetectConfiguredKeysAndUuidOrInstantValues() {
+        Assert.assertTrue(HttpContractRecorder.isVolatileKey("Date"));
+        Assert.assertTrue(HttpContractRecorder.isVolatileKey("X-Request-Id"));
+        Assert.assertFalse(HttpContractRecorder.isVolatileKey("content-type"));
+        Assert.assertTrue(HttpContractRecorder.isVolatileValue("550e8400-e29b-41d4-a716-446655440000"));
+        Assert.assertTrue(HttpContractRecorder.isVolatileValue("2026-11-01T00:00:00Z"));
+        Assert.assertFalse(HttpContractRecorder.isVolatileValue("stable-literal"));
+        Assert.assertFalse(HttpContractRecorder.isVolatileValue(" "));
+    }
+
+
 }
