@@ -394,7 +394,8 @@ def cmd_tts(args: argparse.Namespace) -> int:
         extract_proper_nouns(script) + list(getattr(args, "proper_noun", None) or [])
     ))
     if nouns:
-        missing = proper_noun_misses(script, transcript, nouns)
+        # Honour --fold aliases (ASR heard→meant) the same way WER does.
+        missing = proper_noun_misses(fold(script, folds), fold(transcript, folds), nouns)
         if missing:
             problems.append("proper-noun misses: " + ", ".join(missing))
     wpm = None

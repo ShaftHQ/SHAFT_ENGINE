@@ -367,6 +367,36 @@ class L93L96FailClosedCmdTtsTest(TestCase):
         self.assertIn("Automatest", nouns)
         self.assertNotIn("Hello", self.qc.extract_proper_nouns("Hello world today here"))
 
+    def test_cmd_tts_proper_noun_honours_fold_alias(self) -> None:
+        """ASR fold codecs=codex must clear sentence-initial Codex proper-noun miss."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "s.txt"
+            heard = root / "h.txt"
+            tokens = root / "tok.txt"
+            script.write_text("Codex installs the core today here now", encoding="utf-8")
+            heard.write_text("codecs installs the core today here now", encoding="utf-8")
+            tokens.write_text("Codex installs the core today here now", encoding="utf-8")
+            ns = SimpleNamespace(
+                script=str(script),
+                transcript=str(heard),
+                fold=["codecs=codex"],
+                max_wer=0.15,
+                lang="en",
+                cer=False,
+                max_cer=0.15,
+                tokens=str(tokens),
+                max_unk=0.05,
+                language_id="en",
+                expect_language=None,
+                proper_noun=[],
+                duration=None,
+                min_wpm=140,
+                max_wpm=160,
+            )
+            self.assertIn("Codex", self.qc.extract_proper_nouns(script.read_text(encoding="utf-8")))
+            self.assertEqual(0, self.qc.cmd_tts(ns))
+
     def test_cmd_tts_sentence_initial_mohab_miss_fails_default_wer(self) -> None:
         """Carl L4 / L96: Mohab→Moheb at script start must FAIL under default WER 15%."""
         with tempfile.TemporaryDirectory() as temporary:
