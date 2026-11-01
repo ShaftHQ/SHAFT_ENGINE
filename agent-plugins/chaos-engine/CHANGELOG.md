@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 10.4.20261102 - 2026-11-02
+
+- Align the portable plugin version with SHAFT Engine release 10.4.20261102.
 ## 10.4.20261101 - 2026-11-01
 
 - Align the portable plugin version with SHAFT Engine release 10.4.20261101.
