@@ -180,12 +180,12 @@ fingerprints:
   reason: 'Accepted agency: design QC fixed-argv ffmpeg/curl/pwsh runners (# nosec
     B603); fingerprint refreshed CE 2026.10.31.6.'
   semantic_id: AST4:scripts/liveseo_gates.py
-- hash: sha256:9003598b05da6ec78330a452db8b58d7853f6bedfc4c00c3a3fcd7c21362eb1f
+- hash: sha256:f89d492860c36f0e32eed30349b80176d4057062a937e91bb98ebd77f7662cab
   rule_id: TT1
   file: scripts/design_qc.py
-  reason: 'Accepted QC gate: ps_row passes CMD under test into fixed pwsh -Command
-    parse harness; PATH/SystemRoot only from env; not credential exfil. Fingerprint
-    refreshed after CE 2026.10.31.6 retro (schedule-dup / provenance).'
+  reason: 'Accepted agency: psparse gates PowerShell on-screen samples via fixed PS_PARSE
+    argv; sample text only in CMD env for the pwsh parser (L93/L96 ASR edits re-touched
+    design_qc.py and re-surfaced this TT1).'
   semantic_id: TT1:scripts/design_qc.py
 - hash: sha256:298b1fed17c2a0f6754319716171ecb67379a24557bdaa293c43becc5075b950
   rule_id: AE1
