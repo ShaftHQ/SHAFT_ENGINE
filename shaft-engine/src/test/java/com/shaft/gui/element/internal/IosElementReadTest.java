@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * #7455 and #7456: iOS attribute alias and stale re-find, without a device.
+ * #7455, #7456, and #7669: iOS attribute alias / Android-only guard and stale re-find, without a device.
  */
 @Test(singleThreaded = true)
 public class IosElementReadTest {
@@ -98,6 +98,78 @@ public class IosElementReadTest {
         }
         verify(element).getAttribute("class");
         verify(element, org.mockito.Mockito.never()).getAttribute("type");
+    }
+
+    @Test(description = "#7669: iOS never requests Android-only attributes (mutant RED if guard removed)")
+    public void iosNeverRequestsAndroidOnlyAttributes() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebDriver driver = driver();
+        WebElement element = element();
+        when(element.getAttribute(anyString())).thenAnswer(invocation -> attributeValue(invocation.getArgument(0)));
+        when(element.getDomAttribute(anyString())).thenAnswer(invocation -> attributeValue(invocation.getArgument(0)));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(driver, true);
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "scrollable"), "false");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "clickable"), "true");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "resource-id"), "login_button");
+            Assert.assertNull(actions.get().attribute(LOCATOR, "checkable"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "long-clickable"));
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "scrollable"), "false");
+        }
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checkable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("long-clickable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("clickable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("resource-id");
+        verify(element).getAttribute("type");
+        verify(element).getDomAttribute("type");
+        verify(element).getAttribute("hittable");
+        verify(element).getAttribute("name");
+    }
+
+    @Test(description = "#7669: scrollable is true when XCUI type is a scroll container")
+    public void iosScrollableTrueForScrollViewType() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebDriver driver = driver();
+        WebElement element = element();
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeScrollView");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Assert.assertEquals(new Actions(driver, true).get().attribute(LOCATOR, "scrollable"), "true");
+        }
+        verify(element).getAttribute("type");
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+    }
+
+    @Test(description = "#7669: Android still issues scrollable and resource-id unchanged")
+    public void androidAndroidOnlyAttrsStayUnmapped() {
+        SHAFT.Properties.platform.set().targetPlatform("Android");
+        SHAFT.Properties.mobile.set().browserName("").automationName("UiAutomator2");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("scrollable"), "scrollable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("clickable"), "clickable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("resource-id"), "resource-id");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checkable"), "checkable");
+        Assert.assertEquals(IosXcuiAttributeNames.interpret("scrollable", "true"), "true");
+    }
+
+    @Test(description = "#7669: IosXcuiAttributeNames.read maps scrollable via type and never asks for scrollable")
+    public void readHelperMapsScrollableViaType() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement element = element();
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeCollectionView");
+        Assert.assertEquals(IosXcuiAttributeNames.read(element, "scrollable"), "true");
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeButton");
+        Assert.assertEquals(IosXcuiAttributeNames.read(element, "scrollable"), "false");
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "checkable"));
+        verify(element, org.mockito.Mockito.atLeastOnce()).getAttribute("type");
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checkable");
     }
 
     @Test(description = "#7455: a null attribute name is issued as empty")
@@ -257,8 +329,19 @@ public class IosElementReadTest {
         if ("type".equals(name)) {
             return "XCUIElementTypeButton";
         }
+        if ("hittable".equals(name)) {
+            return "true";
+        }
+        if ("name".equals(name)) {
+            return "login_button";
+        }
         if ("class".equals(name)) {
             return "android.widget.Button";
+        }
+        if ("scrollable".equals(name) || "checkable".equals(name) || "clickable".equals(name)
+                || "long-clickable".equals(name) || "resource-id".equals(name)) {
+            throw new WebDriverException("The attribute '" + name
+                    + "' is unknown. Valid attribute names are: (type, hittable, name, wdType)");
         }
         throw new WebDriverException("The attribute '" + name + "' is unknown. Valid attribute names are: (type, wdType)");
     }

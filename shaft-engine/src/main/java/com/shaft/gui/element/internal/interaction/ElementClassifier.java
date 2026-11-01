@@ -528,15 +528,10 @@ public final class ElementClassifier {
     }
 
     private static String safeDom(WebElement element, String name) {
-        String issued = IosXcuiAttributeNames.issued(name);
         try {
-            return element.getDomAttribute(issued);
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
         } catch (RuntimeException ignored) {
-            try {
-                return element.getAttribute(issued);
-            } catch (RuntimeException ignoredAgain) {
-                return null;
-            }
+            return IosXcuiAttributeNames.read(element, name);
         }
     }
 

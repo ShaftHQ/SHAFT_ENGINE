@@ -880,9 +880,9 @@ public class Actions extends ElementActions {
                         input.sendKeys(absoluteFilePath);
                     }
                     case GET_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
-                            firstFound(foundElements).getAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
+                            IosXcuiAttributeNames.readAttribute(firstFound(foundElements), String.valueOf(data))));
                     case GET_DOM_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
-                            firstFound(foundElements).getDomAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
+                            IosXcuiAttributeNames.readDomAttribute(firstFound(foundElements), String.valueOf(data))));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());

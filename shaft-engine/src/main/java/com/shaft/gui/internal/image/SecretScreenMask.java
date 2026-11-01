@@ -3,6 +3,7 @@ package com.shaft.gui.internal.image;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.shaft.driver.SHAFT;
+import com.shaft.gui.element.internal.interaction.IosXcuiAttributeNames;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.ReportSecrets;
@@ -278,7 +279,7 @@ public final class SecretScreenMask {
      * scrollable, multi-line, or holds text long enough to wrap. Such captures fail closed (#7282).
      */
     static boolean mayDrawOutsideRect(WebElement element) {
-        String scrollable = Objects.toString(element.getAttribute("scrollable"), "");
+        String scrollable = Objects.toString(IosXcuiAttributeNames.read(element, "scrollable"), "");
         String text = Objects.toString(element.getText(), "");
         return mayDrawOutsideRect(scrollable, text);
     }
