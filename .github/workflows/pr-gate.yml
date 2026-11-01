@@ -108,6 +108,7 @@ jobs:
               - 'chaos-engine/hosts.py'
               - 'chaos-engine/dependencies.py'
               - 'chaos-engine/dependencies.json'
+              - 'chaos-engine/packs/**'
               - 'chaos-engine/distributions.json'
               - 'chaos-engine/profiles/*/profile.json'
               - 'scripts/ci/chaos_engine_live_installer_acceptance.py'

@@ -158,6 +158,9 @@ class L93L96VoiceAsrTest(TestCase):
         source = (CE / "addons/design-skills/scripts/design_qc.py").read_text(encoding="utf-8")
         self.assertIn("default=0.15", source)
         self.assertIn("--proper-noun", source)
+        self.assertIn("extract_proper_nouns", source)
+        self.assertIn("tokenizer tokens required (L93)", source)
+        self.assertIn("language_id required (L93)", source)
         self.assertIn("char_error_rate", source)
 
     def test_proper_noun_miss_fails(self) -> None:
@@ -174,6 +177,217 @@ class L93L96VoiceAsrTest(TestCase):
         self.assertEqual(0.0, self.qc.char_error_rate("abc", "abc"))
         self.assertGreater(self.qc.char_error_rate("abc", "axc"), 0.0)
         self.assertEqual(0.5, self.qc.tokenizer_unk_rate(["a", "<unk>"]))
+
+
+
+
+class L82L92ProcessGatesTest(TestCase):
+    def setUp(self) -> None:
+        self.mod = _load("ce_lessons_l82_l92", CE / "rules/lessons_l82_l92.py")
+
+    def test_l82_evidence_compose_proven_red(self) -> None:
+        bad = self.mod.evaluate_evidence_compose("zip the allure results")
+        self.assertFalse(bad["ok"])
+        self.assertTrue(bad["hits"])
+        good = self.mod.evaluate_evidence_compose(
+            "redact secrets, slim under 25 MB size cap, checkpoint before zip, "
+            "preflight HEAD equals commit"
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l83_status_fresh_proven_red(self) -> None:
+        bad = self.mod.evaluate_status_fresh("looks fine from memory")
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_status_fresh(
+            "fresh status via gh pr view; VERIFY-DROPPED: already exists"
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l84_sqlite_and_empty_previous_proven_red(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            palace = root / "mempalace"
+            palace.mkdir()
+            miss = self.mod.evaluate_mempalace_sqlite(palace)
+            self.assertFalse(miss["ok"])
+            self.assertIn("missing-sqlite_exact", miss["hits"])
+            (palace / "sqlite_exact.sqlite3").write_bytes(b"ok")
+            self.assertTrue(self.mod.evaluate_mempalace_sqlite(palace)["ok"])
+            empty = root / "mempalace.previous-20260101010101"
+            empty.mkdir()
+            bad = self.mod.evaluate_no_empty_previous(root)
+            self.assertFalse(bad["ok"])
+            removed = self.mod.remove_empty_previous_dirs(root)
+            self.assertEqual(["mempalace.previous-20260101010101"], removed)
+            self.assertTrue(self.mod.evaluate_no_empty_previous(root)["ok"])
+
+    def test_l85_dump_partial_denominator_proven_red(self) -> None:
+        bad = self.mod.evaluate_dump_partial({"count_ok": True})
+        self.assertFalse(bad["ok"])
+        self.assertIn("count_ok-without-shard", bad["hits"])
+        partial = self.mod.evaluate_dump_partial({"partial": True})
+        self.assertFalse(partial["ok"])
+        good = self.mod.evaluate_dump_partial(
+            {"count_ok": True, "own_shard": ["a"], "partial": True, "denominator": 4}
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l87_locator_runtime_xpath_proven_red(self) -> None:
+        bad = self.mod.evaluate_locator_inventory(
+            [{"id": "x1", "xpath": "concat('a','b')", "status": "broken"}]
+        )
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_locator_inventory(
+            [{"id": "x1", "xpath": "concat('a','b')", "status": "broken", "resolved": "//a"}]
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l88_highlight_identity_proven_red(self) -> None:
+        bad = self.mod.evaluate_highlight_identity(
+            {"intended_id": "btn-ok", "highlighted_id": "btn-cancel"}
+        )
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_highlight_identity(
+            {"intended_id": "btn-ok", "highlighted_id": "btn-ok"}
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l89_teams_zip_apk_proven_red(self) -> None:
+        bad = self.mod.evaluate_share_paths(["build/app-release.apk"])
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_share_paths(["build/app-release.apk.zip"])
+        self.assertTrue(good["ok"], good)
+
+    def test_l90_stop_subagent_all_denied(self) -> None:
+        bad = self.mod.evaluate_stop_subagent({"all": True})
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_stop_subagent({"id": "agent-1"})
+        self.assertTrue(good["ok"], good)
+
+    def test_l91_evidence_html_size_proven_red(self) -> None:
+        bad = self.mod.evaluate_evidence_html_paths(
+            [("reports/evidence.html", 100), ("blob.bin", 21 * 1024 * 1024)]
+        )
+        self.assertFalse(bad["ok"])
+        self.assertTrue(any(h.startswith("html:") for h in bad["hits"]))
+        self.assertTrue(any(h.startswith("oversize:") for h in bad["hits"]))
+        good = self.mod.evaluate_evidence_html_paths(
+            [("reports/evidence.html.zip", 100), ("blob.bin.zip", 21 * 1024 * 1024)]
+        )
+        self.assertTrue(good["ok"], good)
+
+    def test_l92_version_match_proven_red(self) -> None:
+        bad = self.mod.evaluate_version_match("2026.10.31.11", "2026.10.31.12")
+        self.assertFalse(bad["ok"])
+        good = self.mod.evaluate_version_match("2026.10.31.12", "2026.10.31.12")
+        self.assertTrue(good["ok"], good)
+
+
+class L84DoctorProductTest(TestCase):
+    def test_sqlite_missing_finding_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state" / "mempalace"
+            palace.mkdir(parents=True)
+            finding = MODULE._mempalace_sqlite_missing_finding(project)
+            self.assertIsNotNone(finding)
+            self.assertEqual("invalid", finding["status"])
+            (palace / "sqlite_exact.sqlite3").write_bytes(b"x")
+            self.assertIsNone(MODULE._mempalace_sqlite_missing_finding(project))
+
+    def test_empty_previous_finding_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            parent = project / ".chaos-engine-state"
+            parent.mkdir()
+            empty = parent / "mempalace.previous-20990101010101"
+            empty.mkdir()
+            finding = MODULE._mempalace_empty_previous_finding(project)
+            self.assertIsNotNone(finding)
+            self.assertEqual("degraded", finding["status"])
+
+
+class L92DoctorProductTest(TestCase):
+    def test_version_mismatch_finding_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            target = project / "src-ce"
+            target.mkdir()
+            installed = project / ".chaos-engine"
+            installed.mkdir()
+            (installed / "VERSION").write_text("2026.10.31.11\n", encoding="utf-8")
+            (target / "VERSION").write_text("2026.10.31.12\n", encoding="utf-8")
+            finding = MODULE._ce_version_after_upgrade_finding(project, target)
+            self.assertIsNotNone(finding)
+            self.assertEqual("invalid", finding["status"])
+            (installed / "VERSION").write_text("2026.10.31.12\n", encoding="utf-8")
+            ok = MODULE._ce_version_after_upgrade_finding(project, target)
+            self.assertEqual("healthy", ok["status"])
+
+
+class L93L96FailClosedCmdTtsTest(TestCase):
+    def setUp(self) -> None:
+        self.qc = _load("ce_design_qc_l93b", CE / "addons/design-skills/scripts/design_qc.py")
+
+    def test_extract_proper_nouns_mid_sentence(self) -> None:
+        nouns = self.qc.extract_proper_nouns("Hello Mohab from Automatest today")
+        self.assertIn("Mohab", nouns)
+        self.assertIn("Automatest", nouns)
+
+    def test_cmd_tts_proper_noun_miss_without_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "s.txt"
+            heard = root / "h.txt"
+            tokens = root / "tok.txt"
+            script.write_text("Hello Mohab from Automatest", encoding="utf-8")
+            heard.write_text("Hello Moheb from Automatest", encoding="utf-8")
+            tokens.write_text("Hello Mohab from Automatest", encoding="utf-8")
+            ns = SimpleNamespace(
+                script=str(script),
+                transcript=str(heard),
+                fold=[],
+                max_wer=0.5,  # WER alone would pass
+                lang="en",
+                cer=False,
+                max_cer=0.15,
+                tokens=str(tokens),
+                max_unk=0.05,
+                language_id="en",
+                expect_language=None,
+                proper_noun=[],
+                duration=None,
+                min_wpm=140,
+                max_wpm=160,
+            )
+            code = self.qc.cmd_tts(ns)
+            self.assertEqual(1, code)
+
+    def test_cmd_tts_requires_tokens_and_language_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "s.txt"
+            heard = root / "h.txt"
+            script.write_text("hello world today here", encoding="utf-8")
+            heard.write_text("hello world today here", encoding="utf-8")
+            ns = SimpleNamespace(
+                script=str(script),
+                transcript=str(heard),
+                fold=[],
+                max_wer=0.15,
+                lang="en",
+                cer=False,
+                max_cer=0.15,
+                tokens=None,
+                max_unk=0.05,
+                language_id=None,
+                expect_language=None,
+                proper_noun=[],
+                duration=None,
+                min_wpm=140,
+                max_wpm=160,
+            )
+            self.assertEqual(1, self.qc.cmd_tts(ns))
 
 
 class SkillSpectorReadmeBadgeTest(TestCase):

@@ -5337,7 +5337,16 @@ def attach_component_status(
         empty = _mempalace_empty_finding(project, index)
         if empty is not None and components["mempalace"].get("status") == "healthy":
             components["mempalace"] = {**components["mempalace"], **empty}
+        sqlite_miss = _mempalace_sqlite_missing_finding(project)
+        if sqlite_miss is not None:
+            components["mempalace"] = {**components["mempalace"], **sqlite_miss}
+        previous_empty = _mempalace_empty_previous_finding(project)
+        if previous_empty is not None:
+            components["mempalace"] = {**components["mempalace"], **previous_empty}
     _apply_shared_store_doctor(project, components)
+    version_row = _ce_version_after_upgrade_finding(project, target)
+    if version_row is not None:
+        components["ce-version"] = version_row
     # #6336: judge the version runtime discovery selects (configured JAR, then the
     # newest verified cache), never a pinned release the installer did not pick.
     selected = getattr(host_controller, "selected_maven_tools_cache_status", None)
@@ -7761,6 +7770,83 @@ def reflection_controller_drift(project: Path) -> str:
         "`chaos-engine/hooks/reflection.py` differ. Receipts must use the "
         "controller the gate executes."
     )
+
+
+
+def _mempalace_sqlite_missing_finding(project: Path) -> dict[str, object] | None:
+    """L84: palace directory present without sqlite_exact.sqlite3 is a doctor FAIL."""
+    palace = project / ".chaos-engine-state" / "mempalace"
+    if not palace.is_dir():
+        return None
+    if (palace / "sqlite_exact.sqlite3").is_file():
+        return None
+    return {
+        "status": "invalid",
+        "detail": "MemPalace palace is missing sqlite_exact.sqlite3 (L84)",
+        "fixNext": "python3 .chaos-engine/install.py repair --project . --component mempalace",
+    }
+
+
+def _mempalace_empty_previous_finding(project: Path) -> dict[str, object] | None:
+    """L84: empty mempalace.previous-* dirs left by repair are a doctor FAIL."""
+    parent = project / ".chaos-engine-state"
+    if not parent.is_dir():
+        return None
+    empties: list[str] = []
+    for child in parent.iterdir():
+        if not child.is_dir() or not child.name.startswith("mempalace.previous-"):
+            continue
+        try:
+            if not any(child.iterdir()):
+                empties.append(child.name)
+        except OSError:
+            continue
+    if not empties:
+        return None
+    return {
+        "status": "degraded",
+        "detail": "Empty mempalace.previous-* left behind: " + ", ".join(empties),
+        "fixNext": "python3 .chaos-engine/install.py repair --project . --component mempalace",
+    }
+
+
+def _ce_version_after_upgrade_finding(
+    project: Path, target: Path
+) -> dict[str, object] | None:
+    """L92: installed .chaos-engine/VERSION must match intended source VERSION."""
+    installed = project / ".chaos-engine" / "VERSION"
+    intended = target / "VERSION"
+    if not intended.is_file():
+        # source tree layout: chaos-engine/VERSION beside install.py
+        alt = target / "chaos-engine" / "VERSION" if target.name != "chaos-engine" else intended
+        if alt.is_file():
+            intended = alt
+    if not installed.is_file() or not intended.is_file():
+        return None
+    try:
+        left = installed.read_text(encoding="utf-8").strip()
+        right = intended.read_text(encoding="utf-8").strip()
+    except OSError:
+        return {
+            "status": "invalid",
+            "detail": "CE VERSION unreadable after upgrade (L92)",
+            "taskImpact": "required",
+        }
+    if left == right:
+        return {
+            "status": "healthy",
+            "detail": f"installed VERSION {left} matches source",
+            "installedVersion": left,
+            "intendedVersion": right,
+        }
+    return {
+        "status": "invalid",
+        "detail": f"installed VERSION {left!r} != intended {right!r} (L92)",
+        "installedVersion": left,
+        "intendedVersion": right,
+        "taskImpact": "required",
+        "fixNext": "python3 .chaos-engine/install.py repair --project .",
+    }
 
 
 def _mempalace_empty_finding(

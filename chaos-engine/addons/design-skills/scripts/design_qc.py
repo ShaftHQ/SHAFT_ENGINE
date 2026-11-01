@@ -265,6 +265,39 @@ def tokenizer_unk_rate(tokens: list[str], *, unk_token: str = "<unk>") -> float:
     return sum(1 for t in tokens if t == unk_token or t.lower() == "unk") / len(tokens)
 
 
+
+def extract_proper_nouns(script: str) -> list[str]:
+    """Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
+
+    Sentence-initial bare words are skipped unless CamelCase or multi-word Title Case.
+    Explicit ``--proper-noun`` values are merged by the caller.
+    """
+    found: list[str] = []
+    # Multi-word Title Case (e.g. "New York")
+    for m in re.finditer(r"\b([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)+)\b", script):
+        found.append(m.group(1))
+    # CamelCase / brand tokens (Automatest, iPhone-like with leading capital)
+    for m in re.finditer(r"\b([A-Z][a-z0-9]*[A-Z][A-Za-z0-9]*)\b", script):
+        found.append(m.group(1))
+    # Mid-sentence Capitalized tokens (not after .!? or start)
+    for m in re.finditer(
+        r"(?<!^)(?<![.!?\n]\s)\b([A-Z][a-zA-Z0-9]{1,})\b",
+        script,
+        re.M,
+    ):
+        found.append(m.group(1))
+    # Dedupe preserving order
+    out: list[str] = []
+    seen: set[str] = set()
+    for noun in found:
+        key = noun.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(noun)
+    return out
+
+
 def proper_noun_misses(script: str, transcript: str, nouns: list[str]) -> list[str]:
     """Return proper nouns from *nouns* present in script but missing in transcript."""
     missing: list[str] = []
@@ -302,18 +335,31 @@ def cmd_tts(args: argparse.Namespace) -> int:
         max_cer = getattr(args, "max_cer", 0.15)
         if cer > max_cer:
             problems.append(f"CER {cer:.2%} above {max_cer:.0%}")
+    # L93 fail-closed: tokenizer unk-rate is mandatory on the default voice path.
     unk = None
-    if getattr(args, "tokens", None):
-        token_list = Path(args.tokens).read_text(encoding="utf-8").split()
-        unk = tokenizer_unk_rate(token_list)
-        max_unk = getattr(args, "max_unk", 0.05)
-        if unk > max_unk:
-            problems.append(f"tokenizer unk {unk:.2%} above {max_unk:.0%}")
+    tokens_path = getattr(args, "tokens", None)
+    if not tokens_path:
+        problems.append("tokenizer tokens required (L93)")
+    else:
+        token_list = Path(tokens_path).read_text(encoding="utf-8").split()
+        if not token_list:
+            problems.append("tokenizer tokens empty (L93)")
+        else:
+            unk = tokenizer_unk_rate(token_list)
+            max_unk = getattr(args, "max_unk", 0.05)
+            if unk > max_unk:
+                problems.append(f"tokenizer unk {unk:.2%} above {max_unk:.0%}")
+    # L93 fail-closed: language_id is mandatory; default expect = --lang.
     lang_id = getattr(args, "language_id", None)
-    expect_lang = getattr(args, "expect_language", None)
-    if expect_lang and lang_id and lang_id.lower() != expect_lang.lower():
+    expect_lang = getattr(args, "expect_language", None) or getattr(args, "lang", "en")
+    if not lang_id:
+        problems.append("language_id required (L93)")
+    elif lang_id.lower() != str(expect_lang).lower():
         problems.append(f"language_id {lang_id!r} != expected {expect_lang!r}")
-    nouns = list(getattr(args, "proper_noun", None) or [])
+    # L96 fail-closed: auto-extract script proper nouns; --proper-noun merges in.
+    nouns = list(dict.fromkeys(
+        extract_proper_nouns(script) + list(getattr(args, "proper_noun", None) or [])
+    ))
     if nouns:
         missing = proper_noun_misses(script, transcript, nouns)
         if missing:
@@ -331,6 +377,7 @@ def cmd_tts(args: argparse.Namespace) -> int:
         cer=None if cer is None else round(cer, 4),
         unk=None if unk is None else round(unk, 4),
         language_id=lang_id,
+        proper_nouns=nouns,
         wpm=wpm,
         folds=len(folds),
         problems=problems,
@@ -2627,11 +2674,11 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-cer", type=float, default=0.15, help="L93 AR CER ceiling (default 15%)")
     p.add_argument("--cer", action="store_true", help="force CER even when --lang is not ar")
     p.add_argument("--lang", choices=("en", "ar"), default="en")
-    p.add_argument("--tokens", help="tokenizer output file; L93 unk<=5% preflight")
+    p.add_argument("--tokens", required=False, help="tokenizer output file; L93 mandatory unk<=5%")
     p.add_argument("--max-unk", type=float, default=0.05)
-    p.add_argument("--language-id", dest="language_id", help="observed ASR language_id")
-    p.add_argument("--expect-language", help="required language_id (L93)")
-    p.add_argument("--proper-noun", action="append", default=[], help="L96 proper noun that must appear in ASR")
+    p.add_argument("--language-id", dest="language_id", help="observed ASR language_id (L93 mandatory)")
+    p.add_argument("--expect-language", help="required language_id (L93; defaults to --lang)")
+    p.add_argument("--proper-noun", action="append", default=[], help="extra L96 proper noun; script nouns auto-extracted")
     p.add_argument("--min-wpm", type=float, default=140)
     p.add_argument("--max-wpm", type=float, default=160)
     p.add_argument("--fold", action="append", default=[], help="heard=meant (known ASR mishearing)")

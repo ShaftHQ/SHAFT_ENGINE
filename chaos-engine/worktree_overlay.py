@@ -457,6 +457,14 @@ def materialize(primary: Path, session: Path, *, transactional: bool = True) -> 
                 copied=copied,
                 unchanged=unchanged,
             )
+        # L92: fail closed when installed VERSION does not match intended release.
+        intended = _read_version(primary)
+        installed = _read_version(session)
+        if not intended or not installed or intended != installed:
+            raise OverlayLocalEditError(
+                f"L92 CE VERSION mismatch after upgrade: "
+                f"installed={installed!r} intended={intended!r}"
+            )
         _clean_stale_leftovers(primary, session, manifest, removed)
         _save_manifest(session, manifest)
     except Exception:
