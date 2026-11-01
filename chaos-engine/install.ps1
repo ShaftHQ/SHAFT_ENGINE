@@ -34,6 +34,31 @@ function ConvertTo-ChaosEngineAddOnFlags([string[]]$tokens) {
     return $flags
 }
 
+
+function Assert-ChaosEngineMavenToolsJdkPreflight {
+    # Fail closed before bootstrap when the tools pack was explicitly requested and
+    # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
+    # ecosystem terms here). Managed Temurin can still heal unset JAVA_HOME.
+    # Never assign $home / $HOME: PowerShell StrictMode treats $HOME as read-only.
+    param(
+        [switch]$WithMavenTools,
+        [string]$MavenToolsMode = "native"
+    )
+    if ($MavenToolsMode -eq "docker") { return }
+    if (-not $WithMavenTools) { return }
+    $jdkHome = [string]$env:JAVA_HOME
+    if ([string]::IsNullOrWhiteSpace($jdkHome)) {
+        # Unset is OK: Python may provision managed Temurin. Hint only.
+        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package.")
+        return
+    }
+    $java = Join-Path $jdkHome "bin\java.exe"
+    $javac = Join-Path $jdkHome "bin\javac.exe"
+    if (-not (Test-Path -LiteralPath $java -PathType Leaf) -or -not (Test-Path -LiteralPath $javac -PathType Leaf)) {
+        throw "CE-INSTALL-FAILED: JAVA_HOME='$jdkHome' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: `$jdk='<Adoptium-JDK-25-home>'; [Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); `$env:JAVA_HOME=$jdk; `$p=[Environment]::GetEnvironmentVariable('Path','User'); if (`$p -notlike ('*'+$jdk+'\bin*')) { [Environment]::SetEnvironmentVariable('Path', (`$p.TrimEnd(';')+';'+$jdk+'\bin'),'User') }; open a new PowerShell; verify echo `$env:JAVA_HOME; java -version; javac -version; rerun install."
+    }
+}
+
 function Get-ChaosEnginePython {
     # Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
     $floor = "import sys; sys.exit(sys.version_info < (3, 11))"
@@ -296,6 +321,7 @@ if ($env:CHAOS_ENGINE_RESOLVE_ONLY -eq "1") {
     Write-Output "$repository|$branch|$localFlag|$bootstrapUrl"
     return
 }
+Assert-ChaosEngineMavenToolsJdkPreflight -WithMavenTools:$WithMavenTools -MavenToolsMode $MavenToolsMode
 $python = Get-ChaosEnginePython
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ("chaos-engine-bootstrap-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $work | Out-Null

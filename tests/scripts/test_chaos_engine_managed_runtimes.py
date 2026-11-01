@@ -604,7 +604,8 @@ class ManagedRuntimeCliTest(TestCase):
             provisioned = []
             hosts = SimpleNamespace(
                 discover_maven_tools_runtime=mock.Mock(return_value=final),
-                java_major=lambda _path: None,
+                # Ambient probes return None; the provisioned managed binary is JDK 25+.
+                java_major=lambda path: 25 if Path(path) == managed_java.resolve() else None,
                 java_compiler_present=lambda _path: True,
                 ensure_managed_temurin_jdk=lambda *_a, **_k: (
                     provisioned.append("jdk") or managed_java.resolve()

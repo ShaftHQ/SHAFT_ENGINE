@@ -52,6 +52,19 @@ __all__ = (
     "_maven_tools_docker_runtime",
     "_await_maven_tools_cache",
     "_maven_tools_build_java",
+    "_maven_tools_required_major",
+    "_pom_java_release_major",
+    "_suggest_jdk_homes",
+    "_jdk_homes_under_root",
+    "_posix_jdk_search_roots",
+    "_windows_jdk_search_roots",
+    "maven_tools_java_home_fix_next",
+    "maven_tools_wrapper_fix_next",
+    "_resolve_java_path",
+    "_jdk_home_from_standard_layout",
+    "_jdk_home_from_host_probes",
+    "_validate_standard_jdk_home",
+    "preflight_maven_tools_jdk",
     "_build_and_publish_maven_tools",
     "ensure_maven_tools",
     "maven_tools_repair_fix_next",
@@ -224,18 +237,286 @@ def _await_maven_tools_cache(hosts, version: str, reporter):
         return None
 
 
+
+def _maven_tools_required_major(specification: dict[str, object] | None, source: Path | None = None) -> int:
+    """Return the JDK major required to build Maven Tools (pom release, else contract)."""
+    major = None
+    if source is not None:
+        major = _pom_java_release_major(source / "pom.xml")
+    if major is None and isinstance(specification, dict):
+        dependencies = specification.get("dependencies")
+        java_contract = dependencies.get("java") if isinstance(dependencies, dict) else None
+        if isinstance(java_contract, dict) and isinstance(java_contract.get("minimumVersion"), str):
+            try:
+                major = int(str(java_contract["minimumVersion"]).split(".", 1)[0])
+            except ValueError:
+                major = None
+    return major if isinstance(major, int) and major > 0 else 25
+
+
+def _pom_java_release_major(pom: Path) -> int | None:
+    """Best-effort JDK major from a POM release / maven.compiler.release / jdk.version."""
+    try:
+        if not pom.is_file() or pom.stat().st_size > _MAX_POM_BYTES:
+            return None
+        text = _XML_COMMENT.sub("", pom.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return None
+    patterns = (
+        r"<maven\.compiler\.release>\s*(\d+)\s*</maven\.compiler\.release>",
+        r"<release>\s*(\d+)\s*</release>",
+        r"<jdk\.version>\s*(\d+)\s*</jdk\.version>",
+        r"<java\.version>\s*(\d+)\s*</java\.version>",
+        r"<maven\.compiler\.source>\s*(\d+)\s*</maven\.compiler\.source>",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                continue
+    return None
+
+
+def _windows_jdk_search_roots() -> list[Path]:
+    """Common Windows vendor roots under ProgramFiles / LocalAppData."""
+    roots: list[Path] = []
+    for base in (
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+        os.environ.get("LOCALAPPDATA"),
+    ):
+        if not base:
+            continue
+        root = Path(base)
+        roots.extend(
+            (
+                root / "Eclipse Adoptium",
+                root / "Java",
+                root / "Microsoft",
+                root / "Amazon Corretto",
+                root / "Programs" / "Eclipse Adoptium",
+            )
+        )
+    return roots
+
+
+def _posix_jdk_search_roots() -> list[Path]:
+    """Common POSIX JDK roots without absolute-path string literals."""
+    return [
+        Path(os.sep).joinpath("usr", "lib", "jvm"),
+        Path(os.sep).joinpath("Library", "Java", "JavaVirtualMachines"),
+        Path.home() / ".local/share/chaos-engine/java",
+        Path.home() / ".sdkman/candidates/java",
+    ]
+
+
+def _jdk_homes_under_root(
+    root: Path, *, java_name: str, javac_name: str, seen: set[str], found: list[str], limit: int,
+) -> bool:
+    """Append usable JDK homes under root. Return True when found reached limit."""
+    try:
+        if not root.is_dir():
+            return False
+        candidates = [root]
+        try:
+            candidates.extend(sorted(root.iterdir()))
+        except OSError:
+            # Directory vanished mid-scan; keep the root candidate only.
+            pass
+        for candidate in candidates:
+            homes = [candidate]
+            mac = candidate / "Contents" / "Home"
+            if mac.is_dir():
+                homes.append(mac)
+            for home in homes:
+                java = home / "bin" / java_name
+                javac = home / "bin" / javac_name
+                try:
+                    if not java.is_file() or not javac.is_file():
+                        continue
+                    resolved = str(home.resolve())
+                except OSError:
+                    continue
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                found.append(resolved)
+                if len(found) >= limit:
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def _suggest_jdk_homes() -> list[str]:
+    """Return existing candidate JDK homes from common install locations."""
+    java_name = "java.exe" if os.name == "nt" else "java"
+    javac_name = "javac.exe" if os.name == "nt" else "javac"
+    roots = _windows_jdk_search_roots() if os.name == "nt" else _posix_jdk_search_roots()
+    found: list[str] = []
+    seen: set[str] = set()
+    for root in roots:
+        if _jdk_homes_under_root(
+            root, java_name=java_name, javac_name=javac_name, seen=seen, found=found, limit=5,
+        ):
+            return found
+    return found
+
+
+def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] | None = None) -> str:
+    """OS-specific commands to set JAVA_HOME/PATH, then reopen the shell and rerun install."""
+    suggestions = suggested if suggested is not None else _suggest_jdk_homes()
+    example = suggestions[0] if suggestions else "<jdk-home>"
+    extra = ""
+    if suggestions:
+        listed = "; ".join(suggestions[:3])
+        extra = f" Detected JDK candidate(s): {listed}."
+    if os.name == "nt":
+        # Set User JAVA_HOME, refresh $env:JAVA_HOME, then mutate Path with the
+        # literal $jdk value (User-scope set does not update $env:JAVA_HOME).
+        return (
+            "fix-next: set a JDK "
+            f"{required_major}+ home with bin\\java.exe and bin\\javac.exe, then reopen PowerShell "
+            "and rerun the ChaosEngine install. PowerShell (User scope): "
+            f"$jdk='{example}'; "
+            "[Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); "
+            "$env:JAVA_HOME=$jdk; "
+            "$p=[Environment]::GetEnvironmentVariable('Path','User'); "
+            "if ($p -notlike ('*'+$jdk+'\\bin*')) { "
+            "[Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';')+';'+$jdk+'\\bin'),'User') }; "
+            "then open a new PowerShell, verify with echo $env:JAVA_HOME; java -version; javac -version."
+            + extra
+        )
+    return (
+        "fix-next: export JAVA_HOME to a JDK "
+        f"{required_major}+ home that contains bin/java and bin/javac "
+        f"(example: export JAVA_HOME='{example}'; export PATH=\"$JAVA_HOME/bin:$PATH\"), "
+        "persist it in your shell profile, open a new shell, verify with "
+        'echo "$JAVA_HOME"; java -version; javac -version, then rerun the ChaosEngine install.'
+        + extra
+    )
+
+
+def maven_tools_wrapper_fix_next() -> str:
+    """Fix-next when the upstream Maven Tools mvnw/mvnw.cmd is missing after clone."""
+    wrapper = "mvnw.cmd" if os.name == "nt" else "mvnw"
+    return (
+        "fix-next: the Maven Tools upstream wrapper "
+        f"({wrapper}) is missing from the cloned source (mvn not resolvable). "
+        "Re-run the ChaosEngine install so the pinned tag is re-cloned; confirm git/network "
+        f"succeed and the tag contains {wrapper}; then rerun install. "
+        "Do not change JDK settings for this failure — repair the wrapper/clone first."
+    )
+
+
+def _resolve_java_path(java: Path) -> Path:
+    try:
+        return Path(java).resolve()
+    except OSError:
+        return Path(java)
+
+
+def _jdk_home_from_standard_layout(resolved_java: Path, java_name: str) -> str | None:
+    for candidate in (resolved_java.parent.parent, resolved_java.parent.parent.parent):
+        if not (candidate / "bin" / java_name).is_file():
+            continue
+        try:
+            return str(candidate.resolve())
+        except OSError:
+            return str(candidate)
+    return None
+
+
+def _jdk_home_from_host_probes(hosts, resolved_java: Path, required_major: int) -> str | None:
+    """Non-standard layouts: trust hosts major+javac; JAVA_HOME=parent.parent."""
+    if not resolved_java.is_file():
+        return None
+    major_fn = getattr(hosts, "java_major", None)
+    compiler_present = getattr(hosts, "java_compiler_present", None)
+    major = major_fn(resolved_java) if callable(major_fn) else None
+    has_javac = compiler_present(resolved_java) if callable(compiler_present) else False
+    if not (isinstance(major, int) and major >= required_major and has_javac):
+        return None
+    try:
+        return str(resolved_java.parent.parent.resolve())
+    except OSError:
+        return str(resolved_java.parent.parent)
+
+
+def _validate_standard_jdk_home(hosts, home: str, required_major: int, fix) -> None:
+    java_name = "java.exe" if os.name == "nt" else "java"
+    javac_name = "javac.exe" if os.name == "nt" else "javac"
+    home_path = Path(home)
+    java_bin = home_path / "bin" / java_name
+    javac_bin = home_path / "bin" / javac_name
+    if not java_bin.is_file():
+        raise ValueError("JAVA_HOME does not point at a JDK with java. " + fix())
+    compiler_present = getattr(hosts, "java_compiler_present", None)
+    has_javac = (
+        compiler_present(java_bin) if callable(compiler_present) else javac_bin.is_file()
+    )
+    if not has_javac:
+        raise ValueError("JAVA_HOME does not point at a JDK with javac. " + fix())
+    major_fn = getattr(hosts, "java_major", None)
+    major = major_fn(java_bin) if callable(major_fn) else None
+    if not isinstance(major, int) or major < required_major:
+        observed = major if isinstance(major, int) else "unknown"
+        raise ValueError(
+            f"JAVA_HOME java major {observed} is below required {required_major}. "
+            + fix()
+        )
+
+
+def preflight_maven_tools_jdk(
+    hosts,
+    java: Path,
+    *,
+    required_major: int,
+    wrapper: Path | None = None,
+) -> str:
+    """
+    Validate the JDK home used for Maven Tools before `mvn package`.
+
+    Returns the usable JAVA_HOME string. Raises ValueError with an OS-specific
+    fix-next when JAVA_HOME/javac/java major/wrapper checks fail.
+    """
+    fix = lambda: maven_tools_java_home_fix_next(required_major=required_major)
+    if wrapper is not None and not wrapper.is_file():
+        raise ValueError(
+            "Maven Tools upstream wrapper is missing (mvn not resolvable). "
+            + maven_tools_wrapper_fix_next()
+        )
+    java_name = "java.exe" if os.name == "nt" else "java"
+    resolve_home = getattr(hosts, "_jdk_home_from_java_binary", None)
+    home: str | None = None
+    if callable(resolve_home):
+        try:
+            home = resolve_home(Path(java))
+        except (OSError, TypeError, ValueError):
+            # Host helper rejected the binary; fall through to layout probes.
+            home = None
+    resolved_java = _resolve_java_path(java)
+    if home is None:
+        home = _jdk_home_from_standard_layout(resolved_java, java_name)
+    nonstandard = False
+    if home is None:
+        home = _jdk_home_from_host_probes(hosts, resolved_java, required_major)
+        nonstandard = home is not None
+    if home is None:
+        raise ValueError(
+            "JAVA_HOME is unset or unusable for Maven Tools "
+            f"(no JDK home with bin/java from {java}). "
+            + fix()
+        )
+    if not nonstandard:
+        _validate_standard_jdk_home(hosts, home, required_major, fix)
+    return home
+
 def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer) -> Path:
     """Return a JDK (with javac) new enough to build Maven Tools, provisioning Temurin if needed."""
-    java_minimum = "25.0.0"
-    java_contract = specification.get("dependencies", {}).get("java") if isinstance(
-        specification.get("dependencies"), dict
-    ) else None
-    if isinstance(java_contract, dict) and isinstance(java_contract.get("minimumVersion"), str):
-        java_minimum = str(java_contract["minimumVersion"])
-    try:
-        java_minimum_major = int(str(java_minimum).split(".", 1)[0])
-    except ValueError:
-        java_minimum_major = 25
+    java_minimum_major = _maven_tools_required_major(specification)
     java_candidates = []
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
@@ -269,13 +550,18 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
                 java = managed
     if java is None:
         raise ValueError(
-            "Temurin JDK 25 with javac is required for Maven Tools MCP "
-            "(JRE-only Java is not enough); install Temurin 25 JDK or set CHAOSENGINE_JAVA"
+            "Temurin JDK "
+            f"{java_minimum_major} with javac is required for Maven Tools MCP "
+            "(JRE-only Java is not enough); install a matching JDK or set CHAOSENGINE_JAVA. "
+            + maven_tools_java_home_fix_next(required_major=java_minimum_major)
         )
     return java
 
 
-def _build_and_publish_maven_tools(hosts, runner, java: Path, version: str, tag: str, *, confirmer, reporter) -> None:
+def _build_and_publish_maven_tools(
+    hosts, runner, java: Path, version: str, tag: str, *, confirmer, reporter,
+    specification: dict[str, object] | None = None,
+) -> None:
     """Clone the pinned tag, build it with the upstream wrapper and publish the JAR to the cache."""
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
@@ -297,16 +583,39 @@ def _build_and_publish_maven_tools(hosts, runner, java: Path, version: str, tag:
             raise ValueError("Maven Tools stable tag did not resolve to an immutable commit")
         wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
         if not wrapper.is_file():
-            raise ValueError("Maven Tools upstream wrapper is missing")
+            raise ValueError(
+                "Maven Tools upstream wrapper is missing. "
+                + maven_tools_wrapper_fix_next()
+            )
         if os.name != "nt":
             wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        required_major = _maven_tools_required_major(specification, source)
+        # Preflight before mvn package: fail closed with OS-specific fix-next.
+        java_home = preflight_maven_tools_jdk(
+            hosts, java, required_major=required_major, wrapper=wrapper,
+        )
         environment = os.environ.copy()
-        environment["JAVA_HOME"] = str(java.parent.parent)
+        environment["JAVA_HOME"] = java_home
         if confirmer is not None:
             confirmer("Build and install Maven Tools")
         # Upstream tests are skipped: they are upstream CI's job, and a crashing
         # upstream test (#6339) must not block installing a tagged release.
-        runner([str(wrapper), "-B", "clean", "package", "-Pci", "-DskipTests"], cwd=source, env=environment, check=True, timeout=900)
+        try:
+            runner(
+                [str(wrapper), "-B", "clean", "package", "-Pci", "-DskipTests"],
+                cwd=source,
+                env=environment,
+                check=True,
+                timeout=900,
+            )
+        except subprocess.CalledProcessError as error:
+            detail = ((error.stderr or error.stdout or "") + " " + str(error)).casefold()
+            if "environment variable" in detail or "java_home" in detail:
+                raise ValueError(
+                    "Maven Tools build failed because JAVA_HOME is missing or unusable. "
+                    + maven_tools_java_home_fix_next(required_major=required_major)
+                ) from error
+            raise
         built = source / f"target/maven-tools-mcp-{version}.jar"
         if not built.is_file() or built.stat().st_size == 0:
             raise ValueError("Maven Tools build did not produce the pinned JAR")
@@ -351,6 +660,7 @@ def ensure_maven_tools(
         )
     _build_and_publish_maven_tools(
         hosts, runner, java, version, tag, confirmer=confirmer, reporter=reporter,
+        specification=specification,
     )
     runtime = hosts.discover_maven_tools_runtime()
     probe = hosts.probe_maven_tools_runtime

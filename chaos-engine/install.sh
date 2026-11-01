@@ -112,6 +112,30 @@ for argument in "$@"; do
   esac
 done
 
+
+assert_maven_tools_jdk_preflight() {
+  # Fail closed before bootstrap when the tools pack was explicitly requested and
+  # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
+  # ecosystem terms here). Unset JAVA_HOME is allowed: Python may provision Temurin.
+  maven_tools_mode=${1:-native}
+  with_maven_tools=${2:-}
+  if [ "$maven_tools_mode" = "docker" ]; then
+    return 0
+  fi
+  if [ -z "$with_maven_tools" ]; then
+    return 0
+  fi
+  if [ -z "${JAVA_HOME:-}" ]; then
+    echo "ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package." >&2
+    return 0
+  fi
+  if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
+    fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
+  fi
+}
+
+assert_maven_tools_jdk_preflight "$maven_tools_mode" "$with_maven_tools"
+
 if command -v python3 >/dev/null 2>&1; then
   python="python3"
 elif command -v python >/dev/null 2>&1; then
