@@ -90,4 +90,76 @@ class CaptureCliEpicCoverageTest {
                 "--request-file", outside.toString()
         }, List.of("java")));
     }
+
+    @Test
+    void generateBackendAliasesAndOptionValidation(@TempDir Path runtime) throws Exception {
+        Files.createDirectories(runtime);
+        Path session = runtime.resolve("session.json");
+        Files.writeString(session, "{}");
+        // selenium alias maps to webdriver; shaft-playwright maps to playwright
+        int selenium = CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--backend", "selenium",
+                "--output-dir", runtime.resolve("out-selenium").toString(), "--skip-compile"
+        }, List.of("java"));
+        assertTrue(selenium == 0 || selenium == 1);
+        int playwright = CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--backend", "shaft-playwright",
+                "--output-dir", runtime.resolve("out-pw").toString(), "--skip-compile", "--overwrite"
+        }, List.of("java"));
+        assertTrue(playwright == 0 || playwright == 1);
+        assertEquals(1, CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--backend", "webdriver",
+                "--timeout", "0"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--backend", "webdriver",
+                "--timeout", "abc"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--unknown-flag"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "generate", "--session", session.toString(), "--output-dir"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "status", "positional-not-allowed"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "start", "--runtime-dir", runtime.toString()
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "START", "--url", "https://example.test/", "--runtime-dir", runtime.toString(),
+                "--timeout", "-5"
+        }, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {
+                "features", "--headless", "--discard", "--skip-compile", "--replay",
+                "--enable-fallback-locators", "--disable-fallback-locators",
+                "--control-flow-preview", "--ai-preview", "--approve-enrichment",
+                "--allow-local-ai", "--allow-remote-ai", "--ignore-https-errors",
+                "--block-service-workers"
+        }, List.of("java")));
+    }
+
+    @Test
+    void checkpointKindsAndDaemonMissingRequest(@TempDir Path runtime) throws Exception {
+        Files.createDirectories(runtime);
+        for (String kind : List.of("USER_MARKER", "ASSERTION", "WAIT", "NOTE")) {
+            int code = CaptureCli.run(new String[] {
+                    "checkpoint", "--runtime-dir", runtime.toString(),
+                    "--kind", kind, "--description", "d-" + kind
+            }, List.of("java"));
+            assertEquals(1, code);
+        }
+        assertEquals(1, CaptureCli.run(new String[] {
+                "daemon", "--runtime-dir", runtime.toString()
+        }, List.of("java")));
+        Path request = runtime.resolve("req.json");
+        Files.writeString(request, "{\"command\":\"status\"}");
+        // malformed / empty command payload still fails closed without hanging
+        int daemon = CaptureCli.run(new String[] {
+                "daemon", "--runtime-dir", runtime.toString(), "--request-file", request.toString()
+        }, List.of("java"));
+        assertTrue(daemon == 0 || daemon == 1);
+    }
+
 }

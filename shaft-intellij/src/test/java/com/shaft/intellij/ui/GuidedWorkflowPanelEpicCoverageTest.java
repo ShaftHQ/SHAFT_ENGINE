@@ -187,6 +187,37 @@ class GuidedWorkflowPanelEpicCoverageTest {
         assertTrue(joined.contains("logo visible") || joined.contains("ASSERT") || joined.contains("SHAFT"));
     }
 
+
+    @Test
+    void parseCheckpointStepsCoversNestedAndMalformedLeaves() {
+        com.google.gson.JsonObject status = com.google.gson.JsonParser.parseString("""
+                {
+                  "checkpoints": [
+                    {"id":"c1","description":"assert visible","kind":"ASSERTION","sequence":3},
+                    {"id":"c2","description":"","kind":"WAIT","oracle":"fallback oracle","sequence":4},
+                    12,
+                    null,
+                    {"description":"no-id","kind":"ASSERTION","sequence":5}
+                  ],
+                  "steps": [
+                    {"stepId":"s1","sequence":1,"action":"click","locatorStrategy":"css","locatorValue":"#go","risky":false},
+                    {"stepId":"s2","sequence":2,"action":"type","locatorStrategy":"name","locatorValue":"q","risky":true},
+                    "skip"
+                  ]
+                }
+                """).getAsJsonObject();
+        var checkpoints = GuidedWorkflowPanel.parseCheckpointSteps(status);
+        assertFalse(checkpoints.isEmpty());
+        assertTrue(checkpoints.stream().anyMatch(s -> "c1".equals(s.stepId())));
+        assertTrue(checkpoints.stream().anyMatch(s -> s.action() != null && s.action().contains("assert visible")));
+        assertTrue(checkpoints.stream().anyMatch(s -> s.action() != null && s.action().contains("fallback oracle")));
+        var steps = GuidedWorkflowPanel.parseSteps(status);
+        assertTrue(steps.stream().anyMatch(s -> "s1".equals(s.stepId())));
+        assertTrue(steps.stream().anyMatch(s -> s.risky()));
+        assertEquals(List.of(), GuidedWorkflowPanel.parseCheckpointSteps(new com.google.gson.JsonObject()));
+        assertEquals(List.of(), GuidedWorkflowPanel.parseSteps(new com.google.gson.JsonObject()));
+    }
+
     private static void expandAdvanced(GuidedWorkflowPanel panel) {
         JButton advanced = findButton(panel, "Advanced");
         if (advanced != null && advanced.isVisible()) {

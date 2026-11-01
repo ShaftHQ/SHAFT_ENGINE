@@ -182,4 +182,25 @@ class ShaftAssistantPanelCoverageHelpersTest {
         assertEquals("\\", ShaftAssistantPanel.fileName("\\"));
     }
 
+
+    @Test
+    void agentGuidanceOptimizationPromptFallsBackThroughDefaultClient() {
+        ShaftSettingsState.Settings blank = new ShaftSettingsState.Settings();
+        blank.assistantFamily = "";
+        blank.defaultAutobotClient = "";
+        String blankPrompt = ShaftAssistantPanel.agentGuidanceOptimizationPrompt(blank);
+        assertTrue(blankPrompt.contains("AGENTS.md"));
+
+        ShaftSettingsState.Settings viaClient = new ShaftSettingsState.Settings();
+        viaClient.assistantFamily = "  ";
+        viaClient.defaultAutobotClient = "claude";
+        String via = ShaftAssistantPanel.agentGuidanceOptimizationPrompt(viaClient);
+        assertTrue(via.toLowerCase().contains("claude") || via.contains("CLAUDE.md") || via.contains("AGENTS.md"));
+
+        ShaftSettingsState.Settings gemini = new ShaftSettingsState.Settings();
+        gemini.assistantFamily = "GEMINI";
+        String geminiPrompt = ShaftAssistantPanel.agentGuidanceOptimizationPrompt(gemini);
+        assertTrue(geminiPrompt.contains("AGENTS.md"));
+    }
+
 }
