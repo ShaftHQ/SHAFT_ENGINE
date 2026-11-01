@@ -566,6 +566,7 @@ CHECKS = {
             "tests.scripts.test_ce_design_batch3",
             "tests.scripts.test_ce_design_decks",
             "tests.scripts.test_ce_memory_abstraction_phase1",
+            "tests.scripts.test_dependabot_auto_merge_workflow",
             "tests.scripts.test_harness_isolated_imports",
             "tests.scripts.test_guard_split",
             "tests.scripts.test_ce_addons",
@@ -1205,6 +1206,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_design_batch3.py",
         "tests/scripts/test_ce_design_decks.py",
         "tests/scripts/test_ce_memory_abstraction_phase1.py",
+        "tests/scripts/test_dependabot_auto_merge_workflow.py",
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (
