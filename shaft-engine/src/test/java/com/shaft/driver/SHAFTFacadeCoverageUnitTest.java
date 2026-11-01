@@ -6,7 +6,6 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.gui.driver.ShaftLocator;
 import com.shaft.driver.internal.WizardHelpers;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
