@@ -10,6 +10,7 @@ import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.MobileSessionStateManager;
 import com.shaft.gui.element.internal.AndroidNestedScroll;
+import com.shaft.gui.element.internal.IosScrollView;
 import com.shaft.gui.element.internal.ScrollMotion;
 import com.shaft.gui.element.internal.WebScroll;
 import com.shaft.gui.internal.healing.HealingManager;
@@ -1823,7 +1824,7 @@ public class TouchActions extends FluentWebDriverAction {
         return true;
     }
 
-    private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
+    private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, @Nullable By scrollableElementLocator, @Nullable By targetElementLocator) {
         var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \"" + swipeDirection + "\"";
         if (targetElementLocator != null) {
             logMessage += ", TargetElementLocator \"" + targetElementLocator + "\"";
@@ -1935,10 +1936,17 @@ public class TouchActions extends FluentWebDriverAction {
 
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                var scrollParameters = recoveredScrollable[0] != null
-                        ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
-                        : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
-                boolean moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+                boolean moved;
+                if (driverFactoryHelper.getDriver() instanceof IOSDriver) {
+                    // #7680: SwiftUI lists need dragFromToForDuration on the tallest ScrollView.
+                    moved = performIosSwipeIntoViewStep(activeDirection[0], scrollableElementLocator, recoveredScrollable);
+                    isFirstAttempt.set(false);
+                } else {
+                    var scrollParameters = recoveredScrollable[0] != null
+                            ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
+                            : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+                    moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+                }
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
                 ScrollMotion.Step step = ScrollMotion.step(moved, movedEarlier[0], oppositeTried[0]);
@@ -1985,6 +1993,70 @@ public class TouchActions extends FluentWebDriverAction {
         }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * One iOS swipe-into-view step (#7680): drag inside the tallest on-screen
+     * {@code XCUIElementTypeScrollView} (or the caller's scrollable), and fall back to
+     * {@code mobile: scroll} only when no scroll view is available.
+     */
+    private boolean performIosSwipeIntoViewStep(SwipeDirection swipeDirection, By scrollableElementLocator,
+                                                WebElement[] recoveredScrollable) {
+        IOSDriver iosDriver = (IOSDriver) driverFactoryHelper.getDriver();
+        WebElement container = recoveredScrollable[0];
+        if (container == null && scrollableElementLocator != null) {
+            try {
+                Object resolved = elementActionsHelper.identifyUniqueElement(iosDriver, scrollableElementLocator).get(1);
+                if (resolved instanceof WebElement webElement) {
+                    container = webElement;
+                    recoveredScrollable[0] = webElement;
+                }
+            } catch (RuntimeException ignored) {
+                container = null;
+            }
+        }
+        if (container == null) {
+            Dimension screen = iosDriver.manage().window().getSize();
+            List<WebElement> candidates = ElementActionsHelper.safeFindElements(iosDriver, IosScrollView.SCROLL_VIEW);
+            container = IosScrollView.pickTallest(candidates, screen.getWidth(), screen.getHeight());
+            if (container != null) {
+                recoveredScrollable[0] = container;
+                ReportManager.logDiscrete(
+                        "iOS swipe-into-view using tallest XCUIElementTypeScrollView (#7680).");
+            }
+        }
+        if (container == null) {
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null), false);
+        }
+        return performIosDragFromTo(iosDriver, swipeDirection, container);
+    }
+
+    private boolean performIosDragFromTo(IOSDriver iosDriver, SwipeDirection swipeDirection, WebElement container) {
+        Rectangle rect;
+        try {
+            rect = container.getRect();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        Map<String, Object> drag = IosScrollView.dragParameters(swipeDirection, rect);
+        String before = iosPageFingerprint(iosDriver);
+        iosDriver.executeScript("mobile: dragFromToForDuration", drag);
+        String after = iosPageFingerprint(iosDriver);
+        if (before == null || after == null) {
+            // Fingerprint unavailable: assume the drag may have moved so ScrollMotion can continue
+            // until the target is visible or the fluent wait ends.
+            return true;
+        }
+        return !before.equals(after);
+    }
+
+    @Nullable
+    private String iosPageFingerprint(IOSDriver iosDriver) {
+        try {
+            return iosDriver.getPageSource();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     /**
