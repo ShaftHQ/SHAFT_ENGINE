@@ -5,8 +5,10 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -85,4 +87,85 @@ class ApiRecordingSessionPanelCoverageTest {
                 () -> assertTrue(pin.getMnemonic() != generate.getMnemonic()),
                 () -> assertTrue(stop.getMnemonic() != generate.getMnemonic()));
     }
+
+    @Test
+    void transactionTableModelCoversColumnsAndIncludeToggle() {
+        ApiRecordingSessionPanel.TransactionTableModel model = new ApiRecordingSessionPanel.TransactionTableModel();
+        model.setRows(List.of(
+                new ApiRecordingSessionPanel.TransactionRow("a", "GET", "https://a", "200", "xhr", "12", true),
+                new ApiRecordingSessionPanel.TransactionRow("b", "POST", "https://b", "500", "fetch", "0", true),
+                new ApiRecordingSessionPanel.TransactionRow("", "OPTIONS", "https://c", "", "other", "", true)));
+        assertEquals(3, model.getRowCount());
+        assertEquals(6, model.getColumnCount());
+        assertEquals("Method", model.getColumnName(0));
+        assertEquals("Include", model.getColumnName(ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertEquals(Boolean.class, model.getColumnClass(ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertEquals(String.class, model.getColumnClass(0));
+        assertTrue(model.isCellEditable(0, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertFalse(model.isCellEditable(0, 1));
+        assertEquals("GET", model.getValueAt(0, 0));
+        assertEquals("https://a", model.getValueAt(0, 1));
+        assertEquals("200", model.getValueAt(0, 2));
+        assertEquals("xhr", model.getValueAt(0, 3));
+        assertEquals("12", model.getValueAt(0, 4));
+        assertEquals(Boolean.TRUE, model.getValueAt(0, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertEquals("", model.getValueAt(0, 99));
+        model.setValueAt("ignore", 0, 1);
+        model.setValueAt(false, 0, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN);
+        model.setValueAt(false, 2, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN);
+        assertEquals(List.of("a"), model.excludedTransactionIds());
+        assertEquals(Boolean.FALSE, model.getValueAt(0, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+    }
+
+    @Test
+    void parseTransactionsUnwrapsMcpContentEnvelopeAndBodyMetadataEdges() {
+        String payload = """
+                [
+                  {"transactionId":"e1","method":"PUT","url":"https://api/x","statusCode":204,"resourceKind":"xhr",
+                   "bodyRefMetadata":{"response":{"sizeBytes":null}}},
+                  {"transactionId":"e2","method":"PATCH","url":"https://api/y","statusCode":0,
+                   "bodyRefMetadata":{"response":{}}},
+                  {"transactionId":"e3","method":"DELETE","url":"https://api/z","bodyRefMetadata":"not-object"}
+                ]
+                """;
+        com.google.gson.JsonObject text = new com.google.gson.JsonObject();
+        text.addProperty("type", "text");
+        text.addProperty("text", payload);
+        com.google.gson.JsonArray content = new com.google.gson.JsonArray();
+        content.add(text);
+        com.google.gson.JsonObject envelopeObj = new com.google.gson.JsonObject();
+        envelopeObj.add("content", content);
+        List<ApiRecordingSessionPanel.TransactionRow> rows =
+                ApiRecordingSessionPanel.parseTransactions(envelopeObj.toString());
+        assertTrue(rows.size() >= 3, "rows=" + rows);
+        assertTrue(rows.stream().anyMatch(r -> "e1".equals(r.id()) && "PUT".equals(r.method())));
+        assertTrue(rows.stream().anyMatch(r -> "e2".equals(r.id())));
+        assertTrue(rows.stream().anyMatch(r -> "e3".equals(r.id()) && "DELETE".equals(r.method())));
+    }
+
+    @Test
+    void pinnableLeafTableModelColumnAccessorsAndToggle() {
+        ApiRecordingSessionPanel.PinnableLeafTableModel model = new ApiRecordingSessionPanel.PinnableLeafTableModel(
+                List.of(
+                        new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.id", "1"),
+                        new ApiRecordingSessionPanel.PinnableLeafRow("POST", "https://b", "$.tok", "x")),
+                Set.of("$.tok"));
+        assertEquals(2, model.getRowCount());
+        assertEquals(4, model.getColumnCount());
+        assertEquals("Pin", model.getColumnName(0));
+        assertEquals("JSON Path", model.getColumnName(2));
+        assertEquals(Boolean.class, model.getColumnClass(0));
+        assertEquals(String.class, model.getColumnClass(2));
+        assertTrue(model.isCellEditable(0, 0));
+        assertFalse(model.isCellEditable(0, 2));
+        assertEquals("GET https://a", model.getValueAt(0, 1));
+        assertEquals("$.id", model.getValueAt(0, 2));
+        assertEquals("1", model.getValueAt(0, 3));
+        assertEquals("", model.getValueAt(0, 9));
+        model.setValueAt("nope", 0, 2);
+        model.setValueAt(true, 0, 0);
+        model.setValueAt(false, 1, 0);
+        assertEquals(Set.of("$.id"), model.pinnedJsonPaths());
+    }
+
 }
