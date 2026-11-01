@@ -1,4 +1,4 @@
-# ChaosEngine Self-Improve Master Plan (portable)
+# ChaosEngine Self-Improve Master Plan
 
 **Dated (Africa/Cairo):** 2026-09-08  
 **Base tip context:** Learning Session Stop gate after every delivery (harness parity).  

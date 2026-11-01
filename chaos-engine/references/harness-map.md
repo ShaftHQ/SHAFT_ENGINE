@@ -42,11 +42,12 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/ce-retro-2026-10-31-6-SPEC.md`: CE .31.6
 - `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11
 - `references/ce-rules-2026-10-31-12-SPEC.md`: CE .31.12
+- `references/ce-rules-2026-10-31-13-SPEC.md`: CE .31.13
 - `references/ce-rules-2026-10-31-7-SPEC.md`: CE .31.7
 - `references/ce-rules-2026-10-31-8-SPEC.md`: CE .31.8
 - `references/ce-upgrade-on-release.md`: ChaosEngine upgrade on release
 - `references/checkpoint-resume.md`: Checkpoint and resume after interruption
-- `references/ci-status-economy.md`: CI status economy (babysit, digest, one channel)
+- `references/ci-status-economy.md`: CI status economy
 - `references/cleanup-at-close.md`: Cleanup at item close
 - `references/cleanup-scopes.md`: Cleanup scopes
 - `references/client-name-scrub.md`: Client-name scrub (public repos)
@@ -124,7 +125,7 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/router-contract.md`: Router contract
 - `references/rule-retirement.md`: Rule and lesson retirement
 - `references/script-first.md`: Script first
-- `references/self-improve-master-plan.md`: ChaosEngine Self-Improve Master Plan (portable)
+- `references/self-improve-master-plan.md`: ChaosEngine Self-Improve Master Plan
 - `references/self-modify.md`: Harness self-modification with an archive
 - `references/sequential-wip.md`: Sequential WIP (one item at a time)
 - `references/significance-capture.md`: Significance-filtered mid-session capture
@@ -144,7 +145,7 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/work-item.md`: Work-item contract
 - `references/work-ordering.md`: Work ordering (close open PRs first)
 - `references/worker-keep-alive.md`: Worker keep-alive (KEEP-ALIVE)
-- `references/workflow-induction.md`: Workflow induction (repeated successful steps)
+- `references/workflow-induction.md`: Workflow induction
 - `references/zero-llm-catalog.md`: Use when install, doctor, or repair can run as a script before any ho…
 
 ## Hooks
