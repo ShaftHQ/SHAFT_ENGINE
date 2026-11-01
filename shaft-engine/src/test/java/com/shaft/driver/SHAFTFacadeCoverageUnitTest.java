@@ -234,4 +234,16 @@ public class SHAFTFacadeCoverageUnitTest {
         Assert.expectThrows(NullPointerException.class, () -> api.exportCookiesTo(null));
     }
 
+    @Test
+    public void cliAndValidationFacadesShouldBeCreatableWithoutSideEffects() {
+        Assert.assertNotNull(SHAFT.CLI.terminal());
+        Assert.assertNotNull(SHAFT.CLI.file());
+        Assert.assertNotNull(SHAFT.Validations.assertThat());
+        Assert.assertNotNull(SHAFT.Validations.verifyThat());
+        Assert.assertNotNull(SHAFT.API.getInstance("https://example.test"));
+        Assert.assertTrue(SHAFT.Auth.stateFile("coverage-session").contains("coverage-session"));
+        Assert.assertNotNull(SHAFT.GUI.Locator.role("button", "Save"));
+        Assert.assertNotNull(SHAFT.GUI.Locator.accessibleName("Email"));
+    }
+
 }

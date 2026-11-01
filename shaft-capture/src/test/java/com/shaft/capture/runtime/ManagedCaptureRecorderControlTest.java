@@ -676,4 +676,31 @@ class ManagedCaptureRecorderControlTest {
         assertEquals(true, deviceMetrics.get("mobile"));
         assertTrue(String.valueOf(mobileEmulation.get("userAgent")).contains("Pixel 7"));
     }
+    @Test
+    void filterHarByGlobReturnsOriginalWhenEntriesMissing() {
+        String bare = "{\"log\":{}}";
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(bare, "*example*");
+        assertEquals(bare, result.json());
+        assertEquals(0, result.kept());
+        assertEquals(0, result.dropped());
+    }
+
+    @Test
+    void filterHarByGlobDropsNonMatchingEntriesAndKeepsMatchingOnes() {
+        String har = """
+                {"log":{"entries":[
+                  {"url":"https://api.example.test/v1"},
+                  {"url":"https://cdn.example.test/app.js"},
+                  {"url":"https://other.test/"}
+                ]}}
+                """;
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(har, "*api.example.test*");
+        assertEquals(1, result.kept());
+        assertEquals(2, result.dropped());
+        assertTrue(result.json().contains("api.example.test"));
+        assertFalse(result.json().contains("other.test"));
+    }
+
 }

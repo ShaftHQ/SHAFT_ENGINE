@@ -447,4 +447,10 @@ public class ElementsHelperCoverageUnitTest {
         driverFactoryHelper.when(DriverFactoryHelper::isMobileWebExecution).thenReturn(false);
         return driverFactoryHelper;
     }
+    @Test
+    public void isSilentShouldExposeConstructorFlag() {
+        Assert.assertTrue(new ElementActionsHelper(true).isSilent());
+        Assert.assertFalse(new ElementActionsHelper(false).isSilent());
+    }
+
 }

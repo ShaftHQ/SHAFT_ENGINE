@@ -8,6 +8,7 @@ import com.shaft.doctor.model.EvidenceProvenance;
 import com.shaft.doctor.model.RedactionSummary;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -141,5 +142,71 @@ class UniqueErrorClustererTest {
                 passed.relativePath(), passed.sha256(), passed.sizeBytes(), passed.content(), false, false,
                 Map.of("status", "passed", "clusterFingerprint", "fp-2"), passed.provenance());
         assertTrue(DeterministicRuleEngine.clusterableFailure(fingerprinted));
+    }
+
+    @Test
+    void normalizeSignatureCollapsesDigitsHexAndWhitespace() {
+        String first = UniqueErrorClusterer.normalizeSignature(
+                "Timeout after 12 ms at 0xdeadbeef", null);
+        String second = UniqueErrorClusterer.normalizeSignature(
+                "Timeout after 99 ms at 0xabcdef01", "ignored");
+        assertEquals(first, second);
+        assertFalse(first.isBlank());
+        assertEquals(20, first.length());
+        assertEquals("", UniqueErrorClusterer.normalizeSignature(null, null));
+        assertEquals("", UniqueErrorClusterer.normalizeSignature("  ", "  "));
+        String fromTrace = UniqueErrorClusterer.normalizeSignature(null, "first line\nsecond line");
+        assertFalse(fromTrace.isBlank());
+        assertEquals(fromTrace, UniqueErrorClusterer.normalizeSignature(" ", "first line\nsecond"));
+    }
+
+    @Test
+    void doctorJsonFailuresClusterByFingerprint(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+        Path doctor = temp.resolve("doctor.json");
+        // Shape mirrors collectDoctorEvidence: fingerprint + failed/broken status on each node.
+        Files.writeString(doctor, """
+                [
+                  {
+                    "id": "d1",
+                    "status": "failed",
+                    "name": "login",
+                    "historyId": "hist-login",
+                    "clusterFingerprint": "fp-shared",
+                    "failureMessage": "click failed"
+                  },
+                  {
+                    "id": "d2",
+                    "status": "broken",
+                    "name": "checkout",
+                    "historyId": "hist-checkout",
+                    "clusterFingerprint": "fp-shared",
+                    "failureMessage": "click failed again"
+                  },
+                  {
+                    "id": "d3",
+                    "status": "failed",
+                    "name": "timeout",
+                    "historyId": "hist-timeout",
+                    "clusterFingerprint": "fp-other",
+                    "failureMessage": "timed out"
+                  }
+                ]
+                """);
+        ErrorClusterModels.ClusterTable table = UniqueErrorClusterer.cluster(null, doctor);
+        assertTrue(table.warnings().stream().noneMatch(w -> w.contains("Doctor JSON not used")),
+                String.valueOf(table.warnings()));
+        assertFalse(table.empty(), table.emptyMessage() + " warnings=" + table.warnings());
+        assertEquals(2, table.clusterCount());
+        assertTrue(table.clusters().stream().anyMatch(c -> c.impactedCount() == 2));
+    }
+
+    @Test
+    void malformedDoctorJsonYieldsWarningAndEmptyCluster(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+        Path doctor = temp.resolve("bad.json");
+        Files.writeString(doctor, "{not-json");
+        ErrorClusterModels.ClusterTable table = UniqueErrorClusterer.cluster(
+                Path.of("src/test/resources/fixtures/clusters/empty"), doctor);
+        assertTrue(table.empty());
+        assertFalse(table.warnings().isEmpty());
     }
 }
