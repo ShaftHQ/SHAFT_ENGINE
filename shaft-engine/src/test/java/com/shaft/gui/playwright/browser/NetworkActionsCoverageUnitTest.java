@@ -1,11 +1,14 @@
 package com.shaft.gui.playwright.browser;
 
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.List;
 
 /**
  * Unit coverage for Playwright {@link NetworkActions} facade lines (issue #7077).
@@ -14,7 +17,7 @@ import org.testng.annotations.Test;
 public class NetworkActionsCoverageUnitTest {
 
     @Test
-    public void networkFacadeShouldReturnFluentSelfIncludingUnsupportedOps() {
+    public void networkFacadeShouldDispatchNamedOperations() {
         PlaywrightSession session = Mockito.mock(PlaywrightSession.class);
         BrowserActions browser = Mockito.spy(new BrowserActions(session));
         Mockito.doNothing().when(browser).performNetworkAction(Mockito.anyString(), Mockito.any());
@@ -38,7 +41,36 @@ public class NetworkActionsCoverageUnitTest {
         Assert.assertSame(network.block("*.css"), network);
         Assert.assertNull(network.interceptRequest());
 
-        Mockito.verify(browser, Mockito.atLeast(12)).performNetworkAction(Mockito.anyString(), Mockito.any());
+        ArgumentCaptor<String> ops = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(browser, Mockito.times(12)).performNetworkAction(ops.capture(), Mockito.any());
+        Assert.assertEquals(ops.getAllValues(), List.of(
+                "mock",
+                "intercept",
+                "clear",
+                "start-contract-recording",
+                "assert-contract",
+                "verify-contract",
+                "replay-contract",
+                "route-from-har",
+                "offline",
+                "online",
+                "throttling",
+                "resource blocking"));
+    }
+
+    @Test
+    public void unsupportedThrottleAndBlockShouldThrowWhenActionRuns() {
+        PlaywrightSession session = Mockito.mock(PlaywrightSession.class);
+        BrowserActions browser = Mockito.spy(new BrowserActions(session));
+        Mockito.doAnswer(invocation -> {
+            Runnable action = invocation.getArgument(1);
+            action.run();
+            return null;
+        }).when(browser).performNetworkAction(Mockito.anyString(), Mockito.any());
+
+        NetworkActions network = new NetworkActions(browser);
+        Assert.expectThrows(UnsupportedOperationException.class, () -> network.throttle(1, 2, 3));
+        Assert.expectThrows(UnsupportedOperationException.class, () -> network.block("*.css"));
     }
 
     @Test

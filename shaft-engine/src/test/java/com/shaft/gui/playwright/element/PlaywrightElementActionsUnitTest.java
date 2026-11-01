@@ -1,6 +1,7 @@
 package com.shaft.gui.playwright.element;
 
 import com.microsoft.playwright.Locator;
+import com.microsoft.playwright.options.BoundingBox;
 import com.microsoft.playwright.Page;
 import com.shaft.gui.internal.locator.CompositeLocator;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
@@ -129,6 +130,91 @@ public class PlaywrightElementActionsUnitTest {
         verify(locator).evaluate(anyString());
         verify(locator).fill("frontend backend");
         verify(locator, never()).pressSequentially(anyString());
+    }
+
+
+    @Test
+    public void locatorActionsShouldCoverCommonFluentPaths() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Page page = mock(Page.class);
+        com.microsoft.playwright.Mouse mouse = mock(com.microsoft.playwright.Mouse.class);
+        Locator locator = mock(Locator.class);
+        Locator destination = mock(Locator.class);
+        BoundingBox box = new BoundingBox();
+        box.x = 10;
+        box.y = 20;
+        box.width = 30;
+        box.height = 40;
+
+        when(session.page()).thenReturn(page);
+        when(page.mouse()).thenReturn(mouse);
+        when(locator.boundingBox()).thenReturn(box);
+        when(locator.count()).thenReturn(3);
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT",
+                "type", "text",
+                "role", "",
+                "isContentEditable", "false"));
+        when(locator.inputValue()).thenReturn("");
+
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.click(locator), actions);
+        Assert.assertSame(actions.clickUsingJavascript(locator), actions);
+        Assert.assertSame(actions.scrollToElement(locator), actions);
+        Assert.assertSame(actions.clickAndHold(locator), actions);
+        Assert.assertSame(actions.doubleClick(locator), actions);
+        Assert.assertSame(actions.hover(locator), actions);
+        Assert.assertSame(actions.dragAndDrop(locator, destination), actions);
+        Assert.assertSame(actions.dragAndDropByOffset(locator, 4, 5), actions);
+        Assert.assertSame(actions.select(locator, "Option A"), actions);
+        Assert.assertSame(actions.type(locator, "hello"), actions);
+        Assert.assertSame(actions.clear(locator), actions);
+        Assert.assertSame(actions.typeSecure(locator, "secret"), actions);
+        Assert.assertSame(actions.typeFileLocationForUpload(locator, "/tmp/a.txt"), actions);
+        Assert.assertEquals(actions.getElementsCount(locator), 3);
+
+        verify(locator, Mockito.atLeastOnce()).click();
+        verify(locator).evaluate("element => element.click()");
+        verify(locator).scrollIntoViewIfNeeded();
+        verify(locator).dblclick();
+        verify(locator).hover();
+        verify(locator).dragTo(destination);
+        verify(locator).selectOption("Option A");
+        verify(locator, Mockito.atLeastOnce()).fill("hello");
+        verify(locator).clear();
+        verify(locator).setInputFiles(java.nio.file.Path.of("/tmp/a.txt"));
+        verify(locator, Mockito.atLeastOnce()).fill("secret");
+        verify(mouse, Mockito.atLeastOnce()).down();
+        verify(mouse, Mockito.atLeastOnce()).up();
+    }
+
+    @Test
+    public void typeOnContentEditableShouldPressSequentially() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "DIV",
+                "type", "",
+                "role", "",
+                "isContentEditable", "true"));
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.type(locator, "abc"), actions);
+        verify(locator).pressSequentially("abc");
+        verify(locator, never()).fill(anyString());
+    }
+
+    @Test
+    public void getTableRowsDataShouldMapHeaderCells() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator table = mock(Locator.class);
+        when(table.evaluate(anyString())).thenReturn(List.of(
+                List.of("Name", "Age"),
+                List.of("Ada", "36"),
+                List.of("Grace", "40")));
+        List<Map<String, String>> data = new ElementActions(session).getTableRowsData(table);
+        Assert.assertEquals(data.size(), 2);
+        Assert.assertEquals(data.get(0).get("Name"), "Ada");
+        Assert.assertEquals(data.get(1).get("Age"), "40");
     }
 
     private static final class TestCompositeLocator extends By implements CompositeLocator {

@@ -1,12 +1,15 @@
 package com.shaft.gui.browser;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.List;
 
 /**
  * Unit coverage for Selenium {@link NetworkActions} facade lines (issue #7077).
@@ -15,7 +18,7 @@ import org.testng.annotations.Test;
 public class NetworkActionsCoverageUnitTest {
 
     @Test
-    public void networkFacadeShouldReturnFluentSelfWhenActionsAreDispatched() {
+    public void networkFacadeShouldDispatchNamedOperations() {
         WebDriver driver = Mockito.mock(WebDriver.class);
         DriverFactoryHelper helper = Mockito.mock(DriverFactoryHelper.class);
         Mockito.when(helper.getDriver()).thenReturn(driver);
@@ -42,7 +45,21 @@ public class NetworkActionsCoverageUnitTest {
         Assert.assertSame(network.block("*.png"), network);
         Assert.assertNull(network.interceptRequest());
 
-        Mockito.verify(browser, Mockito.times(12)).performNetworkAction(Mockito.anyString(), Mockito.any());
+        ArgumentCaptor<String> ops = ArgumentCaptor.forClass(String.class);
+        Mockito.verify(browser, Mockito.times(12)).performNetworkAction(ops.capture(), Mockito.any());
+        Assert.assertEquals(ops.getAllValues(), List.of(
+                "mock",
+                "intercept",
+                "clear",
+                "start-contract-recording",
+                "assert-contract",
+                "verify-contract",
+                "replay-contract",
+                "route-from-har",
+                "offline",
+                "online",
+                "throttling",
+                "resource-blocking"));
     }
 
     @Test

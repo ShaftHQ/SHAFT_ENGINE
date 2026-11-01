@@ -8,7 +8,6 @@ import io.qameta.allure.Story;
 import io.qameta.allure.TmsLink;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.IInvokedMethod;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
@@ -201,7 +200,9 @@ public class JiraHelperCoverageUnitTest {
         @Epic("coverage-epic")
         @Story("coverage-story")
         @TmsLink("TMS-9")
+        /** Annotation carrier for prepareTestResultAttributes / reportBugs paths. */
         public void annotatedCase() {
+            // no-op fixture method — annotations only
         }
     }
 }
