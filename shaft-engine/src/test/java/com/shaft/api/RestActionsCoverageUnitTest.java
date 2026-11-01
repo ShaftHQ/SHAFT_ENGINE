@@ -849,4 +849,26 @@ public class RestActionsCoverageUnitTest {
         Assert.assertNotNull(spec);
     }
 
+
+
+    @Test
+    public void getResponseJSONValueShouldHandleMapsListsAndXmlFallbacks() {
+        Response json = Mockito.mock(Response.class);
+        Mockito.when(json.asPrettyString()).thenReturn("{\"user\":{\"name\":\"shaft\",\"roles\":[\"a\",\"b\"]}}");
+        Assert.assertEquals(RestActions.getResponseJSONValue(json, "$.user.name"), "shaft");
+        Assert.assertNotNull(RestActions.getResponseJSONValueAsList(json, "$.user.roles"));
+
+        Assert.assertEquals(RestActions.getResponseJSONValue(new java.util.HashMap<>(Map.of("ok", true)), "ok"), "true");
+        Assert.assertEquals(RestActions.getResponseJSONValue(new org.json.JSONObject("{\"count\":2}"), "count"), "2");
+
+        io.restassured.path.xml.XmlPath xmlPath = Mockito.mock(io.restassured.path.xml.XmlPath.class);
+        Response xml = Mockito.mock(Response.class);
+        Mockito.when(xml.xmlPath()).thenReturn(xmlPath);
+        Mockito.when(xmlPath.getString("root.item")).thenReturn("one");
+        Assert.assertEquals(RestActions.getResponseXMLValue(xml, "root.item"), "one");
+    }
+
+
+
+
 }
