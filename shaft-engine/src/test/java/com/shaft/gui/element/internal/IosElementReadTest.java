@@ -377,32 +377,25 @@ public class IosElementReadTest {
         return element;
     }
 
+    private static final java.util.Map<String, String> XCUI_STUB_VALUES = java.util.Map.of(
+            "type", "XCUIElementTypeButton",
+            "hittable", "true",
+            "name", "login_button",
+            "label", "Sign in",
+            "selected", "true",
+            "rect", "{{0,0},{10,10}}",
+            "class", "android.widget.Button");
+
+    private static final java.util.Set<String> ANDROID_ONLY_UNKNOWN = java.util.Set.of(
+            "scrollable", "checkable", "clickable", "long-clickable", "resource-id",
+            "content-desc", "password", "package", "checked", "bounds", "");
+
     private static String attributeValue(String name) {
-        if ("type".equals(name)) {
-            return "XCUIElementTypeButton";
+        String known = XCUI_STUB_VALUES.get(name);
+        if (known != null) {
+            return known;
         }
-        if ("hittable".equals(name)) {
-            return "true";
-        }
-        if ("name".equals(name)) {
-            return "login_button";
-        }
-        if ("label".equals(name)) {
-            return "Sign in";
-        }
-        if ("selected".equals(name)) {
-            return "true";
-        }
-        if ("rect".equals(name)) {
-            return "{{0,0},{10,10}}";
-        }
-        if ("class".equals(name)) {
-            return "android.widget.Button";
-        }
-        if ("scrollable".equals(name) || "checkable".equals(name) || "clickable".equals(name)
-                || "long-clickable".equals(name) || "resource-id".equals(name)
-                || "content-desc".equals(name) || "password".equals(name) || "package".equals(name)
-                || "checked".equals(name) || "bounds".equals(name) || "".equals(name)) {
+        if (ANDROID_ONLY_UNKNOWN.contains(name)) {
             throw new WebDriverException("The attribute '" + name
                     + "' is unknown. Valid attribute names are: (type, hittable, name, label, selected, rect, wdType)");
         }
