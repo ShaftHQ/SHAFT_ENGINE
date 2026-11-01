@@ -339,7 +339,9 @@ class RollbackTruth6338Test(unittest.TestCase):
                     "CE-INSTALL-FAILED", error, "Example/Project", project=project
                 )
             text = stderr.getvalue()
-            self.assertIn("Rolled back", text)
+            self.assertIn("Installation failed", text)
+            # L94: rollback detail lives in the prefilled issue URL, not stderr prose.
+            self.assertIn("Rolled+back", text)
             self.assertIn(NEW_COMMIT[:12], text)
             self.assertIn(OLD_COMMIT[:12], text)
 

@@ -109,7 +109,7 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/parallel-streams.md`: Parallel streams (orchestrator fan-out)
 - `references/permanent-rules.md`: Permanent rules (single home)
 - `references/pr-scope-check.md`: PR scope check (H-PR-SCOPE)
-- `references/prefer-cli-over-mcp.md`: Use when CLI and MCP both fit; prefer CLI (gh when it fits).
+- `references/prefer-cli-over-mcp.md`: Use when CLI and MCP both fit the same job; prefer the CLI, and gh wh…
 - `references/process-owner-scrum-master.md`: process-owner
 - `references/profile-slow-installs.md`: Use when CE install/upgrade is slow across worktrees.
 - `references/progress-log.md`: Progress log (every step)

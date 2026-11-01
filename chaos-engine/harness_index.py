@@ -158,7 +158,7 @@ ROUTES = (
     ("Eliminate waste", "references/eliminate-waste.md",
      "Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped."),
     ("Prefer CLI over MCP", "references/prefer-cli-over-mcp.md",
-     "Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured."),
+     "Use when CLI and MCP both fit the same job; prefer the CLI, and gh when it is configured."),
     ("No proxy", "references/no-proxy.md",
      "Use when a task would install, pin, or wrap a traffic proxy. Never install one."),
     ("GAP-EXIT2 UX", "references/host-parity-matrix.md",

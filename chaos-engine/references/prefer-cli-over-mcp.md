@@ -1,5 +1,5 @@
 ---
-description: Use when CLI and MCP both fit; prefer CLI (gh when it fits).
+description: Use when CLI and MCP both fit the same job; prefer the CLI, and gh when it is configured.
 ---
 
 # Prefer CLI over MCP
