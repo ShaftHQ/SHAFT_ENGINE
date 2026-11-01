@@ -89,6 +89,70 @@ public class FailureBriefReporterTest {
         }
     }
 
+
+    @Test(description = "Failure brief JSON classifies locator/api/accessibility/performance/provider/environment/test-data/unknown")
+    public void classifyFailureCategoriesAcrossAttachmentPurposes() throws Exception {
+        try {
+            String[][] cases = new String[][]{
+                    {"NoSuchElementException for #login", "locator"},
+                    {"OpenAPI status code 500 response schema", "api"},
+                    {"axe WCAG accessibility violation", "accessibility"},
+                    {"performance budget p95 latency exceeded", "performance"},
+                    {"SessionNotCreatedException browserstack selenium grid", "provider"},
+                    {"configuration property missing permission denied", "environment"},
+                    {"corrupt test data fixture csv xlsx file", "test-data"},
+                    {"something completely unrelated", "unknown"}
+            };
+            for (String[] testCase : cases) {
+                TestExecutionInfo info = info(testCase[1] + "Scenario", categoryFailure(testCase[0]));
+                ReportContext.start(info);
+                ReportContext.setStatus(Status.BROKEN);
+                String json = FailureBriefReporter.renderBriefJson(info, testCase[0], List.of());
+                Assert.assertTrue(json.contains("\"category\": \"" + testCase[1] + "\""), json);
+                Assert.assertTrue(json.contains("\"status\": \"broken\""), json);
+            }
+
+            TestExecutionInfo info = info("attachmentPurposes", categoryFailure("Expected title but found login"));
+            ReportContext.start(info);
+            ReportContext.setStatus(Status.FAILED);
+            int before = attachments().size();
+            FailureBriefReporter.attachOnFailure(info, "Expected title but found login", List.of(
+                    "target/shot.png",
+                    "target/page snapshot.mhtml",
+                    "target/api-response.json",
+                    "target/diagnostics-trace.zip",
+                    "target/recording.mp4",
+                    "target/accessibility-report.html",
+                    "target/performance-budget.json",
+                    "target/device.log",
+                    "target/notes.txt",
+                    "target/photo.jpeg",
+                    "target/clip.gif",
+                    "target/bundle.har",
+                    "target/page.htm",
+                    "target/noext"
+            ));
+            Assert.assertTrue(attachments().size() > before);
+            String json = FailureBriefReporter.renderBriefJson(info, "Expected title but found login",
+                    ReportContext.snapshotAttachments());
+            Assert.assertTrue(json.contains("\"category\": \"assertion\""), json);
+            String html = FailureBriefReporter.renderBriefHtml(json);
+            Assert.assertTrue(html.contains("status-chip"), html);
+            Assert.assertTrue(html.contains("SHAFT Failure Brief"), html);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    private static RuntimeException categoryFailure(String message) {
+        RuntimeException throwable = new RuntimeException(message);
+        throwable.setStackTrace(new StackTraceElement[]{
+                new StackTraceElement("customer.LoginTest", "failingScenario", "LoginTest.java", 27)
+        });
+        return throwable;
+    }
+
     private static TestExecutionInfo info(String methodName, Throwable throwable) throws Exception {
         Method method = FailureBriefReporterTest.class.getDeclaredMethod("failingScenario");
         return new TestExecutionInfo("id-" + methodName, "customer.LoginTest", methodName, methodName,
