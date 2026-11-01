@@ -204,6 +204,43 @@ public class TypeStrategiesCoverageUnitTest {
         Mockito.verify((JavascriptExecutor) driver).executeScript(Mockito.eq("mobile: type"), Mockito.any(Map.class));
     }
 
+
+    @Test
+    public void toggleMobileInsteadOfTypingShouldTap() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        WebElement element = Mockito.mock(WebElement.class);
+        try (var clicks = Mockito.mockStatic(ClickStrategies.class)) {
+            TypeStrategies.toggleMobileInsteadOfTyping(driver, element, ElementKind.CHECKBOX);
+            clicks.verify(() -> ClickStrategies.focusTap(driver, element));
+        }
+    }
+
+    @Test
+    public void toggleDesktopInsteadOfTypingShouldClickAndAssertChange() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        WebElement element = Mockito.mock(WebElement.class);
+        Mockito.when(element.isSelected()).thenReturn(false, true);
+        Mockito.when(element.getDomAttribute(Mockito.anyString())).thenReturn(null);
+        Mockito.when(element.getAttribute(Mockito.anyString())).thenReturn(null);
+        try (var clicks = Mockito.mockStatic(ClickStrategies.class)) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(driver, element, ElementKind.CHECKBOX);
+            clicks.verify(() -> ClickStrategies.focusWindows(driver, element));
+        }
+    }
+
+    @Test
+    public void typeDesktopComboboxShouldSendKeysAndEnter() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        WebElement element = Mockito.mock(WebElement.class);
+        try (var clicks = Mockito.mockStatic(ClickStrategies.class)) {
+            TypeStrategies.typeDesktopCombobox(driver, element, new CharSequence[]{"item"});
+            clicks.verify(() -> ClickStrategies.focusWindows(driver, element));
+            Mockito.verify(element, Mockito.atLeastOnce()).sendKeys(Mockito.any(CharSequence[].class));
+            Mockito.verify(element).sendKeys(Keys.ENTER);
+        }
+    }
+
+
     @Test
     public void enumSetsShouldStayNonEmpty() {
         Assert.assertFalse(EnumSet.allOf(TypeStrategies.TypeRoute.class).isEmpty());

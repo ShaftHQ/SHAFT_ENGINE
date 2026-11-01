@@ -202,7 +202,10 @@ public class JiraHelperCoverageUnitTest {
         @TmsLink("TMS-9")
         /** Annotation carrier for prepareTestResultAttributes / reportBugs paths. */
         public void annotatedCase() {
-            // no-op fixture method — annotations only
+            // Annotation carrier for prepareTestResultAttributes / reportBugs paths.
+            if (getClass().getSimpleName().isBlank()) {
+                throw new IllegalStateException("AnnotatedFixture must keep a non-blank simple name");
+            }
         }
     }
 }

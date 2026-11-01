@@ -11,6 +11,9 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import org.mockito.MockedStatic;
 import org.openqa.selenium.remote.http.HttpResponse;
+import com.microsoft.playwright.options.Cookie;
+import com.shaft.enums.internal.Screenshots;
+import static org.mockito.ArgumentMatchers.contains;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -236,4 +239,138 @@ public class PlaywrightBrowserActionsUnitTest {
             HttpContractRecorder.clear();
         }
     }
+    @Test
+    public void shouldCoverGettersNavigationCookiesAndAlerts() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Page page = mock(Page.class);
+        Page newPage = mock(Page.class);
+        when(session.browserContext()).thenReturn(context);
+        when(session.page()).thenReturn(page);
+        when(session.pageHandle(page)).thenReturn("page-1");
+        when(session.isDialogSeen()).thenReturn(true);
+        when(session.lastDialogText()).thenReturn("confirm?");
+        when(page.url()).thenReturn("https://example.test/app");
+        when(page.title()).thenReturn("Coverage");
+        when(page.content()).thenReturn("<html></html>");
+        when(page.evaluate("() => `(${window.screenX}, ${window.screenY})`")).thenReturn("(0, 0)");
+        when(page.evaluate("() => window.innerHeight")).thenReturn(800);
+        when(page.evaluate("() => window.innerWidth")).thenReturn(1200);
+        when(page.locator("#ok")).thenReturn(mock(com.microsoft.playwright.Locator.class));
+        when(page.isClosed()).thenReturn(false);
+        when(context.isClosed()).thenReturn(false);
+        when(context.newPage()).thenReturn(newPage);
+        Cookie cookie = new Cookie("sid", "abc");
+        cookie.domain = "example.test";
+        cookie.path = "/";
+        when(context.cookies()).thenReturn(List.of(cookie));
+
+        BrowserActions actions = new BrowserActions(session);
+        Assert.assertSame(actions.and(), actions);
+        Assert.assertNotNull(actions.network());
+        Assert.assertNotNull(actions.dialog());
+        Assert.assertNotNull(actions.context());
+        Assert.assertNotNull(actions.storage());
+        Assert.assertNotNull(actions.console());
+        Assert.assertNotNull(actions.script());
+        Assert.assertNotNull(actions.permissions());
+        Assert.assertNotNull(actions.authentication());
+        Assert.assertNotNull(actions.downloads());
+        Assert.assertNotNull(actions.emulation());
+        Assert.assertNotNull(actions.assertThat());
+        Assert.assertNotNull(actions.verifyThat());
+        Assert.assertEquals(actions.getCurrentURL(), "https://example.test/app");
+        Assert.assertEquals(actions.getCurrentWindowTitle(), "Coverage");
+        Assert.assertEquals(actions.getPageSource(), "<html></html>");
+        Assert.assertEquals(actions.getWindowHandle(), "page-1");
+        Assert.assertEquals(actions.getWindowPosition(), "(0, 0)");
+        Assert.assertEquals(actions.getWindowHeight(), "800");
+        Assert.assertEquals(actions.getWindowWidth(), "1200");
+        Assert.assertEquals(actions.getWindowSize(), "1200x800");
+
+        Assert.assertSame(actions.navigateToURL("https://example.test/next"), actions);
+        verify(page).navigate("https://example.test/next");
+        Assert.assertSame(actions.openNewTab("https://example.test/tab"), actions);
+        verify(context).newPage();
+        verify(session).setPage(newPage);
+        Assert.assertSame(actions.navigateBack(), actions);
+        Assert.assertSame(actions.navigateForward(), actions);
+        Assert.assertSame(actions.refreshCurrentPage(), actions);
+        verify(page).goBack();
+        verify(page).goForward();
+        verify(page).reload();
+        Assert.assertSame(actions.setWindowSize(1024, 768), actions);
+        verify(page).setViewportSize(1024, 768);
+
+        Assert.assertTrue(actions.isAlertPresent());
+        Assert.assertEquals(actions.getAlertText(), "confirm?");
+        Assert.assertSame(actions.acceptAlert(), actions);
+        Assert.assertSame(actions.dismissAlert(), actions);
+        Assert.assertSame(actions.typeIntoPromptAlert("typed"), actions);
+        verify(session).acceptNextDialog();
+        verify(session).dismissNextDialog();
+        verify(session).typeIntoNextPrompt("typed");
+
+        Assert.assertSame(actions.addCookie("sid", "abc"), actions);
+        Assert.assertEquals(actions.getCookieValue("sid"), "abc");
+        Assert.assertEquals(actions.getCookieDomain("sid"), "example.test");
+        Assert.assertEquals(actions.getCookiePath("sid"), "/");
+        Assert.assertNotNull(actions.getCookie("sid"));
+        Assert.assertEquals(actions.getAllCookies().size(), 1);
+        Assert.assertNull(actions.getCookie("missing"));
+        Assert.assertSame(actions.deleteCookie("sid"), actions);
+        Assert.assertSame(actions.deleteAllCookies(), actions);
+        verify(context).clearCookies();
+        verify(page).evaluate(contains("document.cookie"), eq("sid"));
+
+        when(session.networkInterceptor()).thenReturn(new com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor(context));
+        Assert.assertSame(actions.capturePageSnapshot(), actions);
+        Assert.assertSame(actions.clearNetworkInterceptors(), actions);
+        Assert.assertSame(actions.getNativeContext(), context);
+        Assert.assertSame(actions.getNativePage(), page);
+        Assert.assertSame(actions.fullScreenWindow(), actions);
+        Assert.assertSame(actions.maximizeWindow(), actions);
+        Assert.assertSame(actions.navigateToURL("https://example.test/a", "https://example.test/b"), actions);
+        verify(page).waitForURL("https://example.test/b");
+        Assert.assertSame(actions.openNewWindow("https://example.test/win"), actions);
+        Assert.assertNotNull(actions.locator("#ok"));
+        verify(page).locator("#ok");
+    }
+
+    @Test
+    public void shouldCoverScreenshotHandlesContextAndLazyLoad() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Browser browser = mock(Browser.class);
+        Page page = mock(Page.class);
+        Page other = mock(Page.class);
+        when(session.browserContext()).thenReturn(context);
+        when(session.browser()).thenReturn(browser);
+        when(session.page()).thenReturn(page);
+        when(session.pageHandle(page)).thenReturn("page-1");
+        when(session.pageHandle(other)).thenReturn("page-2");
+        when(context.pages()).thenReturn(List.of(page, other));
+        when(context.isClosed()).thenReturn(false);
+        when(page.isClosed()).thenReturn(false);
+        when(browser.isConnected()).thenReturn(true);
+        when(page.url()).thenReturn("https://example.test/");
+        when(page.content()).thenReturn("<html/>");
+        when(page.screenshot(any())).thenReturn(new byte[] {9, 9, 9});
+
+        BrowserActions actions = new BrowserActions(session);
+        Assert.assertEquals(actions.getContext(), "PLAYWRIGHT");
+        Assert.assertEquals(actions.getContextHandles(), List.of("PLAYWRIGHT"));
+        Assert.assertSame(actions.setContext("PLAYWRIGHT"), actions);
+        Assert.assertSame(actions.setContext("WEB"), actions);
+        Assert.expectThrows(UnsupportedOperationException.class, () -> actions.setContext("NATIVE"));
+        Assert.expectThrows(UnsupportedOperationException.class, actions::generateLightHouseReport);
+        Assert.assertEquals(actions.getWindowHandles(), List.of("page-1", "page-2"));
+        Assert.assertSame(actions.waitForLazyLoading(), actions);
+        verify(page).waitForLoadState(any());
+        Assert.assertSame(actions.captureScreenshot(), actions);
+        Assert.assertSame(actions.captureScreenshot(Screenshots.VIEWPORT), actions);
+        Assert.assertSame(actions.captureSnapshot(), actions);
+        verify(page, org.mockito.Mockito.atLeast(2)).screenshot(any());
+    }
+
 }

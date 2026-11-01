@@ -13,6 +13,8 @@ import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
+import com.shaft.gui.playwright.validation.PlaywrightElementValidationsBuilder;
+import com.shaft.gui.driver.ElementAssertions;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.annotations.AfterMethod;
@@ -22,6 +24,9 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -215,6 +220,142 @@ public class PlaywrightElementActionsUnitTest {
         Assert.assertEquals(data.size(), 2);
         Assert.assertEquals(data.get(0).get("Name"), "Ada");
         Assert.assertEquals(data.get(1).get("Age"), "40");
+    }
+
+
+    @Test
+    public void fluentHelpersAndUnsupportedIframeShouldBeDeterministic() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        ElementActions actions = new ElementActions(session);
+
+        Assert.assertSame(actions.and(), actions);
+        Assert.assertSame(actions.switchToDefaultContent(), actions);
+        Assert.assertSame(actions.switchToParentFrame(), actions);
+        Assert.assertEquals(actions.getCurrentFrame(), "PLAYWRIGHT_PAGE");
+        Assert.expectThrows(UnsupportedOperationException.class, () -> actions.switchToIframe(By.id("frame")));
+        Assert.expectThrows(UnsupportedOperationException.class,
+                () -> actions.executeNativeMobileCommand("mobile: shell", Map.of("cmd", "echo")));
+        Assert.assertNotNull(actions.assertThat(locator));
+        Assert.assertNotNull(actions.verifyThat(locator));
+        Assert.assertTrue(actions.assertThat(locator) instanceof PlaywrightElementValidationsBuilder);
+        Assert.assertTrue(actions.verifyThat(locator) instanceof PlaywrightElementValidationsBuilder);
+    }
+
+    @Test
+    public void setValueAndSubmitFormUsingJavascriptShouldEvaluateScripts() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.setValueUsingJavaScript(locator, "typed-via-js"), actions);
+        Assert.assertSame(actions.submitFormUsingJavaScript(locator), actions);
+        verify(locator).evaluate(contains("element.value = value"), eq("typed-via-js"));
+        verify(locator).evaluate(contains("element.form ? element.form.submit()"));
+    }
+
+    @Test
+    public void typeRoutesShouldCoverToggleSelectFileAndReject() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator checkbox = mock(Locator.class);
+        Locator select = mock(Locator.class);
+        Locator file = mock(Locator.class);
+        Locator disabled = mock(Locator.class);
+
+        when(checkbox.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "checkbox", "role", "checkbox", "isContentEditable", "false"));
+        when(select.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "SELECT", "type", "", "role", "", "isContentEditable", "false"));
+        when(file.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "file", "role", "", "isContentEditable", "false"));
+        when(disabled.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "text", "role", "", "isContentEditable", "false",
+                "disabled", "true"));
+
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.type(checkbox, "ignored"), actions);
+        Assert.assertSame(actions.type(select, "Option Z"), actions);
+        Assert.assertSame(actions.type(file, "/tmp/upload.bin"), actions);
+        Assert.expectThrows(IllegalStateException.class, () -> actions.type(disabled, "nope"));
+
+        verify(checkbox).click();
+        verify(select).selectOption("Option Z");
+        verify(file).setInputFiles(java.nio.file.Path.of("/tmp/upload.bin"));
+    }
+
+    @Test
+    public void captureScreenshotAndAriaSnapshotShouldUseLocatorApis() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        Page page = mock(Page.class);
+        when(locator.page()).thenReturn(page);
+        when(locator.screenshot(any())).thenReturn(new byte[] {1, 2, 3, 4});
+        when(locator.evaluate(anyString())).thenReturn(List.of(Map.of("role", "button", "name", "Save")));
+
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.captureScreenshot(locator), actions);
+        String snapshot = actions.ariaSnapshot(locator);
+        Assert.assertNotNull(snapshot);
+        verify(locator).screenshot(any());
+        verify(locator, atLeastOnce()).evaluate(anyString());
+    }
+
+    @Test
+    public void getTableRowsDataShouldHandleEmptyAndBlankHeaders() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator empty = mock(Locator.class);
+        Locator blankHeaders = mock(Locator.class);
+        when(empty.evaluate(anyString())).thenReturn(List.of());
+        when(blankHeaders.evaluate(anyString())).thenReturn(List.of(
+                List.of(" ", ""),
+                List.of("a", "b")));
+        ElementActions actions = new ElementActions(session);
+        Assert.assertTrue(actions.getTableRowsData(empty).isEmpty());
+        List<Map<String, String>> rows = actions.getTableRowsData(blankHeaders);
+        Assert.assertEquals(rows.size(), 1);
+        Assert.assertEquals(rows.get(0).get("column1"), "a");
+        Assert.assertEquals(rows.get(0).get("column2"), "b");
+    }
+
+    @Test
+    public void typeAppendOnPressSequentiallyRouteShouldNotUseFill() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator locator = mock(Locator.class);
+        when(locator.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "DIV", "type", "", "role", "", "isContentEditable", "true"));
+        when(locator.inputValue()).thenThrow(new RuntimeException("not an input"));
+        when(locator.textContent()).thenReturn("pre");
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.typeAppend(locator, "fix"), actions);
+        verify(locator).pressSequentially("fix");
+        verify(locator, never()).fill(anyString());
+    }
+
+
+    @Test
+    public void typeDateRangeColorAndMaskedShouldUseFillOrPress() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        Locator date = mock(Locator.class);
+        Locator range = mock(Locator.class);
+        Locator color = mock(Locator.class);
+        Locator masked = mock(Locator.class);
+        when(date.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "date", "role", "", "isContentEditable", "false"));
+        when(range.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "range", "role", "", "isContentEditable", "false"));
+        when(color.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "color", "role", "", "isContentEditable", "false"));
+        when(masked.evaluate(anyString())).thenReturn(Map.of(
+                "tagName", "INPUT", "type", "text", "role", "textbox", "isContentEditable", "false",
+                "dataMask", "true"));
+        ElementActions actions = new ElementActions(session);
+        Assert.assertSame(actions.type(date, "2020-01-02"), actions);
+        Assert.assertSame(actions.type(range, "7"), actions);
+        Assert.assertSame(actions.type(color, "#fff"), actions);
+        Assert.assertSame(actions.type(masked, "1234"), actions);
+        verify(date).fill("2020-01-02");
+        verify(range).fill("7");
+        verify(color).fill("#fff");
+        verify(masked).pressSequentially("1234");
     }
 
     private static final class TestCompositeLocator extends By implements CompositeLocator {
