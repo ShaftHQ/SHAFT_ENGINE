@@ -347,9 +347,9 @@ public final class ElementClassifier {
         return "FlutterIntegration".equalsIgnoreCase(com.shaft.driver.SHAFT.Properties.mobile.automationName());
     }
 
-    private static String safeNativeAttribute(WebElement element, String name) {
+    static String safeNativeAttribute(WebElement element, String name) {
         try {
-            return element.getDomAttribute(IosXcuiAttributeNames.issued(name));
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
         } catch (RuntimeException ignored) {
             return null;
         }
@@ -528,15 +528,10 @@ public final class ElementClassifier {
     }
 
     private static String safeDom(WebElement element, String name) {
-        String issued = IosXcuiAttributeNames.issued(name);
         try {
-            return element.getDomAttribute(issued);
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
         } catch (RuntimeException ignored) {
-            try {
-                return element.getAttribute(issued);
-            } catch (RuntimeException ignoredAgain) {
-                return null;
-            }
+            return IosXcuiAttributeNames.read(element, name);
         }
     }
 

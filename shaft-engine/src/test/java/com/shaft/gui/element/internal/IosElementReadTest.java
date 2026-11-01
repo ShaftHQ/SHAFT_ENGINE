@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * #7455 and #7456: iOS attribute alias and stale re-find, without a device.
+ * #7455, #7456, and #7669: iOS attribute alias / Android-only guard and stale re-find, without a device.
  */
 @Test(singleThreaded = true)
 public class IosElementReadTest {
@@ -98,6 +98,130 @@ public class IosElementReadTest {
         }
         verify(element).getAttribute("class");
         verify(element, org.mockito.Mockito.never()).getAttribute("type");
+    }
+
+    @Test(description = "#7669: iOS never requests Android-only attributes (mutant RED if guard removed)")
+    public void iosNeverRequestsAndroidOnlyAttributes() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebDriver driver = driver();
+        WebElement element = element();
+        when(element.getAttribute(anyString())).thenAnswer(invocation -> attributeValue(invocation.getArgument(0)));
+        when(element.getDomAttribute(anyString())).thenAnswer(invocation -> attributeValue(invocation.getArgument(0)));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(driver, true);
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "scrollable"), "false");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "clickable"), "true");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "resource-id"), "login_button");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "content-desc"), "Sign in");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "checked"), "true");
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "bounds"), "{{0,0},{10,10}}");
+            Assert.assertNull(actions.get().attribute(LOCATOR, "checkable"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "long-clickable"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "password"));
+            Assert.assertNull(actions.get().attribute(LOCATOR, "package"));
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "scrollable"), "false");
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "content-desc"), "Sign in");
+            Assert.assertNull(actions.get().domAttribute(LOCATOR, "password"));
+            Assert.assertNull(actions.get().domAttribute(LOCATOR, "package"));
+        }
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checkable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("long-clickable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("clickable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("resource-id");
+        verify(element, org.mockito.Mockito.never()).getAttribute("content-desc");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("content-desc");
+        verify(element, org.mockito.Mockito.never()).getAttribute("password");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("password");
+        verify(element, org.mockito.Mockito.never()).getAttribute("package");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("package");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checked");
+        verify(element, org.mockito.Mockito.never()).getAttribute("bounds");
+        verify(element, org.mockito.Mockito.never()).getDomAttribute("");
+        verify(element).getAttribute("type");
+        verify(element, org.mockito.Mockito.atLeastOnce()).getDomAttribute("type");
+        verify(element).getAttribute("hittable");
+        verify(element).getAttribute("name");
+        verify(element).getAttribute("label");
+        verify(element).getDomAttribute("label");
+        verify(element).getAttribute("selected");
+        verify(element).getAttribute("rect");
+    }
+
+    @Test(description = "#7669: scrollable is true when XCUI type is a scroll container")
+    public void iosScrollableTrueForScrollViewType() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebDriver driver = driver();
+        WebElement element = element();
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeScrollView");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Assert.assertEquals(new Actions(driver, true).get().attribute(LOCATOR, "scrollable"), "true");
+        }
+        verify(element).getAttribute("type");
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+    }
+
+    @Test(description = "#7669: Android still issues scrollable and resource-id unchanged")
+    public void androidAndroidOnlyAttrsStayUnmapped() {
+        SHAFT.Properties.platform.set().targetPlatform("Android");
+        SHAFT.Properties.mobile.set().browserName("").automationName("UiAutomator2");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("scrollable"), "scrollable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("clickable"), "clickable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("resource-id"), "resource-id");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("content-desc"), "content-desc");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checkable"), "checkable");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("password"), "password");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("package"), "package");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("bounds"), "bounds");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checked"), "checked");
+        Assert.assertEquals(IosXcuiAttributeNames.interpret("scrollable", "true"), "true");
+    }
+
+    @Test(description = "#7669: iOS issued() covers full Expected table including skips")
+    public void iosIssuedCoversFullExpectedTable() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("content-desc"), "label");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("contentDesc"), "label");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("bounds"), "rect");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("checked"), "selected");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("password"), "");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("package"), "");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("longClickable"), "");
+        Assert.assertNull(IosXcuiAttributeNames.readDomAttribute(element(), "password"));
+        Assert.assertNull(IosXcuiAttributeNames.readDomAttribute(element(), "package"));
+        Assert.assertNull(IosXcuiAttributeNames.readAttribute(element(), "password"));
+    }
+
+    @Test(description = "#7669: soft read swallows driver errors")
+    public void softReadSwallowsDriverErrors() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement element = element();
+        when(element.getAttribute("type")).thenThrow(new WebDriverException("transient"));
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "scrollable"));
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "password"));
+    }
+
+    @Test(description = "#7669: IosXcuiAttributeNames.read maps scrollable via type and never asks for scrollable")
+    public void readHelperMapsScrollableViaType() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement element = element();
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeCollectionView");
+        Assert.assertEquals(IosXcuiAttributeNames.read(element, "scrollable"), "true");
+        when(element.getAttribute("type")).thenReturn("XCUIElementTypeButton");
+        Assert.assertEquals(IosXcuiAttributeNames.read(element, "scrollable"), "false");
+        Assert.assertNull(IosXcuiAttributeNames.read(element, "checkable"));
+        verify(element, org.mockito.Mockito.atLeastOnce()).getAttribute("type");
+        verify(element, org.mockito.Mockito.never()).getAttribute("scrollable");
+        verify(element, org.mockito.Mockito.never()).getAttribute("checkable");
     }
 
     @Test(description = "#7455: a null attribute name is issued as empty")
@@ -253,12 +377,27 @@ public class IosElementReadTest {
         return element;
     }
 
+    private static final java.util.Map<String, String> XCUI_STUB_VALUES = java.util.Map.of(
+            "type", "XCUIElementTypeButton",
+            "hittable", "true",
+            "name", "login_button",
+            "label", "Sign in",
+            "selected", "true",
+            "rect", "{{0,0},{10,10}}",
+            "class", "android.widget.Button");
+
+    private static final java.util.Set<String> ANDROID_ONLY_UNKNOWN = java.util.Set.of(
+            "scrollable", "checkable", "clickable", "long-clickable", "resource-id",
+            "content-desc", "password", "package", "checked", "bounds", "");
+
     private static String attributeValue(String name) {
-        if ("type".equals(name)) {
-            return "XCUIElementTypeButton";
+        String known = XCUI_STUB_VALUES.get(name);
+        if (known != null) {
+            return known;
         }
-        if ("class".equals(name)) {
-            return "android.widget.Button";
+        if (ANDROID_ONLY_UNKNOWN.contains(name)) {
+            throw new WebDriverException("The attribute '" + name
+                    + "' is unknown. Valid attribute names are: (type, hittable, name, label, selected, rect, wdType)");
         }
         throw new WebDriverException("The attribute '" + name + "' is unknown. Valid attribute names are: (type, wdType)");
     }

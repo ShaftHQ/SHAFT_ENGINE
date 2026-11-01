@@ -1,5 +1,7 @@
 package com.shaft.gui.internal.image;
 
+import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
 import org.mockito.Mockito;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Rectangle;
@@ -16,6 +18,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** #7282: a native secret field whose text can wrap outside its reported rectangle fails closed. */
@@ -23,6 +27,7 @@ public class SecretScreenMaskWrappedTextUnitTest {
     @AfterMethod(alwaysRun = true)
     public void cleanUp() {
         SecretScreenMask.clear();
+        Properties.clearForCurrentThread();
     }
 
     @Test
@@ -69,5 +74,29 @@ public class SecretScreenMaskWrappedTextUnitTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Test(description = "#7669: native secret mask never queries Android scrollable on iOS XCUITest")
+    public void iosNativeMaskNeverQueriesAndroidScrollable() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement field = mock(WebElement.class);
+        when(field.getAttribute("type")).thenReturn("XCUIElementTypeSecureTextField");
+        when(field.getText()).thenReturn("pin");
+        Assert.assertFalse(SecretScreenMask.mayDrawOutsideRect(field));
+        verify(field).getAttribute("type");
+        verify(field, never()).getAttribute("scrollable");
+    }
+
+    @Test(description = "#7669: scrollable type container fails closed via mapped read")
+    public void iosScrollContainerMaskFailsClosedViaMappedType() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        WebElement field = mock(WebElement.class);
+        when(field.getAttribute("type")).thenReturn("XCUIElementTypeScrollView");
+        when(field.getText()).thenReturn("pin");
+        Assert.assertTrue(SecretScreenMask.mayDrawOutsideRect(field));
+        verify(field).getAttribute("type");
+        verify(field, never()).getAttribute("scrollable");
     }
 }
