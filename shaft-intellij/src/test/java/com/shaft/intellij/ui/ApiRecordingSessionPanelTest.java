@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -214,6 +215,65 @@ class ApiRecordingSessionPanelTest {
         });
 
         assertEquals(Set.of("$.orderId"), pinnedJsonPaths);
+    }
+
+
+    @Test
+    void transactionTableModelExposesColumnMetadataAndCellValues() {
+        ApiRecordingSessionPanel.TransactionTableModel model = new ApiRecordingSessionPanel.TransactionTableModel();
+        model.setRows(List.of(
+                new ApiRecordingSessionPanel.TransactionRow("tx-1", "GET", "https://a", "200", "XHR", "10", true)));
+        assertEquals(6, model.getColumnCount());
+        assertEquals(1, model.getRowCount());
+        assertEquals("Method", model.getColumnName(0));
+        assertEquals("GET", model.getValueAt(0, 0));
+        assertEquals("https://a", model.getValueAt(0, 1));
+        assertEquals("200", model.getValueAt(0, 2));
+        assertEquals("XHR", model.getValueAt(0, 3));
+        assertEquals("10", model.getValueAt(0, 4));
+        assertEquals(Boolean.TRUE, model.getValueAt(0, 5));
+        assertEquals(Boolean.class, model.getColumnClass(ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertTrue(model.isCellEditable(0, ApiRecordingSessionPanel.TransactionTableModel.INCLUDE_COLUMN));
+        assertFalse(model.isCellEditable(0, 0));
+    }
+
+    @Test
+    void pinnableLeafTableModelExposesColumnsAndRejectsEditsOutsidePinColumn() {
+        ApiRecordingSessionPanel.PinnableLeafTableModel model = new ApiRecordingSessionPanel.PinnableLeafTableModel(
+                List.of(new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.id", "1")),
+                java.util.Set.of());
+        assertEquals(4, model.getColumnCount());
+        assertEquals(1, model.getRowCount());
+        assertEquals("Pin", model.getColumnName(0));
+        assertEquals("Transaction", model.getColumnName(1));
+        assertEquals("JSON Path", model.getColumnName(2));
+        assertEquals("Sample Value", model.getColumnName(3));
+        assertEquals("GET https://a", model.getValueAt(0, 1));
+        assertEquals("$.id", model.getValueAt(0, 2));
+        assertEquals("1", model.getValueAt(0, 3));
+        assertTrue(model.isCellEditable(0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN));
+        assertFalse(model.isCellEditable(0, 1));
+        model.setValueAt("ignored", 0, 1);
+        assertEquals(java.util.Set.of(), model.pinnedJsonPaths());
+    }
+
+    @Test
+    void parseTransactionsToleratesMissingOptionalFields() {
+        String output = mcpArrayText("""
+                [
+                  {"transactionId": "tx-x", "method": "POST", "url": "https://api.example.test"},
+                  "skip-me",
+                  {"transactionId": "tx-y", "method": "GET", "url": "https://api.example.test/y",
+                   "statusCode": 201, "resourceKind": "FETCH"}
+                ]
+                """.strip());
+        List<ApiRecordingSessionPanel.TransactionRow> rows = ApiRecordingSessionPanel.parseTransactions(output);
+        assertEquals(2, rows.size());
+        assertEquals("tx-x", rows.get(0).id());
+        assertEquals("", rows.get(0).status());
+        assertEquals("tx-y", rows.get(1).id());
+        assertEquals("201", rows.get(1).status());
+        assertEquals("FETCH", rows.get(1).resourceKind());
     }
 
     private static String mcpArrayText(String text) {

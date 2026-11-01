@@ -102,6 +102,31 @@ class ManagedLocalAiProcessSupervisorTest {
         assertTrue(linked.getMessage().contains("not ordinary"));
     }
 
+
+    @Test
+    void launchesOwnedChildAndExitsWhenChildCompletes() throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("owned"));
+        Path child = directory.resolve("child.sh");
+        Files.writeString(child, "#!/bin/sh\necho supervised\n");
+        assertTrue(child.toFile().setExecutable(true));
+        String[] parent = currentParent();
+        ManagedLocalAiProcessSupervisor.main(new String[] {
+                parent[0], parent[1],
+                directory.toAbsolutePath().toString(),
+                child.toAbsolutePath().toString()
+        });
+    }
+
+    @Test
+    void rejectsInvalidParentPidBeforePathValidation() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ManagedLocalAiProcessSupervisor.main(new String[] {
+                        "not-a-pid", Instant.EPOCH.toString(),
+                        temp.toAbsolutePath().toString(),
+                        temp.resolve("child").toAbsolutePath().toString()
+                }));
+    }
+
     private static String[] currentParent() {
         ProcessHandle current = ProcessHandle.current();
         return new String[] {

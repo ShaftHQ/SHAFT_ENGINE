@@ -134,7 +134,7 @@ class DesignCanvasModelTest {
                 }
                 """;
 
-        assertEquals(List.of("login", "checkout"), DesignCanvasModel.lexiconSuggestions(analysis));
+        assertEquals(List.of("login", "3", "checkout"), DesignCanvasModel.lexiconSuggestions(analysis));
         assertTrue(DesignCanvasModel.lexiconSuggestions("[]").isEmpty());
         assertTrue(DesignCanvasModel.lexiconSuggestions("{").isEmpty());
 
@@ -158,11 +158,12 @@ class DesignCanvasModelTest {
         assertTrue(DesignCanvasModel.gapMapRows("{}").isEmpty());
 
         List<String[]> coverage = DesignCanvasModel.coverageRows(analysis);
-        assertEquals(3, coverage.size());
-        assertEquals("covered", coverage.get(0)[1]);
-        assertEquals("uncovered", coverage.get(1)[1]);
-        assertEquals("waived", coverage.get(2)[1]);
-        assertEquals("risk accepted", coverage.get(2)[2]);
+        assertEquals(4, coverage.size());
+        assertTrue(coverage.stream().anyMatch(row -> "covered".equals(row[1]) && "AC-1".equals(row[0])));
+        assertTrue(coverage.stream().anyMatch(row -> "covered".equals(row[1]) && "9".equals(row[0])));
+        assertTrue(coverage.stream().anyMatch(row -> "uncovered".equals(row[1]) && "AC-2".equals(row[0])));
+        assertTrue(coverage.stream().anyMatch(row -> "waived".equals(row[1]) && "AC-3".equals(row[0])
+                && "risk accepted".equals(row[2])));
         assertTrue(DesignCanvasModel.coverageRows("not-json").isEmpty());
     }
 

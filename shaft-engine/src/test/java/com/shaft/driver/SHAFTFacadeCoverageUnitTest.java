@@ -215,4 +215,23 @@ public class SHAFTFacadeCoverageUnitTest {
         Assert.assertNotNull(typed);
         Assert.assertNotNull(new SHAFT.DB("jdbc:coverage:mem:shaft-direct"));
     }
+
+    @Test
+    public void apiAdditionalVerbsAndGraphqlBuildersShouldBeCreatable() {
+        SHAFT.API api = new SHAFT.API("https://example.test");
+        Assert.assertNotNull(api.head("/v1/items"));
+        Assert.assertNotNull(api.options("/v1/items"));
+        Assert.assertNotNull(api.sendGraphQlRequest("/graphql", "{ ping }"));
+        Assert.assertNotNull(api.sendGraphQlRequest("/graphql", "{ ping }", java.util.Map.of("a", 1)));
+        Assert.assertNotNull(api.sendGraphQlRequest("/graphql", "{ ping }", java.util.Map.of("a", 1), "fragment X on Y { z }"));
+        Assert.assertNotNull(SHAFT.API.grpc(io.grpc.ManagedChannelBuilder.forTarget("localhost:50051").usePlaintext().build()));
+    }
+
+    @Test
+    public void apiCookieImportExportShouldAcceptNullBrowserWithoutThrowingClassInit() {
+        SHAFT.API api = new SHAFT.API("https://example.test");
+        Assert.expectThrows(NullPointerException.class, () -> api.importCookiesFrom(null));
+        Assert.expectThrows(NullPointerException.class, () -> api.exportCookiesTo(null));
+    }
+
 }

@@ -1146,4 +1146,41 @@ class GuidedWorkflowPanelTest {
                 status.getText());
     }
 
+
+    @Test
+    void parseCheckpointStepsCoversMissingFieldsAndNonObjects() {
+        com.google.gson.JsonObject status = new com.google.gson.JsonObject();
+        com.google.gson.JsonArray checkpoints = new com.google.gson.JsonArray();
+        checkpoints.add("skip");
+        checkpoints.add(new com.google.gson.JsonObject());
+        com.google.gson.JsonObject withOracle = new com.google.gson.JsonObject();
+        withOracle.addProperty("id", "cp-1");
+        withOracle.addProperty("sequence", 3);
+        withOracle.addProperty("oracle", "cart empty");
+        checkpoints.add(withOracle);
+        com.google.gson.JsonObject withDescription = new com.google.gson.JsonObject();
+        withDescription.addProperty("id", "cp-2");
+        withDescription.addProperty("sequence", 1);
+        withDescription.addProperty("kind", "USER_MARKER");
+        withDescription.addProperty("description", " manual check ");
+        checkpoints.add(withDescription);
+        status.add("checkpoints", checkpoints);
+
+        java.util.List<GuidedWorkflowPanel.StepRow> rows = GuidedWorkflowPanel.parseSteps(status);
+        assertEquals(3, rows.size());
+        assertTrue(rows.stream().anyMatch(row -> row.action().contains("SHAFT assertion checkpoint")));
+        assertTrue(rows.stream().anyMatch(row -> "cp-2".equals(row.stepId())
+                && row.action().contains("manual check")
+                && "USER_MARKER".equals(row.locatorValue())));
+        assertTrue(rows.stream().anyMatch(row -> "cp-1".equals(row.stepId())
+                && row.action().contains("cart empty")));
+    }
+
+    @Test
+    void unsupportedStepEditorMessageDefaultsBlankToolName() {
+        String message = GuidedWorkflowPanel.unsupportedStepEditorMessage("  ");
+        assertTrue(message.startsWith("capture_step_delete"));
+        assertTrue(message.contains("WEB CDP"));
+    }
+
 }
