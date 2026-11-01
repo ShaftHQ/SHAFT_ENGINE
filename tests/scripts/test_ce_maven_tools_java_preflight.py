@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase, main
 
-from test_chaos_engine_installer import MODULE
+from tests.scripts.test_chaos_engine_installer import MODULE
 
 
 class MavenToolsJavaPreflightTest(TestCase):

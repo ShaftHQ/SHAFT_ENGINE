@@ -27,5 +27,11 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("empty list", text.lower())
 
 
+class ChaosEngineVersion310Test(unittest.TestCase):
+    def test_version_is_31_10(self) -> None:
+        version = (ROOT / "chaos-engine" / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual("2026.10.31.10", version)
+
+
 if __name__ == "__main__":
     unittest.main()
