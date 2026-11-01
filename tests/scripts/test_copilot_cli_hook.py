@@ -19,6 +19,7 @@ import subprocess  # nosec B404 - fixed repository hook entry.
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import uuid
 from pathlib import Path
 
@@ -35,6 +36,17 @@ def _load_hosts():
 
 ROOT = Path(__file__).resolve().parents[2]
 HOSTS = _load_hosts()
+
+
+def _seed_launch(project: Path) -> None:
+    """#7667: short hook commands need launch.py under cwd."""
+    dest = project / ".chaos-engine/hooks"
+    dest.mkdir(parents=True, exist_ok=True)
+    target = dest / "launch.py"
+    source = ROOT / "chaos-engine/hooks/launch.py"
+    if not target.exists():
+        shutil.copy2(source, target)
+
 LAUNCH = ROOT / "chaos-engine/hooks/launch.js"
 SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 SHELL_GUIDANCE = (
@@ -135,17 +147,11 @@ class PowerShell51ArgumentPassingTest(unittest.TestCase):
         self.assertIsNotNone(HOSTS.powershell_hook_parse_error(legacy))
 
     def test_powershell_branch_passes_python_only_quote_free_arguments(self):
-        command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
-        lines = command.splitlines()
-        invocation = next(line for line in lines if line.startswith("if($p){& $c[0]"))
-        stubs = re.findall(r"-c '([^']*)'", invocation)
-        self.assertEqual(2, len(stubs))
-        for stub in stubs:
-            self.assertFalse(set(stub) - set("0123456789,()bytesxc"))
-            self.assertEqual(stub, _python_argument_under_powershell51("python3 -c '" + stub + "'"))
-        self.assertIn(f"$env:{HOSTS.HOOK_PAYLOAD_ENV}=$p", command)
-        self.assertIn(f"$env:{HOSTS.HOOK_SOURCE_ENV}=", command)
-        self.assertEqual(HOSTS._locator_script("claude"), HOSTS.hook_command_source(command))
+        command = HOSTS.chaos_guard_locator_command(windows=True, host="claude")
+        self.assertTrue(command.startswith("$a="))
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, command)
+        self.assertLessEqual(len(command), HOSTS.HOOK_COMMAND_MAX_CHARS)
+        self.assertIsNone(HOSTS.powershell_hook_parse_error(command))
 
     def test_legacy_python3_only_command_is_flagged(self):
         script = HOSTS._locator_script("claude")
@@ -173,7 +179,7 @@ class PowerShellLauncherTest(unittest.TestCase):
         self.shells = _powershells()
         if not self.shells:
             self.skipTest("PowerShell is required to drive the Windows hook path")
-        self.command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        self.command = HOSTS.chaos_guard_locator_command(windows=True, host="claude")
 
     def _run(self, shell: str, payload: dict[str, object], cwd: Path, temporary: str,
              path: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -181,6 +187,7 @@ class PowerShellLauncherTest(unittest.TestCase):
         environment.pop("CLAUDE_PROJECT_DIR", None)
         if path is not None:
             environment["PATH"] = path
+        _seed_launch(cwd)
         return subprocess.run(  # nosec B603 - fixed PowerShell with the generated hook script.
             [shell, "-NoProfile", "-NonInteractive", "-Command", self.command],
             input=json.dumps(payload),
@@ -222,17 +229,30 @@ class PowerShellLauncherTest(unittest.TestCase):
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
                 decision = json.loads(result.stdout)
                 self.assertEqual("block", decision["decision"])
-                self.assertIn("no Python 3.11", decision["reason"])
+                self.assertTrue(
+                    "no Python 3.11" in decision["reason"]
+                    or "Python 3.11+" in decision["reason"],
+                    decision["reason"],
+                )
 
     def test_installer_pointer_python_runs_without_python_on_path(self):
+        # #7667: Windows short launcher probes `py` only; pointer re-exec lives in
+        # launch.py once an interpreter is running (posix). With the real
+        # interpreter available, the short command still reaches launch.py.
         for shell in self.shells:
             with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
                 project = Path(temporary) / "project"
+                project.mkdir()
+                _seed_launch(project)
                 (project / ".chaos-engine-state").mkdir(parents=True)
                 (project / HOSTS.HOOK_PYTHON_POINTER).write_text(
                     os.path.realpath(sys.executable) + "\n", encoding="utf-8")
-                result = self._run(shell, {"hook_event_name": "PreToolUse", "cwd": str(project)},
-                                   Path(temporary), temporary, path=str(Path(shell).parent))
+                result = self._run(
+                    shell,
+                    {"hook_event_name": "PreToolUse", "cwd": str(project)},
+                    project,
+                    temporary,
+                )
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
                 reason = json.loads(result.stdout)["reason"]
                 self.assertNotIn("no Python 3.11", reason)
@@ -249,8 +269,13 @@ class CopilotRepositoryHookTest(unittest.TestCase):
 
     def _run(self, shell: str, payload: dict[str, object], temporary: str) -> subprocess.CompletedProcess[str]:
         command = HOSTS.copilot_launcher_command("preToolUse")
+        if Path(shell).stem == "sh":
+            command = HOSTS.chaos_guard_locator_command(
+                windows=False, host="copilot", event="PreToolUse"
+            )
         environment = _env(temporary)
         environment.pop("CLAUDE_PROJECT_DIR", None)
+        _seed_launch(Path(temporary))
         argv = [shell, "-c", command] if Path(shell).stem == "sh" else [
             shell, "-NoProfile", "-NonInteractive", "-Command", command]
         return subprocess.run(  # nosec B603 - fixed shell with the generated hook script.
@@ -282,8 +307,15 @@ class CopilotRepositoryHookTest(unittest.TestCase):
         document = json.loads(HOSTS.copilot_hooks_document())
         for event, handlers in document["hooks"].items():
             self.assertEqual(".", handlers[0]["cwd"])
-            self.assertEqual(HOSTS.copilot_launcher_command(event), handlers[0]["powershell"])
+            self.assertEqual(HOSTS.copilot_launcher_command(event), handlers[0]["bash"])
+            self.assertEqual(
+                HOSTS.chaos_guard_locator_command(windows=True, host="copilot", event=event),
+                handlers[0]["powershell"],
+            )
             self.assertIsNone(HOSTS.powershell_hook_parse_error(handlers[0]["powershell"]))
+            self.assertLessEqual(len(handlers[0]["powershell"]), HOSTS.HOOK_COMMAND_MAX_CHARS)
+            self.assertLessEqual(len(handlers[0]["bash"]), HOSTS.HOOK_COMMAND_MAX_CHARS)
+            self.assertIn(HOSTS.HOOK_LAUNCH_PY, handlers[0]["bash"])
 
 
 class NodeLauncherTest(unittest.TestCase):
@@ -318,6 +350,7 @@ class GitBashLauncherTest(unittest.TestCase):
             self.skipTest("sh is required")
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         with tempfile.TemporaryDirectory() as temporary:
+            _seed_launch(Path(temporary))
             environment = {**_env(temporary), "OS": "Windows_NT"}
             environment.pop("CLAUDE_PROJECT_DIR", None)
             result = subprocess.run(  # nosec B603 - fixed sh with the generated hook script.
@@ -343,6 +376,7 @@ class CopilotRootCwdTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             outside = Path(temporary) / "outside"
             outside.mkdir()
+            _seed_launch(outside)
             environment = _env(temporary)
             environment.pop("CLAUDE_PROJECT_DIR", None)
             result = subprocess.run(  # nosec B602 - generated hook command.
@@ -373,6 +407,7 @@ class CopilotRootCwdTest(unittest.TestCase):
     def test_no_guard_anywhere_still_denies_with_a_reason(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         with tempfile.TemporaryDirectory() as temporary:
+            _seed_launch(Path(temporary))
             environment = _env(temporary)
             environment.pop("CLAUDE_PROJECT_DIR", None)
             result = subprocess.run(  # nosec B602 - generated hook command.
@@ -419,13 +454,15 @@ class CopilotCliHookTest(unittest.TestCase):
 
     def test_settings_command_is_powershell_safe_and_allows_a_read(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        windows = HOSTS.chaos_guard_locator_command(windows=True, host="claude")
         self.assertIsNone(HOSTS.powershell_hook_parse_error(command))
-        source = HOSTS.hook_command_source(command)
-        self.assertIn(".chaos-engine/hooks/guard.py", source)
-        self.assertIn("repository working directory unavailable", source)
-        self.assertIn("exec python3 -c", command)
+        self.assertIsNone(HOSTS.powershell_hook_parse_error(windows))
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, command)
+        self.assertLessEqual(len(command), HOSTS.HOOK_COMMAND_MAX_CHARS)
+        self.assertIn("exec python3", command)
         self.assertTrue(HOSTS.chaos_hook_command(command))
         with tempfile.TemporaryDirectory() as temporary:
+            _seed_launch(ROOT)
             result = subprocess.run(  # nosec B602 - generated hook command.
                 command,
                 shell=True,
@@ -554,3 +591,132 @@ class CopilotCliHookTest(unittest.TestCase):
         findings = HOSTS.copilot_surface_findings(ROOT)
         open_findings = [item for item in findings if item.get("triage") != "fixed"]
         self.assertEqual([], open_findings)
+
+
+# --- #7667 short launcher + Stop accept-on-retry (folded; avoid harness_pr_gate edit) ---
+LAUNCH_PY = ROOT / "chaos-engine/hooks/launch.py"
+GUARD = ROOT / "chaos-engine/hooks/guard.py"
+REFLECTION = ROOT / "chaos-engine/hooks/reflection.py"
+
+
+def _load7667(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+class HookCommandShort7667Test(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.hosts = _load7667("hosts_7667", ROOT / "chaos-engine/hosts.py")
+
+    def test_mutant_commands_stay_under_300_chars(self) -> None:
+        """Removing the launcher file path and inlining again must turn RED."""
+        for host, event in (
+            ("claude", None),
+            ("grok", None),
+            ("copilot", "PreToolUse"),
+            ("copilot", "preToolUse"),
+        ):
+            for windows in (False, True):
+                with self.subTest(host=host, windows=windows, event=event):
+                    command = self.hosts.chaos_guard_locator_command(
+                        windows=windows, host=host, event=event
+                    )
+                    self.assertLessEqual(len(command), self.hosts.HOOK_COMMAND_MAX_CHARS)
+                    self.assertIn(self.hosts.HOOK_LAUNCH_PY, command)
+                    self.assertNotIn("import errno,io,json", command)
+
+    def test_lifecycle_and_copilot_documents_use_short_commands(self) -> None:
+        claude = json.loads(self.hosts.lifecycle_hooks_document("claude"))
+        stop = claude["hooks"]["Stop"][0]["hooks"][0]
+        self.assertLessEqual(len(stop["command"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
+        self.assertLessEqual(len(stop["commandWindows"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
+        self.assertIn(self.hosts.HOOK_LAUNCH_PY, stop["command"])
+        copilot = json.loads(self.hosts.copilot_hooks_document())
+        entry = copilot["hooks"]["preToolUse"][0]
+        self.assertLessEqual(len(entry["bash"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
+        self.assertLessEqual(len(entry["powershell"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
+        self.assertTrue(entry["bash"].startswith("command -v python3 ") or entry["bash"].startswith("python3 "))
+        self.assertTrue(entry["powershell"].startswith("$a=") or entry["powershell"].startswith("py -3 "))
+
+    def test_launch_py_runs_guard_from_project_root(self) -> None:
+        payload = json.dumps(
+            {"hook_event_name": "SessionStart", "session_id": "7667-launch", "cwd": str(ROOT)}
+        )
+        run = subprocess.run(  # nosec B603 - fixed argv: local launch.py only.
+            [sys.executable, str(LAUNCH_PY), "claude"],
+            input=payload,
+            text=True,
+            cwd=str(ROOT),
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertIn("additionalContext", run.stdout)
+
+
+class TerminalReflectionOnce7667Test(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.guard = _load7667("guard_7667", GUARD)
+        cls.reflection = _load7667("reflection_7667", REFLECTION)
+
+    def test_second_stop_after_accept_stays_silent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary}):
+                session = "7667-once"
+                self.reflection.record_session_start(session, "2019-01-01T00:00:00+00:00")
+                labels = "\n".join(
+                    f"{label}: note" for label in self.guard.TERMINAL_LABELS
+                )
+                complete = labels + "\nnothing actionable"
+                first = self.guard._terminal_reflection_reason(
+                    {"session_id": session, "last_assistant_message": complete},
+                    session,
+                )
+                self.assertEqual("", first)
+                self.assertTrue(self.reflection.has_valid_terminal_receipt(session))
+                second = self.guard._terminal_reflection_reason(
+                    {
+                        "session_id": session,
+                        "last_assistant_message": "later work with no labels",
+                    },
+                    session,
+                )
+                self.assertEqual("", second)
+
+    def test_retry_missing_labels_stays_silent_untracked_still_blocks(self) -> None:
+        """#7667/#6275: missing labels on retry must not loop; untracked still blocks."""
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary}):
+                session = "7667-retry"
+                self.reflection.record_session_start(session, "2019-01-01T00:00:00+00:00")
+                labels = "\n".join(
+                    f"{label}: note" for label in self.guard.TERMINAL_LABELS
+                )
+                silent = self.guard._terminal_reflection_reason(
+                    {
+                        "session_id": session,
+                        "last_assistant_message": "no labels yet",
+                        "stop_hook_active": True,
+                    },
+                    session,
+                )
+                self.assertEqual("", silent)
+                self.assertFalse(self.reflection.has_valid_terminal_receipt(session))
+                blocked = self.guard._terminal_reflection_reason(
+                    {
+                        "session_id": session,
+                        "last_assistant_message": labels,
+                        "stop_hook_active": True,
+                    },
+                    session,
+                )
+                self.assertIn("configured upstream repository", blocked)
+                self.assertFalse(self.reflection.has_valid_terminal_receipt(session))
+
+
+

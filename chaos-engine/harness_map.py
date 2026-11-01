@@ -65,8 +65,7 @@ def summary(path: Path) -> str:
 def render(root: Path = HERE) -> str:
     rows = mapped_files(root)
     intro = (
-        "By [harness_map.py](../harness_map.py); `--check`. "
-        "One line/file. [catalog](catalog.md)."
+        "By [harness_map.py](../harness_map.py); `--check`."
     )
     out = ["# Harness map", "", intro, ""]
     group = None

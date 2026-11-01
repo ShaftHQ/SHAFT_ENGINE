@@ -925,6 +925,7 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     # A host retry that has not written the retrospective must not loop.
     # A note that already names the six lines is the retrospective, so an
     # untracked one still blocks. stop_hook_active does not bypass that note.
+    # (#7667 Stop double-reflection: missing labels on retry stay silent.)
     if missing and bool(event.get("stop_hook_active") or event.get("stopHookActive")):
         return ""
     parts = ["Terminal reflection required once this session."]

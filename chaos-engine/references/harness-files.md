@@ -19,7 +19,7 @@ unless a file below is the subject of the task.
 
 ## hooks
 
-[kernel.py](../hooks/kernel.py), [launch.js](../hooks/launch.js), [reflection.py](../hooks/reflection.py).
+[kernel.py](../hooks/kernel.py), [launch.js](../hooks/launch.js), [launch.py](../hooks/launch.py), [reflection.py](../hooks/reflection.py).
 
 ## plugin-adapters
 

@@ -796,27 +796,40 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         r"\s",
                         "Grok resolves a single-token command relative to .claude/",
                     )
-                    self.assertIn("exec python3 -c", command)
-                    self.assertIsNone(_load_hosts().powershell_hook_parse_error(command))
-                    source = _load_hosts().hook_command_source(command)
-                    self.assertIn(".chaos-engine/hooks/guard.py", source)
-                    self.assertIn("repository working directory unavailable", source)
+                    # #7667: short host command points at launch.py (≤300 chars).
+                    hosts = _load_hosts()
+                    self.assertIn(hosts.HOOK_LAUNCH_PY, command)
+                    self.assertLessEqual(len(command), hosts.HOOK_COMMAND_MAX_CHARS)
+                    self.assertIsNone(hosts.powershell_hook_parse_error(command))
+                    launch = (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
+                    self.assertIn(".chaos-engine/hooks/guard.py", launch)
+                    self.assertIn("repository working directory unavailable", launch)
                     self.assertNotIn("print('{}')", command)
                     self.assertFalse(
                         handler.get("args"),
                         "Grok ignores Claude args and only runs command",
                     )
-                    self.assertTrue(handler.get("commandWindows", "").startswith("py -3 "))
-                    self.assertNotIn(str(ROOT), handler.get("commandWindows", ""))
+                    windows = handler.get("commandWindows", "")
+                    self.assertTrue(
+                        windows.startswith("py -3 ") or windows.startswith("$a="),
+                        windows,
+                    )
+                    self.assertNotIn(str(ROOT), windows)
                     self.assertFalse((settings_path.parent / "python3").exists())
         for groups in codex_hooks.values():
             for group in groups:
                 for handler in group["hooks"]:
-                    self.assertTrue(handler["commandWindows"].startswith("py -3 "))
-                    self.assertNotIn(str(ROOT), handler["commandWindows"])
+                    windows = handler["commandWindows"]
+                    self.assertTrue(
+                        windows.startswith("py -3 ") or windows.startswith("$a="),
+                        windows,
+                    )
+                    self.assertNotIn(str(ROOT), windows)
+                    # #7667: short command; cwd/unavailable copy lives in launch.py
+                    launch = (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
                     self.assertIn(
                         "repository working directory unavailable",
-                        _load_hosts().hook_command_source(handler["command"]),
+                        launch,
                     )
         self.assertFalse((OVERLAY / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())
@@ -844,6 +857,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertNotIn("print('{}')", command)
         self.assertNotIn('print("{}")', command)
         with tempfile.TemporaryDirectory() as temporary:
+            # #7667: short command needs launch.py under cwd; guard still absent.
+            launch_dir = Path(temporary) / ".chaos-engine/hooks"
+            launch_dir.mkdir(parents=True)
+            shutil.copy2(ROOT / "chaos-engine/hooks/launch.py", launch_dir / "launch.py")
             inline = subprocess.run(  # nosec B602 - tracked fixed hook command.
                 command,
                 shell=True,
