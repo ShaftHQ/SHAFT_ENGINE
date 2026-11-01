@@ -5,6 +5,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.IosScrollView;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
 import com.shaft.gui.image.ImageTarget;
@@ -1277,18 +1278,36 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     private void assertIosScrollMapsStayDirectionOnly() throws Exception {
+        // Null-container with no XCUIElementTypeScrollView keeps the mobile: scroll fallback (#7680).
         IOSDriver driver = createMockIOSDriver();
         WebElement visible = onScreenElement();
-        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(visible));
-        doReturn(Boolean.TRUE).when(driver).executeScript(eq("mobile: scroll"), anyMap());
+        AtomicInteger scrolls = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of();
+            }
+            return scrolls.get() >= 1 ? List.of(visible) : List.of();
+        });
+        doAnswer(invocation -> {
+            scrolls.incrementAndGet();
+            return Boolean.TRUE;
+        }).when(driver).executeScript(eq("mobile: scroll"), anyMap());
         TouchActions touchActions = touchActionsWithScreenshots(driver);
         touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.UP);
         Assert.assertEquals(capturedGestureMaps(driver, "mobile: scroll").getFirst(), Map.of("direction", "up"));
 
+        // Explicit iOS container scrolls via dragFromToForDuration on its rect (#7680).
         IOSDriver contained = createMockIOSDriver();
         WebElement containedVisible = onScreenElement();
-        when(contained.findElements(any(By.class))).thenReturn(List.of(), List.of(containedVisible));
-        doReturn(Boolean.TRUE).when(contained).executeScript(eq("mobile: scroll"), anyMap());
+        AtomicInteger drags = new AtomicInteger();
+        when(contained.findElements(any(By.class))).thenAnswer(invocation ->
+                drags.get() >= 1 ? List.of(containedVisible) : List.of());
+        when(contained.getPageSource()).thenReturn("before", "after");
+        doAnswer(invocation -> {
+            drags.incrementAndGet();
+            return null;
+        }).when(contained).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
         TouchActions containedActions = new TouchActions(contained);
         ElementActionsHelper helper = screenshotHelper();
         RemoteWebElement container = mock(RemoteWebElement.class);
@@ -1297,8 +1316,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         when(helper.identifyUniqueElement(any(), eq(By.id("tray")))).thenReturn(List.of("tray", container));
         injectElementActionsHelper(containedActions, helper);
         containedActions.swipeElementIntoView(By.id("tray"), By.id("target"), TouchActions.SwipeDirection.LEFT);
-        Assert.assertEquals(capturedGestureMaps(contained, "mobile: scroll").getFirst(),
-                Map.of("direction", "left", "elementId", "ios-container-id"));
+        Assert.assertEquals(capturedGestureMaps(contained, "mobile: dragFromToForDuration").getFirst(),
+                IosScrollView.dragParameters(TouchActions.SwipeDirection.LEFT, container.getRect()));
     }
 
     private List<String> failedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
