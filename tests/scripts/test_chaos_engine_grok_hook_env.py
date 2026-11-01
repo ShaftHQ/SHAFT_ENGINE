@@ -56,28 +56,32 @@ class GrokHookEnvRefTest(unittest.TestCase):
         grok = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
         claude = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         self.assertEqual([], HOSTS.grok_unresolved_env_refs(grok))
-        self.assertIn("${OS:-}", grok)
-        self.assertNotIn("$LASTEXITCODE", grok)
-        self.assertIn("Invoke-Expression", grok)
-        self.assertIn("$LASTEXITCODE", claude)
-        self.assertNotIn("Invoke-Expression", claude)
+        self.assertEqual([], HOSTS.grok_unresolved_env_refs(claude))
+        self.assertNotIn("$", grok)
+        self.assertNotIn("$", claude)
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, grok)
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, claude)
+        self.assertLessEqual(len(grok), HOSTS.HOOK_COMMAND_MAX_CHARS)
         self.assertIsNone(HOSTS.powershell_hook_parse_error(grok))
         self.assertIsNone(HOSTS.powershell_hook_parse_error(claude))
-        self.assertEqual(HOSTS._locator_script("grok"), HOSTS.hook_command_source(grok))
         self.assertTrue(HOSTS.chaos_hook_command(grok))
 
     def test_shell_branch_still_reaches_the_guard(self):
         self._assert_guard(HOSTS.chaos_guard_locator_command(windows=False, host="grok"))
 
     def test_windows_shell_branch_still_reaches_the_guard(self):
-        command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
+        if not shutil.which("py"):
+            self.skipTest("Windows Grok command uses py launcher")
+        command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
         self._assert_guard(command, windows=True)
 
     def test_powershell_branch_still_reaches_the_guard(self):
         executable = shutil.which("pwsh") or shutil.which("powershell")
         if not executable:
             self.skipTest("PowerShell is required to drive the Grok Windows branch")
-        command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
+        if not shutil.which("py"):
+            self.skipTest("Windows Grok command uses py launcher")
+        command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
         self._assert_guard(command, posix=False, executable=executable)
 
     def _assert_guard(self, command: str, *, posix: bool = True, windows: bool = False, executable: str | None = None):
@@ -88,12 +92,17 @@ class GrokHookEnvRefTest(unittest.TestCase):
             "tool_input": {"file_path": str(ROOT / "AGENTS.md")},
         }
         with tempfile.TemporaryDirectory() as temporary:
+            # #7667: short commands need launch.py under cwd; guard still comes from payload cwd.
+            launch_dir = Path(temporary) / ".chaos-engine/hooks"
+            launch_dir.mkdir(parents=True)
+            shutil.copy2(ROOT / "chaos-engine/hooks/launch.py", launch_dir / "launch.py")
             environment = os.environ.copy()
             environment.pop("CLAUDE_PROJECT_DIR", None)
             if windows:
                 environment["OS"] = "Windows_NT"
+                command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
             if posix:
-                argv = ["bash", "-c", command]
+                argv = ["bash", "-lc", command]
             else:
                 argv = [executable or "pwsh", "-NoProfile", "-NonInteractive", "-Command", command]
             result = subprocess.run(  # nosec B603 - fixed bash or PowerShell argv, no shell.

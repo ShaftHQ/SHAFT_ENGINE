@@ -100,8 +100,12 @@ class PortableHostFilesTest(unittest.TestCase):
         self.assertNotIn(str(node), copilot)
         self.assertNotIn(str(node), gemini)
         self.assertNotIn("node ", copilot)
-        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.hook_command_source(
-            json.loads(copilot)["hooks"]["preToolUse"][0]["bash"]))
+        # #7667: short bash points at launch.py; pointer lives in the launcher.
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, json.loads(copilot)["hooks"]["preToolUse"][0]["bash"])
+        self.assertIn(
+            HOSTS.HOOK_PYTHON_POINTER,
+            (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8"),
+        )
 
     def test_node_launcher_prefers_the_hook_python_pointer(self):
         launcher = (ROOT / "chaos-engine/hooks/launch.js").read_text(encoding="utf-8")

@@ -2538,6 +2538,7 @@ def cached_plugin_matches(installed_path: object, source: Path) -> bool:
             "hooks/guard.py",
             "hooks/kernel.py",
             "hooks/launch.js",
+            "hooks/launch.py",
             "hooks/lifecycle.py",
             "hooks/matchers.json",
             "hooks/reflection.py",
@@ -3314,6 +3315,7 @@ def managed_paths() -> tuple[str, ...]:
         "plugins/chaos-engine/hooks/guard.py",
         "plugins/chaos-engine/hooks/kernel.py",
         "plugins/chaos-engine/hooks/launch.js",
+        "plugins/chaos-engine/hooks/launch.py",
         "plugins/chaos-engine/hooks/lifecycle.py",
         "plugins/chaos-engine/hooks/matchers.json",
         "plugins/chaos-engine/hooks/reflection.py",
@@ -4625,6 +4627,8 @@ def guard_wait_budget_seconds(raw: str | None = None) -> float:
 LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
+# Short reason for #7667 shell fail-closed JSON (keeps command <= HOOK_COMMAND_MAX_CHARS).
+HOOK_LAUNCH_PYTHON_BLOCK = "no Python 3.11+"
 _CWD_UNAVAILABLE_ERRNOS = {
     errno.ENOENT,
     getattr(errno, "ESTALE", 116),
@@ -4698,6 +4702,9 @@ def doctor_digest_row(name: str, item: dict) -> list[str]:
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
 HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
 HOOK_PAYLOAD_ENV = "CHAOS_ENGINE_HOOK_PAYLOAD"
+
+HOOK_COMMAND_MAX_CHARS = 300
+HOOK_LAUNCH_PY = ".chaos-engine/hooks/launch.py"
 
 
 def _locator_script(host: str, event: str | None = None) -> str:
@@ -4957,104 +4964,58 @@ def _decoded_powershell_branch(lines: list[str]) -> list[str] | None:
 def chaos_guard_locator_command(
     *, windows: bool, host: str, managed_python: Path | None = None, event: str | None = None,
 ) -> str:
-    """Portable hook launcher (#6179): tracked host files name interpreters, never paths.
+    """Short hook command pointing at ``hooks/launch.py`` (#7667).
 
-    The managed interpreter, when one exists, is recorded in the untracked
-    `.chaos-engine-state/hook-python` pointer.
-
-    The `command` form is one script that is valid POSIX sh and valid
-    PowerShell (#6632). Claude Code and Copilot on Linux and macOS run it with
-    sh/bash. Copilot CLI on Windows runs it with PowerShell 7
-    (github/copilot-cli#4001), where `python3` is often missing or the
-    Microsoft Store stub; that exit 9009/1 is the user-visible
-    `Denied by preToolUse hook from "repo settings" (hook errored)`.
-
-    - sh: the first line is a no-op and the second a quoted string; the sh
-      branch execs `python3` (Windows Git Bash probes `py -3`, `python3`,
-      `python`) and exits before the PowerShell text.
-    - PowerShell: `--%` passes the first line verbatim to a discarded echo
-      and `<# ... #>` comments out the sh branch. The PowerShell branch reads
-      the payload (raw UTF-8 stdin; Windows PowerShell 5.1 hands it to
-      `$input` instead), prefers the installer's managed interpreter from the
-      pointer, else probes `py -3`, `python3`, `python` for Python 3.11+,
-      and hands it the payload in a BOM-free UTF-8 temporary file named by
-      `CHAOS_ENGINE_HOOK_PAYLOAD` (Windows PowerShell 5.1 does not pipe a
-      string to a native program intact), piping only if no file can be made. The locator source travels in
-      an environment variable and a quote-free stub execs it, so neither
-      PowerShell 5.1 nor 7 can strip quotes from a native argument.
-    - No usable Python: print a block decision and exit 2 (an explicit deny),
-      never a crash.
-
-    `commandWindows` stays double-quoted for cmd.exe.
-
-    Grok's runner refuses the command when a plain `$NAME` is unset and the
-    command never assigns `NAME=`. For that host the PowerShell branch is the
-    same script, base64-encoded, and the Windows check is `${OS:-}`.
+    Hosts echo the hook command on every block. The previous inline polyglot was
+    ~11KB / 241 lines. Locate/guard logic lives in ``launch.py``; this command
+    stays under ``HOOK_COMMAND_MAX_CHARS`` (300). Copilot repo hooks set
+    ``cwd: "."`` so the relative launcher path resolves; ``launch.py`` still
+    walks parents / payload cwd for ``guard.py`` (#6632).
     """
     del managed_python
-    script = _locator_script(host, event)
-    if "'" in script:
-        raise ValueError("hook locator script must not contain single quotes")
+    if not re.fullmatch(r"[a-z0-9-]+", host):
+        raise ValueError(f"unsupported hook host: {host}")
+    if event is not None and not re.fullmatch(r"[A-Za-z]+", event):
+        raise ValueError(f"unsupported hook event: {event}")
+    args = host if event is None else f"{host} {event}"
+    target = f"{HOOK_LAUNCH_PY} {args}"
+    block = json.dumps(
+        {"decision": "block", "reason": HOOK_LAUNCH_PYTHON_BLOCK},
+        separators=(",", ":"),
+    )
+    if "'" in block or "'" in target:
+        raise ValueError("hook launch command must stay single-quote safe")
     if windows:
-        return f"py -3 -c {json.dumps('exec(' + json.dumps(script) + ')')}"
-    if _polyglot_unsafe(script) or _polyglot_unsafe(LAUNCH_PYTHON_UNAVAILABLE):
-        raise ValueError("hook locator text must not contain quotes or PowerShell comment markers")
-    floor = ",".join(str(part) for part in HOOK_PYTHON_FLOOR)
-    probe = f"import sys;sys.exit(sys.version_info<({floor}))"
-    block = json.dumps({"decision": "block", "reason": LAUNCH_PYTHON_UNAVAILABLE})
-    stub = _quote_free_exec(f'import os;exec(os.environ["{HOOK_SOURCE_ENV}"])')
-    pointer = HOOK_PYTHON_POINTER
-    os_test = '"${OS:-}"' if host == "grok" else '"$OS"'
-    # `for p in` is not an assignment Grok's scanner accepts. `p=` is, and the
-    # loop rebinds `p` before any use.
-    assign_p = "p=\n" if host == "grok" else ""
-    powershell = (
-        "$OutputEncoding=[Text.UTF8Encoding]::new($false)\n"
-        "$m=New-Object IO.MemoryStream;[Console]::OpenStandardInput().CopyTo($m)\n"
-        "$d=[Text.Encoding]::UTF8.GetString($m.ToArray())\n"
-        "if(-not $d.Trim()){$d=@($input) -join [char]10}\n"
-        f"$env:{HOOK_SOURCE_ENV}='{script}'\n"
-        "$env:PYTHONUTF8='1'\n"
-        "$r=@($env:CLAUDE_PROJECT_DIR,(Get-Location).ProviderPath);try{$r+=($d|ConvertFrom-Json).cwd}catch{}\n"
-        "$c=$null\n"
-        "foreach($b in $r){if(-not $b){continue};$x=Get-Item -LiteralPath $b -ErrorAction SilentlyContinue\n"
-        f"while($x -and -not $c){{$f=Join-Path $x.FullName '{pointer}'\n"
-        "if(Test-Path -LiteralPath $f -PathType Leaf){$q=(Get-Content -LiteralPath $f -Raw).Trim()\n"
-        "if($q -and (Test-Path -LiteralPath $q -PathType Leaf)){$c=@($q)}}\n"
-        "$x=$x.Parent}\n"
-        "if($c){break}}\n"
-        "if(-not $c){foreach($t in @(@('py','-3'),@('python3'),@('python'))){\n"
-        "if(Get-Command $t[0] -CommandType Application -ErrorAction SilentlyContinue){\n"
-        f"& $t[0] @($t|Select-Object -Skip 1) -c '{probe}' 2>$null\n"
-        "if($LASTEXITCODE -eq 0){$c=$t;break}}}}\n"
-        f"if(-not $c){{Write-Output '{block}';exit 2}}\n"
-        "$p=$null;try{$p=[IO.Path]::GetTempFileName()\n"
-        "[IO.File]::WriteAllText($p,$d,[Text.UTF8Encoding]::new($false))\n"
-        f"$env:{HOOK_PAYLOAD_ENV}=$p}}catch{{if($p){{Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue}};$p=$null}}\n"
-        "$LASTEXITCODE=1\n"
-        f"if($p){{& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}else{{$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}\n"
-        "$e=$LASTEXITCODE;if($p){Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue};exit $e\n"
-    )
-    if host == "grok":
-        powershell = _grok_powershell_tail(powershell)
-    command = (
-        "echo --% >/dev/null;: ' | Out-Null\n"
-        "<#'\n"
-        f"s='{script}'\n"
-        f"{assign_p}"
-        f"[ {os_test} = Windows_NT ] || exec python3 -c \"$s\"\n"
-        "for p in py python3 python; do a=; [ $p = py ] && a=-3; "
-        f'command -v $p >/dev/null 2>&1 && $p $a -c "{probe}" 2>/dev/null && exec $p $a -c "$s"; done\n'
-        f"echo '{block}'\n"
-        "exit 2\n"
-        "#>\n"
-        + powershell
-    )
+        # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
+        if host == "grok":
+            command = f"py -3 {target}"
+        else:
+            # Probe python3/py/python then fail closed with JSON (Copilot PS field).
+            if event is None:
+                arr = f"'{HOOK_LAUNCH_PY}','{host}'"
+            else:
+                arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
+            command = (
+                f"$a={arr};"
+                "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
+                "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
+                f";Write-Output '{block}';exit 2"
+            )
+    else:
+        command = (
+            f"command -v python3 >/dev/null 2>&1 && exec python3 {target}; "
+            f"echo '{block}'; exit 2"
+        )
+    if len(command) > HOOK_COMMAND_MAX_CHARS:
+        raise ValueError(
+            f"hook command is {len(command)} chars; max {HOOK_COMMAND_MAX_CHARS} (#7667)"
+        )
     if host == "grok":
         unresolved = grok_unresolved_env_refs(command)
         if unresolved:
             raise ValueError("grok hook command still requires env vars: " + ", ".join(unresolved))
     return command
+
 
 
 def hook_command_source(command: str) -> str:
@@ -5076,7 +5037,18 @@ def powershell_hook_parse_error(command: str) -> str | None:
     """
     if not isinstance(command, str) or not command.strip():
         return "empty hook command"
-    if command.startswith("py -3 "):
+    # #7667: short launcher file. Windows hosts use `commandWindows` / the
+    # powershell field (`py -3 ...`). A `python3 ...launch.py` string is the
+    # Unix `command`/`bash` field, not executed by PowerShell.
+    if HOOK_LAUNCH_PY in command and (
+        command.startswith("py -3 ")
+        or command.startswith("python3 ")
+        or command.startswith("command -v python3 ")
+        or command.startswith("$a=")
+        or command.startswith("$c=Get-Command ")
+    ):
+        return None
+    if command.startswith("py -3 ") or command.startswith("$a=") or command.startswith("$c=Get-Command "):
         return None
     lines = command.splitlines()
     if lines[:2] != ["echo --% >/dev/null;: ' | Out-Null", "<#'"] or "#>" not in lines:
@@ -5085,6 +5057,9 @@ def powershell_hook_parse_error(command: str) -> str | None:
     decoded = _decoded_powershell_branch(powershell)
     if decoded is not None:
         powershell = decoded
+    # #7667 short launcher: PowerShell branch is `py -3 .chaos-engine/hooks/launch.py ...`
+    if any(HOOK_LAUNCH_PY in line and line.strip().startswith("py -3 ") for line in powershell):
+        return None
     invocation = next((line for line in powershell if line.startswith(LAUNCH_INVOCATION_PREFIXES)), None)
     if invocation is None:
         return "PowerShell branch does not hand the payload to a probed interpreter"
@@ -5105,6 +5080,7 @@ HOOK_CONTROLLER_NAMES = (
     "lifecycle.py",
     "kernel.py",
     "launch.js",
+    "launch.py",
     "matchers.json",
     "reflection.py",
 )
@@ -5145,7 +5121,7 @@ def copilot_surface_findings(project: Path) -> list[dict[str, str]]:
     """Open Copilot parity, duplication, token-waste, and blocker findings."""
     findings: list[dict[str, str]] = []
     parse_error = powershell_hook_parse_error(
-        chaos_guard_locator_command(windows=False, host="claude")
+        chaos_guard_locator_command(windows=True, host="claude")
     )
     if parse_error:
         findings.append(
@@ -5153,11 +5129,12 @@ def copilot_surface_findings(project: Path) -> list[dict[str, str]]:
         )
     document = json.loads(copilot_hooks_document())
     for event, handlers in document["hooks"].items():
-        expected = copilot_launcher_command(event)
         handler = handlers[0]
+        expected_bash = chaos_guard_locator_command(windows=False, host="copilot", event=event)
+        expected_ps = chaos_guard_locator_command(windows=True, host="copilot", event=event)
         if (
-            handler.get("bash") != expected
-            or handler.get("powershell") != expected
+            handler.get("bash") != expected_bash
+            or handler.get("powershell") != expected_ps
             or handler.get("cwd") != "."
         ):
             findings.append(
@@ -5267,11 +5244,10 @@ def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
             "preCompact",
             "sessionEnd",
     ):
-        command = copilot_launcher_command(event)
         hooks[event] = [{
             "type": "command",
-            "bash": command,
-            "powershell": command,
+            "bash": chaos_guard_locator_command(windows=False, host="copilot", event=event),
+            "powershell": chaos_guard_locator_command(windows=True, host="copilot", event=event),
             "cwd": ".",
             "timeoutSec": 30,
         }]
@@ -5364,6 +5340,9 @@ def chaos_hook_command(command: object) -> bool:
         "plugins/chaos-engine/hooks/guard.py",
         ".chaos-engine/hooks/launch.js",
         "plugins/chaos-engine/hooks/launch.js",
+        ".chaos-engine/hooks/launch.py",
+        "plugins/chaos-engine/hooks/launch.py",
+        "chaos-engine/hooks/launch.py",
         "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py",
     )
     for token_parts in tokens:
@@ -5672,6 +5651,7 @@ def owned_claude_plugin_version_bytes(
         )
         return b"" if before is None else before
     return None
+
 
 
 def desired_content(
@@ -6998,6 +6978,7 @@ PACKAGE_HOOK_FILES = (
     "guard.py",
     "kernel.py",
     "launch.js",
+    "launch.py",
     "lifecycle.py",
     "matchers.json",
     "reflection.py",
@@ -7022,6 +7003,14 @@ def package_hook_bytes(name: str) -> bytes:
     """Return the candidate package hook bytes shipped beside this module."""
     return (Path(__file__).resolve().parent / "hooks" / name).read_bytes()
 
+
+
+
+def ensure_launch_py_after(after: dict[str, bytes]) -> dict[str, bytes]:
+    """#7667: ship launch.py with plugin hooks without growing desired_content."""
+    after = dict(after)
+    after["plugins/chaos-engine/hooks/launch.py"] = package_hook_bytes("launch.py")
+    return after
 
 def known_package_equal_hook(project: Path, relative: str, current: bytes) -> bool:
     """Accept exact plugin hooks that match core, backup, or package copies."""
@@ -7343,6 +7332,158 @@ def _stamp_exact_rollback_fields(
         )
 
 
+def _attach_account_rollback_receipt(
+    next_receipt: dict[str, object], rollback_account_receipt: bytes
+) -> None:
+    """Validate and stamp ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT on an upgrade receipt."""
+    try:
+        account_receipt = json.loads(rollback_account_receipt.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine account rollback receipt is invalid") from error
+    if (
+        not isinstance(account_receipt, dict)
+        or account_receipt.get("schemaVersion") != 2
+        or not isinstance(account_receipt.get("components"), dict)
+        or not isinstance(account_receipt.get("commands"), dict)
+    ):
+        raise ValueError("ChaosEngine account rollback receipt is invalid")
+    next_receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
+        rollback_account_receipt
+    ).decode("ascii")
+
+
+
+def _install_with_existing_receipt(
+    project: Path,
+    *,
+    core_commit: str | None,
+    capability_policy_digest: str | None,
+    dependency_runtime: Path | None,
+    account_commands: dict[str, str] | None,
+    rollback_account_receipt: bytes | None,
+    rollback_mempalace_state: dict[str, object] | None,
+    maven_docker: tuple[str, str] | None,
+    upgrade_snapshot: dict[str, object] | None,
+    receipt_path: Path,
+) -> dict[str, object]:
+    """Resume or upgrade when a host receipt already exists."""
+    host_anchor(project)
+    receipt, raw = read_receipt(project)
+    before = decode_images(receipt["before"], nullable=True)
+    after = decode_images(receipt["after"], nullable=True)
+    if receipt["phase"] == "installed":
+        if upgrade_snapshot is None:
+            try:
+                snapshot = preflight(project)
+            except ValueError as error:
+                raise ValueError(
+                    "ChaosEngine host adapter drift detected"
+                ) from error
+        else:
+            snapshot = upgrade_snapshot
+        snapshot_raw = snapshot.get("raw")
+        snapshot_images = snapshot.get("images")
+        snapshot_before = snapshot.get("before")
+        if (
+            snapshot_raw != raw
+            or not isinstance(snapshot_images, dict)
+            or not isinstance(snapshot_before, dict)
+            or set(snapshot_images) != set(managed_paths())
+            or set(snapshot_before) != set(managed_paths())
+        ):
+            raise ValueError("ChaosEngine host preflight snapshot is invalid")
+        current = {relative: snapshot_images[relative] for relative in managed_paths()}
+        migration_before = {relative: snapshot_before[relative] for relative in managed_paths()}
+        if any(content is not None and not isinstance(content, bytes) for content in (*current.values(), *migration_before.values())):
+            raise ValueError("ChaosEngine host preflight snapshot is invalid")
+        desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
+        version = plugin_cache_version(core_commit)
+        wanted = ensure_launch_py_after(
+            desired_content(
+                migration_before,
+                project_name=project_identity_name(project),
+                plugin_version=version,
+                dependency_runtime=dependency_runtime,
+                account_commands=account_commands,
+                maven_docker=maven_docker,
+                project=project,
+            )
+        )
+        for relative in LIVE_PERSISTENT_PATHS:
+            wanted[relative] = current[relative]
+        receipt_before = dict(migration_before)
+        receipt_after = dict(wanted)
+        for relative in LIVE_PERSISTENT_PATHS:
+            receipt_before[relative] = before[relative]
+            receipt_after[relative] = after[relative]
+        if (
+            after == receipt_after
+            and receipt.get("coreCommit") == core_commit
+            and receipt.get("capabilityPolicySha256") == desired_capability_digest
+        ):
+            apply_hook_receipt(receipt, after, receipt_after)
+            write_receipt(project, receipt, raw)
+            with contextlib.suppress(OSError):
+                write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
+            write_merge_handoff(project, _handoff_doctor_command())
+            return receipt
+        next_receipt = dict(receipt)
+        next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
+            rollback_base_receipt(project, snapshot_raw)
+        ).decode("ascii")
+        if rollback_account_receipt is not None:
+            _attach_account_rollback_receipt(next_receipt, rollback_account_receipt)
+        if rollback_mempalace_state is not None:
+            next_receipt[ROLLBACK_PREVIOUS_MEMPALACE_STATE] = (
+                validate_rollback_mempalace_state(rollback_mempalace_state)
+            )
+        next_receipt["phase"] = "installing"
+        next_receipt["coreCommit"] = core_commit
+        if desired_capability_digest is not None:
+            next_receipt["capabilityPolicySha256"] = desired_capability_digest
+        next_receipt["before"] = encode_images(receipt_before)
+        next_receipt["after"] = encode_images(receipt_after)
+        apply_hook_receipt(next_receipt, after, receipt_after)
+        new_directories = created_directories(project)
+        next_receipt["createdDirectories"] = sorted(
+            set(receipt_directories(receipt)) | set(new_directories),
+            key=lambda item: (len(Path(item).parts), item),
+        )
+        next_raw = write_receipt(project, next_receipt, raw)
+        try:
+            prepare_created_directories(project, next_receipt)
+            reconcile(project, wanted, (current, wanted))
+            next_receipt["phase"] = "installed"
+            write_receipt(project, next_receipt, next_raw)
+            with contextlib.suppress(OSError):
+                write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
+            write_merge_handoff(project, _handoff_doctor_command())
+            with contextlib.suppress(Exception):
+                next_receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
+                next_receipt["identity"] = ensure_project_identity(project)
+            return next_receipt
+        except BaseException:
+            reconcile(project, current, (current, wanted))
+            if new_directories:
+                cleanup_receipt = dict(next_receipt)
+                cleanup_receipt["createdDirectories"] = new_directories
+                remove_created_directories(project, cleanup_receipt)
+            atomic_write(project, receipt_path, raw, read_file(project, receipt_path))
+            raise
+    prepare_created_directories(project, receipt)
+    reconcile(project, after, (before, after))
+    receipt["phase"] = "installed"
+    write_receipt(project, receipt, raw)
+    with contextlib.suppress(OSError):
+        write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
+    write_merge_handoff(project, _handoff_doctor_command())
+    with contextlib.suppress(Exception):
+        receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
+        receipt["identity"] = ensure_project_identity(project)
+    return receipt
+
+
+
 def install(
     project: Path,
     core_commit: str | None = None,
@@ -7367,142 +7508,31 @@ def install(
         raise ValueError(f"installed ChaosEngine skill is missing: {canonical}")
     validate_path(project, receipt_path)
     if receipt_path.exists() or is_link_or_reparse(receipt_path):
-        host_anchor(project)
-        receipt, raw = read_receipt(project)
-        before = decode_images(receipt["before"], nullable=True)
-        after = decode_images(receipt["after"], nullable=True)
-        if receipt["phase"] == "installed":
-            if upgrade_snapshot is None:
-                try:
-                    snapshot = preflight(project)
-                except ValueError as error:
-                    raise ValueError(
-                        "ChaosEngine host adapter drift detected"
-                    ) from error
-            else:
-                snapshot = upgrade_snapshot
-            snapshot_raw = snapshot.get("raw")
-            snapshot_images = snapshot.get("images")
-            snapshot_before = snapshot.get("before")
-            if (
-                snapshot_raw != raw
-                or not isinstance(snapshot_images, dict)
-                or not isinstance(snapshot_before, dict)
-                or set(snapshot_images) != set(managed_paths())
-                or set(snapshot_before) != set(managed_paths())
-            ):
-                raise ValueError("ChaosEngine host preflight snapshot is invalid")
-            current = {relative: snapshot_images[relative] for relative in managed_paths()}
-            migration_before = {relative: snapshot_before[relative] for relative in managed_paths()}
-            if any(content is not None and not isinstance(content, bytes) for content in (*current.values(), *migration_before.values())):
-                raise ValueError("ChaosEngine host preflight snapshot is invalid")
-            desired_capability_digest = capability_policy_digest or receipt.get("capabilityPolicySha256")
-            version = plugin_cache_version(core_commit)
-            wanted = desired_content(
-                migration_before,
-                project_name=project_identity_name(project),
-                plugin_version=version,
-                dependency_runtime=dependency_runtime,
-                account_commands=account_commands,
-                maven_docker=maven_docker,
-                project=project,
-            )
-            for relative in LIVE_PERSISTENT_PATHS:
-                wanted[relative] = current[relative]
-            receipt_before = dict(migration_before)
-            receipt_after = dict(wanted)
-            for relative in LIVE_PERSISTENT_PATHS:
-                receipt_before[relative] = before[relative]
-                receipt_after[relative] = after[relative]
-            if (
-                after == receipt_after
-                and receipt.get("coreCommit") == core_commit
-                and receipt.get("capabilityPolicySha256") == desired_capability_digest
-            ):
-                apply_hook_receipt(receipt, after, receipt_after)
-                write_receipt(project, receipt, raw)
-                with contextlib.suppress(OSError):
-                    write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
-                write_merge_handoff(project, _handoff_doctor_command())
-                return receipt
-            next_receipt = dict(receipt)
-            next_receipt[ROLLBACK_PREVIOUS_RECEIPT] = base64.b64encode(
-                rollback_base_receipt(project, snapshot_raw)
-            ).decode("ascii")
-            if rollback_account_receipt is not None:
-                try:
-                    account_receipt = json.loads(rollback_account_receipt.decode("utf-8"))
-                except (UnicodeDecodeError, json.JSONDecodeError) as error:
-                    raise ValueError("ChaosEngine account rollback receipt is invalid") from error
-                if (
-                    not isinstance(account_receipt, dict)
-                    or account_receipt.get("schemaVersion") != 2
-                    or not isinstance(account_receipt.get("components"), dict)
-                    or not isinstance(account_receipt.get("commands"), dict)
-                ):
-                    raise ValueError("ChaosEngine account rollback receipt is invalid")
-                next_receipt[ROLLBACK_PREVIOUS_ACCOUNT_RECEIPT] = base64.b64encode(
-                    rollback_account_receipt
-                ).decode("ascii")
-            if rollback_mempalace_state is not None:
-                next_receipt[ROLLBACK_PREVIOUS_MEMPALACE_STATE] = (
-                    validate_rollback_mempalace_state(rollback_mempalace_state)
-                )
-            next_receipt["phase"] = "installing"
-            next_receipt["coreCommit"] = core_commit
-            if desired_capability_digest is not None:
-                next_receipt["capabilityPolicySha256"] = desired_capability_digest
-            next_receipt["before"] = encode_images(receipt_before)
-            next_receipt["after"] = encode_images(receipt_after)
-            apply_hook_receipt(next_receipt, after, receipt_after)
-            new_directories = created_directories(project)
-            next_receipt["createdDirectories"] = sorted(
-                set(receipt_directories(receipt)) | set(new_directories),
-                key=lambda item: (len(Path(item).parts), item),
-            )
-            next_raw = write_receipt(project, next_receipt, raw)
-            try:
-                prepare_created_directories(project, next_receipt)
-                reconcile(project, wanted, (current, wanted))
-                next_receipt["phase"] = "installed"
-                write_receipt(project, next_receipt, next_raw)
-                with contextlib.suppress(OSError):
-                    write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
-                write_merge_handoff(project, _handoff_doctor_command())
-                with contextlib.suppress(Exception):
-                    next_receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
-                    next_receipt["identity"] = ensure_project_identity(project)
-                return next_receipt
-            except BaseException:
-                reconcile(project, current, (current, wanted))
-                if new_directories:
-                    cleanup_receipt = dict(next_receipt)
-                    cleanup_receipt["createdDirectories"] = new_directories
-                    remove_created_directories(project, cleanup_receipt)
-                atomic_write(project, receipt_path, raw, read_file(project, receipt_path))
-                raise
-        prepare_created_directories(project, receipt)
-        reconcile(project, after, (before, after))
-        receipt["phase"] = "installed"
-        write_receipt(project, receipt, raw)
-        with contextlib.suppress(OSError):
-            write_hook_python_pointer(project, managed_python_for(dependency_runtime, account_commands))
-        write_merge_handoff(project, _handoff_doctor_command())
-        with contextlib.suppress(Exception):
-            receipt["grokLeanConfig"] = sync_grok_user_lean_config(project)
-            receipt["identity"] = ensure_project_identity(project)
-        return receipt
+        return _install_with_existing_receipt(
+            project,
+            core_commit=core_commit,
+            capability_policy_digest=capability_policy_digest,
+            dependency_runtime=dependency_runtime,
+            account_commands=account_commands,
+            rollback_account_receipt=rollback_account_receipt,
+            rollback_mempalace_state=rollback_mempalace_state,
+            maven_docker=maven_docker,
+            upgrade_snapshot=upgrade_snapshot,
+            receipt_path=receipt_path,
+        )
 
     before = current_images(project)
     version = plugin_cache_version(core_commit)
-    after = desired_content(
-        before,
-        project_name=project_identity_name(project),
-        plugin_version=version,
-        dependency_runtime=dependency_runtime,
-        account_commands=account_commands,
-        maven_docker=maven_docker,
-        project=project,
+    after = ensure_launch_py_after(
+        desired_content(
+            before,
+            project_name=project_identity_name(project),
+            plugin_version=version,
+            dependency_runtime=dependency_runtime,
+            account_commands=account_commands,
+            maven_docker=maven_docker,
+            project=project,
+        )
     )
     if existing_anchors and existing_anchors[0].name.startswith(REMOVING_ANCHOR_PREFIX):
         raise ValueError("ChaosEngine host removal recovery is required")

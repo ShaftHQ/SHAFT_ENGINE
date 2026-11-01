@@ -1,6 +1,6 @@
 # Harness map
 
-By [harness_map.py](../harness_map.py); `--check`. One line/file. [catalog](catalog.md).
+By [harness_map.py](../harness_map.py); `--check`.
 
 ## Core
 
@@ -149,6 +149,7 @@ By [harness_map.py](../harness_map.py); `--check`. One line/file. [catalog](cata
 
 - `hooks/guard.py`: Activate ChaosEngine and reject catastrophic shell scope.
 - `hooks/kernel.py`: Provider-neutral ChaosEngine lifecycle policy kernel.
+- `hooks/launch.py`: Host hook launcher.
 - `hooks/lifecycle.py`: Shared lifecycle context, dispatch, and protocol for every launcher.
 - `hooks/receipt_shim.py`: Research-receipt shims for hook-capable instruction-only hosts.
 - `hooks/reflection.py`: Portable task-scoped reflection state in the existing session ledger.

@@ -864,6 +864,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "hooks/guard.py",
                 "hooks/kernel.py",
                 "hooks/launch.js",
+                "hooks/launch.py",
                 "hooks/lifecycle.py",
                 "hooks/matchers.json",
                 "hooks/reflection.py",
@@ -881,6 +882,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             for relative in (
                 "hooks/kernel.py",
                 "hooks/launch.js",
+                "hooks/launch.py",
                 "hooks/lifecycle.py",
                 "hooks/matchers.json",
             ):
@@ -1189,7 +1191,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     source = module.hook_command_source(command) or command
                     self.assertTrue(
                         ".chaos-engine/hooks/guard.py" in source
-                        or "plugins/chaos-engine/hooks/guard.py" in source,
+                        or "plugins/chaos-engine/hooks/guard.py" in source
+                        or module.HOOK_LAUNCH_PY in source
+                        or "chaos-engine/hooks/launch.py" in source,
                         event,
                     )
                 self.assertEqual(3, document["SessionEnd"][0]["hooks"][0]["timeout"])
@@ -1317,6 +1321,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         command = handler["commandWindows"] if os.name == "nt" else handler["command"]
 
         with tempfile.TemporaryDirectory() as temporary:
+            self._seed_launch(temporary)
             completed = subprocess.run(  # nosec B602 - generated fixed hook command.
                 command,
                 shell=True,
@@ -1351,7 +1356,17 @@ class ChaosEngineHostsTest(unittest.TestCase):
             env={**os.environ},
         )
 
+    def _seed_launch(self, root):
+        """#7667: short commands need launch.py under cwd."""
+        dest = Path(root) / ".chaos-engine" / "hooks"
+        dest.mkdir(parents=True, exist_ok=True)
+        target = dest / "launch.py"
+        source = ROOT / "chaos-engine/hooks/launch.py"
+        if not target.exists():
+            target.write_bytes(source.read_bytes())
+
     def _run_locator(self, command, cwd, env, timeout=15):
+        self._seed_launch(cwd)
         return subprocess.run(  # nosec B602 - generated fixed hook command.
             command,
             shell=True,
@@ -1496,6 +1511,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         module = load(HOSTS, "chaos_engine_hook_bad_wait_markers")
         command = self._guard_locator_command(module)
         with tempfile.TemporaryDirectory() as temporary:
+            self._seed_launch(temporary)
             Path(temporary, ".chaos-engine.transaction.json").write_text(
                 '{"operation":"install"}\n', encoding="utf-8"
             )
@@ -1563,7 +1579,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
     def test_inline_launch_reports_missing_cwd_without_private_paths(self):
 
         module = load(HOSTS, "chaos_engine_hook_missing_cwd")
-        command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
+        launch = str((ROOT / "chaos-engine/hooks/launch.py").resolve())
         event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -1577,7 +1593,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "os.chdir(target)\n"
                 "shutil.rmtree(target)\n"
                 "completed = subprocess.run(\n"
-                f"    {command!r}, shell=True, input={event!r},\n"
+                f"    [sys.executable, {launch!r}, 'codex'], input={event!r},\n"
                 "    capture_output=True, text=True, check=False,\n"
                 ")\n"
                 "print(completed.returncode)\n"
@@ -1659,13 +1675,13 @@ class ChaosEngineHostsTest(unittest.TestCase):
             getattr(errno, "ENOTCONN", 107),
         ):
             self.assertTrue(module.is_cwd_unavailable_errno(code), code)
-        command = module.hook_command_source(
-            module.chaos_guard_locator_command(windows=False, host="claude")
-        )
-        for token in ("ESTALE", "ENOTCONN", "ENOENT", module.LAUNCH_CWD_UNAVAILABLE):
-            self.assertIn(token, command)
+        # #7667: errno mapping lives in hooks/launch.py (short command is a pointer).
+        launch = (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
+        for token in ("ESTALE", "ENOTCONN", "ENOENT"):
+            self.assertIn(token, launch)
+        self.assertIn("repository working directory unavailable", launch)
         for forbidden in ("git clone", "worktree add", "os.chdir(", "subprocess"):
-            self.assertNotIn(forbidden, command)
+            self.assertNotIn(forbidden, launch)
 
     def test_generated_host_hooks_share_preventive_and_observational_matchers(self):
         module = load(HOSTS, "chaos_engine_hook_matchers")
@@ -1836,7 +1852,12 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(1, len(handlers))
             # #6632: shared Python launcher with the event, run from the repo root.
             self.assertEqual(module_hosts().copilot_launcher_command(event), handlers[0]["bash"])
-            self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
+            self.assertEqual(
+                module_hosts().chaos_guard_locator_command(
+                    windows=True, host="copilot", event=event
+                ),
+                handlers[0]["powershell"],
+            )
             self.assertEqual(".", handlers[0]["cwd"])
             self.assertNotIn("node ", handlers[0]["bash"])
 

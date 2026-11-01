@@ -105,8 +105,7 @@ as a path relative to the settings file, and resolve `hooks/guard.py` from the
 installed tree (`.chaos-engine/hooks/guard.py` or
 `plugins/chaos-engine/hooks/guard.py`).
 
-Inline Python launchers (Codex/Claude/Grok) and `hooks/launch.js`
-(Gemini/Copilot) preflight the repository working directory before starting
+Short host commands point at [`hooks/launch.py`](../hooks/launch.py) (Codex/Claude/Grok/Copilot) or `hooks/launch.js` (Gemini). Both preflight the repository working directory before starting
 guard code. Missing, stale, or disconnected cwd errors map to a path-free
 denial that names `repository working directory unavailable` and tells the
 operator to restore the original mount or checkout. A missing or unreadable
@@ -128,8 +127,8 @@ SessionStart instruction; it is not reconstructed from host-specific tool
 observations or enforced on every mutation. A future rule for a read-only
 surface must restore only the lifecycle events it needs with a contract test.
 Gemini, Claude, Codex, and Grok use native matcher fields. Copilot's workspace
-hook format has no matcher field, so `hooks/launch.js` applies the same policy
-before starting Python.
+hook format has no matcher field, so `hooks/launch.py` / `hooks/launch.js` apply the same policy
+before starting the guard.
 
 The repository guard preserves one normalized literal invocation record for
 each wrapped call: command, effective workdir, mutation status, static targets,
