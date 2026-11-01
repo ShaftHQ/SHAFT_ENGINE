@@ -49,6 +49,10 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#issued(java.lang.String)" tabindex="0">issued(String)</a></li>
+<li><a href="#interpret(java.lang.String,java.lang.String)" tabindex="0">interpret(String, String)</a></li>
+<li><a href="#readAttribute(org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">readAttribute(WebElement, String)</a></li>
+<li><a href="#readDomAttribute(org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">readDomAttribute(WebElement, String)</a></li>
+<li><a href="#read(org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">read(WebElement, String)</a></li>
 </ol>
 </li>
 </ol>
@@ -66,9 +70,9 @@
 <div class="horizontal-scroll">
 <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">IosXcuiAttributeNames</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">XCUITest names the widget type <code>type</code>. <code>class</code> and <code>className</code>
-are web and Android names; WDA rejects them. <code>wdType</code> is not requested:
-the driver already lists <code>type</code>.</div>
+<div class="block">XCUITest attribute names differ from Android UiAutomator2 and the web DOM.
+<code>class</code>/<code>className</code> become <code>type</code> (#7455). Other Android-only
+names are mapped or skipped so WDA never sees an unknown attribute (#7669).</div>
 </div>
 </section>
 <section class="summary">
@@ -85,9 +89,35 @@ the driver already lists <code>type</code>.</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#issued(java.lang.String)" class="member-name-link">issued</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#interpret(java.lang.String,java.lang.String)" class="member-name-link">interpret</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;requested,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;raw)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Maps a raw driver value back to the caller's requested attribute semantics
+on iOS XCUITest.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#issued(java.lang.String)" class="member-name-link">issued</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Attribute name to send to the driver.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#read(org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">read</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Soft read for internal callers that must not fail the capture path.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#readAttribute(org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">readAttribute</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reads <code>WebElement.getAttribute(String)</code> with iOS mapping.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#readDomAttribute(org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">readDomAttribute</a><wbr>(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reads <code>WebElement.getDomAttribute(String)</code> with the same iOS mapping as
+<a href="#readAttribute(org.openqa.selenium.WebElement,java.lang.String)"><code>readAttribute(WebElement, String)</code></a>.</div>
 </div>
 </div>
 </div>
@@ -112,13 +142,86 @@ the driver already lists <code>type</code>.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">issued</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
 <div class="block">Attribute name to send to the driver. On an iOS native XCUITest session,
-<code>class</code> and <code>className</code> become <code>type</code>. Every other session
-keeps the requested name, including Android <code>class</code>.</div>
+Android / web aliases are remapped; Android-only names with no XCUI peer
+become empty (do not call the driver). Every other session keeps the
+requested name.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>name</code> - requested attribute name</dd>
 <dt>Returns:</dt>
-<dd>the name to issue; empty when <code>name</code> is null</dd>
+<dd>the name to issue; empty when <code>name</code> is null or must not be queried</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="interpret(java.lang.String,java.lang.String)">
+<h3>interpret</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">interpret</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;requested,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;raw)</span></div>
+<div class="block">Maps a raw driver value back to the caller's requested attribute semantics
+on iOS XCUITest. Other sessions return <code>raw</code> unchanged.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>requested</code> - original attribute name from the caller</dd>
+<dd><code>raw</code> - value returned for <a href="#issued(java.lang.String)"><code>issued(String)</code></a></dd>
+<dt>Returns:</dt>
+<dd>caller-facing value</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="readAttribute(org.openqa.selenium.WebElement,java.lang.String)">
+<h3>readAttribute</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readAttribute</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Reads <code>WebElement.getAttribute(String)</code> with iOS mapping. Skipped
+Android-only names return <code>null</code>; other driver errors propagate.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>element</code> - element to read</dd>
+<dd><code>name</code> - requested attribute name</dd>
+<dt>Returns:</dt>
+<dd>attribute value, possibly interpreted; <code>null</code> when skipped</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="readDomAttribute(org.openqa.selenium.WebElement,java.lang.String)">
+<h3>readDomAttribute</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">readDomAttribute</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Reads <code>WebElement.getDomAttribute(String)</code> with the same iOS mapping as
+<a href="#readAttribute(org.openqa.selenium.WebElement,java.lang.String)"><code>readAttribute(WebElement, String)</code></a>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>element</code> - element to read</dd>
+<dd><code>name</code> - requested attribute name</dd>
+<dt>Returns:</dt>
+<dd>attribute value, possibly interpreted; <code>null</code> when skipped</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="read(org.openqa.selenium.WebElement,java.lang.String)">
+<h3>read</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">read</span><wbr><span class="parameters">(org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</span></div>
+<div class="block">Soft read for internal callers that must not fail the capture path.
+Returns <code>null</code> when skipped or the driver throws.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>element</code> - element to read</dd>
+<dd><code>name</code> - requested attribute name</dd>
+<dt>Returns:</dt>
+<dd>attribute value or <code>null</code></dd>
 </dl>
 </div>
 </section>
