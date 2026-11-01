@@ -39,6 +39,7 @@ function Assert-ChaosEngineMavenToolsJdkPreflight {
     # Fail closed before bootstrap when Maven Tools will run and JAVA_HOME is unusable.
     # Managed Temurin can still heal an unset JAVA_HOME inside Python; a set-but-broken
     # JAVA_HOME must not reach `mvn package` with a cryptic env-var error.
+    # Never assign $home / $HOME: PowerShell StrictMode treats $HOME as read-only.
     param(
         [switch]$WithMavenTools,
         [string]$MavenToolsMode = "native"
@@ -47,16 +48,16 @@ function Assert-ChaosEngineMavenToolsJdkPreflight {
     $project = (Get-Location).Path
     $autoJava = Test-Path -LiteralPath (Join-Path $project "pom.xml")
     if (-not ($WithMavenTools -or $autoJava)) { return }
-    $home = [string]$env:JAVA_HOME
-    if ([string]::IsNullOrWhiteSpace($home)) {
+    $jdkHome = [string]$env:JAVA_HOME
+    if ([string]::IsNullOrWhiteSpace($jdkHome)) {
         # Unset is OK: Python may provision managed Temurin. Hint only.
         [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; Maven Tools preflight will validate the JDK before mvn package.")
         return
     }
-    $java = Join-Path $home "bin\java.exe"
-    $javac = Join-Path $home "bin\javac.exe"
+    $java = Join-Path $jdkHome "bin\java.exe"
+    $javac = Join-Path $jdkHome "bin\javac.exe"
     if (-not (Test-Path -LiteralPath $java -PathType Leaf) -or -not (Test-Path -LiteralPath $javac -PathType Leaf)) {
-        throw "CE-INSTALL-FAILED: JAVA_HOME='$home' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: [Environment]::SetEnvironmentVariable('JAVA_HOME','<Adoptium-JDK-25-home>','User'); add %JAVA_HOME%\bin to User PATH; reopen PowerShell; verify java -version / javac -version; rerun install."
+        throw "CE-INSTALL-FAILED: JAVA_HOME='$jdkHome' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: `$jdk='<Adoptium-JDK-25-home>'; [Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); `$env:JAVA_HOME=$jdk; `$p=[Environment]::GetEnvironmentVariable('Path','User'); if (`$p -notlike ('*'+$jdk+'\bin*')) { [Environment]::SetEnvironmentVariable('Path', (`$p.TrimEnd(';')+';'+$jdk+'\bin'),'User') }; open a new PowerShell; verify echo `$env:JAVA_HOME; java -version; javac -version; rerun install."
     }
 }
 

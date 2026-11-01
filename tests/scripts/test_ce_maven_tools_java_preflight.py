@@ -5,7 +5,6 @@ from __future__ import annotations
 import inspect
 import os
 import tempfile
-import unittest
 import unittest.mock as mock
 from pathlib import Path
 from types import SimpleNamespace
@@ -30,6 +29,13 @@ class MavenToolsJavaPreflightTest(TestCase):
         sh = (root / "install.sh").read_text(encoding="utf-8")
         self.assertIn("Assert-ChaosEngineMavenToolsJdkPreflight", ps1)
         self.assertIn("assert_maven_tools_jdk_preflight", sh)
+        # PowerShell StrictMode: never assign read-only $HOME / $home.
+        fn_start = ps1.index("function Assert-ChaosEngineMavenToolsJdkPreflight")
+        fn_end = ps1.index("\nfunction ", fn_start + 1)
+        body = ps1[fn_start:fn_end]
+        self.assertNotRegex(body, r"(?m)^\s*\$home\s*=")
+        self.assertNotRegex(body, r"(?m)^\s*\$HOME\s*=")
+        self.assertIn("$jdkHome", body)
 
     def test_preflight_rejects_home_without_javac(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -57,16 +63,69 @@ class MavenToolsJavaPreflightTest(TestCase):
                 java_major=lambda path: 17,
                 java_compiler_present=lambda path: True,
             )
-            with self.assertRaisesRegex(ValueError, "fix-next:"):
+            with self.assertRaises(ValueError) as caught:
                 MODULE.preflight_maven_tools_jdk(hosts, java, required_major=25)
-            try:
-                MODULE.preflight_maven_tools_jdk(hosts, java, required_major=25)
-            except ValueError as error:
-                message = str(error)
+            message = str(caught.exception)
+            self.assertIn("fix-next:", message)
             if os.name == "nt":
                 self.assertIn("SetEnvironmentVariable", message)
             else:
                 self.assertIn("export JAVA_HOME", message)
+
+    def test_windows_fix_next_path_uses_literal_jdk_not_stale_env(self) -> None:
+        message = MODULE.maven_tools_java_home_fix_next(
+            required_major=25, suggested=[r"C:\Program Files\Eclipse Adoptium\jdk-25"]
+        )
+        # Force-shape check independent of host OS: call with patched os.name via rebuild text.
+        # On posix hosts the returned text is export-style; assert the Windows branch content
+        # by evaluating the function body with os.name == "nt".
+        import types
+
+        installer_path = Path(__file__).resolve().parents[2] / "chaos-engine/packs/java/installer.py"
+        source = installer_path.read_text(encoding="utf-8")
+        start = source.index("def maven_tools_java_home_fix_next")
+        end = source.index("\ndef maven_tools_wrapper_fix_next")
+        ns: dict = {"os": types.SimpleNamespace(name="nt")}
+        exec(
+            "def _suggest_jdk_homes():\n    return []\n" + source[start:end],
+            ns,
+        )
+        win = ns["maven_tools_java_home_fix_next"](
+            required_major=25,
+            suggested=[r"C:\Program Files\Eclipse Adoptium\jdk-25"],
+        )
+        self.assertIn("$env:JAVA_HOME=$jdk", win)
+        path_section = win.split("GetEnvironmentVariable('Path','User')", 1)[1].split(
+            "then open", 1
+        )[0]
+        self.assertNotIn("$env:JAVA_HOME", path_section)
+        self.assertIn("+$jdk+", path_section)
+        # silence unused when host is already nt
+        if os.name == "nt":
+            self.assertIn("SetEnvironmentVariable", message)
+
+    def test_missing_wrapper_fix_next_excludes_java_home(self) -> None:
+        hosts = SimpleNamespace(
+            java_major=lambda path: 25,
+            java_compiler_present=lambda path: True,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            java = Path(temporary) / "jdk" / "bin" / ("java.exe" if os.name == "nt" else "java")
+            java.parent.mkdir(parents=True)
+            java.write_text("java\n", encoding="utf-8")
+            (java.parent / ("javac.exe" if os.name == "nt" else "javac")).write_text(
+                "javac\n", encoding="utf-8"
+            )
+            missing = Path(temporary) / "missing-mvnw"
+            with self.assertRaises(ValueError) as caught:
+                MODULE.preflight_maven_tools_jdk(
+                    hosts, java, required_major=25, wrapper=missing
+                )
+            message = str(caught.exception)
+            self.assertIn("wrapper is missing", message)
+            self.assertIn("fix-next:", message)
+            self.assertNotIn("JAVA_HOME", message)
+            self.assertNotIn("SetEnvironmentVariable", message)
 
     def test_preflight_accepts_usable_jdk_home(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

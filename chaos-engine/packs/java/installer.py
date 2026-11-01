@@ -55,7 +55,11 @@ __all__ = (
     "_maven_tools_required_major",
     "_pom_java_release_major",
     "_suggest_jdk_homes",
+    "_jdk_homes_under_root",
+    "_posix_jdk_search_roots",
+    "_windows_jdk_search_roots",
     "maven_tools_java_home_fix_next",
+    "maven_tools_wrapper_fix_next",
     "_resolve_java_path",
     "_jdk_home_from_standard_layout",
     "_jdk_home_from_host_probes",
@@ -275,73 +279,89 @@ def _pom_java_release_major(pom: Path) -> int | None:
     return None
 
 
+def _windows_jdk_search_roots() -> list[Path]:
+    """Common Windows vendor roots under ProgramFiles / LocalAppData."""
+    roots: list[Path] = []
+    for base in (
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+        os.environ.get("LOCALAPPDATA"),
+    ):
+        if not base:
+            continue
+        root = Path(base)
+        roots.extend(
+            (
+                root / "Eclipse Adoptium",
+                root / "Java",
+                root / "Microsoft",
+                root / "Amazon Corretto",
+                root / "Programs" / "Eclipse Adoptium",
+            )
+        )
+    return roots
+
+
+def _posix_jdk_search_roots() -> list[Path]:
+    """Common POSIX JDK roots without absolute-path string literals."""
+    return [
+        Path(os.sep).joinpath("usr", "lib", "jvm"),
+        Path(os.sep).joinpath("Library", "Java", "JavaVirtualMachines"),
+        Path.home() / ".local/share/chaos-engine/java",
+        Path.home() / ".sdkman/candidates/java",
+    ]
+
+
+def _jdk_homes_under_root(
+    root: Path, *, java_name: str, javac_name: str, seen: set[str], found: list[str], limit: int,
+) -> bool:
+    """Append usable JDK homes under root. Return True when found reached limit."""
+    try:
+        if not root.is_dir():
+            return False
+        candidates = [root]
+        try:
+            candidates.extend(sorted(root.iterdir()))
+        except OSError:
+            # Directory vanished mid-scan; keep the root candidate only.
+            pass
+        for candidate in candidates:
+            homes = [candidate]
+            mac = candidate / "Contents" / "Home"
+            if mac.is_dir():
+                homes.append(mac)
+            for home in homes:
+                java = home / "bin" / java_name
+                javac = home / "bin" / javac_name
+                try:
+                    if not java.is_file() or not javac.is_file():
+                        continue
+                    resolved = str(home.resolve())
+                except OSError:
+                    continue
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                found.append(resolved)
+                if len(found) >= limit:
+                    return True
+    except OSError:
+        return False
+    return False
+
+
 def _suggest_jdk_homes() -> list[str]:
     """Return existing candidate JDK homes from common install locations."""
     java_name = "java.exe" if os.name == "nt" else "java"
     javac_name = "javac.exe" if os.name == "nt" else "javac"
-    roots: list[Path] = []
-    if os.name == "nt":
-        for base in (
-            os.environ.get("ProgramFiles"),
-            os.environ.get("ProgramFiles(x86)"),
-            os.environ.get("LOCALAPPDATA"),
-        ):
-            if not base:
-                continue
-            root = Path(base)
-            roots.extend(
-                (
-                    root / "Eclipse Adoptium",
-                    root / "Java",
-                    root / "Microsoft",
-                    root / "Amazon Corretto",
-                    root / "Programs" / "Eclipse Adoptium",
-                )
-            )
-    else:
-        # Build POSIX roots without absolute-path literals (portable-core gate).
-        roots.extend(
-            (
-                Path(os.sep).joinpath("usr", "lib", "jvm"),
-                Path(os.sep).joinpath("Library", "Java", "JavaVirtualMachines"),
-                Path.home() / ".local/share/chaos-engine/java",
-                Path.home() / ".sdkman/candidates/java",
-            )
-        )
+    roots = _windows_jdk_search_roots() if os.name == "nt" else _posix_jdk_search_roots()
     found: list[str] = []
     seen: set[str] = set()
     for root in roots:
-        try:
-            if not root.is_dir():
-                continue
-            candidates = [root]
-            try:
-                candidates.extend(sorted(root.iterdir()))
-            except OSError:
-                # Directory vanished mid-scan; keep the root candidate only.
-                pass
-            for candidate in candidates:
-                homes = [candidate]
-                mac = candidate / "Contents" / "Home"
-                if mac.is_dir():
-                    homes.append(mac)
-                for home in homes:
-                    java = home / "bin" / java_name
-                    javac = home / "bin" / javac_name
-                    try:
-                        if not java.is_file() or not javac.is_file():
-                            continue
-                        resolved = str(home.resolve())
-                    except OSError:
-                        continue
-                    if resolved in seen:
-                        continue
-                    seen.add(resolved)
-                    found.append(resolved)
-                    if len(found) >= 5:
-                        return found
-        except OSError:
-            continue
+        if _jdk_homes_under_root(
+            root, java_name=java_name, javac_name=javac_name, seen=seen, found=found, limit=5,
+        ):
+            return found
     return found
 
 
@@ -354,14 +374,18 @@ def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] 
         listed = "; ".join(suggestions[:3])
         extra = f" Detected JDK candidate(s): {listed}."
     if os.name == "nt":
+        # Set User JAVA_HOME, refresh $env:JAVA_HOME, then mutate Path with the
+        # literal $jdk value (User-scope set does not update $env:JAVA_HOME).
         return (
             "fix-next: set a JDK "
             f"{required_major}+ home with bin\\java.exe and bin\\javac.exe, then reopen PowerShell "
             "and rerun the ChaosEngine install. PowerShell (User scope): "
-            f"[Environment]::SetEnvironmentVariable('JAVA_HOME','{example}','User'); "
+            f"$jdk='{example}'; "
+            "[Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); "
+            "$env:JAVA_HOME=$jdk; "
             "$p=[Environment]::GetEnvironmentVariable('Path','User'); "
-            "if ($p -notlike ('*'+$env:JAVA_HOME+'\\bin*')) { "
-            "[Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';')+';'+ $env:JAVA_HOME+'\\bin'),'User') }; "
+            "if ($p -notlike ('*'+$jdk+'\\bin*')) { "
+            "[Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';')+';'+$jdk+'\\bin'),'User') }; "
             "then open a new PowerShell, verify with echo $env:JAVA_HOME; java -version; javac -version."
             + extra
         )
@@ -372,6 +396,18 @@ def maven_tools_java_home_fix_next(*, required_major: int, suggested: list[str] 
         "persist it in your shell profile, open a new shell, verify with "
         'echo "$JAVA_HOME"; java -version; javac -version, then rerun the ChaosEngine install.'
         + extra
+    )
+
+
+def maven_tools_wrapper_fix_next() -> str:
+    """Fix-next when the upstream Maven Tools mvnw/mvnw.cmd is missing after clone."""
+    wrapper = "mvnw.cmd" if os.name == "nt" else "mvnw"
+    return (
+        "fix-next: the Maven Tools upstream wrapper "
+        f"({wrapper}) is missing from the cloned source (mvn not resolvable). "
+        "Re-run the ChaosEngine install so the pinned tag is re-cloned; confirm git/network "
+        f"succeed and the tag contains {wrapper}; then rerun install. "
+        "Do not change JDK settings for this failure — repair the wrapper/clone first."
     )
 
 
@@ -448,7 +484,8 @@ def preflight_maven_tools_jdk(
     fix = lambda: maven_tools_java_home_fix_next(required_major=required_major)
     if wrapper is not None and not wrapper.is_file():
         raise ValueError(
-            "Maven Tools upstream wrapper is missing (mvn not resolvable). " + fix()
+            "Maven Tools upstream wrapper is missing (mvn not resolvable). "
+            + maven_tools_wrapper_fix_next()
         )
     java_name = "java.exe" if os.name == "nt" else "java"
     resolve_home = getattr(hosts, "_jdk_home_from_java_binary", None)
@@ -545,7 +582,10 @@ def _build_and_publish_maven_tools(
             raise ValueError("Maven Tools stable tag did not resolve to an immutable commit")
         wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
         if not wrapper.is_file():
-            raise ValueError("Maven Tools upstream wrapper is missing")
+            raise ValueError(
+                "Maven Tools upstream wrapper is missing. "
+                + maven_tools_wrapper_fix_next()
+            )
         if os.name != "nt":
             wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         required_major = _maven_tools_required_major(specification, source)
