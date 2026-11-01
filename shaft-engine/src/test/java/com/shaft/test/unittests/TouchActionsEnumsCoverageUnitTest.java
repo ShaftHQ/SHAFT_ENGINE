@@ -1,4 +1,6 @@
-package com.shaft.gui.element;
+package com.shaft.test.unittests;
+
+import com.shaft.gui.element.TouchActions;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
