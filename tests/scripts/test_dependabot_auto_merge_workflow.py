@@ -33,7 +33,10 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("gh pr list -R", text)
         self.assertIn("GITHUB_REPOSITORY: ${{ github.repository }}", text)
         self.assertIn('repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"', text)
-        self.assertNotIn("actions/checkout", text)
+        # Schedule heal may check out the default branch for the stall predicate;
+        # pull_request_target steps must never check out PR heads.
+        self.assertIn("Checkout default branch for heal predicate (#7704)", text)
+        self.assertIn("persist-credentials: false", text)
 
     def test_every_real_gh_invocation_passes_repo_flag(self) -> None:
         """L74/#7672 residual: strip -R from merge/view must turn RED, not only list."""
@@ -58,6 +61,18 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("Heal merge-queue AWAITING_CHECKS stalls (#7704)", text)
         self.assertIn("dequeuePullRequest", text)
         self.assertIn('dependabot[bot]', text)
+
+    def test_heal_gates_dequeue_on_stall_predicate(self) -> None:
+        """Workflow-guard: dequeue only when merge_queue_awaiting_checks_heal predicts stall."""
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("scripts/ci/merge_queue_awaiting_checks_heal.py", text)
+        self.assertIn("predict --entry-json", text)
+        self.assertIn("event=merge_group", text)
+        self.assertIn("Skipping #$number: stall predicate false", text)
+        # Dequeue must sit after the predicate gate (predict), not before.
+        predict_at = text.index("predict --entry-json")
+        dequeue_at = text.index("dequeuePullRequest")
+        self.assertLess(predict_at, dequeue_at)
 
 
 class ChaosEngineVersionFloorTest(unittest.TestCase):
