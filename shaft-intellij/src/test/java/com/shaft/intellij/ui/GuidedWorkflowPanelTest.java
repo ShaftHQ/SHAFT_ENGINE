@@ -1149,16 +1149,16 @@ class GuidedWorkflowPanelTest {
 
     @Test
     void parseCheckpointStepsCoversMissingFieldsAndNonObjects() {
-        com.google.gson.JsonObject status = new com.google.gson.JsonObject();
-        com.google.gson.JsonArray checkpoints = new com.google.gson.JsonArray();
+        JsonObject status = new JsonObject();
+        JsonArray checkpoints = new JsonArray();
         checkpoints.add("skip");
-        checkpoints.add(new com.google.gson.JsonObject());
-        com.google.gson.JsonObject withOracle = new com.google.gson.JsonObject();
+        checkpoints.add(new JsonObject());
+        JsonObject withOracle = new JsonObject();
         withOracle.addProperty("id", "cp-1");
         withOracle.addProperty("sequence", 3);
         withOracle.addProperty("oracle", "cart empty");
         checkpoints.add(withOracle);
-        com.google.gson.JsonObject withDescription = new com.google.gson.JsonObject();
+        JsonObject withDescription = new JsonObject();
         withDescription.addProperty("id", "cp-2");
         withDescription.addProperty("sequence", 1);
         withDescription.addProperty("kind", "USER_MARKER");
@@ -1166,7 +1166,7 @@ class GuidedWorkflowPanelTest {
         checkpoints.add(withDescription);
         status.add("checkpoints", checkpoints);
 
-        java.util.List<GuidedWorkflowPanel.StepRow> rows = GuidedWorkflowPanel.parseSteps(status);
+        List<GuidedWorkflowPanel.StepRow> rows = GuidedWorkflowPanel.parseSteps(status);
         assertEquals(3, rows.size());
         assertTrue(rows.stream().anyMatch(row -> row.action().contains("SHAFT assertion checkpoint")));
         assertTrue(rows.stream().anyMatch(row -> "cp-2".equals(row.stepId())

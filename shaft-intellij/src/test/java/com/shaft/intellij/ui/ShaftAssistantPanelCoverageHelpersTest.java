@@ -3,9 +3,12 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonObject;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -155,12 +158,12 @@ class ShaftAssistantPanelCoverageHelpersTest {
 
     @Test
     void disposeLivePanelsIsSafeWhenNoPanelsAreRegistered() {
-        ShaftAssistantPanel.disposeLivePanels();
+        assertDoesNotThrow(ShaftAssistantPanel::disposeLivePanels);
     }
 
     @Test
     void toolRunNarrationCoversKnownLongRunningTools() {
-        for (String tool : java.util.List.of(
+        for (String tool : List.of(
                 "capture_generate_replay",
                 "capture_code_blocks",
                 "capture_start",

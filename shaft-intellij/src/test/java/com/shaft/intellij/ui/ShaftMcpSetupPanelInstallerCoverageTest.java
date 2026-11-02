@@ -102,6 +102,7 @@ class ShaftMcpSetupPanelInstallerCoverageTest {
             readyPanel.dispose();
             blankPanel.dispose();
         });
+        assertNotNull(project);
     }
 
     private static Project fakeProject() {

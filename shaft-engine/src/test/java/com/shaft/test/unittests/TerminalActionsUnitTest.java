@@ -949,9 +949,9 @@ public class TerminalActionsUnitTest {
         String echoed = terminal.performTerminalCommand("printf hello-coverage");
         Assert.assertTrue(echoed.contains("hello-coverage"), echoed);
         String withEnv = terminal.performTerminalCommand("printf \"$COVERAGE_MARK\"",
-                java.util.Map.of("COVERAGE_MARK", "env-ok"));
+                Map.of("COVERAGE_MARK", "env-ok"));
         Assert.assertTrue(withEnv.contains("env-ok"), withEnv);
-        String multi = terminal.performTerminalCommands(java.util.List.of("printf a", "printf b"));
+        String multi = terminal.performTerminalCommands(List.of("printf a", "printf b"));
         Assert.assertTrue(multi.contains("a") || multi.contains("b"), multi);
         terminal.close();
     }

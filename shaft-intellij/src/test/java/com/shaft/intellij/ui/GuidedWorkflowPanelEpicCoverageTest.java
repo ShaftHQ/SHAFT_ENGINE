@@ -190,7 +190,7 @@ class GuidedWorkflowPanelEpicCoverageTest {
 
     @Test
     void parseCheckpointStepsCoversNestedAndMalformedLeaves() {
-        com.google.gson.JsonObject status = com.google.gson.JsonParser.parseString("""
+        JsonObject status = com.google.gson.JsonParser.parseString("""
                 {
                   "checkpoints": [
                     {"id":"c1","description":"assert visible","kind":"ASSERTION","sequence":3},
@@ -214,8 +214,8 @@ class GuidedWorkflowPanelEpicCoverageTest {
         var steps = GuidedWorkflowPanel.parseSteps(status);
         assertTrue(steps.stream().anyMatch(s -> "s1".equals(s.stepId())));
         assertTrue(steps.stream().anyMatch(s -> s.risky()));
-        assertEquals(List.of(), GuidedWorkflowPanel.parseCheckpointSteps(new com.google.gson.JsonObject()));
-        assertEquals(List.of(), GuidedWorkflowPanel.parseSteps(new com.google.gson.JsonObject()));
+        assertEquals(List.of(), GuidedWorkflowPanel.parseCheckpointSteps(new JsonObject()));
+        assertEquals(List.of(), GuidedWorkflowPanel.parseSteps(new JsonObject()));
     }
 
     private static void expandAdvanced(GuidedWorkflowPanel panel) {
@@ -275,7 +275,7 @@ class GuidedWorkflowPanelEpicCoverageTest {
 
     @Test
     void parseStepsSkipsNonObjectLeavesAndSortsBySequence() {
-        com.google.gson.JsonObject status = com.google.gson.JsonParser.parseString("""
+        JsonObject status = com.google.gson.JsonParser.parseString("""
                 {
                   "steps": [
                     {"stepId":"later","sequence":9,"action":"type","locatorStrategy":"css","locatorValue":"#q","risky":false},

@@ -161,7 +161,7 @@ class UniqueErrorClustererTest {
     }
 
     @Test
-    void doctorJsonFailuresClusterByFingerprint(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+    void doctorJsonFailuresClusterByFingerprint(@org.junit.jupiter.api.io.TempDir Path temp) throws Exception {
         Path doctor = temp.resolve("doctor.json");
         // Shape mirrors collectDoctorEvidence: fingerprint + failed/broken status on each node.
         Files.writeString(doctor, """
@@ -201,7 +201,7 @@ class UniqueErrorClustererTest {
     }
 
     @Test
-    void malformedDoctorJsonYieldsWarningAndEmptyCluster(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+    void malformedDoctorJsonYieldsWarningAndEmptyCluster(@org.junit.jupiter.api.io.TempDir Path temp) throws Exception {
         Path doctor = temp.resolve("bad.json");
         Files.writeString(doctor, "{not-json");
         ErrorClusterModels.ClusterTable table = UniqueErrorClusterer.cluster(

@@ -241,7 +241,7 @@ class ApiRecordingSessionPanelTest {
     void pinnableLeafTableModelExposesColumnsAndRejectsEditsOutsidePinColumn() {
         ApiRecordingSessionPanel.PinnableLeafTableModel model = new ApiRecordingSessionPanel.PinnableLeafTableModel(
                 List.of(new ApiRecordingSessionPanel.PinnableLeafRow("GET", "https://a", "$.id", "1")),
-                java.util.Set.of());
+                Set.of());
         assertEquals(4, model.getColumnCount());
         assertEquals(1, model.getRowCount());
         assertEquals("Pin", model.getColumnName(0));
@@ -254,7 +254,7 @@ class ApiRecordingSessionPanelTest {
         assertTrue(model.isCellEditable(0, ApiRecordingSessionPanel.PinnableLeafTableModel.PIN_COLUMN));
         assertFalse(model.isCellEditable(0, 1));
         model.setValueAt("ignored", 0, 1);
-        assertEquals(java.util.Set.of(), model.pinnedJsonPaths());
+        assertEquals(Set.of(), model.pinnedJsonPaths());
     }
 
     @Test
