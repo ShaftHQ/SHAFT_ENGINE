@@ -124,5 +124,5 @@ On demand: [catalog](../../chaos-engine/references/catalog.md),
 
 ## Entry coverage
 
-Rules, hooks, skills, and tools stay reachable from this entry, [bot-entry](../../chaos-engine/references/bot-entry.md), and [.agents/skills/README.md](../../.agents/skills/README.md). Gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory: [shaft-skills/INVENTORY.md](../../shaft-skills/INVENTORY.md).
+Rules, hooks, skills, and tools stay reachable from this entry and [bot-entry](../../chaos-engine/references/bot-entry.md). Host specialist + tool routes live in the harness entrypoint `.agents/skills/README.md` (markdown links, not tokens-only). Gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory: `shaft-skills/INVENTORY.md`.
 
