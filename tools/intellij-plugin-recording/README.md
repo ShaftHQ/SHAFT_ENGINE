@@ -1,0 +1,95 @@
+# IntelliJ Plugin Capture Workflow
+
+**Humans:** use this flow to validate the assistant-driven capture path. The plugin itself is [shaft-intellij](../../shaft-intellij/README.md).
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This README is a recording runbook, not policy. Skip it unless the task records or replays the IntelliJ plugin.
+
+Use this flow to validate the assistant-driven e2e capture path. For the
+reproducible headed recording, duplicate-frame processing, verified replay,
+and Drive evidence, follow [RUNBOOK.md](RUNBOOK.md).
+
+## Build
+
+1. Build and verify the latest local IntelliJ plugin from the repository root:
+   - `powershell -NoProfile -ExecutionPolicy Bypass -File tools\intellij-plugin-recording\record-onboarding.ps1`
+   - Checked-in wrapper equivalent on Windows: `shaft-intellij\gradlew.bat -p shaft-intellij check buildPlugin verifyPlugin`
+   - Checked-in wrapper equivalent on macOS/Linux: `./shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin`
+   - On Windows, the script creates a missing `%JAVA_HOME%\Packages` directory before Gradle runs and exits with a clear error if `%JAVA_HOME%` is missing, invalid, or unwritable (this avoids local IntelliJ instrumentation failures seen with Microsoft JDK 21).
+2. Launch the recording IDE in an isolated Gradle IntelliJ sandbox:
+   - Windows: `shaft-intellij\gradlew.bat -p shaft-intellij runIde --args <repo-root>`
+   - macOS/Linux: `./shaft-intellij/gradlew -p shaft-intellij runIde --args <repo-root>`
+   - Fallback: install `shaft-intellij/build/distributions/*.zip` into an isolated IntelliJ sandbox and open `Tools -> SHAFT -> Open SHAFT`.
+
+## Default UI
+
+Regular users see only Assistant and configuration. Guided workflows, direct tool panels, provider routing, cloud settings, provider keys, and source mutation controls require the advanced UI feature flag.
+
+The default assistant route is local. The advanced UI flag is disabled by default and must remain opt-in.
+
+## First-Run Setup
+
+1. Open SHAFT and complete **0 Prerequisites**. Use **Recheck** after installing a missing requirement.
+2. Complete **1 Upgrade project** so the project uses the current modular SHAFT coordinates.
+3. In **2 Choose agent**, pick a route (Codex CLI, Claude Code, Grok CLI, Copilot, Gemini, or SHAFT IntelliJ plugin). The combo starts unselected. Copy and later checks stay disabled until that pick. Codex is selectable, never a default.
+4. In **3 Setup SHAFT Tools & Skills**, click **Copy**, then press Enter in the IntelliJ terminal that opens with the generated command pre-typed. Do not paste a hand-built stdio command into the UI. The plugin never executes the installer.
+5. In **4 Check agent connection**, confirm the selected agent is reachable.
+6. In **5 Check SHAFT agentic tools installation**, confirm SHAFT Agentic Tools (MCP, workspace, skills) are detected.
+7. Confirm the separate **Ready** row appears, then choose **Start chatting** to open SHAFT Assistant.
+
+The [official IntelliJ guide](https://shafthq.github.io/docs/agentic/intellij)
+owns the user-facing setup, screenshots, and failure recovery. This runbook
+owns only the repository-local validation scenario.
+
+## Assistant Browser Control
+
+The Assistant accepts deterministic browser-control prompts from chat. WebDriver is the default backend for `/browser`, `/web`, `/browse`, `/page`, `/inspect`, and `/locator`; Playwright is only used when the prompt explicitly includes `playwright` or `pw`.
+
+Examples:
+
+- `/browser open https://example.com sign in` initializes WebDriver with Chrome, opens the target URL, and returns bounded DOM plus locator candidates.
+- `open https://example.com and inspect the sign in link` follows the same WebDriver sequence from natural language.
+- `/web dom`, `/browse screenshot target/shaft-browser/home.png`, `/browser title`, `/browser url`, `/browser refresh`, `/browser back`, `/browser forward`, `/browser maximize`, `/browser fullscreen`, and `/browser quit` map to the matching WebDriver MCP tools.
+- `/browser playwright open https://example.com` initializes Playwright and navigates only because Playwright was explicitly requested.
+
+Screenshot commands write workspace evidence paths and omit base64 payloads by default.
+
+## Capture Scenario
+
+1. Send `start recording` in Assistant.
+2. Confirm the managed browser opens and remains open.
+3. In the managed browser:
+   - open DuckDuckGo
+   - search for `shaft_engine`
+   - assert the first result title contains `ShaftHQ`
+4. Send `stop` in Assistant.
+5. Review the generated capture code blocks shown in chat.
+6. Approve generation with `approve`, `okay`, or `generate`.
+7. Confirm the local agent writes the generated test/data, refactors browser
+   operations into a Page Object, and passes the focused headed replay.
+
+## Assistant Mobile Recording
+
+The Assistant exposes the mobile recording path from chat without opening Appium Inspector or any external UI on its own. Recording commands default to workspace-contained JSON paths and keep typed values out of persisted actions unless `includeSensitiveValues` is explicitly enabled in the reviewed MCP arguments.
+
+Examples:
+
+- `/mobile-record start recordings/mobile.json` starts an MCP mobile action recording.
+- `/app-record stop` stops the active recording without discarding it; use a reviewed `discard=true` argument only when the recording should be deleted.
+- `/mobile-codegen recordings/mobile.json` and `/mobile-replay recordings/mobile.json` render reusable SHAFT mobile replay snippets from the saved recording path.
+- `/mobile-record inspector Android recordings/inspector.json` prepares a confirmation-ready wrapped Appium Inspector recording plan. The returned confirmation token must be passed to `mobile_inspector_record_start` before Inspector can run.
+- `/inspector-record Android recordings/inspector.json` is an alias for Inspector preparation, not an implicit request to open a browser or desktop Inspector window.
+
+Expected chat output:
+
+- Mobile recording status is summarized with active/stopped state, action count, output path, and whether sensitive values are excluded.
+- Inspector preparation shows readiness, confirmation requirement, device/AVD selection, output path, next steps, warnings, and code blocks without exposing raw capability JSON unless the user asks for raw MCP output.
+- Inspector status shows active/paused state, Appium/Inspector URLs, output path, action count, warnings, and generated replay snippets after stop.
+
+## Expected Behavior
+
+- `start recording` uses a fresh capture output path for each session.
+- `stop` triggers review-only code block generation.
+- File generation waits for approval.
+- Existing valid capture output is cleaned before reuse; invalid output fails with a clear error.
+- Chat bubbles have no speaker labels.
+- Chat session titles are derived from prompt content without speaker labels or local account names.

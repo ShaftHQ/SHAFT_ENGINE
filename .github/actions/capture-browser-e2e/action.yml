@@ -1,0 +1,16 @@
+name: 'Run SHAFT Capture Browser E2E Tests'
+description: >-
+  Runs the headless SHAFT Capture browser E2E suite
+  (ManagedCaptureRecorderBrowserTest, CaptureGeneratedReplayBrowserTest).
+  Callers must install the shaft-capture module and its dependencies first.
+runs:
+  using: 'composite'
+  steps:
+    - name: Run SHAFT Capture browser E2E tests
+      shell: bash
+      run: >-
+        mvn --batch-mode
+        -pl shaft-capture test
+        -DincludeCaptureBrowserE2E
+        -Dtest=ManagedCaptureRecorderBrowserTest,CaptureGeneratedReplayBrowserTest
+        -Dgpg.skip

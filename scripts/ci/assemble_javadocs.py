@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Assemble one publishable JavaDocs site from every Java-bearing SHAFT module."""
+
+from __future__ import annotations
+
+import html
+import shutil
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+NS = {"m": "http://maven.apache.org/POM/4.0.0"}
+MODULES = {
+    "shaft-infrastructure": "Batteries-included setup contracts",
+    "shaft-engine": "Core engine",
+    "shaft-pilot-core": "SHAFT Pilot contracts and security",
+    "shaft-capture": "Deterministic browser capture model",
+    "shaft-capture-proxy": "API capture proxy integration",
+    "shaft-doctor": "Offline deterministic failure diagnosis",
+    "shaft-ai": "Optional direct AI providers",
+    "shaft-heal": "Deterministic explainable element recovery",
+    "shaft-browserstack": "BrowserStack integration",
+    "shaft-video": "Desktop video integration",
+    "shaft-visual": "Visual processing integration",
+    "shaft-ui-match": "CPU-only UI document matching",
+    "shaft-ocr": "Local OCR processing integration",
+    "shaft-sikulix": "SikuliX desktop automation",
+    "shaft-mcp": "Model Context Protocol server",
+    "shaft-cli": "SHAFT command-line tools",
+    "report-aggregate": "Aggregated SHAFT test reports",
+}
+
+
+def reactor_java_modules(root: Path = ROOT) -> list[str]:
+    """Return reactor modules that contain production Java sources."""
+    modules = ET.parse(root / "pom.xml").getroot().findall("m:modules/m:module", namespaces=NS)  # nosec B314 - repository-local Maven metadata
+    return [
+        module.text.strip()
+        for module in modules
+        if module.text and list((root / module.text.strip() / "src" / "main" / "java").rglob("*.java"))
+    ]
+
+
+def project_version(root: Path = ROOT) -> str:
+    value = ET.parse(root / "pom.xml").getroot().findtext("m:version", namespaces=NS)
+    if not value:
+        raise ValueError("root pom.xml does not declare a project version")
+    return value.strip()
+
+
+def assemble_javadocs(root: Path = ROOT, destination: Path | None = None) -> Path:
+    destination = destination or root / "target" / "javadocs"
+    sources = {
+        module: root / module / "target" / "reports" / "apidocs"
+        for module in MODULES
+    }
+    missing = [str(source / "index.html") for source in sources.values() if not (source / "index.html").is_file()]
+    if missing:
+        raise FileNotFoundError("missing module JavaDocs: " + ", ".join(missing))
+
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True)
+
+    links = []
+    for module, label in MODULES.items():
+        shutil.copytree(sources[module], destination / module)
+        links.append(f'<li><a href="{module}/index.html">{html.escape(label)}</a></li>')
+
+    generator_resources = root / "shaft-engine" / "src" / "main" / "javadoc" / "resources"
+    if generator_resources.is_dir():
+        shutil.copytree(
+            generator_resources,
+            destination / "shaft-engine" / "resources",
+            dirs_exist_ok=True,
+        )
+
+    version = html.escape(project_version(root))
+    (destination / "index.html").write_text(
+        "<!doctype html>\n"
+        '<html lang="en"><head><meta charset="utf-8">'
+        f"<title>SHAFT {version} JavaDocs</title></head><body>"
+        f"<h1>SHAFT {version} JavaDocs</h1><ul>{''.join(links)}</ul>"
+        "</body></html>\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
+def main() -> int:
+    destination = assemble_javadocs()
+    print(f"Assembled JavaDocs site: {destination}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

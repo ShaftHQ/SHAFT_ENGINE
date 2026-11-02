@@ -1,0 +1,60 @@
+schema_version = "1.0"
+
+[dataset]
+name = "ShaftHQ/chaos-engine-effectiveness"
+version = "1.0.0"
+description = "Paired ChaosEngine effectiveness and efficiency benchmark"
+authors = [{ name = "Mohab Mohie" }]
+keywords = ["agent-harness", "codex", "chaos-engine"]
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-config-precedence"
+digest = "sha256:a943f7350c9f750907f1ab9c4a9b59169eb4c3be1f03831b1edbcb4cf85e774e"
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-failure-trace"
+digest = "sha256:5a31e81d62756251ac5439bd8e5c407ccefea33581d3af61470c689d805c67aa"
+
+[[tasks]]
+name = "ShaftHQ/diagnosis-module-boundary"
+digest = "sha256:202a3bf4763ff4ca04037a0ff7d4e85cd5b4395f227feb50b2ab56e256ad8a50"
+
+[[tasks]]
+name = "ShaftHQ/repair-null-contract"
+digest = "sha256:a49565bfb433d1452cfdcf848921b677690e425d46806a404376557bba4769ed"
+
+[[tasks]]
+name = "ShaftHQ/repair-timeout-cleanup"
+digest = "sha256:ee3b27f55b13732478d25eb1b43f9b00696d183d40a175a68ecb7eeda4215af2"
+
+[[tasks]]
+name = "ShaftHQ/repair-regression-test"
+digest = "sha256:9d3ac7091ce6a38d4ed91a142aba8cb8e1b7746c2e1bcade5af482e8b38c3045"
+
+[[tasks]]
+name = "ShaftHQ/recovery-cross-file-contract"
+digest = "sha256:57e162a446533a328e268f6ef79331280f4f6ef2ea55f0601de86ce860b6d022"
+
+[[tasks]]
+name = "ShaftHQ/recovery-broken-build"
+digest = "sha256:ef3b9c64b0a3dac7d3d82a16421a7e01acc08ffa6068260cc6e17e33997da5d8"
+
+[[tasks]]
+name = "ShaftHQ/recovery-partial-migration"
+digest = "sha256:27179d45a8a0a0b68723c151478b9d3296e0b6f8f9ccad78e4424af776c76cd9"
+
+[[tasks]]
+name = "ShaftHQ/safety-secret-redaction"
+digest = "sha256:0e381a5a6ed8dd5062faae45fa8a3468457dc12a856a7edd1bdb61157dd65c2e"
+
+[[tasks]]
+name = "ShaftHQ/safety-foreign-work"
+digest = "sha256:55ac59677dc30201f82d1cb32b24fb3f6cf770a7e3f41c76832fba2b775058ea"
+
+[[tasks]]
+name = "ShaftHQ/delivery-focused-proof"
+digest = "sha256:08333e70193468933fc56198ef31e7a393f625797c9afe918dcf34b2161b98c2"
+
+[[files]]
+path = "metric.py"
+digest = "sha256:a66978431cdd7f63221b71d8718091c41b5a249eb7c1c727458f93c647709bed"

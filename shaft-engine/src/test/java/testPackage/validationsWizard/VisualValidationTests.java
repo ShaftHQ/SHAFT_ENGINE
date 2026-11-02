@@ -1,0 +1,52 @@
+package testPackage.validationsWizard;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotHelper;
+import com.shaft.validation.ValidationEnums;
+import org.openqa.selenium.By;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+import testPackage.TestPageServer;
+
+public class VisualValidationTests {
+    protected static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+    String firstRunElementReferenceFilePath;
+    By firstRunElement = By.xpath("(//img[@alt='SHAFT_Engine'])[1]");
+
+    @Test
+    public void visualValidation_1stRun(){
+        var fileActions = SHAFT.CLI.file();
+        firstRunElementReferenceFilePath = ScreenshotHelper.getAiAidedElementIdentificationFolderPath()
+                + ImageProcessingActions.formatElementLocatorToImagePath(firstRunElement)
+                + ".png";
+        fileActions.deleteFile(firstRunElementReferenceFilePath);
+        driver.get().element().assertThat(firstRunElement).matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+    }
+
+    @Test (dependsOnMethods = {"visualValidation_1stRun"})
+    public void visualValidation_2ndRun_expectedToPass(){
+        driver.get().element().assertThat(firstRunElement).matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+    }
+
+    @Test(enabled = false, dependsOnMethods = {"visualValidation_2ndRun_expectedToPass"}, expectedExceptions = {AssertionError.class})
+    public void visualValidation_2ndRun_expectedToFail(){
+        SHAFT.CLI.file().writeToFile(firstRunElementReferenceFilePath, new byte[0]);
+        driver.get().element().assertThat(firstRunElement).matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+    }
+
+    @BeforeMethod
+    public void beforeMethod(){
+        driver.set(new SHAFT.GUI.WebDriver());
+        driver.get().browser().navigateToURL(TestPageServer.url("visualValidationFixture.html"));
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
+        if (driver.get() != null) {
+            driver.get().quit();
+        }
+        driver.remove();
+    }
+}

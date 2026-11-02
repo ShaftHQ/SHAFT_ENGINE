@@ -1,0 +1,246 @@
+{
+ "title": "tech",
+ "audience": "technical",
+ "targetDuration": 218.8,
+ "aspect": [
+  "16:9"
+ ],
+ "scenes": [
+  {
+   "id": "t01",
+   "beat": "hook",
+   "pad": 0.8,
+   "duration": 5.0,
+   "visual": "code card (JetBrains Mono, 40 px+): the three SHAFT lines type in; chips 'waits', 'screenshots', 'report' snap beside them. Source: guide features/modules",
+   "vo": "Three lines of Java. Waits, screenshots and a report included.",
+   "lines": [
+    "k01"
+   ],
+   "onScreenText": "Waits, screenshots, report included",
+   "textHold": 5.0,
+   "asset": "scenes/t01.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "three-line SHAFT test",
+     "evidence": "https://shafthq.github.io/docs/features/modules#underlying-technology"
+    }
+   ]
+  },
+  {
+   "id": "t02",
+   "beat": "problem",
+   "pad": 3.0,
+   "duration": 22.9,
+   "visual": "plain Selenium version scrolls by: WebDriverWait, screenshot helper, Allure wiring, a separate REST client; each block labelled",
+   "vo": "In plain Selenium, the same test needs an explicit wait, a screenshot helper, report wiring, and a separate client for API calls. Every team writes that plumbing, and every copy drifts. Measured on the same test, that is 44 lines in plain Selenium, and 17 with SHAFT.",
+   "lines": [
+    "k02",
+    "k03",
+    "k03b"
+   ],
+   "onScreenText": "Plain Selenium: plumbing every team writes",
+   "textHold": 22.9,
+   "asset": "scenes/t02.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "44 vs 17 lines, same test, both compiled and passing",
+     "evidence": "capture/p14.json (non-blank, non-import lines; plain LoginTest 44, LoginShaftTest 17; both mvn clean test pass)"
+    }
+   ]
+  },
+  {
+   "id": "t03",
+   "beat": "solution",
+   "pad": 7.0,
+   "duration": 32.1,
+   "visual": "chapter 'One API': facade tree SHAFT -> GUI.WebDriver, API, DB, CLI, TestData; each node shows a one-line real call",
+   "vo": "SHAFT puts every surface behind one entry point. SHAFT.GUI.WebDriver drives browsers and Appium apps. SHAFT.API wraps REST Assured. SHAFT.DB and SHAFT.CLI cover databases and terminals. Test data comes from JSON, Excel, CSV or YAML files, and every check uses the same assertThat style.",
+   "lines": [
+    "k04",
+    "k05",
+    "k06"
+   ],
+   "onScreenText": "One entry point: GUI, API, DB, CLI",
+   "textHold": 32.1,
+   "asset": "scenes/t03.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "SHAFT facade classes",
+     "evidence": "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java (GUI, API, CLI, DB, TestData) + https://shafthq.github.io/docs/features/modules"
+    },
+    {
+     "text": "test data from JSON, Excel, CSV, YAML",
+     "evidence": "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java (TestData JSON/EXCEL/CSV/YAML)"
+    }
+   ]
+  },
+  {
+   "id": "t04",
+   "beat": "solution",
+   "pad": 5.0,
+   "duration": 33.0,
+   "visual": "chapter 'Reliability': timeline of a page load; markers for element retry, 300 ms quiet window, waitUntil on 'Complete'; role locator line",
+   "vo": "SHAFT handles timing for you. Every element action retries until the element is ready, up to a timeout you configure. After navigation, it waits for the page to go quiet: 300 milliseconds without changes, by default. For business states, like an order status turning complete, you wait on that condition explicitly. Retries are opt-in and bounded, and locators can target accessible roles and visible text.",
+   "lines": [
+    "k07",
+    "k08",
+    "k09",
+    "k10",
+    "k11"
+   ],
+   "onScreenText": "Retries until ready, waits for quiet",
+   "textHold": 33.0,
+   "asset": "scenes/t04.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "element retry with configurable timeout; 300 ms DOM quiet window; waitUntil",
+     "evidence": "https://shafthq.github.io/docs/reference/actions/GUI/Waits_And_Synchronization"
+    }
+   ]
+  },
+  {
+   "id": "t05",
+   "beat": "solution",
+   "pad": 7.0,
+   "duration": 27.8,
+   "visual": "chapter 'Evidence': real Allure report capture; steps expand; a failed test opens the diagnostics zip and trace viewer",
+   "vo": "Every action becomes an Allure step. Failures get screenshots by default, and validation points can get them too. When a test fails, SHAFT attaches a diagnostics bundle and a trace with the DOM, network and console evidence it collected. So the report explains the failure, not just the stack trace.",
+   "lines": [
+    "k12",
+    "k13",
+    "k14"
+   ],
+   "onScreenText": "Allure step, diagnostics bundle, trace",
+   "textHold": 27.8,
+   "asset": "scenes/t05.html",
+   "source": "capture",
+   "claims": [
+    {
+     "text": "Allure steps, screenshots, diagnostics bundle, trace viewer",
+     "evidence": "https://shafthq.github.io/docs/features/reporting"
+    }
+   ]
+  },
+  {
+   "id": "t06",
+   "beat": "solution",
+   "pad": 5.0,
+   "duration": 30.4,
+   "visual": "chapter 'Scale': one properties line, executionAddress, cycles local -> Docker -> Grid -> BrowserStack -> LambdaTest; browser chips run side by side; runner chips; backend switch WebDriver <-> Playwright",
+   "vo": "Where tests run is configuration, not code. Change the execution address, and the same class runs locally, in Docker, on a Selenium Grid, or on BrowserStack and LambdaTest. Cross browser mode can run one class on Chrome, Firefox and Safari in parallel with Docker. Use TestNG, JUnit or Cucumber, and switch the browser backend to Playwright without rewriting your SHAFT steps.",
+   "lines": [
+    "k15",
+    "k16",
+    "k17",
+    "k18"
+   ],
+   "onScreenText": "Configuration, not code",
+   "textHold": 30.4,
+   "asset": "scenes/t06.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "executionAddress targets, CrossBrowserMode",
+     "evidence": "https://shafthq.github.io/docs/features/test-automation-pillars#scalability"
+    },
+    {
+     "text": "Playwright backend, same SHAFT steps",
+     "evidence": "https://shafthq.github.io/docs/reference/actions/GUI/Playwright_Backend"
+    }
+   ]
+  },
+  {
+   "id": "t07",
+   "beat": "proof",
+   "pad": 0.5,
+   "duration": 24.7,
+   "visual": "chapter 'Migrate': real terminal capture of the upgrader on a sample Selenium project: baseline compile, BOM added, compile passes; inset shows the rollback guarantee",
+   "vo": "Already have a Selenium suite? Run the upgrader. It compiles your project first, adds the SHAFT bill of materials and engine, and keeps your existing tests as they are. If the build fails afterwards, every touched file is restored, byte for byte. When you are ready, session and full modes rewrite Selenium code inside the same safe transaction.",
+   "lines": [
+    "k19",
+    "k20",
+    "k21",
+    "k22"
+   ],
+   "onScreenText": "Compiles first, every touched file restored",
+   "textHold": 24.7,
+   "asset": "scenes/t07.html",
+   "source": "capture",
+   "claims": [
+    {
+     "text": "compile baseline, keeps tests, byte-for-byte rollback, session/full modes",
+     "evidence": "https://shafthq.github.io/docs/start/upgrade/how-it-works"
+    }
+   ]
+  },
+  {
+   "id": "t08",
+   "beat": "proof",
+   "pad": 4.0,
+   "duration": 24.8,
+   "visual": "chapter 'Agentic, optional': three cards Capture / Doctor / Heal with their real output file names; an empty 'AI provider' socket; IDE and MCP icons as text labels",
+   "vo": "The agentic tools are optional, and they work without an AI provider. Capture records a flow and generates compiling test code. Doctor diagnoses failed runs offline. Heal recovers changed locators and explains every choice. The same tools reach IntelliJ through a plugin, and any agent through MCP.",
+   "lines": [
+    "k23",
+    "k24",
+    "k25"
+   ],
+   "onScreenText": "Capture, Doctor, Heal: without an AI provider",
+   "textHold": 24.8,
+   "asset": "scenes/t08.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "no-AI lane",
+     "evidence": "https://shafthq.github.io/docs/agentic/overview"
+    },
+    {
+     "text": "Heal explainable recovery",
+     "evidence": "https://shafthq.github.io/docs/agentic/heal"
+    },
+    {
+     "text": "Doctor offline",
+     "evidence": "https://shafthq.github.io/docs/agentic/doctor"
+    },
+    {
+     "text": "Capture compile-validated codegen",
+     "evidence": "https://shafthq.github.io/docs/agentic/capture"
+    },
+    {
+     "text": "IntelliJ plugin, MCP",
+     "evidence": "https://shafthq.github.io/docs/agentic/intellij"
+    }
+   ]
+  },
+  {
+   "id": "t09",
+   "beat": "cta",
+   "pad": 2.0,
+   "duration": 18.1,
+   "visual": "end card: MIT, since 2018, 216 releases; terminal line 'mvn test'; URL; footer 'Narration: synthetic voice'",
+   "vo": "SHAFT is MIT licensed and built in public since 2018, with 216 releases. Generate a project at shafthq.github.io, run mvn test, and read your first report.",
+   "lines": [
+    "k26",
+    "k27"
+   ],
+   "onScreenText": "shafthq.github.io, then mvn test",
+   "textHold": 18.1,
+   "asset": "scenes/t09.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "MIT, since 2018, 216 releases",
+     "evidence": "GitHub API 2026-10-08: licence MIT, created 2018-07-15, 216 product releases, 62 contributors (refresh at render)"
+    },
+    {
+     "text": "generator + mvn test",
+     "evidence": "https://shafthq.github.io/docs/start/overview"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,951 @@
+package com.shaft.mcp;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.infrastructure.AndroidSetupRequest;
+import com.shaft.infrastructure.AndroidSetupPlanner;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.ManagedEnvironment;
+import com.shaft.infrastructure.SetupApproval;
+import com.shaft.infrastructure.SetupMode;
+import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupPlan;
+import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.ShaftCachePaths;
+import com.shaft.properties.internal.PropertiesHelper;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+/**
+ * Discovers and bootstraps the local Appium and Android toolchain for MCP sessions.
+ */
+final class McpMobileToolchainService {
+    private static final Duration QUICK_TIMEOUT = Duration.ofSeconds(12);
+    private static final Duration INSTALL_TIMEOUT = Duration.ofMinutes(20);
+    private static final Pattern DEVICE_NAME = Pattern.compile("\\bmodel:([^\\s]+)");
+
+    // Cached property values to avoid repeated null checks in bare MCP processes
+    private static volatile boolean propertiesInitialized = false;
+    private static volatile String cachedNodeLtsVersion;
+    private static volatile String cachedAppiumServerVersion;
+    private static volatile String cachedAppiumInspectorPluginVersion;
+    private static volatile String cachedAppiumUiAutomator2DriverVersion;
+    private static volatile String cachedAppiumXcuitestDriverVersion;
+    private static volatile String cachedAndroidCommandLineToolsVersion;
+    private static volatile int cachedAndroidEmulatorApiLevel;
+    private static volatile String cachedAndroidEmulatorDeviceProfile;
+    private static volatile String cachedAndroidEmulatorImageTag;
+    private static volatile int cachedAndroidEmulatorRamMb;
+    private static volatile int cachedAndroidEmulatorCores;
+
+    private final McpProcessRunner runner;
+    private final Map<String, String> environment;
+    private final Path toolRoot;
+    private final String osName;
+    private final String osArch;
+    private final HttpClient httpClient;
+    private final AndroidSetupOwner androidSetupOwner;
+
+    McpMobileToolchainService() {
+        this(McpProcessRunner.system(), System.getenv(), McpRuntimePaths.applicationDataRoot().resolve("tools"),
+                System.getProperty("os.name", ""), System.getProperty("os.arch", ""),
+                new InfrastructureAndroidSetupOwner(ShaftCachePaths.current()));
+    }
+
+    McpMobileToolchainService(
+            McpProcessRunner runner,
+            Map<String, String> environment,
+            Path toolRoot,
+            String osName,
+            String osArch) {
+        this(runner, environment, toolRoot, osName, osArch,
+                new InfrastructureAndroidSetupOwner(setupPaths(toolRoot)));
+    }
+
+    McpMobileToolchainService(
+            McpProcessRunner runner,
+            Map<String, String> environment,
+            Path toolRoot,
+            String osName,
+            String osArch,
+            AndroidSetupOwner androidSetupOwner) {
+        ensurePropertiesInitialized();
+        this.runner = runner;
+        this.environment = environment == null ? Map.of() : Map.copyOf(environment);
+        this.toolRoot = toolRoot.toAbsolutePath().normalize();
+        this.osName = osName == null ? "" : osName;
+        this.osArch = osArch == null ? "" : osArch;
+        this.androidSetupOwner = java.util.Objects.requireNonNull(androidSetupOwner, "androidSetupOwner");
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(30))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+    }
+
+    private static List<String> initialWarnings(boolean sharedAndroid) {
+        List<String> warnings = new ArrayList<>();
+        if (sharedAndroid) {
+            warnings.addAll(McpEmulatorMemoryProbe.currentWarnings());
+        }
+        return warnings;
+    }
+
+    private static void addIfMissing(List<String> missing, boolean present, String tool) {
+        if (!present) {
+            missing.add(tool);
+        }
+    }
+
+    private List<String> missingTools(String platform, Optional<Path> node, Optional<Path> npm, Optional<Path> appium,
+                                      boolean inspector, Optional<Path> adb, Optional<Path> emulator,
+                                      Optional<Path> sdkManager, Optional<Path> avdManager) {
+        List<String> missing = new ArrayList<>();
+        addIfMissing(missing, node.isPresent(), "node");
+        addIfMissing(missing, npm.isPresent(), "npm");
+        addIfMissing(missing, appium.isPresent(), "appium@" + appiumServerVersion());
+        addIfMissing(missing, inspector, "appium-inspector-plugin@" + appiumInspectorPluginVersion());
+        if ("Android".equals(platform)) {
+            addIfMissing(missing, adb.isPresent(), "android platform-tools");
+            addIfMissing(missing, emulator.isPresent(), "android emulator");
+            addIfMissing(missing, sdkManager.isPresent(), "android sdkmanager");
+            addIfMissing(missing, avdManager.isPresent(), "android avdmanager");
+        }
+        return missing;
+    }
+
+    McpMobileToolchainStatus status(String platformName) {
+        String platform = normalizePlatform(platformName);
+        boolean sharedAndroid = "Android".equals(platform);
+        Path androidSdkRoot = statusAndroidSdkRoot(sharedAndroid);
+        Path androidAvdHome = statusAndroidAvdHome(sharedAndroid);
+        Path managedAppiumRoot = toolRoot.resolve("appium").resolve(appiumServerVersion());
+        Path legacyAppiumRoot = appiumRoot();
+        Path appiumRoot = sharedAndroid ? managedAppiumRoot : legacyAppiumRoot;
+        List<Path> nodeBins = sharedAndroid ? List.of(managedNodeBin(), nodeBin()) : List.of(nodeBin());
+        List<String> warnings = initialWarnings(sharedAndroid);
+
+        Optional<Path> node = resolveExecutable("node", nodeBins);
+        Optional<Path> npm = resolveExecutable("npm", nodeBins);
+        List<Path> appiumBins = sharedAndroid
+                ? List.of(managedAppiumRoot.resolve("node_modules/.bin"), appiumBin()) : List.of(appiumBin());
+        Optional<Path> appium = resolveExecutable("appium", appiumBins);
+        if (sharedAndroid && appium.isPresent()
+                && !appium.orElseThrow().startsWith(managedAppiumRoot.toAbsolutePath().normalize())
+                && appium.orElseThrow().startsWith(legacyAppiumRoot.toAbsolutePath().normalize())) {
+            appiumRoot = legacyAppiumRoot;
+        }
+        Path statusAppiumRoot = appiumRoot;
+        Optional<Path> adb = resolveExecutable("adb", List.of(androidSdkRoot.resolve("platform-tools")));
+        Optional<Path> emulator = resolveExecutable("emulator", List.of(androidSdkRoot.resolve("emulator")));
+        Optional<Path> sdkManager = resolveExecutable("sdkmanager", List.of(androidSdkRoot.resolve("cmdline-tools")
+                .resolve("latest").resolve("bin")));
+        Optional<Path> avdManager = resolveExecutable("avdmanager", List.of(androidSdkRoot.resolve("cmdline-tools")
+                .resolve("latest").resolve("bin")));
+        Path inspectorPluginPath = statusAppiumRoot.resolve("node_modules").resolve("appium-inspector-plugin");
+
+        List<McpMobileDevice> devices = adb.map(value -> androidDevices(value, androidSdkRoot, androidAvdHome))
+                .orElseGet(() -> {
+            warnings.add("adb was not found on PATH or in the SHAFT-managed Android SDK cache.");
+            return List.of();
+        });
+        List<String> avds = cachedAndroidEmulators(emulator.orElse(null), androidSdkRoot, androidAvdHome);
+        boolean inspector = appium.filter(value -> hasInspectorPlugin(value, statusAppiumRoot,
+                        androidSdkRoot, androidAvdHome)).isPresent()
+                || Files.isDirectory(inspectorPluginPath);
+        String detectedAppiumVersion = appiumVersion(appium.orElse(null), statusAppiumRoot,
+                androidSdkRoot, androidAvdHome);
+        List<McpMobileToolchainDiagnostic> diagnostics = diagnostics(platform, androidSdkRoot, statusAppiumRoot,
+                node, npm,
+                appium, inspector, inspectorPluginPath, adb, emulator, sdkManager, avdManager, detectedAppiumVersion);
+
+        List<String> missing = missingTools(platform, node, npm, appium, inspector, adb, emulator, sdkManager,
+                avdManager);
+
+        return new McpMobileToolchainStatus(
+                platform,
+                node.isPresent(),
+                npm.isPresent(),
+                appium.isPresent(),
+                inspector,
+                adb.isPresent(),
+                emulator.isPresent(),
+                sdkManager.isPresent(),
+                avdManager.isPresent(),
+                toolRoot,
+                androidSdkRoot,
+                androidAvdHome,
+                statusAppiumRoot,
+                detectedAppiumVersion,
+                appiumInspectorPluginVersion(),
+                devices,
+                avds,
+                missing,
+                warnings,
+                diagnostics);
+    }
+
+    private List<McpMobileToolchainDiagnostic> diagnostics(
+            String platform,
+            Path androidSdkRoot,
+            Path appiumRoot,
+            Optional<Path> node,
+            Optional<Path> npm,
+            Optional<Path> appium,
+            boolean inspector,
+            Path inspectorPluginPath,
+            Optional<Path> adb,
+            Optional<Path> emulator,
+            Optional<Path> sdkManager,
+            Optional<Path> avdManager,
+            String detectedAppiumVersion) {
+        List<McpMobileToolchainDiagnostic> diagnostics = new ArrayList<>();
+        diagnostics.add(dependency("node", node, "",
+                "node was not found on PATH or in the SHAFT-managed Node.js cache.",
+                "Install Node.js " + nodeLtsVersion()
+                        + " and ensure `node` is on PATH, or let SHAFT prepare its portable Node.js cache."));
+        diagnostics.add(dependency("npm", npm, "",
+                "npm was not found on PATH or in the SHAFT-managed Node.js cache.",
+                "Install npm with Node.js " + nodeLtsVersion()
+                        + " and ensure `npm` is on PATH."));
+        diagnostics.add(dependency("appium", appium, detectedAppiumVersion,
+                "Appium was not found on PATH or in the SHAFT-managed Appium cache.",
+                "Run `npm --prefix " + appiumRoot + " install appium@"
+                        + appiumServerVersion() + " appium-inspector-plugin@"
+                        + appiumInspectorPluginVersion() + "`."));
+        String inspectorPath = Files.isDirectory(inspectorPluginPath)
+                ? inspectorPluginPath.toString()
+                : appium.map(Path::toString).orElse("");
+        diagnostics.add(new McpMobileToolchainDiagnostic(
+                "appium-inspector-plugin",
+                inspector,
+                inspector ? inspectorPath : "",
+                "",
+                inspector ? "" : "Appium Inspector plugin was not reported by Appium or found in the SHAFT cache.",
+                inspector ? "" : "Run `appium plugin install --source=npm appium-inspector-plugin@"
+                        + appiumInspectorPluginVersion() + "`."));
+        if ("Android".equals(platform)) {
+            diagnostics.add(dependency("adb", adb, "",
+                    "adb was not found on PATH or under " + androidSdkRoot.resolve("platform-tools") + ".",
+                    "Install Android platform-tools with `sdkmanager --sdk_root=" + androidSdkRoot
+                            + " platform-tools`."));
+            diagnostics.add(dependency("android-emulator", emulator, "",
+                    "Android emulator was not found on PATH or under " + androidSdkRoot.resolve("emulator") + ".",
+                    "Install Android Emulator with `sdkmanager --sdk_root=" + androidSdkRoot + " emulator`."));
+            diagnostics.add(dependency("android-sdkmanager", sdkManager, "",
+                    "Android sdkmanager was not found on PATH or under "
+                            + androidSdkRoot.resolve("cmdline-tools").resolve("latest").resolve("bin") + ".",
+                    "Install Android command-line tools under " + androidSdkRoot.resolve("cmdline-tools")
+                            .resolve("latest") + " so sdkmanager is available."));
+            diagnostics.add(dependency("android-avdmanager", avdManager, "",
+                    "Android avdmanager was not found on PATH or under "
+                            + androidSdkRoot.resolve("cmdline-tools").resolve("latest").resolve("bin") + ".",
+                    "Install Android command-line tools under " + androidSdkRoot.resolve("cmdline-tools")
+                            .resolve("latest") + " so avdmanager is available."));
+        }
+        if ("iOS".equals(platform)) {
+            boolean mac = isMac();
+            diagnostics.add(new McpMobileToolchainDiagnostic(
+                    "ios-host",
+                    mac,
+                    "",
+                    mac ? text(osName) : "",
+                    mac ? "" : "iOS Appium recording requires macOS; current OS is " + text(osName) + ".",
+                    mac ? "" : "Run iOS Inspector recording on macOS with Xcode command-line tools and a reachable "
+                            + "iOS simulator or device."));
+        }
+        return List.copyOf(diagnostics);
+    }
+
+    private McpMobileToolchainDiagnostic dependency(
+            String dependencyId,
+            Optional<Path> executable,
+            String detectedVersion,
+            String failureCause,
+            String repairGuidance) {
+        boolean available = executable.isPresent();
+        return new McpMobileToolchainDiagnostic(
+                dependencyId,
+                available,
+                available ? executable.get().toString() : "",
+                available ? detectedVersion : "",
+                available ? "" : failureCause,
+                available ? "" : repairGuidance);
+    }
+
+    McpAndroidEmulatorProposal defaultAndroidProposal(
+            String avdName,
+            int apiLevel,
+            String deviceProfile,
+            String imageTag,
+            String abi,
+            int ramMb,
+            int cores) {
+        int resolvedApiLevel = apiLevel > 0 ? apiLevel : androidEmulatorApiLevel();
+        String resolvedDevice = defaultText(deviceProfile, androidEmulatorDeviceProfile());
+        String resolvedTag = defaultText(imageTag, androidEmulatorImageTag());
+        String resolvedAbi = defaultText(abi, hostAndroidAbi());
+        String resolvedName = defaultText(avdName, "shaft_pixel_8_api_" + resolvedApiLevel + "_"
+                + resolvedAbi.replace('-', '_'));
+        int resolvedRam = ramMb > 0 ? ramMb : androidEmulatorRamMb();
+        int resolvedCores = cores > 0 ? cores : androidEmulatorCores();
+        Path sdkRoot = androidSetupOwner.sdkRoot(resolvedApiLevel, resolvedAbi);
+        Path avdHome = androidSetupOwner.avdHome();
+        String imagePackage = "system-images;android-" + resolvedApiLevel + ";" + resolvedTag + ";" + resolvedAbi;
+        List<String> packages = List.of(
+                "platform-tools",
+                "emulator",
+                "platforms;android-" + resolvedApiLevel,
+                "build-tools;" + AndroidSetupPlanner.BUILD_TOOLS_VERSION,
+                imagePackage);
+        List<String> commands = List.of(
+                commandLineToolsUrl(),
+                "sdkmanager --sdk_root=" + sdkRoot + " " + String.join(" ", quotePackages(packages)),
+                "avdmanager create avd --force --name " + resolvedName + " --package " + quote(imagePackage)
+                        + " --device " + resolvedDevice,
+                "emulator -avd " + resolvedName
+                        + " -no-snapshot-save"
+                        + " # -no-snapshot-save is not a cold boot;"
+                        + " a snapshot or renderer mismatch retries once with -no-snapshot-load;"
+                        + " recycle cadence is pressure-or-wedge");
+        return new McpAndroidEmulatorProposal(
+                resolvedName,
+                resolvedDevice,
+                resolvedApiLevel,
+                resolvedTag,
+                resolvedAbi,
+                resolvedRam,
+                resolvedCores,
+                sdkRoot,
+                avdHome,
+                packages,
+                commands,
+                List.of(
+                        "The Android SDK and AVD are installed under the current user's SHAFT MCP cache.",
+                        "Confirming this proposal lets SHAFT pass Android SDK package license prompts for these packages."));
+    }
+
+    void ensureAppium(String platformName) {
+        String platform = normalizePlatform(platformName);
+        if ("Android".equals(platform)) {
+            return;
+        }
+        Path npm = ensureNpm();
+        try {
+            Files.createDirectories(appiumRoot());
+            runChecked(List.of(npm.toString(), "--prefix", appiumRoot().toString(), "install",
+                    "appium@" + appiumServerVersion(),
+                    "appium-inspector-plugin@" + appiumInspectorPluginVersion()),
+                    appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "Appium npm install failed.");
+            Path appium = appiumCommand();
+            runChecked(List.of(appium.toString(), "driver", "install", "--source=npm",
+                    "appium-uiautomator2-driver@" + appiumUiAutomator2DriverVersion()),
+                    appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "UiAutomator2 driver install failed.");
+            if ("iOS".equals(platform) && isMac()) {
+                runChecked(List.of(appium.toString(), "driver", "install", "--source=npm",
+                        "appium-xcuitest-driver@" + appiumXcuitestDriverVersion()),
+                        appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "XCUITest driver install failed.");
+            }
+            runChecked(List.of(appium.toString(), "plugin", "install", "--source=npm",
+                    "appium-inspector-plugin@" + appiumInspectorPluginVersion()),
+                    appiumRoot(), appiumEnvironment(), INSTALL_TIMEOUT, "Appium Inspector plugin install failed.");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Appium tool cache could not be prepared.", exception);
+        }
+    }
+
+    void ensureAndroidEmulator(McpAndroidEmulatorProposal proposal) {
+        if (proposal == null) {
+            throw new IllegalArgumentException("Android emulator proposal is required.");
+        }
+        try {
+            androidSetupOwner.install(proposal);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Shared Android setup could not be installed.", exception);
+        }
+    }
+
+    ManagedEnvironment startAndroidRuntime(McpAndroidEmulatorProposal proposal) {
+        if (proposal == null) {
+            throw new IllegalArgumentException("Android emulator proposal is required.");
+        }
+        try {
+            return androidSetupOwner.start(proposal);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Shared Android runtime could not be started.", exception);
+        }
+    }
+
+    interface AndroidSetupOwner {
+        Path sdkRoot(int apiLevel, String abi);
+        Path avdHome();
+        void install(McpAndroidEmulatorProposal proposal) throws IOException;
+        ManagedEnvironment start(McpAndroidEmulatorProposal proposal) throws IOException;
+    }
+
+    private static final class InfrastructureAndroidSetupOwner implements AndroidSetupOwner {
+        private final ShaftCachePaths paths;
+        private final InfrastructureSetupService coordinator = InfrastructureSetupService.builtIn();
+
+        private InfrastructureAndroidSetupOwner(ShaftCachePaths paths) {
+            this.paths = paths;
+        }
+
+        @Override
+        public Path sdkRoot(int apiLevel, String abi) {
+            return paths.tools().resolve("android-sdk").resolve(AndroidSetupPlanner.COMMAND_LINE_TOOLS_VERSION
+                    + "-api" + apiLevel + '-' + abi);
+        }
+
+        @Override
+        public Path avdHome() {
+            return paths.tools().resolve("android-avd");
+        }
+
+        @Override
+        public void install(McpAndroidEmulatorProposal proposal) throws IOException {
+            PreparedAndroidSetup setup = prepare(proposal);
+            coordinator.install(setup.plan(), setup.approval(), setup.options(), setup.request());
+        }
+
+        @Override
+        public ManagedEnvironment start(McpAndroidEmulatorProposal proposal) throws IOException {
+            PreparedAndroidSetup setup = prepare(proposal);
+            coordinator.install(setup.plan(), setup.approval(), setup.options(), setup.request());
+            return coordinator.start(setup.plan(), setup.approval(), setup.options(), setup.request());
+        }
+
+        private PreparedAndroidSetup prepare(McpAndroidEmulatorProposal proposal) {
+            AndroidSetupRequest request = new AndroidSetupRequest(proposal.apiLevel(), proposal.deviceProfile(),
+                    proposal.imageTag(), proposal.abi(), proposal.avdName(), proposal.ramMb(), proposal.cores(),
+                    AndroidSetupPlanner.APPIUM_PORT);
+            SetupOptions options = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, paths)
+                    .withMode(SetupMode.MANAGED);
+            SetupPlan plan = coordinator.plan(options, request);
+            SetupApproval approval = new SetupApproval(plan.digest(), Instant.now(),
+                    Set.of(AndroidSetupPlanner.ANDROID_SDK_LICENSE));
+            return new PreparedAndroidSetup(request, options, plan, approval);
+        }
+
+        private record PreparedAndroidSetup(AndroidSetupRequest request, SetupOptions options, SetupPlan plan,
+                                            SetupApproval approval) { }
+    }
+
+    private static ShaftCachePaths setupPaths(Path toolRoot) {
+        Path tools = toolRoot.toAbsolutePath().normalize();
+        Path data = java.util.Objects.requireNonNullElse(tools.getParent(), tools);
+        Path cache = data.resolve("cache");
+        return new ShaftCachePaths(cache, data, cache.resolve("downloads"), tools,
+                data.resolve("state"), data.resolve("receipts"));
+    }
+
+    Process startAppiumServer(int port) {
+        Path appium = appiumCommand();
+        return runner.start(List.of(
+                appium.toString(),
+                "--address", "127.0.0.1",
+                "--port", String.valueOf(port),
+                "--use-plugins=inspector"),
+                appiumRoot(), appiumEnvironment());
+    }
+
+    String newConfirmationToken() {
+        return UUID.randomUUID().toString();
+    }
+
+    Path appiumCommand() {
+        return resolveExecutable("appium", List.of(appiumBin()))
+                .orElse(appiumBin().resolve(isWindows() ? "appium.cmd" : "appium"));
+    }
+
+    private Path ensureNpm() {
+        Optional<Path> npm = resolveExecutable("npm", List.of(nodeBin()));
+        if (npm.isPresent()) {
+            return npm.get();
+        }
+        downloadPortableNode();
+        return resolveExecutable("npm", List.of(nodeBin()))
+                .orElseThrow(() -> new IllegalStateException("npm was not found after portable Node.js setup."));
+    }
+
+    private void downloadPortableNode() {
+        String archiveName = nodeArchiveName();
+        String extension = isWindows() ? ".zip" : isMac() ? ".tar.gz" : ".tar.xz";
+        Path archive = toolRoot.resolve("downloads").resolve(archiveName + extension);
+        Path target = toolRoot.resolve("node").resolve(archiveName);
+        if (Files.isDirectory(target)) {
+            return;
+        }
+        try {
+            Files.createDirectories(archive.getParent());
+            download("https://nodejs.org/dist/v" + nodeLtsVersion() + "/"
+                    + archiveName + extension, archive);
+            Files.createDirectories(target.getParent());
+            if (isWindows()) {
+                Path temp = target.getParent().resolve(archiveName + "-extract");
+                unzip(archive, temp);
+                deleteIfExists(target);
+                Files.move(temp.resolve(archiveName), target, StandardCopyOption.REPLACE_EXISTING);
+                deleteIfExists(temp);
+            } else {
+                runChecked(List.of("tar", "-xf", archive.toString(), "-C", target.getParent().toString()),
+                        target.getParent(), environment, INSTALL_TIMEOUT, "Portable Node.js archive extraction failed.");
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Portable Node.js could not be downloaded.", exception);
+        }
+    }
+
+    private void download(String url, Path target) throws IOException {
+        if (Files.isRegularFile(target) && Files.size(target) > 0) {
+            return;
+        }
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMinutes(5))
+                .GET()
+                .build();
+        try {
+            HttpResponse<Path> response = httpClient.send(request, HttpResponse.BodyHandlers.ofFile(target));
+            if (response.statusCode() / 100 != 2) {
+                Files.deleteIfExists(target);
+                throw new IOException("Download failed with HTTP " + response.statusCode() + ": " + url);
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Download interrupted: " + url, exception);
+        }
+    }
+
+    private void unzip(Path zip, Path target) throws IOException {
+        Files.createDirectories(target);
+        try (ZipInputStream input = new ZipInputStream(Files.newInputStream(zip))) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                Path output = target.resolve(entry.getName()).normalize();
+                if (!output.startsWith(target)) {
+                    throw new IOException("Zip entry escapes target: " + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(output);
+                } else {
+                    Files.createDirectories(output.getParent());
+                    Files.copy(input, output, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
+    }
+
+    private void runChecked(
+            List<String> command,
+            Path workingDirectory,
+            Map<String, String> commandEnvironment,
+            Duration timeout,
+            String failureMessage) {
+        McpProcessRunner.ProcessResult result = runner.run(command, workingDirectory, commandEnvironment, timeout);
+        if (result.timedOut() || result.exitCode() != 0) {
+            throw new IllegalStateException(failureMessage + " Exit code: " + result.exitCode()
+                    + ". Output: " + safeOutput(result.stdout(), result.stderr()));
+        }
+    }
+
+    private List<McpMobileDevice> androidDevices(Path adb, Path sdkRoot, Path avdHome) {
+        McpProcessRunner.ProcessResult result = runner.run(List.of(adb.toString(), "devices", "-l"),
+                sdkRoot, androidEnvironment(sdkRoot, avdHome), QUICK_TIMEOUT);
+        if (result.exitCode() != 0 || result.timedOut()) {
+            return List.of(new McpMobileDevice("", "", "Android", "unavailable", false,
+                    List.of("adb devices failed: " + safeOutput(result.stdout(), result.stderr()))));
+        }
+        List<McpMobileDevice> devices = new ArrayList<>();
+        for (String line : result.stdout().split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.isBlank() || trimmed.startsWith("List of devices")) {
+                continue;
+            }
+            String[] parts = trimmed.split("\\s+", 3);
+            if (parts.length < 2) {
+                continue;
+            }
+            String id = parts[0];
+            String state = parts[1];
+            List<String> warnings = "device".equals(state) ? List.of()
+                    : List.of("Android device is not ready: " + state);
+            devices.add(new McpMobileDevice(
+                    id,
+                    androidModel(trimmed, id),
+                    "Android",
+                    state,
+                    id.startsWith("emulator-"),
+                    warnings));
+        }
+        return List.copyOf(devices);
+    }
+
+    private List<String> cachedAndroidEmulators(Path emulator, Path sdkRoot, Path androidAvdHome) {
+        Set<String> avds = new LinkedHashSet<>();
+        if (emulator != null) {
+            McpProcessRunner.ProcessResult result = runner.run(List.of(emulator.toString(), "-list-avds"),
+                    sdkRoot, androidEnvironment(sdkRoot, androidAvdHome), QUICK_TIMEOUT);
+            if (result.exitCode() == 0 && !result.timedOut()) {
+                Arrays.stream(result.stdout().split("\\R"))
+                        .map(String::trim)
+                        .filter(line -> !line.isBlank())
+                        .forEach(avds::add);
+            }
+        }
+        scanAvdHome(androidAvdHome, avds);
+        scanAvdHome(defaultUserAvdHome(), avds);
+        return List.copyOf(avds);
+    }
+
+    private void scanAvdHome(Path avdHome, Set<String> avds) {
+        if (!Files.isDirectory(avdHome)) {
+            return;
+        }
+        try (var stream = Files.list(avdHome)) {
+            stream.filter(path -> path.getFileName().toString().endsWith(".avd"))
+                    .map(path -> path.getFileName().toString().replaceFirst("\\.avd$", ""))
+                    .forEach(avds::add);
+        } catch (IOException ignored) {
+            // Directory scans are best effort; emulator -list-avds remains authoritative.
+        }
+    }
+
+    private boolean hasInspectorPlugin(Path appium, Path root, Path sdkRoot, Path avdHome) {
+        McpProcessRunner.ProcessResult result = runner.run(List.of(appium.toString(), "plugin", "list", "--installed"),
+                root, appiumEnvironment(root, sdkRoot, avdHome), QUICK_TIMEOUT);
+        return result.exitCode() == 0 && result.stdout().toLowerCase(Locale.ROOT).contains("inspector");
+    }
+
+    private String appiumVersion(Path appium, Path root, Path sdkRoot, Path avdHome) {
+        if (appium == null) {
+            return "";
+        }
+        McpProcessRunner.ProcessResult result = runner.run(List.of(appium.toString(), "--version"),
+                root, appiumEnvironment(root, sdkRoot, avdHome), QUICK_TIMEOUT);
+        return result.exitCode() == 0 ? result.stdout().trim() : "";
+    }
+
+    private Optional<Path> resolveExecutable(String name, List<Path> additionalDirectories) {
+        List<Path> candidates = new ArrayList<>();
+        if (additionalDirectories != null) {
+            for (Path directory : additionalDirectories) {
+                if (directory != null) {
+                    candidates.addAll(executableCandidates(directory, name));
+                }
+            }
+        }
+        String path = environment.getOrDefault("PATH", System.getenv("PATH"));
+        if (path != null) {
+            for (String entry : path.split(Pattern.quote(java.io.File.pathSeparator))) {
+                if (!entry.isBlank()) {
+                    candidates.addAll(executableCandidates(Path.of(entry), name));
+                }
+            }
+        }
+        return candidates.stream()
+                .filter(Files::isRegularFile)
+                .findFirst()
+                .map(pathValue -> pathValue.toAbsolutePath().normalize());
+    }
+
+    private List<Path> executableCandidates(Path directory, String name) {
+        if (isWindows()) {
+            return List.of(directory.resolve(name + ".cmd"), directory.resolve(name + ".bat"),
+                    directory.resolve(name + ".exe"), directory.resolve(name));
+        }
+        return List.of(directory.resolve(name));
+    }
+
+    private Map<String, String> androidEnvironment() {
+        return androidEnvironment(androidSdkRoot(), androidAvdHome());
+    }
+
+    private Map<String, String> androidEnvironment(Path sdkRoot, Path avdHome) {
+        return mergedEnvironment(Map.of("ANDROID_HOME", sdkRoot.toString(),
+                "ANDROID_SDK_ROOT", sdkRoot.toString(), "ANDROID_AVD_HOME", avdHome.toString()));
+    }
+
+    private Map<String, String> appiumEnvironment() {
+        return appiumEnvironment(appiumRoot().resolve("home"), androidSdkRoot(), androidAvdHome());
+    }
+
+    private Map<String, String> appiumEnvironment(Path root, Path sdkRoot, Path avdHome) {
+        return mergedEnvironment(Map.of("APPIUM_HOME", root.toString(), "ANDROID_HOME", sdkRoot.toString(),
+                "ANDROID_SDK_ROOT", sdkRoot.toString(), "ANDROID_AVD_HOME", avdHome.toString()));
+    }
+
+    private Map<String, String> mergedEnvironment(Map<String, String> additions) {
+        java.util.HashMap<String, String> merged = new java.util.HashMap<>(environment);
+        merged.putAll(additions);
+        String path = environment.getOrDefault("PATH", System.getenv("PATH"));
+        String extraPath = String.join(java.io.File.pathSeparator,
+                nodeBin().toString(),
+                appiumBin().toString(),
+                androidSdkRoot().resolve("platform-tools").toString(),
+                androidSdkRoot().resolve("emulator").toString(),
+                androidSdkRoot().resolve("cmdline-tools").resolve("latest").resolve("bin").toString());
+        merged.put("PATH", path == null || path.isBlank() ? extraPath : extraPath + java.io.File.pathSeparator + path);
+        return Map.copyOf(merged);
+    }
+
+    private Path androidSdkRoot() {
+        String configured = firstNonBlank(environment.get("ANDROID_SDK_ROOT"), environment.get("ANDROID_HOME"));
+        return configured == null ? toolRoot.resolve("android-sdk") : Path.of(configured);
+    }
+
+    private Path statusAndroidSdkRoot(boolean sharedAndroid) {
+        String configured = firstNonBlank(environment.get("ANDROID_SDK_ROOT"), environment.get("ANDROID_HOME"));
+        if (configured != null) return Path.of(configured);
+        return sharedAndroid ? androidSetupOwner.sdkRoot(androidEmulatorApiLevel(), hostAndroidAbi())
+                : toolRoot.resolve("android-sdk");
+    }
+
+    private Path androidAvdHome() {
+        String configured = environment.get("ANDROID_AVD_HOME");
+        return configured == null || configured.isBlank() ? toolRoot.resolve("android-avd") : Path.of(configured);
+    }
+
+    private Path statusAndroidAvdHome(boolean sharedAndroid) {
+        String configured = environment.get("ANDROID_AVD_HOME");
+        if (configured != null && !configured.isBlank()) return Path.of(configured);
+        return sharedAndroid ? androidSetupOwner.avdHome() : toolRoot.resolve("android-avd");
+    }
+
+    private Path defaultUserAvdHome() {
+        return Path.of(System.getProperty("user.home", ".")).resolve(".android").resolve("avd");
+    }
+
+    private Path appiumRoot() {
+        return toolRoot.resolve("appium");
+    }
+
+    private Path appiumBin() {
+        return appiumRoot().resolve("node_modules").resolve(".bin");
+    }
+
+    private Path nodeBin() {
+        return toolRoot.resolve("node").resolve(nodeArchiveName()).resolve(isWindows() ? "" : "bin");
+    }
+
+    private Path managedNodeBin() {
+        String platform = isWindows() ? "windows" : isMac() ? "macos" : "linux";
+        String architecture = osArch.toLowerCase(Locale.ROOT).contains("aarch64")
+                || osArch.toLowerCase(Locale.ROOT).contains("arm64") ? "arm64" : "x64";
+        return toolRoot.resolve("node").resolve(nodeLtsVersion()).resolve(platform + '-' + architecture)
+                .resolve(isWindows() ? "" : "bin");
+    }
+
+    private Path sdkManagerCommand() {
+        Path bin = androidSdkRoot().resolve("cmdline-tools").resolve("latest").resolve("bin");
+        return bin.resolve(isWindows() ? "sdkmanager.bat" : "sdkmanager");
+    }
+
+    private Path avdManagerCommand() {
+        Path bin = androidSdkRoot().resolve("cmdline-tools").resolve("latest").resolve("bin");
+        return bin.resolve(isWindows() ? "avdmanager.bat" : "avdmanager");
+    }
+
+    private Path emulatorCommand() {
+        return resolveExecutable("emulator", List.of(androidSdkRoot().resolve("emulator")))
+                .orElseThrow(() -> new IllegalStateException("Android emulator executable was not found."));
+    }
+
+    private String commandLineToolsUrl() {
+        String platform = isWindows() ? "win" : isMac() ? "mac" : "linux";
+        return "https://dl.google.com/android/repository/commandlinetools-" + platform + "-"
+                + androidCommandLineToolsVersion() + "_latest.zip";
+    }
+
+    private String nodeArchiveName() {
+        String platform = isWindows() ? "win" : isMac() ? "darwin" : "linux";
+        String arch = osArch.toLowerCase(Locale.ROOT).contains("aarch64")
+                || osArch.toLowerCase(Locale.ROOT).contains("arm64") ? "arm64" : "x64";
+        return "node-v" + nodeLtsVersion() + "-" + platform + "-" + arch;
+    }
+
+    private String hostAndroidAbi() {
+        String arch = osArch.toLowerCase(Locale.ROOT);
+        return arch.contains("aarch64") || arch.contains("arm64") ? "arm64-v8a" : "x86_64";
+    }
+
+    private String normalizePlatform(String platformName) {
+        String platform = text(platformName).toLowerCase(Locale.ROOT);
+        return switch (platform) {
+            case "", "android" -> "Android";
+            case "ios" -> "iOS";
+            default -> throw new IllegalArgumentException("platformName must be Android or iOS.");
+        };
+    }
+
+    private String androidModel(String line, String fallback) {
+        Matcher matcher = DEVICE_NAME.matcher(line);
+        return matcher.find() ? matcher.group(1).replace('_', ' ') : fallback;
+    }
+
+    private boolean isWindows() {
+        return osName.toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private boolean isMac() {
+        String os = osName.toLowerCase(Locale.ROOT);
+        return os.contains("mac") || os.contains("darwin");
+    }
+
+    private static void ensurePropertiesInitialized() {
+        if (!propertiesInitialized) {
+            synchronized (McpMobileToolchainService.class) {
+                if (!propertiesInitialized) {
+                    try {
+                        if (SHAFT.Properties.internal == null) {
+                            PropertiesHelper.initialize();
+                        }
+                        // Cache all property values to avoid repeated null checks
+                        cachedNodeLtsVersion = SHAFT.Properties.internal.nodeLtsVersion();
+                        cachedAppiumServerVersion = SHAFT.Properties.internal.appiumServerVersion();
+                        cachedAppiumInspectorPluginVersion = SHAFT.Properties.internal.appiumInspectorPluginVersion();
+                        cachedAppiumUiAutomator2DriverVersion = SHAFT.Properties.internal.appiumUiAutomator2DriverVersion();
+                        cachedAppiumXcuitestDriverVersion = SHAFT.Properties.internal.appiumXcuitestDriverVersion();
+                        cachedAndroidCommandLineToolsVersion = SHAFT.Properties.internal.androidCommandLineToolsVersion();
+                        cachedAndroidEmulatorApiLevel = SHAFT.Properties.internal.androidEmulatorApiLevel();
+                        cachedAndroidEmulatorDeviceProfile = SHAFT.Properties.internal.androidEmulatorDeviceProfile();
+                        cachedAndroidEmulatorImageTag = SHAFT.Properties.internal.androidEmulatorImageTag();
+                        cachedAndroidEmulatorRamMb = SHAFT.Properties.internal.androidEmulatorRamMb();
+                        cachedAndroidEmulatorCores = SHAFT.Properties.internal.androidEmulatorCores();
+                        propertiesInitialized = true;
+                    } catch (RuntimeException exception) {
+                        throw new IllegalStateException(
+                                "SHAFT Properties initialization failed. Ensure the SHAFT framework is properly configured with access to property files.",
+                                exception);
+                    }
+                }
+            }
+        }
+    }
+
+    private static String nodeLtsVersion() {
+        return cachedNodeLtsVersion;
+    }
+
+    private static String appiumServerVersion() {
+        return cachedAppiumServerVersion;
+    }
+
+    private static String appiumInspectorPluginVersion() {
+        return cachedAppiumInspectorPluginVersion;
+    }
+
+    private static String appiumUiAutomator2DriverVersion() {
+        return cachedAppiumUiAutomator2DriverVersion;
+    }
+
+    private static String appiumXcuitestDriverVersion() {
+        return cachedAppiumXcuitestDriverVersion;
+    }
+
+    private static String androidCommandLineToolsVersion() {
+        return cachedAndroidCommandLineToolsVersion;
+    }
+
+    private static int androidEmulatorApiLevel() {
+        return cachedAndroidEmulatorApiLevel;
+    }
+
+    private static String androidEmulatorDeviceProfile() {
+        return cachedAndroidEmulatorDeviceProfile;
+    }
+
+    private static String androidEmulatorImageTag() {
+        return cachedAndroidEmulatorImageTag;
+    }
+
+    private static int androidEmulatorRamMb() {
+        return cachedAndroidEmulatorRamMb;
+    }
+
+    private static int androidEmulatorCores() {
+        return cachedAndroidEmulatorCores;
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second == null || second.isBlank() ? null : second;
+    }
+
+    private static String defaultText(String value, String fallback) {
+        String text = text(value);
+        return text.isBlank() ? fallback : text;
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String quote(String value) {
+        return "\"" + value + "\"";
+    }
+
+    private static List<String> quotePackages(List<String> packages) {
+        return packages.stream().map(McpMobileToolchainService::quote).toList();
+    }
+
+    private static String safeOutput(String stdout, String stderr) {
+        String combined = (stdout == null ? "" : stdout) + "\n" + (stderr == null ? "" : stderr);
+        return combined.length() > 4000 ? combined.substring(0, 4000) : combined.trim();
+    }
+
+    private static void sleep(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void deleteIfExists(Path path) {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try {
+            Files.walkFileTree(path, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.deleteIfExists(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.deleteIfExists(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException ignored) {
+            // Best-effort cleanup only.
+        }
+    }
+}

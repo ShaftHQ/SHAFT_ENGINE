@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Execution Reporting"
+  short_description: "Report technical execution state"
+  default_prompt: "Use $shaft-execution-reporting to produce an evidence-linked technical report for this SHAFT run."

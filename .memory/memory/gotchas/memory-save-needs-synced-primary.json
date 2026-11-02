@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/memory-save-needs-synced-primary.md",
+  "content_hash": "sha256:29e7959aafdbfdf256a44c62046da63b1987ae92387af1858637a45973f2adb8",
+  "created_at": "2026-10-17T10:06:12+03:00",
+  "evidence": [],
+  "id": "gotcha.memory-save-needs-synced-primary",
+  "source": {
+    "kind": "agent",
+    "task": "architect skill PR"
+  },
+  "status": "active",
+  "tags": [
+    "memory",
+    "worktree"
+  ],
+  "title": "memory save refuses when the primary checkout is off main",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T10:06:12+03:00"
+}

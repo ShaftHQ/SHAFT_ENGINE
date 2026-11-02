@@ -1,0 +1,71 @@
+# Execution workflows
+
+This file is the sole normative owner of execution-workflow selection. Roles,
+delegation, transports, and host adapters link here rather than redefining it.
+
+## Select one workflow
+
+| Workflow | Select when | Main orchestrator duties |
+| --- | --- | --- |
+| `SOLO` | Delegation is unsuitable, unavailable, or would cost more than the bounded work. | Plan, implement, verify, review, and complete the Learning Session. |
+| `ORCHESTRATOR + SINGLE IMPLEMENTER` | One bounded implementation unit, or dependent units that must remain serial, has a qualified implementer. | Plan, specify, inspect, unblock, verify, integrate, review, and complete the Learning Session; do not implement. |
+| `ORCHESTRATOR + PARALLEL IMPLEMENTERS` | Two to four independent, file-disjoint implementation units have qualified implementers. | Retain the single-implementer duties; assign isolated worktrees and integrate only after independent verification. |
+
+Select from work shape and qualified capacity, never from a provider, model, or
+marketing label. Default to `ORCHESTRATOR + SINGLE IMPLEMENTER` when delegation
+adds value; select `ORCHESTRATOR + PARALLEL IMPLEMENTERS` only for independent
+file scopes and cap writers at four. This is an explicit cap of four parallel
+agents, not a transport-specific default. Reduce parallel work to one
+implementer when capacity drops. Use
+`SOLO` when no qualified implementer remains. Review is not an implementation
+stream. Finish or hand over owned implementation before switching workflows.
+Every orchestrated workflow loads and enforces
+[process-owner / Scrum-master](process-owner-scrum-master.md).
+
+## Transport is orthogonal
+
+After workflow selection, choose the first available transport permitted by
+the selected host and task boundary. This table is the comparative port list
+for these peers. Skills link here. A missing peer does not weaken the workflow.
+
+| Order | Transport | Loopback port | Skill |
+| --- | --- | --- | --- |
+| 1 | FreeToken | 1919 | [FreeToken](../skills/local-runtimes/references/freetoken.md) |
+| 2 | Colibri | 8000 | [Colibri](../skills/local-runtimes/references/colibri.md) |
+| 3 | OmniRoute | 20128 | [OmniRoute](../skills/local-runtimes/references/omniroute.md) |
+| 4 | local OpenAI-compat | 11434, 1234, 8080 | [local OpenAI-compat](../skills/local-runtimes/references/local-openai-compat.md) |
+
+Prefer FreeToken for coding agency; Colibri when the operator hosts frontier MoE.
+Colibri does not replace FreeToken or OmniRoute and is not a workflow owner.
+FreeToken does not replace OmniRoute, does not require OmniRoute, and is not a workflow owner.
+
+5. A qualified host-native lower-capability implementer.
+6. No qualified delegate: `SOLO`.
+
+The transport does not change the selected workflow, role boundaries, tests,
+review, learning, or completion duties. Canonical orchestration must probe the
+fixed loopback endpoint before native fallback, with no endpoint prompt. If
+`omniroute` is installed and `http://127.0.0.1:20128/api/health` fails, start
+loopback only with `OMNIROUTE_SERVER_HOST=127.0.0.1 omniroute serve --port 20128 --no-open`.
+Never install OmniRoute. Missing operator config is normal: use the PATH
+launcher (`chaosengine-omniroute` or `omniroute`). Before every dispatch, query
+`omniroute --output json models` and `omniroute --output json usage quota`
+(no cache files). CLI catalog `id` values may be display names; launch native
+ids. Rank remaining free candidates first from live ids, then any
+other model the endpoint can call; architecture/review uses most-intelligent
+only. Receipts and repository files never persist route, model, or provider IDs.
+`RUNTIME_EXHAUSTED`, an empty remaining catalog, or sealed-launcher exit code
+`78` falls back to the current host session's native models or `SOLO`. OmniRoute is absent,
+unhealthy, unauthenticated, or unqualified does the same. This is
+normal fallback, not harness failure. When the adopter or process-owner
+**requires** OmniRoute for a delivery, absence of an `omniroute run` receipt
+(or coding completion call_log) is a failed OmniRoute attempt / explicit
+blocker — catalog, candidates, and CredentialHealth probes alone never count
+([proof-of-dispatch](../skills/omniroute/references/proof-of-dispatch.md)).
+OmniRoute loopback is host-local; box agents must Shell on the serve host. FreeToken is the local-weights
+sibling, still not a workflow owner. Probe only
+`http://127.0.0.1:1919/v1/models` through the FreeToken skill. `READY` may
+set that loopback base URL for one bounded dispatch. `ABSENT` and
+`UNHEALTHY` are normal. Never install FreeToken, never run `ft launch` or
+`ft serve` from the harness, and never fail the selected workflow because
+FreeToken is missing.

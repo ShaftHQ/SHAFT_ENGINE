@@ -1,0 +1,151 @@
+package com.shaft.gui.mobile;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.DriverContract;
+import com.shaft.gui.driver.MobileActionsContract;
+import com.shaft.gui.driver.MobileApplicationActionsContract;
+import com.shaft.gui.driver.MobileBiometricActionsContract;
+import com.shaft.gui.driver.MobileContextActionsContract;
+import com.shaft.gui.driver.MobileDeviceActionsContract;
+import com.shaft.gui.driver.MobileEvidenceActionsContract;
+import com.shaft.gui.driver.MobileFileActionsContract;
+import com.shaft.gui.driver.MobileGestureActionsContract;
+import com.shaft.gui.driver.MobileLogActionsContract;
+import com.shaft.gui.driver.MobilePerformanceActionsContract;
+import com.shaft.gui.driver.MobileRecordingActionsContract;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.ListensToLogcatMessages;
+import io.appium.java_client.android.HasSupportedPerformanceDataType;
+import io.appium.java_client.android.AuthenticatesByFinger;
+import io.appium.java_client.ios.ListensToSyslogMessages;
+import io.appium.java_client.ios.PerformsTouchID;
+import com.shaft.gui.element.TouchActions;
+
+/** Selenium/Appium implementation of the categorized mobile facade. */
+public final class MobileActions implements MobileActionsContract {
+    private final SHAFT.GUI.WebDriver owner;
+    private final AppiumDriver driver;
+
+    /**
+     * Creates mobile actions bound to the given SHAFT WebDriver.
+     */
+    public MobileActions(SHAFT.GUI.WebDriver owner) {
+        this.driver = liveAppiumDriver(owner);
+        this.owner = owner;
+    }
+
+    @Override
+    public MobileApplicationActionsContract app() {
+        return new ApplicationActions(this);
+    }
+
+    @Override
+    public MobileDeviceActionsContract device() {
+        return new DeviceActions(this);
+    }
+
+    @Override
+    public MobileGestureActionsContract gestures() {
+        return new GestureActions(this);
+    }
+
+    @Override
+    public MobileContextActionsContract context() {
+        return new ContextActions(this);
+    }
+
+    @Override
+    public MobileFileActionsContract files() {
+        return new FileActions(this);
+    }
+
+    @Override
+    public MobileLogActionsContract logs() {
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof ListensToLogcatMessages)
+                && !(liveDriver instanceof ListensToSyslogMessages)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support continuous device logs.");
+        }
+        return new LogActions(this);
+    }
+
+    @Override
+    public MobileBiometricActionsContract biometrics() {
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof AuthenticatesByFinger)
+                && !(liveDriver instanceof PerformsTouchID)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support biometric simulation.");
+        }
+        return new BiometricActions(this);
+    }
+
+    @Override
+    public MobilePerformanceActionsContract performance() {
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof HasSupportedPerformanceDataType)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support performance data.");
+        }
+        return new PerformanceActions(this);
+    }
+
+    @Override
+    public MobileRecordingActionsContract recording() {
+        AppiumDriver liveDriver = driver();
+        if (!(liveDriver instanceof io.appium.java_client.screenrecording.CanRecordScreen)) {
+            throw new UnsupportedOperationException(
+                    "The live Appium session does not support screen recording.");
+        }
+        return new RecordingActions(this);
+    }
+
+    @Override
+    public MobileEvidenceActionsContract evidence() {
+        return new EvidenceActions(this);
+    }
+
+    @Override
+    public DriverContract and() {
+        return owner;
+    }
+
+    AppiumDriver driver() {
+        if (driver.getSessionId() == null) {
+            throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+        }
+        return driver;
+    }
+
+    AppiumDriver traceDriver() {
+        return driver;
+    }
+
+    TouchActions touchActions() {
+        // Appium java-client 11 removed PerformsTouchActions; W3C Interactive + mobile: gestures
+        // remain on every live AppiumDriver (see v10-to-v11 migration guide).
+        driver();
+        return owner.touch();
+    }
+
+    private UnsupportedOperationException unsupported(String category) {
+        return new UnsupportedOperationException("Mobile " + category + " actions are not available yet for this session.");
+    }
+
+    private static AppiumDriver liveAppiumDriver(SHAFT.GUI.WebDriver owner) {
+        if (owner == null) {
+            throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+        }
+        Object candidate;
+        try {
+            candidate = owner.getNativeDriver();
+        } catch (RuntimeException closedSession) {
+            throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+        }
+        if (!(candidate instanceof AppiumDriver appiumDriver) || appiumDriver.getSessionId() == null) {
+            throw new UnsupportedOperationException("Mobile actions require a live Appium session.");
+        }
+        return appiumDriver;
+    }
+}

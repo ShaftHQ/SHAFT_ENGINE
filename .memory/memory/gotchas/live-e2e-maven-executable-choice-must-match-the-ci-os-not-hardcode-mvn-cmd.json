@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/live-e2e-maven-executable-choice-must-match-the-ci-os-not-hardcode-mvn-cmd.md",
+  "content_hash": "sha256:f1ce9afa0bf9a73e001c2d4905f3cd9df9cfcf59b2107db5342c36135d218839",
+  "created_at": "2026-07-26T10:58:55+03:00",
+  "evidence": [
+    {
+      "id": "68f0a3d24e326126e5cd9e20dc7d3f10ff8bc229",
+      "kind": "commit"
+    },
+    {
+      "id": "759d8d8d7a8cdc41994829285d4078f89d07a041",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.live-e2e-maven-executable-choice-must-match-the-ci-os-not-hardcode-mvn-cmd",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Loop second pass: record durable gotchas from #4021, #4046, #4066, #4014, #4057"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "intellij-plugin",
+    "maven",
+    "windows-vs-linux",
+    "live-e2e"
+  ],
+  "title": "Live E2E Maven executable choice must match the CI OS, not hardcode mvn.cmd",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

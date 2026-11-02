@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency.md",
+  "content_hash": "sha256:d7e3e55221b69c7efca6f95b98aca3dc317e471c1b6c71810d612f68fa58d4e1",
+  "created_at": "2026-07-17T22:59:55+03:00",
+  "evidence": [
+    {
+      "id": "bd886bb984d31cc8fb9cab1ce12160bbce45cfd2",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-intellij-smtrunnereventslistener-smtestproxy-already-reachable-at-platformversion-2024-3-with-zero-new-gradle-dependency",
+  "source": {
+    "kind": "agent",
+    "task": "Implement live SM Test Runner status wiring for shaft-intellij SHAFT Tests panel (issue #3688)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "intellij-platform-sdk",
+    "sm-test-runner",
+    "gradle-dependencies",
+    "gotcha"
+  ],
+  "title": "shaft-intellij: SMTRunnerEventsListener/SMTestProxy already reachable at platformVersion=2024.3 with zero new Gradle dependency",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:55:58+03:00"
+}

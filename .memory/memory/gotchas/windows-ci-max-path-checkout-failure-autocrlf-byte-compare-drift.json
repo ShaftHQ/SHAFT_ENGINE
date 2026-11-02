@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/gotchas/windows-ci-max-path-checkout-failure-autocrlf-byte-compare-drift.md",
+  "content_hash": "sha256:feb0e39ce5d17d52c4a1cb17c46d1e5e58732ddd7b9eddc7c6702c11b23bbbb9",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "c09f2cc8e0c7c7f1313a112c37eaf8dc88f41f1d",
+      "kind": "commit"
+    },
+    {
+      "id": "9cbd0dafe565d73ca4bbd841de0f5daf27931fe0",
+      "kind": "commit"
+    },
+    {
+      "id": "6eb451dc3f",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.windows-ci-max-path-checkout-failure-autocrlf-byte-compare-drift",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "windows",
+    "git",
+    "memory"
+  ],
+  "title": "Windows CI: MAX_PATH checkout failure + autocrlf byte-compare drift",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T16:10:00+03:00"
+}

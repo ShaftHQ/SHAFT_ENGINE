@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; frame-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>SHAFT Trace Report</title>
+<style>
+/*@SHAFT_THEME_STYLE@*/
+/*@VIEWER_CSS@*/
+</style>
+</head>
+<body>
+<p id="trace-loading" class="muted" role="status">Loading trace&hellip;</p>
+<template id="trace-viewer-shell">
+<div class="report-shell">
+<header class="report-header">
+  <div class="report-header-inner">
+    <span class="brand-mark">S</span>
+    <div class="header-title">
+      <h1>SHAFT Trace Report</h1>
+      <p class="subtitle" id="trace-subtitle">Failure trace viewer</p>
+    </div>
+    <div class="header-actions">
+      <a id="open-new-tab" class="header-button" href="#" target="_blank" rel="noopener" hidden>Open in new tab</a>
+      <details class="shortcut-help" id="shortcut-help">
+        <summary class="header-button">Shortcuts</summary>
+        <dl class="shortcut-list">
+          <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next or previous action</dd>
+          <dt><kbd>1</kbd>&ndash;<kbd>9</kbd></dt><dd>Open the first nine tabs</dd>
+          <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt><dd>Move between tabs or filmstrip frames</dd>
+          <dt><kbd>/</kbd></dt><dd>Search actions</dd>
+          <dt><kbd>t</kbd></dt><dd>Switch light or dark theme</dd>
+          <dt><kbd>?</kbd></dt><dd>Show or hide this list</dd>
+        </dl>
+      </details>
+      <button type="button" class="header-button" id="theme-toggle" aria-pressed="false">Dark theme</button>
+    </div>
+  </div>
+</header>
+<main class="report-main">
+<section class="panel" id="truncation-banner" hidden
+         style="border-left:4px solid var(--shaft-fail)">
+  <h2>Trace partially truncated</h2>
+  <p class="muted" id="truncation-detail"></p>
+</section>
+<section class="panel trace-summary" id="trace-summary"></section>
+<section class="panel trace-navigator" aria-labelledby="trace-navigator-title">
+  <div class="toolbar">
+    <h2 id="trace-navigator-title">Trace navigator</h2>
+    <label class="toggle"><input type="checkbox" id="filmstrip-show-all"> Include actions without screenshots</label>
+    <button type="button" class="secondary" id="show-all-range">Show all</button>
+  </div>
+  <div class="range-controls">
+    <label for="range-start">Range start</label>
+    <input id="range-start" type="range" min="0" max="1" value="0" step="1">
+    <output id="range-label" aria-live="polite">Full trace</output>
+    <input id="range-end" type="range" min="0" max="1" value="1" step="1">
+    <label for="range-end">Range end</label>
+  </div>
+  <div id="timeline-track" class="timeline-track" title="Drag to select a time range; double-click an action to select its range">
+    <div id="timeline-ticks" class="timeline-ticks" aria-hidden="true"></div>
+    <div id="range-selection" class="range-selection" aria-hidden="true"></div>
+    <div id="trace-error-markers" class="error-markers" role="group" aria-label="Failures on the timeline"></div>
+  </div>
+  <p id="filmstrip-hint" class="muted" hidden></p>
+  <div id="trace-filmstrip" class="filmstrip" role="listbox" aria-label="Action screenshot filmstrip"></div>
+</section>
+<div class="trace-layout" id="trace-layout">
+  <aside class="panel actions-pane" aria-label="Actions">
+    <h2>Actions</h2>
+    <div class="toolbar"><input id="action-search" type="search" aria-label="Search actions" placeholder="Search actions"></div>
+    <div id="action-list"></div>
+  </aside>
+  <div class="pane-splitter" id="pane-splitter" role="separator" tabindex="0" aria-orientation="vertical"
+       aria-label="Resize the actions pane" aria-controls="trace-layout" aria-valuemin="200" aria-valuemax="640" aria-valuenow="320"></div>
+  <section class="panel details-pane" aria-labelledby="details-title">
+    <div class="toolbar">
+      <h2 id="details-title">Trace Details</h2>
+      <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
+    </div>
+    <dl id="details"></dl>
+    <div class="tab-bar">
+      <div class="tabs tab-row" id="action-tabs" role="tablist" aria-label="Trace evidence">
+      <button type="button" role="tab" data-tab="timeline" class="selected">Timeline</button>
+      <button type="button" role="tab" data-tab="comparison">Snapshots</button>
+      <button type="button" role="tab" data-tab="network">Network</button>
+      <button type="button" role="tab" data-tab="console">Console</button>
+      <button type="button" role="tab" data-tab="source">Source</button>
+      <button type="button" role="tab" data-tab="call">Call</button>
+      <button type="button" role="tab" data-tab="log">Log</button>
+      <button type="button" role="tab" data-tab="errors">Errors</button>
+      <button type="button" role="tab" data-tab="artifacts">Artifacts</button>
+      <button type="button" role="tab" data-tab="exception" class="tab-secondary">Exception</button>
+      <button type="button" role="tab" data-tab="snapshot" class="tab-secondary">Snapshot</button>
+      <button type="button" role="tab" data-tab="nativeEvidence" class="tab-secondary">Native evidence</button>
+      <button type="button" role="tab" data-tab="domSnapshot" class="tab-secondary">DOM Snapshot</button>
+      <button type="button" role="tab" data-tab="screenshot" class="tab-secondary">Screenshot</button>
+      <button type="button" role="tab" data-tab="locatorHealth" class="tab-secondary">Locator Health</button>
+      <button type="button" role="tab" data-tab="webSockets" class="tab-secondary">WebSockets</button>
+      <button type="button" role="tab" data-tab="mobile" class="tab-secondary">Mobile</button>
+      <button type="button" role="tab" data-tab="browserObservability" class="tab-secondary">Observability</button>
+      <button type="button" role="tab" data-tab="environment" class="tab-secondary">Metadata</button>
+      <button type="button" role="tab" data-tab="attachments" class="tab-secondary">Attachments</button>
+      <button type="button" role="tab" data-tab="json" class="tab-secondary">JSON</button>
+      </div>
+      <label class="tab-overflow"><span class="visually-hidden">All tabs</span><select id="tab-overflow" aria-label="All tabs"></select></label>
+    </div>
+    <p id="range-empty" class="muted range-empty" role="status" hidden>Nothing in this tab falls in the selected range. <button type="button" class="secondary" id="range-empty-show-all">Show all</button></p>
+    <dl id="metadata-panel" class="metadata-list" hidden></dl>
+    <pre id="tab-content"></pre>
+    <div id="timeline-panel" hidden>
+      <p class="muted">Every recorded action, network exchange, and console message in chronological order. Click an action to inspect it.</p>
+      <div class="tabs" id="timeline-filters">
+        <button data-filter="all" class="selected">All</button>
+        <button data-filter="action">Actions</button>
+        <button data-filter="validation">Validations</button>
+        <button data-filter="network">Network</button>
+        <button data-filter="console">Console</button>
+        <button data-filter="failed">Failures</button>
+      </div>
+      <div id="timeline-list"></div>
+    </div>
+    <div id="dom-snapshot-panel" hidden>
+      <div class="tabs" id="dom-snapshot-tabs">
+        <button data-dom="before" class="selected">Before</button>
+        <button data-dom="after">After</button>
+      </div>
+      <iframe id="dom-snapshot-frame" title="DOM snapshot" sandbox=""
+              style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:var(--shaft-bg)"></iframe>
+    </div>
+    <div id="screenshot-panel" hidden>
+      <img id="screenshot-image" alt="Action screenshot"
+           style="max-width:100%;border:1px solid var(--shaft-border,#ccc)">
+      <p id="screenshot-empty" class="muted" hidden>No screenshot captured for this action.</p>
+    </div>
+    <div id="comparison-panel" hidden>
+      <div class="toolbar snapshot-toolbar">
+        <div class="tabs" id="snapshot-tabs" role="tablist" aria-label="Snapshot moment">
+          <button type="button" role="tab" data-snapshot="before" aria-controls="snapshot-before">Before</button>
+          <button type="button" role="tab" data-snapshot="action" aria-controls="snapshot-action" class="selected">Action</button>
+          <button type="button" role="tab" data-snapshot="after" aria-controls="snapshot-after">After</button>
+        </div>
+        <button type="button" class="secondary" id="snapshot-pick" aria-pressed="false">Pick locator</button>
+        <button type="button" class="secondary" id="snapshot-popout">Open in new tab</button>
+      </div>
+      <p id="snapshot-target" class="muted"></p>
+      <div id="picked-locator" class="picked-locator" hidden>
+        <code id="picked-locator-code"></code>
+        <button type="button" class="secondary copy-button" id="picked-locator-copy">Copy</button>
+        <span id="picked-locator-detail" class="muted"></span>
+      </div>
+      <div class="comparison-grid">
+        <section id="snapshot-before" role="tabpanel" aria-label="Before action" hidden><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox="allow-same-origin"></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
+        <section id="snapshot-action" role="tabpanel" aria-label="Action"><h3>Action state</h3><iframe id="comparison-input" title="Action-state DOM snapshot" sandbox="allow-same-origin"></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
+        <section id="snapshot-after" role="tabpanel" aria-label="After action" hidden><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox="allow-same-origin"></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
+      </div>
+    </div>
+    <div id="attachments-panel" hidden>
+      <p class="muted" id="attachments-hint"></p>
+      <ul id="attachment-list" class="attachment-list"></ul>
+      <section id="visual-comparisons"></section>
+    </div>
+    <div id="native-evidence-panel" hidden>
+      <p class="muted" id="native-evidence-hint"></p>
+      <table class="trace-table"><thead><tr>
+        <th>Correlation</th><th>Operation</th><th>Source</th><th>Logs</th><th>Error</th>
+      </tr></thead><tbody id="native-evidence-rows"></tbody></table>
+    </div>
+    <div id="network-panel" hidden>
+      <p class="muted" id="network-hint"></p>
+      <div class="panel-controls">
+        <label>Method<select id="network-method-filter"><option value="">All methods</option></select></label>
+        <label>Status<select id="network-status-filter"><option value="">All statuses</option></select></label>
+        <label>Search<input id="network-text-filter" type="search" placeholder="URL, headers, or body"></label>
+        <output id="network-result-count" class="result-count" aria-live="polite"></output>
+      </div>
+      <div class="table-scroll"><table class="trace-table network-table"><thead><tr>
+        <th id="network-sort-time"><button type="button" class="sort-button" data-network-sort="time">Time</button></th>
+        <th id="network-sort-type"><button type="button" class="sort-button" data-network-sort="type">Type</button></th>
+        <th id="network-sort-method" aria-sort="ascending"><button type="button" class="sort-button" data-network-sort="method">Method</button></th>
+        <th id="network-sort-status"><button type="button" class="sort-button" data-network-sort="status">Status</button></th>
+        <th id="network-sort-duration"><button type="button" class="sort-button" data-network-sort="duration">Duration</button></th>
+        <th id="network-sort-size"><button type="button" class="sort-button" data-network-sort="size">Size</button></th>
+        <th id="network-sort-contentType"><button type="button" class="sort-button" data-network-sort="contentType">Content type</button></th>
+        <th>URL</th><th>Details</th>
+      </tr></thead><tbody id="network-rows"></tbody></table></div>
+      <section id="network-detail" class="network-detail" hidden aria-labelledby="network-detail-title">
+        <div class="toolbar"><h3 id="network-detail-title">Request details</h3><button type="button" class="secondary" id="network-detail-close">Close details</button></div>
+        <dl id="network-detail-general"></dl>
+        <h4>Request headers</h4>
+        <table class="trace-table header-table"><tbody id="network-request-headers"></tbody></table>
+        <h4>Response headers</h4>
+        <table class="trace-table header-table"><tbody id="network-response-headers"></tbody></table>
+        <h4>Request body <span id="network-request-truncated" class="status-chip warn" hidden>Preview truncated</span></h4>
+        <pre id="network-request-body"></pre>
+        <h4>Response body <span id="network-body-truncated" class="status-chip warn" hidden>Preview truncated</span></h4>
+        <pre id="network-response-body"></pre>
+        <img id="network-response-image" alt="Response body image preview" hidden>
+        <details><summary>Raw exchange JSON</summary><pre id="network-detail-raw"></pre></details>
+      </section>
+    </div>
+    <div id="console-panel" hidden>
+      <p class="muted" id="console-hint"></p>
+      <div class="panel-controls">
+        <label>Source<select id="console-source-filter"><option value="">All sources</option></select></label>
+        <label>Level<select id="console-level-filter"><option value="">All levels</option></select></label>
+        <label>Search<input id="console-text-filter" type="search" placeholder="Search console messages"></label>
+        <output id="console-result-count" class="result-count" aria-live="polite"></output>
+      </div>
+      <table class="trace-table"><thead><tr>
+        <th id="console-sort-time" aria-sort="ascending"><button type="button" class="sort-button" data-console-sort="time">Time</button></th>
+        <th id="console-sort-source"><button type="button" class="sort-button" data-console-sort="source">Source</button></th>
+        <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
+        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th><th>Details</th>
+      </tr></thead><tbody id="console-rows"></tbody></table>
+     <pre id="console-detail" hidden></pre>
+   </div>
+   <div id="mobile-panel" hidden>
+     <p class="muted" id="mobile-hint"></p>
+     <div class="toolbar" id="mobile-category-filter" role="group" aria-label="Mobile action category">
+       <button type="button" class="selected" data-mobile-category="all" aria-pressed="true">All</button>
+       <button type="button" data-mobile-category="mobile/app" aria-pressed="false">App</button>
+       <button type="button" data-mobile-category="mobile/context" aria-pressed="false">Context</button>
+       <button type="button" data-mobile-category="mobile/device" aria-pressed="false">Device</button>
+       <button type="button" data-mobile-category="mobile/logs" aria-pressed="false">Logs</button>
+       <button type="button" data-mobile-category="mobile/performance" aria-pressed="false">Performance</button>
+       <button type="button" data-mobile-category="mobile/recording" aria-pressed="false">Recording</button>
+       <button type="button" data-mobile-category="mobile/evidence" aria-pressed="false">Evidence</button>
+       <output id="mobile-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <table class="trace-table"><thead><tr>
+       <th>Time</th><th>Area</th><th>Operation</th><th>Status</th><th>Summary</th><th>Details</th>
+     </tr></thead><tbody id="mobile-rows"></tbody></table>
+     <pre id="mobile-detail" hidden></pre>
+   </div>
+   <div id="websocket-panel" hidden>
+     <p class="muted" id="websocket-hint"></p>
+     <div class="panel-controls">
+       <label>Direction<select id="websocket-direction-filter"><option value="">All directions</option></select></label>
+       <label>Type<select id="websocket-type-filter"><option value="">All event types</option></select></label>
+       <label>Search<input id="websocket-text-filter" type="search" placeholder="URL, payload, digest, or reason"></label>
+       <output id="websocket-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <table class="trace-table"><thead><tr>
+       <th>Type</th><th>Direction</th><th>URL</th><th>Opcode</th><th>Payload</th><th>Details</th>
+     </tr></thead><tbody id="websocket-rows"></tbody></table>
+     <pre id="websocket-detail" hidden></pre>
+   </div>
+   <div id="artifact-panel" hidden>
+     <p class="muted" id="artifact-hint"></p>
+     <p class="muted" id="native-trace-handoff" hidden></p>
+     <div class="panel-controls">
+       <label>Kind<select id="artifact-kind-filter"><option value="">All kinds</option></select></label>
+       <output id="artifact-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <div class="table-scroll"><table class="trace-table artifact-table"><thead><tr>
+       <th id="artifact-sort-name"><button type="button" class="sort-button" data-artifact-sort="name">Name</button></th>
+       <th id="artifact-sort-kind"><button type="button" class="sort-button" data-artifact-sort="kind">Kind</button></th>
+       <th>Media type</th><th>Status</th>
+       <th id="artifact-sort-size"><button type="button" class="sort-button" data-artifact-sort="size">Size</button></th>
+       <th>Digest</th><th>Used by</th><th>Details</th>
+     </tr></thead><tbody id="artifact-rows"></tbody></table></div>
+   </div>
+   <div id="source-panel" hidden>
+     <p class="muted" id="source-hint"></p>
+     <div id="source-frames" class="source-frames" role="group" aria-label="Stack frames"></div>
+     <ol id="source-lines" class="source-lines" aria-label="Test source"></ol>
+   </div>
+   <div id="call-panel" hidden>
+     <dl id="call-details"></dl>
+     <p class="muted" id="call-empty" hidden>No call details were recorded for this action.</p>
+   </div>
+   <div id="log-panel" hidden>
+     <h3>Actionability</h3>
+     <ol id="actionability-steps" class="actionability-steps"></ol>
+     <p class="muted" id="actionability-empty" hidden>No actionability steps were recorded for this action.</p>
+     <h3>Test log <span id="test-log-count" class="muted"></span></h3>
+     <pre id="test-log"></pre>
+   </div>
+   <div id="errors-panel" hidden>
+     <p class="muted" id="errors-hint"></p>
+     <ol id="error-list" class="error-list"></ol>
+   </div>
+ </section>
+</div>
+</main>
+<div id="hover-preview" class="hover-preview" hidden aria-hidden="true"></div>
+</div>
+</template>
+<pre hidden id="trace-data" data-encoding="gzip+base64">@TRACE_DATA@</pre>
+<pre hidden id="trace-truncation">@TRACE_TRUNCATION@</pre>
+<script type="text/plain" id="trace-viewer-main">
+/*@VIEWER_CORE_JS@*/
+/*@VIEWER_JS@*/
+</script>
+<script>
+/*@VIEWER_BOOTSTRAP_JS@*/
+</script>
+</body>
+</html>

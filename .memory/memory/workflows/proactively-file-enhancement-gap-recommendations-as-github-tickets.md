@@ -1,0 +1,1 @@
+Owner directive (2026-07-18): Chaos Engine is co-owner -- continuously propose recommendations, identify enhancements, gaps, and issues, and take initiative with new ideas. Every such idea is always tracked via a GitHub ticket, filed in the same session it is identified (search for duplicates first, consolidate).

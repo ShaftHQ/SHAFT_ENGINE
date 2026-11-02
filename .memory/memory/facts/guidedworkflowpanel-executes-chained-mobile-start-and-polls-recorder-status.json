@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/facts/guidedworkflowpanel-executes-chained-mobile-start-and-polls-recorder-status.md",
+  "content_hash": "sha256:adab6a1ef705e20770db07f8260ce62737cc520744d8a22343ae15de3d3f2518",
+  "created_at": "2026-07-11T07:55:36+03:00",
+  "evidence": [
+    {
+      "id": "71d32413601a9d2a2522616f4661dda47eec44bf",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.guidedworkflowpanel-executes-chained-mobile-start-and-polls-recorder-status",
+  "source": {
+    "kind": "agent",
+    "task": "Close issue #3422: guided-workflow follow-ups implemented via PR #3424"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "GuidedWorkflowPanel executes chained mobile start and polls recorder status",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

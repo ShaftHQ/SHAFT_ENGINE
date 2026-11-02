@@ -1,0 +1,950 @@
+package com.shaft.mcp;
+
+import com.microsoft.playwright.Page;
+import com.shaft.capture.generate.LocatorPolicy;
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.ShaftLocator;
+import org.openqa.selenium.By;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+
+import static com.shaft.mcp.EngineService.getLocator;
+
+/**
+ * MCP-safe Playwright tools backed by {@link SHAFT.GUI.Playwright}.
+ */
+@Service
+public class PlaywrightService {
+    private static final int DEFAULT_DOM_CHARACTER_LIMIT = 200_000;
+    private static final Logger logger = LoggerFactory.getLogger(PlaywrightService.class);
+    private final McpWorkspacePolicy workspacePolicy;
+    private final McpPlaywrightRecordingService recorder;
+    private SHAFT.GUI.Playwright driver;
+
+    /**
+     * Creates the default Playwright MCP service.
+     */
+    public PlaywrightService() {
+        this(McpWorkspacePolicy.current());
+    }
+
+    PlaywrightService(McpWorkspacePolicy workspacePolicy) {
+        this.workspacePolicy = workspacePolicy;
+        this.recorder = new McpPlaywrightRecordingService(workspacePolicy);
+    }
+
+    /** Package-private test seam: tests inject a mocked driver because initialize() launches a real browser. */
+    void setDriverForTesting(SHAFT.GUI.Playwright driver) {
+        this.driver = driver;
+    }
+
+    /**
+     * Returns the active Playwright session's browser-level actions as the shared
+     * {@link com.shaft.gui.driver.BrowserActionsContract}, so {@link BrowserService}'s unified
+     * {@code browser_*} tools can dispatch to Playwright and web/mobile through the same contract
+     * calls (navigate, refresh, back/forward, window sizing, cookies, accessibility, network mocking).
+     *
+     * @return the active Playwright session's browser actions
+     */
+    com.shaft.gui.driver.BrowserActionsContract browserActions() {
+        return getDriver().browser();
+    }
+
+    /**
+     * Captures an aria snapshot on the active Playwright session. Package-private engine-dispatch
+     * seam used by {@link BrowserService#ariaSnapshot}; not an MCP tool because no new tool names may
+     * be introduced in this commit (the existing {@code browser_aria_snapshot} tool covers this
+     * dispatch).
+     *
+     * @param locatorStrategy locator strategy; leave unset together with locatorValue to snapshot the whole page
+     * @param locatorValue locator value; leave blank to snapshot the whole page
+     * @return the aria snapshot serialized as YAML
+     */
+    String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
+        boolean wholePage = locatorStrategy == null || locatorValue == null || locatorValue.isBlank();
+        By locator = wholePage ? By.tagName("html") : getLocator(locatorStrategy, locatorValue);
+        return getDriver().element().ariaSnapshot(locator);
+    }
+
+    /**
+     * Initializes a SHAFT Playwright browser session.
+     *
+     * @param browser chromium, chrome, firefox, webkit, or safari; blank uses SHAFT defaults
+     * @param headless whether to launch headlessly
+     */
+    public void initialize(String browser, boolean headless) {
+        EngineService.ensureEngineInitialized();
+        SHAFT.Properties.web.set().headlessExecution(headless);
+        if (browser != null && !browser.isBlank()) {
+            SHAFT.Properties.playwright.set().browserName(browser.trim());
+        }
+        quit();
+        driver = new SHAFT.GUI.Playwright();
+        EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
+        logger.info("Playwright driver initialized (browser length: {}, headless: {})",
+                browser == null ? 0 : browser.length(), headless);
+    }
+
+    /**
+     * Quits the active SHAFT Playwright session.
+     */
+    public void quit() {
+        if (driver != null) {
+            driver.quit();
+            driver = null;
+        }
+        EngineService.setActiveEngine(ActiveEngine.NONE);
+    }
+
+    /**
+     * Dispatches a unified {@code element_click} call to the Playwright click implementation for
+     * the requested {@link ClickMode}. Package-private engine-dispatch seam used by
+     * {@link ElementService}; reuses the existing {@code @Tool} methods so recording behavior stays
+     * identical to calling {@code playwright_element_click}/{@code playwright_element_double_click}
+     * directly.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @param mode requested click gesture
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dispatchClick(locatorStrategy locatorStrategy, String locatorValue, ClickMode mode) {
+        return switch (mode) {
+            case DOUBLE -> doubleClick(locatorStrategy, locatorValue);
+            case LONG -> throw new IllegalArgumentException(
+                    "element_click mode=LONG is not supported for the Playwright engine (activeEngine=PLAYWRIGHT)");
+            case SINGLE -> click(locatorStrategy, locatorValue);
+        };
+    }
+
+    /**
+     * Starts recording Playwright actions performed through MCP Playwright tools.
+     *
+     * @param outputPath workspace-contained recording JSON output path
+     * @param mode recording label
+     * @param includeSensitiveValues whether typed values may be persisted
+     * @return recorder status
+     */
+    public McpMobileRecordingStatus recordStart(String outputPath, String mode, boolean includeSensitiveValues) {
+        return recorder.start(outputPath, mode, includeSensitiveValues);
+    }
+
+    /**
+     * Returns Playwright recording status.
+     *
+     * @return recorder status
+     */
+    public McpMobileRecordingStatus recordStatus() {
+        return recorder.status();
+    }
+
+    /**
+     * Stops Playwright recording.
+     *
+     * @param discard whether to delete the recording output
+     * @return final recorder status
+     */
+    public McpMobileRecordingStatus recordStop(boolean discard) {
+        return recorder.stop(discard);
+    }
+
+    /**
+     * Deletes a recorded Playwright step by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    public McpMobileRecordingStatus stepDelete(String stepId) {
+        return recorder.deleteStep(stepId);
+    }
+
+    /**
+     * Moves a recorded Playwright step up or down by its stable stepId, as surfaced in recorder status.
+     *
+     * @param stepId stable step id (e.g. "m2") from {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down"
+     * @return updated recorder status
+     */
+    public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
+        return recorder.reorderStep(stepId, direction);
+    }
+
+    /**
+     * Generates copy-paste replay code from a Playwright recording.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @return replay code blocks
+     */
+    public McpMobileReplayResult recordingCodeBlocks(String recordingPath, String driverVariableName) {
+        return recorder.codeBlocks(recordingPath, driverVariableName);
+    }
+
+    /**
+     * Generates focused Playwright recording snippets for insertion into an existing Page Object.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @param targetSourcePath workspace-contained Java Page Object source path
+     * @param insertAfter method name or textual anchor to insert after
+     * @return replay code blocks plus target insertion snippets
+     */
+    public McpMobileReplayResult recordAtTargetCodeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            String targetSourcePath,
+            String insertAfter) {
+        Path targetSource = targetSourcePath == null || targetSourcePath.isBlank()
+                ? null
+                : workspacePolicy.existing(targetSourcePath, "Playwright target source path");
+        return recorder.codeBlocks(recordingPath, driverVariableName, targetSource, insertAfter);
+    }
+
+    /**
+     * Replays a Playwright recording against the active Playwright session.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @return replay result
+     */
+    public McpMobileReplayResult replayRecording(String recordingPath, String driverVariableName) {
+        McpMobileRecording recording = recorder.readRecording(recordingPath);
+        int replayed = 0;
+        for (McpMobileRecordedAction action : recording.actions()) {
+            if (!action.sensitiveValueStored()) {
+                continue;
+            }
+            executeRecorded(action);
+            replayed++;
+        }
+        boolean allActionsReplayed = replayed == recording.actions().size();
+        McpMobileReplayResult blocks = recorder.codeBlocks(recordingPath, driverVariableName);
+        return new McpMobileReplayResult(
+                blocks.recordingPath(),
+                allActionsReplayed,
+                replayed,
+                blocks.codeBlocks(),
+                blocks.warnings(),
+                blocks.captureSessionPath(),
+                blocks.sourcePath(),
+                blocks.testDataPath(),
+                blocks.reportPath(),
+                blocks.reviewPath(),
+                blocks.report());
+    }
+
+    /**
+     * Navigates the Playwright page to a URL.
+     *
+     * @param targetUrl target URL
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult navigate(String targetUrl) {
+        getDriver().browser().navigateToURL(targetUrl);
+        return record("navigate", null, "", Map.of("url", text(targetUrl)),
+                "driver.browser().navigateToURL(\"" + javaString(targetUrl) + "\");", false);
+    }
+
+    /**
+     * Refreshes the Playwright page.
+     *
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult refresh() {
+        getDriver().browser().refreshCurrentPage();
+        return record("refresh", null, "", Map.of(),
+                "driver.browser().refreshCurrentPage();", false);
+    }
+
+    /**
+     * Navigates back in the Playwright page history.
+     *
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult navigateBack() {
+        getDriver().browser().navigateBack();
+        return record("navigate_back", null, "", Map.of(),
+                "driver.browser().navigateBack();", false);
+    }
+
+    /**
+     * Navigates forward in the Playwright page history.
+     *
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult navigateForward() {
+        getDriver().browser().navigateForward();
+        return record("navigate_forward", null, "", Map.of(),
+                "driver.browser().navigateForward();", false);
+    }
+
+    /**
+     * Sets the Playwright viewport size.
+     *
+     * @param width viewport width
+     * @param height viewport height
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult setWindowSize(int width, int height) {
+        getDriver().browser().setWindowSize(width, height);
+        return record("set_window_size", null, "", Map.of(
+                        "width", String.valueOf(width),
+                        "height", String.valueOf(height)),
+                "driver.browser().setWindowSize(" + width + ", " + height + ");", false);
+    }
+
+    /**
+     * Opens a new Playwright tab or window.
+     *
+     * @param targetUrl optional URL; blank opens about:blank
+     * @param windowType TAB or WINDOW
+     * @return recorded action metadata
+     */
+    public McpMobileActionResult newWindow(String targetUrl, String windowType) {
+        boolean openWindow = "WINDOW".equalsIgnoreCase(windowType);
+        String url = targetUrl == null || targetUrl.isBlank() ? "about:blank" : targetUrl;
+        if (openWindow) {
+            getDriver().browser().openNewWindow(url);
+        } else {
+            getDriver().browser().openNewTab(url);
+        }
+        String method = openWindow ? "openNewWindow" : "openNewTab";
+        return record("new_window", null, "", Map.of("url", url, "windowType", openWindow ? "WINDOW" : "TAB"),
+                "driver.browser()." + method + "(\"" + javaString(url) + "\");",
+                false);
+    }
+
+    /**
+     * Gets current Playwright page URL.
+     *
+     * @return current URL
+     */
+    public String getCurrentUrl() {
+        return getDriver().browser().getCurrentURL();
+    }
+
+    /**
+     * Gets current Playwright page title.
+     *
+     * @return page title
+     */
+    public String getTitle() {
+        return getDriver().browser().getCurrentWindowTitle();
+    }
+
+    /**
+     * Captures the current Playwright page DOM.
+     *
+     * @param maxCharacters maximum DOM characters to return
+     * @return page DOM snapshot
+     */
+    public McpPageDomSnapshot getPageDom(int maxCharacters) {
+        Page page = getDriver().getDriver();
+        int limit = maxCharacters <= 0 ? DEFAULT_DOM_CHARACTER_LIMIT : maxCharacters;
+        String dom = page.content();
+        String safeDom = dom == null ? "" : dom;
+        boolean truncated = safeDom.length() > limit;
+        String returnedDom = truncated ? safeDom.substring(0, limit) : safeDom;
+        return new McpPageDomSnapshot(
+                page.url(),
+                page.title(),
+                returnedDom,
+                safeDom.length(),
+                truncated,
+                truncated ? List.of("DOM was truncated; increase maxCharacters for more context.") : List.of());
+    }
+
+    /**
+     * Takes a PNG screenshot of the current Playwright page.
+     *
+     * @param outputPath optional workspace-contained output file path
+     * @param includeBase64 whether to include base64 bytes in the response
+     * @return screenshot metadata
+     */
+    public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
+        byte[] png = getDriver().getDriver().screenshot(new Page.ScreenshotOptions());
+        Path writtenPath = writeScreenshot(outputPath, png);
+        return new McpScreenshotResult(
+                "image/png",
+                png.length,
+                includeBase64 ? Base64.getEncoder().encodeToString(png) : null,
+                writtenPath == null ? null : writtenPath.toString(),
+                includeBase64 ? List.of() : List.of("Base64 omitted; set includeBase64=true to return inline PNG bytes."));
+    }
+
+    /**
+     * Saves the active Playwright session's cookies, {@code localStorage}, and {@code sessionStorage} to
+     * a JSON file.
+     *
+     * <p>Produces the same JSON schema as {@code browser_storage_state_save}, so files are interchangeable
+     * between the WebDriver and Playwright backends.
+     *
+     * @param filePath workspace-relative or workspace-contained output file path
+     * @return the absolute path the storage state was written to
+     */
+    public String saveStorageState(String filePath) {
+        SHAFT.GUI.Playwright driver = getDriver();
+        Path resolved = workspacePolicy.output(filePath, "Storage state output path");
+        driver.browser().saveStorageState(resolved.toString());
+        logger.info("Playwright storage state saved (path length: {}).", resolved.toString().length());
+        return resolved.toString();
+    }
+
+    /**
+     * Loads cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file into the active
+     * Playwright session.
+     *
+     * <p>Navigate to the target origin before loading storage state so browser cookie domain rules can
+     * apply.
+     *
+     * @param filePath workspace-contained source JSON file path
+     * @return a short confirmation including the resolved path and restored cookie count
+     */
+    public String loadStorageState(String filePath) {
+        SHAFT.GUI.Playwright driver = getDriver();
+        Path resolved = workspacePolicy.existing(filePath, "Storage state input path");
+        driver.browser().loadStorageState(resolved.toString());
+        int cookieCount = driver.browser().getAllCookies().size();
+        logger.info("Playwright storage state loaded (path length: {}, cookies: {}).",
+                resolved.toString().length(), cookieCount);
+        return "Loaded browser storage state from " + resolved + " (cookies restored: " + cookieCount + ")";
+    }
+
+    /**
+     * Clicks a Playwright element.
+     */
+    public McpMobileActionResult click(locatorStrategy locatorStrategy, String locatorValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().click(locator));
+        return recordLocator("click", locatorStrategy, locatorValue,
+                "driver.element().click(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
+    }
+
+    /**
+     * Clicks a Playwright element using JavaScript.
+     */
+    public McpMobileActionResult clickUsingJavaScript(locatorStrategy locatorStrategy, String locatorValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clickUsingJavascript(locator));
+        return recordLocator("click_js", locatorStrategy, locatorValue,
+                "driver.element().clickUsingJavascript(" + locatorCode(locatorStrategy, locatorValue) + ");", false,
+                evidence);
+    }
+
+    /**
+     * Double-clicks a Playwright element.
+     */
+    public McpMobileActionResult doubleClick(locatorStrategy locatorStrategy, String locatorValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().doubleClick(locator));
+        return recordLocator("double_click", locatorStrategy, locatorValue,
+                "driver.element().doubleClick(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
+    }
+
+    /**
+     * Hovers over a Playwright element.
+     */
+    public McpMobileActionResult hover(locatorStrategy locatorStrategy, String locatorValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().hover(locator));
+        return recordLocator("hover", locatorStrategy, locatorValue,
+                "driver.element().hover(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
+    }
+
+    /**
+     * Types into a Playwright element.
+     */
+    public McpMobileActionResult type(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().type(locator, textValue));
+        String code = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"" + javaString(textValue) + "\");";
+        String redacted = "driver.element().type(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"<redacted>\");";
+        return recordLocator("type", locatorStrategy, locatorValue, code, redacted, true,
+                Map.of("value", text(textValue)), evidence);
+    }
+
+    /**
+     * Appends text to a Playwright element.
+     */
+    public McpMobileActionResult appendText(locatorStrategy locatorStrategy, String locatorValue, String textValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeAppend(locator, textValue));
+        String code = "driver.element().typeAppend(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"" + javaString(textValue) + "\");";
+        String redacted = "driver.element().typeAppend(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"<redacted>\");";
+        return recordLocator("append_text", locatorStrategy, locatorValue, code, redacted, true,
+                Map.of("value", text(textValue)), evidence);
+    }
+
+    /**
+     * Sets an element value using JavaScript.
+     */
+    public McpMobileActionResult setValueUsingJavaScript(
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            String textValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().setValueUsingJavaScript(locator, textValue));
+        String code = "driver.element().setValueUsingJavaScript(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"" + javaString(textValue) + "\");";
+        String redacted = "driver.element().setValueUsingJavaScript(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"<redacted>\");";
+        return recordLocator("set_value_js", locatorStrategy, locatorValue, code, redacted, true,
+                Map.of("value", text(textValue)), evidence);
+    }
+
+    /**
+     * Clears a Playwright element.
+     */
+    public McpMobileActionResult clear(locatorStrategy locatorStrategy, String locatorValue) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().clear(locator));
+        return recordLocator("clear", locatorStrategy, locatorValue,
+                "driver.element().clear(" + locatorCode(locatorStrategy, locatorValue) + ");", false, evidence);
+    }
+
+    /**
+     * Uploads a file through a Playwright file input.
+     */
+    public McpMobileActionResult uploadFile(locatorStrategy locatorStrategy, String locatorValue, String filePath) {
+        LocatorEvidence evidence = withLocator(locatorStrategy, locatorValue, locator -> getDriver().element().typeFileLocationForUpload(locator, filePath));
+        String code = "driver.element().typeFileLocationForUpload(" + locatorCode(locatorStrategy, locatorValue)
+                + ", \"" + javaString(filePath) + "\");";
+        return recordLocator("upload_file", locatorStrategy, locatorValue, code, false,
+                Map.of("value", text(filePath)), evidence);
+    }
+
+    /**
+     * Drags one Playwright element to another.
+     */
+    public McpMobileActionResult dragAndDrop(
+            locatorStrategy sourceLocatorStrategy,
+            String sourceLocatorValue,
+            locatorStrategy targetLocatorStrategy,
+            String targetLocatorValue) {
+        By source = getLocator(sourceLocatorStrategy, sourceLocatorValue);
+        By target = getLocator(targetLocatorStrategy, targetLocatorValue);
+        getDriver().element().dragAndDrop(source, target);
+        String code = "driver.element().dragAndDrop(" + locatorCode(sourceLocatorStrategy, sourceLocatorValue)
+                + ", " + locatorCode(targetLocatorStrategy, targetLocatorValue) + ");";
+        return record("drag_and_drop", sourceLocatorStrategy, sourceLocatorValue, Map.of(
+                        "targetStrategy", targetLocatorStrategy.name(),
+                        "targetValue", targetLocatorValue),
+                code, false);
+    }
+
+    /**
+     * Checks Playwright element visibility.
+     */
+    public boolean isDisplayed(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).isVisible();
+    }
+
+    /**
+     * Counts the Playwright elements a locator matches.
+     */
+    public int count(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).count();
+    }
+
+    /**
+     * Highlights the Playwright elements a locator matches and returns how many there are (#6640).
+     */
+    public int highlight(locatorStrategy locatorStrategy, String locatorValue) {
+        com.microsoft.playwright.Locator locator = locator(locatorStrategy, locatorValue);
+        int count = locator.count();
+        if (count > 0) {
+            locator.highlight();
+        }
+        return count;
+    }
+
+    /**
+     * Checks Playwright element enabled state.
+     */
+    public boolean isEnabled(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).isEnabled();
+    }
+
+    /**
+     * Checks whether a Playwright element (for example a checkbox or radio button) is selected, via
+     * the raw Playwright {@code Locator.isChecked()} (design doc amendment A8). Package-private
+     * engine-dispatch seam used by {@link ElementService#isSelected}; not an MCP tool because no new
+     * tool names may be introduced in this commit (the old {@code element_is_selected} tool name
+     * already covers this dispatch).
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return true when the element is checked/selected
+     */
+    boolean isSelected(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).isChecked();
+    }
+
+    /**
+     * Drags an element by an offset using SHAFT Playwright. Package-private engine-dispatch seam used
+     * by {@link ElementService#dragAndDrop} when {@code offsetX}/{@code offsetY} are supplied instead
+     * of a target locator; reuses the same recording path as the other Playwright element tools.
+     *
+     * @param locatorStrategy source locator strategy
+     * @param locatorValue source locator value
+     * @param xOffset horizontal offset
+     * @param yOffset vertical offset
+     * @return recorded action metadata
+     */
+    McpMobileActionResult dragAndDropByOffset(locatorStrategy locatorStrategy, String locatorValue, int xOffset, int yOffset) {
+        By locator = getLocator(locatorStrategy, locatorValue);
+        getDriver().element().dragAndDropByOffset(locator, xOffset, yOffset);
+        String code = "driver.element().dragAndDropByOffset(" + locatorCode(locatorStrategy, locatorValue)
+                + ", " + xOffset + ", " + yOffset + ");";
+        return record("drag_and_drop_by_offset", locatorStrategy, locatorValue, Map.of(
+                        "xOffset", String.valueOf(xOffset), "yOffset", String.valueOf(yOffset)),
+                code, false);
+    }
+
+    private SHAFT.GUI.Playwright getDriver() {
+        if (driver == null) {
+            throw new IllegalStateException("No active Playwright browser session");
+        }
+        return driver;
+    }
+
+    private void executeRecorded(McpMobileRecordedAction action) {
+        locatorStrategy strategy = action.locatorStrategy().isBlank()
+                ? null
+                : locatorStrategy.valueOf(action.locatorStrategy());
+        String locatorValue = action.locatorValue();
+        Map<String, String> parameters = action.parameters();
+        switch (action.action()) {
+            case "navigate" -> getDriver().browser().navigateToURL(parameters.get("url"));
+            case "refresh" -> getDriver().browser().refreshCurrentPage();
+            case "navigate_back" -> getDriver().browser().navigateBack();
+            case "navigate_forward" -> getDriver().browser().navigateForward();
+            case "set_window_size" -> getDriver().browser().setWindowSize(
+                    Integer.parseInt(parameters.get("width")),
+                    Integer.parseInt(parameters.get("height")));
+            case "new_window" -> {
+                if ("WINDOW".equals(parameters.get("windowType"))) {
+                    getDriver().browser().openNewWindow(parameters.get("url"));
+                } else {
+                    getDriver().browser().openNewTab(parameters.get("url"));
+                }
+            }
+            case "click" -> getDriver().element().click(getLocator(strategy, locatorValue));
+            case "click_js" -> getDriver().element().clickUsingJavascript(getLocator(strategy, locatorValue));
+            case "double_click" -> getDriver().element().doubleClick(getLocator(strategy, locatorValue));
+            case "hover" -> getDriver().element().hover(getLocator(strategy, locatorValue));
+            case "type" -> getDriver().element().type(getLocator(strategy, locatorValue), parameters.get("value"));
+            case "click_semantic" -> getDriver().element().click(semanticClickableLocator(locatorValue));
+            case "type_semantic" -> getDriver().element().type(semanticInputLocator(locatorValue), parameters.get("value"));
+            case "append_text" -> getDriver().element().typeAppend(getLocator(strategy, locatorValue), parameters.get("value"));
+            case "set_value_js" -> getDriver().element().setValueUsingJavaScript(
+                    getLocator(strategy, locatorValue), parameters.get("value"));
+            case "clear" -> getDriver().element().clear(getLocator(strategy, locatorValue));
+            case "upload_file" -> getDriver().element().typeFileLocationForUpload(
+                    getLocator(strategy, locatorValue), parameters.get("value"));
+            case "drag_and_drop" -> getDriver().element().dragAndDrop(
+                    getLocator(strategy, locatorValue),
+                    getLocator(locatorStrategy.valueOf(parameters.get("targetStrategy")), parameters.get("targetValue")));
+            default -> throw new IllegalArgumentException("Unsupported Playwright recording action: " + action.action());
+        }
+    }
+
+    private McpMobileActionResult recordLocator(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            String javaCode,
+            boolean sensitive,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, Map.of(), javaCode, javaCode, sensitive, evidence);
+    }
+
+    private McpMobileActionResult recordLocator(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            String javaCode,
+            boolean sensitive,
+            Map<String, String> parameters,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, javaCode, sensitive, evidence);
+    }
+
+    private McpMobileActionResult recordLocator(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            Map<String, String> parameters,
+            LocatorEvidence evidence) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive, evidence);
+    }
+
+    private McpMobileActionResult record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            boolean sensitive) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, javaCode, sensitive,
+                LocatorEvidence.UNVERIFIED);
+    }
+
+    private McpMobileActionResult record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                LocatorEvidence.UNVERIFIED);
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link #withLocator} computed
+     * against the real driver at the moment the action executed (issue #4273): a real live-element
+     * count and a real stable signal, instead of {@link McpPlaywrightRecordingService}'s pre-existing
+     * unverified {@code 0}/{@code false} default that every non-locator action (navigation, window
+     * management, etc.) still reports via the overloads above.
+     */
+    private McpMobileActionResult record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            LocatorEvidence evidence) {
+        McpMobileRecordedAction recorded = recorder.record(
+                action,
+                locatorStrategy,
+                locatorValue,
+                parameters,
+                javaCode,
+                redactedJavaCode,
+                sensitive,
+                evidence.uniquenessCount(),
+                evidence.stable(),
+                evidence.replayXpath());
+        List<String> warnings = actionWarnings(action, locatorStrategy, recorded);
+        return new McpMobileActionResult(action, recorded != null, actionBlock(action, javaCode),
+                warnings);
+    }
+
+    static final String CSS_LOCATOR_CODEGEN_WARNING = "CSS-strategy locators cannot be used for SHAFT "
+            + "test-code generation; codegen will fail for this action later. Use an ID, NAME, XPath, or "
+            + "role-based locator strategy instead if you need generated code.";
+
+    private static List<String> actionWarnings(
+            String action,
+            locatorStrategy locatorStrategy,
+            McpMobileRecordedAction recorded) {
+        LinkedHashSet<String> warnings = new LinkedHashSet<>();
+        if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
+            warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
+        }
+        if (isCssLocatorStrategy(locatorStrategy)) {
+            warnings.add(CSS_LOCATOR_CODEGEN_WARNING);
+        }
+        if (recorded == null) {
+            warnings.add("Ignored: recording is not active — call capture_start (with the Playwright engine "
+                    + "active) to capture this step.");
+        } else {
+            warnings.addAll(recorded.warnings());
+        }
+        return List.copyOf(warnings);
+    }
+
+    /**
+     * True for the locator strategies {@link McpPlaywrightCaptureAdapter#locator} maps to CSS for
+     * codegen purposes ({@code CSS}/{@code CSSSELECTOR}/{@code SELECTOR}). {@code LocatorPolicy}
+     * (shaft-capture) has no admission path for CSS-strategy locators, so recording one always
+     * fails codegen later (issue #4291) -- surfacing that immediately here, instead of leaving the
+     * caller to discover it only when they later call codegen, is this method's entire purpose.
+     */
+    private static boolean isCssLocatorStrategy(locatorStrategy strategy) {
+        return strategy == locatorStrategy.CSS
+                || strategy == locatorStrategy.CSSSELECTOR
+                || strategy == locatorStrategy.SELECTOR;
+    }
+
+    private McpCodeBlock actionBlock(String action, String javaCode) {
+        return new McpCodeBlock(
+                "playwright-action-" + action,
+                "SHAFT Playwright action",
+                McpCodeBlock.Kind.TEST_METHOD,
+                "java",
+                javaCode.contains("By.")
+                        ? List.of("com.shaft.driver.SHAFT", "org.openqa.selenium.By")
+                        : List.of("com.shaft.driver.SHAFT"),
+                javaCode,
+                "Paste inside a method that owns an initialized SHAFT.GUI.Playwright named driver.",
+                true,
+                List.of(),
+                List.of());
+    }
+
+    /**
+     * Resolves and executes {@code operation} against the live Playwright driver, computing real
+     * live-DOM {@link LocatorEvidence} for the target locator before the action runs (issue #4273).
+     * Evidence is captured before, not after, the operation executes: a click can navigate away or
+     * remove the element, so counting matches only afterward would no longer describe what was
+     * actually clicked.
+     */
+    private LocatorEvidence withLocator(locatorStrategy strategy, String locatorValue, LocatorOperation operation) {
+        By locator = getLocator(strategy, locatorValue);
+        LocatorEvidence evidence = evidenceFor(strategy, locatorValue, locator);
+        operation.execute(locator);
+        logger.info("Playwright element operation completed (strategy: {}, locator length: {})",
+                strategy, locatorValue == null ? 0 : locatorValue.length());
+        return evidence;
+    }
+
+    /**
+     * Computes real live-DOM evidence for one locator: {@code uniquenessCount} from the live element
+     * count, {@code stable} from {@code LocatorPolicy.looksAutoGenerated} for {@code ID}-strategy
+     * locators (the only strategy {@code LocatorPolicy}'s tier 1 actually consults {@code stable}
+     * for), and a self-verified {@code replayXpath} for {@code XPATH}/{@code NAME}-strategy locators
+     * (issue #4262). Every other strategy reports {@code stable=false}/{@code replayXpath=""}:
+     * unverified, matching this surface's pre-existing honest-refusal default -- {@code
+     * uniquenessCount} is still the real live count so a future tier can consult it.
+     */
+    private LocatorEvidence evidenceFor(locatorStrategy strategy, String locatorValue, By locator) {
+        int uniquenessCount = getDriver().element().getElementsCount(locator);
+        boolean stable = strategy == locatorStrategy.ID
+                && !LocatorPolicy.looksAutoGenerated(text(locatorValue));
+        String replayXpath = replayXpathFor(strategy, locatorValue, uniquenessCount);
+        return new LocatorEvidence(uniquenessCount, stable, replayXpath);
+    }
+
+    /**
+     * Computes a self-verified {@code replayXpath} for the two strategies where one live-DOM
+     * re-query is enough to trust it (issue #4262). {@code XPATH}: the recorded value is already a
+     * literal XPath expression -- once {@code uniquenessCount} (computed against that exact
+     * expression) confirms it matches one element, the expression IS its own self-verified evidence.
+     * {@code NAME}: the primary locator is SHAFT's {@code hasAttribute("name", ...)} builder, a
+     * different query than the plain {@code //*[@name="..."]} expression this method constructs --
+     * so the construction is independently re-verified against the live driver rather than assumed
+     * equivalent to the primary locator's count, mirroring the fabricated-evidence lesson of issue
+     * #4273. Every other strategy returns blank (unverified); CSS is deliberately not handled here
+     * (a general CSS-to-XPath conversion is a separate, larger change, tracked as a follow-up).
+     */
+    private String replayXpathFor(locatorStrategy strategy, String locatorValue, int uniquenessCount) {
+        String value = text(locatorValue);
+        if (strategy == locatorStrategy.XPATH) {
+            return uniquenessCount == 1 ? value : "";
+        }
+        if (strategy == locatorStrategy.NAME && value.indexOf('"') < 0) {
+            By constructed = By.xpath("//*[@name=\"" + value + "\"]");
+            if (getDriver().element().getElementsCount(constructed) == 1) {
+                return "//*[@name=\"" + value + "\"]";
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Live-DOM evidence for one recorded locator (issue #4273/#4262). {@link #UNVERIFIED} is used for
+     * every action with no live locator to check (navigation, window management, drag-and-drop by
+     * offset, etc.), matching the honest-refusal default this surface has always reported for those.
+     */
+    private record LocatorEvidence(int uniquenessCount, boolean stable, String replayXpath) {
+        static final LocatorEvidence UNVERIFIED = new LocatorEvidence(0, false, "");
+    }
+
+    private com.microsoft.playwright.Locator locator(locatorStrategy locatorStrategy, String locatorValue) {
+        return ShaftLocator.from(getLocator(locatorStrategy, locatorValue)).toPlaywrightLocator(getDriver().getDriver());
+    }
+
+    // The playwright_element_click_semantic/playwright_element_type_semantic @Tool methods that
+    // used to call semanticClickableLocator/semanticInputLocator were removed (generation policy:
+    // never generate or recommend intent-based smart locators). These two helpers are kept only
+    // because executeRecorded() still replays legacy "click_semantic"/"type_semantic" recordings
+    // captured by those tools before their removal; they are not reachable from any current tool.
+    private static By semanticClickableLocator(String elementName) {
+        return SHAFT.GUI.Locator.clickableField(requireSemanticElementName(elementName));
+    }
+
+    private static By semanticInputLocator(String elementName) {
+        return SHAFT.GUI.Locator.inputField(requireSemanticElementName(elementName));
+    }
+
+    // Kept for the same legacy-replay reason as above, and because tests still use it to build
+    // synthetic "type_semantic" recording fixtures.
+    static String semanticTypeCode(String elementName, String textValue) {
+        return "driver.element().type(" + semanticInputLocatorCode(elementName)
+                + ", \"" + javaString(textValue) + "\");";
+    }
+
+    private static String semanticInputLocatorCode(String elementName) {
+        return "SHAFT.GUI.Locator.inputField(\"" + javaString(requireSemanticElementName(elementName)) + "\")";
+    }
+
+    private static String requireSemanticElementName(String elementName) {
+        if (elementName == null || elementName.isBlank()) {
+            throw new IllegalArgumentException("Semantic element name must not be blank.");
+        }
+        return elementName.trim();
+    }
+
+    private Path writeScreenshot(String outputPath, byte[] png) {
+        if (outputPath == null || outputPath.isBlank()) {
+            return null;
+        }
+        Path resolved = workspacePolicy.output(outputPath, "Playwright screenshot output path");
+        try {
+            Path parent = resolved.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            return Files.write(resolved, png);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Playwright screenshot output path cannot be written inside the MCP workspace.",
+                    exception);
+        }
+    }
+
+    private static String locatorCode(locatorStrategy strategy, String value) {
+        if (strategy == null) {
+            return "By.xpath(\"" + javaString(value) + "\")";
+        }
+        return switch (strategy) {
+            case ID -> "SHAFT.GUI.Locator.id(\"" + javaString(value) + "\")";
+            case CSS, CSSSELECTOR, SELECTOR -> "SHAFT.GUI.Locator.cssSelector(\"" + javaString(value) + "\")";
+            case XPATH -> "By.xpath(\"" + javaString(value) + "\")";
+            case NAME -> "SHAFT.GUI.Locator.name(\"" + javaString(value) + "\")";
+            case TAGNAME -> "SHAFT.GUI.Locator.tagName(\"" + javaString(value) + "\")";
+            case CLASSNAME -> "SHAFT.GUI.Locator.className(\"" + javaString(value) + "\")";
+            default -> throw new IllegalArgumentException("Locator strategy is not supported by Playwright tools: " + strategy);
+        };
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static String javaString(String value) {
+        return text(value).replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
+                .replace("\t", "\\t");
+    }
+
+    @FunctionalInterface
+    private interface LocatorOperation {
+        void execute(By locator);
+    }
+}

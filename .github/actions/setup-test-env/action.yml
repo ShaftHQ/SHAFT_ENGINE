@@ -1,0 +1,57 @@
+name: 'Setup Test Environment'
+description: 'Sets up JDK, Maven, and optionally Node.js for SHAFT test execution'
+inputs:
+  java-version:
+    description: 'Java version to install'
+    required: false
+    default: '25'
+  node-version:
+    description: 'Node.js version to install (set to empty string to skip).'
+    required: false
+    default: '25'
+  mobile-apps:
+    description: 'Fetch pinned mobile test apk/ipa fixtures (#7547).'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Record job start time
+      shell: bash
+      run: echo "SHAFT_JOB_STARTED_S=$(date +%s)" >> "$GITHUB_ENV"
+    - name: Setup Node.js environment
+      if: inputs.node-version != ''
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Set up JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: 'zulu'
+    # Deliberately not setup-java's own `cache: 'maven'` -- it has no
+    # restore-keys, so a pom bump made all 22 E2E jobs cold-resolve from Maven
+    # Central at once and get 429'd (issue #4440).
+    - name: Cache Maven repository
+      uses: ./.github/actions/cache-maven-repo
+    - name: Enforce UTF-8 JVM defaults
+      shell: bash
+      run: |
+        echo 'JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8' >> "$GITHUB_ENV"
+    - name: Cache mobile test app downloads
+      if: inputs.mobile-apps == 'true'
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: ~/.cache/shaft-engine/mobile-test-apps
+        key: mobile-test-apps-${{ hashFiles('scripts/ci/mobile_test_apps.manifest.json') }}
+        restore-keys: |
+          mobile-test-apps-
+    - name: Refuse tracked mobile apk/ipa fixtures
+      if: inputs.mobile-apps == 'true'
+      shell: bash
+      run: python3 scripts/ci/fetch_mobile_test_apps.py --check-tracked
+    - name: Fetch mobile test apps
+      if: inputs.mobile-apps == 'true'
+      shell: bash
+      run: python3 scripts/ci/fetch_mobile_test_apps.py
+

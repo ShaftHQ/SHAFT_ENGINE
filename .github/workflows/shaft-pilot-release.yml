@@ -1,0 +1,377 @@
+name: SHAFT Pilot Release Candidate
+# Named release checks stay mirrored with mavenCentral_cd.yml's
+# build_release_and_deliver steps. This workflow runs those checks as isolated
+# parallel jobs plus a release-candidate aggregator so an early failure cannot
+# hide a later one. Keep the named checks in sync; do not re-serialize this PR
+# gate to match Central's sequential deploy path.
+
+on:
+  pull_request:
+    paths:
+      - "pom.xml"
+      - ".github/workflows/shaft-pilot-release.yml"
+      - ".github/actions/reclaim-disk-space/action.yml"
+      - ".github/actions/upload-jacoco-coverage/action.yml"
+  schedule:
+    # Nightly release dry run on main: surfaces release-only failures days before
+    # a release PR instead of on it; the notify job files one tracking issue.
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shaft-pilot-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  detect-shaft-version-change:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.version-diff.outputs.changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - name: Detect SHAFT version change
+        id: version-diff
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ]; then
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+
+          # Release-candidate infra (this workflow's own file or the composite actions
+          # it depends on) must be exercised on its own PR, not only on the next real
+          # version bump - this is exactly the class of change that caused the disk
+          # exhaustion regression fixed above.
+          infra_changed="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- \
+            .github/workflows/shaft-pilot-release.yml \
+            .github/actions/reclaim-disk-space/action.yml \
+            .github/actions/upload-jacoco-coverage/action.yml)"
+          if [ -n "${infra_changed}" ]; then
+            echo "Release-candidate infra changed: ${infra_changed}"
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          read_version() {
+            git show "${1}:pom.xml" | python3 -c 'import sys, xml.etree.ElementTree as ET; version = ET.fromstring(sys.stdin.read()).findtext("{http://maven.apache.org/POM/4.0.0}version"); print(version.strip() if version else ""); sys.exit(0 if version else 1)'
+          }
+
+          base_version="$(read_version "${BASE_SHA}")"
+          head_version="$(read_version "${HEAD_SHA}")"
+          if [ "${base_version}" = "${head_version}" ]; then
+            echo "SHAFT version unchanged: ${head_version}"
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "SHAFT version changed: ${base_version} -> ${head_version}"
+            echo "changed=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+  intellij-verify:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify IntelliJ plugin release candidate
+        uses: ./.github/actions/intellij-verify
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: shaft-pilot-release-intellij-verify
+
+  release-contracts:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Validate release contracts
+        uses: ./.github/actions/release-contract-validators
+
+  pilot-tests:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+      # cache-maven-repo, not setup-java's `cache: "maven"` -- one key format
+      # with restore-keys across every call site (issues #4440, #4444).
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Install SHAFT Pilot prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
+          -am install -DskipTests -Dgpg.skip
+      - name: Reset Pilot Allure result contents
+        run: |
+          for module in shaft-pilot-core shaft-capture shaft-doctor shaft-ai shaft-heal shaft-mcp; do
+            mkdir -p "${module}/allure-results"
+            find "${module}/allure-results" -mindepth 1 -delete
+          done
+      - name: Run deterministic SHAFT Pilot tests
+        id: pilot_tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
+          test -Dgpg.skip
+      - name: Verify populated Pilot Allure results
+        run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
+      - name: Upload coverage to Codecov
+        if: always() && github.event_name != 'pull_request' && steps.pilot_tests.outcome != 'skipped'
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: >-
+            ./shaft-pilot-core/target/jacoco/jacoco.xml,
+            ./shaft-capture/target/jacoco/jacoco.xml,
+            ./shaft-doctor/target/jacoco/jacoco.xml,
+            ./shaft-ai/target/jacoco/jacoco.xml,
+            ./shaft-heal/target/jacoco/jacoco.xml,
+            ./shaft-mcp/target/jacoco/jacoco.xml
+
+  capture-journey:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Install SHAFT Pilot prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
+          -am install -DskipTests -Dgpg.skip
+      - name: Run headless SHAFT Capture release journey
+        uses: ./.github/actions/capture-browser-e2e
+      - name: Upload Capture journey coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-capture/target/jacoco/jacoco.xml
+          source-id: shaft-pilot-release-capture-journey
+
+  package-and-validate:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Package the complete reactor
+        run: mvn --batch-mode clean install -DskipTests -Dgpg.skip
+      - name: Validate packaged release outputs and MCP transports
+        run: |
+          mvn --batch-mode -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency' -DskipTests -Dgpg.skip
+          python3 scripts/ci/validate_maven_publication.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_mcp_transports.py
+      - name: Validate clean Pilot consumers
+        run: |
+          VERSION="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml \
+            verify "-Dshaft.version=${VERSION}" -DskipTests
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml \
+            verify "-Dshaft.version=${VERSION}" -DskipTests
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml \
+            verify "-Dshaft.version=${VERSION}" -DskipTests
+
+  container-smoke:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Build and smoke the release container
+        uses: ./.github/actions/mcp-container-smoke
+        with:
+          image-tag: shaft-pilot-release:test
+          container-name: shaft-pilot-release-smoke
+          client-name: release-smoke
+
+  release-prep-dry-run:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install managed CI Python dependencies
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Prepare release metadata for today in Africa/Cairo (same-day re-cut becomes a .N hotfix, never a future date)
+        run: python3 scripts/ci/prepare_release_pr.py --release-date "$(TZ=Africa/Cairo date +%F)" --after-current
+      - name: Check plugin changelog covers the prepared version
+        run: python3 scripts/ci/check_plugin_changelog_version.py
+      - name: Validate release contracts on the prepared tree
+        uses: ./.github/actions/release-contract-validators
+      - name: Run release-sensitive plugin tests on the prepared tree
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_check_plugin_changelog_version
+          tests.scripts.test_assemble_chaos_engine_plugin
+
+  release-candidate:
+    name: release-candidate
+    needs:
+      - detect-shaft-version-change
+      - intellij-verify
+      - release-contracts
+      - pilot-tests
+      - capture-journey
+      - package-and-validate
+      - container-smoke
+      - release-prep-dry-run
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate isolated slice results
+        env:
+          DETECT_RESULT: ${{ needs.detect-shaft-version-change.result }}
+          DETECT_CHANGED: ${{ needs.detect-shaft-version-change.outputs.changed }}
+          INTELLIJ_RESULT: ${{ needs.intellij-verify.result }}
+          CONTRACTS_RESULT: ${{ needs.release-contracts.result }}
+          PILOT_RESULT: ${{ needs.pilot-tests.result }}
+          CAPTURE_RESULT: ${{ needs.capture-journey.result }}
+          PACKAGE_RESULT: ${{ needs.package-and-validate.result }}
+          CONTAINER_RESULT: ${{ needs.container-smoke.result }}
+          PREP_RESULT: ${{ needs.release-prep-dry-run.result }}
+        run: |
+          set -uo pipefail
+
+          {
+            echo "| Slice | Result |"
+            echo "| --- | --- |"
+            echo "| detect-shaft-version-change | ${DETECT_RESULT} |"
+            echo "| intellij-verify | ${INTELLIJ_RESULT} |"
+            echo "| release-contracts | ${CONTRACTS_RESULT} |"
+            echo "| pilot-tests | ${PILOT_RESULT} |"
+            echo "| capture-journey | ${CAPTURE_RESULT} |"
+            echo "| package-and-validate | ${PACKAGE_RESULT} |"
+            echo "| container-smoke | ${CONTAINER_RESULT} |"
+            echo "| release-prep-dry-run | ${PREP_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${DETECT_RESULT}" != "success" ]; then
+            echo "::error::detect-shaft-version-change did not succeed (${DETECT_RESULT})"
+            exit 1
+          fi
+
+          if [ "${DETECT_CHANGED}" != "true" ]; then
+            echo "No version or release-candidate infra change; isolated slices skipped."
+            exit 0
+          fi
+
+          status=0
+          for result in "${INTELLIJ_RESULT}" "${CONTRACTS_RESULT}" "${PILOT_RESULT}" "${CAPTURE_RESULT}" "${PACKAGE_RESULT}" "${CONTAINER_RESULT}" "${PREP_RESULT}"; do
+            case "$result" in
+              success) ;;
+              *)
+                echo "::error::a release-candidate slice did not pass (result: ${result})"
+                status=1
+                ;;
+            esac
+          done
+          exit "${status}"
+
+  notify:
+    name: Notify on nightly failure
+    needs: [release-candidate]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ needs.release-candidate.result == 'failure' && 'failure' || (needs.release-candidate.result == 'success' && 'success' || 'skip') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:release-candidate'

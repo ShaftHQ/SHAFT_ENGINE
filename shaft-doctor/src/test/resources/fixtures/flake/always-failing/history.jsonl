@@ -1,0 +1,5 @@
+{"uuid":"launch-af-1","name":"AF #1","timestamp":1700003010000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"launch-af-2","name":"AF #2","timestamp":1700003020000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"launch-af-3","name":"AF #3","timestamp":1700003030000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"launch-af-4","name":"AF #4","timestamp":1700003040000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}
+{"uuid":"launch-af-5","name":"AF #5","timestamp":1700003050000,"testResults":{"hist-always-fail":{"name":"alwaysFail","fullName":"demo.AlwaysFail.x","status":"failed","duration":10,"historyId":"hist-always-fail"}}}

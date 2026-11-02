@@ -1,0 +1,39 @@
+{
+  "body_path": "memory/gotchas/intellij-plugin-gradle9-jdk21-screenshots.md",
+  "content_hash": "sha256:6d67d998070a8feecda38f4bfe8fad1508adcc7afe3fd6a742de004a22cceb2d",
+  "created_at": "2026-07-02T00:00:00Z",
+  "evidence": [
+    {
+      "id": "shaft-intellij/settings.gradle.kts",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/gradle/wrapper/gradle-wrapper.properties",
+      "kind": "file"
+    },
+    {
+      "id": ".github/actions/intellij-verify/action.yml",
+      "kind": "file"
+    },
+    {
+      "id": "issue #4779",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.intellij-plugin-gradle9-jdk21-screenshots",
+  "source": {
+    "kind": "agent",
+    "task": "Optimize agent guidance after issue 3205 IntelliJ Assistant browser-control execution"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "gradle9",
+    "jdk21",
+    "screenshots",
+    "codex"
+  ],
+  "title": "Use the Gradle wrapper and JDK 25 for IntelliJ plugin builds and screenshots",
+  "type": "gotcha",
+  "updated_at": "2026-08-12T10:52:07+03:00"
+}

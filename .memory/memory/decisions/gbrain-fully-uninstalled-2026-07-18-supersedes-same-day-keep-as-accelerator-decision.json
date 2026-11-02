@@ -1,0 +1,28 @@
+{
+  "body_path": "memory/decisions/gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision.md",
+  "content_hash": "sha256:f8f514a3a717e66a94c779d8eebf766337919a46668b2efbb58cef9ccefeb28c",
+  "created_at": "2026-07-18T08:36:26+03:00",
+  "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
+  "source": {
+    "kind": "agent",
+    "task": "gbrain full uninstall requested and executed 2026-07-18"
+  },
+  "status": "active",
+  "tags": [
+    "gbrain",
+    "uninstall",
+    "memory-loop",
+    "retrieval-reflex",
+    "graphify",
+    "agent-infra"
+  ],
+  "title": "gbrain fully uninstalled 2026-07-18 (supersedes same-day keep-as-accelerator decision)",
+  "type": "decision",
+  "updated_at": "2026-08-10T15:22:23+03:00"
+}

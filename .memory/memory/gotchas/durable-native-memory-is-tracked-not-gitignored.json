@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/durable-native-memory-is-tracked-not-gitignored.md",
+  "content_hash": "sha256:f1fa4e267931a933a5d87790a9552c8b0ed7603672a0f7e1f9fd44ec8ad10561",
+  "created_at": "2026-09-14T15:12:35+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5774",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.durable-native-memory-is-tracked-not-gitignored",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver #5774 track all durable memories"
+  },
+  "status": "active",
+  "tags": [
+    "memory",
+    "gitignore",
+    "mempalace",
+    "graphify",
+    "gotcha"
+  ],
+  "title": "Durable native Memory is tracked, not gitignored",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T15:12:35+03:00"
+}

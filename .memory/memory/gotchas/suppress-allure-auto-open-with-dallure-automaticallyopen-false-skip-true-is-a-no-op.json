@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op.md",
+  "content_hash": "sha256:882faca41205353faf80deacb507b481cf7103966d01ec66a03efc1f0d98f260",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "AGENTS.md",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.suppress-allure-auto-open-with-dallure-automaticallyopen-false-skip-true-is-a-no-op",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "allure",
+    "reporting",
+    "validation",
+    "testing",
+    "agents-md"
+  ],
+  "title": "Suppress Allure auto-open with -Dallure.automaticallyOpen=false (skip=true is a no-op)",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T22:00:11+03:00"
+}

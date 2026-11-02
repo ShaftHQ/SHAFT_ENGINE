@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked.md",
+  "content_hash": "sha256:b75e42cdc7c84bea7328333e1466281359d3a880f91263c5ff6dbe25e5c64dcb",
+  "created_at": "2026-07-09T12:58:19+03:00",
+  "evidence": [],
+  "id": "gotcha.shaft-intellij-gradle-test-needs-offline-when-network-egress-to-jetbrains-cache-redirector-is-blocked",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #3409: real interactive local-agent approval, richer Verbose detail, mid-run toggle fix (PR #3411)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "gradle",
+    "ci",
+    "network"
+  ],
+  "title": "shaft-intellij gradle test needs --offline when network egress to JetBrains cache-redirector is blocked",
+  "type": "gotcha",
+  "updated_at": "2026-07-09T12:58:19+03:00"
+}

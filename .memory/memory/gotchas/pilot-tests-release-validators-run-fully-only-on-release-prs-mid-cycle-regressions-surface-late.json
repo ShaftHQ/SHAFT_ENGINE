@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/pilot-tests-release-validators-run-fully-only-on-release-prs-mid-cycle-regressions-surface-late.md",
+  "content_hash": "sha256:49513451ccd3c6be0872660b81209deb5984491dccdd05923e25965c091ff8ea",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "133c76ec8cc13c89e41464a25732e6dfc07976b4",
+      "kind": "commit"
+    },
+    {
+      "id": "65ebc8e3f664c0a41ad20a3bad90a1e29cdcb566",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.pilot-tests-release-validators-run-fully-only-on-release-prs-mid-cycle-regressions-surface-late",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "release",
+    "testing",
+    "validation"
+  ],
+  "title": "Pilot tests + release validators run fully only on release PRs -- mid-cycle regressions surface late",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

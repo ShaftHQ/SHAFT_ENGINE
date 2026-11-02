@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/imgcodecs-imread-fails-silently-past-windows-max-path-decode-from-bytes-instead.md",
+  "content_hash": "sha256:8e0a0173cc681a46ee7eecaa53d4c7706a42042d99fd7e41f7d8fce0633693a4",
+  "created_at": "2026-07-12T14:28:57+03:00",
+  "evidence": [
+    {
+      "id": "08a1d499265848b072360066abeebc2ee4c3d43a",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.imgcodecs-imread-fails-silently-past-windows-max-path-decode-from-bytes-instead",
+  "source": {
+    "kind": "agent",
+    "task": "Fix issue #3382 OpenCV isolation test failures"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Imgcodecs.imread fails silently past Windows MAX_PATH; decode from bytes instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

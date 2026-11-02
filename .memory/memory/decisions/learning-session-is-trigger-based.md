@@ -1,0 +1,1 @@
+Owner decision (epic ShaftHQ/SHAFT_ENGINE#6342): the Learning Session is trigger-based. After confirmed delivery it runs only when a failure or escaped defect, a surprise that contradicted the harness, or an owner request occurred; otherwise one line in the final report. The portable Stop hook enforces exactly that. Supersedes the always-after-delivery rule.

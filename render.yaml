@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: shaft-mcp
+    runtime: docker
+    dockerfilePath: ./shaft-mcp/Dockerfile.render
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: http

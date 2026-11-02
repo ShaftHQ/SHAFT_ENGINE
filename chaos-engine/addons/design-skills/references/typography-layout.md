@@ -1,0 +1,118 @@
+---
+name: typography-layout
+description: Use when text hierarchy, type scale, line length, or grid layout decides whether a page, image, or frame reads well.
+---
+
+# D05 Typography and layout
+
+## Use when
+
+Setting or fixing a type scale, body measure, vertical rhythm, or grid on a
+page, poster, slide, or video frame.
+
+## Rules for screens
+
+- Modular scale from the token `type.scale` (1.2 to 1.333); sizes come from
+  the scale, not ad-hoc pixel values.
+- Body measure 45 to 90 characters; 60 to 75 is the target.
+- Body text at least 16 CSS px; never sized by viewport width alone (use
+  `clamp()` with a rem floor).
+- Line height 1.4 to 1.6 for body, 1.1 to 1.25 for display.
+- Hierarchy by size, weight, and contrast. Two typefaces at most plus mono.
+- Grid: 4 or 8 px spacing unit, 12-column web grid, consistent gutters.
+  Content aligns to the grid; decoration may break it once, on purpose.
+
+## Rules for images and video frames
+
+- Minimum glyph cap height 24 px at 1080p (48 px at 2160p) for any text the
+  viewer must read.
+- Real captures (screenshots, reports, traces, terminals) meet the same
+  minimum after camera scale: measure the rendered glyph, not the source
+  pixel. In 9:16 measure against the 1080 px width; a capture scaled to fit
+  the frame width almost never passes, so zoom to a region.
+- Keep text inside a 5% safe margin; vertical video adds the platform UI
+  zones from D20.
+- One idea per frame; at most about seven words of on-screen text per beat.
+- Code and command text at least 40 px at 1080p (about 3.7% of frame
+  height) and legible in the 9:16 cut. Wrap only at valid shell
+  continuations (bash `\`, PowerShell after a pipe, operator, or backtick)
+  or split into steps; never inside a quoted string or URL.
+- PowerShell on screen avoids continuations (assign to a variable, then
+  call) and must parse.
+
+## Rules for slides and decks
+
+- Publish absolute pt tables per canvas (for example 10 in and 13.33 in
+  wide) so builders never scale by hand; at most 5 sizes per slide.
+- Code panels: at most 8 lines, fewer at the code floor, since Google
+  Slides renders mono taller.
+- Mixed scripts (for example Latin terms in Arabic): isolate each Latin run
+  (`<bdi>` in HTML, its own run in Slides), change only font, weight, and
+  color, keep a real space at each boundary, never raise or offset it, and
+  never put it in an inline-flex parent (it breaks the shared baseline).
+- Google import of pptxgenjs files: set `align` on every placeholder
+  (titles import centred otherwise), avoid `bullet:true` runs (Arial bullet
+  glyph), give each tracker label its own placeholder, and run
+  `office validate --repair` before upload.
+
+- Size floors: deck body >= 18 pt, tracker and chip labels >= 14 pt.
+- Spacing: body line spacing 1.15, titles and code 1.0, paragraph space
+  before and after 0.
+- Code: a no-ligature mono (for example Roboto Mono) so `=>`, `!=`, and
+  `<!--` render literally. Indent with normal spaces, never NBSP or
+  em-space (copy-paste breaks and YAML parsers reject it); prove it with
+  `design_qc.py code-parse` on text extracted from the export.
+
+## Script and language notes
+
+- CJK text: measure counts characters, target 30 to 40 per line.
+- RTL: mirror layout with logical properties, never hard-coded left/right.
+- Arabic with Latin: a no-break space joins «الـ» to the next Latin word so
+  it never ends a line alone; re-check every re-pasted block. Wrap Latin in
+  `<bdi>`; on zoom crops at every width the baseline offset is <= 1 px and
+  the script-boundary gap >= 0.15em.
+- Platform lacks the site language: put `lang="ar" dir="rtl"` (or the
+  target pair) on every block root and `lang="en"` on every Latin `<bdi>`.
+  Prove the render pixel-identical to the no-attribute version.
+- Before ruling on a mixed-script glyph defect, verify the cause (shape vs
+  font fallback) and let a native reader decide. Example: in some Arabic
+  bold faces an isolated «و» beside Latin words reads as Latin `g`, and a
+  space does not fix it. In headings and card titles join Latin-term lists
+  with the Arabic comma «،»; body text keeps «و».
+- Bilingual lines: an RTL paragraph plus a separate LTR paragraph in the
+  same style; never mix both directions in one paragraph.
+- RTL accordion arrows do not mirror: down when closed, up when open.
+- Code blocks are exempt from the measure rule but must scroll inside their
+  own box, never the page.
+
+## Workflow
+
+1. Read the type tokens; derive the scale table.
+2. Apply sizes and measure; check every ui-delivery viewport.
+3. For frames and images, render at the delivery size and inspect at 100%.
+
+## Verify
+
+- An e2e test asserts body line length (characters per line from
+  `getBoundingClientRect()` and font metrics) between 45 and 90 at each
+  viewport, and `scrollWidth <= innerWidth`.
+- Computed font sizes match the scale within 2%.
+- Every font file has a recorded licence in the manifest.
+- The smallest code frame is inspected at 1080p and in the 9:16 cut.
+- The smallest capture frame (screenshot, trace, terminal) is inspected at
+  its final camera scale in each cut.
+- `design_qc.py psparse commands.ps1` passes for every PowerShell command
+  shown (`--static` only where pwsh is missing, reported).
+
+- Mixed-script lines measured on the render: baseline offset <= 1 px,
+  boundary gap >= 0.15 em.
+- Decks are audited from the Google Slides render, not the local one: export
+  to PDF, `pdffonts` shows no fallback (Arial, Calibri), every slide is
+  checked at full size for overflow.
+- Text in small assets (email banners, thumbnails) is measured on the
+  rendered preview at its displayed size, not on the source canvas.
+
+## Sources
+
+Butterick, *Practical Typography*; Müller-Brockmann, *Grid Systems in
+Graphic Design* (paraphrase only); Material 3 type scale.

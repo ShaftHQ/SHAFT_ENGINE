@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/decisions/shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename.md",
+  "content_hash": "sha256:b0244a3342475d37225ccc39d1105c75a376fb617bf6304d9af13b5d72c39e14",
+  "created_at": "2026-07-16T10:54:12+03:00",
+  "evidence": [
+    {
+      "id": "a62c53da88e3b9a534144cc0e5dee002b5503c83",
+      "kind": "commit"
+    },
+    {
+      "id": "5c979f6b7d1937f4cecab6916db5f37911be130a",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.shaft-intellij-a11y-fix-pattern-mirror-live-jlabel-text-into-setaccessibledescription-never-rename-setaccessiblename",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ plugin a11y sweep: JLabel accessible descriptions must mirror live setText content (issue #3603)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "accessibility",
+    "swing",
+    "decision",
+    "issue-3603",
+    "issue-3605"
+  ],
+  "title": "shaft-intellij a11y fix pattern: mirror live JLabel text into setAccessibleDescription, never rename setAccessibleName",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

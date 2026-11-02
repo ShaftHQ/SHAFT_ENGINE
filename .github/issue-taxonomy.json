@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "primaryTypes": ["bug", "enhancement"],
+  "supplemental": ["regression", "tests", "documentation", "github-actions", "maintenance"],
+  "lifecycle": ["triage", "ready", "blocked"],
+  "subsystems": [
+    "subsystem:agent-harness", "subsystem:intellij", "subsystem:documentation",
+    "subsystem:repository-tooling", "subsystem:unclassified", "cross-cutting", "module:shaft-engine", "module:shaft-ai",
+    "module:shaft-capture", "module:shaft-doctor", "module:shaft-heal", "module:shaft-mcp",
+    "module:shaft-pilot-core", "module:shaft-cli"
+  ],
+  "templates": {"bug": "bug_report.md", "enhancement": "feature_request.md"},
+  "aliases": {"markdown": "documentation", "deferred": "blocked"},
+  "duplicatePolicy": "create-linked"
+}

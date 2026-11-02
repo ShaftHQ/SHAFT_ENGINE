@@ -1,0 +1,8 @@
+{
+  "issue": 6411,
+  "scores": {
+    "correctness": 0.0,
+    "protective_fixtures": 3.0
+  },
+  "tolerance": 0.0
+}

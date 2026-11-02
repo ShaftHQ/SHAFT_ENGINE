@@ -1,0 +1,61 @@
+# Context economy
+
+Owner-selectable budgets: [token budget modes](token-budget-modes.md) (`ultra-lean` | `balanced` | `deep`).
+
+Load this when a task will make many tool calls, return large outputs, or run
+long enough that context rot becomes the next failure mode. Host compaction is
+the host's job. This page teaches the agent how to stay under it.
+
+Patterns here reimplement published progressive-disclosure, just-in-time
+retrieval, compaction, tool-result pruning, and spill ideas. Named sources
+and licenses live in [THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) and
+RESEARCH (repo-only `chaos-engine/RESEARCH.md`).
+
+## Smallest high-signal set
+
+Every token competes for attention. Gather only the evidence that can change
+the next decision. Stop exploring when that decision is supported.
+
+- Bound every read (`offset`/`limit`, `head_limit`, ripgrep context).
+- After truncation, narrow once. Do not repeat the same broad query.
+- Do not reread an unchanged input.
+- Prefer a path plus a discriminating excerpt over a full dump.
+- Failed CI logs: when the summary already names a fingerprint, read at most 40 lines around it; otherwise spill the log and keep path plus fingerprint ([CI status economy](ci-status-economy.md)).
+- Builds run in quiet mode; read pass/fail from the test-report files the build writes (JUnit XML), not from console output.
+- Scope searches to source directories; never search build, cache, or IDE-sandbox trees.
+- Locally run only the red test and directly affected modules; CI runs the rest.
+- Doctor reloads use `--agent-summary` (four lines). Keep full `--json` for humans and contract tests.
+
+Always-loaded host instruction files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`) stay at or under 150 lines each, in this repo
+and in every project ChaosEngine works in. Doctor's `token-economy` row warns
+with the file and its line count; move detail into on-demand references.
+Progress resumes from one line: `tool.py resume TASK` prints `Resume at: <next>`
+first; pass `--next` on every checkpoint step.
+
+## Spill large tool output
+
+When a tool result is larger than the decision needs:
+
+1. Keep the head and tail that prove the outcome.
+2. Write or leave the full artifact on disk.
+3. Tell the next step the path and the one fact the result established.
+
+Do not paste multi-thousand-line logs, HAR files, or report HTML into the
+transcript unless the user asked for the raw body.
+
+## Distill, then continue
+
+- A subagent returns a distillate: what changed, what was proved, what remains.
+  It does not return its transcript. Research / multi-file explore follows the
+  [context firewall](context-firewall.md) (`filepath:line` + distillate only).
+- Structured notes belong at session end or after repeated failure, through the
+  existing learning session. They are not a running diary.
+- On failure, change the premise or the discriminating observation. Do not
+  repeat the same action with different wording.
+
+## What this page is not
+
+It is not a second agent loop, session log, or compaction engine. It does not
+authorize skipping safety warnings, irreversible-action confirmations, or an
+observed check.

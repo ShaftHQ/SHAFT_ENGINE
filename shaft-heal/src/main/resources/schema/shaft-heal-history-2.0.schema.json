@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schema/shaft-heal-history-2.0.schema.json",
+  "title": "SHAFT Heal History",
+  "type": "object",
+  "required": ["schemaVersion", "records"],
+  "properties": {
+    "schemaVersion": {"const": "2.0"},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "schemaVersion", "key", "pageKey", "originalLocator", "context",
+          "contextMetadata", "fingerprint", "visualReference", "updatedAt", "checksum"
+        ],
+        "properties": {
+          "schemaVersion": {"const": "2.0"},
+          "key": {"type": "string", "minLength": 1},
+          "pageKey": {"type": "string"},
+          "originalLocator": {"type": "string"},
+          "context": {"type": "string"},
+          "contextMetadata": {"type": "object"},
+          "fingerprint": {"type": "object"},
+          "visualReference": {"type": "string"},
+          "updatedAt": {"type": "string"},
+          "checksum": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

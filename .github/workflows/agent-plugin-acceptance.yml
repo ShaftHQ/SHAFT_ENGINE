@@ -1,0 +1,562 @@
+name: Agent Plugin Live Acceptance
+
+# Monday 04:15 UTC runs every job (weekly). Issue #6187: the 3-OS ChaosEngine
+# installer jobs also run the other six days at the same time, because the
+# macOS fresh installer left the PR path; `notify` files or recovers a
+# tracking issue for any scheduled failure.
+on:
+  schedule:
+    - cron: '15 4 * * 1'
+    - cron: '15 4 * * 0,2-6'
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: >-
+          Comma-separated job ids or gate names. Empty runs the full dispatch.
+          installer-part-1-windows-2025 and installer-part-1-macos-15 run only
+          ChaosEngine installer acceptance part 1 on those runners.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-plugin-live-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  acceptance-selection:
+    name: Select acceptance jobs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      run_deterministic_harness_full: ${{ steps.pick.outputs.run_deterministic_harness_full }}
+      run_chaos_engine_cross_platform: ${{ steps.pick.outputs.run_chaos_engine_cross_platform }}
+      run_chaos_engine_live_installer: ${{ steps.pick.outputs.run_chaos_engine_live_installer }}
+      run_harness_platform_contracts: ${{ steps.pick.outputs.run_harness_platform_contracts }}
+      run_agnix_conformance: ${{ steps.pick.outputs.run_agnix_conformance }}
+      run_external_guardrail_corpus: ${{ steps.pick.outputs.run_external_guardrail_corpus }}
+      run_native_client_load: ${{ steps.pick.outputs.run_native_client_load }}
+      run_chaos_engine_promotion: ${{ steps.pick.outputs.run_chaos_engine_promotion }}
+      cross_matrix: ${{ steps.pick.outputs.cross_matrix }}
+      cross_exclude: ${{ steps.pick.outputs.cross_exclude }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Select the jobs this event may run
+        id: pick
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ACCEPTANCE_SCHEDULE: ${{ github.event.schedule }}
+          ACCEPTANCE_JOBS: ${{ github.event_name == 'workflow_dispatch' && inputs.jobs || '' }}
+        run: python scripts/ci/acceptance_job_filter.py --github-output "$GITHUB_OUTPUT"
+
+  deterministic-harness-full:
+    name: Full deterministic harness (Python ${{ matrix.python }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_deterministic_harness_full == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    # #6410: certify the supported Python range (floor 3.11, CI default 3.13, newest 3.14).
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.13', '3.14']
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install managed CI Python dependencies
+        run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Run exhaustive deterministic harness suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          modules=(
+            tests.scripts.test_acceptance_job_filter
+            tests.scripts.test_chaos_engine_runtime
+            tests.scripts.test_chaos_gauge_recovery
+            tests.scripts.test_agent_harness_adherence
+            tests.scripts.test_agent_harness_portability
+            tests.scripts.test_agent_harness_reachability
+            tests.scripts.test_agent_plugin_client_smoke
+            tests.scripts.test_agent_plugin_release
+            tests.scripts.test_agent_router_contract
+            tests.scripts.test_architect_skill_parity
+            tests.scripts.test_agnix_conformance
+            tests.scripts.test_assemble_chaos_engine_plugin
+            tests.scripts.test_assemble_shaft_skills_plugin
+            tests.scripts.test_build_retry
+            tests.scripts.test_adapter_selector_contract
+            tests.scripts.test_grid_cdp_contract
+            tests.scripts.test_mcp_builder_python
+            tests.scripts.test_chaos_engine_bootstrap
+            tests.scripts.test_chaos_engine_dependencies
+            tests.scripts.test_deja_store_6183
+            tests.scripts.test_chaos_engine_generation_runtime
+            tests.scripts.test_chaos_engine_hook
+            tests.scripts.test_chaos_engine_eval_parity_fixtures
+            tests.scripts.test_epic_autoclose
+            tests.scripts.test_chaos_engine_hosts
+            tests.scripts.test_chaos_engine_installer
+            tests.scripts.test_chaos_engine_kernel
+            tests.scripts.test_chaos_engine_learning
+            tests.scripts.test_chaos_engine_live_installer_acceptance
+            tests.scripts.test_chaos_engine_promotion
+            tests.scripts.test_chaos_engine_portable_core
+            tests.scripts.test_omniroute
+            tests.scripts.test_omniroute_workflow_contract
+            tests.scripts.test_omniroute_orchestrator_docs
+            tests.scripts.test_omniroute_tdd_pdca
+            tests.scripts.test_omniroute_portability
+            tests.scripts.test_chaos_engine_research
+            tests.scripts.test_delivery_status
+            tests.scripts.test_execution_class_skills
+            tests.scripts.test_extract_allure_failures
+            tests.scripts.test_github_client
+            tests.scripts.test_graphify_maintenance
+            tests.scripts.test_guard_external_corpus
+            tests.scripts.test_guard_lifecycle
+            tests.scripts.test_guard_memory_worktree
+            tests.scripts.test_guard_nul_corruption
+            tests.scripts.test_harness_pr_gate
+            tests.scripts.test_intellij_recording_powershell
+            tests.scripts.test_issue_filing
+            tests.scripts.test_knowledge_stores
+            tests.scripts.test_planning_contract
+            tests.scripts.test_pr_audit
+            tests.scripts.test_repository_context
+            tests.scripts.test_resolve_graph_out
+            tests.scripts.test_resolve_mempalace
+            tests.scripts.test_shaft_knowledge_refresh
+            tests.scripts.test_shaft_skill_candidate_intake
+            tests.scripts.test_shaft_skill_cli_examples
+            tests.scripts.test_shaft_skill_quality
+            tests.scripts.test_shaft_skill_routing_eval
+            tests.scripts.test_rerun_failures_skill_script
+            tests.scripts.test_shaft_skills_content
+            tests.scripts.test_sync_user_harness
+            tests.scripts.test_technical_presentations_skill_parity
+            tests.scripts.test_pre_done_review
+            tests.scripts.test_validate_agent_guidance
+            tests.scripts.test_validate_chaos_engine_readme
+            tests.scripts.test_validate_agent_ownership
+            tests.scripts.test_validate_agent_plugins
+            tests.scripts.test_validate_agent_setup
+            tests.scripts.test_validate_skills
+            tests.scripts.test_validate_workflow_timeouts
+            tests.scripts.test_watch_pr_checks
+            tests.scripts.test_worktree_hygiene
+            tests.scripts.test_session_worktree
+          )
+          # #6205: run every module and report all failures; stopping at the
+          # first red module hid every later regression for weeks.
+          failed=()
+          for module in "${modules[@]}"; do
+            python -m unittest "$module" -v || failed+=("$module")
+          done
+          if ((${#failed[@]})); then
+            printf '::error::failing harness module: %s\n' "${failed[@]}"
+            exit 1
+          fi
+      - name: Run PR-ungated harness modules
+        # #6362: modules on the PR-gate allowlist never run on a PR, so run
+        # all of them here and report every failure instead of drifting.
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t ungated < <(python scripts/ci/harness_pr_gate.py --list-ungated)
+          failed=()
+          for module in "${ungated[@]}"; do
+            python -m unittest "$module" || failed+=("$module")
+          done
+          if ((${#failed[@]})); then
+            printf '::error::failing ungated harness module: %s\n' "${failed[@]}"
+            exit 1
+          fi
+      - name: Validate full harness aggregation
+        run: |
+          python scripts/ci/validate_agent_setup.py --skip-external
+
+  # #6205: the Windows leg took 26.5 of its 30 minutes (and timed out on
+  # earlier runs), almost all in test_chaos_engine_installer. Each OS now runs
+  # two parts: part 1 = the other acceptance modules + installer shard 1/2,
+  # part 2 = installer shard 2/2 (scripts/ci/unittest_shard.py, union ==
+  # the whole module).
+  chaos-engine-cross-platform:
+    name: ChaosEngine installer acceptance (${{ matrix.os }}, part ${{ matrix.part }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_cross_platform == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+        part: [1, 2]
+        exclude: ${{ fromJson(needs.acceptance-selection.outputs.cross_exclude) }}
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Run fresh-install, dependency, and wrapper acceptance
+        if: matrix.part == 1
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_dependencies
+          tests.scripts.test_chaos_engine_install_wrappers
+          -v
+      - name: Run upgrade and rollback acceptance (tests.scripts.test_chaos_engine_installer shard)
+        run: >-
+          python -m scripts.ci.unittest_shard
+          tests.scripts.test_chaos_engine_installer
+          --shard ${{ matrix.part }}/2
+          -v
+
+  chaos-engine-live-installer:
+    name: Live immutable installer (${{ matrix.os }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_live_installer == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Run real fresh, offline, upgrade, repair, and rollback sequence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/ci/chaos_engine_live_installer_acceptance.py
+          --candidate-sha ${{ github.sha }}
+          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
+          --output chaos-engine-live-installer-evidence.json
+      - name: Upload live installer evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chaos-engine-live-installer-${{ matrix.os }}
+          path: chaos-engine-live-installer-evidence.json
+          if-no-files-found: error
+          retention-days: 4
+
+  harness-platform-contracts:
+    name: Harness platform contracts (${{ matrix.os }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_harness_platform_contracts == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2025]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Run platform-sensitive harness contracts
+        run: >-
+          python -m unittest
+          tests.scripts.test_build_retry
+          tests.scripts.test_extract_allure_failures
+          tests.scripts.test_intellij_recording_powershell
+          tests.scripts.test_omniroute
+          tests.scripts.test_omniroute_workflow_contract
+          tests.scripts.test_omniroute_orchestrator_docs
+          tests.scripts.test_omniroute_tdd_pdca
+          tests.scripts.test_omniroute_portability
+          -v
+
+  agnix-conformance:
+    name: Pinned agnix conformance
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_agnix_conformance == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Resolve pinned agnix contract
+        run: python scripts/ci/agnix_conformance.py --github-env "$GITHUB_ENV"
+      - name: Verify and run pinned agnix
+        shell: bash
+        run: |
+          set -euo pipefail
+          trial_root="$RUNNER_TEMP/shaft-agnix"
+          mkdir -p "$trial_root/candidate" "$trial_root/evaluation" "$trial_root/output"
+          printf '%s\n' '{"accepted":false,"external_blocker":"agnix setup did not complete"}' > agnix-conformance-evidence.json
+          curl --fail --show-error --silent --location "$AGNIX_ARTIFACT_URL" --output "$trial_root/agnix.tar.gz"
+          echo "$AGNIX_ARTIFACT_SHA256  $trial_root/agnix.tar.gz" | sha256sum --check
+          test "$(tar -tzf "$trial_root/agnix.tar.gz")" = 'agnix'
+          tar -xzf "$trial_root/agnix.tar.gz" -C "$trial_root/candidate"
+          curl --fail --show-error --silent --location "$AGNIX_EVALUATION_URL" --output "$trial_root/evaluation.tar.gz"
+          echo "$AGNIX_EVALUATION_SHA256  $trial_root/evaluation.tar.gz" | sha256sum --check
+          tar -xzf "$trial_root/evaluation.tar.gz" -C "$trial_root/evaluation" --strip-components=1
+          test -f "$trial_root/evaluation/tests/eval.yaml"
+          docker pull "$AGNIX_IMAGE_REFERENCE"
+          test "${AGNIX_IMAGE_REFERENCE##*@}" = "$AGNIX_IMAGE_ID"
+          docker image inspect "$AGNIX_IMAGE_REFERENCE" >/dev/null
+          python scripts/ci/agnix_conformance.py \
+            --stage-source . \
+            --fixtures-root "$trial_root/fixtures"
+          python scripts/ci/agnix_conformance.py \
+            --candidate-root "$trial_root/candidate" \
+            --fixtures-root "$trial_root/fixtures" \
+            --evaluation-root "$trial_root/evaluation/tests" \
+            --output-root "$trial_root/output" \
+            --output agnix-conformance-evidence.json
+      - name: Upload agnix conformance evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: agnix-conformance-evidence
+          path: agnix-conformance-evidence.json
+          if-no-files-found: error
+          retention-days: 4
+
+  external-guardrail-corpus:
+    name: Pinned external guardrail corpus
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_external_guardrail_corpus == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Verify and score pinned external guardrail corpus
+        run: >-
+          python scripts/ci/external_guardrail_corpus.py
+          --output external-guardrail-corpus-evidence.json
+      - name: Upload external guardrail evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: external-guardrail-corpus-evidence
+          path: external-guardrail-corpus-evidence.json
+          if-no-files-found: error
+          retention-days: 4
+
+  native-client-load:
+    name: Claude and Codex live skill load
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_native_client_load == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Install managed CI Python dependencies
+        run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install pinned native plugin clients
+        run: |
+          npm ci --prefix scripts/ci/npm-pins/native-clients-2.1.223
+          echo "$PWD/scripts/ci/npm-pins/native-clients-2.1.223/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Collect live compatibility evidence
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >-
+          python scripts/ci/agent_plugin_client_smoke.py --mode live
+          --routing-corpus agent-plugins/shaft-skills/evals/cases.json
+          --execution-budget-seconds 900
+          --routing-budget-seconds 600
+          --output agent-plugin-client-evidence.json
+      - name: Upload structured compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: agent-plugin-live-acceptance-evidence
+          path: agent-plugin-client-evidence.json
+          if-no-files-found: error
+          retention-days: 4
+
+  chaos-engine-promotion:
+    name: Five-host promotion evaluator
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_promotion == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Check protected promotion inputs
+        id: promotion-preflight
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import json
+          import os
+          from pathlib import Path
+
+          source = Path("scripts/ci/chaos_engine_promotion.py")
+          spec = importlib.util.spec_from_file_location("promotion_preflight", source)
+          if spec is None or spec.loader is None:
+              raise SystemExit("promotion evaluator could not be loaded")
+          promotion = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(promotion)
+          report = promotion.evaluate([], dict(os.environ))
+          ready = not report["missingCredentialHosts"] and not report["missingRevisionVariants"]
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"ready={str(ready).lower()}\n")
+          if not ready:
+              Path("chaos-engine-promotion-evidence.json").write_text(
+                  json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n",
+                  encoding="utf-8",
+              )
+              Path("chaos-engine-promotion-trial-status.json").write_text(
+                  json.dumps(
+                      {
+                          "failureCode": "protected-inputs-unavailable",
+                          "identity": "chaos-engine-promotion-trials",
+                          "schemaVersion": 1,
+                          "status": "Blocked",
+                          "terminalReason": "blocked",
+                      },
+                      sort_keys=True,
+                      separators=(",", ":"),
+                  ) + "\n",
+                  encoding="utf-8",
+              )
+              print("promotion remains blocked because protected evaluation inputs are unavailable")
+          PY
+      - name: Collect paired live trial receipts
+        id: promotion-trials
+        if: steps.promotion-preflight.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
+          CHAOS_ENGINE_BASELINE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CODEX_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND }}
+          CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND }}
+          CHAOS_ENGINE_BASELINE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GEMINI_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND }}
+          CHAOS_ENGINE_BASELINE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GROK_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GROK_COMMAND }}
+          CHAOS_ENGINE_BASELINE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_COPILOT_COMMAND }}
+          CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND }}
+        run: >-
+          python scripts/ci/chaos_engine_promotion_trials.py
+          --output chaos-engine-promotion-receipts
+          --status chaos-engine-promotion-trial-status.json
+          --workers 10
+          --timeout 90
+      - name: Evaluate and enforce promotion thresholds
+        if: ${{ always() && steps.promotion-preflight.outputs.ready == 'true' }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
+          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
+        run: >-
+          python scripts/ci/chaos_engine_promotion.py
+          --receipts chaos-engine-promotion-receipts
+          --output chaos-engine-promotion-evidence.json
+      - name: Upload secret-free promotion evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chaos-engine-promotion-evidence
+          path: |
+            chaos-engine-promotion-evidence.json
+            chaos-engine-promotion-trial-status.json
+            chaos-engine-promotion-receipts
+          if-no-files-found: error
+          retention-days: 4
+
+  notify:
+    name: Notify on scheduled failure
+    needs:
+      - acceptance-selection
+      - deterministic-harness-full
+      - chaos-engine-cross-platform
+      - chaos-engine-live-installer
+      - harness-platform-contracts
+      - agnix-conformance
+      - external-guardrail-corpus
+      - native-client-load
+      - chaos-engine-promotion
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File or recover the scheduled tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          # Weekly-only jobs report `skipped` on the daily installer run; that is
+          # neither a failure nor a pass, so only failure/cancelled change state.
+          outcome: ${{ (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'skip') || 'success' }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:agent-plugin-acceptance'

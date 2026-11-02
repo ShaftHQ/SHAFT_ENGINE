@@ -1,0 +1,1 @@
+`code_quality_preflight.py` flags every touched function above complexity 15, even for a one-line edit (`guard._run_event` is 31). Hook new behaviour into a smaller helper (e.g. `lifecycle.session_start_context`), and run `python3 scripts/ci/code_quality_preflight.py --base $(git merge-base HEAD origin/main)` before each push.

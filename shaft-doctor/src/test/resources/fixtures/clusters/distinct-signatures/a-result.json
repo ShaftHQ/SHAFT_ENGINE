@@ -1,0 +1,1 @@
+{"uuid":"distinct-a","historyId":"hist-locator","name":"locatorFail","status":"failed","start":1,"stop":2,"statusDetails":{"message":"NoSuchElementException: Unable to locate element: #submit"}}

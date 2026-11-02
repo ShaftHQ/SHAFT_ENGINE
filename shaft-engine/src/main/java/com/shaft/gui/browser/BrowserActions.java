@@ -1,0 +1,2656 @@
+package com.shaft.gui.browser;
+
+import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
+import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.enums.internal.NavigationAction;
+import com.shaft.enums.internal.Screenshots;
+import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
+import com.shaft.gui.browser.internal.BidiPermissionState;
+import com.shaft.gui.browser.internal.BrowserEmulationManager;
+import com.shaft.gui.browser.internal.PermissionOrigin;
+import com.shaft.gui.browser.internal.HarReplayRules;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.browser.internal.ScrollSweepPlanner;
+import com.shaft.gui.capabilities.AutomationBackend;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.driver.BrowserConsoleMessage;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.performance.internal.LightHouseGenerateReport;
+import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.HttpContractRecorder;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
+import com.shaft.validation.accessibility.AccessibilityActions;
+import com.shaft.validation.internal.WebDriverBrowserValidationsBuilder;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.remote.SupportsContextSwitching;
+import io.qameta.allure.Step;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.bidi.permissions.PermissionState;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.http.HttpRequest;
+import org.openqa.selenium.remote.http.HttpResponse;
+
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.time.Duration;
+import java.util.*;
+import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.openqa.selenium.support.ui.FluentWait;
+
+/**
+ * Provides a fluent API for performing browser-level actions such as navigation, window management,
+ * cookie handling, network interception, and accessibility validation. Instances are typically
+ * obtained via {@code driver.browser()} on a {@link com.shaft.driver.SHAFT.GUI.WebDriver} instance.
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+ * driver.browser()
+ *       .navigateToURL("https://example.com")
+ *       .and().maximizeWindow();
+ * }</pre>
+ */
+@SuppressWarnings({"unused", "UnusedReturnValue"})
+public class BrowserActions extends FluentWebDriverAction implements com.shaft.gui.driver.BrowserActionsContract {
+    // Matches embedded credentials in URLs (e.g. protocol://user:password@host); compiled once for reuse
+    private static final Pattern EMBEDDED_PASSWORD_PATTERN = Pattern.compile(":\\/\\/.*:(.*)@");
+
+    /**
+     * Creates a new {@code BrowserActions} instance and initializes the underlying driver
+     * using the framework's default driver factory configuration.
+     */
+    public BrowserActions() {
+        initialize();
+        activateBrowserEvidenceOwner();
+    }
+
+    /**
+     * Creates a new {@code BrowserActions} instance wrapping the provided {@link WebDriver}.
+     *
+     * @param driver the {@link WebDriver} instance to use for browser actions
+     */
+    public BrowserActions(WebDriver driver) {
+        initialize(driver);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
+    }
+
+    /**
+     * Creates a new {@code BrowserActions} instance wrapping the provided {@link WebDriver},
+     * with control over whether reporting output is suppressed.
+     *
+     * @param driver   the {@link WebDriver} instance to use for browser actions
+     * @param isSilent when {@code true}, step reporting is suppressed for this instance
+     */
+    public BrowserActions(WebDriver driver, boolean isSilent) {
+        initialize(driver, isSilent);
+        FailureTraceReporter.activateBrowserEvidenceOwner(driver);
+    }
+
+    /**
+     * Creates a new {@code BrowserActions} instance backed by an existing {@link DriverFactoryHelper}.
+     * Use this constructor when integrating with the internal driver lifecycle management.
+     *
+     * @param helper the {@link DriverFactoryHelper} that manages the underlying driver instance
+     */
+    public BrowserActions(DriverFactoryHelper helper) {
+        initialize(helper);
+        activateBrowserEvidenceOwner();
+    }
+
+    @Override
+    public BrowserActions and() {
+        return this;
+    }
+
+    /** @return cohesive network observation, mocking, replay, and emulation actions */
+    @Override
+    public NetworkActions network() {
+        return new NetworkActions(this);
+    }
+
+    @Override
+    public DialogActions dialog() {
+        return new DialogActions(this);
+    }
+
+    @Override
+    public ContextActions context() {
+        return new ContextActions(this);
+    }
+
+    @Override
+    public StorageActions storage() {
+        return new StorageActions(this);
+    }
+
+    @Override
+    public ConsoleActions console() {
+        return new ConsoleActions(this);
+    }
+
+    @Override
+    public ScriptActions script() {
+        return new ScriptActions(this);
+    }
+
+    @Override
+    public PermissionActions permissions() {
+        return new PermissionActions(this);
+    }
+
+    @Override
+    public AuthenticationActions authentication() {
+        return new AuthenticationActions(this);
+    }
+
+    @Override
+    public DownloadActions downloads() {
+        return new DownloadActions(this);
+    }
+
+    @Override
+    public EmulationActions emulation() {
+        return new EmulationActions(this);
+    }
+
+    void emulateViewportNamespace(int width, int height) {
+        performEmulation("screen", "viewport", width + "x" + height,
+                driver -> BrowserEmulationManager.setViewport(driver, width, height));
+    }
+
+    void clearViewportEmulationNamespace() {
+        performEmulation("screen", "clear-viewport", "", BrowserEmulationManager::clearViewport);
+    }
+
+    void emulateScreenSizeNamespace(int width, int height) {
+        performEmulation("screen", "screen-size", width + "x" + height,
+                driver -> BrowserEmulationManager.setScreenSize(driver, width, height));
+    }
+
+    void clearScreenSizeEmulationNamespace() {
+        performEmulation("screen", "clear-screen-size", "", BrowserEmulationManager::clearScreenSize);
+    }
+
+    void emulateGeolocationNamespace(double latitude, double longitude, double accuracy) {
+        performEmulation("location", "geolocation", "<geolocation>",
+                driver -> BrowserEmulationManager.setGeolocation(driver, latitude, longitude, accuracy),
+                latitude, longitude, accuracy);
+    }
+
+    void clearGeolocationEmulationNamespace() {
+        performEmulation("location", "clear-geolocation", "", BrowserEmulationManager::clearGeolocation);
+    }
+
+    void emulateTimezoneNamespace(String timezoneId) {
+        performEmulation("location", "timezone", timezoneId, driver -> BrowserEmulationManager.setTimezone(driver, timezoneId));
+    }
+
+    void clearTimezoneEmulationNamespace() {
+        performEmulation("location", "clear-timezone", "", BrowserEmulationManager::clearTimezone);
+    }
+
+    void emulateLocaleNamespace(String locale) {
+        performEmulation("location", "locale", locale, driver -> BrowserEmulationManager.setLocale(driver, locale));
+    }
+
+    void clearLocaleEmulationNamespace() {
+        performEmulation("location", "clear-locale", "", BrowserEmulationManager::clearLocale);
+    }
+
+    void emulateUserAgentNamespace(String userAgent) {
+        performEmulation("runtime", "user-agent", "", driver -> BrowserEmulationManager.setUserAgent(driver, userAgent),
+                userAgent);
+    }
+
+    void clearUserAgentEmulationNamespace() {
+        performEmulation("runtime", "clear-user-agent", "", BrowserEmulationManager::clearUserAgent);
+    }
+
+    void disableScriptingEmulationNamespace() {
+        performEmulation("runtime", "disable-scripting", "", BrowserEmulationManager::disableScripting);
+    }
+
+    void clearScriptingEmulationNamespace() {
+        performEmulation("runtime", "clear-scripting", "", BrowserEmulationManager::clearScriptingOverride);
+    }
+
+    void emulateMediaTypeNamespace(com.shaft.gui.driver.EmulatedMediaType mediaType) {
+        performEmulation("media", "type", String.valueOf(mediaType),
+                driver -> BrowserEmulationManager.setMediaType(driver, mediaType));
+    }
+
+    void emulateColorSchemeNamespace(com.shaft.gui.driver.EmulatedColorScheme colorScheme) {
+        performEmulation("media", "color-scheme", String.valueOf(colorScheme),
+                driver -> BrowserEmulationManager.setColorScheme(driver, colorScheme));
+    }
+
+    void emulateReducedMotionNamespace(com.shaft.gui.driver.EmulatedReducedMotion reducedMotion) {
+        performEmulation("media", "reduced-motion", String.valueOf(reducedMotion),
+                driver -> BrowserEmulationManager.setReducedMotion(driver, reducedMotion));
+    }
+
+    void resetMediaEmulationNamespace() {
+        performEmulation("media", "reset", "", BrowserEmulationManager::resetMedia);
+    }
+
+    private void performEmulation(String category, String operation, String locator,
+                                  java.util.function.Consumer<WebDriver> action, Object... sensitiveValues) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        AutomationBackend backend = driver instanceof AppiumDriver
+                ? AutomationBackend.APPIUM : AutomationBackend.SELENIUM_WEBDRIVER;
+        boolean sensitive = registerEmulationSensitivity(sensitiveValues);
+        var event = startEmulationEvent(category, operation, locator, driver, backend, sensitive);
+        try {
+            action.accept(driver);
+            updatePersistentEmulationSensitivity(driver, operation, sensitive, sensitiveValues);
+            TraceEventRecorder.finish(event, "passed", "emulation " + category + " " + operation + " completed.",
+                    null, Map.of("backend", backend.name()), List.of());
+        } catch (RuntimeException exception) {
+            registerSensitiveEmulationFailure(exception, sensitive, sensitiveValues);
+            TraceEventRecorder.finish(event, "failed", "emulation " + category + " " + operation + " failed.",
+                    exception, Map.of("backend", backend.name()), List.of());
+            throw exception;
+        }
+    }
+
+    private static boolean registerEmulationSensitivity(Object... sensitiveValues) {
+        boolean sensitive = sensitiveValues != null && sensitiveValues.length > 0;
+        if (!sensitive) {
+            return false;
+        }
+        FailureTraceReporter.suppressSensitiveBrowserArtifacts();
+        for (Object value : sensitiveValues) {
+            if (value != null) {
+                FailureTraceReporter.registerSensitiveSourceValue(String.valueOf(value));
+            }
+        }
+        return true;
+    }
+
+    private static TraceEventRecorder.Event startEmulationEvent(String category, String operation, String locator,
+                                                                 WebDriver driver, AutomationBackend backend,
+                                                                 boolean sensitive) {
+        String safeLocator = locator == null ? "" : locator;
+        return sensitive
+                ? TraceEventRecorder.startForBackend("emulation/" + category, operation, safeLocator, backend)
+                : TraceEventRecorder.start("emulation/" + category, operation, safeLocator, driver);
+    }
+
+    private static void updatePersistentEmulationSensitivity(WebDriver driver, String operation, boolean sensitive,
+                                                              Object... sensitiveValues) {
+        if (sensitive) {
+            FailureTraceReporter.registerPersistentSensitiveBrowserState(driver, operation, sensitiveValues);
+            return;
+        }
+        if ("clear-geolocation".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "geolocation");
+        } else if ("clear-user-agent".equals(operation)) {
+            FailureTraceReporter.clearPersistentSensitiveBrowserState(driver, "user-agent");
+        }
+    }
+
+    private static void registerSensitiveEmulationFailure(RuntimeException exception, boolean sensitive,
+                                                           Object... sensitiveValues) {
+        if (!sensitive) {
+            return;
+        }
+        FailureTraceReporter.registerSensitiveThrowable(exception);
+        FailureTraceReporter.registerSensitiveValues(sensitiveValues);
+    }
+
+    private void activateBrowserEvidenceOwner() {
+        FailureTraceReporter.activateBrowserEvidenceOwner(
+                driverFactoryHelper == null ? null : driverFactoryHelper.getDriver());
+    }
+
+    List<com.shaft.gui.driver.BrowserDownload> downloadedFilesNamespace(DownloadActions owner) {
+        return queryDownloads("all", "", () -> downloadedFiles(owner, requireDownloadsSupport("all")));
+    }
+
+    private List<com.shaft.gui.driver.BrowserDownload> downloadedFiles(DownloadActions owner, HasDownloads downloads) {
+        return downloads.getDownloadedFiles().stream()
+                .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                        .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime)
+                        .thenComparing(HasDownloads.DownloadedFile::getName))
+                .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                .toList();
+    }
+
+    com.shaft.gui.driver.BrowserDownload waitForDownloadedFileNamespace(DownloadActions owner,
+                                                                         Predicate<com.shaft.gui.driver.BrowserDownload> predicate,
+                                                                         Runnable trigger) {
+        return queryDownloads("wait-for", "", () -> {
+            Objects.requireNonNull(predicate, "predicate");
+            Objects.requireNonNull(trigger, "trigger");
+            HasDownloads downloads = requireDownloadsSupport("wait-for");
+            Map<DownloadIdentity, Long> baseline = downloads.getDownloadedFiles().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(DownloadIdentity::from,
+                            LinkedHashMap::new, java.util.stream.Collectors.counting()));
+            trigger.run();
+            return new FluentWait<>(downloads)
+                    .withTimeout(Duration.ofSeconds(SHAFT.Properties.timeouts.browserNavigationTimeout()))
+                    .pollingEvery(Duration.ofMillis(100))
+                    .until(source -> newDownloads(source.getDownloadedFiles(), baseline).stream()
+                            .sorted(Comparator.comparingLong(HasDownloads.DownloadedFile::getCreationTime)
+                                    .thenComparingLong(HasDownloads.DownloadedFile::getLastModifiedTime))
+                            .map(file -> (com.shaft.gui.driver.BrowserDownload) new SeleniumBrowserDownload(file, owner, downloads))
+                            .filter(predicate)
+                            .findFirst()
+                            .orElse(null));
+        });
+    }
+
+    com.shaft.gui.driver.BrowserDownload latestDownloadedFileNamespace(DownloadActions owner) {
+        return queryDownloads("latest", "", () -> {
+            List<com.shaft.gui.driver.BrowserDownload> files = downloadedFiles(owner, requireDownloadsSupport("latest"));
+            if (files.isEmpty()) {
+                throw new NoSuchElementException("No completed browser downloads are available.");
+            }
+            return files.getLast();
+        });
+    }
+
+    void clearDownloadedFilesNamespace() {
+        queryDownloads("clear", "", () -> {
+            requireDownloadsSupport("clear").deleteDownloadableFiles();
+            return null;
+        });
+    }
+
+    private HasDownloads requireDownloadsSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = LiveSessionSupport.isClosedRemoteSession(driver);
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasDownloads downloads)
+                || !downloads.isDownloadsEnabled()) {
+            throw new UnsupportedOperationException("Browser downloads " + operation
+                    + " requires a live Selenium session with se:downloadsEnabled=true.");
+        }
+        return downloads;
+    }
+
+    private <T> T queryDownloads(String operation, String locator, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("downloads", operation, locator, driver);
+        try {
+            T result = action.get();
+            TraceEventRecorder.finish(event, "passed", "downloads " + operation + " completed.", null,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "downloads " + operation + " failed.", exception,
+                    Map.of("backend", "SELENIUM_WEBDRIVER"), List.of());
+            throw exception;
+        }
+    }
+
+    private record DownloadIdentity(String name, long creationTime, long lastModifiedTime, long size) {
+        static DownloadIdentity from(HasDownloads.DownloadedFile file) {
+            return new DownloadIdentity(file.getName(), file.getCreationTime(), file.getLastModifiedTime(), file.getSize());
+        }
+    }
+
+    private static List<HasDownloads.DownloadedFile> newDownloads(List<HasDownloads.DownloadedFile> current,
+                                                                   Map<DownloadIdentity, Long> baseline) {
+        Map<DownloadIdentity, Long> remainingBaseline = new HashMap<>(baseline);
+        List<HasDownloads.DownloadedFile> additions = new ArrayList<>();
+        for (HasDownloads.DownloadedFile file : current) {
+            DownloadIdentity identity = DownloadIdentity.from(file);
+            long remaining = remainingBaseline.getOrDefault(identity, 0L);
+            if (remaining > 0) {
+                if (remaining == 1) {
+                    remainingBaseline.remove(identity);
+                } else {
+                    remainingBaseline.put(identity, remaining - 1);
+                }
+            } else {
+                additions.add(file);
+            }
+        }
+        return additions;
+    }
+
+    void requireContextSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        if (!(driver instanceof SupportsContextSwitching) || closedRemoteSession) {
+            throw new UnsupportedOperationException("Appium context " + operation
+                    + " is not supported by the live Selenium/Appium session.");
+        }
+    }
+
+    boolean isCurrentAlertPresent() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        if (driver == null || closedRemoteSession) {
+            throw new UnsupportedOperationException("Dialog inspection requires a live Selenium/Appium session.");
+        }
+        try {
+            driver.switchTo().alert();
+            return true;
+        } catch (NoAlertPresentException ignored) {
+            return false;
+        }
+    }
+
+    void performNamespace(String category, String operation, Runnable action) {
+        queryNamespace(category, operation, () -> {
+            action.run();
+            return null;
+        });
+    }
+
+    <T> T queryNamespace(String category, String operation, Supplier<T> action) {
+        return queryNamespace(category, operation, "", action);
+    }
+
+    <T> T queryNamespace(String category, String operation, String locator, Supplier<T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start(category, operation, locator, driver);
+        try {
+            T result = TraceEventRecorder.withoutNestedEvents(action);
+            TraceEventRecorder.finish(event, "passed", category + " " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", category + " " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void saveStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "save-state", filePath, () -> {
+            requireStorageSupport("save state");
+            saveStorageState(filePath);
+            return null;
+        });
+    }
+
+    void loadStorageStateNamespace(String filePath) {
+        queryNamespace("storage", "load-state", filePath, () -> {
+            requireStorageSupport("load state");
+            loadStorageState(filePath);
+            return null;
+        });
+    }
+
+    String getStorageValue(String scope, String key) {
+        return queryNamespace("storage", scope + "/get", key, () -> {
+            requireStorageKey(key);
+            Object value = storageExecutor("read " + scope).executeScript(
+                    "return window[arguments[0]].getItem(arguments[1]);", scope, key);
+            return value == null ? null : String.valueOf(value);
+        });
+    }
+
+    void setStorageValue(String scope, String key, String value) {
+        performSensitiveStorageWrite(scope + "/set", key, value, () -> {
+            requireStorageKey(key);
+            Objects.requireNonNull(value, "value");
+            storageExecutor("write " + scope).executeScript(
+                    "window[arguments[0]].setItem(arguments[1], arguments[2]);", scope, key, value);
+        });
+    }
+
+    void removeStorageValue(String scope, String key) {
+        queryNamespace("storage", scope + "/remove", key, () -> {
+            requireStorageKey(key);
+            storageExecutor("remove from " + scope).executeScript(
+                    "window[arguments[0]].removeItem(arguments[1]);", scope, key);
+            return null;
+        });
+    }
+
+    void clearStorage(String scope) {
+        queryNamespace("storage", scope + "/clear", "", () -> {
+            storageExecutor("clear " + scope).executeScript("window[arguments[0]].clear();", scope);
+            return null;
+        });
+    }
+
+    private JavascriptExecutor storageExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        boolean appiumWebContext = true;
+        if (driver instanceof AppiumDriver) {
+            appiumWebContext = isAppiumWebStorageContext(driver);
+        }
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !appiumWebContext) {
+            throw new UnsupportedOperationException("Browser storage " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
+    }
+
+    private boolean isAppiumWebStorageContext(WebDriver driver) {
+        try {
+            if (driver instanceof SupportsContextSwitching contexts) {
+                String context = contexts.getContext();
+                String normalized = context == null ? "" : context.toUpperCase(Locale.ROOT);
+                return normalized.contains("WEB") || normalized.contains("CHROMIUM");
+            }
+        } catch (RuntimeException ignored) {
+            // Fail closed when the provider cannot report the active context.
+        }
+        return false;
+    }
+
+    private void requireStorageSupport(String operation) {
+        storageExecutor(operation);
+    }
+
+    private void requireStorageKey(String key) {
+        Objects.requireNonNull(key, "key");
+    }
+
+    private void performSensitiveStorageWrite(String operation, String key, String value, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("storage", operation, key, driver);
+        try {
+            TraceEventRecorder.withoutNestedEvents(() -> {
+                action.run();
+                return null;
+            });
+            TraceEventRecorder.finish(event, "passed", "storage " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveValue(value);
+            TraceEventRecorder.finish(event, "failed", "storage " + operation + " failed.",
+                    exception, Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    List<BrowserConsoleMessage> consoleMessages(String operation, boolean errorsOnly) {
+        return queryNamespace("console", operation, () -> {
+            WebDriver driver = requireLiveConsoleDriver(operation);
+            List<BrowserObservabilityRecorder.ConsoleSnapshotEntry> entries;
+            if (BidiConsoleLogSource.isHealthy(driver)) {
+                entries = BidiConsoleLogSource.snapshot(driver);
+            } else if (BrowserObservabilityRecorder.tryCollectConsole(driver)) {
+                entries = BrowserObservabilityRecorder.snapshotConsole();
+            } else {
+                throw unsupportedConsole(operation);
+            }
+            return entries.stream()
+                    .map(entry -> new BrowserConsoleMessage(entry.source(), entry.level(), entry.message(),
+                            entry.timestamp()))
+                    .filter(message -> !errorsOnly || message.isError())
+                    .toList();
+        });
+    }
+
+    void clearConsoleNamespace() {
+        queryNamespace("console", "clear", () -> {
+            WebDriver driver = requireLiveConsoleDriver("clear");
+            boolean bidiSupported = BidiConsoleLogSource.isHealthy(driver);
+            boolean legacySupported = BrowserObservabilityRecorder.tryCollectConsole(driver);
+            BrowserObservabilityRecorder.clearConsole();
+            if (bidiSupported) {
+                BidiConsoleLogSource.clear(driver);
+            }
+            if (!bidiSupported && !legacySupported) {
+                throw unsupportedConsole("clear");
+            }
+            return null;
+        });
+    }
+
+    private WebDriver requireLiveConsoleDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        if (driver == null || closedRemoteSession) {
+            throw unsupportedConsole(operation);
+        }
+        return driver;
+    }
+
+    private UnsupportedOperationException unsupportedConsole(String operation) {
+        return new UnsupportedOperationException("Browser console " + operation
+                + " is not supported by the live Selenium/Appium session.");
+    }
+
+    Object evaluateScriptNamespace(boolean asynchronous, boolean hasArgument, String script, Object argument) {
+        Objects.requireNonNull(script, "script");
+        String operation = asynchronous ? "evaluate-async" : "evaluate";
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("script", operation, "", driver);
+        try {
+            Object result = TraceEventRecorder.withoutNestedEvents(() -> {
+                JavascriptExecutor executor = scriptExecutor(operation);
+                if (asynchronous) {
+                    return hasArgument ? executor.executeAsyncScript(script, argument)
+                            : executor.executeAsyncScript(script);
+                }
+                return hasArgument ? executor.executeScript(script, argument) : executor.executeScript(script);
+            });
+            TraceEventRecorder.finish(event, "passed", "script " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            if (hasArgument) {
+                FailureTraceReporter.registerSensitiveValues(argument);
+            }
+            TraceEventRecorder.finish(event, "failed", "script " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private JavascriptExecutor scriptExecutor(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        boolean supportedContext = !(driver instanceof AppiumDriver) || isAppiumWebStorageContext(driver);
+        if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !supportedContext) {
+            throw new UnsupportedOperationException("Browser script " + operation
+                    + " requires a live JavaScript-capable Selenium or Appium web-context session.");
+        }
+        return executor;
+    }
+
+    void registerBasicAuthenticationNamespace(String origin, String username, String password) {
+        queryAuthentication("register-basic", authenticationOriginTraceLocator(origin), username, password, driver -> {
+            registerBasicAuthentication(driver, origin, username, password);
+            return null;
+        });
+    }
+
+    void navigateWithBasicAuthenticationNamespace(String url, String username, String password) {
+        Objects.requireNonNull(url, "url");
+        queryAuthentication("navigate-basic", authenticationTraceLocator(url), username, password, driver -> {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                throw new IllegalArgumentException("Authentication navigation URL must not embed credentials.");
+            }
+            String origin = PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+            registerBasicAuthentication(driver, origin, username, password);
+            navigateToURL(url);
+            return null;
+        });
+    }
+
+    private static String authenticationTraceLocator(String url) {
+        try {
+            URI target = URI.create(url);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-url>";
+            }
+            return PermissionOrigin.normalize(target.getScheme() + "://" + target.getRawAuthority());
+        } catch (RuntimeException ignored) {
+            return "<invalid-url>";
+        }
+    }
+
+    private static String authenticationOriginTraceLocator(String origin) {
+        if (origin == null) {
+            return "<current-origin>";
+        }
+        try {
+            URI target = URI.create(origin);
+            if (target.getRawUserInfo() != null) {
+                return "<credential-bearing-origin>";
+            }
+            return PermissionOrigin.normalize(origin);
+        } catch (RuntimeException ignored) {
+            return "<invalid-origin>";
+        }
+    }
+
+    void clearAuthenticationNamespace() {
+        queryAuthentication("clear", null, "", "", driver -> {
+            throw new UnsupportedOperationException("Selenium HasAuthentication does not provide an unregister operation; recreate the driver session to clear handlers.");
+        });
+    }
+
+    private <T> T queryAuthentication(String operation, String locator, String username, String password,
+                                      java.util.function.Function<WebDriver, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("authentication", operation, locator == null ? "" : locator, driver);
+        try {
+            Objects.requireNonNull(username, "username");
+            Objects.requireNonNull(password, "password");
+            if (username.contains(":")) {
+                throw new IllegalArgumentException("HTTP Basic usernames must not contain ':'.");
+            }
+            FailureTraceReporter.registerSensitiveSourceValue(username);
+            FailureTraceReporter.registerSensitiveSourceValue(password);
+            WebDriver supported = authenticationDriver(operation);
+            T result = TraceEventRecorder.withoutNestedEvents(() -> action.apply(supported));
+            TraceEventRecorder.finish(event, "passed", "authentication " + operation + " completed.", null,
+                    Map.of(), List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            FailureTraceReporter.registerSensitiveThrowable(exception);
+            FailureTraceReporter.registerSensitiveValues(username);
+            FailureTraceReporter.registerSensitiveValues(password);
+            TraceEventRecorder.finish(event, "failed", "authentication " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private WebDriver authenticationDriver(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closed = LiveSessionSupport.isClosedRemoteSession(driver);
+        boolean devToolsLive = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (driver instanceof AppiumDriver || closed || !(driver instanceof HasAuthentication) || !devToolsLive) {
+            throw new UnsupportedOperationException("Browser authentication " + operation
+                    + " requires a live Selenium session with effective CDP-backed HasAuthentication support.");
+        }
+        return driver;
+    }
+
+    private void registerBasicAuthentication(WebDriver driver, String origin, String username, String password) {
+        String candidateOrigin = origin;
+        if (candidateOrigin == null) {
+            URI current = URI.create(driver.getCurrentUrl());
+            candidateOrigin = current.getScheme() + "://" + current.getRawAuthority();
+        }
+        String normalizedOrigin = PermissionOrigin.normalize(candidateOrigin);
+        Predicate<URI> predicate = uri -> {
+            try {
+                return normalizedOrigin.equals(PermissionOrigin.normalize(uri.getScheme() + "://" + uri.getRawAuthority()));
+            } catch (RuntimeException ignored) {
+                return false;
+            }
+        };
+        ((HasAuthentication) driver).register(predicate, UsernameAndPassword.of(username, password));
+    }
+
+    void setPermissionsNamespace(String stateName, String origin, String... permissionNames) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", stateName, origin == null ? "" : origin, driver);
+        try {
+            List<String> permissions = validatedPermissionNames(permissionNames);
+            if (origin == null) {
+                throw new UnsupportedOperationException("Selenium BiDi permission changes require an explicit origin; use grantFor(origin, ...).");
+            }
+            String validatedOrigin = PermissionOrigin.normalize(origin);
+            PermissionState state = switch (stateName) {
+                case "grant" -> PermissionState.GRANTED;
+                case "deny" -> PermissionState.DENIED;
+                case "prompt" -> PermissionState.PROMPT;
+                default -> throw new IllegalArgumentException("Unknown permission state: " + stateName);
+            };
+            HandlePermissionModule permission = bidiPermissions(driver, stateName);
+            TraceEventRecorder.withoutNestedEvents(() -> BidiPermissionState.exclusively(driver, changes -> {
+                permissions.forEach(name -> {
+                    permission.setPermission(Map.of("name", name), state, validatedOrigin);
+                    BidiPermissionState.Change change = new BidiPermissionState.Change(validatedOrigin, name);
+                    if (state == PermissionState.PROMPT) {
+                        changes.remove(change);
+                    } else {
+                        changes.add(change);
+                    }
+                });
+                return null;
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions " + stateName + " completed.", null,
+                    Map.of("permissionCount", Integer.toString(permissions.size())), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions " + stateName + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    void clearPermissionsNamespace() {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("permissions", "clear", "", driver);
+        try {
+            HandlePermissionModule permission = bidiPermissions(driver, "clear");
+            int restored = TraceEventRecorder.withoutNestedEvents(() ->
+                    BidiPermissionState.exclusively(driver, changes -> {
+                List<BidiPermissionState.Change> snapshot = List.copyOf(changes);
+                snapshot.forEach(change -> {
+                    permission.setPermission(Map.of("name", change.permission()), PermissionState.PROMPT, change.origin());
+                    changes.remove(change);
+                });
+                return snapshot.size();
+            }));
+            TraceEventRecorder.finish(event, "passed", "permissions clear completed.", null,
+                    Map.of("permissionCount", Integer.toString(restored)), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "permissions clear failed.", exception, Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    private HandlePermissionModule bidiPermissions(WebDriver driver, String operation) {
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
+                ? hasCapabilities.getCapabilities() : null;
+        Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
+        boolean negotiated = AutomationCapabilityResolver.hasNegotiatedBiDi(driver)
+                && webSocketUrl instanceof String url && !url.isBlank();
+        if (driver instanceof AppiumDriver || closedRemoteSession || !negotiated) {
+            throw new UnsupportedOperationException("Browser permissions " + operation
+                    + " requires a live Selenium session with negotiated WebDriver BiDi permission support.");
+        }
+        return new HandlePermissionModule(driver);
+    }
+
+    private static final class HandlePermissionModule extends org.openqa.selenium.bidi.Module {
+        private HandlePermissionModule(WebDriver driver) {
+            super(driver);
+        }
+
+        private void setPermission(Map<String, String> descriptor, PermissionState state, String origin) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put("descriptor", descriptor);
+            parameters.put("state", state.toString());
+            parameters.put("origin", origin);
+            send(new org.openqa.selenium.bidi.Command<>("permissions.setPermission", parameters));
+        }
+    }
+
+    private static List<String> validatedPermissionNames(String... permissionNames) {
+        if (permissionNames == null || permissionNames.length == 0) {
+            throw new IllegalArgumentException("At least one permission name is required.");
+        }
+        return Arrays.stream(permissionNames)
+                .map(name -> Objects.requireNonNull(name, "permission name").trim())
+                .peek(name -> {
+                    if (name.isEmpty()) {
+                        throw new IllegalArgumentException("Permission names must not be blank.");
+                    }
+                }).toList();
+    }
+
+    String currentContextNamespace() {
+        return queryContext("current", "", contextDriver -> contextDriver.getContext());
+    }
+
+    List<String> contextHandlesNamespace() {
+        return queryContext("handles", "", contextDriver -> new ArrayList<>(contextDriver.getContextHandles()));
+    }
+
+    void switchContextNamespace(String requestedContext) {
+        queryContext("switch-to", requestedContext, contextDriver -> {
+            contextDriver.context(requestedContext);
+            return contextDriver.getContext();
+        });
+    }
+
+    private <T> T queryContext(String operation, String requestedContext,
+                               java.util.function.Function<SupportsContextSwitching, T> action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("context", operation, requestedContext, driver);
+        String before = currentMobileContext();
+        try {
+            requireContextSupport(operation);
+            T result = action.apply((SupportsContextSwitching) driver);
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, false));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            metadata.put("result", String.valueOf(result));
+            TraceEventRecorder.finish(event, "passed", "Context " + operation + " completed.", null,
+                    metadata, List.of());
+            return result;
+        } catch (RuntimeException exception) {
+            Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(driver, true));
+            metadata.put("requestedContext", requestedContext);
+            metadata.put("contextBefore", before);
+            metadata.put("contextAfter", currentMobileContext());
+            TraceEventRecorder.finish(event, "failed", "Context " + operation + " failed.", exception,
+                    metadata, List.of());
+            throw exception;
+        }
+    }
+
+    void requireNetworkNamespaceSupport(String operation) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
+        boolean liveDevTools = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
+        if (!liveDevTools || closedRemoteSession) {
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " is not supported by the live Selenium/Appium session. "
+                    + "Use a Selenium driver with DevTools support and query capabilities() before invoking it.");
+            throw exception;
+        }
+    }
+
+    private void requireNetworkObservation(String operation) {
+        requireNetworkNamespaceSupport(operation);
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            var exception = new UnsupportedOperationException("Network " + operation
+                    + " could not start on the live Selenium session.");
+            throw exception;
+        }
+    }
+
+    void startNetworkContractRecording(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract recording",
+                () -> HttpContractRecorder.startRecording(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
+    }
+
+    void startNetworkContractAssertion(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract assertion",
+                () -> HttpContractRecorder.startAssertMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
+    }
+
+    void startNetworkContractVerification(String contractFilePath, String... urlContains) {
+        initializeNetworkContract("contract verification",
+                () -> HttpContractRecorder.startVerifyMode(contractFilePath, urlContains));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
+    }
+
+    private void initializeNetworkContract(String operation, Runnable initializer) {
+        requireNetworkObservation(operation);
+        try {
+            initializer.run();
+        } catch (RuntimeException exception) {
+            HttpContractRecorder.clear();
+            driverFactoryHelper.stopBrowserNetworkObservation();
+            throw exception;
+        }
+    }
+
+    void performNetworkAction(String operation, Runnable action) {
+        WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+        var event = TraceEventRecorder.start("network", operation, "", driver);
+        try {
+            requireNetworkNamespaceSupport(operation);
+            action.run();
+            TraceEventRecorder.finish(event, "passed", "Network " + operation + " completed.", null,
+                    Map.of(), List.of());
+        } catch (RuntimeException exception) {
+            TraceEventRecorder.finish(event, "failed", "Network " + operation + " failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+    }
+
+    NetworkInterceptionRequestBuilder<BrowserActions> networkInterceptRequest() {
+        try {
+            requireNetworkNamespaceSupport("interception");
+        } catch (RuntimeException exception) {
+            WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
+            var event = TraceEventRecorder.start("network", "intercept-request", "", driver);
+            TraceEventRecorder.finish(event, "failed", "Network intercept-request failed.", exception,
+                    Map.of(), List.of());
+            throw exception;
+        }
+        return new NetworkInterceptionRequestBuilder<>(this, (rule, message) -> {
+            performNetworkAction("intercept-request", () -> registerNetworkInterceptionRule(rule, message));
+            return this;
+        });
+    }
+
+    /**
+     * Opens a hard-assertion builder scoped to the current browser state. Any assertion failure
+     * immediately stops the test.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().assertThat().title().contains("Dashboard");
+     * }</pre>
+     *
+     * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser assertions
+     */
+    @Override
+    public WebDriverBrowserValidationsBuilder assertThat() {
+        return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).browser();
+    }
+
+    /**
+     * Opens a soft-assertion (verification) builder scoped to the current browser state.
+     * Failures are collected and reported at the end of the test rather than stopping it immediately.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().verifyThat().title().contains("Dashboard");
+     * }</pre>
+     *
+     * @return a {@link WebDriverBrowserValidationsBuilder} for chaining browser verifications
+     */
+    @Override
+    public WebDriverBrowserValidationsBuilder verifyThat() {
+        return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).browser();
+    }
+
+    /**
+     * Attempts to capture a page snapshot archive in the format of a .mht file
+     * Works only for Chromium based driver instances
+     * For other driver types attempts to attach the current page source (for web)
+     * or accessibility tree (for mobile)
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions capturePageSnapshot() {
+        var serializedPageData = browserActionsHelper.capturePageSnapshot(driverFactoryHelper.getDriver());
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), serializedPageData);
+        return this;
+    }
+
+    /**
+     * Gets the current page URL and returns it as a string
+     *
+     * @return the URL that's currently open in the current page
+     */
+    @Override
+    public String getCurrentURL() {
+        var currentURL = "";
+        try {
+            currentURL = driverFactoryHelper.getDriver().getCurrentUrl();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), currentURL);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), currentURL, rootCauseException);
+        }
+        return currentURL;
+    }
+
+    /**
+     * Gets the current window title and returns it as a string
+     *
+     * @return the title of the current window
+     */
+    @Override
+    public String getCurrentWindowTitle() {
+        var currentWindowTitle = "";
+        try {
+            currentWindowTitle = driverFactoryHelper.getDriver().getTitle();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), currentWindowTitle);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), currentWindowTitle, rootCauseException);
+        }
+        return currentWindowTitle;
+    }
+
+    /**
+     * Gets the current page source and returns it as a string
+     *
+     * @return the source of the current page
+     */
+    @Override
+    public String getPageSource() {
+        var pageSource = "";
+        try {
+            pageSource = driverFactoryHelper.getDriver().getPageSource();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), pageSource);
+        } catch (JavascriptException javascriptException) {
+            //try again
+            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+            return getPageSource();
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), pageSource, rootCauseException);
+        }
+        return pageSource;
+    }
+
+    /**
+     * Gets the current window handle and returns it as a string
+     *
+     * @return the window handle for the current window
+     */
+    @Override
+    public String getWindowHandle() {
+        var windowHandle = "";
+        try {
+            windowHandle = driverFactoryHelper.getDriver().getWindowHandle();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), windowHandle);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), windowHandle, rootCauseException);
+        }
+        return windowHandle;
+    }
+
+    /**
+     * Gets the current window position and returns it as a string
+     *
+     * @return the position of the current window
+     */
+    @Override
+    public String getWindowPosition() {
+        var windowPosition = "";
+        try {
+            windowPosition = driverFactoryHelper.getDriver().manage().window().getPosition().toString();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), windowPosition);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), windowPosition, rootCauseException);
+        }
+        return windowPosition;
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the size of the current window
+     */
+    @Override
+    public String getWindowSize() {
+        var windowSize = "";
+        try {
+            windowSize = driverFactoryHelper.getDriver().manage().window().getSize().toString();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), windowSize);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), windowSize, rootCauseException);
+        }
+        return windowSize;
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the height of the current window
+     */
+    @Override
+    public String getWindowHeight() {
+        var windowHeight = "";
+        try {
+            windowHeight = String.valueOf(driverFactoryHelper.getDriver().manage().window().getSize().getHeight());
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), windowHeight, rootCauseException);
+        }
+        return windowHeight;
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the width of the current window
+     */
+    @Override
+    public String getWindowWidth() {
+        var windowWidth = "";
+        try {
+            windowWidth = String.valueOf(driverFactoryHelper.getDriver().manage().window().getSize().getWidth());
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), windowWidth, rootCauseException);
+        }
+        return windowWidth;
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page
+     *
+     * @param targetUrl a string that represents the URL that you wish to navigate
+     *                  to
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions navigateToURL(String targetUrl) {
+        return navigateToURL(targetUrl, targetUrl);
+    }
+
+    /**
+     * Navigates to the specified URL by opening it in a new browser tab or a new browser window,
+     * depending on the provided {@link WindowType}. The driver focus switches to the newly opened context.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com", WindowType.TAB);
+     * }</pre>
+     *
+     * @param targetUrl  a string representing the URL to navigate to
+     * @param windowType the type of new context to open — either {@link WindowType#TAB} or {@link WindowType#WINDOW}
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions navigateToURL(String targetUrl, WindowType windowType) {
+        var handleBeforeNavigation = driverFactoryHelper.getDriver().getWindowHandle();
+        try {
+            switch (windowType) {
+                case TAB -> driverFactoryHelper.getDriver().switchTo().newWindow(WindowType.TAB).navigate().to(targetUrl);
+                case WINDOW -> driverFactoryHelper.getDriver().switchTo().newWindow(WindowType.WINDOW).navigate().to(targetUrl);
+            }
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
+            var handleAfterNavigation = driverFactoryHelper.getDriver().getWindowHandle();
+            if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+                ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
+                browserActionsHelper.passAction(driverFactoryHelper.getDriver(), targetUrl);
+            } else {
+                browserActionsHelper.failAction(driverFactoryHelper.getDriver(), targetUrl);
+            }
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), targetUrl, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Opens the target URL in a new browser tab and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewTab(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.TAB);
+    }
+
+    /**
+     * Opens the target URL in a new browser window and switches focus to it.
+     *
+     * @param targetUrl target URL to open
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions openNewWindow(String targetUrl) {
+        return navigateToURL(targetUrl, WindowType.WINDOW);
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page. Waits for successfully navigating to the final url after
+     * redirection.
+     *
+     * @param targetUrl                 a string that represents the URL that you
+     *                                  wish to navigate to
+     * @param targetUrlAfterRedirection a string that represents a part of the url
+     *                                  that should be present after redirection,
+     *                                  this string is used to confirm successful
+     *                                  navigation
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
+        //reset scope in case user was stuck inside an iFrame
+        LocatorBuilder.getIFrameLocator().remove();
+        ShadowLocatorBuilder.shadowDomLocator.remove();
+
+        String modifiedTargetUrl = targetUrl;
+        var baseUrl = SHAFT.Properties.web.baseURL();
+
+        if (!baseUrl.isBlank() && targetUrl.startsWith("./")) {
+            // valid use case for baseURL property ==> property is not blank && the target url starts with ./
+            modifiedTargetUrl = (baseUrl.endsWith("/")) ? baseUrl + targetUrl.replace("./", "") : baseUrl + targetUrl.replace("./", "/");
+        }
+
+        String modifiedTargetUrlForLogging = modifiedTargetUrl;
+        //obfuscate embedded passwords
+        Matcher matcher = EMBEDDED_PASSWORD_PATTERN.matcher(modifiedTargetUrl);
+        if (matcher.find()) {
+            modifiedTargetUrlForLogging = modifiedTargetUrl.replaceAll(matcher.group(1), "•".repeat(matcher.group(1).length()));
+        }
+
+        String targetUrlMessage;
+        if (targetUrl.equals(targetUrlAfterRedirection)) {
+            targetUrlMessage = "Target URL: \"" + modifiedTargetUrlForLogging + "\"";
+        } else {
+            targetUrlMessage = "Target URL: \"" + modifiedTargetUrlForLogging + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"";
+        }
+        ReportManager.logDiscrete(targetUrlMessage);
+
+        forceStopCurrentNavigation();
+        String initialURL = null;
+        try {
+            if (driverFactoryHelper.getDriver() == null) {
+                browserActionsHelper.failAction(null, modifiedTargetUrl, new NullPointerException("WebDriver instance is null; driver initialization may have failed."));
+                return this;
+            }
+            initialURL = driverFactoryHelper.getDriver().getCurrentUrl();
+        } catch (UnsupportedCommandException exception) {
+            ReportManager.logDiscrete("Could not read the current URL. Navigating to the target URL.", Level.WARN);
+        }
+
+        try {
+            // remove trailing slash which may cause comparing the current and target urls
+            // to fail
+            if (initialURL != null) {
+                if (initialURL.endsWith("/"))
+                    initialURL = initialURL.substring(0, initialURL.length() - 1);
+                ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
+                if (!initialURL.equals(modifiedTargetUrl)) {
+                    // navigate to new url
+                    browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                } else if (BrowserNetworkInterceptor.pausesRequests(driverFactoryHelper.getDriver())) {
+                    // CDP Fetch pauses requests; classic refresh then times out (#6775).
+                    // navigateToNewUrl does not load a document when the URL is unchanged.
+                    WebDriver webDriver = driverFactoryHelper.getDriver();
+                    browserActionsHelper.navigateToNewUrl(webDriver, initialURL, "about:blank", "about:blank");
+                    browserActionsHelper.navigateToNewUrl(webDriver, "about:blank", modifiedTargetUrl, targetUrlAfterRedirection);
+                } else {
+                    // already on the same page
+                    driverFactoryHelper.getDriver().navigate().refresh();
+                }
+            } else
+                // navigate to new url
+                browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), null, modifiedTargetUrl, targetUrlAfterRedirection);
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
+
+            // validate successful navigation
+            if (!targetUrl.contains("\n")) {
+                // it can contain line breaks for mocked HTML pages that are used for internal testing only
+                if (SHAFT.Properties.flags.forceCheckNavigationWasSuccessful()) {
+                    browserActionsHelper.confirmThatWebsiteIsNotDown(driverFactoryHelper.getDriver(), modifiedTargetUrl);
+                    browserActionsHelper.checkNavigationWasSuccessful(driverFactoryHelper.getDriver(), initialURL, targetUrl, targetUrlAfterRedirection);
+                }
+            }
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "navigateToUrl", modifiedTargetUrlForLogging);
+        } catch (Exception rootCauseException) {
+            if (alreadyReportedByFailureReporter(rootCauseException)) {
+                if (rootCauseException instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new RuntimeException(rootCauseException);
+            }
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), modifiedTargetUrlForLogging, rootCauseException);
+        }
+        return this;
+    }
+
+    private static boolean alreadyReportedByFailureReporter(Throwable throwable) {
+        for (StackTraceElement frame : throwable.getStackTrace()) {
+            if (FailureReporter.class.getName().equals(frame.getClassName())) {
+                return true;
+            }
+        }
+        return throwable.getCause() != null && alreadyReportedByFailureReporter(throwable.getCause());
+    }
+
+    private void forceStopCurrentNavigation() {
+        try {
+            JavaScriptWaitManager.waitForLazyLoading(driverFactoryHelper.getDriver());
+            ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("return window.stop;");
+        } catch (Exception rootCauseException) {
+            ReportManagerHelper.logDiscrete(rootCauseException);
+            /*
+             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
+             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
+             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
+             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
+             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
+             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
+             */
+        }
+    }
+
+    /**
+     * Navigates to targetUrl using basic authentication in case the current URL
+     * is different, else refreshes the current page. Waits for successfully
+     * navigating to the final url after redirection.
+     * <p>
+     * Note: Basic authentication is supported only on Chrome and Firefox browsers,
+     * for other browsers the username and password will be embedded in the URL as
+     * follows: http://username:password@the_rest_of_the_url and a warning will be
+     * logged
+     *
+     * @param targetUrl                    a string that represents the URL that you
+     *                                     wish to navigate to
+     * @param username                     the username to be used for basic
+     *                                     authentication
+     * @param password                     the password to be used for basic
+     *                                     authentication
+     * @param targetUrlAfterAuthentication a string that represents a part of the
+     *                                     url that should be present after
+     *                                     redirection, this string is used to confirm successful
+     *                                     navigation
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
+        String resolvedUrl = targetUrl;
+        try {
+            String domainName = browserActionsHelper.getDomainNameFromUrl(targetUrl);
+            var strategy = browserActionsHelper.determineBasicAuthenticationStrategy(
+                    SHAFT.Properties.platform.executionAddress(), SHAFT.Properties.platform.enableBiDi());
+            var activeDriver = driverFactoryHelper.getDriver();
+            // HasAuthentication is CDP-backed (Selenium's AddHasAuthentication#getImplementation only
+            // installs the handler when the wrapped driver also implements HasDevTools); Augmenter still
+            // weaves the HasAuthentication interface onto a remote session regardless of CDP reachability
+            // (AddHasAuthentication#isApplicable only checks the browser name), so register() can be
+            // called without throwing yet silently do nothing on a Grid session with no reachable CDP
+            // endpoint. Local drivers (ChromeDriver/EdgeDriver) always implement HasDevTools natively, so
+            // this only gates the remote, Augmenter-based path (issue #4037).
+            boolean isLocalExecution = "local".equalsIgnoreCase(SHAFT.Properties.platform.executionAddress());
+            boolean nativeHandlerCanActuallyWork = activeDriver instanceof HasAuthentication
+                    && (isLocalExecution || activeDriver instanceof HasDevTools);
+            if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION && nativeHandlerCanActuallyWork) {
+                Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
+                ((HasAuthentication) activeDriver).register(uriPredicate, UsernameAndPassword.of(username, password));
+            } else if (strategy == BrowserActionsHelper.BasicAuthenticationStrategy.NATIVE_HAS_AUTHENTICATION) {
+                ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: the native "
+                        + "HasAuthentication handler is CDP-backed and this remote driver session does not expose a "
+                        + "reachable Chrome DevTools Protocol endpoint (no HasDevTools augmentation), so register() "
+                        + "would silently do nothing. Falling back to URL-embedded credentials.", Level.WARN);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+            } else {
+                ReportManagerHelper.logDiscrete("Basic authentication downgraded to URL-embedded credentials: execution is remote and "
+                        + "SHAFT.Properties.platform.enableBiDi() is disabled, so no native HasAuthentication handler can be provisioned "
+                        + "on the remote driver. Enable BiDi to use the native handler for remote executions.", Level.WARN);
+                resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+            }
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+            resolvedUrl = browserActionsHelper.formatUrlForBasicAuthentication(username, password, targetUrl);
+        }
+        return navigateToURL(resolvedUrl, targetUrlAfterAuthentication);
+    }
+
+    /**
+     * Navigates one step back from the browsers history
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions navigateBack() {
+        return performNavigationAction(NavigationAction.BACK);
+    }
+
+    /**
+     * Navigates one step forward from the browsers history
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions navigateForward() {
+        return performNavigationAction(NavigationAction.FORWARD);
+    }
+
+    /**
+     * Attempts to refresh the current page
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions refreshCurrentPage() {
+        return performNavigationAction(NavigationAction.REFRESH);
+    }
+
+    private BrowserActions performNavigationAction(NavigationAction navigationAction) {
+        String initialURL;
+        var newURL = "";
+        try {
+            WebDriver driver = driverFactoryHelper.getDriver();
+            initialURL = driver.getCurrentUrl();
+            forceStopCurrentNavigation();
+            // BrowserStack Safari remote often hangs ~3m on navigate().back/forward
+            // (JdkHttpClient TimeoutException). Prefer history script there; keep
+            // classic WebDriver navigation for every other browser.
+            if (usesSafariHistoryScriptNavigation(driver)) {
+                performSafariHistoryNavigation(driver, navigationAction);
+            } else {
+                switch (navigationAction) {
+                    case FORWARD -> driver.navigate().forward();
+                    case BACK -> driver.navigate().back();
+                    case REFRESH -> driver.navigate().refresh();
+                }
+            }
+            JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driver);
+            if (!navigationAction.equals(NavigationAction.REFRESH)) {
+                browserActionsHelper.waitUntilUrlIsNot(driver, initialURL);
+                newURL = driver.getCurrentUrl();
+                if (initialURL != null && !initialURL.equals(newURL)) {
+                    browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
+                } else {
+                    browserActionsHelper.failAction(driver, newURL);
+                }
+            } else {
+                browserActionsHelper.passAction(driver, "Navigate " + navigationAction + " to " + newURL);
+            }
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), newURL, rootCauseException);
+        }
+        return this;
+    }
+
+    private static boolean usesSafariHistoryScriptNavigation(WebDriver driver) {
+        if (driver instanceof org.openqa.selenium.safari.SafariDriver) {
+            return true;
+        }
+        String browserName = SHAFT.Properties.web.targetBrowserName();
+        return browserName != null
+                && ("safari".equalsIgnoreCase(browserName) || "webkit".equalsIgnoreCase(browserName));
+    }
+
+    private static void performSafariHistoryNavigation(WebDriver driver, NavigationAction navigationAction) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
+            switch (navigationAction) {
+                case FORWARD -> driver.navigate().forward();
+                case BACK -> driver.navigate().back();
+                case REFRESH -> driver.navigate().refresh();
+            }
+            return;
+        }
+        switch (navigationAction) {
+            case FORWARD -> executor.executeScript("history.forward();");
+            case BACK -> executor.executeScript("history.back();");
+            case REFRESH -> executor.executeScript("location.reload();");
+        }
+        new BrowserActionsHelper(true).settleSafariDocument(driver);
+    }
+
+
+    /**
+     * Closes the current browser window
+     */
+    @Override
+    public void closeCurrentWindow() {
+        driverFactoryHelper.closeDriver();
+    }
+
+    /**
+     * Maximizes current window size based on screen size minus 5%
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions maximizeWindow() {
+        Dimension initialWindowSize;
+        Dimension currentWindowSize;
+        var targetWidth = 1920;
+        var targetHeight = 1080;
+
+        initialWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
+
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
+        String targetOperatingSystem = SHAFT.Properties.platform.targetPlatform();
+        String executionAddress = SHAFT.Properties.platform.executionAddress();
+
+        // try selenium WebDriver maximize
+        currentWindowSize = browserActionsHelper.attemptMaximizeUsingSeleniumWebDriver(driverFactoryHelper.getDriver(), executionAddress, targetBrowserName,
+                targetOperatingSystem);
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            // attempt resize using toolkit
+            currentWindowSize = browserActionsHelper.attemptMaximizeUsingToolkitAndJavascript(driverFactoryHelper.getDriver(), targetWidth, targetHeight);
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                // happens with headless firefox browsers // remote // linux and windows
+                // also happens with chrome/windows
+
+                // attempt resize using WebDriver manage window
+                currentWindowSize = browserActionsHelper.attemptMaximizeUsingSeleniumWebDriverManageWindow(driverFactoryHelper.getDriver(), targetWidth, targetHeight);
+            }
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                // attempt setting window to fullscreen
+                fullScreenWindow();
+
+                currentWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize);
+            }
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
+            }
+        }
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "New screen size is now: " + currentWindowSize);
+        return this;
+    }
+
+    /**
+     * Resizes the current window size based on the provided width and height
+     *
+     * @param width  the desired new width of the target window
+     * @param height the desired new height of the target window
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions setWindowSize(int width, int height) {
+        Dimension initialWindowSize;
+        Dimension currentWindowSize;
+
+        initialWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
+
+        driverFactoryHelper.getDriver().manage().window().setPosition(new Point(0, 0));
+        driverFactoryHelper.getDriver().manage().window().setSize(new Dimension(width, height));
+        // apparently we need to add +1 here to ensure that the new window size matches
+        // the expected window size
+
+        currentWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize);
+
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
+                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+
+            currentWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize);
+        }
+
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
+        }
+
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "New screen size is now: " + currentWindowSize);
+        return this;
+    }
+
+    /**
+     * Intercepts outgoing HTTP requests matching the given predicate and replaces the actual
+     * network response with the provided {@link HttpResponse}. Only supported for drivers that
+     * implement {@link org.openqa.selenium.devtools.HasDevTools}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * HttpResponse mocked = new HttpResponse();
+     * mocked.setStatus(200);
+     * driver.browser().mock(req -> req.getUri().contains("/api/user"), mocked);
+     * }</pre>
+     *
+     * @param requestPredicate a {@link Predicate} that identifies which requests should be intercepted
+     * @param mockedResponse   the {@link HttpResponse} to return instead of the real network response
+     * @return a self-reference to be used to chain actions
+     */
+    @Step("Mock HTTP Request")
+    @Override
+    public BrowserActions mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        return internalIntercept(requestPredicate, mockedResponse);
+    }
+
+    /**
+     * Starts a fluent browser network interception builder.
+     *
+     * <p>The configured rule is scoped to the current WebDriver session and is cleared automatically
+     * when the driver closes. Call {@link #clearNetworkInterceptors()} to remove all active rules
+     * earlier. Only drivers that implement {@link org.openqa.selenium.devtools.HasDevTools} support
+     * network interception.</p>
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser()
+     *       .interceptRequest()
+     *       .get()
+     *       .urlContains("/api/users")
+     *       .respond()
+     *       .statusCode(200)
+     *       .jsonBody("{\"ok\":true}")
+     *       .perform();
+     * }</pre>
+     *
+     * @return a browser network interception request builder
+     */
+    @Override
+    public NetworkInterceptionRequestBuilder<BrowserActions> interceptRequest() {
+        return new NetworkInterceptionRequestBuilder<>(this, this::registerNetworkInterceptionRule);
+    }
+
+    /**
+     * Starts recording selected browser traffic into an HTTP contract.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().startContractRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * SHAFT.Contracts.stopRecording();
+     * }</pre>
+     *
+     * @param contractFilePath destination JSON contract path
+     * @param urlContains optional URL fragments used to select recorded traffic
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions startContractRecording(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract recording is unsupported by this driver.");
+            return this;
+        }
+        HttpContractRecorder.startRecording(contractFilePath, urlContains);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract recording.");
+        return this;
+    }
+
+    /**
+     * Starts hard-assert validation of live browser responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions assertContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract assertion is unsupported by this driver.");
+            return this;
+        }
+        HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract assertion mode.");
+        return this;
+    }
+
+    /**
+     * Starts soft-verify validation of live browser responses against an HTTP contract.
+     *
+     * @param contractFilePath source JSON contract path
+     * @param urlContains optional URL fragments used to select validated traffic
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions verifyContract(String contractFilePath, String... urlContains) {
+        if (!driverFactoryHelper.startBrowserNetworkObservation()) {
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(),
+                    "HTTP contract verification is unsupported by this driver.");
+            return this;
+        }
+        HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Started HTTP contract verification mode.");
+        return this;
+    }
+
+    /**
+     * Replays recorded contract responses through the browser network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().replayContract("src/test/resources/contracts/checkout.json");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param contractFilePath source JSON contract path
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions replayContract(String contractFilePath) {
+        HttpContractRecorder.browserReplayRules(contractFilePath)
+                .forEach(rule -> driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Loaded HTTP contract replay rules.");
+        return this;
+    }
+
+    /**
+     * Replays recorded HAR (HTTP Archive) responses through the browser network interceptor.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().routeFromHar("src/test/resources/har/checkout.har");
+     * driver.browser().navigateToURL("https://shop.example/checkout");
+     * }</pre>
+     *
+     * @param harFilePath path to a HAR 1.2 JSON file
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions routeFromHar(String harFilePath) {
+        HarReplayRules.buildRules(harFilePath)
+                .forEach(rule -> driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Loaded HAR replay rules.");
+        return this;
+    }
+
+    /**
+     * Intercepts outgoing HTTP requests matching the given predicate and substitutes the real
+     * network response with the provided {@link HttpResponse}. Functionally equivalent to
+     * {@link #mock(Predicate, HttpResponse)} but semantically named for interception use-cases.
+     * Only supported for drivers that implement {@link org.openqa.selenium.devtools.HasDevTools}.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * HttpResponse stubbed = new HttpResponse();
+     * stubbed.setStatus(503);
+     * driver.browser().intercept(req -> req.getUri().contains("/api/search"), stubbed);
+     * }</pre>
+     *
+     * @param requestPredicate a {@link Predicate} that identifies which requests should be intercepted
+     * @param mockedResponse   the {@link HttpResponse} to return instead of the real network response
+     * @return a self-reference to be used to chain actions
+     */
+    @Step("Intercept HTTP Request")
+    @Override
+    public BrowserActions intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        return internalIntercept(requestPredicate, mockedResponse);
+    }
+
+    /**
+     * Removes all browser network interception rules registered for the current WebDriver session.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Step("Clear Network Interceptors")
+    @Override
+    public BrowserActions clearNetworkInterceptors() {
+        try {
+            driverFactoryHelper.clearBrowserNetworkInterceptors();
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Cleared network interceptors.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(rootCauseException);
+        }
+        return this;
+    }
+
+    private BrowserActions internalIntercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse) {
+        ReportManager.logDiscrete("Configuring network interceptor for \"" + requestPredicate + "\" with a mocked response.");
+        ReportManagerHelper.attach("HTTP Response", "Mocked HTTP Response", String.valueOf(mockedResponse));
+        return registerNetworkInterceptionRule(
+                BrowserNetworkInterceptionRule.mock(requestPredicate, request -> mockedResponse),
+                "Configured network interceptor.");
+    }
+
+    BrowserActions registerNetworkInterceptionRule(BrowserNetworkInterceptionRule rule, String successMessage) {
+        try {
+            driverFactoryHelper.registerBrowserNetworkInterceptionRule(rule);
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), successMessage);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Resize the window to fill the current screen
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions fullScreenWindow() {
+        Dimension initialWindowSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.width + "x" + initialWindowSize.height + ".");
+
+        if (!SHAFT.Properties.platform.executionAddress().equalsIgnoreCase("local")
+                && SHAFT.Properties.web.headlessExecution()) {
+            maximizeWindow();
+        } else {
+            driverFactoryHelper.getDriver().manage().window().fullscreen();
+        }
+
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + driverFactoryHelper.getDriver().manage().window().getSize().width + "x" + driverFactoryHelper.getDriver().manage().window().getSize().height);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), driverFactoryHelper.getDriver().getPageSource());
+        return this;
+    }
+
+    /**
+     * Switches focus to another window
+     *
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions switchToWindow(String nameOrHandle) {
+        if (driverFactoryHelper.getDriver().getWindowHandles().contains(nameOrHandle)) {
+            driverFactoryHelper.getDriver().switchTo().window(nameOrHandle);
+            browserActionsHelper.passAction(driverFactoryHelper.getDriver(), nameOrHandle);
+        } else {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), nameOrHandle);
+        }
+        return this;
+    }
+
+    /**
+     * Checks whether a browser alert, confirm, or prompt dialog is currently present.
+     *
+     * @return {@code true} when an alert is present; otherwise {@code false}
+     */
+    @Override
+    public boolean isAlertPresent() {
+        return new com.shaft.gui.element.AlertActions(driverFactoryHelper).isAlertPresent();
+    }
+
+    /**
+     * Accepts the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions acceptAlert() {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).acceptAlert();
+        return this;
+    }
+
+    /**
+     * Dismisses the current browser alert, confirm, or prompt dialog.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions dismissAlert() {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).dismissAlert();
+        return this;
+    }
+
+    /**
+     * Gets the current browser alert, confirm, or prompt dialog text.
+     *
+     * @return the alert text
+     */
+    @Override
+    public String getAlertText() {
+        return new com.shaft.gui.element.AlertActions(driverFactoryHelper).getAlertText();
+    }
+
+    /**
+     * Types text into the current browser prompt dialog.
+     *
+     * @param text text to type into the prompt
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions typeIntoPromptAlert(String text) {
+        new com.shaft.gui.element.AlertActions(driverFactoryHelper).typeIntoPromptAlert(text);
+        return this;
+    }
+
+    /**
+     * Adds a cookie to the current browsing context.
+     *
+     * @param key   The cookie's name
+     * @param value The cookie's name
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions addCookie(String key, String value) {
+        driverFactoryHelper.getDriver().manage().addCookie(new Cookie(key, value));
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Add Cookie", "Key: " + key + " | Value: ********");
+        return this;
+    }
+
+    /**
+     * Imports API session cookies into the current browser context.
+     *
+     * @param api the API session to read cookies from
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importCookiesFrom(SHAFT.API api) {
+        return importCookiesFrom(api, null, null);
+    }
+
+    /**
+     * Imports matching API session cookies into the current browser context.
+     *
+     * @param api          the API session to read cookies from
+     * @param domainFilter optional exact cookie domain filter; pass {@code null} or blank to import every domain
+     * @param pathFilter   optional exact cookie path filter; pass {@code null} or blank to import every path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importCookiesFrom(SHAFT.API api, String domainFilter, String pathFilter) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            Objects.requireNonNull(api, "api");
+            URI currentUri = requireHttpBrowserUri(driver.getCurrentUrl());
+            List<Cookie> cookiesToImport = new ArrayList<>();
+            for (io.restassured.http.Cookie apiCookie : api.getCookies().values()) {
+                if (matchesApiCookieFilter(apiCookie, domainFilter, pathFilter)) {
+                    cookiesToImport.add(toSeleniumCookie(apiCookie, currentUri.getHost()));
+                }
+            }
+            cookiesToImport.forEach(cookie -> driver.manage().addCookie(cookie));
+            browserActionsHelper.passAction(driver, "Import Cookies From API", "Imported Cookies: " + cookiesToImport.size());
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Import Cookies From API",
+                    "Could not import API cookies. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Copies a selected API session header into {@code localStorage}.
+     *
+     * @param api        the API session to read headers from
+     * @param headerName the header name to copy
+     * @param storageKey the localStorage key to write
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions importHeaderToLocalStorage(SHAFT.API api, String headerName, String storageKey) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            Objects.requireNonNull(api, "api");
+            requireNonBlank(headerName, "headerName");
+            requireNonBlank(storageKey, "storageKey");
+            requireHttpBrowserUri(driver.getCurrentUrl());
+            String headerValue = api.getHeaders().get(headerName);
+            if (headerValue == null) {
+                throw new IllegalArgumentException("API session does not contain header \"" + headerName + "\".");
+            }
+            if (!(driver instanceof JavascriptExecutor javascriptExecutor)) {
+                throw new IllegalStateException("The active WebDriver does not support JavaScript execution.");
+            }
+            javascriptExecutor.executeScript("window.localStorage.setItem(arguments[0], arguments[1]);",
+                    storageKey, headerValue);
+            browserActionsHelper.passAction(driver, "Import Header To Local Storage",
+                    "Header: " + headerName + " | Storage Key: " + storageKey);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Import Header To Local Storage",
+                    "Could not import API header to localStorage. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Saves the current browser cookies, {@code localStorage}, and {@code sessionStorage} to a JSON file.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().saveStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions saveStorageState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            BrowserStorageStateManager.save(driver, filePath);
+            browserActionsHelper.passAction(driver, "Save Browser Storage State", filePath);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Save Browser Storage State",
+                    "Could not save browser storage state. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Loads browser cookies, {@code localStorage}, and {@code sessionStorage} from a JSON file.
+     *
+     * <p>Navigate to the target origin before loading storage so browser cookie domain rules can apply.
+     * Example:
+     * <pre>{@code
+     * driver.browser()
+     *       .navigateToURL("https://example.com")
+     *       .and().loadStorageState("target/auth-state.json");
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions loadStorageState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            BrowserStorageStateManager.load(driver, filePath);
+            browserActionsHelper.passAction(driver, "Load Browser Storage State", filePath);
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Load Browser Storage State",
+                    "Could not load browser storage state. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Enables offline network mode for DevTools-capable browsers.
+     *
+     * <p>Unsupported drivers keep the test running and add deterministic trace metadata.
+     * Example:
+     * <pre>{@code
+     * driver.browser().goOffline();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions goOffline() {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.goOffline(driver);
+            browserActionsHelper.passAction(driver, "Go Offline",
+                    applied ? "Offline network profile applied." : "Offline network profile is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Go Offline",
+                    "Could not apply offline network mode. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Restores default network mode and clears blocked URL patterns for DevTools-capable browsers.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().restoreNetwork();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions restoreNetwork() {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.restore(driver);
+            browserActionsHelper.passAction(driver, "Restore Network",
+                    applied ? "Network profile restored." : "Network profile restore is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Restore Network",
+                    "Could not restore network mode. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Applies fixed latency and throughput limits for DevTools-capable browsers.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().throttleNetwork(250, 64, 32);
+     * }</pre>
+     *
+     * @param latencyMs    network latency in milliseconds
+     * @param downloadKbps download throughput in kilobits per second
+     * @param uploadKbps   upload throughput in kilobits per second
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions throttleNetwork(long latencyMs, long downloadKbps, long uploadKbps) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.throttle(driver, latencyMs, downloadKbps, uploadKbps);
+            browserActionsHelper.passAction(driver, "Throttle Network",
+                    applied ? "Latency: " + latencyMs + "ms | Download: " + downloadKbps + "kbps | Upload: " + uploadKbps + "kbps"
+                            : "Network throttling is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Throttle Network",
+                    "Could not apply network throttling. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Blocks browser requests matching DevTools URL patterns.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().blockNetworkResources("*.png", "*.jpg");
+     * }</pre>
+     *
+     * @param urlPatterns DevTools URL patterns to block
+     * @return a self-reference to be used to chain actions
+     */
+    public BrowserActions blockNetworkResources(String... urlPatterns) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            boolean applied = BrowserNetworkProfileManager.blockResources(driver, urlPatterns);
+            browserActionsHelper.passAction(driver, "Block Network Resources",
+                    applied ? "Blocked URL patterns: " + String.join(", ", urlPatterns == null ? new String[0] : urlPatterns)
+                            : "Network resource blocking is unsupported.");
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "Block Network Resources",
+                    "Could not block network resources. Cause: " + rootCauseException.getClass().getSimpleName());
+        }
+        return this;
+    }
+
+    /**
+     * Gets a cookie with a given name.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie.
+     */
+    @Override
+    public Cookie getCookie(String cookieName) {
+        Cookie cookie = driverFactoryHelper.getDriver().manage().getCookieNamed(cookieName);
+        if (cookie == null) {
+            browserActionsHelper.failAction(driverFactoryHelper.getDriver(), "Get Cookie: " + cookieName);
+        }
+        return cookie;
+    }
+
+    /**
+     * Gets all cookies for the current browsing context.
+     *
+     * @return A Set of cookies for the current browsing context.
+     */
+    @Override
+    public Set<Cookie> getAllCookies() {
+        Set<Cookie> cookies = driverFactoryHelper.getDriver().manage().getCookies();
+        browserActionsHelper.passAction("");
+        return cookies;
+    }
+
+    /**
+     * Gets the cookie domain.
+     *
+     * @param cookieName The cookie's name.
+     * @return te cookie domain;
+     */
+    @Override
+    public String getCookieDomain(String cookieName) {
+        String cookieDomain = getCookie(cookieName).getDomain();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Domain with name: " + cookieName, cookieDomain);
+        return cookieDomain;
+    }
+
+    /**
+     * Gets the cookie value.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie value;
+     */
+    @Override
+    public String getCookieValue(String cookieName) {
+        String cookieValue = getCookie(cookieName).getValue();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Value with name: " + cookieName, "********");
+        return cookieValue;
+    }
+
+    /**
+     * Gets the cookie path.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie path;
+     */
+    @Override
+    public String getCookiePath(String cookieName) {
+        String cookiePath = getCookie(cookieName).getPath();
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Get Cookie Path with name: " + cookieName, cookiePath);
+        return cookiePath;
+    }
+
+    /**
+     * Deletes the cookie data matching with the provided cookie name for the current browsing context.
+     *
+     * @param cookieName The name of the cookie to delete.
+     * @return a self-reference to be used to chain actions.
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions deleteCookie(String cookieName) {
+        driverFactoryHelper.getDriver().manage().deleteCookieNamed(cookieName);
+        browserActionsHelper.passAction(driverFactoryHelper.getDriver(), "Delete Cookie", cookieName);
+        return this;
+    }
+
+    /**
+     * Deletes all the cookies of the current browsing context.
+     *
+     * @return a self-reference to be used to chain actions.
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions deleteAllCookies() {
+        driverFactoryHelper.getDriver().manage().deleteAllCookies();
+        browserActionsHelper.passAction("");
+        return this;
+    }
+
+    /**
+     * Use this action to return a full page screenshot. This is a synonym to {@link  BrowserActions#captureScreenshot(Screenshots type)} if you pass `Screenshots.FULL`
+     *
+     * @return a self-reference for chainable actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions captureScreenshot() {
+        return this.captureScreenshot(Screenshots.FULL);
+    }
+
+    /**
+     * Use this action to return a page screenshot. If you want to capture a screenshot then use this method instead {@see FluentBrowserActions#captureSnapshot()}
+     *
+     * @param type can either be `Screenshots.FULL`, or `Screenshots.VIEWPORT`
+     * @return a self-reference for chainable actions
+     */
+    @Override
+    public BrowserActions captureScreenshot(Screenshots type) {
+        var logText = "Capture " + type.name().toLowerCase() + " screenshot";
+        var screenshotManager = new ScreenshotManager();
+        long profilerScreenshotStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        byte[] screenshot = screenshotManager.takeScreenshot(driverFactoryHelper.getDriver(), null);
+        if (profilerScreenshotStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("screenshot", logText,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerScreenshotStart));
+        }
+        long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        ReportManagerHelper.log(logText, Collections.singletonList(screenshotManager.prepareImageForReport(screenshot, "captureScreenshot")), CheckpointStatus.PASS);
+        if (profilerAttachmentStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", logText,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
+        }
+        return this;
+    }
+
+    /**
+     * Use this action to return a page snapshot. A page snapshot is a single .mht file that contains the full page DOM and any related assets
+     * to help you view the page as a whole. If you want to capture a screenshot then use this method instead @see FluentBrowserActions#captureScreenshot()
+     *
+     * @return a self-reference for chainable actions
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    @Override
+    public BrowserActions captureSnapshot() {
+        var logMessage = "";
+        long profilerSnapshotStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        var pageSnapshot = browserActionsHelper.capturePageSnapshot(driverFactoryHelper.getDriver());
+        if (profilerSnapshotStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("page snapshot", "Capture page snapshot",
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerSnapshotStart));
+        }
+        if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+            logMessage = "Capture page snapshot";
+        } else if (pageSnapshot.startsWith("<html")) {
+            logMessage = "Capture page HTML";
+        }
+        long profilerAttachmentStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, new ScreenshotManager().generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))), CheckpointStatus.PASS);
+        if (profilerAttachmentStart != 0L) {
+            FlakeProfiler.recordEvidenceCapture("report attachment", logMessage,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerAttachmentStart));
+        }
+        return this;
+    }
+
+    /**
+     * Generates a Google Lighthouse performance report for the currently open page.
+     * The report is attached to the Allure test report for review after the test run.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com")
+     *       .and().generateLightHouseReport();
+     * }</pre>
+     */
+    @Override
+    public void generateLightHouseReport() {
+        new LightHouseGenerateReport(driverFactoryHelper.getDriver()).generateLightHouseReport();
+    }
+
+    /**
+     * Waits for the page to finish lazy-loading by polling JavaScript readiness conditions.
+     * Use this after actions that trigger dynamic content loading (e.g., infinite scrolling
+     * or deferred script execution).
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com")
+     *       .and().waitForLazyLoading();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions waitForLazyLoading() {
+        JavaScriptWaitManager.waitForLazyLoadingAfterNavigation(driverFactoryHelper.getDriver());
+        return this;
+    }
+
+    /**
+     * Explicitly sweeps the current page with bounded progressive scrolling (viewport-height
+     * steps, up to {@code timeouts.lazyLoadingScrollSweepMaxSteps}, default {@code 20}), waiting
+     * for lazy-loading readiness between steps, to force scroll-triggered content (infinite
+     * lists, IntersectionObserver sections that only hydrate once visible) to fully load before
+     * full-page assertions or screenshots. Stops early once the page stops growing and the
+     * viewport bottom has been reached ({@link com.shaft.gui.browser.internal.ScrollSweepPlanner}).
+     *
+     * <p>Use this right before assertions or screenshots on pages known to lazy-load additional
+     * content on scroll -- it is never invoked automatically from any readiness wait, since
+     * sweeping the whole page is not a safe default before an arbitrary action.
+     *
+     * <p><b>Mutates scroll position while it runs</b>: the page is scrolled down step by step,
+     * then restored to its original scroll position when the sweep finishes.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.browser().navigateToURL("https://example.com/infinite-list")
+     *       .and().scrollToLoadAll()
+     *       .and().captureScreenshot();
+     * }</pre>
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions scrollToLoadAll() {
+        var driver = driverFactoryHelper.getDriver();
+        var js = (JavascriptExecutor) driver;
+        long originalScrollY = readLong(js, "return window.pageYOffset || document.documentElement.scrollTop || 0;");
+        int maxSteps = Math.max(0, SHAFT.Properties.timeouts.lazyLoadingScrollSweepMaxSteps());
+
+        int completedSteps = 0;
+        boolean bottomReached = false;
+        try {
+            long previousPageHeight = readPageHeight(js);
+            while (completedSteps < maxSteps) {
+                long viewportHeight = readLong(js, "return window.innerHeight || 0;");
+                js.executeScript("window.scrollBy(0, arguments[0]);", viewportHeight);
+                JavaScriptWaitManager.waitForLazyLoading(driver);
+                completedSteps++;
+
+                long currentPageHeight = readPageHeight(js);
+                long scrollY = readLong(js, "return window.pageYOffset || document.documentElement.scrollTop || 0;");
+                bottomReached = (scrollY + viewportHeight) >= currentPageHeight;
+
+                boolean stop = ScrollSweepPlanner.shouldStop(
+                        completedSteps, maxSteps, previousPageHeight, currentPageHeight, bottomReached);
+                previousPageHeight = currentPageHeight;
+                if (stop) {
+                    break;
+                }
+            }
+        } catch (Exception rootCauseException) {
+            browserActionsHelper.failAction(driver, "scroll sweep failed after " + completedSteps + " step(s)",
+                    rootCauseException);
+        } finally {
+            // Best-effort restore even when a step or the failure report throws; never mask the
+            // original failure with a restore failure.
+            try {
+                js.executeScript("window.scrollTo(0, arguments[0]);", originalScrollY);
+            } catch (Exception ignored) {
+                // The driver/session may already be unusable; the sweep outcome was reported above.
+            }
+        }
+        browserActionsHelper.passAction(driver, "Scroll sweep completed after " + completedSteps
+                + " step(s); bottom reached: " + bottomReached);
+        return this;
+    }
+
+    private static long readLong(JavascriptExecutor js, String script) {
+        Object value = js.executeScript(script);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private static long readPageHeight(JavascriptExecutor js) {
+        return readLong(js, "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, "
+                + "document.body.offsetHeight, document.documentElement.offsetHeight, "
+                + "document.body.clientHeight, document.documentElement.clientHeight);");
+    }
+
+    /**
+     * Returns the handle for currently active context. This can be used to switch
+     * to this context at a later time.
+     *
+     * @return The current context handle
+     */
+    @Override
+    public String getContext() {
+        String context = "";
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            context = contextDriver.getContext();
+        } else {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+        }
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return context;
+    }
+
+    /**
+     * Switches focus to another context
+     *
+     * @param context The name of the context or the handle as returned by
+     *                ElementActions.getContext(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public BrowserActions setContext(String context) {
+        String contextBefore = currentMobileContext();
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                contextDriver.context(context);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), context, null);
+            }
+        } catch (RuntimeException exception) {
+            recordMobileContextSwitch(context, contextBefore, "", exception);
+            throw exception;
+        }
+        recordMobileContextSwitch(context, contextBefore, currentMobileContext(), null);
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return this;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open windows. This can
+     * be used to switch to any of these windows at a later time.
+     *
+     * @return list of window handles
+     */
+    @Override
+    public List<String> getWindowHandles() {
+        List<String> windowHandles = new ArrayList<>(driverFactoryHelper.getDriver().getWindowHandles());
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open contexts. This
+     * can be used to switch to any of these contexts at a later time.
+     *
+     * @return list of context handles
+     */
+    @Override
+    public List<String> getContextHandles() {
+        List<String> windowHandles = new ArrayList<>();
+        if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+            windowHandles.addAll(contextDriver.getContextHandles());
+        } else {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+        }
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
+    }
+
+    private String currentMobileContext() {
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsContextSwitching contextDriver) {
+                return contextDriver.getContext();
+            }
+            return "unsupported by active driver";
+        } catch (RuntimeException ignored) {
+            return "unsupported by active provider";
+        }
+    }
+
+    private void recordMobileContextSwitch(String requestedContext, String contextBefore, String contextAfter,
+                                           RuntimeException exception) {
+        Map<String, String> metadata = new LinkedHashMap<>(MobileTraceMetadata.mobileMetadata(
+                driverFactoryHelper.getDriver(), exception != null));
+        metadata.put("contextBefore", contextBefore);
+        metadata.put("contextAfter", contextAfter == null || contextAfter.isBlank() ? "unavailable" : contextAfter);
+        metadata.put("requestedContext", requestedContext == null ? "" : requestedContext);
+        TraceEventRecorder.record("mobile-context", "SET_CONTEXT", exception == null ? "passed" : "failed",
+                requestedContext, driverFactoryHelper.getDriver(), "Switch mobile context to \"" + requestedContext + "\"",
+                exception, metadata, List.of());
+    }
+
+    /**
+     * Provides access to accessibility testing actions for the current browser session.
+     *
+     * <p>This method returns an {@link AccessibilityActions} instance that can be used
+     * to perform automated accessibility checks and generate reports for the current page.</p>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * AccessibilityActions actions = browserActions.accessibility();
+     * actions.analyzePageAccessibility("HomePage");
+     * }</pre>
+     *
+     * @return an {@link AccessibilityActions} object tied to the current browser session
+     */
+    @Override
+    public AccessibilityActions accessibility() {
+        WebDriver rawDriver = driverFactoryHelper.getDriver();
+        return new AccessibilityActions(rawDriver, this);
+    }
+
+    private static Cookie toSeleniumCookie(io.restassured.http.Cookie apiCookie, String currentHost) {
+        Cookie.Builder builder = new Cookie.Builder(apiCookie.getName(), apiCookie.hasValue() ? apiCookie.getValue() : "");
+        if (apiCookie.hasDomain()) {
+            String cookieDomain = normalizeDomain(apiCookie.getDomain());
+            if (!hostMatchesDomain(currentHost, cookieDomain)) {
+                throw new IllegalArgumentException("Current browser host \"" + currentHost
+                        + "\" is not compatible with cookie domain \"" + apiCookie.getDomain() + "\".");
+            }
+            builder.domain(cookieDomain);
+        }
+        builder.path(apiCookie.hasPath() ? apiCookie.getPath() : "/");
+        if (apiCookie.hasExpiryDate()) {
+            builder.expiresOn(apiCookie.getExpiryDate());
+        }
+        builder.isSecure(apiCookie.isSecured());
+        builder.isHttpOnly(apiCookie.isHttpOnly());
+        if (apiCookie.hasSameSite()) {
+            builder.sameSite(apiCookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private static URI requireHttpBrowserUri(String currentUrl) {
+        if (currentUrl == null || currentUrl.isBlank()) {
+            throw new IllegalStateException("Navigate to an HTTP or HTTPS page before importing auth state.");
+        }
+        URI currentUri = URI.create(currentUrl);
+        String scheme = currentUri.getScheme();
+        if (currentUri.getHost() == null
+                || scheme == null
+                || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+            throw new IllegalStateException("Navigate to an HTTP or HTTPS page before importing auth state.");
+        }
+        return currentUri;
+    }
+
+    private static void requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be blank.");
+        }
+    }
+
+    private static boolean matchesApiCookieFilter(io.restassured.http.Cookie cookie, String domainFilter, String pathFilter) {
+        return matchesFilter(cookie.hasDomain() ? cookie.getDomain() : null, domainFilter, true)
+                && matchesFilter(cookie.hasPath() ? cookie.getPath() : null, pathFilter, false);
+    }
+
+    private static boolean matchesFilter(String actual, String filter, boolean domain) {
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        if (actual == null || actual.isBlank()) {
+            return false;
+        }
+        String normalizedActual = domain ? normalizeDomain(actual) : actual;
+        String normalizedFilter = domain ? normalizeDomain(filter) : filter;
+        return normalizedActual.equals(normalizedFilter);
+    }
+
+    private static boolean hostMatchesDomain(String host, String domain) {
+        String normalizedHost = normalizeDomain(host);
+        return normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain);
+    }
+
+    private static String normalizeDomain(String domain) {
+        String normalized = domain.toLowerCase(Locale.ROOT);
+        while (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+}

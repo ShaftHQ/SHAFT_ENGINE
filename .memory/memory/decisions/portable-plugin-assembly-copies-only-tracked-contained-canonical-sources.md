@@ -1,0 +1,1 @@
+The act-as-mohab package is generated at validation and release time rather than checked in as a second policy tree. Assembly inventories canonical inputs through git ls-files and rejects files or directories whose resolved path leaves .agents/skills, so untracked host notes, symlinks, and junctions cannot enter a release artifact.

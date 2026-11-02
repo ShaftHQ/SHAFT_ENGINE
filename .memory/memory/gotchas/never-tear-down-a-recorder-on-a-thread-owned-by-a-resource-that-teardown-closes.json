@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes.md",
+  "content_hash": "sha256:cfcb146b987d26fe3721cd4f69f8b2ffb60241afa64820c8e7b97b4b68132506",
+  "created_at": "2026-07-10T15:08:06+03:00",
+  "evidence": [
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.never-tear-down-a-recorder-on-a-thread-owned-by-a-resource-that-teardown-closes",
+  "source": {
+    "kind": "agent",
+    "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"
+  },
+  "status": "active",
+  "tags": [
+    "capture",
+    "recorder",
+    "threading"
+  ],
+  "title": "Never tear down a recorder on a thread owned by a resource that teardown closes",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

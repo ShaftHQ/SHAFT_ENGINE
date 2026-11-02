@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "portable",
+  "entrypoint": "entrypoint.md",
+  "components": {
+    "playbooks": {"owner": "installer", "scope": "repository", "lifecycle": "receipt-owned", "taskImpact": "required"},
+    "retrieval-config": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "required"},
+    "projection-policy": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+  }
+}

@@ -1,0 +1,235 @@
+# Contributing To SHAFT Engine
+
+**Humans:** this repository is the Java 25 Maven reactor. The product guide is
+[https://shafthq.github.io/](https://shafthq.github.io/). JDK 25 and Maven 3.9+
+are required before the build below.
+
+**Agents:** load [AGENTS.md](AGENTS.md) and follow ChaosEngine before editing.
+This file is contributor procedure, not a second policy manual. Skip it when
+the task does not change the engine.
+
+The public user-guide source lives in
+[ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
+
+## 1. Check Out The Code
+
+Prefer a **partial clone** so Git downloads file contents on demand instead of
+every historical blob up front (#7547). Fork the repository if you are not a
+maintainer, then:
+
+```bash
+git clone --filter=blob:none https://github.com/<your-user>/SHAFT_ENGINE.git
+cd SHAFT_ENGINE
+git remote add upstream https://github.com/ShaftHQ/SHAFT_ENGINE.git
+```
+
+Maintainers can clone the canonical repository the same way:
+
+```bash
+git clone --filter=blob:none https://github.com/ShaftHQ/SHAFT_ENGINE.git
+cd SHAFT_ENGINE
+```
+
+On a shared agent host, keep **one** partial clone (or bare/`--reference`
+clone) and add a `git worktree` per branch. Do not create N full clones of this
+repository on the same disk.
+
+Mobile test apk/ipa fixtures are **not** in the tree. Fetch them once before a
+local mobile run:
+
+```bash
+python3 scripts/ci/fetch_mobile_test_apps.py
+```
+
+CI jobs that need the fixtures pass `mobile-apps: 'true'` to
+`.github/actions/setup-test-env`. Do not force-add apk/ipa under those paths; the pre-push contract refuses tracked mobile fixtures (#7547 Phase 0). Generated indexes (`graphify-out/`) and
+ChaosEngine runtime state (`.chaos-engine-state/`) stay gitignored; do not
+commit them, and prefer one shared index per host over rebuilding per worktree.
+
+Start every change from current `main`:
+
+```bash
+git fetch --prune origin
+git switch main
+git pull --ff-only origin main
+git switch -c <short-topic-branch>
+```
+
+If you work from a fork, replace the pull command with:
+
+```bash
+git fetch --prune upstream
+git switch main
+git merge --ff-only upstream/main
+git push origin main
+git switch -c <short-topic-branch>
+```
+
+## 2. Install The Toolchain
+
+Required:
+
+- JDK 25.x only.
+- Maven 3.9.0 or newer.
+- Git.
+
+The repository includes `.java-version` and `.sdkmanrc` for version managers.
+With SDKMAN:
+
+```bash
+sdk env install
+sdk env
+```
+
+Verify the active tools before building:
+
+```bash
+java -version
+mvn -version
+```
+
+Expected: Java reports version `25.x`, and Maven reports `3.9.0` or newer.
+
+### Maintainer Agent Tooling (optional)
+
+Agent-assisted maintenance expects this third-party stack. Full install,
+update, and troubleshooting runbook:
+[Agent tooling](https://shafthq.github.io/docs/maintainers/agent-tooling).
+
+- **memory CLI** — install the pin from `chaos-engine/dependencies.json`
+  (`@aictx/memory@0.2.1`); repo store lives in `.memory/`.
+- **graphify** — deterministic repository map for pre-search file selection:
+  `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
+  from the repo root (cache in gitignored `graphify-out/`; see
+  `tools/repository-map/README.md`). Nightly auto-refresh (Windows):
+  `tools/agent-infra/install-agent-tasks.ps1`.
+- **MCP servers** (`.mcp.json`) — `context7` starts on demand through npx.
+  Optional Maven Tools MCP uses a locally verified Java 25/JAR installation
+  discovered by the [ChaosEngine installer](chaos-engine/INSTALL.md#optional-native-maven-tools-mcp);
+  default agent configuration does not start Docker.
+- **SHAFT MCP, CLI, and skills** — Change into the target project first, then
+  install from the current working directory:
+
+  ```powershell
+  irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.ps1" | iex
+  ```
+
+  ```shell
+  curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.sh" | bash
+  ```
+- **Claude Code plugins** — installed automatically from
+  `.claude/settings.json` `enabledPlugins`/`extraKnownMarketplaces` on
+  first session.
+
+## 3. Build Locally
+
+PowerShell users should keep Maven `-D` arguments quoted as shown.
+
+```bash
+mvn clean install "-DskipTests" "-Dgpg.skip"
+```
+
+This compiles the reactor and installs local artifacts without running the test
+suite.
+
+## 4. Make The Change
+
+### Working With A Coding Agent
+
+This repository ships its own agent skills, so an agent can follow the same
+conventions this guide describes instead of guessing at them. Point yours at
+them before it touches anything:
+
+> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
+
+Most agents discover that entrypoint on their own. The
+[agent skills map](.agents/skills/README.md) explains how the skills fit
+together and how each host imports them; which task sends you to which surface
+is stated once, in the
+[routing table](shaft-skills/ce-pack/references/routing.md). Read the map
+once before your first agent-assisted change.
+
+- Keep the scope tight and follow existing package and module boundaries.
+- Preserve public API compatibility. Deprecate before removing or renaming a
+  public API.
+- Add JavaDocs for every new public class or public method.
+- Use Log4j or SHAFT `ReportManager`; do not use `System.out.println` or
+  `System.err.println` in production code.
+- Use SHAFT fluent assertions in tests where applicable.
+- Do not commit generated reports, binaries, secrets, `target/`, or local
+  credential files.
+
+The Docusaurus user guide is the canonical location for product, usage,
+architecture, migration, and maintainer documentation. In-repo module READMEs
+are short orientation only (purpose, use or skip, next link). Do not add
+product guides or a second ChaosEngine policy to this repository.
+
+## 5. Validate By Risk
+
+For documentation or agent-guidance changes:
+
+```bash
+py -3 scripts/ci/validate_agent_setup.py
+py -3 scripts/ci/validate_documentation_boundaries.py
+git diff --check
+```
+
+For localized code changes, run the affected test first. Always scope the run
+with `-Dtest=` and force headless execution, so a browser-capable test cannot
+open a real window on your machine:
+
+```bash
+mvn -pl shaft-engine -am test "-Dtest=TestClassName" "-DheadlessExecution=true"
+```
+
+Then run one compile/package pass appropriate to the change. For broad API,
+concurrency, build, or release changes, run targeted tests and the full
+compile/package command before opening a pull request.
+
+When public JavaDocs change, also run:
+
+```bash
+mvn -pl shaft-engine javadoc:javadoc
+```
+
+For visual behavior changes, include image or browser evidence. Run external or
+credentialed cloud suites only when the required infrastructure is available and
+the result is necessary.
+
+## 6. Update Documentation When Needed
+
+If the change affects public behavior, update the user guide in
+[ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io) in
+the same delivery.
+
+Before the engine PR is ready:
+
+1. Open the documentation PR.
+2. Verify the documentation deploy preview and affected canonical routes.
+3. Link the documentation PR from the engine PR.
+4. If documentation is not required, state the concrete reason in the engine PR.
+
+## 7. Open The Pull Request
+
+Push your branch:
+
+```bash
+git push -u origin <short-topic-branch>
+```
+
+Open a pull request against `ShaftHQ/SHAFT_ENGINE:main`.
+
+The PR is ready for review when it includes:
+
+- A clear problem statement and solution summary.
+- Focused tests or evidence for the changed path.
+- Validation commands and results copied into the PR description.
+- JavaDocs for new public APIs.
+- Compatibility preserved, or deprecations added before removals.
+- A linked user-guide PR for user-facing behavior changes, or a clear reason no
+  docs change is needed.
+- No generated reports, binaries, secrets, `target/`, or credentialed cloud
+  output.
+
+Reviewers should be able to check out the branch, run the listed commands, and
+see the same result.

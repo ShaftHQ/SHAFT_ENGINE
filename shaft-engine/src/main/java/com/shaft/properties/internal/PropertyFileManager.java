@@ -1,0 +1,378 @@
+package com.shaft.properties.internal;
+
+import com.shaft.cli.FileActions;
+import com.shaft.tools.internal.support.AndroidApkBadgingReader;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import lombok.Getter;
+import org.aeonbits.owner.ConfigFactory;
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.MutableCapabilities;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.net.URI;
+import java.net.URL;
+import java.util.*;
+
+/**
+ * Utility class for loading property files and resolving Appium desired capabilities.
+ * Handles discovery of custom and default property files, and maps mobile-prefixed
+ * properties into {@link org.openqa.selenium.MutableCapabilities} for Appium sessions.
+ */
+public final class PropertyFileManager {
+
+    @Getter
+    private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
+    private static final String LOG4J_PROPERTIES_FILE = "log4j2.properties";
+    private static final String LOG4J_FILE_APPENDER_SYSTEM_PROPERTY = "shaft.log.file";
+    private static final String DEFAULT_LOG_FILE_PATH = "target/logs/log4j.log";
+    private static final String DEFAULT_PROPERTIES_CLASSPATH_RESOURCE = "/resources/properties/default/";
+    private static final String CUSTOM_PROPERTIES_FILE = "custom.properties";
+
+    private PropertyFileManager() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Collects the {@code mobile_} prefixed properties as Appium desired capabilities, with thread-local overrides taking precedence over system properties.
+     *
+     * @return the Appium capability names mapped to their values
+     */
+    public static Map<String, String> getAppiumDesiredCapabilities() {
+        Map<String, String> appiumDesiredCapabilities = new HashMap<>();
+
+        // Collect mobile_ properties from the effective (system + thread-local) view.
+        // Thread-local overrides take precedence over system properties.
+        collectMobileProperties(ThreadLocalPropertiesManager.getEffectiveProperties(), appiumDesiredCapabilities);
+
+        var app = appiumDesiredCapabilities.get("mobile_app");
+        if (app != null && !app.isEmpty() && !isRemoteAppUrl(app)) {
+            if (app.startsWith("src\\") || app.startsWith("src/")) {
+                appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance(true).getAbsolutePath(app));
+            } else if (!isAbsoluteAppPath(app)) {
+                appiumDesiredCapabilities.put("mobile_app",
+                        new File(System.getProperty("user.dir"), app).getAbsolutePath());
+            }
+        }
+        maybeInferMissingAndroidAppIdentifiers(appiumDesiredCapabilities);
+        String mobileApp = appiumDesiredCapabilities.get("mobile_app");
+        if (mobileApp != null) {
+            maybeRemoveStaleApkSignature(mobileApp);
+        }
+        return appiumDesiredCapabilities;
+    }
+
+    /**
+     * Deletes a stale {@code <apk>.idsig} next to a local {@code mobile_app} APK (#7321) so the install
+     * does not fail with {@code INSTALL_PARSE_FAILED_NO_CERTIFICATES} after the APK was replaced in place.
+     */
+    private static void maybeRemoveStaleApkSignature(String appPath) {
+        if (appPath.isBlank() || isRemoteAppUrl(appPath)) {
+            return;
+        }
+        com.shaft.tools.internal.support.StaleApkSignatureCleaner.removeStaleSignature(new File(appPath))
+                .ifPresent(signature -> ReportManager.logDiscrete("Deleted stale APK signature " + signature
+                        + " (older than the APK); it would make the install fail with INSTALL_PARSE_FAILED_NO_CERTIFICATES."));
+    }
+
+    /**
+     * When {@code mobile_app} points to an APK but package/activity are omitted, UiAutomator2 may fail to
+     * resolve the main activity. If {@code ANDROID_HOME} / {@code ANDROID_SDK_ROOT} is set, run
+     * {@code aapt dump badging} and fill missing {@code mobile_appPackage} / {@code mobile_appActivity}.
+     * <p>
+     * Opt out: {@code -Dshaft.skipApkPackageActivityInference=true}
+     */
+    private static void maybeInferMissingAndroidAppIdentifiers(Map<String, String> caps) {
+        if (Boolean.parseBoolean(System.getProperty("shaft.skipApkPackageActivityInference", "false"))) {
+            return;
+        }
+        String appPath = caps.get("mobile_app");
+        if (appPath == null || appPath.isBlank() || !appPath.toLowerCase().endsWith(".apk")) {
+            return;
+        }
+        String pkg = Optional.ofNullable(caps.get("mobile_appPackage")).orElse("").trim();
+        String act = Optional.ofNullable(caps.get("mobile_appActivity")).orElse("").trim();
+        if (!pkg.isEmpty() && !act.isEmpty()) {
+            return;
+        }
+        File apk = new File(appPath);
+        if (!apk.isFile()) {
+            return;
+        }
+        var inferred = AndroidApkBadgingReader.readPackageAndLaunchableActivity(apk);
+        if (inferred.isEmpty()) {
+            ReportManager.logDiscrete(
+                    "Could not infer mobile_appPackage / mobile_appActivity from APK (install Android build-tools and set ANDROID_HOME, or set mobile_appPackage and mobile_appActivity in properties).");
+            return;
+        }
+        var pa = inferred.get();
+        if (pkg.isEmpty() && pa.packageName() != null && !pa.packageName().isBlank()) {
+            caps.put("mobile_appPackage", pa.packageName());
+            ReportManager.logDiscrete("Inferred mobile_appPackage from APK badging: " + pa.packageName());
+        }
+        if (act.isEmpty() && pa.launchableActivity() != null && !pa.launchableActivity().isBlank()) {
+            caps.put("mobile_appActivity", pa.launchableActivity());
+            ReportManager.logDiscrete("Inferred mobile_appActivity from APK badging: " + pa.launchableActivity());
+        }
+    }
+
+    /**
+     * Returns {@code true} when the app path looks like a remote/cloud app URL that must not
+     * be resolved as a local filesystem path. Recognized schemes include {@code bs://} (BrowserStack),
+     * {@code lt://} (LambdaTest), {@code http://}, and {@code https://}.
+     */
+    private static boolean isRemoteAppUrl(String app) {
+        return app.startsWith("bs://") || app.startsWith("lt://")
+                || app.startsWith("http://") || app.startsWith("https://");
+    }
+
+    private static final java.util.regex.Pattern WINDOWS_ABSOLUTE_PATH = java.util.regex.Pattern.compile("^[A-Za-z]:[\\\\/].*");
+
+    /**
+     * Returns {@code true} when {@code app} is already an absolute path, recognizing Windows-style
+     * (drive letter, e.g. {@code C:\...}) and Unix-style (leading {@code /}) absolute paths regardless
+     * of the host OS the JVM is running on. {@link File#isAbsolute()} alone is host-OS-specific: a
+     * Windows drive-letter path is reported as relative on a Linux JVM (and vice versa for a
+     * Unix-rooted path on a Windows JVM), which would otherwise cause an already-absolute path meant
+     * for a different-OS Appium target to be mangled by prepending {@code user.dir}.
+     */
+    private static boolean isAbsoluteAppPath(String app) {
+        return WINDOWS_ABSOLUTE_PATH.matcher(app).matches() || app.startsWith("/") || new File(app).isAbsolute();
+    }
+
+    private static void collectMobileProperties(java.util.Properties source, Map<String, String> target) {
+        source.forEach((key, value) -> {
+            if (String.valueOf(key).contains("mobile_")) {
+                target.put(String.valueOf(key), String.valueOf(value));
+            }
+        });
+    }
+
+    /**
+     * Builds the custom WebDriver capabilities declared through the effective (system and thread-local) properties.
+     *
+     * @return the custom driver capabilities
+     */
+    public static MutableCapabilities getCustomWebDriverDesiredCapabilities() {
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+        java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
+        props.forEach((key, value) -> {
+            if (String.valueOf(key).startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
+                customDriverOptions.setCapability(String.valueOf(key).split("capabilities.")[1], String.valueOf(value));
+            }
+        });
+        return customDriverOptions;
+    }
+
+    /**
+     * Resolves the Log4j2 configuration path, preferring the copied/custom properties file
+     * and falling back to the bundled default file when the custom file has not been created yet.
+     *
+     * @return the Log4j2 configuration file path to use during logger initialization
+     */
+    public static String getLog4jConfigPath() {
+        Paths paths = ConfigFactory.create(Paths.class, ThreadLocalPropertiesManager.getEffectiveProperties());
+        String log4jConfigPath = appendFileName(paths.properties(), LOG4J_PROPERTIES_FILE);
+        if (!new File(log4jConfigPath).isFile()) {
+            log4jConfigPath = appendFileName(paths.defaultProperties(), LOG4J_PROPERTIES_FILE);
+        }
+        if (!new File(log4jConfigPath).isFile()) {
+            log4jConfigPath = appendFileName(resolveBundledDefaultPropertiesFolderPath(), LOG4J_PROPERTIES_FILE);
+        }
+        return normalizeLog4jConfigPath(log4jConfigPath);
+    }
+
+    /**
+     * Resolves the bundled default properties folder from the runtime classpath.
+     *
+     * @return an absolute filesystem path when running from compiled classes, a jar URL for
+     *         external runs, or the module-relative default folder when the resource is absent
+     */
+    public static String resolveBundledDefaultPropertiesFolderPath() {
+        URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_CLASSPATH_RESOURCE);
+        if (propertiesFolder != null) {
+            return resolveClasspathResourceLocation(propertiesFolder);
+        }
+        return appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default");
+    }
+
+    /**
+     * Resolves the bundled {@code custom.properties} template used during engine bootstrap.
+     *
+     * @return the preferred on-disk template path when present, otherwise the classpath location
+     */
+    public static String resolveCustomPropertiesTemplatePath() {
+        String bundledTemplatePath = appendFileName(
+                appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default"),
+                CUSTOM_PROPERTIES_FILE);
+        if (new File(bundledTemplatePath).isFile()) {
+            return bundledTemplatePath;
+        }
+        return appendFileName(resolveBundledDefaultPropertiesFolderPath(), CUSTOM_PROPERTIES_FILE);
+    }
+
+    /**
+     * Converts a classpath resource URL into a filesystem or jar location string.
+     *
+     * @param resourceUrl classpath resource URL
+     * @return resolved location suitable for {@link FileActions} copy helpers
+     */
+    public static String resolveClasspathResourceLocation(URL resourceUrl) {
+        if (resourceUrl == null) {
+            return appendFileName(CUSTOM_PROPERTIES_FOLDER_PATH, "default");
+        }
+        if ("jar".equalsIgnoreCase(resourceUrl.getProtocol())) {
+            return resourceUrl.toString();
+        }
+        try {
+            return Path.of(resourceUrl.toURI()).toString();
+        } catch (java.net.URISyntaxException uriSyntaxException) {
+            ReportManager.logDiscrete("Could not resolve classpath resource path: "
+                    + resourceUrl + ". Falling back to legacy path resolution.", Level.DEBUG);
+            return resourceUrl.getFile();
+        }
+    }
+
+    static String normalizeLog4jConfigPath(String log4jConfigPath) {
+        if (isJarResourceLocation(log4jConfigPath)) {
+            return log4jConfigPath;
+        }
+        return Path.of(log4jConfigPath).toAbsolutePath().normalize().toString();
+    }
+
+    private static boolean isJarResourceLocation(String path) {
+        return path.startsWith("jar:") || path.contains(".jar!");
+    }
+
+    /**
+     * Resolves the effective Log4j file-appender path using the typed Log4j properties.
+     *
+     * @return the effective log file path for retry diagnostics and full-log attachments
+     */
+    public static String getLogFilePath() {
+        String logFilePath = ConfigFactory.create(Log4j.class, ThreadLocalPropertiesManager.getEffectiveProperties())
+                .appenderFile_FileName();
+        if (logFilePath == null || logFilePath.isBlank() || logFilePath.contains("${")) {
+            return System.getProperty(LOG4J_FILE_APPENDER_SYSTEM_PROPERTY, DEFAULT_LOG_FILE_PATH);
+        }
+        return logFilePath;
+    }
+
+    /**
+     * Joins a folder path and a file name while preserving an existing trailing separator.
+     *
+     * @param folderPath the folder path to append to
+     * @param fileName   the file name to append
+     * @return the combined file path
+     */
+    private static String appendFileName(String folderPath, String fileName) {
+        if (folderPath.endsWith("/") || folderPath.endsWith(File.separator)) {
+            return folderPath + fileName;
+        }
+        return folderPath + File.separator + fileName;
+    }
+
+    /**
+     * Collects the non-blank {@code browserStack.} prefixed properties as BrowserStack options.
+     * {@code appName}, {@code appUrl}, and {@code appRelativeFilePath} are not session capabilities.
+     * {@code forceLocal} is excluded: {@code --force-local} belongs on the BrowserStackLocal binary,
+     * not on {@code bstack:options}.
+     *
+     * @return the BrowserStack option names mapped to their values
+     */
+    public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
+        java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
+        props.forEach((key, value) -> {
+            if (String.valueOf(key).startsWith("browserStack.") && !String.valueOf(value).isBlank()) {
+                Set<String> excludedKeys = Set.of(
+                        "appName",
+                        "appUrl",
+                        "appRelativeFilePath",
+                        "forceLocal"
+                );
+                var parsedKey = String.valueOf(key).split("browserStack.")[1];
+                if (!excludedKeys.contains(parsedKey))
+                    browserstackOptions.put(parsedKey, String.valueOf(value));
+            }
+        });
+        return browserstackOptions;
+    }
+
+    private static void readPropertyFiles(String propertiesFolderPath) {
+        if (propertiesFolderPath != null) {
+            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath, Level.DEBUG);
+            try {
+                java.util.Properties properties = new java.util.Properties();
+                if (propertiesFolderPath.contains(".jar")) {
+                    // unpacks default properties to target folder
+                    URL url = URI.create(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!"))).toURL();
+                    FileActions.getInstance(true).unpackArchive(url, "target/");
+                    propertiesFolderPath = "target/resources/properties/default/";
+                }
+                if (FileActions.getInstance(true).doesFileExist(propertiesFolderPath)) {
+                    Collection<File> propertyFiles = FileUtils.listFiles(new File(propertiesFolderPath),
+                            new String[]{"properties"}, false);
+                    List<File> sortedPropertyFiles = new ArrayList<>(propertyFiles);
+                    sortedPropertyFiles.sort(Comparator.comparing(file -> file.getAbsolutePath()));
+                    for (File propertyFile : sortedPropertyFiles) {
+                        ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG);
+                        java.util.Properties fromFile = new java.util.Properties();
+                        if (loadPropertiesFromFile(fromFile, propertyFile)) {
+                            // #7085: warn only, never fail, about likely misspelled SHAFT keys.
+                            UnknownPropertyKeys.warnings(propertyFile.getName(), fromFile.stringPropertyNames())
+                                    .forEach(warning -> ReportManager.logDiscrete(warning, Level.WARN));
+                            if (com.shaft.tools.io.internal.ReportSecrets.isSecretFile(propertyFile.getName())) {
+                                // #7173: values from secret files are masked everywhere in the report.
+                                com.shaft.tools.io.internal.ReportSecrets.registerAll(fromFile);
+                            }
+                            properties.putAll(fromFile);
+                        }
+                    }
+                    applyLoadedPropertiesToSystem(properties);
+                } else {
+                    ReportManager.logDiscrete(
+                            "The desired propertiesFolderPath directory doesn't exist. ["
+                                    + propertiesFolderPath + "]");
+                }
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
+        }
+    }
+
+    /**
+     * Loads entries from a single file into {@code target}. Does not touch {@link System#getProperties()}.
+     *
+     * @return {@code true} when the file was read successfully
+     */
+    private static boolean loadPropertiesFromFile(java.util.Properties target, File propertyFile) {
+        try (FileInputStream inputStream = new FileInputStream(propertyFile)) {
+            target.load(inputStream);
+            return true;
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return false;
+        }
+    }
+
+    /**
+     * Merges file-based properties with effective overrides and publishes once to {@link System#getProperties()}.
+     */
+    private static void applyLoadedPropertiesToSystem(java.util.Properties loadedFromFiles) {
+        loadedFromFiles.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
+        ThreadLocalPropertiesManager.applyCompatibilityAliases(loadedFromFiles);
+        System.getProperties().putAll(loadedFromFiles);
+    }
+
+    /**
+     * Reads every property file in the configured properties folder (or the default custom properties folder) into the system properties.
+     */
+    public static void readCustomPropertyFiles() {
+        readPropertyFiles(Objects.requireNonNullElse(Properties.paths.properties(), CUSTOM_PROPERTIES_FOLDER_PATH));
+    }
+}

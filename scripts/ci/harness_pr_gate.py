@@ -1,0 +1,2289 @@
+#!/usr/bin/env python3
+"""Run fast, change-scoped ChaosEngine pull-request checks."""
+
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess  # nosec B404 - executes fixed unittest commands without a shell.
+import sys
+import tempfile
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta, timezone
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+
+class GateError(ValueError):
+    """Invalid gate input."""
+
+
+class ChangedPath(str):
+    """A changed path annotated with whether its head revision can execute."""
+
+    executable: bool
+
+    def __new__(cls, value: str, *, executable: bool) -> ChangedPath:
+        instance = str.__new__(cls, value)
+        instance.executable = executable
+        return instance
+
+
+@dataclass(frozen=True)
+class Check:
+    id: str
+    surface: str
+    modules: tuple[str, ...]
+    protected: bool = False
+    # #6222: an open issue tracking content drift that is red on main today.
+    # A failure is reported as "known-drift" (never blocking) until the issue
+    # is fixed; a pass tells the author to promote the check by clearing it.
+    known_drift: str = ""
+
+    @property
+    def reproduction_command(self) -> str:
+        return "python -m unittest " + " ".join(self.modules) + " -v"
+
+
+@dataclass(frozen=True)
+class GatePlan:
+    surfaces: tuple[str, ...] = ()
+    checks: tuple[Check, ...] = ()
+    unknown_paths: tuple[str, ...] = ()
+
+    @property
+    def test_modules(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(module for check in self.checks for module in check.modules))
+
+
+@dataclass(frozen=True)
+class WaiverReceipt:
+    head_sha: str
+    check_ids: tuple[str, ...]
+    expires_at: datetime
+
+
+# Protected installer acceptance must stay inside the harness budget
+# (CI run 41444465079: 1200s wall / ~5600s sum_check when design modules
+# were duplicated here and in design-skills-contract). Keep this list
+# installer-focused; design cards live under design-skills-contract.
+MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES = 16
+PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED = frozenset(
+    {
+        "tests.scripts.test_ce_design_craft",
+        "tests.scripts.test_ce_design_lessons",
+    }
+)
+
+PROTECTED_IDS = frozenset(
+    {
+        "protected-security",
+        "protected-ownership",
+        "protected-corruption",
+        "protected-rollback",
+        "protected-secret-safety",
+        "protected-installer-acceptance",
+        "protected-confirmed-correctness",
+    }
+)
+WAIVER_OWNER = "MohabMohie"
+# Always-on protected checks start first so long suites cannot starve them.
+PRIORITY_CHECK_IDS = ("protected-ownership", "protected-secret-safety")
+# Longest suites (CI receipts: ~370 s, ~350 s, ~75 s) start next so the
+# concurrent wall time is bounded by the slowest suite, not by queueing (#6191).
+LONG_RUNNING_CHECK_IDS = (
+    "protected-rollback",
+    "protected-installer-acceptance",
+    "setup-aggregator-contract",
+)
+# Issue #6207: the two longest protected modules run as deterministic shards
+# (scripts/ci/unittest_shard.py) so the concurrent gate is not bounded by one
+# module. The union of a module's shards is exactly that module.
+SHARDED_MODULES = {
+    "tests.scripts.test_chaos_engine_installer": 4,
+    "tests.scripts.test_chaos_engine_bootstrap": 2,
+}
+RECORDED_BASELINE_MEDIAN_SECONDS = 600
+PR_BUDGET_SECONDS = 360
+WAIVER_FENCE = re.compile(
+    r"```chaos-engine-waiver[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL
+)
+
+CHECKS = {
+    "kernel-contract": Check(
+        "kernel-contract", "kernel", ("tests.scripts.test_chaos_engine_kernel",), True
+    ),
+    "lifecycle-contract": Check(
+        "lifecycle-contract",
+        "lifecycle",
+        ("tests.scripts.test_chaos_engine_hook",),
+        True,
+    ),
+    "eval-parity-contract": Check(
+        "eval-parity-contract",
+        "lifecycle",
+        ("tests.scripts.test_chaos_engine_eval_parity_fixtures",),
+    ),
+    "host-contract": Check(
+        "host-contract",
+        "hosts",
+        (
+            "tests.scripts.test_chaos_engine_hosts",
+            "tests.scripts.test_mcp_chrome_devtools_opt_in",
+            "tests.scripts.test_copilot_cli_hook",
+            "tests.scripts.test_chaos_engine_grok_hook_env",
+        ),
+        True,
+    ),
+    "guidance-contract": Check(
+        "guidance-contract",
+        "guidance",
+        (
+            "tests.scripts.test_validate_agent_guidance",
+            "tests.scripts.test_ce_lean_harness",
+            "tests.scripts.test_omniroute",
+            "tests.scripts.test_omniroute_workflow_contract",
+            "tests.scripts.test_omniroute_orchestrator_docs",
+            "tests.scripts.test_omniroute_tdd_pdca",
+            "tests.scripts.test_omniroute_portability",
+            "tests.scripts.test_chaos_engine_public_landing",
+            "tests.scripts.test_nonblocked_lessons",
+            "tests.scripts.test_ce_lessons_2026_10_29",
+            "tests.scripts.test_mobile_retro_harness",
+            "tests.scripts.test_client_name_scrub",
+            "tests.scripts.test_chaos_engine_latest_stable_pins",
+            "tests.scripts.test_always_loaded_budget",
+            "tests.scripts.test_ce_load_stamp",
+            "tests.scripts.test_ce_hook_bot_parity",
+            "tests.scripts.test_doctor_origin_only_7100",
+            "tests.scripts.test_ce_personality_load",
+        ),
+    ),
+    "skill-contract": Check(
+        "skill-contract", "guidance", ("tests.scripts.test_validate_skills",)
+    ),
+    "guidance-reachability-contract": Check(
+        "guidance-reachability-contract",
+        "guidance",
+        (
+            "tests.scripts.test_agent_harness_reachability",
+            "tests.scripts.test_agent_entry_reachability",
+            "tests.scripts.test_ce_entry_coverage",
+            "tests.scripts.test_android_apk_select",
+            "tests.scripts.test_ios_ipa_acceptance",
+            "tests.scripts.test_flutter_preflight_retry",
+            "tests.scripts.test_merge_queue_awaiting_checks_heal",
+            "tests.scripts.test_ce_lessons_2026_11_02",
+            "tests.scripts.test_ce_lessons_repeat_failure_pdca",
+            "tests.scripts.test_harness_isolated_imports",
+        ),
+    ),
+    "plugin-contract": Check(
+        "plugin-contract",
+        "plugins",
+        ("tests.scripts.test_validate_agent_plugins",),
+    ),
+    "plugin-quality-contract": Check(
+        "plugin-quality-contract",
+        "plugins",
+        (
+            "tests.scripts.test_shaft_skill_quality",
+            "tests.scripts.test_execution_class_skills",
+        ),
+    ),
+    "retrieval-contract": Check(
+        "retrieval-contract",
+        "retrieval",
+        (
+            "tests.scripts.test_knowledge_stores",
+            "tests.scripts.test_chaos_engine_stores",
+            "tests.scripts.test_chaos_engine_mempalace_fast_mine",
+            "tests.scripts.test_harness_followups",
+            "tests.scripts.test_deja_store_6183",
+        ),
+    ),
+    "graph-resolver-contract": Check(
+        "graph-resolver-contract", "retrieval", ("tests.scripts.test_resolve_graph_out",)
+    ),
+    "ci-contract": Check(
+        "ci-contract",
+        "ci",
+        (
+            "tests.scripts.test_harness_pr_gate",
+            "tests.scripts.test_unittest_shard",
+            # #7627: case-sensitive UnitTest.java discovery shared by shard + pre-push.
+            "tests.scripts.test_unit_test_discovery",
+            # #6239: the suite must never mutate the invoking checkout.
+            "tests.scripts.test_repo_state_guard",
+            # #6543: build wrappers stay executable; workflows call them via bash.
+            "tests.scripts.test_wrapper_scripts_executable_6543",
+            "tests.scripts.test_pitest_argline_guard",
+            "tests.scripts.test_dependabot_auto_merge_workflow",
+            "tests.scripts.test_guard_split",
+            "tests.scripts.test_ce_addons",
+        ),
+    ),
+    "setup-aggregator-contract": Check(
+        "setup-aggregator-contract",
+        "ci",
+        ("tests.scripts.test_validate_agent_setup",),
+    ),
+    "documentation-inventory-contract": Check(
+        "documentation-inventory-contract",
+        "documentation",
+        (
+            "tests.scripts.test_validate_chaos_engine_readme",
+            "tests.scripts.test_user_facing_readmes",
+        ),
+    ),
+    "accessibility-contract": Check(
+        "accessibility-contract",
+        "accessibility",
+        ("tests.scripts.test_accessibility_quality_gates",),
+    ),
+    "dependency-account-contract": Check(
+        "dependency-account-contract",
+        "installer",
+        (
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses",
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_install_passes_resolved_tool_versions_to_the_account_plan",
+        ),
+    ),
+    "identity-contract": Check(
+        "identity-contract",
+        "identities",
+        ("tests.scripts.test_chaos_gauge_contracts",),
+    ),
+    "identity-recovery-contract": Check(
+        "identity-recovery-contract",
+        "identities",
+        ("tests.scripts.test_chaos_gauge_recovery",),
+    ),
+    "promotion-contract": Check(
+        "promotion-contract",
+        "promotion",
+        ("tests.scripts.test_chaos_engine_promotion",),
+    ),
+    "fallback-contract": Check(
+        "fallback-contract",
+        "fallback",
+        ("tests.scripts.test_validate_agent_setup",),
+    ),
+    "javadoc-param-arity-contract": Check(
+        "javadoc-param-arity-contract",
+        "javadoc",
+        (
+            "tests.scripts.test_check_javadoc_param_arity",
+            "tests.scripts.test_chaos_engine_zero_llm_catalog",
+        ),
+    ),
+    "protected-ownership": Check(
+        "protected-ownership",
+        "protected",
+        ("tests.scripts.test_validate_agent_ownership",),
+        True,
+    ),
+    "protected-secret-safety": Check(
+        "protected-secret-safety",
+        "protected",
+        (
+            "tests.scripts.test_guard_nul_corruption",
+            "tests.scripts.test_harness_pr_gate",
+            "tests.scripts.test_guard_lifecycle.ReflectionCheckpointContractTest.test_receipt_rejects_stale_fingerprint_secret_and_user_path",
+            "tests.scripts.test_guard_lifecycle.ReflectionReceiptPrivacyTest.test_session_token_and_closed_schema_reject_forged_receipts",
+            "tests.scripts.test_guard_lifecycle.ReflectionReceiptPrivacyTest.test_failure_classifications_never_persist_secret_or_user_path",
+        ),
+        True,
+    ),
+    "protected-security": Check(
+        "protected-security",
+        "lifecycle",
+        (
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_memory_write_from_a_linked_worktree_without_a_target_is_denied",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_memory_patch_write_from_a_linked_worktree_is_denied_too",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_a_write_targeted_at_another_tree_is_still_denied",
+            "tests.scripts.test_guard_memory_worktree.MemoryWriteFromLinkedWorktreeTest.test_the_refusal_does_not_claim_where_the_write_would_land",
+        ),
+        True,
+    ),
+    "protected-installer-acceptance": Check(
+        "protected-installer-acceptance",
+        "installer",
+        (
+            "tests.scripts.test_chaos_engine_bootstrap",
+            "tests.scripts.test_secret_guard_7177",
+            "tests.scripts.test_secret_guard_chained_7323",
+            "tests.scripts.test_doctor_gh_timeout_7322",
+            "tests.scripts.test_allure_compose_7178",
+            "tests.scripts.test_ce_packs",
+            "tests.scripts.test_ce_addons",
+            "tests.scripts.test_policy_overlay_repair",
+            "tests.scripts.test_learning_session_readme_7117",
+            "tests.scripts.test_chaos_engine_dependencies",
+            "tests.scripts.test_chaos_engine_java_pinned_fallback",
+            "tests.scripts.test_chaos_engine_installer_self_heal_5630",
+            "tests.scripts.test_chaos_engine_offline_cache",
+            "tests.scripts.test_chaos_engine_generation_runtime",
+            "tests.scripts.test_chaos_engine_live_installer_acceptance",
+            "tests.scripts.test_chaos_engine_install_commit_ref",
+        ),
+        True,
+    ),
+    "protected-rollback": Check(
+        "protected-rollback",
+        "installer",
+        ("tests.scripts.test_chaos_engine_installer",),
+        True,
+    ),
+    "token-waste-contract": Check(
+        "token-waste-contract",
+        "token-waste",
+        (
+            "tests.scripts.test_chaos_engine_token_waste_6161",
+            "tests.scripts.test_ci_status_economy_lessons_7341",
+            "tests.scripts.test_watch_pr_checks",
+            "tests.scripts.test_overlay_pre_push",
+            "tests.scripts.test_skillspector_gate",
+            "tests.scripts.test_workflow_template_sync",
+            "tests.scripts.test_publish_shaft_mcp_release_guard",
+            "tests.scripts.test_validation_manifest_imports",
+            "tests.scripts.test_code_quality_preflight",
+            "tests.scripts.test_unresolved_review_threads",
+            "tests.scripts.test_mega_pr_throughput_gates",
+            "tests.scripts.test_branded_installer_ce_standard",
+        ),
+    ),
+    "token-economy-contract": Check(
+        "token-economy-contract",
+        "token-economy",
+        (
+            "tests.scripts.test_chaos_engine_token_economy_6173",
+            "tests.scripts.test_chaos_engine_ci_event_wake_6521",
+            "tests.scripts.test_retrieve_gate_scope",
+            "tests.scripts.test_ce_guard_reachability",
+            "tests.scripts.test_skill_index_parity",
+            "tests.scripts.test_git_cleanup_skill",
+            "tests.scripts.test_ci_cd_skill",
+            "tests.scripts.test_guard_pr_body_preflight",
+            "tests.scripts.test_reflection_recovery",
+            "tests.scripts.test_bootstrap_pack_post_install",
+            "tests.scripts.test_chaos_engine_ui_delivery",
+            "tests.scripts.test_architect_skill_parity",
+            "tests.scripts.test_technical_presentations_skill_parity",
+        ),
+    ),
+    # #6222: modules that only ran in the weekly acceptance run, each selected
+    # by the paths it actually reads, so drift surfaces on the PR that causes it.
+    "user-harness-sync-contract": Check(
+        "user-harness-sync-contract",
+        "user-harness",
+        ("tests.scripts.test_sync_user_harness",),
+    ),
+    "portable-core-contract": Check(
+        "portable-core-contract",
+        "portable-core",
+        ("tests.scripts.test_chaos_engine_portable_core",),
+    ),
+    "router-contract": Check(
+        "router-contract",
+        "guidance",
+        ("tests.scripts.test_agent_router_contract",),
+    ),
+    "harness-portability-contract": Check(
+        "harness-portability-contract",
+        "guidance",
+        ("tests.scripts.test_agent_harness_portability",),
+    ),
+    "plugin-assembly-contract": Check(
+        "plugin-assembly-contract",
+        "plugin-assembly",
+        ("tests.scripts.test_assemble_chaos_engine_plugin",),
+    ),
+    "research-matrix-contract": Check(
+        "research-matrix-contract",
+        "research",
+        ("tests.scripts.test_chaos_engine_research",),
+    ),
+    # #6240: red on main for days because nothing selected them. Each runs
+    # in well under a second, so they are gated on every input they read.
+    "intellij-skill-contract": Check(
+        "intellij-skill-contract",
+        "intellij-skill",
+        ("tests.scripts.test_intellij_plugin_development_skill",),
+    ),
+    "self-improve-overlay-contract": Check(
+        "self-improve-overlay-contract",
+        "self-improve",
+        ("tests.scripts.test_chaos_engine_s3_self_improve",),
+    ),
+    "upstream-ticket-contract": Check(
+        "upstream-ticket-contract",
+        "self-improve",
+        ("tests.scripts.test_upstream_ticket_consent",),
+    ),
+    "graphify-maintenance-contract": Check(
+        "graphify-maintenance-contract",
+        "retrieval",
+        ("tests.scripts.test_graphify_maintenance",),
+    ),
+    "installer-ux-contract": Check(
+        "installer-ux-contract",
+        "installer",
+        (
+            "tests.scripts.test_chaos_engine_installer_ux",
+            "tests.scripts.test_chaos_engine_managed_runtimes",
+            "tests.scripts.test_chaos_engine_install_wrappers",
+            # Issue #6186: the ubuntu fresh-installer job no longer runs these
+            # itself; this Linux check is their PR-time home.
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_overlay_only_host_pointers",
+            # #7242: host entry files are pointers to one canonical set.
+            "tests.scripts.test_chaos_engine_entry_parity_7242",
+            "tests.scripts.test_chaos_engine_harness_map_7242",
+            "tests.scripts.test_chaos_engine_token_economy_7242",
+            # #7251: delete guard hook, delete-check tool and doctor rows.
+            "tests.scripts.test_chaos_engine_delete_guard_7251",
+            "tests.scripts.test_chaos_engine_separate_git_dir_7278",
+            "tests.scripts.test_chaos_engine_register_rule_7242",
+            "tests.scripts.test_chaos_engine_retrieve_marker_7242",
+            "tests.scripts.test_chaos_engine_mempalace_privacy_7242",
+            "tests.scripts.test_chaos_engine_fresh_install_receipt_7242",
+            # #6236/#6237: MemPalace init on repair/account install, consumer mode.
+            "tests.scripts.test_chaos_engine_mempalace_init_6236",
+            "tests.scripts.test_chaos_engine_consumer_mode_6237",
+            # #6336-#6339: Maven Tools doctor/repair and rollback truth.
+            "tests.scripts.test_chaos_engine_maven_tools_reinstall_6336",
+            # #6363: doctor prints each warning row once.
+            "tests.scripts.test_chaos_engine_doctor_dedupe_6363",
+            # Fresh-clone MemPalace mine runs in the background with doctor status.
+            "tests.scripts.test_mempalace_background_index",
+            "tests.scripts.test_chaos_engine_mempalace_owned_excludes_6540",
+            "tests.scripts.test_chaos_engine_index_reuse",
+            # #7314: install resilience, MemPalace prune, consumer committed core.
+            "tests.scripts.test_chaos_engine_install_resilience_7314",
+            # #6377: retrieve companions, empty-palace detection, maintain.
+            "tests.scripts.test_chaos_engine_retrieve_companions_6377",
+        ),
+    ),
+    # #6244: modules that were red on main and selected by nothing.
+    "surefire-green-contract": Check(
+        "surefire-green-contract",
+        "surefire-green",
+        ("tests.scripts.test_assert_surefire_green",),
+    ),
+    "browserstack-boundary-contract": Check(
+        "browserstack-boundary-contract",
+        "browserstack-boundary",
+        ("tests.scripts.test_browserstack_module_boundary",),
+    ),
+    "cucumber8-adapter-contract": Check(
+        "cucumber8-adapter-contract",
+        "cucumber8-adapter",
+        (
+            "tests.scripts.test_shaft_engine_jar_includes_adapter",
+            "tests.scripts.test_prepare_upstream_adapter",
+        ),
+    ),
+    "icm-architect-contract": Check(
+        "icm-architect-contract",
+        "icm-architect",
+        ("tests.scripts.test_chaos_engine_icm_architect_6001",),
+    ),
+    "identity-companions-contract": Check(
+        "identity-companions-contract",
+        "identity-companions",
+        ("tests.scripts.test_chaos_engine_identity_companions_5803",),
+    ),
+    "memory-tracked-contract": Check(
+        "memory-tracked-contract",
+        "memory-tracked",
+        ("tests.scripts.test_chaos_engine_memory_tracked_5774",),
+    ),
+    "wave-c-ledger-contract": Check(
+        "wave-c-ledger-contract",
+        "wave-c-ledger",
+        ("tests.scripts.test_chaos_engine_wave_c_ledger_retrieve_learning",),
+    ),
+    "freetoken-probe-contract": Check(
+        "freetoken-probe-contract",
+        "freetoken-probe",
+        ("tests.scripts.test_freetoken_probe",),
+    ),
+    "installer-merge-handoff-contract": Check(
+        "installer-merge-handoff-contract",
+        "installer-merge-handoff",
+        ("tests.scripts.test_installer_merge_handoff",),
+    ),
+    "installer-checkout-shim-contract": Check(
+        "installer-checkout-shim-contract",
+        "installer-checkout-shim",
+        ("tests.scripts.test_installer_repo_checkout_detection",),
+    ),
+    "omniroute-calibration-contract": Check(
+        "omniroute-calibration-contract",
+        "omniroute-calibration",
+        ("tests.scripts.test_omniroute_calibration",),
+    ),
+    "process-owner-contract": Check(
+        "process-owner-contract",
+        "process-owner",
+        (
+            "tests.scripts.test_process_owner_scrum_master",
+            "tests.scripts.test_multi_agent_pdca",
+            "tests.scripts.test_parallel_streams",
+            "tests.scripts.test_box_disk_guard",
+            "tests.scripts.test_pre_done_review",
+        ),
+    ),
+    "ce-h2-gates-contract": Check(
+        "ce-h2-gates-contract",
+        "ce-h2-gates",
+        ("tests.scripts.test_ce_h2_gates",),
+    ),
+    # #7333: design-skills add-on cards (lesson cards, craft index, inventory).
+    "design-skills-contract": Check(
+        "design-skills-contract",
+        "design-skills",
+        (
+            "tests.scripts.test_ce_design_lessons",
+            "tests.scripts.test_ce_design_web_craft",
+            "tests.scripts.test_ce_design_reels",
+            "tests.scripts.test_ce_design_caption_lessons",
+            "tests.scripts.test_ce_design_qa_lessons",
+            "tests.scripts.test_ce_design_qa_r2_lessons",
+            "tests.scripts.test_ce_design_qa_r2_delta_lessons",
+            "tests.scripts.test_ce_design_hosted_cms_lessons",
+            "tests.scripts.test_ce_design_cms_paste_l36_l37",
+            "tests.scripts.test_ce_design_app_recon",
+            "tests.scripts.test_ce_design_arabic_tech_l32",
+            "tests.scripts.test_ce_design_less_css_l33",
+            "tests.scripts.test_ce_design_liveseo",
+            "tests.scripts.test_ce_design_paste_robots_l34",
+            "tests.scripts.test_ce_design_video_caption_l35",
+            "tests.scripts.test_ce_design_caption_l38",
+            "tests.scripts.test_ce_version",
+            "tests.scripts.test_ce_session_manifest_delete_and_backup_silence",
+            "tests.scripts.test_worktree_overlay_materialize_upgrade",
+            "tests.scripts.test_ce_design_caption_l44",
+            "tests.scripts.test_ce_design_render_freshness_l46_l47",
+            "tests.scripts.test_ce_design_fb_reel_gates_l48_l51",
+            "tests.scripts.test_ce_commit_identity_and_work_ordering",
+            "tests.scripts.test_ce_bugfix_2026_10_30_2",
+            "tests.scripts.test_ce_bugfix_2026_10_31_1",
+            "tests.scripts.test_ce_bugfix_2026_10_31_2",
+            "tests.scripts.test_ce_bugfix_2026_10_31_3",
+            "tests.scripts.test_ce_bugfix_2026_10_31_4",
+            "tests.scripts.test_ce_design_l39c_adjudic",
+            "tests.scripts.test_ce_design_pipeline_l56_l59",
+            "tests.scripts.test_ce_retro_2026_10_31_6",
+            "tests.scripts.test_ce_rules_2026_10_31_7",
+            "tests.scripts.test_ce_rules_2026_10_31_8",
+            "tests.scripts.test_ce_maven_tools_java_preflight",
+            "tests.scripts.test_ce_rules_2026_10_31_11",
+            "tests.scripts.test_ce_rules_2026_10_31_12",
+            "tests.scripts.test_ce_rules_2026_10_31_13",
+            "tests.scripts.test_ce_retro_2026_10_31_5",
+            "tests.scripts.test_ce_design_video_signoff_l39",
+            "tests.scripts.test_ce_design_batch3",
+            "tests.scripts.test_ce_design_decks",
+            "tests.scripts.test_ce_memory_abstraction_phase1",
+            "tests.scripts.test_ce_design_craft",
+        ),
+    ),
+    "durable-jobs-contract": Check(
+        "durable-jobs-contract",
+        "durable-jobs",
+        ("tests.scripts.test_ce_jobs", "tests.scripts.test_ce_task_ledger"),
+    ),
+    "visual-ocr-workflow-contract": Check(
+        "visual-ocr-workflow-contract",
+        "visual-ocr-workflow",
+        ("tests.scripts.test_visual_ocr_workflow",),
+    ),
+    "mobile-test-apps-contract": Check(
+        "mobile-test-apps-contract",
+        "mobile-test-apps",
+        ("tests.scripts.test_fetch_mobile_test_apps",),
+    ),
+    "harness-eval-suite-contract": Check(
+        "harness-eval-suite-contract",
+        "harness-eval",
+        ("tests.scripts.test_chaos_engine_harness_eval_suite",),
+    ),
+    "memory-provenance-contract": Check(
+        "memory-provenance-contract",
+        "memory-provenance",
+        ("tests.scripts.test_chaos_engine_memory_provenance_6520",),
+    ),
+    "evolving-playbook-contract": Check(
+        "evolving-playbook-contract",
+        "evolving-playbook",
+        ("tests.scripts.test_chaos_engine_evolving_playbook_6532",),
+    ),
+    "insight-extract-contract": Check(
+        "insight-extract-contract",
+        "insight-extract",
+        ("tests.scripts.test_chaos_engine_insight_extract_6544",),
+    ),
+    "workflow-induction-contract": Check(
+        "workflow-induction-contract",
+        "workflow-induction",
+        ("tests.scripts.test_chaos_engine_workflow_induction_6518",),
+    ),
+    "external-reflection-contract": Check(
+        "external-reflection-contract",
+        "external-reflection",
+        ("tests.scripts.test_chaos_engine_external_reflection_6518",),
+    ),
+    "prompt-evolution-contract": Check(
+        "prompt-evolution-contract",
+        "prompt-evolution",
+        ("tests.scripts.test_chaos_engine_prompt_evolution_6518",),
+    ),
+    "self-modify-contract": Check(
+        "self-modify-contract",
+        "self-modify",
+        ("tests.scripts.test_chaos_engine_self_modify_6518",),
+    ),
+    "context-rot-contract": Check(
+        "context-rot-contract",
+        "context-rot",
+        ("tests.scripts.test_chaos_engine_context_rot_6518",),
+    ),
+    "genai-spans-contract": Check(
+        "genai-spans-contract",
+        "genai-spans",
+        ("tests.scripts.test_chaos_engine_genai_spans_6518",),
+    ),
+    "upstream-watch-contract": Check(
+        "upstream-watch-contract",
+        "installer",
+        ("tests.scripts.test_watch_upstream_pins",),
+    ),
+}
+
+SURFACE_CHECKS = {
+    "kernel": ("kernel-contract",),
+    "lifecycle": ("lifecycle-contract", "eval-parity-contract", "protected-security"),
+    "hosts": ("host-contract",),
+    "guidance": (
+        "guidance-contract",
+        "skill-contract",
+        "guidance-reachability-contract",
+        "router-contract",
+        "harness-portability-contract",
+    ),
+    "plugins": ("plugin-contract", "plugin-quality-contract"),
+    "retrieval": ("retrieval-contract", "graph-resolver-contract", "graphify-maintenance-contract"),
+    "user-harness": ("user-harness-sync-contract",),
+    "portable-core": ("portable-core-contract",),
+    "plugin-assembly": ("plugin-assembly-contract",),
+    "research": ("research-matrix-contract",),
+    "intellij-skill": ("intellij-skill-contract",),
+    "self-improve": ("self-improve-overlay-contract", "upstream-ticket-contract"),
+    "ci": ("ci-contract", "setup-aggregator-contract"),
+    "installer": (
+        "protected-installer-acceptance",
+        "protected-rollback",
+        "installer-ux-contract",
+        "upstream-watch-contract",
+    ),
+    # Script and workflow edits run the pin check without the installer suite.
+    "upstream-watch": ("upstream-watch-contract",),
+    "documentation": ("documentation-inventory-contract",),
+    "accessibility": ("accessibility-contract",),
+    "identities": ("identity-contract", "identity-recovery-contract"),
+    "promotion": ("promotion-contract",),
+    "fallback": ("fallback-contract",),
+    "javadoc": ("javadoc-param-arity-contract",),
+    "token-waste": ("token-waste-contract",),
+    "token-economy": ("token-economy-contract",),
+    "surefire-green": ("surefire-green-contract",),
+    "browserstack-boundary": ("browserstack-boundary-contract",),
+    "cucumber8-adapter": ("cucumber8-adapter-contract",),
+    "icm-architect": ("icm-architect-contract",),
+    "identity-companions": ("identity-companions-contract",),
+    "memory-tracked": ("memory-tracked-contract",),
+    "wave-c-ledger": ("wave-c-ledger-contract",),
+    "freetoken-probe": ("freetoken-probe-contract",),
+    "installer-merge-handoff": ("installer-merge-handoff-contract",),
+    "installer-checkout-shim": ("installer-checkout-shim-contract",),
+    "omniroute-calibration": ("omniroute-calibration-contract",),
+    "process-owner": ("process-owner-contract",),
+    "design-skills": ("design-skills-contract",),
+    "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
+    "mobile-test-apps": ("mobile-test-apps-contract",),
+    "ce-h2-gates": ("ce-h2-gates-contract",),
+    "harness-eval": ("harness-eval-suite-contract",),
+    "durable-jobs": ("durable-jobs-contract",),
+    "memory-provenance": ("memory-provenance-contract",),
+    "evolving-playbook": ("evolving-playbook-contract",),
+    "insight-extract": ("insight-extract-contract",),
+    "workflow-induction": ("workflow-induction-contract",),
+    "external-reflection": ("external-reflection-contract",),
+    "prompt-evolution": ("prompt-evolution-contract",),
+    "self-modify": ("self-modify-contract",),
+    "context-rot": ("context-rot-contract",),
+    "genai-spans": ("genai-spans-contract",),
+}
+
+DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
+
+SURFACE_PATTERNS = {
+    "kernel": (
+        "chaos-engine/hooks/kernel.py",
+        "tests/scripts/test_chaos_engine_kernel.py",
+    ),
+    "installer": (
+        "chaos-engine/bootstrap.py",
+        "chaos-engine/dependencies.json",
+        "chaos-engine/dependencies.py",
+        "chaos-engine/distributions.json",
+        "chaos-engine/install.py",
+        "chaos-engine/install.sh",
+        "chaos-engine/install.ps1",
+        "chaos-engine/profiles/*/profile.json",
+        "chaos-engine/packs/*",
+        "chaos-engine/pack_binding.py",
+        "shaft-skills/ce-pack/profile.json",
+        "chaos-engine/vendor/*/PIN.json",
+        "chaos-engine/vendor/*/hooks/*.json",
+        "chaos-engine/vendor/*/src/hooks/package.json",
+        "scripts/ci/chaos_engine_live_installer_acceptance.py",
+        "tests/scripts/test_chaos_engine_bootstrap.py",
+        "tests/scripts/test_chaos_engine_dependencies.py",
+        "tests/scripts/test_chaos_engine_java_pinned_fallback.py",
+        "tests/scripts/test_chaos_engine_installer_self_heal_5630.py",
+        "tests/scripts/test_chaos_engine_generation_runtime.py",
+        "tests/scripts/test_chaos_engine_installer.py",
+        "tests/scripts/test_chaos_engine_install_commit_ref.py",
+        "tests/scripts/test_chaos_engine_installer_ux.py",
+        "tests/scripts/test_chaos_engine_install_wrappers.py",
+        "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
+        "tests/scripts/test_chaos_engine_managed_runtimes.py",
+        # Issue #6186: every pr-gate `chaos_installer` path selects this
+        # surface, because it replaced the ubuntu fresh-installer UX step.
+        "chaos-engine/hosts.py",
+        "tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py",
+        "tests/scripts/test_chaos_engine_overlay_only_host_pointers.py",
+        "tests/scripts/test_chaos_engine_entry_parity_7242.py",
+        "tests/scripts/test_chaos_engine_harness_map_7242.py",
+        "chaos-engine/harness_map.py",
+        "tests/scripts/test_chaos_engine_token_economy_7242.py",
+        "chaos-engine/token_economy.py",
+        "tests/scripts/test_chaos_engine_delete_guard_7251.py",
+        "chaos-engine/delete_guard.py",
+        "tests/scripts/test_chaos_engine_register_rule_7242.py",
+        "tests/scripts/test_chaos_engine_retrieve_marker_7242.py",
+        "tests/scripts/test_chaos_engine_mempalace_privacy_7242.py",
+        "tests/scripts/test_chaos_engine_fresh_install_receipt_7242.py",
+        "chaos-engine/mempalace_privacy.py",
+        "chaos-engine/consumer_mode.py",
+        "chaos-engine/prerequisites.py",
+        "tests/scripts/test_chaos_engine_prerequisites_7220.py",
+        "tests/scripts/test_chaos_engine_separate_git_dir_7278.py",
+        "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
+        "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
+        "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
+        "tests/scripts/test_chaos_engine_doctor_dedupe_6363.py",
+        "tests/scripts/test_mempalace_background_index.py",
+        "tests/scripts/test_chaos_engine_mempalace_owned_excludes_6540.py",
+        "tests/scripts/test_chaos_engine_index_reuse.py",
+        "tests/scripts/test_chaos_engine_install_resilience_7314.py",
+        "tests/scripts/test_chaos_engine_retrieve_companions_6377.py",
+    ),
+    "upstream-watch": (
+        "scripts/ci/watch_upstream_pins.py",
+        "tests/scripts/test_watch_upstream_pins.py",
+        ".github/workflows/upstream-watch.yml",
+    ),
+    "hosts": (
+        "chaos-engine/hosts.py",
+        ".claude/settings.json",
+        ".codex/hooks.json",
+        ".github/hooks/*.json",
+        "tests/scripts/test_chaos_engine_hosts.py",
+        "tests/scripts/test_mcp_chrome_devtools_opt_in.py",
+        "tests/scripts/test_copilot_cli_hook.py",
+        "tests/scripts/test_chaos_engine_grok_hook_env.py",
+    ),
+    "lifecycle": (
+        "chaos-engine/hooks/*",
+        "chaos-engine/evals/*",
+        "scripts/agents/guard.py",
+        "scripts/ci/chaos_engine_eval_parity.py",
+        "tests/scripts/test_chaos_engine_hook.py",
+        "tests/scripts/test_chaos_engine_eval_parity_fixtures.py",
+        "tests/scripts/test_guard*.py",
+    ),
+    "guidance": (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".agents/*",
+        ".claude/agents/*",
+        ".claude/skills/*",
+        ".codex/agents/*",
+        "chaos-engine/skills/*",
+        "chaos-engine/references/*",
+        "chaos-engine/profiles/*",
+        "chaos-engine/packs/*",
+        "shaft-skills/ce-pack/*",
+        "chaos-engine/vendor/*",
+        "tests/scripts/test_agent_router_contract.py",
+        "tests/scripts/test_agent_harness_portability.py",
+        "tests/scripts/test_agent_harness_reachability.py",
+        "tests/scripts/test_omniroute*.py",
+        "tests/scripts/test_validate_agent_guidance.py",
+        "tests/scripts/test_validate_skills.py",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_chaos_engine_self_improve.py",
+        "tests/scripts/test_chaos_engine_host_parity_matrix.py",
+        "tests/scripts/test_chaos_engine_public_landing.py",
+        "tests/scripts/test_nonblocked_lessons.py",
+        "tests/scripts/test_ce_lessons_2026_10_29.py",
+        "tests/scripts/test_mobile_retro_harness.py",
+        "tests/scripts/test_client_name_scrub.py",
+        "chaos-engine/client_name_scrub.py",
+        "chaos-engine/content_scan_preflight.py",
+        "tests/scripts/test_chaos_engine_latest_stable_pins.py",
+        "chaos-engine/mobile_retro.py",
+        "scripts/ci/no_push_guard.py",
+        "scripts/ci/mobile_retro_live.py",
+        "scripts/ci/mobile_retro_runtime.py",
+        "tests/scripts/test_ce_entry_coverage.py",
+        "tests/scripts/test_android_apk_select.py",
+        "tests/scripts/test_ios_ipa_acceptance.py",
+        "tests/scripts/test_flutter_preflight_retry.py",
+        "tests/scripts/test_merge_queue_awaiting_checks_heal.py",
+        "tests/scripts/test_ce_lessons_2026_11_02.py",
+        "tests/scripts/test_ce_lessons_repeat_failure_pdca.py",
+        "tests/scripts/test_harness_isolated_imports.py",
+        "chaos-engine/references/bot-entry.md",
+        "chaos-engine/always-loaded-budget.json",
+        ".agents/skills/README.md",
+
+    ),
+    "plugins": (
+        "agent-plugins/*",
+        "shaft-skills/*",
+        ".claude-plugin/*",
+        ".github/skills/*",
+        "scripts/ci/*agent_plugin*",
+        "scripts/ci/shaft_skill_*",
+        "tests/scripts/test_*plugin*.py",
+        "tests/scripts/test_shaft_skill*.py",
+        "tests/scripts/test_execution_class_skills.py",
+    ),
+    "retrieval": (
+        ".memory/*",
+        ".mcp.json",
+        "mempalace.yaml",
+        "tools/repository-map/*",
+        "tools/agent-infra/shaft_knowledge_refresh.py",
+        "scripts/agents/knowledge_stores.py",
+        "chaos-engine/stores.py",
+        "chaos-engine/mempalace_fast_mine.py",
+        "chaos-engine/retrieve.py",
+        "chaos-engine/harness_mindset.py",
+        "chaos-engine/dependencies.json",
+        "chaos-engine/mcp_policy.py",
+        "chaos-engine/THIRD_PARTY_NOTICES.md",
+        "chaos-engine/references/retrieve-first.md",
+        "scripts/ci/agent_harness_parity.json",
+        "tests/scripts/test_deja_store_6183.py",
+        "tests/scripts/test_chaos_engine_stores.py",
+        "tests/scripts/test_chaos_engine_mempalace_fast_mine.py",
+        "tests/scripts/test_harness_followups.py",
+        "tests/scripts/test_knowledge_stores.py",
+        "tests/scripts/test_resolve_*.py",
+        "tests/scripts/test_shaft_knowledge_refresh.py",
+        "tests/scripts/test_graphify_maintenance.py",
+    ),
+    "ci": (
+        ".github/workflows/pr-gate.yml",
+        ".github/workflows/agent-plugin-acceptance.yml",
+        ".github/workflows/README.md",
+        "scripts/ci/harness_pr_gate.py",
+        "scripts/ci/unittest_shard.py",
+        "scripts/ci/agent_ownership.json",
+        "scripts/ci/validate_agent_ownership.py",
+        "scripts/ci/validate_agent_setup.py",
+        "tests/scripts/test_harness_pr_gate.py",
+        "tests/scripts/test_unittest_shard.py",
+        "tests/scripts/test_validate_agent_ownership.py",
+        "tests/scripts/test_validate_agent_setup.py",
+        "tests/scripts/test_validate_workflow_timeouts.py",
+        "tests/scripts/test_wrapper_scripts_executable_6543.py",
+        ".github/workflows/intellij-eap-verify.yml",
+        "shaft-intellij/gradlew",
+        "shaft-mcp/mvnw",
+        "scripts/agents/session_worktree.py",
+        "tests/scripts/conftest.py",
+        "tests/scripts/repo_state_guard.py",
+        "tests/scripts/test_repo_state_guard.py",
+        "tests/scripts/test_pitest_argline_guard.py",
+        "tests/scripts/test_dependabot_auto_merge_workflow.py",
+        "tests/scripts/test_guard_split.py",
+        "tests/scripts/test_ce_addons.py",
+
+    ),
+    "documentation": (
+        "chaos-engine/README.md",
+        "scripts/ci/validate_chaos_engine_readme.py",
+        "tests/scripts/test_validate_chaos_engine_readme.py",
+    ),
+    "accessibility": (
+        "scripts/ci/accessibility_quality_gates.py",
+        "tests/fixtures/accessibility_quality_gates_sample.json",
+        "tests/scripts/test_accessibility_quality_gates.py",
+    ),
+    "identities": (
+        "chaos-engine/**",
+    ),
+    "promotion": (
+        "scripts/ci/chaos_engine_promotion*.py",
+        "tests/scripts/test_chaos_engine_promotion.py",
+    ),
+    "token-waste": (
+        "chaos-engine/references/ci-status-economy.md",
+        "chaos-engine/references/tip-churn-preflight.md",
+        "chaos-engine/references/static-analysis-gate.md",
+        "chaos-engine/references/complexity-gate.md",
+        "chaos-engine/references/eliminate-waste.md",
+        "chaos-engine/references/context-economy.md",
+        "chaos-engine/references/work-github-playbook.md",
+        "chaos-engine/references/process-owner-scrum-master.md",
+        "chaos-engine/references/orchestrator-follow-through.md",
+        "chaos-engine/skills/local-agency/references/coach-loop.md",
+        "chaos-engine/skills/local-agency/references/when-to-use-local.md",
+        "chaos-engine/skills/local-agency/references/parent-rog-shell.md",
+        "chaos-engine/skills/local-agency/SKILL.md",
+        "chaos-engine/guides/local-agency.md",
+        "chaos-engine/skills/local-agency/scripts/tip_preflight.py",
+        "chaos-engine/skills/local-agency/scripts/executor_brief.py",
+        "chaos-engine/skills/self-improve/references/activation.md",
+        "scripts/agents/status_lease.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/overlay_pre_push.py",
+        "scripts/ci/workflow_template_sync.py",
+        "scripts/ci/validation_manifest_imports.py",
+        "scripts/ci/code_quality_preflight.py",
+        "scripts/ci/java_npath.py",
+        "scripts/mcp/install_shaft_agentic_tools.py",
+        "shaft-upgrader/upgrade_to_modular_shaft.py",
+        "chaos-engine/references/installer-program.md",
+        "tests/scripts/test_chaos_engine_token_waste_6161.py",
+        "tests/scripts/test_ci_status_economy_lessons_7341.py",
+        "tests/scripts/test_overlay_pre_push.py",
+        "tests/scripts/test_skillspector_gate.py",
+        "tests/scripts/test_workflow_template_sync.py",
+        "tests/scripts/test_validation_manifest_imports.py",
+        "tests/scripts/test_code_quality_preflight.py",
+        "tests/scripts/test_unresolved_review_threads.py",
+        "tests/scripts/test_mega_pr_throughput_gates.py",
+        "scripts/ci/validate_pr_closing_keywords.py",
+        "scripts/ci/mega-pr-throughput-20261102.md",
+        "scripts/ci/mega-pr-throughput-20261102b.md",
+        "tests/scripts/test_branded_installer_ce_standard.py",
+    ),
+    "token-economy": (
+        "chaos-engine/harness_index.py",
+        "chaos-engine/harness-index.json",
+        "chaos-engine/worktree_overlay.py",
+        "chaos-engine/mcp_policy.py",
+        "chaos-engine/identity.md",
+        "chaos-engine/hooks/retrieve_justification.py",
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/hooks/lifecycle.py",
+        "chaos-engine/references/*.md",
+        "chaos-engine/skills/*/SKILL.md",
+        "chaos-engine/skills/*/references/*.md",
+        "chaos-engine/profiles/*/profile.json",
+        "shaft-skills/ce-pack/profile.json",
+        "chaos-engine/dependencies.json",
+        "chaos-engine/hosts.py",
+        "chaos-engine/install.py",
+        "chaos-engine/tool.py",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        "scripts/agents/session_worktree.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/harness_pr_gate.py",
+        "scripts/ci/overlay_pre_push.py",
+        "scripts/ci/validate_agent_guidance.py",
+        "scripts/ci/validate_skills.py",
+        "scripts/ci/agent_guidance_budget.json",
+        "scripts/ci/agent_harness_parity.json",
+        "tests/scripts/ce_installed_fixture.py",
+        "tests/scripts/ce_host_files.py",
+        "tests/scripts/test_chaos_engine_portable_core.py",
+        "tests/scripts/test_chaos_engine_token_economy_6173.py",
+        "tests/scripts/test_chaos_engine_ci_event_wake_6521.py",
+        "tests/scripts/test_retrieve_gate_scope.py",
+        "tests/scripts/test_ce_guard_reachability.py",
+        "tests/scripts/test_skill_index_parity.py",
+        "tests/scripts/test_git_cleanup_skill.py",
+        "tests/scripts/test_ci_cd_skill.py",
+        "tests/scripts/test_guard_pr_body_preflight.py",
+        "tests/scripts/test_reflection_recovery.py",
+        "tests/scripts/test_bootstrap_pack_post_install.py",
+        "tests/scripts/test_chaos_engine_ui_delivery.py",
+    ),
+    # #6222: inputs of the formerly weekly-only modules. Each is a cheap
+    # (< 5 s) single-module check, so broad content globs are affordable.
+    "user-harness": (
+        "scripts/agents/sync_user_harness.py",
+        "scripts/agents/user_harness_retired_manifest.json",
+        "scripts/agents/user-harness/*",
+        ".claude/user-harness/*",
+        "tests/scripts/test_sync_user_harness.py",
+    ),
+    "portable-core": (
+        "chaos-engine/*",
+        "AGENTS.md",
+        ".memory/memory/*",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_chaos_engine_portable_core.py",
+    ),
+    "plugin-assembly": (
+        "chaos-engine/*",
+        "agent-plugins/*",
+        # The zipapp runtime sources (RUNTIME_SOURCES), listed exactly so a
+        # new scripts/agents file still reaches the unknown-path fallback.
+        "scripts/agents/chaos_engine_cli.py",
+        "scripts/agents/delivery_status.py",
+        "scripts/agents/github_client.py",
+        "scripts/agents/issue_filing.py",
+        "scripts/agents/planning_contract.py",
+        "scripts/agents/pr_audit.py",
+        "scripts/agents/repository_context.py",
+        "scripts/agents/status_lease.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/assemble_chaos_engine_plugin.py",
+        "tests/scripts/test_assemble_chaos_engine_plugin.py",
+    ),
+    # #6240: the exact files each module reads.
+    "intellij-skill": (
+        ".agents/skills/README.md",
+        ".agents/skills/intellij-plugin-development/*",
+        "shaft-skills/ce-pack/references/playbooks/intellij-plugin-development.md",
+        "shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md",
+        "shaft-skills/ce-pack/references/routing.md",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_intellij_plugin_development_skill.py",
+    ),
+    "self-improve": (
+        "AGENTS.md",
+        "chaos-engine/references/context-firewall.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/delegation.md",
+        "chaos-engine/references/context-economy.md",
+        "chaos-engine/references/research-receipt.md",
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/skills/self-improve/*",
+        "chaos-engine/learning_session.py",
+        "scripts/ci/chaos-engine-upstream.txt",
+        "tests/scripts/test_upstream_ticket_consent.py",
+        "shaft-skills/ce-pack/references/product-track.md",
+        "shaft-skills/ce-pack/references/routing.md",
+        "tests/scripts/test_chaos_engine_s3_self_improve.py",
+    ),
+    "research": (
+        "chaos-engine/RESEARCH.md",
+        "agent-plugins/release.json",
+        ".github/workflows/mavenCentral_cd.yml",
+        "tests/scripts/test_chaos_engine_research.py",
+    ),
+    "javadoc": (
+        "scripts/ci/check_javadoc_param_arity.py",
+        "chaos-engine/references/zero-llm-catalog.md",
+        "shaft-skills/ce-pack/references/playbooks/framework-source.md",
+        "tests/scripts/test_check_javadoc_param_arity.py",
+        "tests/scripts/test_chaos_engine_zero_llm_catalog.py",
+        "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction/*",
+    ),
+    "surefire-green": (
+        "scripts/ci/assert_surefire_green.py",
+        "scripts/ci/run_click_type_wave_f_proof.sh",
+        "chaos-engine/references/work-github-playbook.md",
+        "tests/scripts/test_assert_surefire_green.py",
+    ),
+    "browserstack-boundary": (
+        ".github/workflows/e2eTests.yml",
+        "shaft-browserstack/pom.xml",
+        "shaft-engine/pom.xml",
+        "tests/scripts/test_browserstack_module_boundary.py",
+    ),
+    "cucumber8-adapter": (
+        "allure-cucumber8-jvm/**",
+        ".github/workflows/publish-allure-cucumber8.yml",
+        "pom.xml",
+        "shaft-engine/pom.xml",
+        "tests/scripts/test_shaft_engine_jar_includes_adapter.py",
+        "tests/scripts/test_prepare_upstream_adapter.py",
+    ),
+    "icm-architect": (
+        "chaos-engine/README.md",
+        "chaos-engine/THIRD_PARTY_NOTICES.md",
+        "chaos-engine/references/design-loop.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/hooks/lifecycle.py",
+        "tests/scripts/test_chaos_engine_icm_architect_6001.py",
+    ),
+    "identity-companions": (
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/identity.md",
+        "chaos-engine/identity_md.py",
+        "chaos-engine/hosts.py",
+        "tests/scripts/test_chaos_engine_identity_companions_5803.py",
+    ),
+    "memory-tracked": (
+        ".gitignore",
+        "chaos-engine/references/retrieve-first.md",
+        "chaos-engine/references/graphify.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "tests/scripts/test_chaos_engine_memory_tracked_5774.py",
+    ),
+    "wave-c-ledger": (
+        "chaos-engine/retrieve.py",
+        "chaos-engine/tool.py",
+        "chaos-engine/learning.py",
+        "tests/scripts/test_chaos_engine_wave_c_ledger_retrieve_learning.py",
+    ),
+    "freetoken-probe": (
+        "chaos-engine/skills/freetoken/scripts/probe.py",
+        "tests/scripts/test_freetoken_probe.py",
+    ),
+    "installer-merge-handoff": (
+        "chaos-engine/hosts.py",
+        "chaos-engine/install.py",
+        "chaos-engine/bootstrap.py",
+        "tests/scripts/test_installer_merge_handoff.py",
+    ),
+    "installer-checkout-shim": (
+        "scripts/mcp/install-shaft-mcp.sh",
+        "scripts/mcp/install-shaft-mcp.ps1",
+        "tests/scripts/test_installer_repo_checkout_detection.py",
+    ),
+    "omniroute-calibration": (
+        "scripts/ci/chaos_gauge/omniroute_calibration.py",
+        "chaos-engine/decision-quality-calibration.aggregate.json",
+        "tests/scripts/test_omniroute_calibration.py",
+    ),
+    "process-owner": (
+        "chaos-engine/references/process-owner-scrum-master.md",
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/references/roles.md",
+        "chaos-engine/references/orchestrator-follow-through.md",
+        "chaos-engine/references/execution-workflows.md",
+        "tests/scripts/test_process_owner_scrum_master.py",
+        "chaos-engine/references/multi-agent-pdca.md",
+        "chaos-engine/references/iterative-flow.md",
+        "chaos-engine/pre_done_review.py",
+        "chaos-engine/skills/pre-done-self-review/SKILL.md",
+        "tests/scripts/test_pre_done_review.py",
+        "chaos-engine/references/bot-entry.md",
+        "tests/scripts/test_multi_agent_pdca.py",
+        "chaos-engine/references/parallel-streams.md",
+        "chaos-engine/references/cleanup-scopes.md",
+        "chaos-engine/references/delegation.md",
+        "scripts/ci/parallel_stream_conflict.py",
+        "scripts/ci/worktree_hygiene.py",
+        "tests/scripts/test_parallel_streams.py",
+        "tests/scripts/test_box_disk_guard.py",
+    ),
+    # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
+    "ce-h2-gates": (
+        "chaos-engine/evals/*",
+        "chaos-engine/decision-quality-*",
+        "chaos-engine/dod.py",
+        "chaos-engine/session_token_usage.py",
+        "chaos-engine/tool.py",
+        "chaos-engine/retrieve.py",
+        "chaos-engine/install.py",
+        "chaos-engine/INSTALL.md",
+        "chaos-engine/skills/kanban/SKILL.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "scripts/ci/decision_quality_gate.py",
+        "tests/fixtures/ce_dod/*",
+        "tests/scripts/test_ce_h2_gates.py",
+    ),
+    "design-skills": (
+        "chaos-engine/addons/design-skills/*",
+        "tests/scripts/test_ce_design_lessons.py",
+        "tests/scripts/test_ce_design_web_craft.py",
+        "tests/scripts/test_ce_design_reels.py",
+        "tests/scripts/test_ce_design_caption_lessons.py",
+        "tests/scripts/test_ce_design_qa_lessons.py",
+        "tests/scripts/test_ce_design_qa_r2_lessons.py",
+        "tests/scripts/test_ce_design_qa_r2_delta_lessons.py",
+        "tests/scripts/test_ce_design_hosted_cms_lessons.py",
+        "tests/scripts/test_ce_design_cms_paste_l36_l37.py",
+        "tests/scripts/test_ce_design_app_recon.py",
+        "tests/scripts/test_ce_design_arabic_tech_l32.py",
+        "tests/scripts/test_ce_design_less_css_l33.py",
+        "tests/scripts/test_ce_design_liveseo.py",
+        "tests/scripts/test_ce_design_paste_robots_l34.py",
+        "tests/scripts/test_ce_design_video_caption_l35.py",
+        "tests/scripts/test_ce_design_caption_l38.py",
+        "tests/scripts/test_ce_version.py",
+        "tests/scripts/test_ce_session_manifest_delete_and_backup_silence.py",
+        "tests/scripts/test_worktree_overlay_materialize_upgrade.py",
+        "tests/scripts/test_ce_design_caption_l44.py",
+        "tests/scripts/test_ce_design_render_freshness_l46_l47.py",
+        "tests/scripts/test_ce_design_fb_reel_gates_l48_l51.py",
+        "tests/scripts/test_ce_commit_identity_and_work_ordering.py",
+        "tests/scripts/test_ce_bugfix_2026_10_30_2.py",
+        "tests/scripts/test_ce_bugfix_2026_10_31_1.py",
+        "tests/scripts/test_ce_bugfix_2026_10_31_2.py",
+        "tests/scripts/test_ce_bugfix_2026_10_31_3.py",
+        "tests/scripts/test_ce_bugfix_2026_10_31_4.py",
+        "tests/scripts/test_ce_design_video_signoff_l39.py",
+        "tests/scripts/test_ce_design_batch3.py",
+        "tests/scripts/test_ce_design_decks.py",
+        "tests/scripts/test_ce_memory_abstraction_phase1.py",
+        "tests/scripts/test_dependabot_auto_merge_workflow.py",
+        "tests/scripts/test_pitest_argline_guard.py",
+    ),
+    # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
+    "durable-jobs": (
+        "chaos-engine/jobs.py",
+        "chaos-engine/task_ledger.py",
+        "chaos-engine/tool.py",
+        "chaos-engine/references/durable-jobs.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/addons/design-skills/references/pipelines/runbook.md",
+        "tests/scripts/test_ce_jobs.py",
+        "tests/scripts/test_ce_task_ledger.py",
+    ),
+    "visual-ocr-workflow": (
+        ".github/workflows/e2eTests.yml",
+        ".github/workflows/e2eLocalTests.yml",
+        "scripts/ci/flutter_emulator_preflight.sh",
+        "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
+        "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java",
+        "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java",
+        "tests/scripts/test_visual_ocr_workflow.py",
+    ),
+    "mobile-test-apps": (
+        "scripts/ci/fetch_mobile_test_apps.py",
+        "scripts/ci/mobile_test_apps.manifest.json",
+        "tests/scripts/test_fetch_mobile_test_apps.py",
+        ".github/actions/setup-test-env/action.yml",
+        "shaft-engine/src/test/resources/testDataFiles/apps/**",
+        "shaft-engine/src/main/resources/examples/**/testDataFiles/apk/**",
+    ),
+    "harness-eval": (
+        "chaos-engine/**",
+        "scripts/ci/chaos_engine_harness_eval_suite.py",
+        "tests/scripts/test_chaos_engine_harness_eval_suite.py",
+    ),
+    "memory-provenance": (
+        "chaos-engine/memory_provenance.py",
+        "chaos-engine/heuristics.py",
+        "chaos-engine/learning.py",
+        "chaos-engine/draft_skill_pr.py",
+        "chaos-engine/references/memory-provenance.md",
+        "tests/scripts/test_chaos_engine_memory_provenance_6520.py",
+    ),
+    "evolving-playbook": (
+        "chaos-engine/heuristics.py",
+        "chaos-engine/install.py",
+        "chaos-engine/references/evolving-playbook.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "tests/scripts/test_chaos_engine_evolving_playbook_6532.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "insight-extract": (
+        "chaos-engine/insight_extract.py",
+        "chaos-engine/heuristics.py",
+        "chaos-engine/memory_provenance.py",
+        "chaos-engine/references/insight-extract.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "tests/scripts/test_chaos_engine_insight_extract_6544.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "workflow-induction": (
+        "chaos-engine/workflow_induce.py",
+        "chaos-engine/references/workflow-induction.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_workflow_induction_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "external-reflection": (
+        "chaos-engine/external_reflection.py",
+        "chaos-engine/references/external-reflection.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_external_reflection_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "prompt-evolution": (
+        "chaos-engine/prompt_evolve.py",
+        "chaos-engine/references/prompt-evolution.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_prompt_evolution_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "self-modify": (
+        "chaos-engine/self_modify.py",
+        "chaos-engine/references/self-modify.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_self_modify_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "context-rot": (
+        "chaos-engine/context_rot.py",
+        "chaos-engine/references/context-rot.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_context_rot_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "genai-spans": (
+        "chaos-engine/genai_spans.py",
+        "chaos-engine/references/genai-spans.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_genai_spans_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+}
+
+
+UNGATED_TEST_ALLOWLIST_REASON = (
+    'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+)
+# #6362: the allowlist may only shrink. Lower this ceiling when a module gains a
+# PR-gate check; never raise it. Every allowlisted module still runs weekly in
+# the "Full deterministic harness" acceptance job via --list-ungated.
+UNGATED_TEST_ALLOWLIST_CEILING = 97
+UNGATED_TEST_ALLOWLIST = {
+    'tests.scripts.test_assemble_javadocs': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_assemble_shard_blob': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_assert_tests_executed': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_build_shaft_mcp_live_jar': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_ce_brief': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_ce_brief_doctor': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_ce_brief_eval_fixtures': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_cli_over_mcp': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_codacy_complexity_gate_5747': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_delivery_phase_gates': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_empty_project_smoke': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_exit2_fidelity': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_g1_doctor_heal_5812_5813': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_host_parity_5698': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_host_parity_5780_5785': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_host_parity_matrix': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_install_golden_path': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_install_verify_5699': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_install_verify_5703': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learn_contracts': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5767_5770': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5776': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5787': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5790_5791': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5795': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5852': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_learning_5882_5883': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_memory_migrate': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_missing_core_recovery': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_official_self_heal_5811': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_overlay_commit_bytes_6121': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_portable_learn_5847': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_s0s1_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_s2_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_s4_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_sessionstart_locator_parity': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_soft_fixnext_5831': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_token_budget_modes': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_token_max': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_uninstall_clarity': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_wave_a_health_truth': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_chaos_engine_wave_b_router_catalog': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_check_maven_release_version': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_colibri_probe': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_decision_quality_baseline': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_decision_quality_readme_evidence': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_decision_quality_rubric': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_design_turn_gate': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_doctor_agent_summary': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_doctor_overlay_drift_6136': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_drag_and_drop_fixture': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_gap_exit2_payload_6137': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_grok_lean_config_5803': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_harness_program_6140': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_insert_mcp_tool_manifest_entry': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_instruction_only_receipt_6201': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_learning_session': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_llamacpp_bringup_6141': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_local_agency_dispatch': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_local_ai_poc': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_local_coding_agent': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_local_openai_compat_probe': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_local_runtimes_fold_6200': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_mcp_opt_in_6199': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_mempalace_backend_mismatch_6212': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_mempalace_promote': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_omniroute_catalog': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_omniroute_coding_filter': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_omniroute_failover': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_omniroute_productive_dispatch': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_omniroute_proof_of_dispatch': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_playwright_setup_workflow': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_post_test_report_action': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_prepare_release_pr': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_reconcile_maven_central_release': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_reflection_commit_credit': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_retrieve_justification_gate': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_reviewer_headings_6138': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_run_sharded_and_merge': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_self_improvement_controller': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_session_token_usage': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_shaft_one_liner_installers': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_shim_pointer_6139': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_sikulix_module_boundary': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_soup_delegate_poc': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_unattended_delivery_resume': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_upgrade_to_modular_shaft': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_validate_documentation_boundaries': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_validate_maven_publication': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_validate_modular_documentation': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_validate_reactor_versions': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_vendor_plugin_adapters_6198': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_verify_maven_central_release': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_verify_shaft_mcp_installer_release': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_video_module_boundary': UNGATED_TEST_ALLOWLIST_REASON,
+}
+
+HARNESS_PREFIXES = (
+    ".agents/",
+    ".claude/",
+    ".codex/",
+    ".github/instructions/",
+    ".github/hooks/",
+    ".github/skills/",
+    ".github/workflows/",
+    ".memory/",
+    "agent-plugins/",
+    "chaos-engine/",
+    "scripts/agents/",
+    "shaft-skills/",
+    "tools/agent-infra/",
+    "tools/repository-map/",
+)
+HARNESS_FILES = frozenset(
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".mcp.json",
+        "mempalace.yaml",
+        ".github/copilot-instructions.md",
+        "scripts/ci/external_guardrail_corpus.py",
+        "scripts/ci/external_guardrail_corpus.json",
+        "scripts/ci/local_gate.py",
+        "scripts/ci/build_retry.sh",
+        "scripts/ci/extract_allure_failures.py",
+        "scripts/ci/watch_pr_checks.py",
+        "scripts/ci/worktree_hygiene.py",
+        "tests/scripts/test_build_retry.py",
+        "tests/scripts/test_extract_allure_failures.py",
+        "tests/scripts/test_intellij_recording_powershell.py",
+        "tests/scripts/test_repository_context.py",
+        "tests/scripts/test_watch_pr_checks.py",
+        "tests/scripts/test_worktree_hygiene.py",
+        "tests/scripts/test_sync_user_harness.py",
+        "tests/scripts/test_graphify_maintenance.py",
+        "tests/scripts/test_shaft_knowledge_refresh.py",
+    }
+)
+HARNESS_PATTERNS = (
+    "scripts/ci/*agent*",
+    "scripts/ci/*skill*",
+    "scripts/ci/agnix*",
+    "tests/scripts/test_agent*.py",
+    "tests/scripts/test_guard*.py",
+    "tests/scripts/test_chaos_engine*.py",
+    "tests/scripts/test_omniroute*.py",
+    "tools/intellij-plugin-recording/*",
+)
+
+
+def touched_allowlisted_modules(root: Path, paths: list[str]) -> tuple[str, ...]:
+    """Weekly-only modules whose test file names a changed ``chaos-engine/<name>.py`` (token economy)."""
+    names = {
+        PurePosixPath(path).stem
+        for path in (raw.replace("\\", "/") for raw in paths)
+        if path.startswith("chaos-engine/") and path.endswith(".py")
+    }
+    if not names:
+        return ()
+    needles = tuple(f"{name}.py" for name in names) + tuple(f'"{name}"' for name in names)
+    touched: list[str] = []
+    for module in sorted(UNGATED_TEST_ALLOWLIST):
+        test_file = root / (module.replace(".", "/") + ".py")
+        try:
+            text = test_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if any(needle in text for needle in needles):
+            touched.append(module)
+    return tuple(touched)
+
+
+def ungated_script_modules(root: Path) -> list[str]:
+    """``tests/scripts`` modules with no PR-gate check, workflow name, or allowlist row.
+
+    Stdlib only. The pre-push hook calls this directly so it does not import the
+    test module, whose other tests depend on packages the hook interpreter lacks.
+    """
+    gated: set[str] = set()
+    for check in CHECKS.values():
+        for name in check.modules:
+            parts = name.split(".")
+            if len(parts) >= 3 and parts[0] == "tests" and parts[1] == "scripts":
+                gated.add(".".join(parts[:3]))
+    workflow_dir = root / ".github" / "workflows"
+    workflows = ""
+    if workflow_dir.is_dir():
+        workflows = "\n".join(
+            path.read_text(encoding="utf-8", errors="ignore")
+            for path in sorted(workflow_dir.glob("*.yml"))
+        )
+    scripts = root / "tests" / "scripts"
+    if not scripts.is_dir():
+        return []
+    missing: list[str] = []
+    for path in sorted(scripts.glob("test_*.py")):
+        dotted = f"tests.scripts.{path.stem}"
+        if dotted in gated:
+            continue
+        reason = UNGATED_TEST_ALLOWLIST.get(dotted, "")
+        if isinstance(reason, str) and reason.strip():
+            continue
+        relative = path.relative_to(root).as_posix()
+        if dotted in workflows or relative in workflows:
+            continue
+        missing.append(dotted)
+    return missing
+
+
+def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]:
+    """H-PR-SCOPE enforceability surface for harness_pr_gate (agentic bodies)."""
+    text = body or ""
+    folded = text.casefold()
+    agentic = "chaos-engine:agentic" in folded or "<!-- chaos-engine:agentic" in folded
+    has_scope = "chaos-engine:scope" in folded or "## scope" in folded
+    if not text or (not agentic and not has_scope):
+        return []
+    try:
+        from scripts.ci.pr_scope_check import evaluate
+    except Exception:  # nosec B110
+        return []
+    result = evaluate(text, list(paths))
+    if result.get("ok"):
+        return []
+    return [f"pr-scope (H-PR-SCOPE): {result.get('error')}"] + [
+        f"pr-scope: {h}" for h in (result.get("hits") or [])
+    ]
+
+
+def classify_paths(paths: list[str]) -> GatePlan:
+    selected: list[str] = []
+    unknown: list[str] = []
+    dependency_closure = False
+    for raw_path in paths:
+        path = raw_path.replace("\\", "/")
+        while path.startswith("./"):
+            path = path[2:]
+        parts = PurePosixPath(path).parts
+        if (
+            not path
+            or path.startswith("/")
+            or "\0" in path
+            or ".." in parts
+            or (parts and parts[0].endswith(":"))
+        ):
+            raise GateError(f"unsafe changed path: {raw_path!r}")
+        matched = False
+        for surface, patterns in SURFACE_PATTERNS.items():
+            if surface == "lifecycle" and path == "chaos-engine/hooks/kernel.py":
+                continue
+            if any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns):
+                if surface not in selected:
+                    selected.append(surface)
+                matched = True
+        if path in DEPENDENCY_CLOSURE_PATHS:
+            dependency_closure = True
+            if "documentation" not in selected:
+                selected.append("documentation")
+        harness_path = (
+            path in HARNESS_FILES
+            or path.startswith(HARNESS_PREFIXES)
+            or any(fnmatch.fnmatchcase(path, pattern) for pattern in HARNESS_PATTERNS)
+        )
+        if harness_path and not matched:
+            unknown.append(path)
+    if unknown and "fallback" not in selected:
+        selected.append("fallback")
+    if not selected:
+        return GatePlan()
+
+    check_ids = [check_id for surface in selected for check_id in SURFACE_CHECKS[surface]]
+    if dependency_closure:
+        check_ids.append("dependency-account-contract")
+    for protected_id in ("protected-ownership", "protected-secret-safety"):
+        if protected_id not in check_ids:
+            check_ids.append(protected_id)
+    checks = tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids))
+    return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
+
+
+def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
+    """``classify_paths`` plus weekly-only tests that name a changed harness module."""
+    plan = classify_paths(paths)
+    touched = touched_allowlisted_modules(root, paths)
+    if not touched:
+        return plan
+    return replace(plan, checks=plan.checks + (Check("ungated-touched", "fallback", touched),))
+
+
+def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
+    """Refresh owned generated artifacts for the selected changed-closure surfaces."""
+    written: list[str] = []
+    root = root.resolve()
+    if "documentation" in plan.surfaces:
+        from scripts.ci.validate_chaos_engine_readme import write_generated as write_readme
+
+        readme = root / "chaos-engine/README.md"
+        before = readme.read_bytes() if readme.is_file() else b""
+        write_readme(root)
+        if readme.read_bytes() != before:
+            written.append("chaos-engine/README.md")
+    if "identities" in plan.surfaces:
+        from scripts.ci.chaos_gauge.validate_experiment import write_generated as write_identities
+
+        targets = (
+            root / "scripts/ci/chaos_gauge/experiment.json",
+            root / "scripts/ci/chaos_gauge/job-configs/chaos-engine.yaml",
+            root / "scripts/ci/chaos_gauge/job-configs/full-pilot-chaos-engine.yaml",
+        )
+        before = {path: path.read_bytes() for path in targets if path.is_file()}
+        write_identities(root)
+        for path, payload in before.items():
+            if path.read_bytes() != payload:
+                written.append(path.relative_to(root).as_posix())
+    return tuple(dict.fromkeys(written))
+
+
+def _waiver_payload(body: str) -> dict[str, object] | None:
+    matches = WAIVER_FENCE.findall(body)
+    if not matches:
+        if "chaos-engine-waiver" in body:
+            raise GateError("waiver fence is malformed")
+        return None
+    if len(matches) != 1:
+        raise GateError("exactly one waiver receipt is allowed")
+    try:
+        payload = json.loads(matches[0])
+    except json.JSONDecodeError as error:
+        raise GateError(f"waiver JSON is malformed: {error.msg}") from error
+    if not isinstance(payload, dict):
+        raise GateError("waiver must be a JSON object")
+    required = {
+        "schema",
+        "allowed_check_ids",
+        "expires_at",
+        "rationale",
+        "replacement_proof",
+    }
+    if set(payload) != required:
+        raise GateError("waiver fields must exactly match schema")
+    if payload["schema"] != 1:
+        raise GateError("unsupported waiver schema")
+    return payload
+
+
+def _waiver_check_ids(payload: dict[str, object]) -> tuple[str, ...]:
+    check_ids = payload["allowed_check_ids"]
+    if (
+        not isinstance(check_ids, list)
+        or not check_ids
+        or len(check_ids) > 8
+        or any(not isinstance(item, str) or not item for item in check_ids)
+        or len(check_ids) != len(set(check_ids))
+    ):
+        raise GateError("waiver allowed_check_ids must be 1-8 unique exact IDs")
+    if any("*" in item for item in check_ids):
+        raise GateError("blanket waiver IDs are forbidden")
+    if any(item in PROTECTED_IDS or item.startswith("protected-") for item in check_ids):
+        raise GateError("protected checks cannot be waived")
+    waivable = {check_id for check_id, check in CHECKS.items() if not check.protected}
+    unknown = sorted(set(check_ids) - waivable)
+    if unknown:
+        raise GateError("unknown waiver check IDs: " + ", ".join(unknown))
+    return tuple(check_ids)
+
+
+def _waiver_expiry(payload: dict[str, object], current: datetime) -> datetime:
+    for field in ("rationale", "replacement_proof"):
+        value = payload[field]
+        if not isinstance(value, str) or not value.strip():
+            raise GateError(f"waiver {field} must not be blank")
+    try:
+        expiry = datetime.fromisoformat(str(payload["expires_at"]).replace("Z", "+00:00"))
+    except ValueError as error:
+        raise GateError("waiver expires_at must be ISO-8601") from error
+    if expiry.tzinfo is None:
+        raise GateError("waiver expires_at must include a timezone")
+    expiry = expiry.astimezone(timezone.utc)
+    current = current.astimezone(timezone.utc)
+    if expiry <= current:
+        raise GateError("waiver has expired")
+    if expiry > current + timedelta(days=14):
+        raise GateError("waiver expiry exceeds 14 days")
+    return expiry
+
+
+def parse_waiver(
+    body: str, *, now: datetime | None = None, head_sha: str = ""
+) -> WaiverReceipt | None:
+    payload = _waiver_payload(body)
+    if payload is None:
+        return None
+    check_ids = _waiver_check_ids(payload)
+    expiry = _waiver_expiry(payload, now or datetime.now(timezone.utc))
+    return WaiverReceipt(head_sha, check_ids, expiry)
+
+
+def _required_executable(name: str) -> str:
+    resolved = shutil.which(name)
+    if resolved is None:
+        raise GateError(f"required executable is unavailable: {name}")
+    return resolved
+
+
+def render_json(plan: GatePlan, *, head_sha: str, budget_seconds: int) -> str:
+    return json.dumps(
+        {
+            "schema": 1,
+            "valid": True,
+            "head_sha": head_sha,
+            "surfaces": list(plan.surfaces),
+            "unknown_paths": list(plan.unknown_paths),
+            "checks": [
+                {
+                    "id": check.id,
+                    "surface": check.surface,
+                    "protected": check.protected,
+                    "class": "blocking-protected-invariant" if check.protected else "change-scoped",
+                    "tests": list(check.modules),
+                    "reproduction_command": check.reproduction_command,
+                }
+                for check in plan.checks
+            ],
+            "timing": {
+                "budget_seconds": budget_seconds,
+                "elapsed_seconds": 0.0,
+                "recorded_baseline_median_seconds": RECORDED_BASELINE_MEDIAN_SECONDS,
+                "maximum_budget_reduction": round(
+                    1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
+                ),
+            },
+            "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
+            "safe_history_update_command": "git push --force-with-lease origin HEAD",
+        },
+        indent=2,
+        sort_keys=True,
+    )
+
+
+def changed_paths(root: Path, base: str, head: str) -> list[ChangedPath]:
+    completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
+        [
+            _required_executable("git"),
+            "diff",
+            "--merge-base",
+            "--diff-filter=ACDMRT",
+            "--name-status",
+            "-z",
+            base,
+            head,
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode:
+        raise GateError("git could not resolve changed paths")
+    tokens = [token for token in completed.stdout.split("\0") if token]
+    paths: list[ChangedPath] = []
+    index = 0
+    while index < len(tokens):
+        status = tokens[index]
+        index += 1
+        kind = status[:1]
+        if kind not in {"A", "C", "D", "M", "R", "T"}:
+            raise GateError(f"git returned an unsupported change status: {status!r}")
+        required_paths = 2 if kind in {"C", "R"} else 1
+        if index + required_paths > len(tokens):
+            raise GateError("git returned malformed changed-path data")
+        status_paths = tokens[index : index + required_paths]
+        index += required_paths
+        if kind in {"C", "R"}:
+            paths.append(ChangedPath(status_paths[0], executable=False))
+            paths.append(ChangedPath(status_paths[1], executable=True))
+        else:
+            path = status_paths[0]
+            executable = kind in {"A", "M"} or (
+                kind == "T" and (root / path).is_file()
+            )
+            paths.append(ChangedPath(path, executable=executable))
+    return paths
+
+
+def event_waiver(
+    reviews_path: Path | None,
+    expected_head: str,
+    *,
+    now: datetime | None = None,
+) -> WaiverReceipt | None:
+    """Load one owner-authored, submitted review receipt for the exact PR head."""
+    if reviews_path is None:
+        return None
+    try:
+        reviews = json.loads(reviews_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise GateError("GitHub review JSON is malformed") from error
+    if not isinstance(reviews, list):
+        raise GateError("GitHub review JSON must be an array")
+    receipts: list[WaiverReceipt] = []
+    for review in reviews:
+        if not isinstance(review, dict):
+            raise GateError("GitHub review JSON contains a malformed review")
+        user = review.get("user")
+        author = user.get("login") if isinstance(user, dict) else None
+        if (
+            author != WAIVER_OWNER
+            or review.get("commit_id") != expected_head
+            or review.get("state") not in {"APPROVED", "COMMENTED"}
+            or not review.get("submitted_at")
+            or review.get("last_edited_at") is not None
+        ):
+            continue
+        body = review.get("body") or ""
+        receipt = parse_waiver(str(body), now=now, head_sha=expected_head)
+        if receipt is not None:
+            receipts.append(receipt)
+    if len(receipts) > 1:
+        raise GateError("exactly one owner waiver review is allowed for this head")
+    return receipts[0] if receipts else None
+
+
+def _failure_tail(stream, root: Path, limit: int = 4096) -> str:
+    """Return a bounded redacted tail for one failed check."""
+    stream.flush()
+    size = stream.tell()
+    stream.seek(max(0, size - limit * 2))
+    text = stream.read(limit * 2).decode("utf-8", errors="replace")
+    for value in {str(root), str(Path.home()), tempfile.gettempdir()}:
+        if value:
+            text = text.replace(value, "<path>")
+    for name, value in os.environ.items():
+        if re.search(r"TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY", name, re.I) and len(value) >= 4:
+            text = text.replace(value, "<redacted>")
+    text = re.sub(r"(https?://)[^\s/@]+@", r"\1<redacted>@", text, flags=re.I)
+    text = re.sub(
+        r"(?i)(token|secret|password|api[_-]?key|private[_-]?key)(\s*[:=]\s*)\S+",
+        r"\1\2<redacted>",
+        text,
+    )
+    return text[-limit:].strip()
+
+
+def _emit_failure_tail(stream, root: Path) -> None:
+    detail = _failure_tail(stream, root)
+    if detail:
+        print(f"harness-pr-gate bounded failure tail:\n{detail}", file=sys.stderr)
+
+
+def _isolated_environment(temp_root: str) -> dict[str, str]:
+    """Give one check its own temp directory so concurrent checks never share it."""
+    return {**os.environ, "TMPDIR": temp_root, "TEMP": temp_root, "TMP": temp_root}
+
+
+def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
+    """Run one quiet check, exposing only a bounded redacted tail on failure."""
+    with tempfile.TemporaryDirectory(prefix="harness-gate-") as temp_root:
+        return _run_isolated_check(command, root, timeout, _isolated_environment(temp_root))
+
+
+def _run_isolated_check(
+    command: list[str], root: Path, timeout: float, env: dict[str, str]
+) -> tuple[str, int | None]:
+    windows = os.name == "nt"
+    with tempfile.TemporaryFile() as output:
+        process = subprocess.Popen(  # nosec B603 - fixed unittest command without a shell.
+            command,
+            cwd=root,
+            env=env,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            start_new_session=not windows,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+        )
+        try:
+            exit_code = process.wait(timeout=timeout)
+            if exit_code:
+                _emit_failure_tail(output, root)
+            return ("passed" if exit_code == 0 else "failed"), exit_code
+        except subprocess.TimeoutExpired:
+            if windows:
+                subprocess.run(  # nosec B603 - fixed Windows process-tree termination.
+                    [_required_executable("taskkill"), "/PID", str(process.pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                    check=False,
+                )
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    # The process group exited after the timeout observation.
+                    pass
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+            _emit_failure_tail(output, root)
+            return "timeout", None
+
+
+def resolve_jobs(requested: int) -> int:
+    """Return the worker count: an explicit positive value, or one per CPU for 0."""
+    if requested < 0:
+        raise GateError("jobs must be zero (one per CPU) or a positive count")
+    return requested or max(1, os.cpu_count() or 1)
+
+
+Unit = tuple[str, ...]
+
+
+def execution_units(modules: tuple[str, ...]) -> list[Unit]:
+    """Split one check's module tuple into runnable units (#6207).
+
+    Unsharded modules stay together as one unit; every sharded module becomes
+    ``(module, "--shard", "i/n")`` units that run in their own process.
+    """
+    plain = tuple(module for module in modules if module not in SHARDED_MODULES)
+    units: list[Unit] = [plain] if plain else []
+    for module in modules:
+        total = SHARDED_MODULES.get(module)
+        if total:
+            units.extend((module, "--shard", f"{index}/{total}") for index in range(1, total + 1))
+    return units
+
+
+def unit_command(unit: Unit) -> list[str]:
+    """Build the process argv for one unit."""
+    if len(unit) == 3 and unit[1] == "--shard":
+        return [sys.executable, "-m", "scripts.ci.unittest_shard", *unit, "-v"]
+    return [sys.executable, "-m", "unittest", *unit, "-v"]
+
+
+def _execution_order(plan: GatePlan) -> list[Unit]:
+    """Unique units: protected always-on checks, then the longest suites, then the rest."""
+    first = (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
+    ordered_checks = [
+        *(check for pid in first for check in plan.checks if check.id == pid),
+        *plan.checks,
+    ]
+    return list(
+        dict.fromkeys(unit for check in ordered_checks for unit in execution_units(check.modules))
+    )
+
+
+def _combine(outcomes: list[tuple[str, int | None, float]]) -> tuple[str, int | None, float]:
+    """One check's outcome from its units: timeout beats failure beats pass."""
+    duration = round(sum(outcome[2] for outcome in outcomes), 3)
+    statuses = [outcome[0] for outcome in outcomes]
+    if "timeout" in statuses:
+        return "timeout", None, duration
+    exit_code = next((outcome[1] for outcome in outcomes if outcome[1]), 0)
+    return ("passed" if all(status == "passed" for status in statuses) else "failed"), exit_code, duration
+
+
+def _result_record(
+    check: Check,
+    outcome: tuple[str, int | None, float],
+    waiver: WaiverReceipt | None,
+) -> dict[str, Any]:
+    status, exit_code, duration = outcome
+    if status == "failed" and waiver and check.id in waiver.check_ids and not check.protected:
+        status = "waived"
+    if status == "failed" and check.known_drift and not check.protected:
+        status = "known-drift"
+    record_class = "blocking-protected-invariant" if check.protected else "change-scoped"
+    if check.known_drift:
+        record_class = "known-drift-advisory"
+    return {
+        "id": check.id,
+        "surface": check.surface,
+        "protected": check.protected,
+        "class": record_class,
+        "known_drift": check.known_drift,
+        "promote": bool(check.known_drift) and status == "passed",
+        "tests": list(check.modules),
+        "status": status,
+        "exit_code": exit_code,
+        "duration_seconds": duration,
+        "reproduction_command": check.reproduction_command,
+    }
+
+
+def run_plan(
+    root: Path,
+    plan: GatePlan,
+    *,
+    head_sha: str,
+    budget_seconds: int,
+    waiver: WaiverReceipt | None,
+    jobs: int = 1,
+) -> tuple[dict[str, Any], int]:
+    """
+    Run every selected check, concurrently when ``jobs`` > 1 (#6191).
+
+    Each unique module tuple runs once (identical tuples share one execution),
+    protected always-on checks are submitted first, and every check gets the
+    budget that remains when it actually starts.
+    """
+    selected_ids = {check.id for check in plan.checks}
+    if waiver and not set(waiver.check_ids) <= selected_ids:
+        raise GateError("waiver names checks not selected by this change")
+    started = time.monotonic()
+
+    def _execute(unit: Unit) -> tuple[str, int | None, float]:
+        check_started = time.monotonic()
+        remaining = budget_seconds - (check_started - started)
+        if remaining <= 0:
+            return "timeout", None, 0.0
+        status, exit_code = _run_check(unit_command(unit), root, remaining)
+        return status, exit_code, round(time.monotonic() - check_started, 3)
+
+    order = _execution_order(plan)
+    workers = max(1, min(jobs, len(order)))
+    if workers == 1:
+        unit_outcomes = {unit: _execute(unit) for unit in order}
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {unit: pool.submit(_execute, unit) for unit in order}
+            unit_outcomes = {unit: future.result() for unit, future in futures.items()}
+    outcomes = {
+        check.id: _combine([unit_outcomes[unit] for unit in execution_units(check.modules)])
+        for check in plan.checks
+    }
+
+    results = [_result_record(check, outcomes[check.id], waiver) for check in plan.checks]
+    failed_ids = {check.id for check in plan.checks if outcomes[check.id][0] != "passed"}
+    if waiver and set(waiver.check_ids) != failed_ids.intersection(waiver.check_ids):
+        raise GateError("waiver is stale because a named check did not fail")
+    valid = all(result["status"] in {"passed", "waived", "known-drift"} for result in results)
+    payload = {
+        "schema": 1,
+        "valid": valid,
+        "head_sha": head_sha,
+        "surfaces": list(plan.surfaces),
+        "unknown_paths": list(plan.unknown_paths),
+        "checks": results,
+        "waiver": {
+            "applied_check_ids": sorted(
+                result["id"] for result in results if result["status"] == "waived"
+            )
+        },
+        "timing": {
+            "budget_seconds": budget_seconds,
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "recorded_baseline_median_seconds": RECORDED_BASELINE_MEDIAN_SECONDS,
+            "maximum_budget_reduction": round(
+                1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
+            ),
+            "jobs": workers,
+            "units": len(order),
+            "sum_check_seconds": round(sum(outcome[2] for outcome in unit_outcomes.values()), 3),
+        },
+        "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
+        "safe_history_update_command": "git push --force-with-lease origin HEAD",
+    }
+    return payload, 0 if valid else 1
+
+
+def render_text(payload: dict[str, Any]) -> str:
+    """Render run and --plan-only payloads; planned checks have no status yet (#6194)."""
+    surfaces = ",".join(payload.get("surfaces", [])) or "none"
+    timing = payload.get("timing", {})
+    lines = [
+        f"harness-pr-gate valid={str(payload.get('valid', True)).lower()} surfaces={surfaces} "
+        f"elapsed={timing.get('elapsed_seconds', 0)}s/{timing.get('budget_seconds', 0)}s"
+    ]
+    lines.extend(
+        f"{item['id']} known-drift={item['known_drift']}: now passes; promote it by clearing known_drift"
+        for item in payload.get("checks", [])
+        if item.get("promote")
+    )
+    lines.extend(
+        f"{item['id']} status={item.get('status', 'planned')} "
+        f"protected={str(item.get('protected', False)).lower()} "
+        f"tests={','.join(item.get('tests', []))} reproduce={item.get('reproduction_command', '')}"
+        for item in payload.get("checks", [])
+    )
+    return "\n".join(lines)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
+    parser.add_argument("--base")
+    parser.add_argument("--head")
+    parser.add_argument(
+        "--list-ungated",
+        action="store_true",
+        help="print the allowlisted ungated test modules, one per line, and exit (#6362)",
+    )
+    parser.add_argument("--reviews", type=Path)
+    parser.add_argument("--budget-seconds", type=int, default=PR_BUDGET_SECONDS)
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=0,
+        help="concurrent checks: 0 = one per CPU (default), 1 = sequential escape hatch",
+    )
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--plan-only", action="store_true")
+    parser.add_argument(
+        "--write-generated",
+        action="store_true",
+        help="refresh owned generated inventory and identity artifacts before validation",
+    )
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.list_ungated:
+        print("\n".join(sorted(UNGATED_TEST_ALLOWLIST)))
+        return 0
+    if not args.base or not args.head:
+        parser.error("--base and --head are required unless --list-ungated is given")
+    try:
+        if args.budget_seconds < 1 or args.budget_seconds > 1200:
+            raise GateError("budget must be between 1 and 1200 seconds")
+        if not re.fullmatch(r"[0-9a-f]{40}", args.head):
+            raise GateError("head must be a full lowercase SHA")
+        if args.plan_only and args.write_generated:
+            raise GateError("plan-only cannot write generated artifacts")
+        root = args.root.resolve()
+        changed = changed_paths(root, args.base, args.head)
+        plan = plan_for_changes(changed, root)
+        _event_body = ""
+        _event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if _event_path and Path(_event_path).is_file():
+            try:
+                _payload = json.loads(Path(_event_path).read_text(encoding="utf-8"))
+                _event_body = str(((_payload.get("pull_request") or {}).get("body")) or "")
+            except (OSError, ValueError, TypeError):
+                _event_body = ""
+        _scope_hits = pr_scope_gate_failures(root, [str(p) for p in changed], _event_body)
+        if _scope_hits:
+            payload = {
+                "schema": 1,
+                "valid": False,
+                "error": "; ".join(_scope_hits),
+                "pr_scope": _scope_hits,
+            }
+            exit_code = 1
+            serialized = json.dumps(payload, indent=2, sort_keys=True)
+            if args.output:
+                args.output.write_text(serialized + "\n", encoding="utf-8")
+            if args.format == "json":
+                print(serialized)
+            else:
+                for _hit in _scope_hits:
+                    print(_hit, file=sys.stderr)
+            return exit_code
+        written = write_generated_artifacts(root, plan) if args.write_generated else ()
+        if args.plan_only:
+            payload = json.loads(
+                render_json(plan, head_sha=args.head, budget_seconds=args.budget_seconds)
+            )
+            payload["written"] = list(written)
+            exit_code = 0
+        else:
+            waiver = event_waiver(args.reviews, args.head)
+            payload, exit_code = run_plan(
+                root,
+                plan,
+                head_sha=args.head,
+                budget_seconds=args.budget_seconds,
+                waiver=waiver,
+                jobs=resolve_jobs(args.jobs),
+            )
+            payload["written"] = list(written)
+    except GateError as error:
+        payload = {"schema": 1, "valid": False, "error": str(error)}
+        exit_code = 2
+    serialized = json.dumps(payload, indent=2, sort_keys=True)
+    if args.output:
+        args.output.write_text(serialized + "\n", encoding="utf-8")
+    print(serialized if args.format == "json" else render_text(payload) if "checks" in payload else serialized)
+    return exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

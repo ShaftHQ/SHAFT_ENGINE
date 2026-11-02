@@ -1,0 +1,1 @@
+TestNG singleThreaded serializes methods in one class only. Static services shared across classes need an explicit cross-class lock, readiness checks where applicable, and always-run restoration.

@@ -1,0 +1,28 @@
+{
+  "body_path": "memory/gotchas/shaft-mcp-bom-import-ordering-beats-reactor-pins.md",
+  "content_hash": "sha256:d852205810fd084a796db4706242fe0d26f8b7e650c886902912a245fff9db1a",
+  "created_at": "2026-07-26T00:42:48+03:00",
+  "evidence": [
+    {
+      "id": "28f0b49bf6b0741f251064810696c724763df969",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-mcp-bom-import-ordering-beats-reactor-pins",
+  "source": {
+    "kind": "agent",
+    "task": "Record gotcha: shaft-mcp child-module BOM import ordering silently beats reactor/sibling-module version pins (selenium, netty, postgresql; PR #4019)"
+  },
+  "status": "active",
+  "tags": [
+    "maven",
+    "dependencies",
+    "bom",
+    "shaft-mcp",
+    "dependency-management",
+    "release"
+  ],
+  "title": "shaft-mcp's own BOM import ordering beats reactor and sibling-module version pins",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

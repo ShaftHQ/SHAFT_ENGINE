@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/decisions/prove-a-concurrency-fix-by-removing-the-window-and-asserting-the-read-is-gone-not-by-racing-threads.md",
+  "content_hash": "sha256:0341a9175bea69ae3e62243c9020cc268943d7899f6191a347b1e791fdc96a17",
+  "created_at": "2026-08-05T11:51:23+03:00",
+  "evidence": [],
+  "id": "decision.prove-a-concurrency-fix-by-removing-the-window-and-asserting-the-read-is-gone-not-by-racing-threads",
+  "source": {
+    "kind": "agent",
+    "task": "Route the durable learnings from the harness enforcement batch (#4547, #4552, R20 false positive)"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "concurrency",
+    "guard",
+    "determinism"
+  ],
+  "title": "Prove a concurrency fix by removing the window and asserting the read is gone, not by racing threads",
+  "type": "decision",
+  "updated_at": "2026-08-05T11:51:23+03:00"
+}

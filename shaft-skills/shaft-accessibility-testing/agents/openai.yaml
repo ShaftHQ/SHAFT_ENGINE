@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Accessibility Testing"
+  short_description: "Design evidence-backed accessibility tests"
+  default_prompt: "Use $shaft-accessibility-testing to design or assess accessibility coverage for this user flow."

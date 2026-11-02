@@ -1,0 +1,535 @@
+# Agent skills map
+
+**Humans:** this directory is a map of how coding-agent skills fit together in this repository.
+
+**Agents:** do not work from this file. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it. Repository entry is [AGENTS.md](../../AGENTS.md). This page is not policy.
+
+This directory holds the skills that teach a coding agent how work is done in
+this repository. It is written to be read by both people and agents: a
+contributor can skim it to understand the system, and an agent can be pointed
+at it directly.
+
+**If you are an agent:** do not work from this file. It is a map, not the
+territory. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it.
+
+Coverage of rules, hooks, specialist skills, and CI/mobile tools is owned by
+[bot-entry Entry coverage](../../chaos-engine/references/bot-entry.md#entry-coverage-rules-skills-tools)
+and gated by `tests/scripts/test_ce_entry_coverage.py`.
+
+**If you are a contributor:** tell your coding agent to read
+`chaos-engine/skills/chaos-engine/SKILL.md` before it touches anything. Most agents
+find it on their own — see [Importing these skills](#importing-these-skills).
+
+## The shape of it
+
+One always-loaded entrypoint decides everything else. Nothing below it loads
+until the entrypoint sends you there, which is what keeps a small change cheap.
+
+```mermaid
+flowchart TD
+    H["Host starts a task<br/><i>Claude, Codex, Copilot, Gemini, Grok</i>"] --> E
+
+    E["<b>ChaosEngine</b><br/>always loaded"]
+    E --> T{"Triage<br/>blast radius x reversibility"}
+
+    T -->|"one file, reversible"| GO["<b>consult-first</b><br/>concise complete receipt"]
+    T -->|"one module"| C["<b>consult-first</b><br/>normal full pass"]
+    T -->|"public contract,<br/>hard to reverse"| CF["<b>consult-first</b><br/>executable specification"]
+
+    GO --> R
+    C --> R
+    CF --> R
+
+    R["<b>routing</b><br/>deliverable to one surface"]
+    R --> P["Repository playbooks<br/><i>15</i>"]
+    R --> M["SHAFT mastery chapters<br/><i>10</i>"]
+    R --> D["Method references"]
+    E --> D
+    R --> S["<b>shaft-developer</b><br/>product test-authoring pack"]
+```
+
+## Loading order
+
+Read left to right; each step is cheap until the one before it says otherwise.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Contributor
+    participant A as Agent
+    participant E as ChaosEngine
+    participant G as consult-first
+    participant W as Work surface
+
+    U->>A: a task
+    A->>E: load entrypoint
+    E-->>A: iron laws, triage, red flags
+    A->>A: triage in two lines
+    A->>G: load the gate at the selected depth
+    G-->>A: approach, invariants, research receipt
+    A->>W: proceed at the routed surface
+    W-->>A: complete implementation and final scope commit
+    A->>A: automated findings, optional terminal review, local tests
+    A-->>U: outcome, checks run, what was refuted
+```
+
+## Execution workflows
+
+[Execution workflows](../../chaos-engine/references/execution-workflows.md) is
+the sole owner of workflow selection and behavior. This diagram is a navigation
+view, not a second policy definition. Optional transports do not alter these
+role boundaries.
+
+```mermaid
+flowchart LR
+    W["Canonical workflow selector"] --> S["SOLO"]
+    W --> O1["ORCHESTRATOR +<br/>SINGLE IMPLEMENTER"]
+    W --> OP["ORCHESTRATOR +<br/>PARALLEL IMPLEMENTERS"]
+    O1 --> T["Qualified transport"]
+    OP --> T
+    T --> OR["Optional OmniRoute"]
+    T --> FT["Optional FreeToken"]
+    T --> LA["Optional local-agency"]
+    T --> N["Native implementer"]
+```
+
+## Delivery cycle
+
+Finish full approved implementation and final scope commit, then fix automated
+CI/comment findings. Run planning-approved adversarial review at most twice,
+then extra local tests. No microstep review, test, validation, commit, push, or
+delivery loops interrupt work.
+
+```mermaid
+flowchart LR
+    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> BG[babysit to green] --> MG[merge]
+    RD -.-> RV{{independent<br/>adversarial review}}
+    GR -.-> RV
+    RF -.-> RV
+    RV -.->|refuted| RD
+```
+
+## The surfaces
+
+This map describes a surface only where nothing it links to already describes
+it. The two skills below are a contributor's first contact, so they are
+described here. Every reference, playbook and chapter is described where it is
+reached from — the entrypoint or the routing table — and both are linked from
+this page, so repeating them here would only give a second copy to drift out of
+step with the first.
+
+### Skills
+
+| Skill | What it does |
+| --- | --- |
+| [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
+| [OmniRoute](../../chaos-engine/skills/local-runtimes/references/omniroute.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
+| [FreeToken](../../chaos-engine/skills/local-runtimes/references/freetoken.md) | Optional local FreeToken weights server for a workflow already selected by the canonical execution-workflow owner. Missing service never weakens normal workflows and does not replace OmniRoute. |
+| [local-openai-compat](../../chaos-engine/skills/local-runtimes/references/local-openai-compat.md) | Optional Ollama / LM Studio / llamacpp OpenAI-compat peers. Probe and ephemeral dispatch only; CE never installs or starts them. |
+| [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) | Optional OpenCode / local OSS agency against a READY local runtime (not session subagents). Ephemeral `OPENCODE_CONFIG`; never `ft launch`; no silent OmniRoute fallback. |
+| [local-coding-delegate](../../chaos-engine/skills/local-runtimes/references/local-coding-delegate.md) | Compat shim: hardware size-class probe; prefer local-agency / FreeToken for local-weights agency dispatch. |
+| [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
+
+The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
+and [retrieval](../../chaos-engine/references/retrieve-first.md) gates after every
+triage; the triage result controls depth. They are references, not separately
+discoverable skills.
+
+### Method references
+
+Never loaded by default. The first four are described by the entrypoint as it
+sends you there; the rest by
+[routing](../../shaft-skills/ce-pack/references/routing.md).
+
+- [selected shaft profile](../../shaft-skills/ce-pack/entrypoint.md)
+- [shaft profile.json](../../shaft-skills/ce-pack/profile.json)
+- [routing](../../shaft-skills/ce-pack/references/routing.md)
+- [doc-claim review](../../chaos-engine/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
+- [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
+- [delegation](../../chaos-engine/references/delegation.md)
+- [execution workflows](../../chaos-engine/references/execution-workflows.md)
+- [gate fail-closed](../../chaos-engine/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
+- [moving-channel pin](../../chaos-engine/references/moving-channel-pin.md): pin policy for upstream channels that keep shipping newer builds
+- [progress log](../../chaos-engine/references/progress-log.md): workers append a progress line after every step
+- [radio silence](../../chaos-engine/references/radio-silence.md): block routine SendToUser while radio silence is on
+- [roles](../../chaos-engine/references/roles.md)
+- [heuristics](../../chaos-engine/references/heuristics.md)
+- [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
+- [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
+- [multi-agent PDCA loop](../../chaos-engine/references/multi-agent-pdca.md)
+- [iterative flow rule](../../chaos-engine/references/iterative-flow.md)
+- [parallel streams](../../chaos-engine/references/parallel-streams.md)
+- [process-owner / Scrum-master](../../chaos-engine/references/process-owner-scrum-master.md)
+- [decision-quality baseline](../../chaos-engine/decision-quality-baseline.md)
+- [decision-quality rubric](../../chaos-engine/decision-quality-rubric.md)
+- [decision-quality calibration](../../chaos-engine/decision-quality-calibration.md)
+- [decision-quality calibration aggregate](../../chaos-engine/decision-quality-calibration.aggregate.json)
+- [decision-quality report](../../chaos-engine/decision-quality-report.md)
+- [task isolation](../../chaos-engine/references/task-isolation.md)
+- [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
+- [client-name scrub](../../chaos-engine/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
+- [mobile-retro harness](../../chaos-engine/references/mobile-retro-harness.md): results freeze, backend Blocked, primary time-cap, tracked NO_PUSH, evidence pin, NamedBlock by gap id
+- [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
+- [rule retirement](../../chaos-engine/references/rule-retirement.md)
+- [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
+- [cleanup at close](../../chaos-engine/references/cleanup-at-close.md): clean after verified delivery; disk free-GiB tiers
+- [CE upgrade on release](../../chaos-engine/references/ce-upgrade-on-release.md): VERSION calver + upgrade-session for linked worktrees
+- [Work ordering](../../chaos-engine/references/work-ordering.md): close open PRs before new work; bugs → features → epics
+- [Commit identity](../../chaos-engine/references/commit-identity.md): ChaosEngine author only on the engine repo + user-guide pages repo
+- [PR scope check](../../chaos-engine/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-PR-SCOPE)
+- [H-SCOPE](../../chaos-engine/references/h-scope.md): L41 title-scope + sequential-wip + parallel_stream_conflict / path-claim
+- [CE retro 2026.10.31.6 SPEC](../../chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md): pointer to origin-only guides SPEC (H-IDENTITY / L64 / H-SCOPE)
+- [CE rules 2026.10.31.7 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-7-SPEC.md): WoW + memory dump + L66–L77 pointer
+- [CE rules 2026.10.31.8 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
+- [CE rules 2026.10.31.11 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
+- [CE rules 2026.10.31.12 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
+- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.quarter.YYYYMMDD.n, #7702)](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
+- [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
+- [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
+- [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
+- [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): re-arm after merge-queue eviction; scheduled soft-fail per item
+- [mobile client automation](../../chaos-engine/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
+- [design review / video worker checklist](../../chaos-engine/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
+- [harness learn](../../chaos-engine/references/harness-learn.md)
+- [learn traces](../../chaos-engine/references/learn-traces.md)
+- [design loop](../../chaos-engine/references/design-loop.md)
+- [fix bug class](../../chaos-engine/references/fix-bug-class.md): owned-path transactional repair + full version-hop matrix
+- [explicit staging](../../chaos-engine/references/explicit-staging.md): set -e; stage named paths only; never commit -a
+- [profile slow installs](../../chaos-engine/references/profile-slow-installs.md): profile_installs.py timing summariser across worktrees
+- [gemini quota wait](../../chaos-engine/references/gemini-quota-wait.md): one-shot resume after Gemini 429/UI grey-out
+- [appium driver npm recover](../../chaos-engine/references/appium-driver-npm-recover.md): uninstall then driver install --source=npm after null-package
+- [deep research](../../chaos-engine/references/deep-research.md)
+- [UI delivery](../../chaos-engine/references/ui-delivery.md)
+- [public landing](../../chaos-engine/references/public-landing.md)
+- [add-ons](../../chaos-engine/references/addons.md)
+- [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
+- [hook trigger map](../../chaos-engine/references/hook-trigger-map.md)
+- [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
+- [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
+- [work item](../../chaos-engine/references/work-item.md)
+- [work-item adapters](../../chaos-engine/references/work-item-adapters.md)
+- [graphify](../../chaos-engine/references/graphify.md)
+- [repository Graphify procedure](../../shaft-skills/ce-pack/references/graphify.md)
+- [shaft profile: product track](../../shaft-skills/ce-pack/references/product-track.md)
+- [shaft profile: self improve master plan](../../shaft-skills/ce-pack/references/self-improve-master-plan.md)
+- [shaft profile: self improve research synthesis](../../shaft-skills/ce-pack/references/self-improve-research-synthesis.md)
+- [research receipt](../../chaos-engine/references/research-receipt.md)
+- [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
+- [harness maintenance](../../chaos-engine/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
+- [delete guard](../../chaos-engine/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
+- [delete-check discipline](../../chaos-engine/references/delete-check-discipline.md): install+doctor delete-guard, tool.py delete-check before every delete, owner code only
+- [harness files](../../chaos-engine/references/harness-files.md): source-repo index of every harness file off the task routes, so both entries reach it
+- [TDD](../../chaos-engine/references/tdd.md)
+- [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
+- [context economy](../../chaos-engine/references/context-economy.md)
+- [context firewall](../../chaos-engine/references/context-firewall.md)
+- [meta-optimize](../../chaos-engine/references/meta-optimize.md) (periodic; not continuous)
+- [draft skill PRs](../../chaos-engine/references/draft-skill-pr.md) (opt-in; default OFF)
+- [script first](../../chaos-engine/references/script-first.md)
+- [catalog](../../chaos-engine/references/catalog.md)
+- [harness map](../../chaos-engine/references/harness-map.md)
+- [ci status economy](../../chaos-engine/references/ci-status-economy.md)
+- [content-scan preflight](../../chaos-engine/references/content-scan-preflight.md): G-META content scan + planted --self-test (exit 0 = plant detected)
+- [codacy action required gate](../../chaos-engine/references/static-analysis-gate.md)
+- [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)
+- [delegate card](../../chaos-engine/references/delegate-card.md)
+- [delivery phase gates](../../chaos-engine/references/delivery-phase-gates.md)
+- [durable jobs](../../chaos-engine/references/durable-jobs.md)
+- [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
+- [eval parity fixtures](../../chaos-engine/references/eval-parity-fixtures.md)
+- [evolving playbook](../../chaos-engine/references/evolving-playbook.md)
+- [insight extract](../../chaos-engine/references/insight-extract.md)
+- [workflow induction](../../chaos-engine/references/workflow-induction.md)
+- [external reflection](../../chaos-engine/references/external-reflection.md)
+- [prompt evolution](../../chaos-engine/references/prompt-evolution.md)
+- [self-modify](../../chaos-engine/references/self-modify.md)
+- [context rot](../../chaos-engine/references/context-rot.md)
+- [genai spans](../../chaos-engine/references/genai-spans.md)
+- [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
+- [heal route](../../chaos-engine/references/heal-route.md)
+- [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)
+- [icm architect](../../chaos-engine/references/icm-architect.md)
+- [identity push back](../../chaos-engine/references/identity-push-back.md)
+- [installer program executable spec](../../chaos-engine/references/installer-program-executable-spec.md)
+- [installer program](../../chaos-engine/references/installer-program.md)
+- [level 1 catalog](../../chaos-engine/references/level-1-catalog.md)
+- [memory provenance](../../chaos-engine/references/memory-provenance.md)
+- [no proxy](../../chaos-engine/references/no-proxy.md)
+- [permanent rules](../../chaos-engine/references/permanent-rules.md)
+- [prefer cli over mcp](../../chaos-engine/references/prefer-cli-over-mcp.md)
+- [router contract](../../chaos-engine/references/router-contract.md)
+- [self improve master plan](../../chaos-engine/references/self-improve-master-plan.md)
+- [significance capture](../../chaos-engine/references/significance-capture.md)
+- [silent verify](../../chaos-engine/references/silent-verify.md)
+- [skill compress audit](../../chaos-engine/references/skill-compress-audit.md)
+- [tip churn preflight](../../chaos-engine/references/tip-churn-preflight.md)
+- [token budget modes](../../chaos-engine/references/token-budget-modes.md)
+- [zero llm catalog](../../chaos-engine/references/zero-llm-catalog.md)
+- [LICENSE](../../chaos-engine/LICENSE)
+- [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
+
+Caveman and Ponytail are pinned vendor companions, not restated in the
+entrypoint: [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md),
+[Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md), and
+[ICM Architect](../../chaos-engine/vendor/icm-architect/INVENTORY.md). MIT notices stay at
+[Caveman](../../chaos-engine/references/caveman.LICENSE),
+[Ponytail](../../chaos-engine/references/ponytail.LICENSE),
+[TDD](../../chaos-engine/references/test-driven-development.LICENSE).
+
+### Repository playbooks
+
+One per kind of work in this repository. Which deliverable sends you to which
+playbook is stated once, in [routing](../../shaft-skills/ce-pack/references/routing.md) — this
+list is the inventory, not a second copy of the triggers.
+
+- [agent guidance](../../shaft-skills/ce-pack/references/playbooks/agent-guidance-boundary-guard.md)
+- [PDCA](../../shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md)
+- [framework source](../../shaft-skills/ce-pack/references/playbooks/framework-source.md)
+- [Java tests](../../shaft-skills/ce-pack/references/playbooks/java-tests.md)
+- [CI failures](../../shaft-skills/ce-pack/references/playbooks/ci-failure-investigator.md)
+- [flaky tests](../../shaft-skills/ce-pack/references/playbooks/flaky-test-stabilizer.md)
+- [release and dependencies](../../shaft-skills/ce-pack/references/playbooks/release-dependency-guard.md)
+- [MCP transport](../../shaft-skills/ce-pack/references/playbooks/mcp-transport-contract-auditor.md)
+- [module boundaries](../../shaft-skills/ce-pack/references/playbooks/modular-boundary-auditor.md)
+- [reports](../../shaft-skills/ce-pack/references/playbooks/allure-extent-report-operator.md)
+- [public docs](../../shaft-skills/ce-pack/references/playbooks/public-behavior-docs-synchronizer.md)
+- [UI design](../../shaft-skills/ce-pack/references/playbooks/shaft-ui-design.md)
+- [marketing](../../shaft-skills/ce-pack/references/playbooks/shaft-marketing-ad-producer.md)
+- [workstation local coding](../../shaft-skills/ce-pack/references/playbooks/workstation-local-coding-agent.md)
+- [IntelliJ plugin development](../../shaft-skills/ce-pack/references/playbooks/intellij-plugin-development.md)
+- [intellij design automation apply paths](../../shaft-skills/ce-pack/references/playbooks/intellij-design-automation-apply-paths.md)
+- [intellij ui test conventions](../../shaft-skills/ce-pack/references/playbooks/intellij-ui-test-conventions.md)
+
+### SHAFT mastery chapters
+
+Ten expert domains. Each encodes incident history that is expensive to
+re-derive, so read the one the task touches and skip the rest — which one that
+is, [routing](../../shaft-skills/ce-pack/references/routing.md) says.
+
+- [Selenium BiDi](../../shaft-skills/ce-pack/references/shaft-mastery/selenium-bidi.md)
+- [Allure internals](../../shaft-skills/ce-pack/references/shaft-mastery/allure-internals.md)
+- [Appium mobile](../../shaft-skills/ce-pack/references/shaft-mastery/appium-mobile.md)
+- [Maven release](../../shaft-skills/ce-pack/references/shaft-mastery/maven-release.md)
+- [TestNG lifecycle](../../shaft-skills/ce-pack/references/shaft-mastery/testng-lifecycle.md)
+- [IntelliJ plugin](../../shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md)
+- [MCP protocol](../../shaft-skills/ce-pack/references/shaft-mastery/mcp-protocol.md)
+- [CI forensics](../../shaft-skills/ce-pack/references/shaft-mastery/ci-forensics.md)
+- [Wait strategies](../../shaft-skills/ce-pack/references/shaft-mastery/wait-strategies.md)
+- [Locator healing](../../shaft-skills/ce-pack/references/shaft-mastery/locator-healing.md)
+
+### The product pack
+
+`shaft-skills/` is a separate, published pack that teaches an agent to *use*
+SHAFT rather than to work on it. Its own router, `shaft-developer`, selects one
+of exactly 30 lifecycle, implementation, and tool specialists. The routing
+table hands off to it and does not duplicate its rows.
+
+## Importing these skills
+
+Each host discovers the entrypoint its own way. The policy is identical; only
+the plumbing differs.
+
+| Host | How it finds the entrypoint |
+| --- | --- |
+| Codex | Reads `AGENTS.md` and the canonical [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) body. Host adapters are installer-generated; see [INSTALL.md](../../chaos-engine/INSTALL.md). |
+| Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`, then the same canonical body. |
+| Gemini | Reads `GEMINI.md`, then the same canonical body. |
+| Grok | Reads `AGENTS.md`, then the same canonical body. |
+| Copilot | Reads `.github/copilot-instructions.md` and `AGENTS.md`, then the same canonical body. |
+
+Those five rows are the harness's only inbound edges: each points *into* the
+entrypoint and carries no policy of its own, which is why the entrypoint links
+this page rather than linking back to them one by one. They are listed here so
+an agent on any host can see which surfaces exist and confirm they are thin.
+
+### Origin-tracked host instruction files
+
+Installer-generated adapters are not origin-tracked. Path table:
+[INSTALL.md](../../chaos-engine/INSTALL.md). Origin tracks `AGENTS.md`,
+`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and Copilot
+scope files `.github/instructions/framework-source.instructions.md` and
+`.github/instructions/java-tests.instructions.md`.
+
+If your agent does none of that automatically, say this to it:
+
+> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
+
+To deploy the harness to your own user-level agent configuration:
+
+```bash
+py -3 scripts/agents/sync_user_harness.py --check
+```
+
+It deploys the tracked templates [user-harness](../../scripts/agents/user-harness/README.md):
+`scripts/agents/user-harness/CLAUDE.md` and `scripts/agents/user-harness/settings.json`.
+
+## Supplemental agnix conformance
+
+The repository-specific validators remain authoritative. Weekly acceptance also
+runs agnix 0.48.0 as supplemental cross-client evidence through
+`scripts/ci/agnix_conformance.py`. Its immutable source, image, three host
+artifact checksums, pinned upstream evaluation archive, efficacy floors, staged
+inputs, scan-width baseline, and two exact false-positive fingerprints live in
+`scripts/ci/agnix_conformance.json`. The runner rejects symlinked inputs, copies
+only declared harness inputs to a disposable directory, verifies the Linux
+artifact and 61-case evaluation corpus, then executes both scans with no network,
+a read-only root, dropped capabilities, no new privileges, UID/GID 65532, and
+`DO_NOT_TRACK=1`. New errors, exact-path/count drift, scan-width drift, or an
+efficacy-floor miss fails closed; warnings remain visible in the uploaded evidence.
+
+Contract and boundary coverage lives in
+`tests/scripts/test_agnix_conformance.py`. No agnix binary, source tree, report,
+or cache is tracked or installed on the host.
+
+Add `--apply` to write it, with backups. Secrets are never synced. It deploys
+only generic user-level Claude host configuration, never repository skills,
+role adapters, or policy.
+
+## What runs alongside you
+
+These are not documents to read. They are the moving parts, and an agent that
+does not know they exist meets them as an interruption instead of a tool.
+
+| Part | Where it lives | What it does to a session |
+| --- | --- | --- |
+| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`; matcher policy in `chaos-engine/hooks/matchers.json` | Canonical for SHAFT repository policy; `chaos-engine/hooks/guard.py` is canonical for the portable core. They share no code; [test_guard_split.py](../../tests/scripts/test_guard_split.py) pins the split and the shared catastrophic floor. One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
+| Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
+| Retrieval servers | `.mcp.json`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
+| Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
+| Repository operations | `scripts/agents/repository_context.py`, `scripts/agents/watch_pr_checks.py`, `scripts/agents/github_client.py`, `scripts/agents/pr_audit.py`, `scripts/agents/delivery_status.py`, `scripts/agents/issue_filing.py`, `scripts/agents/planning_contract.py`, `scripts/agents/chaos_engine_cli.py` | Resolve the caller's repository and expose bounded PR watching, evidence-backed plan validation, complete PR feedback audit, owned-PR delivery proof, and template/taxonomy issue operations through the source adapter, portable zipapp, and bounded MCP surfaces. Delivery cleanup alone may make one exact removal attempt after live merge and safety checks. |
+| PR watcher adapter | `scripts/ci/watch_pr_checks.py` | Keeps the historical source-tree command as a thin adapter to canonical repository operations. |
+| Worktree survey | `scripts/ci/worktree_hygiene.py` | Reports which worktrees are safe to remove and which hold work nobody will come back for. |
+| Local gate | `scripts/ci/local_gate.py` | Runs the pull-request gate's checks before you push, so a red run costs a minute instead of a round trip. |
+
+The lifecycle guard's R26 check blocks static catastrophic command shapes: recursive deletes of
+root, home, or system directories; destructive root-level `find`; raw-device writes and formats;
+global mode 777 on system paths; process fork bombs; and piping fetched code into a shell. Its
+weekly external evaluation fetches Compass's 61-row corpus at one immutable commit, verifies the
+SHA-256 before parsing, scores 46 applicable rows, and records explicit reasons for the 15 Git
+rows owned by ChaosEngine's separate stateful authorization rules. The upstream corpus is never
+stored in the repository. Run `tests/scripts/test_guard_external_corpus.py` for the synthetic
+contract, classifier mutations, direct entrypoint, and scheduled-workflow regression coverage.
+
+## How this stays true
+
+Guidance drifts unless something fails when it does. These are checked on every
+pull request that touches the harness:
+
+- Every routed skill name resolves to a real `SKILL.md`, so the router cannot
+  point at something nobody ships.
+- Every playbook and mastery chapter is linked directly from the routing table,
+  and every reference is reachable from a skill.
+- No substantive line is repeated across two guidance files, apart from the
+  host pointers that have to be, and no reference is a redirect stub.
+- Frontmatter parses as real YAML, and no skill name uses a reserved word.
+- The always-loaded body and the skill listing each stay under a ceiling
+  derived from a documented host limit.
+- No guidance names a model or a product where it should name a capability
+  level.
+
+- Every harness element — this page, the entrypoint, every reference, adapter,
+  hook, script and check — is reachable from the entrypoint, or carries a
+  written reason why not.
+
+Run them locally with:
+
+```bash
+py -3 scripts/ci/validate_agent_setup.py --skip-external
+```
+
+That command drives `scripts/ci/validate_agent_guidance.py`, the duty manifest
+`scripts/ci/agent_ownership.json` through
+`scripts/ci/validate_agent_ownership.py`, and
+`scripts/ci/validate_skills.py`, while the Agent Plugin contract is checked by
+`scripts/ci/validate_agent_plugins.py`; its ceilings come from
+`scripts/ci/agent_guidance_budget.json` and the cross-host capability matrix
+from `scripts/ci/agent_harness_parity.json`.
+
+The assertions themselves are unit tests, and they are where a rule in this
+tree actually fails. Read the one that guards what you are changing, before you
+change it:
+
+| Module | Guards |
+| --- | --- |
+| `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning session. |
+| `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
+| `tests/scripts/test_chaos_engine_portable_core.py` | Portable core isolation, compatibility aliases, and project-profile selection. |
+| `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
+| `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
+| `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
+| `tests/scripts/test_validate_agent_ownership.py` | Single semantic owners for router, adapters, hooks, tools, plugins, and guidance plus unique PR-gate paths. |
+| `tests/scripts/test_validate_agent_plugins.py` | Portable Agent Plugin manifests, Agent Skills, and containment. |
+| `tests/scripts/test_validate_agent_setup.py` | The aggregate gate and the host-parity matrix. |
+| `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
+| `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py`, `tests/scripts/test_session_worktree.py` | The lifecycle guard's decisions, session worktree setup/teardown, and behaviour on a corrupt state file. |
+| `tests/scripts/test_guard_memory_worktree.py` | That a memory write from a linked worktree is refused, and that each host actually invokes the guard for it. |
+| `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
+| `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_chaos_engine_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
+| `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
+| `tests/scripts/test_knowledge_stores.py` | Knowledge-store CLI resolvers. |
+| `tests/scripts/test_resolve_mempalace.py` | MemPalace path resolver. |
+| `tests/scripts/test_shaft_skills_content.py`, `tests/scripts/test_shaft_skill_cli_examples.py` | The published product pack's content and its CLI examples. |
+
+`.github/workflows/pr-gate.yml` is what runs them. It is a harness element in
+its own right: the file deciding whether the gate runs at all cannot sit
+outside the gate, or trimming one line from its run list would make every later
+green run report a hundred percent of nothing.
+
+<!-- HARNESS-INDEX:START -->
+
+Generated skill index (`chaos-engine/harness_index.py`):
+
+- [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
+- [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
+- [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
+- [kanban](../../chaos-engine/skills/kanban/SKILL.md) (portable)
+- [architect](../../chaos-engine/skills/architect/SKILL.md) (portable)
+- [technical-presentations](../../chaos-engine/skills/technical-presentations/SKILL.md) (portable)
+- [pre-done-self-review](../../chaos-engine/skills/pre-done-self-review/SKILL.md) (portable)
+- [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
+- [ci-cd](../../chaos-engine/skills/ci-cd/SKILL.md) (portable)
+- [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
+- [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md) (portable)
+- [omniroute](../../chaos-engine/skills/omniroute/SKILL.md) (route)
+- [freetoken](../../chaos-engine/skills/freetoken/SKILL.md) (route)
+- [colibri](../../chaos-engine/skills/colibri/SKILL.md) (route)
+- [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md) (route)
+- [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) (route)
+- [caveman](../../chaos-engine/vendor/caveman/skills/caveman/SKILL.md) (vendor)
+- [ultracave](../../chaos-engine/vendor/caveman/skills/ultracave/SKILL.md) (vendor)
+- [ponytail](../../chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md) (vendor)
+- [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
+
+<!-- HARNESS-INDEX:END -->
+- [CE lessons 2026-11-02 SPEC](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer
+
+## Specialist skill inventory (entry coverage)
+
+Reachability gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory:
+[`shaft-skills/INVENTORY.md`](../../shaft-skills/INVENTORY.md).
+
+New mobile / hygiene specialists (also listed in the inventory):
+[shaft-mobile-env](../../shaft-skills/shaft-mobile-env/SKILL.md),
+[shaft-browserstack-native](../../shaft-skills/shaft-browserstack-native/SKILL.md),
+[shaft-ios-ipa-acceptance](../../shaft-skills/shaft-ios-ipa-acceptance/SKILL.md),
+[shaft-android-apk-select](../../shaft-skills/shaft-android-apk-select/SKILL.md),
+[shaft-docs-hygiene](../../shaft-skills/shaft-docs-hygiene/SKILL.md),
+[shaft-mobile-retest-hygiene](../../shaft-skills/shaft-mobile-retest-hygiene/SKILL.md).
+
+## Tool path routes (entry coverage)
+
+Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage.py`):
+[android_apk_select.py](../../scripts/mobile/android_apk_select.py),
+[ios_ipa_acceptance.py](../../scripts/mobile/ios_ipa_acceptance.py),
+[scripts/mobile/__init__.py](../../scripts/mobile/__init__.py),
+[merge_queue_awaiting_checks_heal.py](../../scripts/ci/merge_queue_awaiting_checks_heal.py),
+[ce_version.py](../../scripts/ci/ce_version.py),
+[flutter_emulator_preflight.sh](../../scripts/ci/flutter_emulator_preflight.sh),
+[run_ubuntu_flutter_emulator_e2e.sh](../../scripts/ci/run_ubuntu_flutter_emulator_e2e.sh),
+[lessons_2026_11_02.py](../../chaos-engine/rules/lessons_2026_11_02.py),
+[lessons_repeat_failure_pdca.py](../../chaos-engine/rules/lessons_repeat_failure_pdca.py),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/references/ce-repeat-failure-pdca-SPEC.md),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/guides/ce-repeat-failure-pdca-SPEC.md),
+[repeat-failure-pdca.md](../../chaos-engine/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
+[ce-lessons-2026-11-02-SPEC.md](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md).
+

@@ -1,0 +1,1 @@
+The IntelliJ setup panel appends --install-shaft-skills to copied SHAFT MCP installer commands so onboarding does not depend on the interactive skills prompt.

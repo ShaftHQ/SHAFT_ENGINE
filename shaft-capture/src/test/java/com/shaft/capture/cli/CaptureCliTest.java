@@ -1,0 +1,527 @@
+package com.shaft.capture.cli;
+
+import com.shaft.capture.control.CaptureControlFiles;
+import com.shaft.capture.runtime.CaptureBrowser;
+import com.shaft.capture.runtime.CaptureStartOptions;
+import com.shaft.capture.runtime.CaptureStartRequest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class CaptureCliTest {
+    @TempDir
+    Path temp;
+
+    @Test
+    void argumentsParserHandlesValuesFlagsPathsAndValidation() throws Exception {
+        Class<?> argumentsClass = Class.forName("com.shaft.capture.cli.CaptureCli$Arguments");
+        Object options = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {
+                        "--runtime-dir", temp.toString(),
+                        "--session", "capture.json",
+                        "--headless",
+                        "--replay",
+                        "--enable-fallback-locators",
+                        "--disable-fallback-locators",
+                        "--control-flow-preview",
+                        "--apply-control-flow-preview", "approved-preview.json"
+                });
+
+        assertEquals(temp.toString(), invoke(
+                options,
+                "required",
+                new Class<?>[] {String.class},
+                "runtime-dir"));
+        assertEquals("fallback", invoke(
+                options,
+                "value",
+                new Class<?>[] {String.class, String.class},
+                "missing",
+                "fallback"));
+        assertEquals(temp, invoke(
+                options,
+                "path",
+                new Class<?>[] {String.class, Path.class},
+                "runtime-dir",
+                Path.of("fallback")));
+        assertEquals(Path.of("capture.json"), invoke(
+                options,
+                "pathRequired",
+                new Class<?>[] {String.class},
+                "session"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "headless"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "enable-fallback-locators"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "disable-fallback-locators"));
+        assertEquals(true, invoke(
+                options,
+                "flag",
+                new Class<?>[] {String.class},
+                "control-flow-preview"));
+        assertEquals(Path.of("approved-preview.json"), invoke(
+                options,
+                "pathRequired",
+                new Class<?>[] {String.class},
+                "apply-control-flow-preview"));
+
+        InvocationTargetException missingValue = assertThrows(InvocationTargetException.class,
+                () -> invokeStatic(
+                        argumentsClass,
+                        "parse",
+                        new Class<?>[] {String[].class},
+                        (Object) new String[] {"--runtime-dir"}));
+        InvocationTargetException unexpectedArgument = assertThrows(InvocationTargetException.class,
+                () -> invokeStatic(
+                        argumentsClass,
+                        "parse",
+                        new Class<?>[] {String[].class},
+                        (Object) new String[] {"runtime-dir"}));
+        InvocationTargetException missingRequired = assertThrows(InvocationTargetException.class,
+                () -> invoke(
+                        options,
+                        "required",
+                        new Class<?>[] {String.class},
+                        "url"));
+
+        assertInstanceOf(IllegalArgumentException.class, missingValue.getCause());
+        assertInstanceOf(IllegalArgumentException.class, unexpectedArgument.getCause());
+        assertInstanceOf(IllegalArgumentException.class, missingRequired.getCause());
+    }
+
+    @Test
+    void privateHelpersNormalizeClasspathTokensAndRejectInvalidNumbers() throws Exception {
+        Constructor<CaptureCli> constructor = CaptureCli.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        InvocationTargetException constructorFailure =
+                assertThrows(InvocationTargetException.class, constructor::newInstance);
+
+        String normalized = (String) invokeStatic(
+                "absoluteClassPath",
+                new Class<?>[] {String.class},
+                "target/classes" + File.pathSeparator + ".");
+        String token = (String) invokeStatic("token", new Class<?>[] {});
+        String usage = (String) invokeStatic("usage", new Class<?>[] {});
+        String fallbackMessage = (String) invokeStatic(
+                "safeMessage",
+                new Class<?>[] {RuntimeException.class},
+                new IllegalStateException(""));
+        boolean running = (boolean) invokeStatic(
+                "isRunning",
+                new Class<?>[] {com.shaft.capture.runtime.CaptureStatus.State.class},
+                com.shaft.capture.runtime.CaptureStatus.State.ACTIVE);
+        long parsed = (long) invokeStatic(
+                "parsePositiveLong",
+                new Class<?>[] {String.class, String.class},
+                "12",
+                "timeout");
+        InvocationTargetException invalidNumber = assertThrows(InvocationTargetException.class,
+                () -> invokeStatic(
+                        "parsePositiveLong",
+                        new Class<?>[] {String.class, String.class},
+                        "-1",
+                        "timeout"));
+
+        assertInstanceOf(IllegalStateException.class, constructorFailure.getCause());
+        for (String entry : normalized.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+            assertTrue(Path.of(entry).isAbsolute(), entry);
+        }
+        assertTrue(token.length() >= 32);
+        assertFalse(token.contains("="));
+        assertTrue(usage.contains("capture start"));
+        assertTrue(usage.contains("features"));
+        assertTrue(usage.contains("--target"));
+        assertTrue(usage.contains("--disable-fallback-locators"));
+        assertTrue(usage.contains("--enable-fallback-locators"));
+        assertTrue(usage.contains("--backend webdriver|playwright"));
+        assertTrue(usage.contains("--load-storage"), "S2-09: CLI help must mention --load-storage");
+        assertTrue(usage.contains("--save-storage"), "S2-09: CLI help must mention --save-storage");
+        assertTrue(usage.contains("--user-data-dir"), "S2-09: CLI help must mention --user-data-dir");
+        assertTrue(usage.contains("--target-source"));
+        assertTrue(usage.contains("--insert-after"));
+        assertTrue(usage.contains("--control-flow-preview"));
+        assertTrue(usage.contains("--apply-control-flow-preview"));
+        assertTrue(usage.contains("FLOW_START"));
+        assertEquals("operation failed.", fallbackMessage);
+        assertTrue(running);
+        assertEquals(12L, parsed);
+        assertInstanceOf(IllegalArgumentException.class, invalidNumber.getCause());
+    }
+
+    @Test
+    void startOptionsAcceptPlaywrightCodegenFlags() throws Exception {
+        Class<?> argumentsClass = Class.forName("com.shaft.capture.cli.CaptureCli$Arguments");
+        Object options = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {
+                        "--target", "java",
+                        "--test-id-attribute", "data-pw",
+                        "--viewport-size", "800,600",
+                        "--ignore-https-errors",
+                        "--user-agent", "agent",
+                        "--timeout", "1500",
+                        "--user-data-dir", temp.resolve("profile").toString()
+                });
+
+        CaptureStartOptions startOptions = (CaptureStartOptions) invokeStatic(
+                "startOptions",
+                new Class<?>[] {argumentsClass},
+                options);
+
+        assertEquals("java", startOptions.targetLanguage());
+        assertEquals("data-pw", startOptions.testIdAttributes().getFirst());
+        assertEquals(800, startOptions.viewport().width());
+        assertEquals(600, startOptions.viewport().height());
+        assertEquals(true, startOptions.ignoreHttpsErrors());
+        assertEquals("agent", startOptions.userAgent());
+        assertEquals(java.time.Duration.ofMillis(1500), startOptions.timeout());
+        assertEquals(temp.resolve("profile").toAbsolutePath().normalize(), startOptions.userDataDirectory());
+    }
+
+    @Test
+    void generationBackendSelectsPlaywrightAndRejectsUnknownValues() throws Exception {
+        Class<?> argumentsClass = Class.forName("com.shaft.capture.cli.CaptureCli$Arguments");
+        Object defaultOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {});
+        Object playwrightOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "playwright"});
+        Object seleniumOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "selenium"});
+        Object invalidOptions = invokeStatic(
+                argumentsClass,
+                "parse",
+                new Class<?>[] {String[].class},
+                (Object) new String[] {"--backend", "puppeteer"});
+
+        assertEquals("WEBDRIVER", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                defaultOptions)).name());
+        assertEquals("PLAYWRIGHT", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                playwrightOptions)).name());
+        assertEquals("WEBDRIVER", ((Enum<?>) invokeStatic(
+                "generationBackend",
+                new Class<?>[] {argumentsClass},
+                seleniumOptions)).name());
+
+        InvocationTargetException invalidBackend = assertThrows(InvocationTargetException.class,
+                () -> invokeStatic(
+                        "generationBackend",
+                        new Class<?>[] {argumentsClass},
+                        invalidOptions));
+        assertInstanceOf(IllegalArgumentException.class, invalidBackend.getCause());
+    }
+
+    @Test
+    void defaultLaunchPrefixRelaunchesViaArgFileToAvoidWindowsCommandLineLimit() throws Exception {
+        // A test JVM runs from a multi-entry classpath; passed inline via -cp instead of an
+        // @argfile, hundreds of runtime jar paths can exceed Windows' ~32K CreateProcess
+        // command-line limit ("The filename or extension is too long"), which fails the daemon
+        // relaunch before it starts -- gotcha.windows-jvm-launchers-must-pass-large-classpaths-via-a-java-argfile.
+        @SuppressWarnings("unchecked")
+        List<String> prefix = (List<String>) invokeStatic("defaultLaunchPrefix", new Class<?>[] {});
+
+        assertEquals(2, prefix.size());
+        String argsFileArgument = prefix.get(1);
+        assertTrue(argsFileArgument.startsWith("@"), "expected an @argfile launch, got: " + prefix);
+
+        String argsFileContent = java.nio.file.Files.readString(Path.of(argsFileArgument.substring(1)));
+        assertTrue(argsFileContent.contains("-cp"));
+        assertTrue(argsFileContent.contains(CaptureCli.class.getName()));
+    }
+
+    /**
+     * Issue #4029: the promoted, documented quick-start flow ({@code shaft-cli codegen} /
+     * {@code capture generate} with no {@code --replay}) must keep its exit-0 contract for scripts
+     * that grep {@code $?} -- but stdout must carry an unmissable line stating the result is
+     * UNCONFIRMED, since a skipped replay never proves the recorded scenario actually runs.
+     * Runs the CLI as a real child process: {@code CaptureCli}'s {@code OUTPUT}/{@code ERROR}
+     * writers bind directly to {@link java.io.FileDescriptor#out}/{@code err}, bypassing
+     * {@code System.out} entirely, so only a real process's captured stdout proves what a user
+     * actually sees.
+     */
+    @Test
+    void generateCommandExitsZeroButPrintsUnconfirmedWhenReplayIsSkipped() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+        Path output = temp.resolve("generated");
+
+        List<String> command = new ArrayList<>();
+        command.add(ProcessHandle.current().info().command().orElseThrow());
+        command.add("-cp");
+        command.add(System.getProperty("java.class.path"));
+        command.add(CaptureCli.class.getName());
+        command.add("generate");
+        command.add("--session");
+        command.add(session.toString());
+        command.add("--output-dir");
+        command.add(output.toString());
+
+        Process process = new ProcessBuilder(command)
+                .redirectErrorStream(true)
+                .start();
+        String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        boolean finished = process.waitFor(60, TimeUnit.SECONDS);
+
+        assertTrue(finished, "generate command did not finish in time: " + stdout);
+        assertEquals(0, process.exitValue(), "a skipped replay must keep the exit-0 quick-start contract: " + stdout);
+        assertTrue(stdout.contains("UNCONFIRMED"),
+                "stdout must loudly state the result is unconfirmed/not replay-verified: " + stdout);
+
+        // Issue #4225: whatever prints LAST is what stays visible in a real terminal without
+        // scrolling back. The JSON dump of CaptureGenerationReport is one large unstructured line,
+        // so the banner must come after it -- not before it -- to stay unmissable.
+        int jsonIndex = stdout.indexOf("{");
+        int bannerIndex = stdout.indexOf("UNCONFIRMED:");
+        assertTrue(jsonIndex >= 0, "expected a JSON result dump in stdout: " + stdout);
+        assertTrue(bannerIndex > jsonIndex,
+                "UNCONFIRMED banner must print AFTER the JSON dump so it's the last line a developer "
+                        + "sees without scrolling: " + stdout);
+    }
+
+    private static Path repositoryRoot() {
+        Path current = Path.of("").toAbsolutePath().normalize();
+        while (current != null) {
+            if (Files.isRegularFile(current.resolve("pom.xml")) && Files.isDirectory(current.resolve("shaft-capture"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("Repository root could not be resolved.");
+    }
+
+    private static Object invokeStatic(String methodName, Class<?>[] parameterTypes, Object... arguments)
+            throws Exception {
+        return invokeStatic(CaptureCli.class, methodName, parameterTypes, arguments);
+    }
+
+    private static Object invokeStatic(Class<?> type, String methodName, Class<?>[] parameterTypes, Object... arguments)
+            throws Exception {
+        Method method = type.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(null, arguments);
+    }
+
+    private static Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object... arguments)
+            throws Exception {
+        Method method = target.getClass().getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(target, arguments);
+    }
+
+    @Test
+    void loadStorageMissingFileFailsClosed() {
+        // Issue #5965 / S2-09: configured --load-storage path that is not a readable file fails closed.
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class, () -> invokeStatic(
+                "requireLoadStorageExists",
+                new Class<?>[] {String.class},
+                "target/missing-auth-storage-state-5965.json"));
+        Throwable cause = thrown.getCause();
+        assertInstanceOf(IllegalArgumentException.class, cause);
+        assertTrue(
+                cause.getMessage() != null && cause.getMessage().contains("fail closed"),
+                () -> "expected fail-closed message, got: " + cause);
+    }
+
+    @Test
+    void commandDispatchCoversStatusStopFeaturesAndClosedFailures() throws Exception {
+        Path runtime = temp.resolve("runtime");
+        assertEquals(1, CaptureCli.run(null, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {}, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {"nope"}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"features"}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"status", "--runtime-dir", runtime.toString()}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"stop", "--runtime-dir", runtime.toString()}, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "checkpoint", "--runtime-dir", runtime.toString(), "--kind", "NOT_A_KIND", "--description", "marker"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "checkpoint", "--runtime-dir", runtime.toString(), "--description", "marker"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "start", "--url", "https://example.test/", "--runtime-dir", runtime.toString(), "--browser", "firefox"
+        }, List.of("/bin/true")));
+        assertFalse(Files.isRegularFile(runtime.resolve("status.json")));
+    }
+
+    @Test
+    void startReturnsIncompleteWhenTheDaemonExitsBeforeControlIsActive() throws Exception {
+        Path runtime = temp.resolve("daemon-runtime");
+        Path profile = temp.resolve("profile");
+        CapturedCli captured = runCli(List.of("/bin/true"), new String[] {
+                "start",
+                "--url", "https://example.test/path",
+                "--runtime-dir", runtime.toString(),
+                "--browser", "chromium",
+                "--output", temp.resolve("capture.json").toString(),
+                "--headless",
+                "--viewport-size", "800,600",
+                "--device", "Pixel 7",
+                "--color-scheme", "dark",
+                "--geolocation", "1,2",
+                "--timezone", "UTC",
+                "--block-service-workers",
+                "--save-storage", temp.resolve("state.json").toString(),
+                "--save-har", temp.resolve("out.har").toString(),
+                "--save-har-glob", "**/*.json",
+                "--test-id-attribute", "data-test",
+                "--user-agent", "shaft-test",
+                "--user-data-dir", profile.toString(),
+                "--session-goal", "sign in",
+                "--target", "java",
+                "--lang", "en-US",
+                "--proxy-server", "http://127.0.0.1:9",
+                "--proxy-bypass", "localhost",
+                "--ignore-https-errors",
+                "--timeout", "1000",
+                "--channel", "chrome"
+        });
+
+        assertEquals(1, captured.exit(), captured.stdout() + captured.stderr());
+        assertTrue(captured.stdout().contains("\"INCOMPLETE\""), captured.stdout());
+        assertTrue(captured.stdout().contains("The recorder process is no longer reachable."), captured.stdout());
+        assertFalse(captured.stdout().contains("Managed browser startup timed out."), captured.stdout());
+        assertTrue(Files.isRegularFile(runtime.resolve("status.json")));
+        assertTrue(Files.readString(runtime.resolve("status.json")).contains("STARTING"));
+        assertTrue(Files.isRegularFile(runtime.resolve("daemon.log")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "start", "--url", "https://example.test/", "--runtime-dir", temp.resolve("empty-prefix").toString()
+        }, List.of()));
+    }
+
+    @Test
+    void daemonRejectsALaunchRequestForADifferentRuntime() throws Exception {
+        Path runtime = temp.resolve("control-runtime");
+        Path other = temp.resolve("other-runtime");
+        CaptureControlFiles files = new CaptureControlFiles(runtime);
+        Path requestFile = files.writeLaunchRequest(new CaptureStartRequest(
+                "https://example.test/",
+                CaptureBrowser.CHROME,
+                temp.resolve("out.json"),
+                other,
+                true));
+
+        CapturedCli captured = runCli(List.of("java"), new String[] {
+                "daemon",
+                "--runtime-dir", runtime.toString(),
+                "--request-file", requestFile.toString()
+        });
+
+        assertEquals(1, captured.exit(), captured.stderr());
+        assertTrue(captured.stderr().contains(
+                "SHAFT Capture command failed: Capture launch request runtime directory does not match."),
+                captured.stderr());
+        assertFalse(captured.stderr().contains("Managed browser startup failed."), captured.stderr());
+        assertFalse(Files.exists(requestFile));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "daemon", "--runtime-dir", runtime.toString(), "--request-file", temp.resolve("outside.json").toString()
+        }, List.of("java")));
+    }
+
+    @Test
+    void loadStorageBlankPathIsAllowed() throws Exception {
+        invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, "");
+        invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, (Object) null);
+    }
+
+    /**
+     * Capture writes branch messages through {@code FileDescriptor}, so a child process is the
+     * way to read the exact line without replacing {@code java.io} streams.
+     */
+    public static void main(String[] args) {
+        if (args.length == 0 || !"--capture-cli-test".equals(args[0])) {
+            return;
+        }
+        int count = Integer.parseInt(args[1]);
+        List<String> prefix = List.of(Arrays.copyOfRange(args, 2, 2 + count));
+        if (!"--".equals(args[2 + count])) {
+            throw new IllegalArgumentException("Capture CLI test child arguments are missing a separator.");
+        }
+        String[] captureArgs = Arrays.copyOfRange(args, 3 + count, args.length);
+        System.exit(CaptureCli.run(captureArgs, prefix));
+    }
+
+    private CapturedCli runCli(List<String> launchPrefix, String[] args) throws Exception {
+        Path argFile = temp.resolve("cli-" + System.nanoTime() + ".args");
+        Path stdout = temp.resolve("cli-" + System.nanoTime() + ".out");
+        Path stderr = temp.resolve("cli-" + System.nanoTime() + ".err");
+        StringBuilder body = new StringBuilder();
+        body.append("-cp").append(System.lineSeparator());
+        body.append(argFileQuote(System.getProperty("java.class.path"))).append(System.lineSeparator());
+        body.append(CaptureCliTest.class.getName()).append(System.lineSeparator());
+        body.append(argFileQuote("--capture-cli-test")).append(System.lineSeparator());
+        body.append(argFileQuote(Integer.toString(launchPrefix.size()))).append(System.lineSeparator());
+        for (String part : launchPrefix) {
+            body.append(argFileQuote(part)).append(System.lineSeparator());
+        }
+        body.append(argFileQuote("--")).append(System.lineSeparator());
+        for (String arg : args) {
+            body.append(argFileQuote(arg)).append(System.lineSeparator());
+        }
+        Files.writeString(argFile, body);
+        Process process = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "@" + argFile.toAbsolutePath())
+                .redirectOutput(stdout.toFile())
+                .redirectError(stderr.toFile())
+                .start();
+        if (!process.waitFor(45, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("capture CLI child did not exit\n"
+                    + Files.readString(stdout) + "\n" + Files.readString(stderr));
+        }
+        return new CapturedCli(process.exitValue(), Files.readString(stdout), Files.readString(stderr));
+    }
+
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+    }
+
+    private record CapturedCli(int exit, String stdout, String stderr) {
+    }
+
+}

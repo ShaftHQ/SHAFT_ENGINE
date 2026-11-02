@@ -1,0 +1,1 @@
+After a merge-commit PR, the local ChaosEngine/* tip is not an ancestor of origin/main, so `git branch -d` says 'not fully merged' even when `git rev-list --count origin/main..branch` is 0. Verify with rev-list count, then use `git branch -D`. Do not treat that as unique unmerged work. Seen 2026-08-17 cleaning Healenium/Grid increment branches after #5044/#5042.

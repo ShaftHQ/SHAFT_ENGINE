@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Data Design"
+  short_description: "Design safe deterministic test data"
+  default_prompt: "Use $shaft-test-data-design to define isolated, privacy-safe data for these test cases."

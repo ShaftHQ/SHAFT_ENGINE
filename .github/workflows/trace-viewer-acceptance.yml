@@ -1,0 +1,147 @@
+name: Trace Viewer Browser Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BidiRequestBodyAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/internal/image/SecretScreenshotAcceptanceTest.java"
+      - "shaft-engine/src/main/java/com/shaft/gui/internal/image/SecretScreenMask.java"
+      - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
+      - "shaft-engine/src/test/js/**"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerAllureAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
+      - "scripts/ci/assert_surefire_green.py"
+      - "tests/scripts/test_trace_provider_acceptance_workflow.py"
+      - ".github/workflows/trace-viewer-acceptance.yml"
+  push:
+    branches: [ main ]
+    paths:
+      - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BidiRequestBodyAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/internal/image/SecretScreenshotAcceptanceTest.java"
+      - "shaft-engine/src/main/java/com/shaft/gui/internal/image/SecretScreenMask.java"
+      - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
+      - "shaft-engine/src/test/js/**"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerAllureAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
+      - "scripts/ci/assert_surefire_green.py"
+      - "tests/scripts/test_trace_provider_acceptance_workflow.py"
+      - ".github/workflows/trace-viewer-acceptance.yml"
+
+permissions:
+  contents: read
+
+env:
+  ALLURE3_CLI_VERSION: "3.20.1"
+  ALLURE2_CLI_VERSION: "2.46.1"
+
+concurrency:
+  group: trace-viewer-acceptance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright-native-trace:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-test-env
+        with:
+          node-version: "20"
+      - name: Install reactor modules locally
+        # Sibling modules (e.g. allure-cucumber8-jvm) share the reactor version and are
+        # not always on Maven Central yet after a release bump; install them before
+        # resolving shaft-engine alone.
+        run: >-
+          mvn -pl shaft-engine -am install -DskipTests -Dgpg.skip
+          -Dallure.automaticallyOpen=false
+      - name: Install Playwright browser
+        run: >-
+          mvn -pl shaft-engine
+          org.codehaus.mojo:exec-maven-plugin:3.6.3:java
+          -Dexec.mainClass=com.microsoft.playwright.CLI
+          -Dexec.args="install --with-deps ${{ matrix.browser }}"
+          -Dallure.automaticallyOpen=false
+      - name: Run native trace parity acceptance
+        run: >-
+          mvn -pl shaft-engine
+          -Dtest=com.shaft.tools.io.internal.PlaywrightTraceParityAcceptanceTest
+          -Dsurefire.excludedGroups=
+          -Dshaft.trace.acceptance.browser=${{ matrix.browser }}
+          -Dallure.automaticallyOpen=false
+          -Dtelemetry.enabled=false
+          test
+      - name: Fail on acceptance test failures
+        # shaft-engine's Surefire profile sets testFailureIgnore=true, so `mvn test` exits 0
+        # even when the named acceptance test fails (issue #6769). Read the reports instead.
+        run: python3 scripts/ci/assert_surefire_green.py shaft-engine/target/surefire-reports --label "native trace parity (${{ matrix.browser }})"
+      - name: Upload native trace parity coverage
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-engine/target/jacoco/jacoco.xml
+          source-id: trace-viewer-native-${{ matrix.browser }}
+
+  chromium:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-test-env
+        with:
+          node-version: "20"
+      # Both CLIs live under ~/.m2/repository, which setup-test-env restores and saves, so they are
+      # downloaded once per cache and the Allure acceptance tests run instead of skipping (#6752).
+      - name: Install reactor modules locally
+        run: >-
+          mvn -pl shaft-engine -am install -DskipTests -Dgpg.skip
+          -Dallure.automaticallyOpen=false
+      - name: Provision the Allure 2 and Allure 3 CLIs
+        run: |
+          allure3="$HOME/.m2/repository/allure/allure-cli/${ALLURE3_CLI_VERSION}"
+          if [ ! -f "$allure3/node_modules/allure/cli.js" ]; then
+            mkdir -p "$allure3"
+            cp "scripts/ci/npm-pins/allure-${ALLURE3_CLI_VERSION}/package.json" "$allure3/package.json"
+            cp "scripts/ci/npm-pins/allure-${ALLURE3_CLI_VERSION}/package-lock.json" "$allure3/package-lock.json"
+            npm ci --prefix "$allure3" --ignore-scripts
+          fi
+          allure2="$HOME/.m2/repository/allure/allure2-cli/${ALLURE2_CLI_VERSION}"
+          if [ ! -x "$allure2/allure-${ALLURE2_CLI_VERSION}/bin/allure" ]; then
+            mkdir -p "$allure2"
+            curl -fsSL -o "$RUNNER_TEMP/allure2.zip" "https://repo1.maven.org/maven2/io/qameta/allure/allure-commandline/${ALLURE2_CLI_VERSION}/allure-commandline-${ALLURE2_CLI_VERSION}.zip"
+            unzip -q -o "$RUNNER_TEMP/allure2.zip" -d "$allure2"
+          fi
+      - name: Run offline trace viewer acceptance
+        run: >-
+          mvn -pl shaft-engine
+          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.tools.io.internal.TraceViewerAllureAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest,com.shaft.gui.browser.internal.BidiRequestBodyAcceptanceTest,com.shaft.gui.internal.image.SecretScreenshotAcceptanceTest
+          -Dsurefire.excludedGroups=
+          -Dshaft.allure.cli.version=${ALLURE3_CLI_VERSION}
+          -Dshaft.allure2.cli.version=${ALLURE2_CLI_VERSION}
+          -Dshaft.trace.viewer.chrome=/usr/bin/google-chrome
+          -Dshaft.trace.viewer.screenshot=target/trace-viewer-browser-acceptance.png
+          -Dallure.automaticallyOpen=false
+          -Dtelemetry.enabled=false
+          test
+      - name: Fail on acceptance test failures
+        # Same masking as above: Surefire ignores test failures, so assert on the reports (issue #6769).
+        run: python3 scripts/ci/assert_surefire_green.py shaft-engine/target/surefire-reports --label "offline trace viewer (chromium)"
+      - name: Upload offline trace viewer coverage
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-engine/target/jacoco/jacoco.xml
+          source-id: trace-viewer-offline-chromium

@@ -1,0 +1,1 @@
+The shared build-shaft-mcp-live-jar composite action runs under Bash -e. Keep its Maven install and dependency-copy pair inside an if condition; a bare `mvn && mvn; status=$?` exits on a failing second command before retry. Behavioral tests must cover retry after the second command fails and final failure propagation.

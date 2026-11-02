@@ -1,0 +1,2332 @@
+package com.shaft.gui.element;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
+import com.shaft.driver.internal.FluentWebDriverAction;
+import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.MobileSessionStateManager;
+import com.shaft.gui.element.internal.AndroidNestedScroll;
+import com.shaft.gui.element.internal.IosScrollView;
+import com.shaft.gui.element.internal.ScrollMotion;
+import com.shaft.gui.element.internal.WebScroll;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingResolution;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ImageCoordinateMapper;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.internal.ocr.OcrWebDriverPointerActions;
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.ocr.OcrTarget;
+import com.shaft.gui.ocr.OcrRectangle;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.internal.WebDriverElementValidationsBuilder;
+import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.Setting;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
+import io.appium.java_client.flutter.SupportsFlutterCameraMocking;
+import io.appium.java_client.flutter.SupportsGestureOnFlutterElements;
+import io.appium.java_client.flutter.SupportsWaitingForFlutterElements;
+import io.appium.java_client.flutter.commands.DoubleClickParameter;
+import io.appium.java_client.flutter.commands.DragAndDropParameter;
+import io.appium.java_client.flutter.commands.LongPressParameter;
+import io.appium.java_client.flutter.commands.ScrollParameter;
+import io.appium.java_client.flutter.commands.WaitParameter;
+import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.*;
+import org.openqa.selenium.remote.RemoteWebElement;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.Arrays;
+
+import static java.util.Arrays.asList;
+import javax.annotation.Nullable;
+
+/**
+ * Provides touch and gesture actions for mobile test automation, including
+ * tap, swipe, pinch, and scroll operations on Android and iOS devices.
+ *
+ * <p>This class extends {@link FluentWebDriverAction} and supports method
+ * chaining for fluent test composition. It works with Appium drivers for
+ * native, hybrid, and mobile-web applications.
+ *
+ * <p><b>Usage example:</b>
+ * <pre>{@code
+ * driver.touch().swipeElementIntoView(targetLocator, TouchActions.SwipeDirection.DOWN)
+ *       .and().element().assertThat(targetLocator).isVisible();
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.GUI.WebDriver#touch()
+ */
+@SuppressWarnings({"unused", "UnusedReturnValue"})
+public class TouchActions extends FluentWebDriverAction {
+    private Boolean appiumImagesAvailable;
+    /**
+     * Creates touch actions for the current driver of this thread.
+     */
+    public TouchActions() {
+        initialize();
+    }
+
+    /**
+     * Creates touch actions for the given driver.
+     */
+    public TouchActions(WebDriver driver) {
+        initialize(driver);
+    }
+
+    /**
+     * Creates touch actions for the driver managed by the given helper.
+     */
+    public TouchActions(DriverFactoryHelper helper) {
+        initialize(helper);
+    }
+
+    @Override
+    public TouchActions and() {
+        return this;
+    }
+
+    /**
+     * Starts a hard assertion on the located element.
+     */
+    public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
+        return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).element(elementLocator);
+    }
+
+    /**
+     * Starts a soft verification on the located element.
+     */
+    public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
+        return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
+    }
+
+    /**
+     * Sends a key-press via the device soft keyboard.
+     *
+     * @param key the key that should be pressed
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
+        String testData = String.valueOf(key);
+        try {
+            if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
+                new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(false).until(d -> {
+                    boolean isKeyboardShown = Boolean.parseBoolean(String.valueOf(javascriptExecutor.executeScript("mobile: isKeyboardShown")));
+                    if (isKeyboardShown)
+                        javascriptExecutor.executeScript("mobile: performEditorAction", key.getValue());
+                    return isKeyboardShown;
+                });
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Sends a key-press via the device soft keyboard.
+     *
+     * @param key the key name that should be pressed
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the key name is blank or unsupported
+     */
+    public TouchActions nativeKeyboardKeyPress(String key) {
+        return nativeKeyboardKeyPress(enumValue(KeyboardKeys.class, key, "key"));
+    }
+
+    /**
+     * Hides the device native soft keyboard.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions hideNativeKeyboard() {
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.hideKeyboard();
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                hideIosKeyboard(iosDriver);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+        return this;
+    }
+
+    private static void hideIosKeyboard(IOSDriver iosDriver) {
+        try {
+            iosDriver.hideKeyboard();
+            return;
+        } catch (Exception hideKeyboardException) {
+            for (Object args : Arrays.asList(
+                    null,
+                    Map.of("keys", List.of("Done")),
+                    Map.of("keys", List.of("Return")))) {
+                try {
+                    if (args == null) {
+                        iosDriver.executeScript("mobile: hideKeyboard");
+                    } else {
+                        iosDriver.executeScript("mobile: hideKeyboard", args);
+                    }
+                    return;
+                } catch (Exception fallback) {
+                    hideKeyboardException.addSuppressed(fallback);
+                }
+            }
+            try {
+                if (!iosDriver.isKeyboardShown()) {
+                    return;
+                }
+            } catch (Exception shown) {
+                hideKeyboardException.addSuppressed(shown);
+            }
+            if (hideKeyboardException instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Failed to hide the iOS keyboard.", hideKeyboardException);
+        }
+    }
+
+    /**
+     * Taps an element once on a touch-enabled screen
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions tap(String elementReferenceScreenshot) {
+        // Wait for element presence and get the needed data
+        var objects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) objects.get(0);
+        byte[] referenceImage = (byte[]) objects.get(1);
+        List<Integer> coordinates = (List<Integer>) objects.get(2);
+
+        // Prepare screenshots for reporting
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "tap - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "tap - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        // If coordinates are empty then OpenCV couldn't find the element on screen
+        if (Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+        } else {
+            // Perform tap action by coordinates
+            try {
+                performCoordinateTap(coordinates);
+            } catch (UnsupportedCommandException exception) {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(),
+                        "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates,
+                        null, exception);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(),
+                    "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates, attachments, null);
+        }
+        return this;
+    }
+
+    /**
+     * Taps a screenshot target. On Appium sessions prefer Appium Images (element click in
+     * driver coordinates) before OpenCV+scale mapping — BrowserStack iOS/Android window size
+     * vs screenshot pixels still drifts after #5778.
+     */
+    public TouchActions tap(ImageTarget target) {
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+                try {
+                    if (tapUsingAppiumImages(target)) {
+                        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                                Thread.currentThread().getStackTrace()[1].getMethodName(), "typed image target", null, null);
+                        return this;
+                    }
+                } catch (RuntimeException imagesProbeFailed) {
+                    ReportManager.logDiscrete("Appium Images probe failed; falling back to local visual match.");
+                }
+            }
+            byte[] screenshot = new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver());
+            Optional<ImageMatch> match = findLocalImage(target, screenshot);
+            if (match.isPresent()) {
+                performCoordinateTap(mapImageCoordinates(match.orElseThrow(), screenshot));
+            } else {
+                throw new IllegalStateException("Image target was not found by OpenCV or Appium Images.");
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), "typed image target", null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "typed image target", null, throwable);
+        }
+        return this;
+    }
+
+    /** Taps visible text resolved from a screenshot by the configured OCR provider. */
+    public TouchActions tap(OcrTarget target) {
+        try {
+            OcrWebDriverPointerActions.click(driverFactoryHelper.getDriver(), target);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), "OCR target=" + target.expectedText(), null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "OCR target=" + target.expectedText(), null, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Taps an element found by reference image, then types into the active field.
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param text                       one or more {@link CharSequence} values to type into the focused element
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions type(String elementReferenceScreenshot, CharSequence... text) {
+        var objects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) objects.get(0);
+        byte[] referenceImage = (byte[]) objects.get(1);
+        List<Integer> coordinates = (List<Integer>) objects.get(2);
+
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "type - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "type - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+        } else {
+            String testData = "referenceImage=" + elementReferenceScreenshot + ", coordinates=" + coordinates;
+            try {
+                performCoordinateTap(coordinates);
+                new Actions(driverFactoryHelper.getDriver()).sendKeys(text).perform();
+            } catch (Exception exception) {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, exception);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, attachments, null);
+        }
+        return this;
+    }
+
+    /**
+     * Taps an element once on a touch-enabled screen
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions tap(By elementLocator) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).click(elementLocator);
+        return this;
+    }
+
+    /**
+     * Taps viewport coordinates once on a touch-enabled screen.
+     *
+     * @param x viewport x coordinate
+     * @param y viewport y coordinate
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions tapByCoordinates(int x, int y) {
+        String testData = "x=" + x + ", y=" + y;
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence tap = new Sequence(finger, 0);
+        tap.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), x, y));
+        tap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        tap.addAction(new Pause(finger, Duration.ofMillis(100)));
+        tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        try {
+            ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Double-Taps an element on a touch-enabled screen
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions doubleTap(By elementLocator) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).doubleClick(elementLocator);
+        return this;
+    }
+
+    /**
+     * Performs a long-tap on an element to trigger the context menu on a
+     * touch-enabled screen
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions longTap(By elementLocator) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).clickAndHold(elementLocator);
+        return this;
+    }
+
+    /**
+     * Send the currently active app to the background, and return after a certain number of seconds.
+     *
+     * @param secondsToSpendInTheBackground number of seconds before returning to the app
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
+        String testData = "seconds=" + secondsToSpendInTheBackground;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Send the currently active app to the background and leave the app deactivated.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions sendAppToBackground() {
+        return sendAppToBackground(-1);
+    }
+
+    /**
+     * Activates an app that has been previously deactivated or sent to the background.
+     *
+     * @param appPackageName the full name for the app package that you want to activate. for example [com.apple.Preferences] or [io.appium.android.apis]
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions activateAppFromBackground(String appPackageName) {
+        String testData = "appId=" + appPackageName;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.activateApp(appPackageName);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.activateApp(appPackageName);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Uploads a file to the device or simulator/emulator. This is particularly useful for BrowserStack
+     * and other cloud-based mobile testing platforms that require files to be uploaded to the device
+     * before they can be used in tests (e.g., for file upload scenarios, camera roll testing, etc.).
+     * <p>
+     * For Android: Uploads the file to the device's external storage or specified path.
+     * For iOS: Uploads the file to the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath the absolute path where the file should be stored on the device.
+     *                       For Android example: "/sdcard/Download/sample.pdf" or "@com.example.app:id/files/sample.pdf"
+     *                       For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFilePath  the absolute or relative path to the file on the local machine that should be uploaded
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pushFile(String deviceFilePath, String localFilePath) {
+        try {
+            File localFile = new File(localFilePath);
+            if (!localFile.exists()) {
+                throw new IOException("Local file not found: " + localFile.getAbsolutePath());
+            }
+            
+            byte[] fileContent = Files.readAllBytes(localFile.toPath());
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.pushFile(deviceFilePath, fileContent);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.pushFile(deviceFilePath, fileContent);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Uploads a file to the device or simulator/emulator using a File object. This is particularly useful for BrowserStack
+     * and other cloud-based mobile testing platforms that require files to be uploaded to the device
+     * before they can be used in tests (e.g., for file upload scenarios, camera roll testing, etc.).
+     * <p>
+     * For Android: Uploads the file to the device's external storage or specified path.
+     * For iOS: Uploads the file to the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath the absolute path where the file should be stored on the device.
+     *                       For Android example: "/sdcard/Download/sample.pdf" or "@com.example.app:id/files/sample.pdf"
+     *                       For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFile      the File object representing the file on the local machine that should be uploaded
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pushFile(String deviceFilePath, File localFile) {
+        try {
+            if (!localFile.exists()) {
+                throw new IOException("Local file not found: " + localFile.getAbsolutePath());
+            }
+            
+            byte[] fileContent = Files.readAllBytes(localFile.toPath());
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.pushFile(deviceFilePath, fileContent);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.pushFile(deviceFilePath, fileContent);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Downloads a file from the device or simulator/emulator to the local machine. This is useful for
+     * retrieving files that were generated or modified during test execution on mobile devices.
+     * <p>
+     * For Android: Downloads the file from the device's file system.
+     * For iOS: Downloads the file from the app's sandbox container.
+     * <p>
+     * Note: The file path on the device and the actual behavior may vary depending on the platform
+     * and testing environment (local Appium vs BrowserStack vs other cloud providers).
+     *
+     * @param deviceFilePath    the absolute path to the file on the device that should be downloaded.
+     *                          For Android example: "/sdcard/Download/sample.pdf"
+     *                          For iOS example: "@com.example.app/Documents/sample.pdf"
+     * @param localFilePath     the absolute or relative path where the downloaded file should be saved on the local machine
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pullFile(String deviceFilePath, String localFilePath) {
+        try {
+            byte[] fileContent;
+            
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                fileContent = androidDriver.pullFile(deviceFilePath);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                fileContent = iosDriver.pullFile(deviceFilePath);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null);
+                return this;
+            }
+            
+            File localFile = new File(localFilePath);
+            File parentDir = localFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                Files.createDirectories(parentDir.toPath());
+            }
+            
+            Files.write(localFile.toPath(), fileContent);
+            
+            String testData = "Device Path: \"" + deviceFilePath + "\", Local File: \"" + localFile.getAbsolutePath() + "\"";
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Swipes the sourceElement onto the destinationElement on a touch-enabled
+     * screen
+     *
+     * @param sourceElementLocator      the locator of the webElement that needs to
+     *                                  be swiped (By xpath, id, selector, name
+     *                                  ...etc.)
+     * @param destinationElementLocator the locator of the webElement that you'll
+     *                                  drop the sourceElement on (By xpath, id,
+     *                                  selector, name ...etc.)
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeToElement(By sourceElementLocator, By destinationElementLocator) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDrop(sourceElementLocator, destinationElementLocator);
+        return this;
+    }
+
+    /**
+     * Swipes an element with the desired x and y offset. Swiping direction is
+     * determined by the positive/negative nature of the offset. Swiping destination
+     * is determined by the value of the offset.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc.)
+     * @param xOffset        the horizontal offset by which the element should be
+     *                       swiped. positive value is "right" and negative value is
+     *                       "left"
+     * @param yOffset        the vertical offset by which the element should be
+     *                       swiped. positive value is "down" and negative value is
+     *                       "up"
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
+        new com.shaft.gui.element.internal.Actions(driverFactoryHelper).dragAndDropByOffset(elementLocator, xOffset, yOffset);
+        return this;
+    }
+
+    /**
+     * Swipes between viewport coordinates on a touch-enabled screen.
+     *
+     * @param startX starting viewport x coordinate
+     * @param startY starting viewport y coordinate
+     * @param endX ending viewport x coordinate
+     * @param endY ending viewport y coordinate
+     * @param durationMillis swipe duration in milliseconds
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeByCoordinates(int startX, int startY, int endX, int endY, int durationMillis) {
+        String testData = "startX=" + startX + ", startY=" + startY + ", endX=" + endX
+                + ", endY=" + endY + ", durationMillis=" + Math.max(durationMillis, 100);
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence swipe = new Sequence(finger, 0);
+        swipe.addAction(finger.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), startX, startY));
+        swipe.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        swipe.addAction(finger.createPointerMove(Duration.ofMillis(Math.max(durationMillis, 100)),
+                PointerInput.Origin.viewport(), endX, endY));
+        swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        try {
+            ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(swipe));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     *
+     * @param targetElementLocator the locator of the webElement under test (By xpath, id,
+     *                             selector, name ...etc.)
+     * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection) {
+        return swipeElementIntoView(null, targetElementLocator, swipeDirection);
+    }
+
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     *
+     * @param targetElementLocator the locator of the target element
+     * @param swipeDirection       swipe direction name: DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the swipe direction is blank or unsupported
+     */
+    public TouchActions swipeElementIntoView(By targetElementLocator, String swipeDirection) {
+        return swipeElementIntoView(targetElementLocator,
+                enumValue(SwipeDirection.class, swipeDirection, "swipeDirection"));
+    }
+
+    /**
+     * Swipes until the current view can no longer scroll in the requested direction.
+     *
+     * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeToEndOfView(SwipeDirection swipeDirection) {
+        return swipeToEndOfView(null, swipeDirection);
+    }
+
+    /**
+     * Swipes inside a scrollable element until it can no longer scroll in the requested direction.
+     *
+     * @param scrollableElementLocator the locator of the scrollable element, or {@code null} for the whole view
+     * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeToEndOfView(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        String testData = "direction=" + swipeDirection;
+        try {
+            swipeToEndOfViewInternal(scrollableElementLocator, swipeDirection);
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), scrollableElementLocator,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, scrollableElementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Waits until a specific element is now visible on the current screen
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot) {
+        var visualIdentificationObjects = elementActionsHelper.waitForElementPresence(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+        byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+        List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+        // prepare attachments
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "waitUntilElementIsVisible - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "waitUntilElementIsVisible - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (!Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+        } else {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \"" + elementReferenceScreenshot + "\".", null, attachments);
+        }
+        return this;
+    }
+
+    /**
+     * Waits until a specific reference image is no longer visible on the current screen.
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions waitUntilElementIsNotVisible(String elementReferenceScreenshot) {
+        var visualIdentificationObjects = elementActionsHelper.waitForElementInvisibility(driverFactoryHelper.getDriver(), elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+        byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+        List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+        var screenshotManager = new ScreenshotManager();
+        var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "waitUntilElementIsNotVisible - Current Screen Image");
+        var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "waitUntilElementIsNotVisible - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (Collections.emptyList().equals(coordinates)) {
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+        } else {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(),
+                    "Reference element is still visible on the current screen or the reference image is missing: \""
+                            + elementReferenceScreenshot + "\".",
+                    null, attachments);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param swipeDirection             SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String elementReferenceScreenshot, SwipeDirection swipeDirection) {
+        return swipeElementIntoView(null, elementReferenceScreenshot, swipeDirection);
+    }
+
+    /** Scrolls in any supported direction until a screenshot target is visible. */
+    public TouchActions swipeElementIntoView(ImageTarget target, SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(null, target, null, swipeDirection);
+    }
+
+    /** Scrolls inside a container in any supported direction until a screenshot target is visible. */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, ImageTarget target,
+                                             SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(scrollableElementLocator, target, null, swipeDirection);
+    }
+
+    /** Scrolls in any supported direction until OCR resolves the requested visible text. */
+    public TouchActions swipeElementIntoView(OcrTarget target, SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(null, null, target, swipeDirection);
+    }
+
+    /** Scrolls inside a container in any supported direction until OCR resolves the visible text. */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, OcrTarget target,
+                                             SwipeDirection swipeDirection) {
+        return swipeImageOrTextIntoView(scrollableElementLocator, null, target, swipeDirection);
+    }
+
+    private TouchActions swipeImageOrTextIntoView(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                                   SwipeDirection swipeDirection) {
+        try {
+            ImageSearchCursor cursor = new ImageSearchCursor(swipeDirection, ocrTarget != null);
+            for (int attempt = 0; attempt < cursor.maxAttempts; attempt++) {
+                if (imageSearchFound(scrollableElementLocator, imageTarget, ocrTarget, swipeDirection, cursor)) {
+                    elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                            Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
+                    return this;
+                }
+                if (advanceImageSearch(scrollableElementLocator, imageTarget, ocrTarget, cursor)) {
+                    break;
+                }
+            }
+            throw new IllegalStateException(imageSearchMiss(cursor.lastOcrMiss));
+        } catch (Throwable throwable) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
+            return this;
+        }
+    }
+
+    private boolean imageSearchFound(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
+        cursor.remember(frame, scrollableElementLocator);
+        if (imageTarget != null) {
+            return imageTargetInFrame(frame, scrollableElementLocator, imageTarget);
+        }
+        return ocrTargetInFrame(frame, scrollableElementLocator, ocrTarget, swipeDirection, cursor);
+    }
+
+    private boolean imageTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, ImageTarget imageTarget) {
+        byte[] screenshot = frame.screenshot();
+        ImageTarget effective = frame.containerLocal()
+                ? imageTarget
+                : constrainToContainer(imageTarget, scrollableElementLocator, screenshot);
+        if (ImageProcessingActions.isUniqueImageTargetInView(effective, screenshot)) {
+            return true;
+        }
+        return !frame.containerLocal() && findUsingAppiumImages(effective).isPresent();
+    }
+
+    private boolean ocrTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        byte[] screenshot = frame.screenshot();
+        OcrTarget effective = frame.containerLocal()
+                ? ocrTarget
+                : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot);
+        cursor.lastOcrMiss = ocrFindMiss(effective, screenshot, swipeDirection);
+        if (cursor.lastOcrMiss != null) {
+            return false;
+        }
+        if (displayedExactText(ocrTarget.expectedText())) {
+            return true;
+        }
+        // A container screenshot can OCR a clipped or misread label while the
+        // real text node is still off-screen (Android horizontal TAB 1).
+        cursor.lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
+                + "\" but no displayed element has that exact text.";
+        return false;
+    }
+
+    /**
+     * @return true when this attempt is the scroll boundary and the search must stop
+     */
+    private boolean advanceImageSearch(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                       ImageSearchCursor cursor) {
+        if (cursor.noteStableFrame()) {
+            return true;
+        }
+        boolean moved = performImageScrollStep(scrollableElementLocator, cursor.activeDirection, cursor.firstAttempt);
+        if (cursor.recordMotion(moved, imageTarget, ocrTarget)) {
+            return true;
+        }
+        cursor.firstAttempt = false;
+        return !ImageSearchCursor.pauseForViewport();
+    }
+
+    private static String imageSearchMiss(String lastOcrMiss) {
+        String miss = "Target was not found before the view reached its scroll boundary.";
+        if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
+            miss += " " + lastOcrMiss;
+        }
+        return miss;
+    }
+
+    private final class ImageSearchCursor {
+        private int[] previousPixels;
+        private int[] currentPixels;
+        private int stableFrames;
+        private String lastOcrMiss;
+        private SwipeDirection activeDirection;
+        private boolean movedEarlier;
+        private boolean oppositeTried;
+        private boolean firstAttempt = true;
+        private final int maxAttempts;
+        private final int maxStableFrames;
+
+        private ImageSearchCursor(SwipeDirection direction, boolean ocr) {
+            activeDirection = direction;
+            maxAttempts = ocr ? 50 : 30;
+            maxStableFrames = ocr ? 8 : 2;
+        }
+
+        private void remember(ContainerSearchFrame frame, By scrollableElementLocator) {
+            byte[] screenshot = frame.screenshot();
+            currentPixels = frame.containerLocal()
+                    ? screenshotPixels(screenshot)
+                    : stablePixels(screenshot, scrollableElementLocator);
+        }
+
+        private boolean noteStableFrame() {
+            stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
+                    ? stableFrames + 1 : 0;
+            if (stableFrames >= maxStableFrames) {
+                return true;
+            }
+            previousPixels = currentPixels;
+            return false;
+        }
+
+        /**
+         * @return true when a no-move with no visual target is the boundary.
+         *         A no-op while a target still exists switches to the opposite direction instead.
+         */
+        private boolean recordMotion(boolean moved, ImageTarget imageTarget, OcrTarget ocrTarget) {
+            ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier, oppositeTried);
+            if (moved) {
+                movedEarlier = true;
+            }
+            if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                activeDirection = ScrollMotion.opposite(activeDirection);
+                oppositeTried = true;
+                return false;
+            }
+            return !moved && imageTarget == null && (ocrTarget == null || lastOcrMiss == null);
+        }
+
+        private static boolean pauseForViewport() {
+            try {
+                Thread.sleep(1000);
+                return true;
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+    }
+
+    private ContainerSearchFrame captureSwipeSearchFrame(By scrollableElementLocator) {
+        if (scrollableElementLocator != null) {
+            try {
+                Object identified = elementActionsHelper.identifyUniqueElement(
+                        driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                if (identified instanceof WebElement element) {
+                    byte[] elementScreenshot = element.getScreenshotAs(OutputType.BYTES);
+                    if (elementScreenshot != null && elementScreenshot.length > 0) {
+                        return new ContainerSearchFrame(elementScreenshot, true);
+                    }
+                }
+            } catch (RuntimeException ignored) {
+                ReportManager.logDiscrete("Container element screenshot unavailable; using viewport for visual/OCR swipe search.");
+            }
+        }
+        return new ContainerSearchFrame(
+                new ScreenshotManager().takeViewportScreenshot(driverFactoryHelper.getDriver()), false);
+    }
+
+    private int[] screenshotPixels(byte[] screenshotBytes) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            if (screenshot == null) {
+                throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            }
+            return screenshot.getRGB(0, 0, screenshot.getWidth(), screenshot.getHeight(), null, 0, screenshot.getWidth());
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private record ContainerSearchFrame(byte[] screenshot, boolean containerLocal) {
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
+     *
+     * @param scrollableElementLocator   the locator of the container/view/scrollable webElement that the scroll action will be performed inside
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param swipeDirection             SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    @SuppressWarnings("unchecked")
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, String elementReferenceScreenshot, SwipeDirection swipeDirection) {
+        // Prepare attachments for reporting
+        List<List<Object>> attachments = new LinkedList<>();
+        try {
+            //noinspection CaughtExceptionImmediatelyRethrown
+            try {
+                var visualIdentificationObjects = attemptToSwipeElementIntoViewByImage(scrollableElementLocator, elementReferenceScreenshot, swipeDirection);
+                byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+                byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+                List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+                // prepare attachments
+                var screenshotManager = new ScreenshotManager();
+                var screenshot = screenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                var referenceScreenshot = screenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                attachments = new LinkedList<>();
+                attachments.add(referenceScreenshot);
+                attachments.add(screenshot);
+
+                // If coordinates are empty then OpenCV couldn't find the element on screen
+                if (Collections.emptyList().equals(coordinates)) {
+                    elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+                }
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
+            } catch (RuntimeException runtimeException) {
+                // issue #4341: ElementActionsHelper#failAction (called above on the empty-coordinates
+                // branch) now throws RuntimeException instead of AssertionError -- bubble it up as-is
+                // instead of falling into the generic Exception handler below and re-reporting/re-wrapping
+                // an already-reported failure a redundant extra time.
+                throw runtimeException;
+            } catch (Exception exception) {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), scrollableElementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios
+     *
+     * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
+     * @param targetElementLocator     the locator of the webElement that you want to scroll to under test (By xpath, id,
+     *                                 selector, name ...etc.)
+     * @param swipeDirection           SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
+        // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condition become 'OR' not 'AND'
+        String testData = "direction=" + swipeDirection;
+        try {
+            try {
+                if (driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver) {
+                    // appium native application
+                    boolean isElementFound = targetElementLocator instanceof AppiumBy.FlutterBy flutterTarget
+                            ? attemptFlutterScrollTillVisible(appiumDriver, flutterTarget, scrollableElementLocator, swipeDirection)
+                            : attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
+                    if (!isElementFound) {
+                        elementActionsHelper.failAction(appiumDriver, testData, targetElementLocator);
+                    }
+                } else {
+                    // regular touch screen device
+                    WebElement targetElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), targetElementLocator).get(1);
+                    WebElement containerElement = scrollableElementLocator == null ? null
+                            : (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                    if (!WebScroll.scrollIntoView(driverFactoryHelper.getDriver(), targetElement, containerElement)) {
+                        throw new IllegalStateException("Element is still outside the viewport after scrolling.");
+                    }
+                }
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } catch (UnsupportedCommandException unsupportedCommandException) {
+                throw unsupportedCommandException;
+            } catch (Exception e) {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator, e);
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, scrollableElementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using androidUIAutomator
+     *
+     * @param targetText element text to be used to swipe it into view
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String targetText) {
+        String testData = "targetText=" + targetText + ", movement=VERTICAL";
+        try {
+            ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                    + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Throwable rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using androidUIAutomator
+     *
+     * @param targetText element text to be used to swipe it into view
+     * @param movement   SwipeMovement.VERTICAL or HORIZONTAL
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String targetText, SwipeMovement movement) {
+        String testData = "targetText=" + targetText + ", movement=" + movement;
+        try {
+            switch (movement) {
+                case VERTICAL:
+                    ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                            + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+                    break;
+                case HORIZONTAL:
+                    ElementActionsHelper.safeFindElement(driverFactoryHelper.getDriver(), AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).setAsHorizontalList().scrollIntoView("
+                            + "new UiSelector().textContains(\"" + targetText + "\"));"));
+                    break;
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Throwable rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll Android text into view using androidUIAutomator.
+     *
+     * @param targetText target text to be used to swipe it into view
+     * @param movement   swipe movement name: VERTICAL or HORIZONTAL
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the movement is blank or unsupported
+     */
+    public TouchActions swipeElementIntoView(String targetText, String movement) {
+        return swipeElementIntoView(targetText, enumValue(SwipeMovement.class, movement, "movement"));
+    }
+
+    /**
+     * Rotate between portrait and landscape modes
+     *
+     * @param orientation ScreenOrientation.LANDSCAPE or PORTRAIT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions rotate(ScreenOrientation orientation) {
+        String testData = "orientation=" + orientation;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver) {
+                androidDriver.rotate(orientation);
+            } else if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+                iosDriver.rotate(orientation);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+            elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                    Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Rotate between portrait and landscape modes.
+     *
+     * @param orientation orientation name: PORTRAIT or LANDSCAPE
+     * @return a self-reference to be used to chain actions
+     * @throws IllegalArgumentException when the orientation is blank or unsupported
+     */
+    public TouchActions rotate(String orientation) {
+        return rotate(enumValue(ScreenOrientation.class, orientation, "orientation"));
+    }
+
+    /**
+     * Waits for a Flutter widget to become visible, using {@link SupportsWaitingForFlutterElements#waitForVisible}
+     * against the Flutter integration driver's own widget tree -- unlike native visibility waits, this works
+     * against a bare FlutterView with no native scrollable/overlay. Requires both a Flutter integration driver
+     * session and an {@link AppiumBy.FlutterBy} locator; anything else fails the action.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForVisible(By elementLocator) {
+        return waitForVisible(elementLocator, null);
+    }
+
+    /**
+     * Waits for a Flutter widget to become visible within the given timeout, using
+     * {@link SupportsWaitingForFlutterElements#waitForVisible}.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @param timeout        the maximum duration to wait, or {@code null} to use the Flutter driver default
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForVisible(By elementLocator, Duration timeout) {
+        String testData = "locator=" + elementLocator + (timeout != null ? ", timeout=" + timeout : "");
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsWaitingForFlutterElements flutterDriver
+                    && elementLocator instanceof AppiumBy.FlutterBy flutterLocator) {
+                var parameter = new WaitParameter().setLocator(flutterLocator);
+                if (timeout != null) {
+                    parameter.setTimeout(timeout);
+                }
+                flutterDriver.waitForVisible(parameter);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Waits for a Flutter widget to become absent, using {@link SupportsWaitingForFlutterElements#waitForInVisible}
+     * against the Flutter integration driver's own widget tree. Requires both a Flutter integration driver
+     * session and an {@link AppiumBy.FlutterBy} locator; anything else fails the action.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForAbsent(By elementLocator) {
+        return waitForAbsent(elementLocator, null);
+    }
+
+    /**
+     * Waits for a Flutter widget to become absent within the given timeout, using
+     * {@link SupportsWaitingForFlutterElements#waitForInVisible}.
+     *
+     * @param elementLocator an {@link AppiumBy.FlutterBy} locator identifying the target Flutter widget
+     * @param timeout        the maximum duration to wait, or {@code null} to use the Flutter driver default
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitForAbsent(By elementLocator, Duration timeout) {
+        String testData = "locator=" + elementLocator + (timeout != null ? ", timeout=" + timeout : "");
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsWaitingForFlutterElements flutterDriver
+                    && elementLocator instanceof AppiumBy.FlutterBy flutterLocator) {
+                var parameter = new WaitParameter().setLocator(flutterLocator);
+                if (timeout != null) {
+                    parameter.setTimeout(timeout);
+                }
+                flutterDriver.waitForInVisible(parameter);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native double-click on the target widget, using
+     * {@link SupportsGestureOnFlutterElements#performDoubleClick}. Unlike {@link #doubleTap(By)}, this drives
+     * Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param elementLocator the locator of the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performDoubleClick(By elementLocator) {
+        String testData = "locator=" + elementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement element = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1);
+                flutterDriver.performDoubleClick(new DoubleClickParameter().setElement(element));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native long-press on the target widget, using
+     * {@link SupportsGestureOnFlutterElements#performLongPress}. Unlike {@link #longTap(By)}, this drives
+     * Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param elementLocator the locator of the target Flutter widget
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performLongPress(By elementLocator) {
+        String testData = "locator=" + elementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement element = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), elementLocator).get(1);
+                flutterDriver.performLongPress(new LongPressParameter().setElement(element));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), elementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, elementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Performs a Flutter-native drag-and-drop between two widgets, using
+     * {@link SupportsGestureOnFlutterElements#performDragAndDrop}. Unlike {@link #swipeToElement(By, By)}, this
+     * drives Flutter's own synthetic gesture command instead of native touch events, so it works against a bare
+     * FlutterView. Requires a Flutter integration driver session; anything else fails the action.
+     *
+     * @param sourceElementLocator the locator of the widget to drag
+     * @param targetElementLocator the locator of the widget to drop onto
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions performDragAndDrop(By sourceElementLocator, By targetElementLocator) {
+        String testData = "source=" + sourceElementLocator + ", target=" + targetElementLocator;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsGestureOnFlutterElements flutterDriver) {
+                WebElement source = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), sourceElementLocator).get(1);
+                WebElement target = (WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1);
+                flutterDriver.performDragAndDrop(new DragAndDropParameter(source, target));
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, targetElementLocator, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Injects a mock camera image into the Flutter application, using
+     * {@link SupportsFlutterCameraMocking#injectMockImage(File)}. Useful for QR/scanner flow testing. Requires a
+     * Flutter integration driver session; anything else fails the action and returns {@code null}.
+     * <p>
+     * Intentionally breaks the fluent chain (like {@link com.shaft.gui.element.AlertActions#getAlertText()}):
+     * the returned image id is required by {@link #activateInjectedImage(String)}.
+     *
+     * @param image the image file to inject (must be in PNG format)
+     * @return a unique id for the injected image, or {@code null} if the action failed
+     */
+    public String injectMockImage(File image) {
+        String testData = "image=" + image;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsFlutterCameraMocking flutterDriver) {
+                String imageId = flutterDriver.injectMockImage(image);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+                return imageId;
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+                return null;
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+            return null;
+        }
+    }
+
+    /**
+     * Activates a previously injected mock camera image, using
+     * {@link SupportsFlutterCameraMocking#activateInjectedImage(String)}. Requires a Flutter integration driver
+     * session; anything else fails the action.
+     *
+     * @param imageId the id returned by {@link #injectMockImage(File)}
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions activateInjectedImage(String imageId) {
+        String testData = "imageId=" + imageId;
+        try {
+            if (driverFactoryHelper.getDriver() instanceof SupportsFlutterCameraMocking flutterDriver) {
+                flutterDriver.activateInjectedImage(imageId);
+                elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
+                        Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+            } else {
+                elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null);
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Saves the active Appium session capabilities to a JSON file, so a later test run can reuse
+     * the same device/app configuration without re-resolving it.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().saveSessionCapabilities("target/mobile-session-cache/device.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions saveSessionCapabilities(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.saveCapabilities(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Loads previously saved Appium session capabilities from a JSON file.
+     *
+     * <p>This is a static method because capabilities must be known before a driver session exists.
+     * Example:
+     * <pre>{@code
+     * MutableCapabilities capabilities = TouchActions.loadSessionCapabilities("target/mobile-session-cache/device.json");
+     * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, capabilities);
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return capabilities restored from the file
+     */
+    public static MutableCapabilities loadSessionCapabilities(String filePath) {
+        return MobileSessionStateManager.loadCapabilities(filePath);
+    }
+
+    /**
+     * Saves a snapshot of the current mobile app state (active app, context, orientation, window size)
+     * to a JSON file.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().saveAppState("target/mobile-session-cache/app-state.json");
+     * }</pre>
+     *
+     * @param filePath target JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions saveAppState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.saveAppState(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
+    }
+
+    /**
+     * Restores what is restorable of a previously saved mobile app-state snapshot on the current
+     * live session: re-activates the app, switches context, and rotates the device when supported.
+     * Unsupported restore steps are skipped silently.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * driver.touch().loadAppState("target/mobile-session-cache/app-state.json");
+     * }</pre>
+     *
+     * @param filePath source JSON file path
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions loadAppState(String filePath) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        try {
+            MobileSessionStateManager.loadAppState(driver, filePath);
+            elementActionsHelper.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), filePath, null, null);
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driver, filePath, null, rootCauseException);
+        }
+        return this;
+    }
+
+    private static <T extends Enum<T>> T enumValue(Class<T> enumType, String value, String parameterName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(parameterName + " must not be blank.");
+        }
+        try {
+            return Enum.valueOf(enumType, value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Unsupported " + parameterName + ": " + value, exception);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object> attemptToSwipeElementIntoViewByImage(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
+        AtomicReference<List<Object>> visualIdentificationObjects = new AtomicReference<>(
+                elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage));
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
+        try {
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+                List<Object> currentAttempt = elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
+                visualIdentificationObjects.set(currentAttempt);
+                List<Integer> coordinates = (List<Integer>) currentAttempt.get(2);
+                if (!Collections.emptyList().equals(coordinates)) {
+                    ReportManager.logDiscrete("Element found on screen.");
+                    return true;
+                }
+                boolean moved = performImageScrollStep(scrollableElementLocator, activeDirection[0], isFirstAttempt.getAndSet(false));
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
+                if (moved) {
+                    movedEarlier[0] = true;
+                }
+                if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                    activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                    oppositeTried[0] = true;
+                    return false;
+                }
+                // Keep searching while the scrollable is moving. Stop after the opposite direction
+                // also fails to move, or after a later false that follows real movement.
+                return stop != ScrollMotion.Stop.CONTINUE;
+            });
+        } catch (TimeoutException timeoutException) {
+            ReportManager.logDiscrete(timeoutException.getMessage());
+        }
+        return visualIdentificationObjects.get();
+    }
+
+    private void performCoordinateTap(List<Integer> coordinates) {
+        PointerInput.Kind pointerKind = driverFactoryHelper.getDriver() instanceof AppiumDriver
+                ? PointerInput.Kind.TOUCH
+                : PointerInput.Kind.MOUSE;
+        PointerInput input = new PointerInput(pointerKind, pointerKind == PointerInput.Kind.TOUCH ? "finger1" : "mouse1");
+        Sequence tap = new Sequence(input, 0);
+        tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+        tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        tap.addAction(new Pause(input, Duration.ofMillis(200)));
+        tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+    }
+
+    private Optional<ImageMatch> findLocalImage(ImageTarget target, byte[] screenshot) {
+        try {
+            return ImageProcessingActions.findImageWithinCurrentPage(target, screenshot);
+        } catch (IllegalStateException missingProvider) {
+            if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver)
+                    || missingProvider.getMessage() == null
+                    || !missingProvider.getMessage().startsWith("Optional visual processing requires")) {
+                throw missingProvider;
+            }
+            ReportManager.logDiscrete("Local visual provider unavailable; attempting Appium Images.");
+            return Optional.empty();
+        }
+    }
+
+    private List<Integer> mapImageCoordinates(ImageMatch match, byte[] screenshot) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            if (image == null) {
+                throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            }
+            Dimension viewport = imageViewportSize(image);
+            int[] point = ImageCoordinateMapper.toPointerCenter(match, image.getWidth(), image.getHeight(),
+                    viewport.getWidth(), viewport.getHeight());
+            return List.of(point[0], point[1]);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private Optional<WebElement> findUsingAppiumImages(ImageTarget target) {
+        if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver appiumDriver)) {
+            return Optional.empty();
+        }
+        if (Boolean.FALSE.equals(appiumImagesAvailable)) {
+            return Optional.empty();
+        }
+        if (target.searchRegion().isPresent()
+                || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
+            return Optional.empty();
+        }
+        try {
+            String encodedTarget = Base64.getEncoder().encodeToString(target.imageBytes());
+            double threshold = target.minimumConfidence()
+                    .orElse(SHAFT.Properties.visuals.visualMatchingThreshold());
+            List<WebElement> matches;
+            synchronized (appiumDriver) {
+                Object previousThreshold = appiumDriver.getSettings()
+                        .getOrDefault(Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.4);
+                try {
+                    appiumDriver.setSetting(Setting.IMAGE_MATCH_THRESHOLD, threshold);
+                    matches = appiumDriver.findElements(AppiumBy.image(encodedTarget));
+                } finally {
+                    appiumDriver.setSetting(Setting.IMAGE_MATCH_THRESHOLD, previousThreshold);
+                }
+            }
+            appiumImagesAvailable = true;
+            if (target.occurrence().isPresent()) {
+                int occurrence = target.occurrence().getAsInt();
+                return occurrence < matches.size() ? Optional.of(matches.get(occurrence)) : Optional.empty();
+            }
+            if (matches.size() > 1) {
+                throw new IllegalStateException("Appium Images target is ambiguous: " + matches.size()
+                        + " elements matched. Select an occurrence.");
+            }
+            return matches.stream().findFirst();
+        } catch (UnsupportedCommandException unsupportedImagesCapability) {
+            appiumImagesAvailable = false;
+            ReportManager.logDiscrete("Appium Images fallback is not available for this session.");
+            return Optional.empty();
+        }
+    }
+
+    private Dimension imageViewportSize(BufferedImage screenshot) {
+        if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+            try {
+                Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
+                if (window != null && window.getWidth() > 0 && window.getHeight() > 0) {
+                    return window;
+                }
+            } catch (RuntimeException ignored) {
+                return new Dimension(screenshot.getWidth(), screenshot.getHeight());
+            }
+            return new Dimension(screenshot.getWidth(), screenshot.getHeight());
+        }
+        if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
+            Object dimensions = javascriptExecutor.executeScript("return [window.innerWidth, window.innerHeight];");
+            if (dimensions instanceof List<?> values && values.size() == 2
+                    && values.get(0) instanceof Number width && values.get(1) instanceof Number height
+                    && width.intValue() > 0 && height.intValue() > 0) {
+                return new Dimension(width.intValue(), height.intValue());
+            }
+        }
+        return driverFactoryHelper.getDriver().manage().window().getSize();
+    }
+
+    private ImageTarget constrainToContainer(ImageTarget target, By container, byte[] screenshot) {
+        if (container == null) return target;
+        ImageRectanglePixels pixels = containerPixels(container, screenshot);
+        com.shaft.gui.image.ImageRectangle containerRegion = new com.shaft.gui.image.ImageRectangle(
+                pixels.x(), pixels.y(), pixels.width(), pixels.height());
+        com.shaft.gui.image.ImageRectangle intersection = target.searchRegion()
+                .map(region -> intersect(region, containerRegion)).orElse(containerRegion);
+        return target.within(intersection);
+    }
+
+    private OcrTarget constrainToContainer(OcrTarget target, By container, byte[] screenshot) {
+        if (container == null) return target;
+        ImageRectanglePixels pixels = containerPixels(container, screenshot);
+        OcrRectangle containerRegion = new OcrRectangle(pixels.x(), pixels.y(), pixels.width(), pixels.height());
+        OcrRectangle configured = target.options().region();
+        return target.within(configured == null ? containerRegion : intersect(configured, containerRegion));
+    }
+
+    private com.shaft.gui.image.ImageRectangle intersect(com.shaft.gui.image.ImageRectangle first,
+                                                          com.shaft.gui.image.ImageRectangle second) {
+        int x = Math.max(first.x(), second.x());
+        int y = Math.max(first.y(), second.y());
+        int right = Math.min(first.x() + first.width(), second.x() + second.width());
+        int bottom = Math.min(first.y() + first.height(), second.y() + second.height());
+        if (right <= x || bottom <= y) throw new IllegalArgumentException("Image target region does not intersect the scroll container.");
+        return new com.shaft.gui.image.ImageRectangle(x, y, right - x, bottom - y);
+    }
+
+    private OcrRectangle intersect(OcrRectangle first, OcrRectangle second) {
+        int x = Math.max(first.x(), second.x());
+        int y = Math.max(first.y(), second.y());
+        int right = Math.min(first.right(), second.right());
+        int bottom = Math.min(first.bottom(), second.bottom());
+        if (right <= x || bottom <= y) throw new IllegalArgumentException("OCR target region does not intersect the scroll container.");
+        return new OcrRectangle(x, y, right - x, bottom - y);
+    }
+
+    private int[] stablePixels(byte[] screenshotBytes, By container) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            if (screenshot == null) throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.");
+            if (container == null) {
+                return screenshot.getRGB(0, 0, screenshot.getWidth(), screenshot.getHeight(), null, 0, screenshot.getWidth());
+            }
+            ImageRectanglePixels pixels = containerPixels(container, screenshotBytes);
+            int x = Math.max(0, Math.min(screenshot.getWidth() - 1, pixels.x()));
+            int y = Math.max(0, Math.min(screenshot.getHeight() - 1, pixels.y()));
+            int width = Math.min(pixels.width(), screenshot.getWidth() - x);
+            int height = Math.min(pixels.height(), screenshot.getHeight() - y);
+            return screenshot.getRGB(x, y, width, height, null, 0, width);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private ImageRectanglePixels containerPixels(By container, byte[] screenshotBytes) {
+        try {
+            BufferedImage screenshot = ImageIO.read(new ByteArrayInputStream(screenshotBytes));
+            Rectangle rectangle = ((WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), container).get(1)).getRect();
+            Dimension viewport = imageViewportSize(screenshot);
+            double xScale = (double) screenshot.getWidth() / viewport.getWidth();
+            double yScale = (double) screenshot.getHeight() / viewport.getHeight();
+            return new ImageRectanglePixels((int) Math.round(rectangle.getX() * xScale),
+                    (int) Math.round(rectangle.getY() * yScale),
+                    Math.max(1, (int) Math.round(rectangle.getWidth() * xScale)),
+                    Math.max(1, (int) Math.round(rectangle.getHeight() * yScale)));
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("WebDriver returned an unreadable screenshot.", exception);
+        }
+    }
+
+    private record ImageRectanglePixels(int x, int y, int width, int height) {
+    }
+
+    private boolean tapUsingAppiumImages(ImageTarget target) {
+        Optional<WebElement> element = findUsingAppiumImages(target);
+        element.ifPresent(WebElement::click);
+        return element.isPresent();
+    }
+
+    private boolean findOcr(OcrTarget target, byte[] screenshot) {
+        return ocrFindMiss(target, screenshot, null) == null;
+    }
+
+    boolean displayedExactText(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String escaped = text.replace("\\", "\\\\").replace("'", "\\'");
+        try {
+            for (WebElement element : driverFactoryHelper.getDriver().findElements(
+                    By.xpath("//*[@text='" + escaped + "' or @content-desc='" + escaped + "']"))) {
+                try {
+                    if (element.isDisplayed()) {
+                        return true;
+                    }
+                } catch (RuntimeException ignored) {
+                    // Stale node; keep looking.
+                }
+            }
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        return false;
+    }
+
+    /** Null when OCR matched; otherwise the last miss including recognized fullText. */
+    private String ocrFindMiss(OcrTarget target, byte[] screenshot, SwipeDirection swipeDirection) {
+        try {
+            var match = OcrProcessingActions.find(screenshot, target);
+            if (ocrMatchClippedAtIncomingEdge(match, screenshot, swipeDirection)) {
+                return "OCR match clipped at incoming edge: " + match;
+            }
+            return null;
+        } catch (IllegalStateException noMatch) {
+            if (noMatch.getMessage() != null && (noMatch.getMessage().startsWith("No OCR match")
+                    || noMatch.getMessage().contains("OCR occurrence"))) {
+                return noMatch.getMessage();
+            }
+            throw noMatch;
+        }
+    }
+
+
+    private boolean ocrMatchClippedAtIncomingEdge(com.shaft.gui.ocr.OcrMatch match, byte[] screenshot,
+                                                  SwipeDirection swipeDirection) {
+        if (match == null || swipeDirection == null || screenshot == null || screenshot.length == 0) {
+            return false;
+        }
+        try {
+            java.awt.image.BufferedImage image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            if (image == null) {
+                return false;
+            }
+            var bounds = match.bounds();
+            return switch (swipeDirection) {
+                case LEFT -> bounds.right() >= image.getWidth();
+                case RIGHT -> bounds.x() <= 0;
+                case UP -> bounds.bottom() >= image.getHeight();
+                case DOWN -> bounds.y() <= 0;
+            };
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private boolean performImageScrollStep(By scrollableElementLocator, SwipeDirection swipeDirection, boolean isFirstAttempt) {
+        if (driverFactoryHelper.getDriver() instanceof AppiumDriver) {
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null), isFirstAttempt);
+        }
+        int deltaX = 0;
+        int deltaY = 0;
+        Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
+        switch (swipeDirection) {
+            case DOWN -> deltaY = screenSize.getHeight();
+            case UP -> deltaY = -screenSize.getHeight();
+            case RIGHT -> deltaX = screenSize.getWidth();
+            case LEFT -> deltaX = -screenSize.getWidth();
+        }
+        if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
+            Object scrollableElement = scrollableElementLocator == null
+                    ? null
+                    : elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            try {
+                Object moved = javascriptExecutor.executeScript("""
+                        const target = arguments[0] || document.scrollingElement || document.documentElement;
+                        const beforeLeft = target.scrollLeft;
+                        const beforeTop = target.scrollTop;
+                        target.scrollBy(arguments[1], arguments[2]);
+                        return target.scrollLeft !== beforeLeft || target.scrollTop !== beforeTop;
+                        """, scrollableElement, deltaX, deltaY);
+                return Boolean.TRUE.equals(moved);
+            } catch (WebDriverException webDriverException) {
+                ReportManager.logDiscrete(webDriverException.getMessage());
+            }
+        }
+        try {
+            WheelInput.ScrollOrigin origin = scrollableElementLocator == null
+                    ? WheelInput.ScrollOrigin.fromViewport()
+                    : WheelInput.ScrollOrigin.fromElement((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1));
+            new Actions(driverFactoryHelper.getDriver()).scrollFromOrigin(origin, deltaX, deltaY).perform();
+        } catch (WebDriverException webDriverException) {
+            return false;
+        }
+        return true;
+    }
+
+    private HashMap<Object, Object> prepareParameters(SwipeDirection swipeDirection, @Nullable By scrollableElementLocator, @Nullable By targetElementLocator) {
+        var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \"" + swipeDirection + "\"";
+        if (targetElementLocator != null) {
+            logMessage += ", TargetElementLocator \"" + targetElementLocator + "\"";
+        }
+        if (scrollableElementLocator != null) {
+            logMessage += ", inside ScrollableElement \"" + scrollableElementLocator + "\"";
+        }
+        logMessage += ".";
+        ReportManager.logDiscrete(logMessage);
+
+        Dimension screenSize = driverFactoryHelper.getDriver().manage().window().getSize();
+
+        var scrollParameters = new HashMap<>();
+
+        if (driverFactoryHelper.getDriver() instanceof IOSDriver) {
+            scrollParameters.put("direction", swipeDirection.name().toLowerCase(Locale.ROOT));
+            if (scrollableElementLocator != null) {
+                WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                        driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                String scrollableElementId = appiumElementId(scrollableElement);
+                if (scrollableElementId == null) {
+                    throw new IllegalStateException("iOS container scrolling requires an Appium remote element.");
+                }
+                scrollParameters.put("elementId", scrollableElementId);
+            }
+            return scrollParameters;
+        }
+
+        if (scrollableElementLocator != null) {
+            //scrolling inside an element
+            WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                    driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+            return prepareAndroidElementScrollParameters(swipeDirection, scrollableElement);
+        } else {
+            //scrolling inside the screen. Margins stay, then the box is clamped onto the screen.
+            ScrollMotion.Box box = ScrollMotion.nullContainerBox(swipeDirection, screenSize.getWidth(), screenSize.getHeight());
+            scrollParameters.putAll(ImmutableMap.of(
+                    "width", box.width(), "height", box.height(),
+                    "left", box.left(), "top", box.top(),
+                    "percent", 0.8
+            ));
+        }
+        scrollParameters.putAll(ImmutableMap.of(
+                "direction", swipeDirection.name().toLowerCase(Locale.ROOT)
+        ));
+        return scrollParameters;
+    }
+
+    private boolean performW3cCompliantScroll(HashMap<Object, Object> scrollParameters, boolean isFirstAttempt) {
+        boolean canScrollMore = true;
+        var driver = driverFactoryHelper.getDriver();
+        if (driver instanceof AndroidDriver androidDriver) {
+            var ret = androidDriver.executeScript("mobile: scrollGesture", scrollParameters);
+            canScrollMore = ret == null || Boolean.parseBoolean(String.valueOf(ret));
+        } else if (driver instanceof IOSDriver iosDriver) {
+            //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
+            var ret = iosDriver.executeScript("mobile: scroll", scrollParameters);
+            canScrollMore = ret == null || (Boolean) ret;
+        }
+        // Issue #4004: "mobile: scrollGesture"/"mobile: scroll" only ever reaches a native overlay, never the
+        // FlutterView itself (java-client has no native-scroll primitive against Flutter widgets). Reporting
+        // zero effective scrolls on the very first attempt is ambiguous: it is either a native overlay that is
+        // already at its scroll end (legitimately succeeding today) or a silent no-op against the bare
+        // FlutterView (the bug). We cannot tell them apart, so warn loudly instead of either throwing a false
+        // failure or staying silent.
+        if (isFirstAttempt && !canScrollMore && driver instanceof FlutterIntegrationTestDriver) {
+            ReportManager.log("WARNING: scrolling reported no movement on the first attempt against a Flutter " +
+                    "integration session. \"mobile: scrollGesture\"/\"mobile: scroll\" only reach native overlays, " +
+                    "never the FlutterView itself; if you intended to scroll a Flutter widget, use " +
+                    "swipeElementIntoView(scrollableElementLocator, flutterTargetElementLocator, swipeDirection) " +
+                    "with an AppiumBy.FlutterBy target instead.", Level.WARN);
+        }
+        return canScrollMore;
+    }
+
+    private void swipeToEndOfViewInternal(By scrollableElementLocator, SwipeDirection swipeDirection) {
+        if (!(driverFactoryHelper.getDriver() instanceof AppiumDriver)) {
+            throw new UnsupportedCommandException("swipeToEndOfView is supported only for Appium drivers.");
+        }
+        if (scrollableElementLocator instanceof AppiumBy.FlutterBy) {
+            // Issue #4004: java-client's Flutter ScrollParameter mandates a scrollTo target
+            // (ScrollParameter.java:50), so there is no scroll-to-end primitive to synthesize here.
+            throw new UnsupportedCommandException("swipeToEndOfView has no scroll-to-end primitive for Flutter " +
+                    "locators; use swipeElementIntoView(scrollableElementLocator, flutterTargetElementLocator, " +
+                    "swipeDirection) with an AppiumBy.FlutterBy target instead.");
+        }
+        var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, null);
+        AtomicBoolean canScrollMore = new AtomicBoolean(true);
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+            elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeToEndOfView", null, true);
+            canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
+            return !canScrollMore.get();
+        });
+    }
+
+    private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
+        AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
+        // #7623: null-container screen gestures can no-op on Compose nestedScrollView while the
+        // clipped target is already in the tree; recover once by binding elementId to a scrollable.
+        WebElement[] recoveredScrollable = {null};
+        try {
+            new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
+                // for the animated GIF:
+                elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
+
+                if (isTargetVisibleInViewport(targetElementLocator))
+                    return true;
+                boolean moved;
+                if (driverFactoryHelper.getDriver() instanceof IOSDriver) {
+                    // #7680: SwiftUI lists need dragFromToForDuration on the tallest ScrollView.
+                    moved = performIosSwipeIntoViewStep(activeDirection[0], scrollableElementLocator, recoveredScrollable);
+                    isFirstAttempt.set(false);
+                } else {
+                    var scrollParameters = recoveredScrollable[0] != null
+                            ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
+                            : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+                    moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+                }
+                if (isTargetVisibleInViewport(targetElementLocator))
+                    return true;
+                ScrollMotion.Step step = ScrollMotion.step(moved, movedEarlier[0], oppositeTried[0]);
+                movedEarlier[0] = moved || movedEarlier[0];
+                return switch (step) {
+                    case CONTINUE -> false;
+                    case FLIP -> {
+                        activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                        oppositeTried[0] = true;
+                        yield false;
+                    }
+                    case FAIL_END ->
+                            throw new IllegalStateException("Element not found after scrolling to the end of the page.");
+                    case FAIL_NO_MOVEMENT -> {
+                        if (tryRecoverAndroidNestedScrollable(scrollableElementLocator, recoveredScrollable,
+                                activeDirection, movedEarlier, oppositeTried, isFirstAttempt, swipeDirection)) {
+                            yield false;
+                        }
+                        throw new IllegalStateException(noMovementFailureMessage(targetElementLocator));
+                    }
+                };
+            });
+        } catch (RuntimeException exception) {
+            HealingResolution resolution = targetElementLocator == null
+                    ? null
+                    : HealingManager.resolve(
+                    driverFactoryHelper.getDriver(),
+                    targetElementLocator,
+                    "SWIPE_ELEMENT_INTO_VIEW",
+                    true,
+                    null,
+                    null,
+                    null).orElse(null);
+            if (resolution == null) {
+                throw exception;
+            }
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    resolution,
+                    targetElementLocator,
+                    "SWIPE_ELEMENT_INTO_VIEW",
+                    true,
+                    "");
+        }
+        ReportManager.logDiscrete("Element found on screen.");
+        return true;
+    }
+
+    /**
+     * One iOS swipe-into-view step (#7680): drag inside the tallest on-screen
+     * {@code XCUIElementTypeScrollView} (or the caller's scrollable), and fall back to
+     * {@code mobile: scroll} only when no scroll view is available.
+     */
+    private boolean performIosSwipeIntoViewStep(SwipeDirection swipeDirection, By scrollableElementLocator,
+                                                WebElement[] recoveredScrollable) {
+        IOSDriver iosDriver = (IOSDriver) driverFactoryHelper.getDriver();
+        WebElement container = recoveredScrollable[0];
+        if (container == null && scrollableElementLocator != null) {
+            try {
+                Object resolved = elementActionsHelper.identifyUniqueElement(iosDriver, scrollableElementLocator).get(1);
+                if (resolved instanceof WebElement webElement) {
+                    container = webElement;
+                    recoveredScrollable[0] = webElement;
+                }
+            } catch (RuntimeException ignored) {
+                container = null;
+            }
+        }
+        if (container == null) {
+            Dimension screen = iosDriver.manage().window().getSize();
+            List<WebElement> candidates = ElementActionsHelper.safeFindElements(iosDriver, IosScrollView.SCROLL_VIEW);
+            container = IosScrollView.pickTallest(candidates, screen.getWidth(), screen.getHeight());
+            if (container != null) {
+                recoveredScrollable[0] = container;
+                ReportManager.logDiscrete(
+                        "iOS swipe-into-view using tallest XCUIElementTypeScrollView (#7680).");
+            }
+        }
+        if (container == null) {
+            return performW3cCompliantScroll(prepareParameters(swipeDirection, scrollableElementLocator, null), false);
+        }
+        return performIosDragFromTo(iosDriver, swipeDirection, container);
+    }
+
+    private boolean performIosDragFromTo(IOSDriver iosDriver, SwipeDirection swipeDirection, WebElement container) {
+        Rectangle rect;
+        try {
+            rect = container.getRect();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        Map<String, Object> drag = IosScrollView.dragParameters(swipeDirection, rect);
+        String before = iosPageFingerprint(iosDriver);
+        iosDriver.executeScript("mobile: dragFromToForDuration", drag);
+        String after = iosPageFingerprint(iosDriver);
+        if (before == null || after == null) {
+            // Fingerprint unavailable: assume the drag may have moved so ScrollMotion can continue
+            // until the target is visible or the fluent wait ends.
+            return true;
+        }
+        return !before.equals(after);
+    }
+
+    @Nullable
+    private String iosPageFingerprint(IOSDriver iosDriver) {
+        try {
+            return iosDriver.getPageSource();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * When a null-container Android gesture never moves, bind once to a discovered
+     * {@code scrollable=true} container (Compose {@code nestedScrollView}) and retry (#7623).
+     */
+    private boolean tryRecoverAndroidNestedScrollable(By scrollableElementLocator, WebElement[] recoveredScrollable,
+                                                      SwipeDirection[] activeDirection, boolean[] movedEarlier,
+                                                      boolean[] oppositeTried, AtomicBoolean isFirstAttempt,
+                                                      SwipeDirection originalDirection) {
+        if (recoveredScrollable[0] != null || scrollableElementLocator != null) {
+            return false;
+        }
+        if (!(driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver)) {
+            return false;
+        }
+        Dimension screen = androidDriver.manage().window().getSize();
+        List<WebElement> candidates = ElementActionsHelper.safeFindElements(androidDriver, AndroidNestedScroll.SCROLLABLE);
+        WebElement picked = AndroidNestedScroll.pickScrollable(candidates, screen.getWidth(), screen.getHeight());
+        if (picked == null || appiumElementId(picked) == null) {
+            return false;
+        }
+        ReportManager.logDiscrete("Null-container scroll did not move; recovering via Android scrollable "
+                + AndroidNestedScroll.resourceId(picked) + " (#7623).");
+        recoveredScrollable[0] = picked;
+        activeDirection[0] = originalDirection;
+        movedEarlier[0] = false;
+        oppositeTried[0] = false;
+        isFirstAttempt.set(true);
+        return true;
+    }
+
+    private String noMovementFailureMessage(By targetElementLocator) {
+        String diagnosis = describeClippedSwipeTarget(targetElementLocator);
+        if (diagnosis != null) {
+            return "Element not found; " + diagnosis + "; scrolling did not move the scrollable.";
+        }
+        return "Element not found; scrolling did not move the scrollable.";
+    }
+
+    private String describeClippedSwipeTarget(By targetElementLocator) {
+        if (targetElementLocator == null) {
+            return null;
+        }
+        var matches = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator);
+        if (matches == null || matches.isEmpty()) {
+            return null;
+        }
+        return AndroidNestedScroll.inspect(matches.get(0)).diagnosis();
+    }
+
+    /**
+     * {@code mobile: scrollGesture} parameters bound to an already-resolved Android scrollable.
+     */
+    private HashMap<Object, Object> prepareAndroidElementScrollParameters(SwipeDirection swipeDirection,
+                                                                          WebElement scrollableElement) {
+        Rectangle elementRectangle = scrollableElement.getRect();
+        var scrollParameters = new HashMap<>();
+        String scrollableElementId = appiumElementId(scrollableElement);
+        if (scrollableElementId != null) {
+            scrollParameters.put("elementId", scrollableElementId);
+        }
+        switch (swipeDirection) {
+            case UP, DOWN ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 0.8,
+                            "height", elementRectangle.getHeight() * 90 / 100,
+                            "width", elementRectangle.getWidth(),
+                            "left", elementRectangle.getX(),
+                            "top", elementRectangle.getY()));
+            case RIGHT ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 1,
+                            "height", elementRectangle.getHeight(),
+                            "width", elementRectangle.getWidth() * 70 / 100,
+                            "left", elementRectangle.getX(),
+                            "top", elementRectangle.getY()));
+            case LEFT ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 1,
+                            "height", elementRectangle.getHeight(),
+                            "width", elementRectangle.getWidth() * 70 / 100,
+                            "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100),
+                            "top", elementRectangle.getY()));
+        }
+        scrollParameters.put("direction", swipeDirection.name().toLowerCase(Locale.ROOT));
+        return scrollParameters;
+    }
+
+    /**
+     * Native lists often keep off-screen rows in the tree. Presence is not
+     * viewport membership; element screenshots then crop outside the bitmap (#5721).
+     */
+    private boolean isTargetVisibleInViewport(By targetElementLocator) {
+        var matches = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator);
+        if (matches == null || matches.isEmpty()) {
+            return false;
+        }
+        WebElement element = matches.get(0);
+        try {
+            if (!element.isDisplayed()) {
+                return false;
+            }
+            Rectangle rect = element.getRect();
+            if (rect.getWidth() <= 0 || rect.getHeight() <= 0) {
+                return false;
+            }
+            Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
+            int left = Math.max(rect.getX(), 0);
+            int top = Math.max(rect.getY(), 0);
+            int right = Math.min(rect.getX() + rect.getWidth(), window.getWidth());
+            int bottom = Math.min(rect.getY() + rect.getHeight(), window.getHeight());
+            return right > left && bottom > top;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Scrolls a Flutter widget into view via the Flutter integration driver's "flutter: scrollTillVisible"
+     * command. Unlike the native "mobile: scrollGesture", this drives Flutter's own widget tree instead of
+     * the (nonexistent) native scrollable, so it works against a bare FlutterView.
+     * <p>
+     * Always returns {@code true}: the underlying command throws when the target widget is never found, and
+     * that exception propagates to the caller's existing catch block, which reports it via failAction.
+     */
+    private boolean attemptFlutterScrollTillVisible(AppiumDriver appiumDriver, AppiumBy.FlutterBy targetElementLocator,
+                                                      By scrollableElementLocator, SwipeDirection swipeDirection) {
+        var scrollParameter = new ScrollParameter(targetElementLocator, mapToFlutterScrollDirection(swipeDirection));
+        if (scrollableElementLocator instanceof AppiumBy.FlutterBy flutterScrollView) {
+            scrollParameter.setScrollView(flutterScrollView);
+        } else if (scrollableElementLocator != null) {
+            ReportManager.logDiscrete("Ignoring non-Flutter scrollable element locator \"" + scrollableElementLocator
+                    + "\" for the Flutter integration driver; a native container cannot scroll inside a FlutterView.");
+        }
+        ReportManager.logDiscrete("Swiping to find Element using the Flutter integration driver. SwipeDirection \""
+                + swipeDirection + "\", TargetElementLocator \"" + targetElementLocator + "\".");
+        appiumDriver.executeScript("flutter: scrollTillVisible", scrollParameter.toJson());
+        return true;
+    }
+
+    private ScrollParameter.ScrollDirection mapToFlutterScrollDirection(SwipeDirection swipeDirection) {
+        return switch (swipeDirection) {
+            case UP -> ScrollParameter.ScrollDirection.UP;
+            case DOWN -> ScrollParameter.ScrollDirection.DOWN;
+            case LEFT -> ScrollParameter.ScrollDirection.LEFT;
+            case RIGHT -> ScrollParameter.ScrollDirection.RIGHT;
+        };
+    }
+
+    private void attemptPinchToZoomIn() {
+
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
+
+        Dimension size = driverFactoryHelper.getDriver().manage().window().getSize();
+        Point source = new Point(size.getWidth(), size.getHeight());
+
+        Sequence pinchAndZoom1 = new Sequence(finger, 0);
+        pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(110)))
+                .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+
+        Sequence pinchAndZoom2 = new Sequence(finger2, 0);
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
+                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+        ((Interactive) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+    }
+
+    private void attemptPinchToZoomOut() {
+
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
+
+        Dimension size = driverFactoryHelper.getDriver().manage().window().getSize();
+        Point source = new Point(size.getWidth(), size.getHeight());
+
+        Sequence pinchAndZoom1 = new Sequence(finger, 0);
+        pinchAndZoom1
+                .addAction(finger.createPointerMove(Duration.ofMillis(0),
+                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(110)))
+                .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+
+        Sequence pinchAndZoom2 = new Sequence(finger2, 0);
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
+                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
+                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(100)))
+                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+        ((Interactive) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+    }
+
+    /**
+     * Attempts to zoom the current screen IN/ OUT in case of zoom enabled screen.
+     *
+     * @param zoomDirection ZoomDirection.IN or OUT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pinchToZoom(ZoomDirection zoomDirection) {
+        String testData = String.valueOf(zoomDirection);
+        try {
+            switch (zoomDirection) {
+                case IN -> attemptPinchToZoomIn();
+                case OUT -> attemptPinchToZoomOut();
+            }
+        } catch (Exception rootCauseException) {
+            elementActionsHelper.failAction(driverFactoryHelper.getDriver(), testData, null, rootCauseException);
+        }
+        elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        return this;
+    }
+
+    public enum ZoomDirection {
+        IN, OUT
+    }
+
+    /**
+     * SwipeDirection; swiping UP means the screen will move downwards
+     */
+    public enum SwipeDirection {
+        UP, DOWN, LEFT, RIGHT
+    }
+
+    public enum SwipeMovement {
+        HORIZONTAL, VERTICAL
+    }
+
+    public enum KeyboardKeys {
+        GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
+        NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
+
+        private final ImmutableMap<?, ?> value;
+
+        KeyboardKeys(ImmutableMap<?, ?> type) {
+            this.value = type;
+        }
+
+        private ImmutableMap<?, ?> getValue() {
+            return value;
+        }
+    }
+
+
+    /**
+     * Element id for Appium mobile: commands. Appium java-client 11 returns
+     * {@link AppiumWebElement} instead of Selenium {@code RemoteWebElement}.
+     */
+    @Nullable
+    private static String appiumElementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof RemoteWebElement remoteElement) {
+            return remoteElement.getId();
+        }
+        return null;
+    }
+}

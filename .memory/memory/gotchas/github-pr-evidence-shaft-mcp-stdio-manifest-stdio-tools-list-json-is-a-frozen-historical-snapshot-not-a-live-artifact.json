@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/github-pr-evidence-shaft-mcp-stdio-manifest-stdio-tools-list-json-is-a-frozen-historical-snapshot-not-a-live-artifact.md",
+  "content_hash": "sha256:50f0b452c18f6764d1c2865c58c25cc1dd93f098c238525bf9c53eba0fb3a08f",
+  "created_at": "2026-07-17T23:32:03+03:00",
+  "evidence": [
+    {
+      "id": "3ef6e8ac88f03ab522e6cb302be72eddd472519f",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.github-pr-evidence-shaft-mcp-stdio-manifest-stdio-tools-list-json-is-a-frozen-historical-snapshot-not-a-live-artifact",
+  "source": {
+    "kind": "agent",
+    "task": "Fix shaft-mcp capture_start/codegen tools failing MCP JSON-schema validation on the IntelliJ onboarding Record-a-sample-flow quick action (issue #3692)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-mcp",
+    "pr-evidence",
+    "stale-artifact",
+    "mcp-protocol",
+    "gotcha"
+  ],
+  "title": ".github/pr-evidence/shaft-mcp-stdio-manifest/stdio-tools-list.json is a frozen historical snapshot, not a live artifact",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

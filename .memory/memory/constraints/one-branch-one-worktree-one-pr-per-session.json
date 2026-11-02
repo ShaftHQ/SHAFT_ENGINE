@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/constraints/one-branch-one-worktree-one-pr-per-session.md",
+  "content_hash": "sha256:edf1646abc8609ceab87a90b624917146b75800be7ed4941e672eb4ab02e7f53",
+  "created_at": "2026-07-17T13:14:04+03:00",
+  "evidence": [],
+  "id": "gotcha.one-branch-one-worktree-one-pr-per-session",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ Phase 4/5 hardening (#3643 umbrella): reconcile one-PR-per-session default with file-dependent sequencing"
+  },
+  "status": "active",
+  "tags": [
+    "workflow",
+    "git",
+    "pull-requests",
+    "sequencing",
+    "branch-strategy"
+  ],
+  "title": "Session branch and worktree shape, and sequential merges for file-dependent sub-issues",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T23:28:39+03:00"
+}

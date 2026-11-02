@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable.md",
+  "content_hash": "sha256:99f2c2b64e7b29cb0442ef7859b228b9487791922daed1275ae2e44137a0d26b",
+  "created_at": "2026-07-26T20:23:29+03:00",
+  "evidence": [
+    {
+      "id": "eb6743c2ee96b392b58d70d076e6a25bb1260fd1",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.testnglistener-suite-start-postprocessing-runs-before-setup-later-same-thread-healing-strategy-override-wins-over-maximumperformancemode-disable",
+  "source": {
+    "kind": "agent",
+    "task": "issue 4161 fingerprint seeding seam + maximumPerformanceMode ordering"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-heal",
+    "shaft-engine",
+    "properties",
+    "testng-lifecycle",
+    "maximum-performance-mode",
+    "issue-4161",
+    "issue-4172",
+    "unverified-integration-claim"
+  ],
+  "title": "Last-write-wins on healing.strategy is proven; TestNGListener suite-start-before-setUp ordering rests on the documented contract, not a runtime test",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

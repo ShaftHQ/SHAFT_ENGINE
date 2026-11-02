@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/grid-am-runs-junit-infrastructure-tests.md",
+  "content_hash": "sha256:c7926bfc80fa9898042d10d624204d505fc0bf34ec75fa1e6429cc34f9cd2246",
+  "created_at": "2026-08-18T12:04:22+03:00",
+  "evidence": [
+    {
+      "id": "5092",
+      "kind": "task"
+    },
+    {
+      "id": "01d34cfa86d5d6e4f0d7c5c7c208b74344727a1b",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.grid-am-runs-junit-infrastructure-tests",
+  "source": {
+    "kind": "agent",
+    "task": "Record Grid E2E scope gotcha from #5092"
+  },
+  "status": "active",
+  "tags": [
+    "e2e",
+    "grid",
+    "surefire"
+  ],
+  "title": "Grid -am test runs shaft-infrastructure JUnit tests that ignore GLOBAL_TESTING_SCOPE",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T12:04:22+03:00"
+}

@@ -1,0 +1,4 @@
+/build/
+/.gradle/
+/.intellijPlatform/
+/src/main/resources/properties/

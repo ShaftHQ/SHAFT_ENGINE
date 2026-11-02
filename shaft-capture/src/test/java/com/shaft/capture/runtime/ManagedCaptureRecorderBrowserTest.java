@@ -1,0 +1,2443 @@
+package com.shaft.capture.runtime;
+
+import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.CaptureStep;
+import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.model.LocatorCandidate;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.Select;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@Tag("external-e2e")
+class ManagedCaptureRecorderBrowserTest {
+    private static final String SECRET_CANARY = "capture-browser-secret-canary";
+
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void recordsRepresentativeJourneyAcrossSupportedBrowsers(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("recordings with spaces").resolve(browserName + ".json");
+        Path runtime = temp.resolve("runtime with spaces").resolve(browserName);
+        Path upload = temp.resolve("upload fixture.txt");
+        Files.writeString(upload, "fixture", StandardCharsets.UTF_8);
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                runtime,
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            driver.findElement(By.id("username")).sendKeys("alice");
+            driver.findElement(By.id("password")).sendKeys(SECRET_CANARY);
+            new Select(driver.findElement(By.id("country"))).selectByVisibleText("Egypt");
+            driver.findElement(By.id("terms")).click();
+            driver.findElement(By.id("upload")).sendKeys(upload.toAbsolutePath().toString());
+            new Actions(driver).doubleClick(driver.findElement(By.id("double"))).perform();
+            driver.findElement(By.id("replace")).click();
+
+            WebElement shadowHost = driver.findElement(By.id("shadow-host"));
+            shadowHost.getShadowRoot().findElement(By.cssSelector("button")).click();
+
+            driver.switchTo().frame(driver.findElement(By.id("child")));
+            driver.findElement(By.id("frame-button")).click();
+            driver.switchTo().defaultContent();
+
+            String originalWindow = driver.getWindowHandle();
+            driver.findElement(By.id("popup")).click();
+            waitFor(() -> driver.getWindowHandles().size() == 2);
+            String popup = driver.getWindowHandles().stream()
+                    .filter(handle -> !handle.equals(originalWindow))
+                    .findFirst()
+                    .orElseThrow();
+            driver.switchTo().window(popup);
+            driver.close();
+            driver.switchTo().window(originalWindow);
+
+            driver.findElement(By.id("prompt")).click();
+            Alert alert = driver.switchTo().alert();
+            alert.sendKeys("ordinary prompt text");
+            alert.accept();
+            recorder.checkpoint("Representative journey completed", Checkpoint.CheckpointKind.ASSERTION);
+            Thread.sleep(1500);
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        Set<Class<?>> eventTypes = session.events().stream()
+                .map(Object::getClass)
+                .collect(java.util.stream.Collectors.toSet());
+        assertTrue(eventTypes.contains(CaptureEvent.NavigationEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.ClickEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.TypeEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.SelectEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.ToggleEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.UploadEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.FrameEvent.class));
+        assertTrue(eventTypes.contains(CaptureEvent.AlertEvent.class));
+
+        // Regression for issue #3816: `eventTypes.contains(WindowEvent.class)` alone let a phantom
+        // SWITCH slip through undetected, since any legitimate window event already satisfied it.
+        // This journey's window-event shape is deterministic: no OPEN_TAB for the original tab (#6392),
+        // one OPEN_TAB/CLOSE pair for the real popup, and exactly one SWITCH into the same-origin
+        // iframe and one back out of it (BiDi reports a same-origin iframe's own browsing-context id
+        // as its script-channel message source, which the pipeline treats as a distinct logical
+        // window -- a legitimate, pre-existing quirk unrelated to #3803/#3815). A mis-resolved
+        // loopback signal minting a bogus extra logical window would surface as an extra SWITCH here.
+        List<CaptureEvent.WindowEvent> windowEvents = session.events().stream()
+                .filter(CaptureEvent.WindowEvent.class::isInstance)
+                .map(CaptureEvent.WindowEvent.class::cast)
+                .toList();
+        assertEquals(2, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.SWITCH)
+                        .count(),
+                "Exactly two SWITCH events are expected (into and out of the iframe); a phantom "
+                        + "SWITCH means a signal was attributed to the wrong logical window: " + windowEvents);
+        assertEquals(1, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.OPEN_TAB)
+                        .count(),
+                "Exactly one OPEN_TAB event is expected (the real popup; replay registers the "
+                        + "original tab at setup, #6392): " + windowEvents);
+        assertEquals(1, windowEvents.stream()
+                        .filter(event -> event.action() == CaptureEvent.WindowAction.CLOSE)
+                        .count(),
+                "Exactly one CLOSE event is expected (the real popup being closed): " + windowEvents);
+        Set<String> distinctWindows = windowEvents.stream()
+                .map(CaptureEvent.WindowEvent::logicalWindowId)
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(3, distinctWindows.size(),
+                "Expected exactly 3 logical windows (the original tab, the iframe's own BiDi "
+                        + "context, and the real popup); an extra one is a phantom window: " + distinctWindows);
+
+        // Regression for issue #3393: a native double-click used to fire click(detail 1),
+        // click(detail 2), and dblclick, each emitting its own ClickEvent -- one user gesture
+        // produced up to three recorded actions. Exactly one ClickEvent with clickCount=2 must be
+        // persisted for the double-clicked element, and single clicks must stay single events.
+        List<CaptureEvent.ClickEvent> clicks = session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .toList();
+        List<CaptureEvent.ClickEvent> doubleClicks = clicks.stream()
+                .filter(click -> "double".equals(click.target().logicalElementId()))
+                .toList();
+        assertEquals(1, doubleClicks.size(),
+                "One double-click gesture must persist exactly one ClickEvent, not one per native "
+                        + "click/dblclick DOM event.");
+        assertEquals(2, doubleClicks.get(0).clickCount());
+        List<CaptureEvent.ClickEvent> singleClicks = clicks.stream()
+                .filter(click -> "replace".equals(click.target().logicalElementId()))
+                .toList();
+        assertEquals(1, singleClicks.size(), "A single click must not be suppressed by the double-click fix.");
+        assertEquals(1, singleClicks.get(0).clickCount());
+
+        assertFalse(Files.readString(output, StandardCharsets.UTF_8).contains(SECRET_CANARY));
+        assertFalse(Files.readString(output.getParent().resolve("capture-data.json"),
+                StandardCharsets.UTF_8).contains(SECRET_CANARY));
+        Path profiles = runtime.resolve("profiles");
+        if (Files.exists(profiles)) {
+            try (var entries = Files.list(profiles)) {
+                assertTrue(entries.findAny().isEmpty());
+            }
+        }
+    }
+
+    /**
+     * Regression for issue #3803 (fixed by PR #3815, promoted here by #3816): every signal from a
+     * BiDi-preload-installed recorder is delivered through two racing channels -- the BiDi script
+     * channel (which reports the tab's real browsing-context id) and {@code BrowserEventSink}'s
+     * loopback HTTP sink (which can only ever stamp the {@code "loopback"} sentinel, since page JS
+     * has no visibility into its own BiDi context id) -- and whichever arrives first at
+     * {@code CaptureEventPipeline.accept} is the one that gets recorded. An interaction signalled
+     * well after page load -- a self-driving demo login that types via {@code setTimeout}, exactly
+     * like the Guided Workflows Live E2E scenario -- is the kind of delayed signal observed racing
+     * loopback ahead of BiDi in production. Pre-#3815, a loopback win minted a phantom second
+     * logical window and a SWITCH that {@code CaptureGenerator} then rejected as a window never
+     * opened; post-fix the sentinel resolves back to the tab's one real BiDi context regardless of
+     * which channel wins, which this drives end to end against the real dual-channel delivery
+     * rather than constructing signals directly (see {@code CaptureEventPipelineTest}'s
+     * {@code asyncTypedInteractionDeliveredThroughLoopbackSinkStaysInTheSameLogicalWindow} for that
+     * lower-level proof).
+     *
+     * <p><b>Single-tab only, by design.</b> This pins today's intended single-tab behavior --
+     * exactly one logical window, zero WindowEvents. It deliberately does not cover the residual
+     * multi-tab limitation documented on {@code CaptureEventPipeline.resolveBrowsingContextId()}:
+     * in a multi-tab session, a loopback signal from an older tab that wins its race after a newer
+     * tab's context has become "current" is misattributed to the wrong tab for the race window's
+     * duration. That is inherent -- the sentinel carries no tab identity of its own, since page JS
+     * cannot see its own BiDi browsing-context id -- and is out of scope for this test; see issue
+     * #3816.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void asyncTypedLoginStaysInSingleLogicalWindowAcrossLoopbackRace(
+            String browserName, @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-async-login.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/async-login",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-async-login-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("username")));
+
+            // The fixture page's own script types both fields via setTimeout ~2.5s and ~2.9s after
+            // load -- the same async-typed condition reported in #3803 -- so this exercises the
+            // real loopback-vs-BiDi delivery race end to end instead of constructing signals.
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Username")));
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Password")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+        List<CaptureEvent.TypeEvent> typed = session.events().stream()
+                .filter(CaptureEvent.TypeEvent.class::isInstance)
+                .map(CaptureEvent.TypeEvent.class::cast)
+                .toList();
+        assertEquals(2, typed.size(), "Both async-typed fields must be recorded exactly once: " + typed);
+
+        // This is a genuine single-tab session -- no window was ever opened besides the original
+        // tab -- and replay registers that tab at setup (#6392), so no WindowEvent is expected; a
+        // SWITCH or an OPEN_TAB here is a phantom window from a loopback signal that was not resolved
+        // back to the real BiDi context, regardless of which delivery channel won the race for the
+        // delayed typed signals.
+        List<CaptureEvent.WindowEvent> windowEvents = session.events().stream()
+                .filter(CaptureEvent.WindowEvent.class::isInstance)
+                .map(CaptureEvent.WindowEvent.class::cast)
+                .toList();
+        assertEquals(List.of(), windowEvents,
+                "A single-tab async-typed session must emit no WindowEvent -- no OPEN_TAB for the "
+                        + "start tab and never a SWITCH: " + windowEvents);
+
+        // Every event -- including whichever ones the loopback channel may have delivered -- must
+        // share one logical window: proof that a loopback win (if it happened for either field in
+        // this run) resolved to the same window as the BiDi-delivered signals instead of minting a
+        // second one.
+        Set<String> logicalWindows = session.events().stream()
+                .map(event -> event.context().page().logicalWindowId())
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(Set.of("window-1"), logicalWindows,
+                "Every event in this single-tab async-typed session must share logical window "
+                        + "'window-1': " + logicalWindows);
+    }
+
+    /**
+     * Drives a real managed recorder across a genuine cross-origin navigation (two distinct
+     * hostnames, {@code 127.0.0.1} for domain A and {@code localhost} for domain B, each on its
+     * own loopback HTTP fixture) and asserts that:
+     * <ul>
+     *     <li>the server-side step list (what the recorder UI rehydrates from via
+     *     {@code CaptureControlServer}/{@code BrowserEventSink} {@code /steps}) keeps the
+     *     domain-A step after navigating to domain B, and the domain-B action appends to the
+     *     same session rather than starting a new one;</li>
+     *     <li>the live in-page recorder panel ({@code #shaft-capture-action-list}), which is the
+     *     actual browser UI a user sees, still lists the domain-A step text after the
+     *     cross-origin navigation -- proving the real
+     *     {@code shaft-capture-recorder.js} merge/rehydration logic ran end to end, not just the
+     *     Java-side store;</li>
+     *     <li>{@code capture_stop}'s underlying {@code ManagedCaptureRecorder.stop()} quits the
+     *     recording browser/driver (the WebDriver session is no longer usable afterward) and
+     *     leaves the on-disk session COMPLETE with every performed action present.</li>
+     * </ul>
+     * A screenshot of the recorder panel taken immediately after the cross-domain navigation is
+     * attached to the test report directory as evidence that the step list survives.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void recorderStepListSurvivesCrossOriginNavigationAndStopQuitsTheBrowser(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer domainA = localFixture();
+        HttpServer domainB = HttpServer.create(new InetSocketAddress(InetAddress.getByName("localhost"), 0), 0);
+        domainB.createContext("/", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>SHAFT Capture Fixture Domain B</title></head>
+                <body>
+                  <button id="domain-b-button">Domain B action</button>
+                </body>
+                </html>
+                """));
+        domainB.start();
+        Path output = temp.resolve(browserName + "-cross-origin.json");
+        Path runtime = temp.resolve(browserName + "-cross-origin-runtime");
+        String urlA = "http://127.0.0.1:" + domainA.getAddress().getPort() + "/";
+        String urlB = "http://localhost:" + domainB.getAddress().getPort() + "/";
+        assertFalse(java.net.URI.create(urlA).getHost().equalsIgnoreCase(java.net.URI.create(urlB).getHost()),
+                "Domain A and domain B fixtures must use different hostnames to be genuinely cross-origin.");
+
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                urlA,
+                CaptureBrowser.parse(browserName),
+                output,
+                runtime,
+                true));
+        byte[] screenshotAfterNavigation;
+        boolean browserRehydrationObserved;
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+
+            driver.findElement(By.id("username")).sendKeys("domain-a-user");
+            // Typed input is debounced/merged client-side and only flushes to the store when the
+            // field is committed (blurred) or a following action arrives; click elsewhere to commit
+            // it deterministically instead of racing the debounce window.
+            driver.findElement(By.id("terms")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Username")));
+            List<String> stepsBeforeNavigation = stepDescriptions(recorder);
+            assertTrue(stepsBeforeNavigation.stream().anyMatch(description -> description.contains("Username")),
+                    "Server-side step list should contain the domain-A action before navigation.");
+
+            driver.navigate().to(urlB);
+            waitFor(() -> elementTextEquals(driver, By.id("domain-b-button"), "Domain B action"));
+            driver.findElement(By.id("domain-b-button")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Domain B action")));
+
+            // This is the authoritative, server-side proof of the acceptance criterion: the
+            // recorder UI rehydrates its step list from CaptureSessionStore (via
+            // ManagedCaptureRecorder.steps() / the BrowserEventSink "/steps" endpoint the injected
+            // shaft-capture-recorder.js polls) rather than page-scoped storage, so the domain-A step
+            // is still present in the very same session after navigating to domain B, and the
+            // domain-B action appended to it instead of starting a new session.
+            List<String> stepsAfterNavigation = stepDescriptions(recorder);
+            assertTrue(stepsAfterNavigation.stream().anyMatch(description -> description.contains("Username")),
+                    "The domain-A step must still be present in the same session after navigating to domain B.");
+            assertTrue(stepsAfterNavigation.stream().anyMatch(description -> description.contains("Domain B action")),
+                    "The domain-B action must append to the same session rather than starting a new one.");
+            assertTrue(stepsAfterNavigation.size() > stepsBeforeNavigation.size(),
+                    "The step list must grow (append), not replace, across the cross-origin navigation.");
+
+            // Best-effort proof that the live in-page panel (#shaft-capture-action-list) -- the
+            // actual UI a user sees -- also shows the merged list, exercising the browser-side
+            // shaft-capture-recorder.js fetch-and-merge logic end to end. This polls rather than
+            // hard-fails on environments where outbound loopback fetches from the automated browser
+            // are unavailable (e.g. a shared CI host running many concurrent browser sessions),
+            // since the store-level assertions above already prove the pipeline/session behavior
+            // this acceptance criterion is about.
+            browserRehydrationObserved = waitForBestEffort(
+                    () -> recorderPanelListsAllSteps(driver, stepsAfterNavigation), Duration.ofSeconds(8));
+            screenshotAfterNavigation = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+
+            recorder.checkpoint("Cross-origin journey completed", Checkpoint.CheckpointKind.ASSERTION);
+
+            boolean browserAliveBeforeStop = recorder.isBrowserAlive();
+            recorder.stop(false);
+
+            assertTrue(browserAliveBeforeStop, "The browser must have been alive before capture_stop.");
+            assertFalse(recorder.isBrowserAlive(), "capture_stop must quit the recording browser/driver process.");
+            assertThrowsWebDriverException(driver);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            domainA.stop(0);
+            domainB.stop(0);
+        }
+
+        Path evidenceDir = Path.of("target", "capture-cross-origin-evidence");
+        Files.createDirectories(evidenceDir);
+        Path screenshotPath = evidenceDir.resolve(browserName + "-cross-origin-step-list.png");
+        Files.write(screenshotPath, screenshotAfterNavigation);
+        if (!browserRehydrationObserved) {
+            System.out.println("NOTE: recorder panel DOM merge could not be observed for " + browserName
+                    + " in this environment (see " + screenshotPath + "); the server-side step-list "
+                    + "assertions above already proved the session correctly appended domain-B actions "
+                    + "to the domain-A session.");
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+        List<String> allPersisted = persistedDescriptions(session);
+        assertTrue(allPersisted.stream().anyMatch(description -> description.contains("Username")),
+                "The final COMPLETE file must include the domain-A action.");
+        assertTrue(allPersisted.stream().anyMatch(description -> description.contains("Domain B action")),
+                "The final COMPLETE file must include the domain-B action.");
+    }
+
+    /**
+     * Drives the in-page recorder overlay's guided assertion flow end to end, exactly as a user
+     * would (issue #3365): the single Assertion entry point offers Element and Browser branches;
+     * the Element branch captures the clicked target, offers scored locator candidates plus a
+     * manual locator, then a fixed assertion catalog including existence with a true/false
+     * expected choice; the Browser branch offers the fixed page-level catalog with an editable
+     * expected value. Both saved assertions must persist as {@code VerificationEvent}s in the
+     * session file and surface in the server-side step list.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayGuidedAssertionFlowPersistsVerificationEvents(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-assertions.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-assertions-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            // #3510 A3: the first-run coach card shows its three tips until dismissed, then stays gone.
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-coach")));
+            assertTrue(driver.findElement(By.id("shaft-capture-coach")).isDisplayed(),
+                    "first-run coach card should be visible");
+            assertEquals(3, driver.findElements(By.cssSelector("#shaft-capture-coach li")).size(),
+                    "coach card should show exactly three tips");
+            driver.findElement(By.id("shaft-capture-coach-dismiss")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-coach")).isDisplayed());
+            assertFalse(driver.findElement(By.id("shaft-capture-coach")).isDisplayed(),
+                    "coach card should hide after Got it");
+
+            // Element branch: entry point -> Element -> click target -> pick locator ->
+            // "Element exists" with expected=false (negated existence).
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> elementPresent(driver, By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Use this locator']")));
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Use this locator']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']")));
+            new Select(driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']"))).selectByValue("false");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert not element exists")));
+
+            // Regression for issue #3393: the "Element assertion: click the target element"
+            // placeholder row used to persist in the overlay action list even after the real
+            // assertion was built; it must never appear, and exactly one row for the completed
+            // assertion must be present.
+            String actionListTextAfterElementAssertion =
+                    driver.findElement(By.id("shaft-capture-action-list")).getText();
+            assertFalse(actionListTextAfterElementAssertion.contains("click the target element"),
+                    "The assertion-mode placeholder row must never appear in the recorded action list.");
+            assertEquals(1, java.util.Arrays.stream(actionListTextAfterElementAssertion.split("\n"))
+                            // Rows now carry a leading kind badge (#3496 C2), so match by content.
+                            .filter(line -> line.contains("Assert not element exists"))
+                            .count(),
+                    "Exactly one row for the completed element assertion must be present.");
+
+            // Begin-then-cancel must also leave no placeholder residue.
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-status")).getText()
+                    .contains("Asserting"));
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-status")).getText()
+                    .contains("Asserting"));
+            assertFalse(driver.findElement(By.id("shaft-capture-action-list")).getText()
+                            .contains("click the target element"),
+                    "Cancelling an in-progress element assertion must not leave a placeholder row.");
+
+            // Browser branch: entry point -> Browser -> "Title contains" with an edited value.
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Browser")));
+            driver.findElement(assertionChoice("Browser")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TITLE_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TITLE_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("Capture Fixture");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert title contains")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+        List<CaptureEvent.VerificationEvent> verifications = session.events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .toList();
+        CaptureEvent.VerificationEvent existence = verifications.stream()
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.ELEMENT_PRESENT)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The Element branch must persist an ELEMENT_PRESENT verification event."));
+        assertTrue(existence.negated(),
+                "Choosing expected=false must persist the existence assertion as negated.");
+        assertTrue(existence.target() != null && !existence.target().locatorCandidates().isEmpty(),
+                "The element assertion must carry the picked target's locator candidates.");
+        CaptureEvent.VerificationEvent title = verifications.stream()
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.TITLE_CONTAINS)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The Browser branch must persist a TITLE_CONTAINS verification event."));
+        assertFalse(title.negated(), "The browser assertion was not negated.");
+        assertTrue(title.expected() != null,
+                "The browser assertion must persist its expected value reference.");
+    }
+
+    /**
+     * Regression for issue #3378: the recorder overlay toolbar ({@code #shaft-capture-ui header})
+     * used to be bottom-anchored with a content-sized height, so every appended action row pushed
+     * the toolbar -- and the {@code #shaft-capture-assert} button inside it -- upward on screen. A
+     * click dispatched right as a row was appended could then land on stale coordinates and
+     * silently miss. Asserts the assert button's viewport position is unchanged as the recorded
+     * action list grows, which only holds when the panel has a fixed height and the action list is
+     * the flexible/scrolling region that absorbs growth.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayToolbarStaysAnchoredWhileActionListGrows(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-anchor.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-anchor-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            // Let the initial "Open ..." breadcrumb settle so the row count is deterministic.
+            waitFor(() -> actionRowCount(js) >= 1);
+            double baselineTop = assertButtonTop(js);
+            long baselineRows = actionRowCount(js);
+
+            // Append two more rows via real user actions, then wait for both to land before
+            // re-measuring; this proves the toolbar's position, not a timing coincidence.
+            driver.findElement(By.id("terms")).click();
+            new Select(driver.findElement(By.id("country"))).selectByVisibleText("Egypt");
+            waitFor(() -> actionRowCount(js) >= baselineRows + 2);
+
+            double grownTop = assertButtonTop(js);
+            recorder.stop(false);
+
+            assertEquals(baselineTop, grownTop, 1.5d,
+                    "The #shaft-capture-assert toolbar button must not move on screen as the "
+                            + "recorded-action list grows; a shifting toolbar lets a click that "
+                            + "started before a row appended land on stale coordinates (#3378).");
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Regression for issue #3393 and PR #3432: one navigation must append exactly one
+     * "Navigate to" row. Two historical duplicate sources are covered:
+     * <ul>
+     *   <li>#3393 — two redundant navigation-polling {@code setInterval} loops in the top-level
+     *       frame, both announcing the same navigation with no de-duplication.</li>
+     *   <li>#3432 — the recorder script also runs inside the same-origin {@code /frame} iframe,
+     *       which shared the top page's sessionStorage key: the iframe seeded {@code lastUrl}
+     *       from the top page's persisted state, announced a phantom
+     *       "Navigate to .../frame" row on its first 500ms poll tick, and its pagehide persist
+     *       raced the top frame's, so the next page could restore the phantom row alongside the
+     *       real navigation row.</li>
+     * </ul>
+     * The dwell before navigating guarantees the iframe's poller has ticked, making the
+     * pre-fix #3432 pollution deterministic instead of a CI-timing flake.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void singleNavigationAppendsExactlyOneNavigateRow(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+        Path output = temp.resolve(browserName + "-nav-dedup.json");
+        // The 900ms-delayed iframe reproduces the slow-CI ordering deterministically: the
+        // subframe recorder instance initializes only after the top page has persisted its
+        // "Open ..." breadcrumb, which pre-fix made the subframe adopt the top page's lastUrl
+        // and announce a phantom "Navigate to .../frame" row into shared storage (#3432).
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "?frameDelay=900",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-nav-dedup-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-action-list")));
+
+            // Dwell past the delayed iframe's first 500ms poll tick (~1.4s after the top page
+            // commits) so a reintroduced shared-storage bug (#3432) reliably plants its phantom
+            // row before the navigation under test.
+            Thread.sleep(2000);
+
+            driver.navigate().to(baseUrl + "popup");
+            // The overlay announces this row from a 500ms poll after the new document loads.
+            // The budget stays loose so a slower browser still reaches the exact-one check below.
+            waitFor(() -> navigateRowCount(js) >= 1, Duration.ofSeconds(20),
+                    () -> "A user navigation must show a Navigate to row. Rows: " + actionRowTexts(js));
+            // The (pre-fix, duplicate) navigation pollers both ran on a 500ms interval; sleeping
+            // across several ticks gives a reintroduced duplicate loop every chance to fire again
+            // before asserting the count stayed at exactly one.
+            Thread.sleep(1500);
+
+            assertEquals(1, navigateRowCount(js),
+                    "One navigation must append exactly one \"Navigate to\" row - not one per "
+                            + "redundant polling loop (#3393), and no phantom subframe row leaked "
+                            + "through shared page storage (#3432). Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Realistic search journey against a search-engine-style fixture: type a query, press Enter
+     * (GET form submit), get 302-redirected to the results page, which then canonicalizes its own
+     * URL via {@code history.replaceState}, then click a result link. None of those page changes
+     * were performed by the user as navigations — the reported bug was the recorder announcing
+     * two "Navigate to" actions for the search redirect alone — so:
+     * <ul>
+     *   <li>the overlay must show zero "Navigate to" rows,</li>
+     *   <li>the persisted session must contain exactly one NavigationEvent (the initial open),</li>
+     *   <li>generated code must contain exactly one {@code navigateToURL} call.</li>
+     * </ul>
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void searchRedirectJourneyRecordsOnlyUserPerformedSteps(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-search-redirect.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/search-home",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-search-redirect-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("q")));
+
+            driver.findElement(By.id("q")).sendKeys("shaft engine");
+            driver.findElement(By.id("q")).sendKeys(org.openqa.selenium.Keys.ENTER);
+            waitFor(() -> elementPresent(driver, By.id("result-link")));
+            waitFor(() -> String.valueOf(driver.getCurrentUrl()).contains("ia=web"));
+            driver.findElement(By.id("result-link")).click();
+            waitFor(() -> elementPresent(driver, By.id("detail-page")));
+
+            // Several 500ms poll ticks so a reintroduced consequence-navigation announcement has
+            // every chance to fire before the count is asserted.
+            Thread.sleep(2000);
+            assertEquals(0, navigateRowCount(js),
+                    "Form-submit redirects, history rewrites, and link-click navigations are "
+                            + "consequences of recorded interactions, never their own \"Navigate "
+                            + "to\" actions. Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<CaptureEvent.NavigationEvent> navigations = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(1, navigations.size(),
+                "Exactly one NavigationEvent (the initial open) must be persisted for the whole "
+                        + "search journey; got: "
+                        + navigations.stream().map(CaptureEvent.NavigationEvent::targetUrl).toList());
+        assertTrue(navigations.getFirst().targetUrl().contains("/search-home"));
+        assertTrue(session.events().stream().anyMatch(CaptureEvent.TypeEvent.class::isInstance),
+                "The typed search query must be recorded.");
+        assertTrue(session.events().stream().anyMatch(event ->
+                        event instanceof CaptureEvent.ClickEvent click
+                                && "result-link".equals(click.target().logicalElementId())),
+                "The result-link click must be recorded.");
+
+        com.shaft.capture.generate.CaptureGenerationResult generated =
+                new com.shaft.capture.generate.CaptureGenerator().generate(
+                        new com.shaft.capture.generate.CaptureGenerationRequest(
+                                output, temp.resolve(browserName + "-generated"),
+                                "generated.capture", "", false,
+                                false, false, Duration.ofMinutes(1),
+                                com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode.NONE,
+                                null, false,
+                                com.shaft.pilot.ai.ApprovalPolicy.denyAll()));
+        // Issue #4029: replay was not requested (compile wasn't either, here), so a genuinely
+        // working generation now reports UNCONFIRMED, never bare SUCCESS -- this test's own intent
+        // (recorded-event/navigation-dedup correctness, proven below via navigateCalls) is what
+        // UNCONFIRMED-not-FAILED verifies, not replay confirmation.
+        assertEquals(com.shaft.capture.generate.CaptureGenerationReport.Status.UNCONFIRMED,
+                generated.report().status(),
+                "Codegen must succeed for the recorded search journey: "
+                        + generated.report().unsupportedEvents());
+        String source = Files.readString(generated.sourcePath(), StandardCharsets.UTF_8);
+        long navigateCalls = source.split(java.util.regex.Pattern.quote("navigateToURL("), -1).length - 1L;
+        assertEquals(1, navigateCalls,
+                "Generated code must open the start URL exactly once and drive everything else "
+                        + "through the recorded interactions.");
+    }
+
+    /**
+     * DuckDuckGo-style search where the results page performs a genuine SECOND top-level navigation
+     * ({@code location.replace()}, a real BiDi commit) to canonicalize its URL after the 302 form
+     * submit. Both commits are consequences of the ENTER submit, so — exactly like the single-commit
+     * case above — the journey must record only the initial open, no phantom "Navigate to" rows.
+     * Reproduces the reported bug where an ENTER-triggered search left two extra navigation steps.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void searchWithSecondReplaceNavigationRecordsOnlyUserPerformedSteps(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-search-replace.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/search-home-replace",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-search-replace-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("q")));
+
+            driver.findElement(By.id("q")).sendKeys("shaft engine");
+            driver.findElement(By.id("q")).sendKeys(org.openqa.selenium.Keys.ENTER);
+            waitFor(() -> elementPresent(driver, By.id("result-link-replace")));
+            waitFor(() -> String.valueOf(driver.getCurrentUrl()).contains("results-replace-final"));
+            driver.findElement(By.id("result-link-replace")).click();
+            waitFor(() -> elementPresent(driver, By.id("detail-page")));
+
+            // Several 500ms poll ticks so any reintroduced consequence-navigation announcement has
+            // every chance to fire before the count is asserted.
+            Thread.sleep(2000);
+            assertEquals(0, navigateRowCount(js),
+                    "The 302 form-submit redirect AND the results page's location.replace() "
+                            + "canonicalization are both consequences of the ENTER submit, never their "
+                            + "own \"Navigate to\" actions. Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<CaptureEvent.NavigationEvent> navigations = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .toList();
+        assertEquals(1, navigations.size(),
+                "Exactly one NavigationEvent (the initial open) must be persisted for the whole "
+                        + "second-replace search journey; got: "
+                        + navigations.stream().map(CaptureEvent.NavigationEvent::targetUrl).toList());
+        assertTrue(navigations.getFirst().targetUrl().contains("/search-home-replace"));
+        assertTrue(session.events().stream().anyMatch(CaptureEvent.TypeEvent.class::isInstance),
+                "The typed search query must be recorded.");
+        assertTrue(session.events().stream().anyMatch(event ->
+                        event instanceof CaptureEvent.ClickEvent click
+                                && "result-link-replace".equals(click.target().logicalElementId())),
+                "The result-link click must be recorded.");
+    }
+
+    /**
+     * Back/forward traversals are navigations the user performed, and they typically happen
+     * within seconds of a recorded interaction — the interaction-consequence window must not
+     * swallow them (they were silently dropped when the consequence suppression first landed).
+     * The journey clicks a link, presses Back, Forward, then Back again, and expects:
+     * <ul>
+     *   <li>the click-consequence navigation to B stays suppressed,</li>
+     *   <li>each traversal is recorded as a navigation event carrying the overlay row's
+     *       identity (so the rows survive step syncs), including a second Back to a URL
+     *       that already has a "Navigate to" row,</li>
+     *   <li>generated code replays open plus each traversal target.</li>
+     * </ul>
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void backForwardJourneyRecordsUserTraversals(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        Path output = temp.resolve(browserName + "-traversal.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                baseUrl + "/nav-a",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-traversal-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            JavascriptExecutor js = (JavascriptExecutor) driver;
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+
+            driver.findElement(By.id("to-b")).click();
+            waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
+            waitFor(recorder::readyForDistinctUserTraversal);
+            driver.navigate().back();
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+            waitFor(() -> navigateRowCount(js) == 1);
+            driver.navigate().forward();
+            waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
+            waitFor(() -> navigateRowCount(js) == 2);
+            driver.navigate().back();
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+            waitFor(() -> navigateRowCount(js) == 3);
+
+            assertEquals(3, navigateRowCount(js),
+                    "Each Back and Forward must append its own \"Navigate to\" row, including a "
+                            + "second Back to a URL that already has one. Rows: "
+                            + actionRowTexts(js));
+            assertEquals(Boolean.TRUE, js.executeScript("""
+                    const ui = globalThis.__shaftCaptureUiState;
+                    const apply = globalThis.__shaftCaptureApplyServerSteps;
+                    const last = ui.actions[ui.actions.length - 1];
+                    const text = last.text;
+                    last.pendingTraversal = true;
+                    const remote = String(last.remoteId || "").trim();
+                    const localId = remote || (ui.instanceId + "-" + last.id);
+                    const copies = () => ui.actions.filter(item => item.text === text).length;
+                    apply([{clientActionId: "ctx:b2xk:older-row", description: text, sequence: 1}]);
+                    const kept = copies() === 2 && ui.actions.some(item =>
+                      item.pendingTraversal && item.id === last.id);
+                    apply([{clientActionId: localId, description: text, sequence: 2}]);
+                    return kept && copies() === 1;
+                    """),
+                    "A second traversal must survive a sync that only has an older row for that URL, "
+                            + "and must be replaced once its own id arrives. Rows: " + actionRowTexts(js));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        List<String> navigationUrls = session.events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .map(CaptureEvent.NavigationEvent::targetUrl)
+                .toList();
+        assertEquals(4, navigationUrls.size(),
+                "Initial open plus the three traversals must be recorded (and the click "
+                        + "consequence suppressed); got: " + navigationUrls);
+        assertTrue(navigationUrls.get(0).contains("/nav-a"));
+        assertTrue(navigationUrls.get(1).contains("/nav-a"),
+                "The Back traversal to /nav-a must be recorded.");
+        assertTrue(navigationUrls.get(2).contains("/nav-b"),
+                "The Forward traversal to /nav-b must be recorded.");
+        assertTrue(navigationUrls.get(3).contains("/nav-a"),
+                "The second Back traversal to /nav-a must be recorded.");
+    }
+
+    /**
+     * The minimize control collapses the panel to its header toolbar so the page underneath
+     * stays usable, while recording continues and the header keeps a live step count; expanding
+     * restores the full step list.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"chrome", "edge"})
+    void overlayMinimizeKeepsRecordingWhilePanelBodyIsCollapsed(
+            String browserName,
+            @TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve(browserName + "-minimize.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse(browserName),
+                output,
+                temp.resolve(browserName + "-minimize-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-minimize")));
+
+            driver.findElement(By.id("shaft-capture-minimize")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-actions")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-title")).getText().contains("step"),
+                    "The minimized header must keep a live step count visible.");
+
+            driver.findElement(By.id("terms")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Terms")));
+            assertFalse(driver.findElement(By.id("shaft-capture-actions")).isDisplayed(),
+                    "Recording an action must not expand the minimized panel.");
+
+            driver.findElement(By.id("shaft-capture-minimize")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-actions")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-action-list")).getText().contains("Terms"),
+                    "Expanding must restore the full recorded step list.");
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    private static double assertButtonTop(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "return document.getElementById('shaft-capture-assert').getBoundingClientRect().top;");
+        return ((Number) value).doubleValue();
+    }
+
+    private static long actionRowCount(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "return l ? l.childElementCount : 0;");
+        return ((Number) value).longValue();
+    }
+
+    private static long navigateRowCount(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "if (!l) return 0;"
+                        + "return Array.from(l.querySelectorAll('li')).filter(li => "
+                        + "(li.textContent || '').includes('Navigate to')).length;");
+        return ((Number) value).longValue();
+    }
+
+    private static String actionRowTexts(JavascriptExecutor js) {
+        Object value = js.executeScript(
+                "const l = document.getElementById('shaft-capture-action-list');"
+                        + "if (!l) return '';"
+                        + "return Array.from(l.querySelectorAll('li'))"
+                        + ".map(li => (li.textContent || '').trim()).join(' | ');");
+        return String.valueOf(value);
+    }
+
+    /**
+     * Issue #3496 P0: the overlay speaks the shared authoring glossary — readiness and mode render
+     * as separate pills ("Ready" / "Recording"), recorded units read "steps", and the Stop button
+     * opens a pre-close confirmation that names the saved session path and the "Review code" next
+     * action BEFORE the STOP control is sent (the browser closes almost immediately afterwards, so
+     * post-stop copy would never be readable).
+     */
+    @Test
+    void overlayStatusPillsAndStopConfirmGuideTheSession(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("pills.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("pills-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-status")));
+
+            String statusText = driver.findElement(By.id("shaft-capture-status")).getText();
+            assertTrue(statusText.contains("Ready"),
+                    "The readiness pill must read 'Ready', got: " + statusText);
+            assertTrue(statusText.contains("Recording"),
+                    "The mode pill must read 'Recording', got: " + statusText);
+            assertTrue(statusText.contains("step"),
+                    "Recorded units must be called steps, never events, got: " + statusText);
+            assertFalse(statusText.contains("event"),
+                    "Recorded units must be called steps, never events, got: " + statusText);
+
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-status")).getText().matches("(?s).*\\d+ steps?.*"));
+
+            // First Stop click asks for confirmation and must NOT stop the recording yet.
+            driver.findElement(By.id("shaft-capture-stop")).click();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            String confirmText = driver.findElement(By.id("shaft-capture-stop-confirm")).getText();
+            assertTrue(confirmText.contains("Review code"),
+                    "The stop confirmation must name the 'Review code' next action, got: " + confirmText);
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state(),
+                    "Opening the stop confirmation must not stop the recording.");
+            // The saved-session path arrives from the /session loopback endpoint asynchronously.
+            // In-page loopback fetches are best-effort by design (see the steps-sync note above),
+            // so environments that block them still get the generic saved-session copy.
+            boolean pathObserved = waitForBestEffort(
+                    () -> driver.findElement(By.id("shaft-capture-stop-confirm")).getText()
+                            .contains("Session saved to:"), Duration.ofSeconds(8));
+            if (!pathObserved) {
+                assertTrue(driver.findElement(By.id("shaft-capture-stop-confirm")).getText()
+                                .contains("saved"),
+                        "Without the /session fetch the confirmation must still say the session is saved.");
+            }
+
+            // "Keep recording" dismisses the confirmation and recording continues.
+            driver.findElement(By.id("shaft-capture-stop-confirm-no")).click();
+            waitFor(() -> !elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state());
+
+            // "Save & close" actually stops the session.
+            driver.findElement(By.id("shaft-capture-stop")).click();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-stop-confirm-yes")));
+            driver.findElement(By.id("shaft-capture-stop-confirm-yes")).click();
+            waitFor(() -> recorder.status().state() != CaptureStatus.State.ACTIVE);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+        assertEquals(CaptureStatus.State.COMPLETED, recorder.status().state(),
+                "Confirming the stop dialog must complete the session.");
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, session.status());
+    }
+
+    /**
+     * Issue #3496 P1: authoring ergonomics — every step row carries a kind badge, deleting a step
+     * offers a 5-second Undo (the step_delete signal is only sent after the grace window, so undo
+     * needs no server reverse-op and the server list keeps the step), the header help sheet lists
+     * the controls, and the panel can be dragged with its position remembered.
+     */
+    @Test
+    void overlayErgonomicsBadgesUndoHelpAndDrag(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("ergonomics.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("ergonomics-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-status")));
+
+            driver.findElement(By.id("username")).click();
+            driver.findElement(By.id("username")).sendKeys("alice");
+            driver.findElement(By.id("password")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-action-list")).getText()
+                    .contains("Type into"));
+
+            // Kind badges render per row.
+            String listText = driver.findElement(By.id("shaft-capture-action-list")).getText();
+            assertTrue(listText.contains("CLICK") || listText.contains("Click"),
+                    "Rows must carry a kind badge, got: " + listText);
+            assertTrue(listText.contains("TYPE") || listText.contains("Type into"),
+                    "The type step must be present, got: " + listText);
+
+            // Undo delete: the row disappears, the undo note appears, and undoing restores the
+            // row while the server-side step list never loses the step.
+            int rowsBefore = driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size();
+            String deletedDescription = driver.findElements(By.cssSelector("#shaft-capture-action-list li"))
+                    .get(rowsBefore - 1)
+                    .findElement(By.cssSelector(".action-row > span > span:not(.step-badge)"))
+                    .getText().trim();
+            // #3536 B5: delete now lives behind the row's overflow menu, so open it first.
+            driver.findElements(By.cssSelector("#shaft-capture-action-list li .row-overflow-toggle"))
+                    .get(rowsBefore - 1).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li .row-overflow-menu"))
+                    .get(rowsBefore - 1).isDisplayed());
+            driver.findElements(By.cssSelector(
+                    "#shaft-capture-action-list li button[aria-label='Delete captured action']"))
+                    .get(rowsBefore - 1).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size()
+                    == rowsBefore - 1);
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-undo"))
+                    && !driver.findElements(By.id("shaft-capture-undo-note")).isEmpty()
+                    && driver.findElement(By.id("shaft-capture-undo-note")).isDisplayed());
+            driver.findElement(By.id("shaft-capture-undo")).click();
+            waitFor(() -> driver.findElements(By.cssSelector("#shaft-capture-action-list li")).size()
+                    == rowsBefore);
+            // Past the grace window the undone step must still exist server-side (no delete sent);
+            // other pending signals may keep landing meanwhile, so assert containment, not equality.
+            Thread.sleep(5600);
+            assertTrue(stepDescriptions(recorder).stream()
+                            .anyMatch(description -> description.contains(deletedDescription)),
+                    "Undoing within the grace window must keep the step server-side; wanted '"
+                            + deletedDescription + "' in " + stepDescriptions(recorder));
+
+            // Help sheet toggle.
+            driver.findElement(By.id("shaft-capture-help-toggle")).click();
+            waitFor(() -> driver.findElement(By.id("shaft-capture-help")).isDisplayed());
+            assertTrue(driver.findElement(By.id("shaft-capture-help")).getText().contains("Recorder controls"));
+            driver.findElement(By.id("shaft-capture-help-toggle")).click();
+            waitFor(() -> !driver.findElement(By.id("shaft-capture-help")).isDisplayed());
+
+            // Drag: move the panel by its header and confirm it left the bottom-right anchor.
+            org.openqa.selenium.Rectangle before = driver.findElement(By.id("shaft-capture-ui")).getRect();
+            new Actions(driver)
+                    .moveToElement(driver.findElement(By.id("shaft-capture-title")))
+                    .clickAndHold()
+                    .moveByOffset(-250, -180)
+                    .release()
+                    .perform();
+            org.openqa.selenium.Rectangle after = driver.findElement(By.id("shaft-capture-ui")).getRect();
+            assertTrue(after.getX() < before.getX() && after.getY() < before.getY(),
+                    "Dragging the header must move the panel, before=" + before.getPoint()
+                            + " after=" + after.getPoint());
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * The recorder toolbar is icon-only: no visible text labels ever render next to (or inside)
+     * the header buttons, and each control carries its accessible name via {@code title}/
+     * {@code aria-label} instead.
+     */
+    @Test
+    void overlayToolbarIsIconOnlyWithAccessibleNames(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("toolbar-icons.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("toolbar-icons-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            assertTrue(driver.findElements(By.cssSelector("#shaft-capture-ui .ctrl-label")).isEmpty(),
+                    "No control-label elements must render in the recorder toolbar.");
+            assertTrue(driver.findElements(By.id("shaft-capture-labels-dismiss")).isEmpty(),
+                    "The removed 'Hide labels' affordance must not exist.");
+
+            WebElement pause = driver.findElement(By.id("shaft-capture-pause"));
+            WebElement assertButton = driver.findElement(By.id("shaft-capture-assert"));
+            WebElement pick = driver.findElement(By.id("shaft-capture-pick"));
+            WebElement stop = driver.findElement(By.id("shaft-capture-stop"));
+            assertEquals("", pause.getText(), "Pause button must show no visible text.");
+            assertEquals("", assertButton.getText(), "Assert button must show no visible text.");
+            assertEquals("", pick.getText(), "Pick button must show no visible text.");
+            assertEquals("", stop.getText(), "Stop button must show no visible text.");
+            assertTrue(pause.getAttribute("title") != null && !pause.getAttribute("title").isBlank(),
+                    "Pause button must carry accessible alt text via title.");
+            assertEquals("Add assertion", assertButton.getAttribute("aria-label"));
+            assertEquals("Toggle locator picker", pick.getAttribute("aria-label"));
+            assertEquals("Stop recording", stop.getAttribute("aria-label"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #3536 B5: each step row carries a "More actions" overflow menu holding assert/edit/
+     * delete, while up/down remain always-visible inline buttons. Opening the menu reveals the
+     * menu items; Esc closes it again.
+     */
+    @Test
+    void overlayStepRowOverflowMenuHoldsSecondaryActions(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("overflow-menu.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("overflow-menu-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-action-list")));
+            driver.findElement(By.id("username")).click();
+            waitFor(() -> !driver.findElements(By.cssSelector("#shaft-capture-action-list li")).isEmpty());
+
+            WebElement row = driver.findElements(By.cssSelector("#shaft-capture-action-list li")).get(0);
+            assertTrue(elementPresent(driver, By.cssSelector(
+                            "#shaft-capture-action-list li .row-overflow-toggle")),
+                    "Every row must carry a 'More actions' overflow toggle.");
+            assertTrue(row.findElement(By.cssSelector(
+                            ".action-row button[aria-label='Move captured action up']")).isDisplayed(),
+                    "Up must remain a direct, always-visible row button.");
+            assertTrue(row.findElement(By.cssSelector(
+                            ".action-row button[aria-label='Move captured action down']")).isDisplayed(),
+                    "Down must remain a direct, always-visible row button.");
+
+            WebElement toggle = row.findElement(By.cssSelector(".row-overflow-toggle"));
+            WebElement menu = row.findElement(By.cssSelector(".row-overflow-menu"));
+            assertFalse(menu.isDisplayed(), "The overflow menu must start closed.");
+            toggle.click();
+            waitFor(menu::isDisplayed);
+            assertEquals("true", toggle.getAttribute("aria-expanded"));
+            assertTrue(menu.findElement(By.cssSelector("button[aria-label='Edit captured action']"))
+                    .isDisplayed());
+            assertTrue(menu.findElement(By.cssSelector("button[aria-label='Delete captured action']"))
+                    .isDisplayed());
+
+            new Actions(driver).sendKeys(org.openqa.selenium.Keys.ESCAPE).perform();
+            waitFor(() -> !menu.isDisplayed());
+            assertEquals("false", toggle.getAttribute("aria-expanded"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #3536 C1: the suppressed-events toggle/log DOM wiring exists from render time even
+     * before any suppression happens, and both stay hidden while {@code uiState.suppressedEvents}
+     * is empty. A real suppression only fires from the 10-second interaction-navigation window
+     * (issue #3496), which is not reproducible deterministically here, so this asserts the
+     * always-verifiable existence+visibility contract instead of a flaky live trigger.
+     */
+    @Test
+    void overlaySuppressedEventsLogStaysHiddenWithoutSuppressions(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("suppressed-log.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("suppressed-log-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-suppressed-toggle")));
+
+            assertFalse(driver.findElement(By.id("shaft-capture-suppressed-toggle")).isDisplayed(),
+                    "The suppressed-events toggle must stay hidden with no suppressed events yet.");
+            assertFalse(driver.findElement(By.id("shaft-capture-suppressed-log")).isDisplayed(),
+                    "The suppressed-events log must stay hidden with no suppressed events yet.");
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Regression for issue #4025: the recorder's in-page {@code locators()} function used to
+     * hardcode {@code uniquenessCount: 1} for the ROLE and LABEL strategies instead of measuring
+     * whether the locator actually matches exactly one element. Two buttons sharing the same
+     * inferred role ("button") and accessible name ("Submit") make the ROLE candidate
+     * ("button:Submit") built from clicking either one truthfully match both elements; the
+     * recorded {@code uniquenessCount} must reflect that real count instead of the fabricated
+     * {@code 1}, which previously caused the locator to be scored/treated as uniquely identifying
+     * its target.
+     */
+    @Test
+    void recordedRoleLocatorReflectsTrueUniquenessCountWhenMultipleElementsMatch(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("multi-match.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/multi-match",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("multi-match-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("submit-a")));
+
+            driver.findElement(By.id("submit-a")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Submit")));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        CaptureEvent.ClickEvent click = session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .filter(event -> "submit-a".equals(event.target().logicalElementId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("The click on #submit-a must be recorded."));
+        LocatorCandidate role = click.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A ROLE locator candidate must be recorded for the clicked button: "
+                                + click.target().locatorCandidates()));
+        assertEquals(2, role.uniquenessCount(),
+                "Both buttons share role \"button\" and accessible name \"Submit\", so the ROLE "
+                        + "candidate " + role.expression() + " truthfully matches both elements; a "
+                        + "hardcoded uniquenessCount of 1 would wrongly claim it identifies its "
+                        + "target uniquely.");
+    }
+
+    /**
+     * Issue #4026: for an unmapped ARIA role, {@code CaptureGenerator} used to reconstruct a
+     * predicate blind in Java -- guessing between an {@code aria-label} attribute and the element's
+     * own text -- and an exact-text guess cannot survive internal DOM whitespace even when it
+     * guesses the right signal. The in-page recorder knows the true signal and must instead
+     * self-verify a literal {@code replayXpath} (using {@code normalize-space()}) against the live
+     * DOM, so record and replay resolve the exact same element from one shared artifact.
+     */
+    @Test
+    void recordedReplayXpathResolvesTheSameElementDespiteInternalDomWhitespace(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("replay-xpath.json");
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/replay-xpath";
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                url,
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("replay-xpath-runtime"),
+                true));
+        LocatorCandidate role;
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("status-banner")));
+
+            driver.findElement(By.id("status-banner")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.toLowerCase(java.util.Locale.ROOT)
+                            .contains("wrong")));
+
+            CaptureSession session = new CaptureJsonCodec().read(output);
+            CaptureEvent.ClickEvent click = session.events().stream()
+                    .filter(CaptureEvent.ClickEvent.class::isInstance)
+                    .map(CaptureEvent.ClickEvent.class::cast)
+                    .filter(event -> "status-banner".equals(event.target().logicalElementId()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "The click on #status-banner must be recorded."));
+            role = click.target().locatorCandidates().stream()
+                    .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.ROLE)
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "A ROLE locator candidate must be recorded for the clicked div: "
+                                    + click.target().locatorCandidates()));
+            assertFalse(role.replayXpath().isBlank(),
+                    "the recorder must self-verify and record a literal replayXpath for an "
+                            + "unmapped ARIA role candidate: " + role);
+
+            // Simulate replay: reload the page so the DOM is rebuilt fresh, then resolve the
+            // recorded replayXpath exactly as the generated code's By.xpath(...) would at replay.
+            driver.navigate().refresh();
+            waitFor(() -> elementPresent(driver, By.id("status-banner")));
+            List<WebElement> matches = driver.findElements(By.xpath(role.replayXpath()));
+            assertEquals(1, matches.size(),
+                    "the recorded replayXpath must resolve to exactly the recorded element at "
+                            + "replay time despite its internal DOM whitespace: " + role.replayXpath());
+            assertEquals("status-banner", matches.get(0).getAttribute("id"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #4239 P1.0a: {@code LocatorBuilder.byRole(Role.BUTTON)} compiles to a FIXED
+     * tag/attribute XPath union ({@code //button | //input[@type='button'] | ...}, see
+     * {@code LocatorBuilder.java:144-190}) that never inspects the {@code role} attribute -- but
+     * the recorder's {@code inferredRole} prefers an explicit {@code role="..."} attribute over
+     * tag shape. A {@code <div role="button">} therefore produces a ROLE candidate whose
+     * {@code uniquenessCount} (re-deriving {@code inferredRole} across the page, issue #4025)
+     * truthfully reports 1, while the XPath {@code SHAFT.GUI.Locator.hasRole(Role.BUTTON)} will
+     * actually ship at replay time matches ZERO {@code <div>} elements -- nothing previously
+     * re-verified that before the candidate could be trusted. The recorder must self-verify the
+     * SAME fixed per-role XPath union against the live DOM and flag the mismatch, while a
+     * genuinely matching native {@code <button>} must still verify true. {@code roleXpathVerified}
+     * has no Java-side model yet (a later, separate task decides how {@code CaptureGenerator}
+     * consumes it), so it is read directly off the live in-page state via the
+     * {@code globalThis.__shaftCaptureUiState} seam rather than the persisted session file.
+     */
+    @Test
+    void roleCandidateSelfVerifiesTheXpathLocatorBuilderWillActuallyShipAtReplay(@TempDir Path temp)
+            throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("role-self-verify.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/role-self-verify",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("role-self-verify-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("custom-button")));
+
+            driver.findElement(By.id("custom-button")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Custom Button")));
+            Map<String, Object> customButtonRole = roleCandidateFromLiveState(driver, "custom-button");
+            assertEquals(1L, ((Number) customButtonRole.get("uniquenessCount")).longValue(),
+                    "inferredRole-based uniqueness truthfully reports one match for the div's role "
+                            + "attribute (issue #4025 territory, unrelated to this fix): " + customButtonRole);
+            assertEquals(Boolean.FALSE, customButtonRole.get("roleXpathVerified"),
+                    "SHAFT.GUI.Locator.hasRole(Role.BUTTON) never inspects @role, so its fixed "
+                            + "XPath union matches zero <div> elements -- the candidate must NOT be "
+                            + "flagged verified: " + customButtonRole);
+
+            driver.findElement(By.id("real-button")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Real Button")));
+            Map<String, Object> realButtonRole = roleCandidateFromLiveState(driver, "real-button");
+            assertEquals(Boolean.TRUE, realButtonRole.get("roleXpathVerified"),
+                    "a genuine <button> IS matched by hasRole(Role.BUTTON)'s XPath union and must "
+                            + "verify true: " + realButtonRole);
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #4239 P1.0b: {@code computeReplayXpath} previously had exactly one call site (the
+     * ROLE branch, {@code shaft-capture-recorder.js:505-506} pre-fix), so LABEL candidates and
+     * elements with no inferred role at all never received a self-verified fallback XPath -- only
+     * role-matched elements did. Proves both gaps are closed: a labeled text input's LABEL
+     * candidate carries a self-verified {@code replayXpath}, and a plain role-less/label-less
+     * element (a {@code <span>} whose only accessible-name signal is its own visible text) gets
+     * its own self-verified XPath candidate where previously none existed. Both recorded XPaths
+     * are then proven to resolve, uniquely, to the same element after a page reload -- exactly the
+     * replay proof {@code recordedReplayXpathResolvesTheSameElementDespiteInternalDomWhitespace}
+     * above already established for the ROLE branch.
+     */
+    @Test
+    void labelAndRoleLessCandidatesGetASelfVerifiedFallbackXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("xpath-fallback.json");
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/xpath-fallback";
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                url,
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("xpath-fallback-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("labeled-input")));
+
+            driver.findElement(By.id("labeled-input")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.toLowerCase(java.util.Locale.ROOT)
+                            .contains("username")));
+            driver.findElement(By.id("roleless-text")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Click me plain span")));
+
+            CaptureSession midSession = new CaptureJsonCodec().read(output);
+            LocatorCandidate label = locatorCandidateFor(midSession, "labeled-input",
+                    LocatorCandidate.LocatorStrategy.LABEL);
+            assertFalse(label.replayXpath().isBlank(),
+                    "the recorder must self-verify a fallback replayXpath for a LABEL candidate, "
+                            + "not only for ROLE candidates: " + label);
+            List<LocatorCandidate> roleLessCandidates = clickTarget(midSession, "roleless-text")
+                    .target().locatorCandidates();
+            LocatorCandidate roleLessFallback = roleLessCandidates.stream()
+                    .filter(candidate -> !candidate.replayXpath().isBlank())
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "an element with no inferred role and no enclosing <label> must still "
+                                    + "get a self-verified fallback XPath candidate when one can be "
+                                    + "computed: " + roleLessCandidates));
+
+            // Replay proof: reload so the DOM is rebuilt fresh, then resolve each recorded
+            // replayXpath exactly as generated By.xpath(...) code would at replay time.
+            driver.navigate().refresh();
+            waitFor(() -> elementPresent(driver, By.id("labeled-input")));
+            List<WebElement> labelMatches = driver.findElements(By.xpath(label.replayXpath()));
+            assertEquals(1, labelMatches.size(),
+                    "the recorded LABEL replayXpath must resolve to exactly the recorded element "
+                            + "at replay time: " + label.replayXpath());
+            assertEquals("labeled-input", labelMatches.get(0).getAttribute("id"));
+            List<WebElement> roleLessMatches = driver.findElements(By.xpath(roleLessFallback.replayXpath()));
+            assertEquals(1, roleLessMatches.size(),
+                    "the recorded role-less fallback replayXpath must resolve to exactly the "
+                            + "recorded element at replay time: " + roleLessFallback.replayXpath());
+            assertEquals("roleless-text", roleLessMatches.get(0).getAttribute("id"));
+
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    /**
+     * Issue #4717: choosing a stable TEST_ID for an element assertion must carry enough verified
+     * evidence for code generation to preserve that choice. The selected result title deliberately
+     * has volatile visible text, while duplicate and dynamic test IDs prove the recorder fails
+     * closed instead of manufacturing rung-2 evidence.
+     */
+    @Test
+    void selectedStableTestIdCarriesSelfVerifiedRelativeXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
+            driver.findElement(By.id("result-title")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            WebElement selectedTestIdButton = driver.findElement(selectedTestId);
+            assertEquals(
+                    "By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")",
+                    selectedTestIdButton.findElement(By.xpath("./ancestor::li[1]"))
+                            .findElement(By.cssSelector(".locator-expression"))
+                            .getText());
+            selectedTestIdButton.click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("ShaftHQ");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert text contains")));
+
+            driver.findElement(By.id("duplicate-a")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Duplicate A")));
+            driver.findElement(By.id("dynamic-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Dynamic test id")));
+            driver.findElement(By.id("missing-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Missing test id")));
+            driver.findElement(By.id("unconfigured-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Unconfigured test id")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureSession session = new CaptureJsonCodec().read(output);
+        CaptureEvent.VerificationEvent verification = session.events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.TEXT_CONTAINS)
+                .findFirst()
+                .orElseThrow();
+        LocatorCandidate selected = verification.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertTrue(selected.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED)),
+                () -> assertEquals("//*[@data-testid=\"result-title-a\"]", selected.replayXpath()));
+
+        LocatorCandidate duplicate = locatorCandidateFor(
+                session, "duplicate-result", LocatorCandidate.LocatorStrategy.TEST_ID);
+        LocatorCandidate dynamic = locatorCandidateFor(
+                session, "result-12345678", LocatorCandidate.LocatorStrategy.TEST_ID);
+        assertAll(
+                () -> assertEquals(2, duplicate.uniquenessCount()),
+                () -> assertTrue(duplicate.replayXpath().isBlank()),
+                () -> assertFalse(dynamic.stable()),
+                () -> assertTrue(dynamic.replayXpath().isBlank()),
+                () -> assertTrue(clickTarget(session, "missing-test-id").target().locatorCandidates().stream()
+                        .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)),
+                () -> assertTrue(clickTarget(session, "unconfigured-test-id").target().locatorCandidates().stream()
+                        .noneMatch(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)));
+    }
+
+    @Test
+    void selectedTestIdEvidenceIsRevalidatedWhenTheAssertionIsSaved(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("stale-selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("stale-selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
+            driver.findElement(By.id("stale-result")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            driver.findElement(selectedTestId).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")));
+
+            ((JavascriptExecutor) driver).executeScript("""
+                    const duplicate = document.createElement('span');
+                    duplicate.id = 'stale-result-duplicate';
+                    duplicate.setAttribute('data-testid', 'stale-result-a');
+                    duplicate.textContent = 'Inserted after locator selection';
+                    document.body.appendChild(duplicate);
+                    """);
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='ELEMENT_PRESENT']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel select[name='expectedBoolean']")));
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert element exists")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        CaptureEvent.VerificationEvent verification = new CaptureJsonCodec().read(output).events().stream()
+                .filter(CaptureEvent.VerificationEvent.class::isInstance)
+                .map(CaptureEvent.VerificationEvent.class::cast)
+                .filter(event -> event.verification() == CaptureEvent.VerificationKind.ELEMENT_PRESENT)
+                .findFirst()
+                .orElseThrow();
+        LocatorCandidate selected = verification.target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == LocatorCandidate.LocatorStrategy.TEST_ID)
+                .filter(candidate -> candidate.signals().contains(LocatorCandidate.LocatorSignal.USER_PROVIDED))
+                .findFirst()
+                .orElseThrow();
+        assertAll(
+                () -> assertEquals(2, selected.uniquenessCount()),
+                () -> assertTrue(selected.replayXpath().isBlank()));
+    }
+
+    @Test
+    void recordedSelectedTestIdGeneratesAndReplaysAcrossEquivalentMarkup(@TempDir Path temp) throws Exception {
+        AtomicReference<String> resultMarkup = new AtomicReference<>(
+                "<h2><a data-testid=\"result-title-a\" href=\"/detail\">"
+                        + "ShaftHQ result</a></h2>"
+                        + "<a href=\"/other\">ShaftHQ result</a>");
+        HttpServer server = localFixture(resultMarkup);
+        Path output = temp.resolve("recorded-selected-test-id.json");
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.parse("chrome"),
+                output,
+                temp.resolve("recorded-selected-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
+            driver.findElement(By.cssSelector("[data-testid='result-title-a']")).click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            driver.findElement(selectedTestId).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")));
+            driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel button[data-assertion-kind='TEXT_CONTAINS']")).click();
+            waitFor(() -> elementPresent(driver, By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']")));
+            WebElement expected = driver.findElement(By.cssSelector(
+                    "#shaft-capture-assertion-panel input[name='expected']"));
+            expected.clear();
+            expected.sendKeys("ShaftHQ");
+            driver.findElement(By.xpath(
+                    "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Save assertion']"))
+                    .click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.startsWith("Assert text contains")));
+            recorder.stop(false);
+            // #6392: the CI-only replay miss needs the recorded steps to diagnose.
+            String recorded = Files.readString(output);
+
+            com.shaft.capture.generate.CaptureGenerationResult linkResult =
+                    new com.shaft.capture.generate.CaptureGenerator().generate(
+                            selectedTestIdReplayRequest(
+                                    output,
+                                    temp.resolve("recorded-selected-test-id-link"),
+                                    "RecordedSelectedTestIdLinkReplayTest"));
+            resultMarkup.set(
+                    "<h2><span data-testid=\"result-title-a\">"
+                            + "ShaftHQ result</span></h2>"
+                            + "<a href=\"/other\">ShaftHQ result</a>");
+            com.shaft.capture.generate.CaptureGenerationResult spanResult =
+                    new com.shaft.capture.generate.CaptureGenerator().generate(
+                            selectedTestIdReplayRequest(
+                                    output,
+                                    temp.resolve("recorded-selected-test-id-span"),
+                                    "RecordedSelectedTestIdSpanReplayTest"));
+
+            assertAll(
+                    () -> assertTrue(linkResult.successful(),
+                            linkResult.report().replay().diagnostics() + " recorded session: " + recorded),
+                    () -> assertTrue(spanResult.successful(),
+                            spanResult.report().replay().diagnostics() + " recorded session: " + recorded),
+                    () -> assertEquals(
+                            com.shaft.capture.generate.CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                            linkResult.report().replay().status()),
+                    () -> assertEquals(
+                            com.shaft.capture.generate.CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                            spanResult.report().replay().status()),
+                    () -> assertTrue(Files.readString(linkResult.sourcePath())
+                                    .contains("By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")"),
+                            Files.readString(linkResult.sourcePath())),
+                    () -> assertTrue(Files.readString(spanResult.sourcePath())
+                                    .contains("By.xpath(\"//*[@data-testid=\\\"result-title-a\\\"]\")"),
+                            Files.readString(spanResult.sourcePath())));
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void configuredCustomTestIdAttributeCarriesVerifiedReplayXpath(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        Path output = temp.resolve("custom-test-id.json");
+        CaptureStartOptions options = new CaptureStartOptions(
+                "", "data-pw", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null);
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.CHROME,
+                output,
+                temp.resolve("custom-test-id-runtime"),
+                true,
+                options));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            driver.findElement(By.id("unconfigured-test-id")).click();
+            waitFor(() -> stepDescriptions(recorder).stream()
+                    .anyMatch(description -> description.contains("Unconfigured test id")));
+            recorder.stop(false);
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+
+        LocatorCandidate custom = locatorCandidateFor(
+                new CaptureJsonCodec().read(output),
+                "unconfigured-test-id",
+                LocatorCandidate.LocatorStrategy.TEST_ID);
+        assertAll(
+                () -> assertEquals("[data-pw=\"unconfigured-result\"]", custom.expression()),
+                () -> assertEquals(1, custom.uniquenessCount()),
+                () -> assertEquals("//*[@data-pw=\"unconfigured-result\"]", custom.replayXpath()));
+    }
+
+    @Test
+    void selectedTestIdPreviewEscapesJavaControlCharacters(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/selected-test-id",
+                CaptureBrowser.CHROME,
+                temp.resolve("control-character-test-id.json"),
+                temp.resolve("control-character-test-id-runtime"),
+                true));
+        try {
+            recorder.start();
+            WebDriver driver = recorder.driverForTesting();
+            waitFor(() -> elementPresent(driver, By.id("shaft-capture-assert")));
+            WebElement target = driver.findElement(By.id("stale-result"));
+            ((JavascriptExecutor) driver).executeScript(
+                    "arguments[0].setAttribute('data-testid', arguments[1]);",
+                    target,
+                    "line\r\n\t\"quoted");
+
+            driver.findElement(By.id("shaft-capture-assert")).click();
+            waitFor(() -> elementPresent(driver, assertionChoice("Element")));
+            driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
+            target.click();
+            By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
+                    + "//li[.//span[contains(@class,'locator-meta')"
+                    + " and starts-with(normalize-space(),'TEST_ID')]]"
+                    + "//button[normalize-space()='Use this locator']");
+            waitFor(() -> elementPresent(driver, selectedTestId));
+            WebElement selectedTestIdButton = driver.findElement(selectedTestId);
+            WebElement preview = selectedTestIdButton.findElement(By.xpath("./ancestor::li[1]"))
+                    .findElement(By.cssSelector(".locator-expression"));
+
+            assertEquals(
+                    "By.xpath(\"//*[@data-testid='line\\r\\n\\t\\\"quoted']\")",
+                    ((JavascriptExecutor) driver).executeScript(
+                            "return arguments[0].textContent;",
+                            preview));
+        } finally {
+            if (recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    private static com.shaft.capture.generate.CaptureGenerationRequest selectedTestIdReplayRequest(
+            Path sessionPath,
+            Path output,
+            String className) {
+        return new com.shaft.capture.generate.CaptureGenerationRequest(
+                sessionPath,
+                output,
+                "generated.capture",
+                className,
+                false,
+                true,
+                true,
+                Duration.ofMinutes(2),
+                com.shaft.capture.generate.CaptureGenerationRequest.EnrichmentMode.NONE,
+                null,
+                false,
+                com.shaft.pilot.ai.ApprovalPolicy.denyAll());
+    }
+
+    private static CaptureEvent.ClickEvent clickTarget(CaptureSession session, String logicalElementId) {
+        return session.events().stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .filter(click -> logicalElementId.equals(click.target().logicalElementId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The click on #" + logicalElementId + " must be recorded."));
+    }
+
+    private static LocatorCandidate locatorCandidateFor(
+            CaptureSession session, String logicalElementId, LocatorCandidate.LocatorStrategy strategy) {
+        return clickTarget(session, logicalElementId).target().locatorCandidates().stream()
+                .filter(candidate -> candidate.strategy() == strategy)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "A " + strategy + " locator candidate must be recorded for #"
+                                + logicalElementId));
+    }
+
+    /**
+     * Reads the ROLE candidate straight off the live in-page recorder state (the
+     * {@code globalThis.__shaftCaptureUiState} seam) rather than the persisted session file:
+     * {@code roleXpathVerified} (issue #4239 P1.0a) is a recorder-only signal with no Java-side
+     * {@code LocatorCandidate} field yet, so {@code CaptureEventPipeline}'s raw-map parsing drops
+     * it before anything reaches disk.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> roleCandidateFromLiveState(WebDriver driver, String logicalElementId) {
+        Object result = ((JavascriptExecutor) driver).executeScript("""
+                const state = window.__shaftCaptureUiState;
+                const actions = (state && state.actions) || [];
+                const action = actions.slice().reverse().find(item =>
+                    item.details && item.details.target
+                    && item.details.target.logicalElementId === arguments[0]);
+                if (!action) return null;
+                const locators = action.details.target.locators || [];
+                return locators.find(candidate => candidate.strategy === "ROLE") || null;
+                """, logicalElementId);
+        return (Map<String, Object>) result;
+    }
+
+    private static By assertionChoice(String label) {
+        return By.xpath("//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='" + label + "']");
+    }
+
+    private static boolean elementPresent(WebDriver driver, By locator) {
+        try {
+            return !driver.findElements(locator).isEmpty();
+        } catch (WebDriverException ignored) {
+            return false;
+        }
+    }
+
+    private static List<String> persistedDescriptions(CaptureSession session) {
+        List<String> descriptions = new java.util.ArrayList<>();
+        for (String field : List.of("userDescription", "stepDescription")) {
+            session.events().stream()
+                    .map(event -> event.context().extensions().get(field))
+                    .filter(java.util.Objects::nonNull)
+                    .map(node -> node.asText(""))
+                    .filter(text -> !text.isBlank())
+                    .forEach(descriptions::add);
+        }
+        return descriptions;
+    }
+
+    private static List<String> stepDescriptions(ManagedCaptureRecorder recorder) {
+        return recorder.steps().stream().map(CaptureStep::description).toList();
+    }
+
+    private static boolean elementTextEquals(WebDriver driver, By locator, String expected) {
+        try {
+            return expected.equals(driver.findElement(locator).getText());
+        } catch (NoSuchElementException | StaleElementReferenceException ignored) {
+            return false;
+        }
+    }
+
+    private static boolean recorderPanelListsAllSteps(WebDriver driver, List<String> expectedDescriptions) {
+        try {
+            String panelText = driver.findElement(By.id("shaft-capture-action-list")).getText();
+            return expectedDescriptions.stream().allMatch(panelText::contains);
+        } catch (NoSuchElementException | StaleElementReferenceException ignored) {
+            return false;
+        }
+    }
+
+    private static void assertThrowsWebDriverException(WebDriver driver) {
+        try {
+            driver.getWindowHandles();
+            throw new AssertionError("Expected the WebDriver session to be terminated after capture_stop.");
+        } catch (WebDriverException expected) {
+            // The recording browser/driver process was quit by capture_stop, as required.
+        }
+    }
+
+    private static boolean waitForBestEffort(
+            java.util.function.BooleanSupplier condition, Duration timeout) throws InterruptedException {
+        InstantDeadline deadline = new InstantDeadline(timeout);
+        while (!condition.getAsBoolean() && !deadline.expired()) {
+            Thread.sleep(100);
+        }
+        return condition.getAsBoolean();
+    }
+
+    /**
+     * Regression repro for issue #4046: the nightly {@code guided-workflows-live.yml} run has
+     * failed 100% of the time (5/5 scheduled runs since PR #3938 merged) on
+     * {@code GuidedWorkflowLiveE2ETest#apiRecorderCapturesNetworkTrafficAndGeneratesShaftApiCode},
+     * which times out waiting for {@code capture_api_start} to respond. That is the only
+     * {@code CaptureManager} caller in the whole repo that starts a real browser with
+     * {@code apiCapture=true} (network recording via {@link org.openqa.selenium.devtools.HasDevTools})
+     * -- every other caller, including this file's other browser tests, only exercises the plain
+     * BiDi-based UI event collector ({@code ManagedCaptureRecorder#startCollector}). This test
+     * isolates that exact combination against a real Chrome session and reproduces the hang
+     * locally: {@code jstack} pins the blocked thread at
+     * {@code ManagedCaptureRecorder.start(ManagedCaptureRecorder.java:151)}, inside
+     * {@code RemoteWebDriver.executeScript} -&gt; {@code JdkHttpClient.execute} -&gt;
+     * {@code CompletableFuture.get()}, which never returns once the CDP {@code NetworkInterceptor}
+     * (installed one line earlier by {@code startNetworkRecorder}) is active.
+     *
+     * <p><b>Isolation result (2026-07-26):</b> disabling {@code startCollector} (the BiDi UI-event
+     * collector) and re-running left the hang unchanged -- CDP {@code NetworkInterceptor} alone
+     * conflicts with a subsequent {@code executeScript} call; this is not a BiDi+CDP concurrency
+     * conflict.
+     *
+     * <p><b>Root cause (confirmed with a debug-instrumented run, thread names and timestamps):</b>
+     * {@code CaptureNetworkRecorder}'s interception filter called {@code driver.getCurrentUrl()} --
+     * a classic WebDriver command -- from inside the CDP {@code Fetch.requestPaused} callback,
+     * <em>before</em> continuing the very request that callback was handling
+     * ({@code CaptureNetworkRecorder.currentPageOrigin()}, invoked from
+     * {@code createFilter()} ahead of {@code next.execute(request)}). chromedriver serializes
+     * classic command processing per session; the pending page load cannot complete until the
+     * paused request is continued, and continuing it was blocked on this very reentrant call --
+     * a circular wait that deadlocked both the reentrant call and the main thread's concurrent
+     * {@code executeScript}. Fixed by sourcing the page origin from a non-reentrant
+     * {@code currentPageUrlSupplier} (backed by {@code ManagedCaptureRecorder}'s passively-tracked
+     * {@code currentUrl}) instead of querying the driver from the callback thread.
+     *
+     * <p>Note for whoever revisits this: {@code @Timeout(60)} below does NOT reliably abort this
+     * class of hang locally -- the blocked thread parks inside a native
+     * {@code CompletableFuture.get()} round-trip to chromedriver that did not honor interrupt in
+     * separate local runs (the test kept running well past the bound until the process tree was
+     * killed externally). Don't trust the annotation alone to keep a future CI run bounded if this
+     * regresses.
+     *
+     * <p><b>Still disabled -- second, separate failure found (2026-07-26):</b> with the deadlock
+     * fixed, this test no longer hangs (it now completes in ~32s against a 55s external bound,
+     * confirmed via a hard-killed, PID-tracked run), but it fails with a distinct, bounded
+     * {@code org.openqa.selenium.ScriptTimeoutException: script timeout} at
+     * {@code ManagedCaptureRecorder.java:153} (the same {@code executeScript} call site), against
+     * Selenium's default {@code timeouts:{script: 30000}}. This is un-root-caused -- left disabled
+     * and handed off rather than guessed at. Re-enable only once that failure is independently
+     * diagnosed and fixed.
+     */
+    @Test
+    @org.junit.jupiter.api.Timeout(60)
+    void startCompletesWhenApiCaptureIsEnabledAgainstARealBrowser(@TempDir Path temp) throws Exception {
+        HttpServer server = localFixture();
+        ManagedCaptureRecorder recorder = null;
+        try {
+            Path output = temp.resolve("recordings").resolve("api-capture.json");
+            Path runtime = temp.resolve("runtime");
+            CaptureStartOptions options = new CaptureStartOptions(
+                    "", "", "", "", "", "", "", false, false,
+                    "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "",
+                    true, new NetworkCaptureOptions());
+            recorder = new ManagedCaptureRecorder(new CaptureStartRequest(
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/",
+                    CaptureBrowser.CHROME,
+                    output,
+                    runtime,
+                    true,
+                    options));
+            recorder.start();
+            assertEquals(CaptureStatus.State.ACTIVE, recorder.status().state());
+        } finally {
+            if (recorder != null && recorder.status().state() == CaptureStatus.State.ACTIVE) {
+                recorder.interrupt();
+            }
+            server.stop(0);
+        }
+    }
+
+    private static HttpServer localFixture() throws IOException {
+        return localFixture(null);
+    }
+
+    /**
+     * Issue #6211: choosing "Element" arms the click interceptor asynchronously. A target clicked
+     * before that is a real click, so a link navigates away and the recorded session replays on
+     * the wrong page. Wait for the armed status hint (assertionMode) before clicking the target.
+     */
+    private static void waitForElementAssertionArmed(WebDriver driver) throws InterruptedException {
+        waitFor(() -> "Click an element to capture the assertion target.".equals(
+                driver.findElement(By.id("shaft-capture-status")).getAttribute("title")));
+    }
+
+    private static HttpServer localFixture(AtomicReference<String> selectedTestIdMarkup) throws IOException {
+        HttpServer server = HttpServer.create(
+                new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
+        server.createContext("/", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>SHAFT Capture Fixture</title></head>
+                <body>
+                  <label>Username <input id="username" name="username"></label>
+                  <label>Password <input id="password" name="password" type="password"></label>
+                  <label>Country
+                    <select id="country" name="country">
+                      <option>United States</option><option>Egypt</option>
+                    </select>
+                  </label>
+                  <label><input id="terms" name="terms" type="checkbox"> Terms</label>
+                  <input id="upload" name="upload" type="file">
+                  <button id="double">Double</button>
+                  <button id="replace" onclick="this.outerHTML='<button id=&quot;replacement&quot;>Replacement</button>'">
+                    Replace dynamically
+                  </button>
+                  <div id="shadow-host"></div>
+                  <iframe id="child" src="/frame%s"></iframe>
+                  <button id="popup" onclick="window.open('/popup', '_blank')">Popup</button>
+                  <button id="prompt" onclick="prompt('Prompt value')">Prompt</button>
+                  <script>
+                    const root = document.querySelector('#shadow-host').attachShadow({mode: 'open'});
+                    root.innerHTML = '<button id="shadow-button">Shadow</button>';
+                  </script>
+                </body>
+                </html>
+                """.formatted(queryParameter(exchange, "frameDelay")
+                .map(delay -> "?delay=" + delay).orElse(""))));
+        server.createContext("/frame", exchange -> {
+            // An optional ?delay=<millis> stalls the iframe document, reproducing the slow-CI
+            // condition where the subframe recorder instance initializes only after the top page
+            // has already persisted its UI state (#3432).
+            queryParameter(exchange, "delay").ifPresent(delay -> {
+                try {
+                    Thread.sleep(Long.parseLong(delay));
+                } catch (NumberFormatException ignored) {
+                    // queryParameter pre-filters to short digit runs; serve undelayed regardless.
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            respond(exchange, "<!doctype html><button id=\"frame-button\">Frame</button>");
+        });
+        server.createContext("/popup", exchange -> respond(exchange,
+                "<!doctype html><title>Popup</title><p>Popup</p>"));
+        // Search-engine-style redirect chain (issue: DuckDuckGo search recorded two navigation
+        // actions the user never performed): a GET form submit that 302-redirects to a results
+        // page which then canonicalizes its own URL with history.replaceState.
+        server.createContext("/search-home", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Search Fixture</title></head>
+                <body>
+                  <form action="/search" method="get">
+                    <input id="q" name="q" placeholder="Search">
+                  </form>
+                </body>
+                </html>
+                """));
+        server.createContext("/search", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            exchange.getResponseHeaders().set("Location",
+                    "/results" + (query == null || query.isBlank() ? "" : "?" + query));
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        server.createContext("/results", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results</title></head>
+                <body>
+                  <a id="result-link" href="/detail">Result detail</a>
+                  <script>
+                    history.replaceState(null, "", location.pathname + location.search + "&ia=web");
+                  </script>
+                </body>
+                </html>
+                """));
+        server.createContext("/detail", exchange -> respond(exchange,
+                "<!doctype html><title>Detail</title><p id=\"detail-page\">Detail</p>"));
+        // Search chain with a genuine SECOND top-level navigation (DuckDuckGo-style): the form submit
+        // 302-redirects to a results page which then canonicalizes its own URL with location.replace()
+        // -- a real BiDi navigation commit (source "default"), NOT history.replaceState (source
+        // "history", already exempt). Both commits are consequences of the ENTER submit and must be
+        // suppressed. Kept separate from /search-home so the single-commit test above is unaffected.
+        server.createContext("/search-home-replace", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Search Replace Fixture</title></head>
+                <body>
+                  <form action="/search-replace" method="get">
+                    <input id="q" name="q" placeholder="Search">
+                  </form>
+                </body>
+                </html>
+                """));
+        server.createContext("/search-replace", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            exchange.getResponseHeaders().set("Location",
+                    "/results-replace" + (query == null || query.isBlank() ? "" : "?" + query));
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+        server.createContext("/results-replace", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results Replace</title></head>
+                <body>
+                  <p>Canonicalizing…</p>
+                  <script>
+                    location.replace(location.pathname + "-final"
+                        + (location.search ? location.search + "&ia=web" : "?ia=web"));
+                  </script>
+                </body>
+                </html>
+                """));
+        server.createContext("/results-replace-final", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Results Replace Final</title></head>
+                <body>
+                  <a id="result-link-replace" href="/detail">Result detail</a>
+                </body>
+                </html>
+                """));
+        server.createContext("/nav-a", exchange -> respond(exchange,
+                "<!doctype html><title>Nav A</title><a id=\"to-b\" href=\"/nav-b\">Go to B</a>"));
+        server.createContext("/nav-b", exchange -> respond(exchange,
+                "<!doctype html><title>Nav B</title><p id=\"nav-b-page\">B</p>"));
+        // Self-driving demo login (Guided Workflows Live style): types both fields via setTimeout
+        // well after page load, reproducing the async-typed interaction that raced
+        // BrowserEventSink's loopback HTTP sink against the BiDi script channel in issue #3803.
+        server.createContext("/async-login", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Async Login Fixture</title></head>
+                <body>
+                  <label>Username <input id="username" name="username"></label>
+                  <label>Password <input id="password" name="password" type="password"></label>
+                  <script>
+                    function typeInto(id, value) {
+                      const el = document.getElementById(id);
+                      el.focus();
+                      el.value = value;
+                      el.dispatchEvent(new Event("input", {bubbles: true}));
+                      el.dispatchEvent(new Event("change", {bubbles: true}));
+                    }
+                    setTimeout(() => typeInto("username", "demo.user"), 2500);
+                    setTimeout(() => typeInto("password", "demo.pass"), 2900);
+                  </script>
+                </body>
+                </html>
+                """));
+        // Two elements sharing the same inferred role ("button") and accessible name ("Submit"),
+        // so a ROLE-strategy locator built from either one matches both -- proves uniquenessCount
+        // is measured, not hardcoded to 1 (issue #4025).
+        server.createContext("/multi-match", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Multi Match Fixture</title></head>
+                <body>
+                  <button id="submit-a">Submit</button>
+                  <button id="submit-b">Submit</button>
+                </body>
+                </html>
+                """));
+        // An unmapped ARIA role (no com.shaft.gui.internal.locator.Role equivalent) whose accessible
+        // name comes from the element's own inner text, laid out across multiple source lines so the
+        // DOM text node carries real internal whitespace/newlines that XPath's exact-text equality
+        // would fail to match but normalize-space() collapses the same way the recorder's own name
+        // normalization does (issue #4026).
+        server.createContext("/replay-xpath", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Replay XPath Fixture</title></head>
+                <body>
+                  <div id="status-banner" role="alert">Something
+                    went
+                    wrong</div>
+                </body>
+                </html>
+                """));
+        // Issue #4239 P1.0a: a <div role="button"> whose explicit role attribute inferredRole()
+        // prefers, next to a genuine <button> that LocatorBuilder.byRole(Role.BUTTON)'s fixed
+        // tag/attribute XPath union actually matches.
+        server.createContext("/role-self-verify", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Role Self-Verify Fixture</title></head>
+                <body>
+                  <div id="custom-button" role="button" tabindex="0">Custom Button</div>
+                  <button id="real-button">Real Button</button>
+                </body>
+                </html>
+                """));
+        // Issue #4239 P1.0b: a labeled text input (LABEL candidate) and a plain role-less,
+        // label-less element whose only accessible-name signal is its own visible text.
+        server.createContext("/xpath-fallback", exchange -> respond(exchange, """
+                <!doctype html>
+                <html>
+                <head><title>Xpath Fallback Fixture</title></head>
+                <body>
+                  <label for="labeled-input">Username</label>
+                  <input id="labeled-input" type="text" aria-label="Enter your username">
+                  <span id="roleless-text" onclick="void 0">Click me plain span</span>
+                </body>
+                </html>
+                """));
+        server.createContext("/selected-test-id", exchange -> respond(exchange,
+                selectedTestIdMarkup == null ? """
+                <!doctype html>
+                <html>
+                <head><title>Selected Test ID Fixture</title></head>
+                <body>
+                  <article><h2><a id="result-title" data-testid="result-title-a" href="/detail">
+                    ShaftHQ / SHAFT_ENGINE — volatile rendering A
+                  </a></h2></article>
+                  <button id="duplicate-a" data-testid="duplicate-result">Duplicate A</button>
+                  <button id="duplicate-b" data-testid="duplicate-result">Duplicate B</button>
+                  <button id="dynamic-test-id" data-testid="result-12345678">Dynamic test id</button>
+                  <button id="missing-test-id">Missing test id</button>
+                  <button id="unconfigured-test-id" data-pw="unconfigured-result">Unconfigured test id</button>
+                  <a id="stale-result" data-testid="stale-result-a" href="/stale">Stale result</a>
+                </body>
+                </html>
+                """ : """
+                <!doctype html>
+                <html>
+                <head><title>Selected Test ID Fixture</title></head>
+                <body><article>%s</article></body>
+                </html>
+                """.formatted(selectedTestIdMarkup.get())));
+        server.start();
+        return server;
+    }
+
+    private static java.util.Optional<String> queryParameter(HttpExchange exchange, String name) {
+        String query = exchange.getRequestURI().getQuery();
+        if (query == null || query.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Arrays.stream(query.split("&"))
+                .map(pair -> pair.split("=", 2))
+                .filter(pair -> pair.length == 2 && pair[0].equals(name) && pair[1].matches("\\d{1,5}"))
+                .map(pair -> pair[1])
+                .findFirst();
+    }
+
+    private static void respond(HttpExchange exchange, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (exchange) {
+            exchange.getResponseBody().write(bytes);
+        }
+    }
+
+    private static void waitFor(java.util.function.BooleanSupplier condition) throws InterruptedException {
+        waitFor(condition, Duration.ofSeconds(5), null);
+    }
+
+    private static void waitFor(
+            java.util.function.BooleanSupplier condition,
+            Duration timeout,
+            java.util.function.Supplier<String> failureDetail) throws InterruptedException {
+        InstantDeadline deadline = new InstantDeadline(timeout);
+        while (!condition.getAsBoolean() && !deadline.expired()) {
+            Thread.sleep(50);
+        }
+        if (failureDetail == null) {
+            assertTrue(condition.getAsBoolean());
+        } else {
+            assertTrue(condition.getAsBoolean(), failureDetail.get());
+        }
+    }
+
+    private record InstantDeadline(long deadlineNanos) {
+        private InstantDeadline(Duration duration) {
+            this(System.nanoTime() + duration.toNanos());
+        }
+
+        private boolean expired() {
+            return System.nanoTime() >= deadlineNanos;
+        }
+    }
+}

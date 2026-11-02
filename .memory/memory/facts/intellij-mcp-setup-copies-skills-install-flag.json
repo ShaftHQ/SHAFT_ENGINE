@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/facts/intellij-mcp-setup-copies-skills-install-flag.md",
+  "content_hash": "sha256:4d25b94cd9f49d08f8ecc224db9282c835282ba99dda3cf9297b49991ca56477",
+  "created_at": "2026-07-05T10:18:19+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.intellij-mcp-setup-copies-skills-install-flag",
+  "source": {
+    "kind": "agent",
+    "task": "Fix IntelliJ Assistant onboarding blockers from issue 3285"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "mcp",
+    "installer",
+    "issue-3285"
+  ],
+  "title": "IntelliJ MCP setup copies skills install flag",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:50:09+03:00"
+}

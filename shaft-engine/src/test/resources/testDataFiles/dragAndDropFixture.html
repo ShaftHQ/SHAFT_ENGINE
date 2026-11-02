@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Drag and drop fixture</title>
+    <style>
+        #drag-source, #drop-target { width: 120px; height: 80px; margin: 24px; padding: 16px; }
+        #drag-source { background: #8ecae6; }
+        #drop-target { background: #ffb703; }
+    </style>
+</head>
+<body>
+<div id="drag-source">Drag me</div>
+<div id="drop-target">Waiting</div>
+<script>
+    const source = document.getElementById('drag-source');
+    const target = document.getElementById('drop-target');
+    let dragging = false;
+    source.addEventListener('mousedown', () => dragging = true);
+    target.addEventListener('mouseup', () => {
+        if (dragging) {
+            target.textContent = 'Dropped';
+        }
+        dragging = false;
+    });
+    document.addEventListener('mouseup', () => dragging = false);
+</script>
+</body>
+</html>

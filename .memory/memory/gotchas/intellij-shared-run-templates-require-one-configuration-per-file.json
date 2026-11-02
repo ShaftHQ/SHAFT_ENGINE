@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/intellij-shared-run-templates-require-one-configuration-per-file.md",
+  "content_hash": "sha256:ba2741cc9f4d9a54d13e2b9b1cd70977275b7dc6904a0ed3b2ff004e1de02a17",
+  "created_at": "2026-08-15T07:06:50+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/JetBrains/intellij-community/blob/7f52589ea61fada013038489dcbce03434c0470a/platform/execution-impl/src/com/intellij/execution/impl/RunConfigurationSchemeManager.kt",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4923",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.intellij-shared-run-templates-require-one-configuration-per-file",
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable root-cause constraint discovered while fixing GitHub issue #4923."
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "project-generator",
+    "run-configuration",
+    "argfile",
+    "issue-4923"
+  ],
+  "title": "IntelliJ shared run templates require one configuration per file",
+  "type": "gotcha",
+  "updated_at": "2026-08-15T07:06:50+03:00"
+}

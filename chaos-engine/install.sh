@@ -1,0 +1,318 @@
+#!/usr/bin/env sh
+# Install or upgrade ChaosEngine into the current directory.
+# Run this from the target project folder:
+#   curl -fsSL "https://raw.githubusercontent.com/<owner>/<repository>/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/<owner>/<repository>/main/chaos-engine/install.sh"
+set -eu
+
+# Brand and live progress belong to bootstrap.py so curl|bash cannot double-paint.
+
+fail() {
+  echo "$1" >&2
+  exit 1
+}
+
+valid_repository() {
+  lowered=$(printf '%s\n' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$lowered" in
+    ""|owner/repository) return 1 ;;
+    */*) ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "$1" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+}
+
+is_chaos_engine_source_tree() {
+  script_dir="$1"
+  [ -n "$script_dir" ] || return 1
+  [ -f "$script_dir/skills/chaos-engine/SKILL.md" ]
+}
+
+parse_chaos_engine_raw_url() {
+  rest=$(printf '%s\n' "$1" | sed -n 's#.*https://raw.githubusercontent.com/\([A-Za-z0-9_.-]*\)/\([A-Za-z0-9_.-]*\)/\(.*\)/install\.sh.*#\1/\2|\3#p' | head -n 1)
+  if [ -z "$rest" ]; then
+    rest=$(printf '%s\n' "$1" | sed -n 's#.*https://raw.githubusercontent.com/\([A-Za-z0-9_.-]*\)/\([A-Za-z0-9_.-]*\)/\(.*\)/install\.ps1.*#\1/\2|\3#p' | head -n 1)
+  fi
+  [ -n "$rest" ] || return 1
+  repository=${rest%%|*}
+  path=${rest#*|}
+  valid_repository "$repository" || return 1
+  # A ref may contain '/' (feature/x, refs/heads/feature/x). The installer lives
+  # either in the nested chaos-engine/ folder or at the repository root, so the
+  # ref is everything before that folder (#6495).
+  case "$path" in
+    */chaos-engine)
+      ref=${path%/chaos-engine}
+      prefix=chaos-engine
+      ;;
+    *)
+      ref=$path
+      prefix=
+      ;;
+  esac
+  if [ -n "$prefix" ]; then
+    bootstrap_path="$prefix/bootstrap.py"
+  else
+    bootstrap_path="bootstrap.py"
+  fi
+  printf '%s|%s|%s|%s\n' "$repository" "$ref" "$prefix" "https://raw.githubusercontent.com/${repository}/${ref}/${bootstrap_path}"
+}
+
+collect_source_text() {
+  printf '%s\n' "$1"
+  if [ -n "${CHAOS_ENGINE_INSTALL_URL:-}" ]; then
+    printf '%s\n' "$CHAOS_ENGINE_INSTALL_URL"
+  fi
+  if command -v ps >/dev/null 2>&1 && [ -n "${PPID:-}" ]; then
+    ps -o args= -p "$PPID" 2>/dev/null || true
+  fi
+}
+
+resolve_source() {
+  parsed=
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    parsed=$(parse_chaos_engine_raw_url "$line" || true)
+    if [ -n "$parsed" ]; then
+      printf '%s\n' "$parsed"
+      return 0
+    fi
+  done <<EOF
+$(collect_source_text "${1:-}")
+EOF
+  env_repository=${CHAOS_ENGINE_REPOSITORY:-}
+  if valid_repository "$env_repository"; then
+    ref=${CHAOS_ENGINE_BRANCH:-main}
+    printf '%s|%s|%s|%s\n' "$env_repository" "$ref" "chaos-engine" "https://raw.githubusercontent.com/${env_repository}/${ref}/chaos-engine/bootstrap.py"
+    return 0
+  fi
+  fail "Could not derive owner/repository from the install URL. Pass the raw.githubusercontent.com/<owner>/<repository>/.../install.sh URL as $1 (see chaos-engine/INSTALL.md), or set CHAOS_ENGINE_REPOSITORY=<owner>/<repository> for a local file run."
+}
+
+with_maven_tools=
+maven_tools_mode=native
+interactive=
+verbose=
+forwarded_flags=
+for argument in "$@"; do
+  [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
+  [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
+  [ "$argument" = "--interactive" ] && interactive=1
+  [ "$argument" = "--verbose" ] && verbose=1
+  case "$argument" in
+    --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-caveman)
+      forwarded_flags="$forwarded_flags $argument"
+      ;;
+    --with-maven-tools)
+      ;;
+    # Optional add-ons (--with-<name> / --without-<name>): none is installed by
+    # default; bootstrap.py validates names against the shipped manifests.
+    --with-?*|--without-?*)
+      forwarded_flags="$forwarded_flags $argument"
+      ;;
+  esac
+done
+
+
+find_chaos_engine_managed_jdk_home() {
+  # Prefer an already-provisioned managed JDK when ambient JAVA_HOME is unusable (#7734).
+  roots=
+  if [ -n "${HOME:-}" ]; then
+    roots="$roots ${HOME}/.local/share/chaos-engine/java"
+  fi
+  if [ -n "${XDG_DATA_HOME:-}" ]; then
+    roots="$roots ${XDG_DATA_HOME}/ChaosEngine/tools/temurin"
+  elif [ -n "${HOME:-}" ]; then
+    roots="$roots ${HOME}/.local/share/ChaosEngine/tools/temurin"
+  fi
+  for root in $roots; do
+    [ -d "$root" ] || continue
+    # Avoid word-splitting ls output; newest-first via find -printf when available.
+    while IFS= read -r candidate; do
+      [ -d "$candidate" ] || continue
+      if [ -x "$candidate/bin/java" ] && [ -x "$candidate/bin/javac" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done <<EOF
+$(find "$root" -mindepth 1 -maxdepth 2 -type d 2>/dev/null | sort -r)
+EOF
+  done
+  return 1
+}
+
+assert_maven_tools_jdk_preflight() {
+  # When JAVA_HOME is set but not a real JDK, heal to a managed JDK for this
+  # process or fail closed with a clear message. Runs whenever JAVA_HOME is set
+  # — including tools auto-detected later in Python (#7734).
+  maven_tools_mode=${1:-native}
+  with_maven_tools=${2:-}
+  if [ "$maven_tools_mode" = "docker" ]; then
+    return 0
+  fi
+  if [ -z "${JAVA_HOME:-}" ]; then
+    if [ -n "$with_maven_tools" ]; then
+      echo "ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package." >&2
+    fi
+    return 0
+  fi
+  # Reject Oracle-style */javapath homes even when stub leaves exist (#7734).
+  case "$JAVA_HOME" in
+    */javapath|*/javapath/) ;;
+    *)
+      if [ -x "$JAVA_HOME/bin/java" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
+        return 0
+      fi
+      ;;
+  esac
+  managed=$(find_chaos_engine_managed_jdk_home || true)
+  if [ -n "$managed" ]; then
+    export JAVA_HOME="$managed"
+    export PATH="$managed/bin:$PATH"
+    echo "ChaosEngine: ambient JAVA_HOME was not a usable JDK (missing javac or */javapath stub); using managed JDK at $managed for this install." >&2
+    return 0
+  fi
+  fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
+}
+
+assert_maven_tools_jdk_preflight "$maven_tools_mode" "$with_maven_tools"
+
+if command -v python3 >/dev/null 2>&1; then
+  python="python3"
+elif command -v python >/dev/null 2>&1; then
+  python="python"
+else
+  python=
+fi
+# Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
+if [ -n "$python" ] && ! "$python" -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1; then
+  python=
+fi
+
+if command -v curl >/dev/null 2>&1; then
+  fetch() {
+    curl -fsSL --retry 3 --retry-delay 2 -o "$1" "$2"
+  }
+elif command -v wget >/dev/null 2>&1; then
+  fetch() {
+    wget -q -O "$1" "$2"
+  }
+else
+  fail "curl or wget is required to download the ChaosEngine bootstrap. Install curl, then rerun the one-liner."
+fi
+
+source_record=$(resolve_source "${1:-}")
+repository=$(printf '%s\n' "$source_record" | cut -d'|' -f1)
+ref=$(printf '%s\n' "$source_record" | cut -d'|' -f2)
+prefix=$(printf '%s\n' "$source_record" | cut -d'|' -f3)
+bootstrap_url=$(printf '%s\n' "$source_record" | cut -d'|' -f4-)
+branch=${CHAOS_ENGINE_BRANCH:-$ref}
+if [ -n "${CHAOS_ENGINE_BRANCH:-}" ]; then
+  if [ -n "$prefix" ]; then
+    bootstrap_url="https://raw.githubusercontent.com/${repository}/${branch}/${prefix}/bootstrap.py"
+  else
+    bootstrap_url="https://raw.githubusercontent.com/${repository}/${branch}/bootstrap.py"
+  fi
+fi
+project="$(pwd)"
+if [ "${CHAOS_ENGINE_RESOLVE_ONLY:-}" = 1 ]; then
+  printf '%s|%s|%s|%s\n' "$repository" "$branch" "$prefix" "$bootstrap_url"
+  exit 0
+fi
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/chaos-engine-bootstrap-XXXXXX")"
+cleanup() {
+  rm -rf "$work"
+}
+trap cleanup EXIT INT TERM
+
+bootstrap="$work/bootstrap.py"
+echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
+if [ -n "$interactive" ]; then
+  controlling_tty="$(printf '%s/%s' /dev tty)"
+  [ -r "$controlling_tty" ] || fail "interactive mode requires a usable controlling terminal"
+  printf 'Confirm Download bootstrap from %s? [y/N] ' "$bootstrap_url" >"$controlling_tty"
+  IFS= read -r answer <"$controlling_tty" || fail "interactive mode requires a usable controlling terminal"
+  case $(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]') in y|yes) ;; *) fail "ChaosEngine installation cancelled before Download bootstrap" ;; esac
+fi
+echo "Download: ${bootstrap_url}" >&2
+case "$0" in
+  */install.sh|install.sh)
+    script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+    if [ -f "$script_dir/bootstrap.py" ] && is_chaos_engine_source_tree "$script_dir"; then
+      cp "$script_dir/bootstrap.py" "$bootstrap"
+    else
+      fetch "$bootstrap" "$bootstrap_url"
+    fi
+    ;;
+  *)
+    fetch "$bootstrap" "$bootstrap_url"
+    ;;
+esac
+if [ -z "$python" ]; then
+  system=$(uname -s)
+  machine=$(uname -m)
+  case "$system:$machine" in
+    Linux:x86_64) uv_target=x86_64-unknown-linux-gnu; uv_sha=f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f ;;
+    Linux:aarch64|Linux:arm64) uv_target=aarch64-unknown-linux-gnu; uv_sha=4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403 ;;
+    Darwin:x86_64) uv_target=x86_64-apple-darwin; uv_sha=b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66 ;;
+    Darwin:arm64) uv_target=aarch64-apple-darwin; uv_sha=743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73 ;;
+    *) fail "Unsupported ChaosEngine platform: $system/$machine" ;;
+  esac
+  uv_archive="$work/uv.tar.gz"
+  fetch "$uv_archive" "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-${uv_target}.tar.gz"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "$uv_archive" | cut -d' ' -f1)
+  else
+    actual=$(shasum -a 256 "$uv_archive" | cut -d' ' -f1)
+  fi
+  [ "$actual" = "$uv_sha" ] || fail "uv download checksum verification failed"
+  tar -xzf "$uv_archive" -C "$work"
+  uv="$work/uv-${uv_target}/uv"
+  [ -x "$uv" ] || fail "uv archive is missing its executable"
+  export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
+  "$uv" python install 3.14 --no-progress
+  set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+else
+  set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+fi
+[ -n "$with_maven_tools" ] && set -- "$@" --with-maven-tools
+[ "$maven_tools_mode" = "docker" ] && set -- "$@" --maven-tools-mode docker
+[ -n "$interactive" ] && set -- "$@" "--interactive"
+[ -n "$verbose" ] && set -- "$@" "--verbose"
+# shellcheck disable=SC2086
+for forwarded_flag in $forwarded_flags; do
+  set -- "$@" "$forwarded_flag"
+done
+set +e
+"$@"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+  cause=""
+  trace="${project}/.chaos-engine-state/install-trace.json"
+  if [ -f "$trace" ]; then
+    # Same interpreter that ran bootstrap. A host with only uv-managed Python
+    # has no python3 on PATH, and a Windows Store stub named python3 is not it.
+    cause_script='
+import json, sys
+path = sys.argv[1]
+try:
+    payload = json.load(open(path, encoding="utf-8"))
+except (OSError, ValueError):
+    raise SystemExit(0)
+result = payload.get("result") if isinstance(payload, dict) else None
+cause = result.get("cause") if isinstance(result, dict) else None
+if isinstance(cause, str) and cause.strip():
+    sys.stdout.write(cause.strip())
+'
+    if [ -n "$python" ]; then
+      cause=$("$python" -c "$cause_script" "$trace" 2>/dev/null || true)
+    elif [ -n "${uv:-}" ]; then
+      cause=$("$uv" run --no-project --managed-python -c "$cause_script" "$trace" 2>/dev/null || true)
+    fi
+  fi
+  if [ -n "$cause" ]; then
+    fail "ChaosEngine bootstrap failed with exit ${status}: ${cause}"
+  fi
+  fail "ChaosEngine bootstrap failed with exit ${status}"
+fi

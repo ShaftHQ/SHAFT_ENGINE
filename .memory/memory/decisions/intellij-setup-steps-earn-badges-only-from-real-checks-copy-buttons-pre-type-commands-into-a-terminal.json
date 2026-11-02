@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/decisions/intellij-setup-steps-earn-badges-only-from-real-checks-copy-buttons-pre-type-commands-into-a-terminal.md",
+  "content_hash": "sha256:ad57beedc3fe0480f160e6d579768ef8199d9717321dae6144dec3476e4563db",
+  "created_at": "2026-07-11T09:49:12+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftTerminalCommands.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftProjectVersionCheck.java",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.intellij-setup-steps-earn-badges-only-from-real-checks-copy-buttons-pre-type-commands-into-a-terminal",
+  "source": {
+    "kind": "agent",
+    "task": "issue #3426 IntelliJ plugin trustworthy first contact (PR #3427, docs #733)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "IntelliJ setup steps earn badges only from real checks; copy buttons pre-type commands into a terminal",
+  "type": "decision",
+  "updated_at": "2026-07-11T09:49:12+03:00"
+}

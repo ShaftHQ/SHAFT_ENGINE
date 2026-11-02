@@ -1,0 +1,39 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly.md",
+  "content_hash": "sha256:24c766a793a05ee2a49cd11cd5bee5aa275a564cb5bcb91bb400ee78c89c4bdf",
+  "created_at": "2026-07-17T03:55:35+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftPluginExecutor.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftSettingsConfigurable.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/settings/ShaftCredentialService.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/settings/ShaftSettingsConfigurableTest.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.shaft-intellij-async-swing-code-two-edt-hop-idioms-only-one-is-unit-testable-headlessly",
+  "source": {
+    "kind": "agent",
+    "task": "3627: provider key Test buttons - async EDT-hop testability pattern"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "testability",
+    "edt",
+    "async",
+    "swing"
+  ],
+  "title": "shaft-intellij async Swing code: two EDT-hop idioms, only one is unit-testable headlessly",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T22:15:51+03:00"
+}

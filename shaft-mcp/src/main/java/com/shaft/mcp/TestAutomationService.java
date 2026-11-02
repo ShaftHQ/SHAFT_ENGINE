@@ -1,0 +1,464 @@
+package com.shaft.mcp;
+
+import com.shaft.capture.guardrail.GeneratedCodeGuardrails;
+import com.shaft.capture.guardrail.GuardrailCheckResult;
+import com.shaft.capture.guardrail.GuardrailViolation;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
+
+/**
+ * MCP tools that describe SHAFT test-automation agent workflows and validate generated code guardrails.
+ */
+@Service
+public class TestAutomationService {
+    private static final int MAX_RESULTS = 50;
+    private static final Pattern TOKEN_SPLIT = Pattern.compile("[^a-z0-9]+");
+    private static final String NO_SLEEP = "Do not generate Thread.sleep; use SHAFT waits/actions/assertions.";
+    private static final String NO_ABSOLUTE_XPATH = "Do not generate absolute XPath; prefer role-based locators,"
+            + " then the SHAFT.GUI.Locator XPath builder.";
+    private static final String NO_SHAFT_LOCATOR_XPATH = "Do not generate SHAFT.GUI.Locator.xpath; use role-based"
+            + " locators, the SHAFT locator builder, or By.xpath only as a last fallback.";
+    private static final String NO_IMPLICIT_WAIT = "Avoid Selenium implicit waits; use SHAFT waits/actions/assertions.";
+    private static final String NO_RAW_FIND_ELEMENT = "Avoid direct driver.findElement/findElements calls in generated"
+            + " SHAFT tests; route actions through SHAFT facades or page objects.";
+    private static final String NO_HEADED_BROWSER = "Do not hard-code headed browser setup; keep generated tests"
+            + " headless-configurable.";
+    private static final String NO_DIRECT_SYSTEM_PROPERTY = "Avoid direct System.getProperty() in SHAFT-like snippets;"
+            + " use SHAFT properties or injected configuration.";
+    private static final List<String> GUIDANCE_RULES = List.of(
+            "Call shaft_guide_search before writing SHAFT API, GUI, mobile, CLI, DB, or troubleshooting code.",
+            "Keep MCP as guidance and inspection; the calling agent writes repository files and runs validation.",
+            "For OpenAPI work, group by tag/resource and place reusable request builders and response validators"
+                    + " under src/main/java.",
+            "Place executable TestNG scenarios under src/test/java and reuse the main-package API or page objects.",
+            "For GUI work, use Page Object Model plus fluent SHAFT actions by default.",
+            "Use driver_initialize with engine=web (default) or engine=playwright when the project or user asks"
+                    + " for SHAFT Playwright; element_*/browser_*/capture_* tools dispatch to whichever engine is active.",
+            "When web code generation names a site, product, or environment without an explicit URL, ask the user"
+                    + " to confirm the exact target URL; do not infer canonical URLs.",
+            "After driver_initialize, call browser_open_intent when the prompt includes a confirmed URL and desired action;"
+                    + " use returned capture-ranked locator candidates before element_*.",
+            "Before returning web login, form, or navigation code, perform the actual action with element_type or"
+                    + " element_click and only publish locators that worked.",
+            "When the user provides a recording JSON path, generate code directly from it with capture_code_blocks or"
+                    + " capture_generate_replay; no active capture session is required and none should be demanded.",
+            "When the user describes a scenario in plain language with no recording, do not stall: start a fresh"
+                    + " session with capture_start (its optional codegenOptions carries the full Playwright-codegen-"
+                    + "compatible request), perform the described actions against it, call"
+                    + " capture_stop, then generate code from the persisted recording.",
+            "For Allure, trace, or locator-flakiness failures, prefer Doctor/Trace/Heal evidence before source edits."
+                    + " When the user names no report path, call doctor_analyze_failed_allure with empty"
+                    + " allureResultPaths to analyze the most recent results automatically.",
+            "Prefer role-based (ARIA) locators first, then the SHAFT.GUI.Locator XPath builder, and use plain By"
+                    + " objects only as a last resort.",
+            "Capture codegen emits ranked SHAFT locators with fallback alternatives by default; never emit"
+                    + " absolute XPath or SHAFT.GUI.Locator.xpath. Override off only with"
+                    + " --disable-fallback-locators when needed.",
+            "Capture/codegen emits SHAFT fluent Java only (TestNG/JUnit + POM insertion)."
+                    + " --target is metadata; do not add Python/TypeScript/C# exporters or paste"
+                    + " @playwright/test into a Java suite.",
+            NO_SHAFT_LOCATOR_XPATH,
+            NO_SLEEP,
+            NO_ABSOLUTE_XPATH,
+            NO_IMPLICIT_WAIT,
+            NO_RAW_FIND_ELEMENT,
+            NO_HEADED_BROWSER,
+            NO_DIRECT_SYSTEM_PROPERTY,
+            "Do not generate hard-coded secrets in headers, tokens, passwords, or API keys.");
+    private static final List<McpTestAutomationScenario> CATALOG = scenarios();
+
+    /**
+     * Returns SHAFT MCP test automation use cases and the actions a coding agent should take.
+     *
+     * @param area automation area such as all, api, web, mobile, capture, doctor, reporting, ci, cli, or db
+     * @param intent optional user intent used to narrow the catalog
+     * @param maxResults maximum scenarios to return; 0 returns every match
+     * @return scenario catalog result
+     */
+    @Tool(name = "test_automation_scenarios",
+            description = "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails,"
+                    + " and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work")
+    /**
+     * Finds test automation scenarios for the area and intent.
+     */
+    public McpScenarioCatalogResult testAutomationScenarios(String area, String intent, int maxResults) {
+        String effectiveArea = normalizeArea(area);
+        String effectiveIntent = text(intent);
+        List<McpTestAutomationScenario> areaMatches = CATALOG.stream()
+                .filter(scenario -> "all".equals(effectiveArea) || scenario.areas().contains(effectiveArea))
+                .toList();
+        List<McpTestAutomationScenario> matches = areaMatches.stream()
+                .filter(scenario -> matchesIntent(scenario, effectiveIntent))
+                .toList();
+        List<String> warnings = new ArrayList<>();
+        if (matches.isEmpty() && !areaMatches.isEmpty() && !effectiveIntent.isBlank()) {
+            warnings.add("No exact intent match. Returning all scenarios for area: " + effectiveArea + ".");
+            matches = areaMatches;
+        }
+        if (matches.isEmpty()) {
+            warnings.add("No scenarios matched area: " + effectiveArea + ".");
+        }
+        return new McpScenarioCatalogResult(
+                McpScenarioCatalogResult.CURRENT_SCHEMA_VERSION,
+                effectiveArea,
+                effectiveIntent,
+                limit(matches, maxResults),
+                GUIDANCE_RULES,
+                warnings);
+    }
+
+    /**
+     * Checks generated or agent-authored code for SHAFT MCP guardrails.
+     *
+     * @param language source language label, usually java
+     * @param code source code to check
+     * @return code guardrail result
+     */
+    @Tool(name = "test_code_guardrails_check",
+            description = "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators,"
+                    + " raw driver calls, headed setup, direct system properties, and obvious secrets")
+    /**
+     * Checks generated test code against SHAFT's guardrails.
+     */
+    public McpCodeGuardrailResult checkGeneratedCode(String language, String code) {
+        String source = code == null ? "" : code;
+        GuardrailCheckResult result = GeneratedCodeGuardrails.check(source);
+        List<McpCodeGuardrailViolation> violations = result.violations().stream()
+                .map(TestAutomationService::toMcpViolation)
+                .toList();
+        List<String> warnings = source.isBlank()
+                ? List.of("No code was supplied.")
+                : List.of("Lexical guardrail check only; compile/runtime validation is still required.");
+        return new McpCodeGuardrailResult(
+                McpCodeGuardrailResult.CURRENT_SCHEMA_VERSION,
+                language,
+                result.passed(),
+                violations,
+                warnings);
+    }
+
+    private static McpCodeGuardrailViolation toMcpViolation(GuardrailViolation violation) {
+        return new McpCodeGuardrailViolation(
+                violation.kind(),
+                violation.severity(),
+                violation.message(),
+                violation.line(),
+                violation.snippet());
+    }
+
+    private static boolean matchesIntent(McpTestAutomationScenario scenario, String intent) {
+        if (intent.isBlank()) {
+            return true;
+        }
+        String searchable = String.join(" ",
+                scenario.id(),
+                scenario.title(),
+                String.join(" ", scenario.areas()),
+                String.join(" ", scenario.userPrompts()),
+                String.join(" ", scenario.agentActions()),
+                String.join(" ", scenario.repoPattern())).toLowerCase(Locale.ROOT);
+        String query = intent.toLowerCase(Locale.ROOT);
+        if (searchable.contains(query)) {
+            return true;
+        }
+        for (String token : TOKEN_SPLIT.split(query)) {
+            if (token.length() > 2 && searchable.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<McpTestAutomationScenario> limit(List<McpTestAutomationScenario> values, int maxResults) {
+        if (maxResults < 1 || values.size() <= maxResults) {
+            return values;
+        }
+        return values.subList(0, Math.min(maxResults, MAX_RESULTS));
+    }
+
+    private static String normalizeArea(String area) {
+        String value = text(area).toLowerCase(Locale.ROOT);
+        return value.isBlank() ? "all" : value;
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static List<McpTestAutomationScenario> scenarios() {
+        return List.of(
+                s("setup-connect-agent", "Connect an MCP client to SHAFT", a("setup", "mcp"),
+                        "Install shaft-mcp for Codex or Claude and verify available tools.",
+                        t("shaft_guide_search"),
+                        t("Run the installer or configured server", "Verify tool discovery in the client"),
+                        t("No repository code required"),
+                        t("Do not expose model or cloud credentials"),
+                        t("Client can call shaft_guide_search and reports the configured shaft-mcp version")),
+                s("guide-before-code", "Search official SHAFT guidance before coding", a("setup", "docs"),
+                        "Before writing this SHAFT test, find the official pattern to follow.",
+                        t("shaft_guide_search"),
+                        t("Search task-shaped guide terms", "Cite returned guide URLs in the implementation summary"),
+                        t("No repository code required"),
+                        t("Do not invent SHAFT APIs when guide results are missing"),
+                        t("Agent has cited guide evidence or states that guidance was unavailable")),
+                s("api-openapi-contract-suite", "Generate OpenAPI-backed SHAFT API tests", a("api", "openapi"),
+                        "Create API tests that cover this Swagger contract with reusable request builders and validators.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Read the OpenAPI contract", "Group operations by tag or resource",
+                                "Write request builders and response validators under src/main/java",
+                                "Write TestNG scenario classes under src/test/java"),
+                        t("src/main/java/<basePackage>/api for reusable API objects",
+                                "src/test/java/<basePackage>/tests/api for executable tests"),
+                        t(NO_SLEEP, "Enable swagger.validation.enabled with swagger.validation.url", "No secrets in generated code"),
+                        t("Focused API tests compile, run, and validate against the configured OpenAPI contract")),
+                s("api-auth-and-session", "Create API authentication and session flows", a("api"),
+                        "Add SHAFT API tests for login, token reuse, and protected endpoints.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Model login/token setup once", "Reuse headers or cookies through SHAFT.API session",
+                                "Cover valid and invalid authentication"),
+                        t("Authentication helper in src/main/java API package; tests call it explicitly"),
+                        t("No hard-coded credentials", "Use test data or environment-backed placeholders"),
+                        t("Protected happy path and invalid auth assertions pass")),
+                s("api-negative-boundary-tests", "Cover API negative and boundary behavior", a("api"),
+                        "Add negative SHAFT API scenarios for required fields, bad IDs, and forbidden requests.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Read status codes from the contract or existing tests",
+                                "Use setTargetStatusCode for expected non-200 responses",
+                                "Assert response body errors with response validators"),
+                        t("Negative validators live beside positive validators"),
+                        t("Do not disable status validation unless the assertion requires that status"),
+                        t("Negative tests assert status, error body, and contract behavior")),
+                s("api-graphql-suite", "Create GraphQL SHAFT API tests", a("api", "graphql"),
+                        "Write SHAFT tests for these GraphQL queries and mutations.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Use SHAFT.API.sendGraphQlRequest", "Keep query strings readable",
+                                "Assert data and errors through response validators"),
+                        t("GraphQL request methods under src/main/java API package"),
+                        t("No secrets in headers", "Keep variables explicit test data"),
+                        t("Query, mutation, variable, and auth scenarios pass")),
+                s("web-pom-fluent-test", "Create web GUI tests with POM and fluent SHAFT actions", a("web", "gui"),
+                        "Use SHAFT MCP to inspect this page and write maintainable web UI tests.",
+                        t("shaft_guide_search", "driver_initialize", "browser_open_intent", "browser_navigate",
+                                "browser_get_page_dom", "browser_take_screenshot", "element_type", "element_click",
+                                "test_code_guardrails_check"),
+                        t("Ask the user to confirm the exact target URL when the prompt names a site without one",
+                                "Call browser_open_intent when the prompt includes a confirmed URL and action intent",
+                                "Inspect DOM and screenshot", "Perform the actual requested action with the selected locator",
+                                "Create or extend page objects",
+                                "Write fluent SHAFT actions and assertions in tests"),
+                        t("Page objects under src/main/java/<basePackage>/pages; tests under src/test/java"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "No @FindBy or PageFactory",
+                                "Do not infer target URLs or publish unverified locators"),
+                        t("Headless focused GUI test passes, selected locators were proven by element actions,"
+                                + " and page object methods stay reusable")),
+                s("web-url-intent-orientation", "Open a URL, infer the requested action, and choose stable locators",
+                        a("web", "gui", "locator", "capture"),
+                        "Open this URL, perform the requested action, and generate SHAFT code from the flow.",
+                        t("shaft_guide_search", "driver_initialize", "browser_open_intent", "element_click",
+                                "element_type", "capture_start", "capture_status", "capture_stop",
+                                "capture_code_blocks", "test_code_guardrails_check"),
+                        t("Search official guide patterns for the requested action",
+                                "Ask the user to confirm the exact target URL when the prompt names a site without one",
+                                "Initialize the WebDriver session",
+                                "Call browser_open_intent with targetUrl and userIntent",
+                                "Use the returned capture-ranked locator candidates or SHAFT locator code",
+                                "Perform the actual action with element_type or element_click"
+                                        + " to prove the selected locator works",
+                                "Start capture before user-performed actions when code generation is requested"),
+                        t("Page objects under src/main/java/<basePackage>/pages; reviewed generated snippets under"
+                                + " src/test/java or existing page/test classes"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not paste raw DOM into source",
+                                "Do not infer target URLs or publish unverified locators",
+                                "Do not use coordinate-only clicks when locator candidates exist",
+                                "Do not include sensitive typed values unless explicitly allowed"),
+                        t("Agent reports current URL, selected locator, action result, codegen path, and validation"
+                                + " evidence")),
+                s("web-playwright-pom-fluent-test", "Create web GUI tests with SHAFT Playwright", a("web", "gui", "playwright"),
+                        "Use SHAFT Playwright MCP tools to inspect this page and write maintainable UI tests.",
+                        t("shaft_guide_search", "driver_initialize", "browser_navigate",
+                                "browser_get_page_dom", "browser_take_screenshot",
+                                "element_click", "element_type", "test_code_guardrails_check"),
+                        t("Inspect DOM and screenshot with Playwright", "Create or extend page objects",
+                                "Use SHAFT.GUI.Playwright actions and assertions in tests"),
+                        t("Page objects under src/main/java/<basePackage>/pages; tests under src/test/java"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not mix WebDriver-only waits into Playwright tests"),
+                        t("Headless focused Playwright GUI test passes and page object methods stay reusable")),
+                s("web-locator-refactor", "Refactor brittle web locators", a("web", "gui", "locator"),
+                        "Replace these brittle locators with role-based locators or the SHAFT locator builder.",
+                        t("shaft_guide_search", "browser_open_intent", "browser_get_page_dom",
+                                "browser_take_screenshot", "test_code_guardrails_check"),
+                        t("Use browser_open_intent when the user describes the action that should find the element",
+                                "Find stable labels, roles, data attributes, ids, or text",
+                                "Prefer role-based locators, then the SHAFT locator builder", "Run the affected UI test"),
+                        t("Only locator fields/methods change unless behavior is wrong"),
+                        t(NO_ABSOLUTE_XPATH, "No PageFactory migration"),
+                        t("Affected tests pass with clearer locator definitions")),
+                s("web-capture-to-pom", "Convert browser capture into page objects", a("web", "gui", "capture"),
+                        "Record this flow and integrate it into our existing page object tests.",
+                        t("capture_start", "capture_status", "capture_stop", "capture_code_blocks",
+                                "test_code_guardrails_check"),
+                        t("Record the user flow", "Generate replay snippets",
+                                "Move stable locators/actions into page objects instead of pasting a raw class"),
+                        t("Generated capture code is integrated into existing page/test structure"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH),
+                        t("Replay-derived test compiles and passes, with no duplicate generic test class")),
+                s("web-playwright-record-replay", "Record and replay SHAFT Playwright actions", a("web", "gui", "capture", "playwright"),
+                        "Record this Playwright journey and turn it into reusable SHAFT Playwright test code.",
+                        t("driver_initialize", "capture_start", "capture_stop",
+                                "capture_code_blocks", "capture_generate_replay",
+                                "test_code_guardrails_check"),
+                        t("Record actions through MCP Playwright tools", "Generate Playwright replay snippets",
+                                "Move stable locators/actions into page objects instead of pasting a raw class"),
+                        t("Recording JSON remains an artifact; reusable code enters page/test classes"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH, "Do not include sensitive typed values unless explicitly allowed"),
+                        t("Replay code is reviewed, guarded, and inserted into the right Playwright classes")),
+                s("web-playwright-cli-assisted-flow",
+                        "Use official Playwright CLI or MCP as a browser-exploration sidecar",
+                        a("web", "gui", "capture", "playwright", "cli"),
+                        "Use Playwright CLI or Playwright MCP to explore this flow, then generate SHAFT code.",
+                        t("shaft_guide_search", "capture_codegen_features", "shaft_coding_partner_plan",
+                                "capture_start", "capture_code_blocks",
+                                "test_code_guardrails_check"),
+                        t("Use official playwright-cli for token-efficient open, goto, click, type, snapshot,"
+                                        + " screenshot, network, storage, console, tracing, or video exploration"
+                                        + " when the user or installed Playwright skills request it",
+                                "Use official Playwright MCP for persistent accessibility-snapshot exploration"
+                                        + " when that MCP server is already configured",
+                                "Bring proven steps, locator notes, screenshots, HAR/storage artifacts, and trace"
+                                        + " evidence back into SHAFT Capture or the coding partner plan",
+                                "Generate SHAFT.GUI.Playwright or SHAFT WebDriver code according to the project backend"),
+                        t("Official Playwright artifacts remain evidence; reusable Java code enters existing SHAFT"
+                                + " page objects and tests"),
+                        t("Do not paste Playwright TypeScript tests into Java projects",
+                                "Treat browser_run_code_unsafe, playwright-cli run-code, and eval as trusted-client-only",
+                                "Do not commit authenticated storage state, traces, or videos that may contain secrets"),
+                        t("Agent reports the Playwright CLI/MCP commands used, the SHAFT backend selected, codegen path,"
+                                + " guardrail result, and focused validation command")),
+                s("web-visual-accessibility", "Add visual or accessibility checks", a("web", "gui", "visual"),
+                        "Add visual or accessibility assertions for this critical page state.",
+                        t("shaft_guide_search", "driver_initialize", "browser_navigate", "browser_take_screenshot"),
+                        t("Use visual/accessibility checks only for requested states",
+                                "Store needed reference assets under test resources"),
+                        t("Assertions live in the page or focused test that owns the state"),
+                        t("Do not add screenshots for non-visual behavior"),
+                        t("Visual/accessibility evidence is attached to the relevant report")),
+                s("mobile-web-emulation", "Run mobile web emulation checks", a("mobile", "web", "gui"),
+                        "Test this responsive flow with SHAFT mobile web emulation.",
+                        t("driver_initialize", "browser_take_screenshot", "mobile_get_contexts",
+                                "test_code_guardrails_check"),
+                        t("Initialize mobile web emulation", "Inspect viewport", "Write reusable page object flow"),
+                        t("Reuse web page objects when behavior matches desktop"),
+                        t(NO_SLEEP, NO_ABSOLUTE_XPATH),
+                        t("Mobile web scenario passes in headless-compatible validation")),
+                s("mobile-native-appium", "Create native Appium SHAFT tests", a("mobile", "gui"),
+                        "Inspect this native app screen and write SHAFT Appium tests.",
+                        t("driver_initialize", "mobile_get_accessibility_tree", "browser_take_screenshot",
+                                "element_click", "element_type", "test_code_guardrails_check"),
+                        t("Inspect contexts and accessibility tree", "Prefer accessibility ids and stable Appium locators",
+                                "Create mobile page objects and TestNG tests"),
+                        t("Mobile page objects under src/main/java; tests under src/test/java"),
+                        t(NO_SLEEP, "Use SHAFT.GUI.Locator.accessibilityId before XPath"),
+                        t("Native mobile test compiles; real-device/cloud run is reported if unavailable")),
+                s("mobile-record-replay", "Record and replay mobile actions", a("mobile", "capture"),
+                        "Record this mobile journey and turn it into reusable SHAFT test code.",
+                        t("capture_start", "capture_stop", "capture_code_blocks",
+                                "capture_record_at_target_code_blocks",
+                                "capture_generate_replay", "test_code_guardrails_check"),
+                        t("Record actions through MCP mobile tools", "Generate locator inventory and Page Object blocks",
+                                "Move actions into existing mobile page methods"),
+                        t("Recording JSON remains an artifact; reusable code enters page/test classes"),
+                        t(NO_SLEEP, "Do not include sensitive typed values unless explicitly allowed"),
+                        t("Replay code is reviewed, guarded, and inserted into the right classes")),
+                s("cli-test-generation", "Create SHAFT CLI and file tests", a("cli"),
+                        "Write SHAFT tests for this command-line workflow and generated files.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Model command inputs and expected files", "Use SHAFT CLI/file actions",
+                                "Assert outputs without shell-specific brittle parsing"),
+                        t("CLI helper objects under src/main/java only when reused"),
+                        t("No destructive commands unless user explicitly approves"),
+                        t("Command test passes and generated files are cleaned or isolated")),
+                s("db-test-generation", "Create SHAFT database checks", a("db"),
+                        "Write database verification tests for this backend flow.",
+                        t("shaft_guide_search", "test_code_guardrails_check"),
+                        t("Read existing DB configuration", "Run setup/query/assertions through SHAFT DB patterns"),
+                        t("Reusable DB helpers under src/main/java only when shared"),
+                        t("No real production connection strings or destructive queries"),
+                        t("DB test uses test data and reports query assertions")),
+                s("failure-doctor-analysis", "Analyze failed SHAFT, Selenium, or Playwright tests", a("doctor", "failure"),
+                        "Analyze these Allure results and tell me the first actionable failure.",
+                        t("doctor_analyze_failed_allure", "doctor_suggest_fix", "shaft_guide_search"),
+                        t("Analyze Allure evidence", "Separate product defect, test defect, and infrastructure",
+                                "Return review-only code blocks when applicable"),
+                        t("No source edit unless the calling agent applies a reviewed fix"),
+                        t("Do not trust empty Allure result files"),
+                        t("Agent reports first actionable failure and next validation step")),
+                s("failure-trace-first-analysis", "Investigate a failed SHAFT run from persisted trace evidence",
+                        a("doctor", "failure", "trace", "reporting"),
+                        "Read the latest SHAFT trace and summarize the failed Selenium action before opening Allure.",
+                        t("trace_latest", "trace_read", "trace_summarize", "doctor_analyze_trace",
+                                "browser_get_page_dom", "browser_take_screenshot"),
+                        t("Call trace_latest after a failed local SHAFT run",
+                                "Pass the returned tracePath to trace_summarize",
+                                "Use doctor_analyze_trace for deterministic remediation categories",
+                                "Read bounded raw evidence with trace_read only when the summary is insufficient"),
+                        t("target/shaft-traces/<safe-test-id>/index.json and shaft-trace.zip are read-only evidence"),
+                        t("Keep trace paths inside the MCP workspace", "Do not expose secrets from raw trace JSON",
+                                "Do not modify source automatically from trace analysis alone"),
+                        t("Agent reports failed action, locator, exception, source context, and the next MCP tool or code-change category")),
+                s("failure-healer-loop", "Run guarded healer loop", a("doctor", "healer", "failure"),
+                        "Rerun this failing Selenium or Playwright test and propose a safe fix.",
+                        t("healer_run_failed_test", "doctor_analyze_failed_allure", "test_code_guardrails_check"),
+                        t("Run allowed headless Maven command", "Analyze fresh evidence", "Propose review-only fix"),
+                        t("Agent applies only approved source edits"),
+                        t("No publish/deploy goals; no worktree escape paths"),
+                        t("Failure is fixed by validation or reported as blocked/product defect")),
+                s("report-generate-and-summarize", "Generate and summarize test evidence", a("reporting"),
+                        "Generate the SHAFT report and summarize what passed and failed.",
+                        t("generate_test_report", "doctor_analyze_failed_allure"),
+                        t("Generate report from current session", "Summarize Allure/SHAFT evidence and failures"),
+                        t("No source code changes"),
+                        t("Do not delete the allure-results root"),
+                        t("Report path and high-signal result summary are returned")),
+                s("ci-local-validation", "Choose the smallest useful validation", a("ci"),
+                        "Validate the SHAFT changes locally without running unnecessary suites.",
+                        t("shaft_guide_search"),
+                        t("Load validation gotchas", "Run affected tests first", "Escalate to compile/package when needed"),
+                        t("Validation command is chosen from changed files and risk"),
+                        t("Avoid external/cloud suites unless required and configured"),
+                        t("Agent reports exact commands, result, and remaining risk")),
+                s("migration-or-upgrade-support", "Support SHAFT migration or upgrade work", a("setup", "migration"),
+                        "Help migrate this project to current SHAFT patterns.",
+                        t("shaft_guide_search", "doctor_analyze_failed_allure"),
+                        t("Inspect existing POMs and SHAFT usage", "Apply minimal supported replacements",
+                                "Validate compile before broader tests"),
+                        t("Preserve existing project layout and public tests"),
+                        t("No publish/deploy/history rewrite operations"),
+                        t("Migration compiles or blockers are reported with exact files")));
+    }
+
+    private static McpTestAutomationScenario s(
+            String id,
+            String title,
+            List<String> areas,
+            String prompt,
+            List<String> tools,
+            List<String> actions,
+            List<String> pattern,
+            List<String> guardrails,
+            List<String> done) {
+        return new McpTestAutomationScenario(id, title, areas, List.of(prompt), tools, actions, pattern, guardrails, done);
+    }
+
+    private static List<String> a(String... values) {
+        return List.of(values);
+    }
+
+    private static List<String> t(String... values) {
+        return List.of(values);
+    }
+}

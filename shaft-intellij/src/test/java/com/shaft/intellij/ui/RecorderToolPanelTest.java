@@ -1,0 +1,704 @@
+package com.shaft.intellij.ui;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.shaft.intellij.java.JavaTargetContext;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.ShaftSettingsState;
+import org.junit.jupiter.api.Test;
+
+import javax.accessibility.AccessibleContext;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.text.JTextComponent;
+import java.awt.Component;
+import java.awt.Container;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Covers issue #3665 part B: the curated standalone Recorder tab. {@link ShaftFeaturePanelCatalogTest}'s
+ * javadoc documents that a real end-to-end {@code ShaftMcpInvocationService.getInstance(project)
+ * .startTool(...)} round trip cannot be exercised in this Gradle unit-test JVM (no {@code
+ * ApplicationManager.getApplication()} bootstrap) -- this suite follows that same suite's established
+ * pattern: pin the guard order (MCP unconfigured / no open project, both resolved before ever reaching
+ * the service call) via the status label, and pin the exact argument shape each button would send via
+ * {@link RecorderToolPanel}'s package-private {@code capture*Arguments()} builder methods.
+ */
+class RecorderToolPanelTest {
+
+    @Test
+    void quickStartFieldsExposeAccessibleNamesAndSensibleDefaults() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+        JTextComponent targetUrl = findByAccessibleName(panel, "Target URL", JTextComponent.class);
+        JComboBox<?> browser = findByAccessibleName(panel, "Recorder browser", JComboBox.class);
+        JCheckBox headless = findByAccessibleName(panel, "Headless browser", JCheckBox.class);
+        JTextComponent outputPath = findByAccessibleName(panel, "Output path", JTextComponent.class);
+
+        assertAll(
+                () -> assertNotNull(targetUrl),
+                () -> assertEquals("", targetUrl.getText()),
+                () -> assertNotNull(browser),
+                () -> assertEquals(2, browser.getItemCount(), "Only Chrome and Edge are accepted server-side"),
+                () -> assertEquals("Chrome", browser.getItemAt(0)),
+                () -> assertEquals("Edge", browser.getItemAt(1)),
+                () -> assertEquals("Chrome", browser.getSelectedItem()),
+                () -> assertNotNull(headless),
+                () -> assertFalse(headless.isSelected(), "Recording should default to a visible browser window"),
+                () -> assertNotNull(outputPath),
+                () -> assertEquals("recordings/intellij-capture.json", outputPath.getText(),
+                        "Must match ToolTemplates.recorder()'s capture_start template default"));
+    }
+
+    /**
+     * Issue #3771 (professional UX polish): each Quick Start row ("Target URL", "Browser",
+     * "Headless", "Output path") is built by {@code row()} as its own independent {@link
+     * java.awt.BorderLayout}, so a label's WEST slot naturally sizes to that label's own text --
+     * "Target URL"/"Output path" are longer than "Browser"/"Headless" -- and the fields beside them
+     * land at different x-offsets, a ragged left edge that reads as unpolished next to a real
+     * aligned form.
+     */
+    @Test
+    void quickStartRowLabelsShareAConsistentColumnWidthSoFieldsAlign() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+        JLabel targetUrlLabel = findByAccessibleName(panel, "Target URL", JLabel.class);
+        JLabel browserLabel = findByAccessibleName(panel, "Browser", JLabel.class);
+        JLabel headlessLabel = findByAccessibleName(panel, "Headless", JLabel.class);
+        JLabel outputPathLabel = findByAccessibleName(panel, "Output path", JLabel.class);
+
+        assertAll(
+                () -> assertNotNull(targetUrlLabel),
+                () -> assertNotNull(browserLabel),
+                () -> assertNotNull(headlessLabel),
+                () -> assertNotNull(outputPathLabel),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, browserLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, headlessLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"),
+                () -> assertEquals(targetUrlLabel.getPreferredSize().width, outputPathLabel.getPreferredSize().width,
+                        "Quick Start row labels must share a column width so fields align"));
+    }
+
+    @Test
+    void quickStartButtonsAndStatusLabelAreReachable() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+        assertAll(
+                () -> assertNotNull(findButton(panel, "Start recording")),
+                () -> assertNotNull(findButton(panel, "Stop recording")),
+                () -> assertNotNull(findButton(panel, "Check status")),
+                () -> assertNotNull(findButton(panel, "Review code")),
+                () -> assertNotNull(findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class)));
+    }
+
+    @Test
+    void captureStartArgumentsMatchTheCuratedTemplateShape() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        setText(panel, "Target URL", "https://example.com");
+        select(findByAccessibleName(panel, "Recorder browser", JComboBox.class), "Edge");
+        findByAccessibleName(panel, "Headless browser", JCheckBox.class).setSelected(true);
+        setText(panel, "Output path", "recordings/custom.json");
+
+        JsonObject arguments = panel.captureStartArguments();
+
+        assertAll(
+                () -> assertEquals("recordings/custom.json", arguments.get("outputPath").getAsString()),
+                () -> assertEquals("https://example.com", arguments.get("targetUrl").getAsString()),
+                () -> assertEquals("Edge", arguments.get("browser").getAsString()),
+                () -> assertTrue(arguments.get("headless").getAsBoolean()),
+                () -> assertFalse(arguments.has("sessionGoal"),
+                        "capture_start's curated default template has no sessionGoal field"));
+    }
+
+    @Test
+    void captureStopAndStatusArgumentsMatchTheCuratedTemplateShape() {
+        JsonObject stop = RecorderToolPanel.captureStopArguments();
+        JsonObject status = RecorderToolPanel.captureStatusArguments();
+
+        assertAll(
+                () -> assertFalse(stop.get("discard").getAsBoolean()),
+                () -> assertEquals(0, status.entrySet().size(), "capture_status takes no arguments"));
+    }
+
+    @Test
+    void captureCodeBlocksArgumentsReadTheOutputPathField() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        setText(panel, "Output path", "recordings/custom.json");
+
+        JsonObject arguments = panel.captureCodeBlocksArguments();
+
+        assertAll(
+                () -> assertEquals("recordings/custom.json", arguments.get("sessionPath").getAsString()),
+                () -> assertEquals("driver", arguments.get("driverVariableName").getAsString()),
+                () -> assertFalse(arguments.get("overwrite").getAsBoolean()));
+    }
+
+    @Test
+    void startButtonReportsUnconfiguredMcpWithoutCrashing() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+        findButton(panel, "Start recording").doClick();
+
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+    }
+
+    @Test
+    void startButtonReportsNoOpenProjectOnceMcpIsConfigured() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, readyMcpSettings());
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+        findButton(panel, "Start recording").doClick();
+
+        assertTrue(status.getText().contains("Open an IntelliJ project"), status.getText());
+    }
+
+    @Test
+    void stopStatusAndReviewButtonsAlsoGuardOnUnconfiguredMcpWithoutCrashing() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+        findButton(panel, "Stop recording").doClick();
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+
+        findButton(panel, "Check status").doClick();
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+
+        findButton(panel, "Review code").doClick();
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+    }
+
+    /**
+     * Issue #4165: {@code checkStatus()}'s success handler used to ignore the {@code
+     * capture_status} payload entirely and always report the same "refreshed" string. This pins
+     * the real fix -- parsing {@code active}/{@code state} out of the same union payload shape
+     * {@code GuidedWorkflowPanel#applyStatusPoll} already handles (issue #3949's {@code
+     * webStatus}/{@code playwrightStatus}/{@code mobileStatus} union) -- via {@link
+     * RecorderToolPanel#applyStatusCheck}, the package-private test seam mirroring {@code
+     * GuidedWorkflowPanel#applyStatusPoll} since a live MCP round trip cannot run in this headless
+     * unit-test JVM (see the class javadoc).
+     *
+     * <p>Review follow-up (issue #4165): finding "active" must render the real text but must
+     * <b>not</b> arm the shared {@link ShaftRecordingActivity} indicator by itself -- see {@link
+     * #aStaleActiveCheckStatusResponseArrivingAfterAStopMustNotResurrectTheSharedIndicator} for why.
+     */
+    @Test
+    void checkStatusRendersTheRealActiveStateWithoutArmingTheSharedRecordingIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "ACTIVE");
+            webStatus.addProperty("eventCount", 3);
+            webStatus.addProperty("readiness", "READY");
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("3 steps"),
+                            "Expected the real active status to render, not the old generic 'refreshed' text: "
+                                    + status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active(),
+                            "A one-shot status check finding 'active' must not arm the shared recording "
+                                    + "indicator by itself -- a check is not a start, and doing so risks "
+                                    + "resurrecting the indicator from a stale response after a real stop "
+                                    + "already cleared it"));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Second half of the same real-payload story: once the recorder answers idle, {@code
+     * checkStatus()} must say so in plain language. Re-review of issue #4165 established that a
+     * one-shot check must be purely observational in <b>both</b> directions (see the two
+     * stale-response regression tests below), so -- unlike the first version of this test -- this
+     * no longer asserts that a check resyncs the indicator; it only pins the rendered text for a
+     * plain idle answer with no recording in play, and confirms the indicator (already idle here)
+     * is left alone.
+     */
+    @Test
+    void checkStatusRendersIdleStateWithoutTouchingTheSharedRecordingIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject idleWebStatus = new JsonObject();
+            idleWebStatus.addProperty("state", "NOT_RUNNING");
+            idleWebStatus.addProperty("eventCount", 0);
+            JsonObject idleUnion = new JsonObject();
+            idleUnion.addProperty("engine", "WEB");
+            idleUnion.add("webStatus", idleWebStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(idleUnion.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review finding (issue #4165): {@code ShaftMcpInvocationService.startTool} dispatches each
+     * call via {@code CompletableFuture.supplyAsync} (no ordering guarantee between concurrent
+     * calls), and {@code guardReady()} never disables the buttons while a call is in flight. So a
+     * user can click "Check status" and then immediately "Stop recording"; if the stop's response
+     * lands first (it calls {@code ShaftRecordingActivity.stopped(recordingKey)} unconditionally),
+     * the earlier check's still-active (pre-stop) response can arrive afterwards. Before this fix,
+     * that stale response's {@code started(recordingKey)} call would resurrect the indicator the
+     * stop had just correctly cleared -- the same failure shape {@code GuidedWorkflowPanel#dispose}
+     * (issue #3591 item 3) was written to prevent on the sibling panel. This proves the ordering
+     * cannot resurrect it: the stop-cleared state stays idle even after the stale active check
+     * response is applied afterwards.
+     */
+    @Test
+    void aStaleActiveCheckStatusResponseArrivingAfterAStopMustNotResurrectTheSharedIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+            // A recording was active, then "Stop recording"'s response reached the EDT first and
+            // cleared the indicator (mirrors stopRecording()'s unconditional
+            // ShaftRecordingActivity.stopped(recordingKey) call, RecorderToolPanel.java:246-249).
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            ShaftRecordingActivity.stopped(panel.recordingKeyForTests());
+            assertFalse(ShaftRecordingActivity.active(), "Precondition: the stop above must have cleared it");
+
+            // The earlier, stale "Check status" response -- issued before the stop, still carrying
+            // the pre-stop 'active' answer -- arrives afterwards.
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "ACTIVE");
+            webStatus.addProperty("eventCount", 4);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertFalse(ShaftRecordingActivity.active(),
+                    "A stale active status-check response must never resurrect the shared indicator "
+                            + "after a real stop already cleared it");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * The mirror-image race (re-review of issue #4165): a "Check status" click fires while idle,
+     * then before it returns, "Start recording" is clicked and its response lands first, correctly
+     * setting the indicator active. The earlier check's stale, pre-start "idle" response then
+     * arrives and must not clear an indicator a genuinely live recording just set -- same {@code
+     * CompletableFuture.supplyAsync} ordering gap, same absence of button-disabling in {@link
+     * #guardReady()}, identical reachability to the stop-races-check direction above. Idempotency of
+     * the {@code stopped()} call is a different property from staleness of the information it acts
+     * on: calling it twice is harmless, but calling it once based on a response that predates a
+     * start is not.
+     */
+    @Test
+    void aStaleIdleCheckStatusResponseArrivingAfterAStartMustNotClearTheSharedIndicator() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+            // "Start recording"'s response reached the EDT first and set the indicator active
+            // (mirrors startRecording()'s ShaftRecordingActivity.started(recordingKey) call,
+            // RecorderToolPanel.java:233).
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: the start above must have set it active");
+
+            // The earlier, stale "Check status" response -- issued before the start, still carrying
+            // the pre-start 'idle' answer -- arrives afterwards.
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "NOT_RUNNING");
+            webStatus.addProperty("eventCount", 0);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertTrue(ShaftRecordingActivity.active(),
+                    "A stale idle status-check response must never clear the shared indicator after a "
+                            + "real start already set it");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review follow-up (issue #4165): {@code RecorderToolPanel} had no {@code dispose}, {@code
+     * removeNotify}, or {@code Disposer} hook at all, unlike {@code GuidedWorkflowPanel#dispose}
+     * (issue #3591 item 3), which exists specifically "to prevent a stuck-active recording key if
+     * the panel closes mid-recording". {@code RecorderToolPanel} has no background poller to cancel
+     * (unlike {@code GuidedWorkflowPanel}'s status-poll {@code Alarm}) and is not wired into {@code
+     * ShaftToolWindowPanel}'s {@code Disposer} tree, so {@link RecorderToolPanel#removeNotify()} --
+     * the standard Swing teardown callback, fired without any external wiring -- is the equivalent,
+     * scope-safe place to clear the indicator on close.
+     */
+    @Test
+    void removeNotifyClearsTheSharedRecordingIndicatorLikeGuidedWorkflowPanelsDispose() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            ShaftRecordingActivity.started(panel.recordingKeyForTests());
+            assertTrue(ShaftRecordingActivity.active(), "Precondition: a recording must be marked active");
+
+            panel.removeNotify();
+
+            assertFalse(ShaftRecordingActivity.active(),
+                    "Closing the panel (removeNotify) must clear a stuck-active recording key, mirroring "
+                            + "GuidedWorkflowPanel#dispose (issue #3591 item 3)");
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Review follow-up (issue #4165): the {@code INCOMPLETE}/{@code FAILED} terminal-state branch
+     * in {@link RecorderToolPanel#applyStatusCheck} had no test. Pins the "ended unexpectedly"
+     * message for an {@code INCOMPLETE} state.
+     */
+    @Test
+    void checkStatusRendersEndedUnexpectedlyForAnIncompleteState() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "INCOMPLETE");
+            webStatus.addProperty("eventCount", 6);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("ended unexpectedly"), status.getText()),
+                    () -> assertTrue(status.getText().contains("INCOMPLETE"), status.getText()),
+                    () -> assertTrue(status.getText().contains("6 steps"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /** Same terminal-state branch, for a {@code FAILED} state. */
+    @Test
+    void checkStatusRendersEndedUnexpectedlyForAFailedState() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            JsonObject webStatus = new JsonObject();
+            webStatus.addProperty("state", "FAILED");
+            webStatus.addProperty("eventCount", 2);
+            JsonObject union = new JsonObject();
+            union.addProperty("engine", "WEB");
+            union.add("webStatus", webStatus);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success(union.toString()), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("ended unexpectedly"), status.getText()),
+                    () -> assertTrue(status.getText().contains("FAILED"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * A malformed or missing-field {@code capture_status} response (no {@code active}, no {@code
+     * state}, no union section -- e.g. an already-unwrapped or empty payload) must degrade to a
+     * plain idle answer, never crash and never leave the shared indicator on.
+     */
+    @Test
+    void checkStatusDegradesGracefullyOnAMissingFieldPayload() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success("{}"), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    /**
+     * Same degrade-gracefully bar for a response that is not valid JSON at all (a raw MCP text
+     * envelope {@link com.shaft.intellij.ui.AssistantMarkdown#jsonObjectFromMcpOutput} cannot parse
+     * as a JSON object) -- must not throw.
+     */
+    @Test
+    void checkStatusDegradesGracefullyOnUnparsableOutput() {
+        ShaftRecordingActivity.resetForTests();
+        try {
+            RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+            javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+
+            panel.applyStatusCheck(ShaftMcpToolResult.success("not json at all"), null);
+
+            assertAll(
+                    () -> assertTrue(status.getText().contains("No active recording"), status.getText()),
+                    () -> assertFalse(ShaftRecordingActivity.active()));
+        } finally {
+            ShaftRecordingActivity.resetForTests();
+        }
+    }
+
+    @Test
+    void advancedSectionIsCollapsedByDefaultAndContainsTheEmbeddedFeaturePanel() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JCheckBox toggle = findByAccessibleName(panel, "Show advanced Recorder tools", JCheckBox.class);
+
+        assertAll(
+                () -> assertNotNull(toggle),
+                () -> assertFalse(toggle.isSelected(), "Advanced section must default to collapsed"),
+                () -> assertFalse(isVisibleInHierarchy(panel.featurePanel()),
+                        "Embedded ShaftFeaturePanel must be hidden until Advanced is toggled"),
+                () -> assertTrue(containsComponent(panel, panel.featurePanel()),
+                        "Embedded ShaftFeaturePanel must still be part of the component tree"));
+
+        toggle.doClick();
+        assertAll(
+                () -> assertTrue(toggle.isSelected()),
+                () -> assertTrue(isVisibleInHierarchy(panel.featurePanel()),
+                        "Toggling Advanced must reveal the embedded ShaftFeaturePanel"));
+    }
+
+    @Test
+    void prefillToolDelegatesToTheEmbeddedFeaturePanel() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JsonObject arguments = JsonParser.parseString(
+                "{\"sessionPath\":\"recordings/intellij-capture.json\"}").getAsJsonObject();
+
+        boolean matched = panel.prefillTool("capture_code_blocks", arguments);
+
+        assertTrue(matched, "capture_code_blocks is a real Recorder-category template");
+    }
+
+    @Test
+    void prefillToolExpandsAdvancedOnlyForToolsOutsideQuickStart() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JCheckBox toggle = findByAccessibleName(panel, "Show advanced Recorder tools", JCheckBox.class);
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("discard", false);
+
+        // capture_stop is curated in Quick Start: prefilling it must not force Advanced open.
+        assertTrue(panel.prefillTool("capture_stop", arguments));
+        assertFalse(toggle.isSelected(), "Quick Start tools must not force Advanced open");
+
+        // capture_checkpoint has no Quick Start control: prefilling it must expand Advanced so the
+        // user actually sees what got prefilled.
+        JsonObject checkpointArguments = new JsonObject();
+        checkpointArguments.addProperty("description", "Important flow checkpoint");
+        checkpointArguments.addProperty("kind", "USER_MARKER");
+        assertTrue(panel.prefillTool("capture_checkpoint", checkpointArguments));
+        assertTrue(toggle.isSelected(), "A tool outside Quick Start must expand Advanced so it is visible");
+    }
+
+    @Test
+    void prefillToolReturnsFalseForAToolNoRecorderTemplateOwns() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+
+        assertFalse(panel.prefillTool("shaft_project_create", new JsonObject()));
+    }
+
+    /**
+     * Covers issue #3661: {@code RecordShaftFlowHereAction}'s advanced mode calls {@link
+     * RecorderToolPanel#startRecordingAtTarget} directly instead of prefilling {@code
+     * capture_record_at_target_code_blocks} for manual copy-paste. Starting a recording this way
+     * must set {@code capture_start}'s {@code sessionGoal} from the resolved caret target so the
+     * generated test class/method are named after it, matching {@code
+     * RecordShaftFlowHereAction#recordFlowPrompt}'s wording for the default-mode Assistant prompt.
+     */
+    @Test
+    void startRecordingAtTargetSetsSessionGoalFromTheResolvedTarget() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        panel.startRecordingAtTarget(context);
+
+        assertEquals("Record a SHAFT flow at logsIn in LoginTest",
+                panel.captureStartArguments().get("sessionGoal").getAsString());
+    }
+
+    @Test
+    void readyPackIntentPrefersDesignHandoffInSessionGoal() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/CheckoutTest.java", "tests", "CheckoutTest", "pays");
+        panel.startRecordingAtTarget(context, "valid payment places the order");
+        String goal = panel.captureStartArguments().get("sessionGoal").getAsString();
+        assertTrue(goal.contains("valid payment places the order"), goal);
+        assertTrue(goal.contains("pays"), goal);
+        assertEquals(
+                "valid payment places the order (at pays in CheckoutTest)",
+                RecorderToolPanel.sessionGoalForTarget(context, "valid payment places the order"));
+    }
+
+    @Test
+    void skipDuplicateLinesDropsLinesAlreadyInOwnerClass() {
+        String existing = """
+                public class CheckoutTest {
+                    By checkout = SHAFT.GUI.Locator.hasTagName("button").build();
+                }
+                """;
+        String generated = """
+                    By checkout = SHAFT.GUI.Locator.hasTagName("button").build();
+                    By pay = SHAFT.GUI.Locator.hasTagName("input").build();
+                """;
+        String filtered = RecorderToolPanel.skipDuplicateLines(existing, generated);
+        assertFalse(filtered.contains("checkout"), filtered);
+        assertTrue(filtered.contains("pay"), filtered);
+    }
+
+    @Test
+    void startRecordingAtTargetGuardsOnUnconfiguredMcpWithoutCrashing() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        javax.swing.JLabel status = findByAccessibleName(panel, "Recorder status", javax.swing.JLabel.class);
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        panel.startRecordingAtTarget(context);
+
+        assertTrue(status.getText().contains("Configure SHAFT MCP"), status.getText());
+    }
+
+    /**
+     * Pins the exact {@code capture_record_at_target_code_blocks} argument shape {@link
+     * RecorderToolPanel#stopRecording()} sends once a recording started via {@link
+     * RecorderToolPanel#startRecordingAtTarget} is stopped -- the "route straight into the existing
+     * review/insert flow" half of issue #3661. Mirrors the old {@code RecordShaftFlowHereAction}
+     * argument shape (packageName/className/targetSourcePath/insertAfter/driverVariableName) so the
+     * generated snippet still targets the resolved Java caret anchor.
+     */
+    @Test
+    void captureRecordAtTargetArgumentsMatchTheResolvedTargetAndOutputPathField() {
+        RecorderToolPanel panel = new RecorderToolPanel(null, unreadyMcpSettings());
+        setText(panel, "Output path", "recordings/custom.json");
+        JavaTargetContext context = new JavaTargetContext(
+                "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn");
+
+        JsonObject arguments = panel.captureRecordAtTargetArguments(context);
+
+        assertAll(
+                () -> assertEquals("recordings/custom.json", arguments.get("sessionPath").getAsString()),
+                () -> assertEquals("tests", arguments.get("packageName").getAsString()),
+                () -> assertEquals("LoginTest", arguments.get("className").getAsString()),
+                () -> assertEquals("src/test/java/LoginTest.java", arguments.get("targetSourcePath").getAsString()),
+                () -> assertEquals("logsIn", arguments.get("insertAfter").getAsString()),
+                () -> assertEquals("driver", arguments.get("driverVariableName").getAsString()),
+                () -> assertFalse(arguments.get("overwrite").getAsBoolean()));
+    }
+
+    private static ShaftSettingsState.Settings unreadyMcpSettings() {
+        return new ShaftSettingsState.Settings();
+    }
+
+    private static ShaftSettingsState.Settings readyMcpSettings() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "\"java\" \"@target/shaft-mcp.args\"";
+        settings.mcpSetupComplete = true;
+        return settings;
+    }
+
+    private static boolean containsComponent(Container parent, Component target) {
+        for (Component child : parent.getComponents()) {
+            if (child.equals(target)) {
+                return true;
+            }
+            if (child instanceof Container container && containsComponent(container, target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isVisibleInHierarchy(Component component) {
+        for (Component current = component; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void setText(Component component, String accessibleName, String value) {
+        JTextComponent field = findByAccessibleName(component, accessibleName, JTextComponent.class);
+        assertNotNull(field, "Missing field: " + accessibleName);
+        field.setText(value);
+    }
+
+    private static void select(JComboBox<?> comboBox, String label) {
+        for (int index = 0; index < comboBox.getItemCount(); index++) {
+            if (label.equals(comboBox.getItemAt(index).toString())) {
+                comboBox.setSelectedIndex(index);
+                return;
+            }
+        }
+        throw new AssertionError("Missing combo item: " + label);
+    }
+
+    private static JButton findButton(Component component, String accessibleName) {
+        if (component instanceof JButton button && accessibleName.equals(accessibleName(button))) {
+            return button;
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                JButton found = findButton(child, accessibleName);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static <T extends JComponent> T findByAccessibleName(
+            Component component, String accessibleName, Class<T> type) {
+        if (type.isInstance(component) && accessibleName.equals(accessibleName((JComponent) component))) {
+            return type.cast(component);
+        }
+        if (component instanceof Container container) {
+            for (Component child : container.getComponents()) {
+                T found = findByAccessibleName(child, accessibleName, type);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String accessibleName(JComponent component) {
+        AccessibleContext context = component.getAccessibleContext();
+        return context == null ? "" : context.getAccessibleName();
+    }
+}

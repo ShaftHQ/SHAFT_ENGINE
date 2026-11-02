@@ -1,0 +1,319 @@
+package com.shaft.intellij.mcp;
+
+import com.google.gson.JsonObject;
+import com.intellij.openapi.project.Project;
+import com.shaft.intellij.settings.ShaftSettingsState;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.lang.reflect.Proxy;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CancellationException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Exercises {@link ShaftMcpInvocationService} lifecycle and dispatch paths not pinned by
+ * {@link ShaftMcpInvocationServiceCacheTest} or {@link ShaftMcpInvocationServiceTest}: the
+ * public/test-seam constructor, the "not configured" fail-fast branch of {@code startListTools}/
+ * {@code startTool}, {@code dispose()}, {@code peekSharedClientAlive()}, a live server dying
+ * mid-dispatch (error categorization and shared-client eviction), and the cancel/kill actions on
+ * a {@link ShaftMcpInvocation} returned by {@code startListTools}/{@code startTool}.
+ */
+class ShaftMcpInvocationServiceLifecycleTest {
+    private final List<ShaftMcpStdioClient> spawned = new ArrayList<>();
+
+    @AfterEach
+    void closeSpawnedClients() {
+        spawned.forEach(ShaftMcpStdioClient::close);
+        spawned.clear();
+    }
+
+    @Test
+    void publicConstructorDelegatesToTheRealClientFactoryAndDisposesCleanly() {
+        // Uses the public single-argument constructor (the real entry point IntelliJ calls), not
+        // the package-private test seam used elsewhere in this package. No tool is ever invoked, so
+        // no process is spawned; this only pins that construction and disposal do not throw.
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject());
+
+        assertTrue(service.peekSharedClientAlive().isEmpty(), "no shared client exists yet");
+        service.dispose();
+    }
+
+    @Test
+    void startListToolsReportsConfigureMessageWhenCommandIsNotConfigured() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+
+        ShaftMcpToolResult result = service.startListTools(false, notReadySettings()).future().join();
+
+        assertFalse(result.success());
+        assertTrue(result.output().contains("Configure the SHAFT MCP stdio command"), result.output());
+    }
+
+    @Test
+    void startToolReportsConfigureMessageWhenCommandIsNotConfigured() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+
+        ShaftMcpToolResult result = service.startTool("any_tool", new JsonObject(), notReadySettings()).future().join();
+
+        assertFalse(result.success());
+        assertTrue(result.output().contains("Configure the SHAFT MCP stdio command"), result.output());
+    }
+
+    @Test
+    void peekSharedClientAliveReflectsTheSharedClientLifecycle() throws IOException {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+
+        assertTrue(service.peekSharedClientAlive().isEmpty(), "no shared client acquired yet");
+
+        ShaftMcpStdioClient client = service.acquireClient(fakeServerCommand("toolsList"), Path.of("."), Map.of());
+        assertEquals(Optional.of(true), service.peekSharedClientAlive());
+
+        client.kill();
+        assertEquals(Optional.of(false), service.peekSharedClientAlive(),
+                "peek must observe the process death without side effects (no respawn, no reset)");
+    }
+
+    @Test
+    void disposeClosesAndForgetsTheSharedClient() throws IOException {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftMcpStdioClient client = service.acquireClient(fakeServerCommand("toolsList"), Path.of("."), Map.of());
+        assertTrue(client.isAlive());
+
+        service.dispose();
+
+        assertFalse(client.isAlive(), "dispose() must close the pooled shared client");
+        assertTrue(service.peekSharedClientAlive().isEmpty());
+        assertTrue(service.knownToolNames().isEmpty(), "dispose() must forget the memoized tools/list cache too");
+    }
+
+    @Test
+    void restartConnectionClosesAndForgetsTheSharedClient() throws IOException {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftMcpStdioClient client = service.acquireClient(fakeServerCommand("toolsList"), Path.of("."), Map.of());
+        assertTrue(client.isAlive());
+
+        service.restartConnection();
+
+        assertFalse(client.isAlive(), "restartConnection() must close the pooled shared client");
+        assertTrue(service.peekSharedClientAlive().isEmpty());
+        assertTrue(service.knownToolNames().isEmpty(),
+                "restartConnection() shares closeSharedClientLocked() with dispose(), which also forgets the "
+                        + "memoized tools/list cache");
+    }
+
+    @Test
+    void shouldDropAfterFailureDropsUnlessAliveAndInitialized() {
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(true, false),
+                "alive but never initialized (wedged handshake) must be dropped");
+        assertFalse(ShaftMcpInvocationService.shouldDropAfterFailure(true, true),
+                "alive and initialized must be kept");
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(false, true),
+                "dead, even if previously initialized, must be dropped");
+        assertTrue(ShaftMcpInvocationService.shouldDropAfterFailure(false, false),
+                "dead and never initialized must be dropped");
+    }
+
+    @Test
+    void deadServerDuringDispatchIsCategorizedAsProcessExitedAndEvicted() {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftSettingsState.Settings settings = settingsForMode("stderrAndExit");
+
+        ShaftMcpToolResult result = service.startListTools(false, settings).future().join();
+
+        assertFalse(result.success());
+        assertEquals(McpInvocationError.PROCESS_EXITED, result.errorCategory());
+        assertTrue(result.output().contains("process exit code"), result.output());
+        assertTrue(service.peekSharedClientAlive().isEmpty(),
+                "a dead client encountered mid-dispatch must be evicted, not kept as the shared client");
+    }
+
+    @Test
+    void rejectedInitializeHandshakeLeavesAnAliveButUninitializedClientEvictedAfterDispatchFailure() {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftSettingsState.Settings settings = settingsForMode("rejectInitialize");
+
+        ShaftMcpToolResult result = service.startListTools(false, settings).future().join();
+
+        assertFalse(result.success());
+        assertEquals(Optional.empty(), service.peekSharedClientAlive(),
+                "an alive-but-never-initialized client (handshake rejected, process still alive) must be "
+                        + "evicted after a failed dispatch so the next action respawns instead of re-firing "
+                        + "the same failing handshake forever");
+    }
+
+    @Test
+    void toolCallJsonRpcErrorOnAnInitializedClientKeepsItAsTheSharedClient() {
+        RecordingFactory factory = new RecordingFactory();
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), factory);
+        ShaftSettingsState.Settings settings = settingsForMode("toolCallJsonRpcError");
+
+        ShaftMcpToolResult result = service.startTool("fake_tool", new JsonObject(), settings).future().join();
+
+        assertFalse(result.success());
+        assertEquals(Optional.of(true), service.peekSharedClientAlive(),
+                "a tool-call failure on an already-initialized, still-alive client must not evict it "
+                        + "(that would kill a live capture/driver session) -- only the never-initialized "
+                        + "handshake-failure case evicts");
+    }
+
+    @Test
+    void startToolWithNullArgumentsDispatchesWithAnEmptyObjectAndSucceeds() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+
+        ShaftMcpToolResult result = service.startTool("fake_tool", null, settingsForMode("toolsList")).future().join();
+
+        assertTrue(result.success(), result.output());
+    }
+
+    @Test
+    void startToolIsErrorResponseIsReportedAsFailureWithTheToolsOwnText() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+
+        ShaftMcpToolResult result = service.startTool("fake_tool", new JsonObject(), settingsForMode("toolCallIsError"))
+                .future().join();
+
+        assertFalse(result.success());
+        assertEquals("boom", result.output());
+        assertEquals(McpInvocationError.TOOL_ERROR, result.errorCategory());
+    }
+
+    @Test
+    void startListToolsGracefulCancelAbandonsTheRequestButKeepsTheProcessAliveThenKillTerminatesIt() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+        ShaftSettingsState.Settings settings = settingsForMode("silentToolCalls");
+
+        ShaftMcpInvocation gracefulInvocation = service.startListTools(false, settings);
+        cancelUntilDone(gracefulInvocation::cancel, gracefulInvocation.future());
+        // Issue #3768: cancel() now calls future.cancel(true) itself (previously only cancelAction
+        // ran, leaving the background task's own thrown CancellationException to complete the future,
+        // wrapped in a CompletionException). join() on an actually-cancelled future throws the bare
+        // CancellationException directly rather than a CompletionException wrapper.
+        assertThrows(CancellationException.class, () -> gracefulInvocation.future().join());
+        assertEquals(Optional.of(true), service.peekSharedClientAlive(),
+                "a graceful cancel must not terminate the shared server process");
+
+        ShaftMcpInvocation killedInvocation = service.startListTools(false, settings);
+        cancelUntilDone(killedInvocation::kill, killedInvocation.future());
+        assertTrue(killedInvocation.future().isCompletedExceptionally() || killedInvocation.future().isCancelled());
+        assertTrue(service.peekSharedClientAlive().isEmpty(),
+                "a force-kill must terminate the shared server process");
+    }
+
+    @Test
+    void startToolGracefulCancelAbandonsTheRequestButKeepsTheProcessAliveThenKillTerminatesIt() {
+        ShaftMcpInvocationService service = new ShaftMcpInvocationService(fakeProject(), new RecordingFactory());
+        ShaftSettingsState.Settings settings = settingsForMode("silentToolCalls");
+
+        ShaftMcpInvocation gracefulInvocation =
+                service.startTool("never_answered", new JsonObject(), settings);
+        cancelUntilDone(gracefulInvocation::cancel, gracefulInvocation.future());
+        // Issue #3768: see the equivalent comment in startListToolsGracefulCancelAbandons... above.
+        assertThrows(CancellationException.class, () -> gracefulInvocation.future().join());
+        assertEquals(Optional.of(true), service.peekSharedClientAlive(),
+                "a graceful cancel must not terminate the shared server process");
+
+        ShaftMcpInvocation killedInvocation =
+                service.startTool("never_answered", new JsonObject(), settings);
+        cancelUntilDone(killedInvocation::kill, killedInvocation.future());
+        assertTrue(killedInvocation.future().isCompletedExceptionally() || killedInvocation.future().isCancelled());
+        assertTrue(service.peekSharedClientAlive().isEmpty(),
+                "a force-kill must terminate the shared server process");
+    }
+
+    /**
+     * The invocation's async task acquires the shared client and dispatches its request on a pool
+     * thread, not synchronously on this one. {@code cancel()}/{@code kill()} are "sticky": calling
+     * either before the client has been assigned still aborts the call (the background task's
+     * {@code cancellationRequested.get()} check short-circuits before ever dispatching), but that
+     * path never touches the real client, so a premature kill would never actually terminate the
+     * server process. Sleeping first gives the background task a realistic chance to reach its
+     * blocking read before the cancel/kill action is exercised, then keeps retrying (mirroring the
+     * polling idiom used by
+     * {@code ShaftMcpStdioClientTest.cancelAbandonsInFlightRequestWithoutKillingTheServerProcess})
+     * in case one more retry is needed.
+     */
+    private static void cancelUntilDone(Runnable action, java.util.concurrent.CompletableFuture<?> future) {
+        sleepQuietly(300);
+        for (int attempt = 0; attempt < 100 && !future.isDone(); attempt++) {
+            action.run();
+            sleepQuietly(50);
+        }
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static List<String> fakeServerCommand(String mode) {
+        return McpTestJavaProcess.command(FakeMcpServer.class, mode);
+    }
+
+    private static ShaftSettingsState.Settings settingsForMode(String mode) {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpSetupComplete = true;
+        settings.mcpCommand = McpTestJavaProcess.commandLine(FakeMcpServer.class, mode);
+        return settings;
+    }
+
+    private static ShaftSettingsState.Settings notReadySettings() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpSetupComplete = false;
+        settings.mcpCommand = "";
+        return settings;
+    }
+
+    /**
+     * Minimal {@link Project} stub: only {@code getBasePath()} and {@code getService()} (returning
+     * {@code null}, keeping the connected-state gate inert) need real answers, matching the pattern
+     * used across this package's tests.
+     */
+    private static Project fakeProject() {
+        return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
+                (proxy, method, arguments) -> switch (method.getName()) {
+                    case "equals" -> proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "getBasePath" -> ".";
+                    case "getName" -> "shaft-mcp-lifecycle-test-project";
+                    default -> defaultValue(method.getReturnType());
+                });
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (!returnType.isPrimitive()) {
+            return null;
+        }
+        if (returnType == boolean.class) {
+            return false;
+        }
+        return 0;
+    }
+
+    private final class RecordingFactory implements ShaftMcpInvocationService.ShaftMcpClientFactory {
+        @Override
+        public ShaftMcpStdioClient create(List<String> command, Path workingDirectory, Map<String, String> environment)
+                throws IOException {
+            ShaftMcpStdioClient client = new ShaftMcpStdioClient(command, workingDirectory, environment);
+            spawned.add(client);
+            return client;
+        }
+    }
+}

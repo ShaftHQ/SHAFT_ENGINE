@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/tool-py-stdlib-import-feeds-readme-inventory.md",
+  "content_hash": "sha256:0411f2e5d378b871a91c78c68b80eb38ff413d0882494e7acc137596a21bc929",
+  "created_at": "2026-10-17T00:19:07+03:00",
+  "evidence": [],
+  "id": "gotcha.tool-py-stdlib-import-feeds-readme-inventory",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7097"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "installer"
+  ],
+  "title": "A new stdlib import in chaos-engine/*.py drifts the README inventory",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:19:07+03:00"
+}

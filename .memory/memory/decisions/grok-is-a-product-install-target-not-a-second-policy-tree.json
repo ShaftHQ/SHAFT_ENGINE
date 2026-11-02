@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/decisions/grok-is-a-product-install-target-not-a-second-policy-tree.md",
+  "content_hash": "sha256:7b57b6456c7851a13fa76d0bcf581ecfd2358fcaea27a8a55f7d3cf788f6a66d",
+  "created_at": "2026-08-18T14:40:29+03:00",
+  "evidence": [],
+  "id": "decision.grok-is-a-product-install-target-not-a-second-policy-tree",
+  "origin": {
+    "kind": "url",
+    "locator": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5086"
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record Grok product-install decisions from #5086"
+  },
+  "status": "active",
+  "tags": [
+    "grok",
+    "mcp",
+    "installer",
+    "autobot"
+  ],
+  "title": "Grok is a product install target, not a second policy tree",
+  "type": "decision",
+  "updated_at": "2026-08-18T14:40:29+03:00"
+}

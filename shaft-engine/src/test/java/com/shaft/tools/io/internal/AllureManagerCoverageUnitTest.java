@@ -1,0 +1,673 @@
+package com.shaft.tools.io.internal;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.properties.internal.Properties;
+import org.testng.Assert;
+import org.testng.SkipException;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+@Test(singleThreaded = true)
+public class AllureManagerCoverageUnitTest {
+    private static final Path TEST_ROOT = Path.of("target", "allure-manager-coverage-unit");
+    private Path testDirectory;
+    private Path allureResultsDirectory;
+
+    @BeforeMethod(alwaysRun = true)
+    public void setUp(Method method) throws Exception {
+        testDirectory = TEST_ROOT.resolve(method.getName());
+        allureResultsDirectory = testDirectory.resolve("allure-results");
+        deleteRecursively(testDirectory);
+        Files.createDirectories(allureResultsDirectory);
+        resetAllureManagerState();
+        resetCheckpointCounterState();
+        SHAFT.Properties.paths.set().allureResults(allureResultsDirectory + File.separator);
+        SHAFT.Properties.allure.set()
+                .accumulateReports(false)
+                .automaticallyOpen(false)
+                .cleanResultsDirectory(true)
+                .forceConfiguredCliVersion(true)
+                .generateArchive(false)
+                .generateReport(true)
+                .realtimeMonitoring(false)
+                .theme("auto")
+                .singleFile(true)
+                .open(false)
+                .groupBy("parentSuite,suite,subSuite");
+        setField("allureResultsFolderPath", allureResultsDirectory + File.separator);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() throws Exception {
+        invoke("stopRealtimeMonitoring");
+        resetAllureManagerState();
+        resetCheckpointCounterState();
+        setField("cachedAllureCommandPrefix", "");
+        setField("allureResultsFolderPath", SHAFT.Properties.paths.allureResults());
+        Properties.clearForCurrentThread();
+        deleteRecursively(testDirectory);
+        Files.deleteIfExists(Path.of("allurerc.yaml"));
+        Files.deleteIfExists(Path.of("generate_allure_report.sh"));
+        Files.deleteIfExists(Path.of("generate_allure_report.bat"));
+        deleteRecursively(Path.of("allure-report"));
+        deleteRecursively(Path.of("target", "allure-report"));
+        Files.deleteIfExists(Path.of("target", "allure-watch.log"));
+    }
+
+    @Test
+    public void getResultsPathShouldStripOnlyTrailingSeparators() throws Exception {
+        setField("allureResultsFolderPath", allureResultsDirectory + File.separator);
+        Assert.assertEquals(invoke("getResultsPath"), allureResultsDirectory.toString());
+
+        Path pathWithoutTrailingSeparator = testDirectory.resolve("directory-name-without-separator");
+        setField("allureResultsFolderPath", pathWithoutTrailingSeparator.toString());
+        Assert.assertEquals(invoke("getResultsPath"), pathWithoutTrailingSeparator.toString());
+
+        setField("allureResultsFolderPath", "");
+        Assert.assertEquals(invoke("getResultsPath"), "");
+    }
+
+    @Test
+    public void cleanAllureResultsDirectoryShouldCreateMissingRootAndDeleteOnlyContents() throws Exception {
+        Path nestedDirectory = allureResultsDirectory.resolve("nested");
+        Files.createDirectories(nestedDirectory);
+        Files.writeString(nestedDirectory.resolve("stale.json"), "{}", StandardCharsets.UTF_8);
+        Files.writeString(allureResultsDirectory.resolve("stale.txt"), "stale", StandardCharsets.UTF_8);
+
+        invoke("cleanAllureResultsDirectory");
+
+        Assert.assertTrue(Files.isDirectory(allureResultsDirectory));
+        Assert.assertEquals(countChildren(allureResultsDirectory), 0L);
+
+        deleteRecursively(allureResultsDirectory);
+        Assert.assertFalse(Files.exists(allureResultsDirectory));
+
+        invoke("cleanAllureResultsDirectory");
+
+        Assert.assertTrue(Files.isDirectory(allureResultsDirectory));
+        Assert.assertEquals(countChildren(allureResultsDirectory), 0L);
+    }
+
+    @Test
+    public void cleanAllureResultsDirectoryShouldIgnoreMissingDirectoryWhenCleaningContentsDirectly() throws Exception {
+        Path missingDirectory = testDirectory.resolve("missing-results");
+        deleteRecursively(missingDirectory);
+
+        invoke("cleanAllureResultsDirectoryContents", new Class[]{String.class}, missingDirectory.toString());
+        invoke("ensureAllureResultsDirectoryExists", new Class[]{String.class}, "");
+
+        Assert.assertFalse(Files.exists(missingDirectory));
+    }
+
+    @Test
+    public void reportGenerationShouldSkipSetupAndTeardownWhenDisabled() {
+        SHAFT.Properties.allure.set()
+                .generateReport(false)
+                .generateArchive(true)
+                .realtimeMonitoring(true);
+
+        AllureManager.initializeAllureReportingEnvironment();
+        AllureManager.openAllureReportAfterExecution();
+        AllureManager.generateAllureReportArchive();
+
+        Assert.assertFalse(Files.exists(Path.of("allurerc.yaml")));
+        Assert.assertFalse(Files.exists(Path.of("generate_allure_report.bat")));
+        Assert.assertFalse(Files.exists(Path.of("generate_allure_report.sh")));
+        Assert.assertFalse(Files.exists(Path.of("allure-report")));
+        Assert.assertFalse(Files.exists(Path.of("target", "allure-report")));
+    }
+
+    @Test
+    public void getCommandToCreateAllureReportShouldBuildManagedAllure3Command() throws Exception {
+        Path outputDirectory = testDirectory.resolve("generated-report");
+        setField("allureOutPutDirectory", outputDirectory.toString());
+        setField("cachedAllureCommandPrefix", "npx --yes allure@3.5.0");
+
+        String allure3Command = (String) invoke("getCommandToCreateAllureReport");
+
+        Assert.assertTrue(allure3Command.startsWith("npx --yes allure@3.5.0 generate --config "), allure3Command);
+        Assert.assertTrue(allure3Command.contains(quote(Path.of("allurerc.yaml").toAbsolutePath().toString())), allure3Command);
+        Assert.assertTrue(allure3Command.contains(quote(allureResultsDirectory.toString())), allure3Command);
+        Assert.assertTrue(allure3Command.endsWith(" -o " + quote(outputDirectory.toString())), allure3Command);
+        Assert.assertFalse(allure3Command.contains("--single-file"), allure3Command);
+        Assert.assertFalse(allure3Command.contains("--clean"), allure3Command);
+    }
+
+    @Test
+    public void writeGenerateReportShellFilesShouldUseConfiguredAllureVersionAndTrimResultsPath() throws Exception {
+        SHAFT.Properties.allure.set().forceConfiguredCliVersion(true);
+        // Pin managed npx prefix so script generation does not pick up a machine-local Maven CLI cache (#5801).
+        setField("cachedAllureCommandPrefix", "npx --yes allure@" + SHAFT.Properties.internal.allure3Version());
+
+        invoke("writeGenerateReportShellFilesToProjectDirectory");
+
+        Path script = System.getProperty("os.name").toLowerCase().contains("win")
+                ? Path.of("generate_allure_report.bat")
+                : Path.of("generate_allure_report.sh");
+        String scriptContents = Files.readString(script, StandardCharsets.UTF_8);
+
+        Assert.assertTrue(scriptContents.contains("npx --yes allure@" + SHAFT.Properties.internal.allure3Version()), scriptContents);
+        Assert.assertTrue(scriptContents.contains("serve --config "
+                + quote(Path.of("allurerc.yaml").toAbsolutePath().toString())
+                + " " + quote(allureResultsDirectory.toString())), scriptContents);
+        Assert.assertFalse(scriptContents.contains(allureResultsDirectory + File.separator + "\""), scriptContents);
+    }
+
+    @Test
+    public void writeAllureConfigShouldEscapeValuesAndUseDefaultGroupingWhenBlank() throws Exception {
+        SHAFT.Properties.allure.set()
+                .customLogo("logo\\path\"name")
+                .customTitle("ignored")
+                .groupBy("  ")
+                .open(true)
+                .reportLanguage("en\"GB")
+                .singleFile(false);
+        Path outputDirectory = testDirectory.resolve("report-output");
+
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Report \"Name\"", outputDirectory.toString());
+
+        String config = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+        Assert.assertTrue(config.contains("name: \"Report \\\"Name\\\"\""), config);
+        Assert.assertTrue(config.contains("output: \"" + AllureManager.portableConfigPath(outputDirectory)
+                .replace("\"", "\\\"") + "\""), config);
+        Path executionRoot = (Path) invoke("getExecutionRootPath", new Class[]{});
+        if (outputDirectory.toAbsolutePath().normalize().startsWith(executionRoot)) {
+            Assert.assertFalse(config.contains(executionRoot.toString().replace("\\", "/")),
+                    "allurerc.yaml must not carry this machine's absolute path (#6822): " + config);
+        }
+        Assert.assertTrue(config.contains("logo: \"logo\\\\path\\\"name\""), config);
+        Assert.assertTrue(config.contains("theme: \"auto\""), config);
+        Assert.assertTrue(config.contains("reportLanguage: \"en\\\"GB\""), config);
+        Assert.assertTrue(config.contains("singleFile: false"), config);
+        Assert.assertTrue(config.contains("open: true"), config);
+        Assert.assertTrue(config.contains("        - package"), config);
+        Assert.assertTrue(config.contains("        - testClass"), config);
+        Assert.assertFalse(config.contains("        - parentSuite"), config);
+        Assert.assertFalse(config.contains("        - suite"), config);
+        Assert.assertFalse(config.contains("        - subSuite"), config);
+    }
+
+    @Test
+    public void writeAllureConfigShouldFallbackToAutoThemeWhenConfiguredThemeIsBlankOrInvalid() throws Exception {
+        Path outputDirectory = testDirectory.resolve("report-output");
+
+        SHAFT.Properties.allure.set().theme("  ");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Blank Theme Report", outputDirectory.toString());
+        String blankThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        SHAFT.Properties.allure.set().theme("neon");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Invalid Theme Report", outputDirectory.toString());
+        String invalidThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        SHAFT.Properties.allure.set().theme("dark");
+        invoke("writeAllureConfig", new Class[]{String.class, String.class}, "Dark Theme Report", outputDirectory.toString());
+        String darkThemeConfig = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
+
+        Assert.assertTrue(blankThemeConfig.contains("theme: \"auto\""), blankThemeConfig);
+        Assert.assertTrue(invalidThemeConfig.contains("theme: \"auto\""), invalidThemeConfig);
+        Assert.assertTrue(darkThemeConfig.contains("theme: \"dark\""), darkThemeConfig);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldInjectAttachmentPreviewAndThemeCssOnce() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<html><head></head><body></body></html>", StandardCharsets.UTF_8);
+
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "overview-panel-injection-marker", CheckpointStatus.PASS);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertEquals(html.split("id=\"shaft-allure-attachment-preview-fix\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("id=\"shaft-allure-theme-colors\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-attachment-preview-fix\"") < html.indexOf("</head>"), html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-allure-theme-colors\"") > html.indexOf("</head>"), html);
+        Assert.assertTrue(html.contains("img[src^=\"blob:\"]"), html);
+        Assert.assertTrue(html.contains("MutationObserver"), html);
+        Assert.assertTrue(html.contains("shaft-allure-image-modal"), html);
+        Assert.assertTrue(html.contains("--color-intent-primary-bg: #006ec0"), html);
+        Assert.assertTrue(html.contains(":root[data-theme=\"dark\"]"), html);
+        Assert.assertTrue(html.contains("--color-intent-primary-bg: #4cc2ff"), html);
+        // Scoped to the theme-colors block itself: it must use the "--color-intent-primary-bg"
+        // naming scheme, never the older/rejected "--color-bg-*" prefix. Scoping (rather than
+        // scanning the whole combined patched file) keeps this guard from tripping on unrelated
+        // patches elsewhere in the page that legitimately reference other real Allure variables
+        // (e.g. the header-buttons bar's "--color-bg-canvas", issue #3802).
+        String themeColorsBlock = html.substring(html.indexOf("id=\"shaft-allure-theme-colors\""),
+                html.indexOf("</style>", html.indexOf("id=\"shaft-allure-theme-colors\"")));
+        Assert.assertFalse(themeColorsBlock.contains("--color-bg-"), themeColorsBlock);
+        Assert.assertTrue(html.contains("width: 100% !important"), html);
+        Assert.assertTrue(html.contains("height: auto !important"), html);
+        Assert.assertEquals(html.split("id=\"shaft-overview-panel-style\"", -1).length - 1, 1, html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-overview-panel-style\"") > html.indexOf("</head>"), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-toggle\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-backdrop\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-panel\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-close\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-frame\""), html);
+        Assert.assertTrue(html.contains("id=\"shaft-overview-panel-script\""), html);
+        Assert.assertTrue(html.contains("overview-panel-injection-marker"), html);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldInjectHeaderButtonsBeforeAppRootExactlyOnce() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index,
+                "<html><head></head><body><div id=\"app\"></div></body></html>",
+                StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+
+        Assert.assertEquals(html.split("id=\"shaft-header-buttons\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("id=\"shaft-header-buttons-style\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("href=\"https://shafthq.github.io\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("href=\"https://github.com/ShaftHQ/SHAFT_ENGINE\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("target=\"_blank\"", -1).length - 1, 2, html);
+        Assert.assertEquals(html.split("rel=\"noopener\"", -1).length - 1, 2, html);
+        Assert.assertEquals(html.split("class=\"shaft-header-brand\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("alt=\"SHAFT logo\"", -1).length - 1, 1, html);
+        Assert.assertEquals(html.split("src=\"data:image/png;base64,", -1).length - 1, 1, html);
+        Assert.assertTrue(html.contains(":root[data-theme=\"dark\"] .shaft-header-brand"), html);
+        Assert.assertTrue(html.contains("filter: brightness(0) invert(1)"), html);
+        Assert.assertTrue(html.contains("User Guide"), html);
+        Assert.assertTrue(html.contains("Star SHAFT"), html);
+        // The bar must be a real sibling BEFORE the app root, not inside it or after </body>,
+        // so it survives Allure's own client-side route switching (Overview/Suites/Graphs/Timeline).
+        Assert.assertTrue(html.indexOf("id=\"shaft-header-buttons-style\"") < html.indexOf("id=\"shaft-header-buttons\""), html);
+        Assert.assertTrue(html.indexOf("id=\"shaft-header-buttons\"") < html.indexOf("id=\"app\""), html);
+        Assert.assertTrue(html.indexOf("id=\"app\"") < html.indexOf("</body>"), html);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldNotRewriteAlreadyPatchedReport() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<html><head></head><body></body></html>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        Files.setLastModifiedTime(index, FileTime.fromMillis(0));
+        byte[] contentBeforeSecondPatch = Files.readAllBytes(index);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        Assert.assertEquals(Files.getLastModifiedTime(index), FileTime.fromMillis(0));
+        Assert.assertEquals(Files.readAllBytes(index), contentBeforeSecondPatch);
+    }
+
+    @Test
+    public void scanIndexMarkersShouldFindMarkersSpanningAnyReadBoundary() throws Exception {
+        String filler = "x".repeat(50);
+        String html = filler
+                + "id=\"shaft-allure-attachment-preview-fix\""
+                + filler
+                + "</head>"
+                + filler
+                + "</body>"
+                + filler
+                + "</body>"
+                + filler;
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        int headEndOffset = html.indexOf("</head>");
+        int lastBodyEndOffset = html.lastIndexOf("</body>");
+        Assert.assertTrue(headEndOffset >= 0 && lastBodyEndOffset >= 0);
+
+        InputStream trickleStream = new InputStream() {
+            private int position = 0;
+
+            @Override
+            public int read() {
+                if (position >= bytes.length) {
+                    return -1;
+                }
+                return bytes[position++] & 0xFF;
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+                if (position >= bytes.length) {
+                    return -1;
+                }
+                int toCopy = Math.min(Math.min(length, 3), bytes.length - position);
+                System.arraycopy(bytes, position, buffer, offset, toCopy);
+                position += toCopy;
+                return toCopy;
+            }
+        };
+
+        var scan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, trickleStream);
+
+        Assert.assertTrue(scan.previewFixPresent());
+        Assert.assertFalse(scan.previewScriptPresent());
+        Assert.assertFalse(scan.themeColorsPresent());
+        Assert.assertFalse(scan.overviewPanelPresent());
+        Assert.assertFalse(scan.headerButtonsPresent());
+        Assert.assertEquals(scan.headEndOffset(), headEndOffset);
+        Assert.assertEquals(scan.bodyEndOffset(), lastBodyEndOffset);
+        Assert.assertEquals(scan.appRootOffset(), -1L);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTags() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<main>x</main>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertTrue(html.startsWith("<style id=\"shaft-allure-attachment-preview-fix\">"), html);
+        Assert.assertTrue(html.endsWith("</style>\n"), html);
+        Assert.assertTrue(html.contains("<main>x</main>"), html);
+    }
+
+    /**
+     * Regression for issue #3821: {@code patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTags}
+     * passed 19/19 in isolation but failed once inside a 103-test batch. Root cause: {@link CheckpointCounter}'s
+     * {@code checkpoints} list is static/process-wide and was never reset between TestNG methods, so any
+     * earlier test in the same forked JVM that records a checkpoint (any SHAFT Validation/Verification via
+     * {@code ValidationsHelper}, or this very class's {@link #patchGeneratedAllureReportIndexShouldInjectAttachmentPreviewAndThemeCssOnce})
+     * makes {@link CheckpointCounter#overviewReportHtml()} non-empty by the time this test runs. That makes
+     * {@code AllureManager#allureOverviewPanelPatch()} append the "SHAFT Overview" panel (ending in
+     * {@code </script>\n}) after the theme-colors {@code <style>} block, so the patched file no longer ends
+     * with {@code </style>\n} -- not because any byte was truncated, but because a different (complete,
+     * valid) patch was appended. Deliberately deterministic: {@code dependsOnMethods} forces this checkpoint
+     * -recording "pollution" test to run immediately before the assertion test, exercising the exact
+     * setUp()/tearDown() isolation this fix adds, without relying on batch timing or GC pressure.
+     */
+    @Test
+    public void checkpointPollutionSetupForMissingHeadAndBodyTagsRegression() {
+        CheckpointCounter.increment(CheckpointType.ASSERTION, "simulated-earlier-test-in-batch", CheckpointStatus.PASS);
+    }
+
+    @Test(dependsOnMethods = "checkpointPollutionSetupForMissingHeadAndBodyTagsRegression")
+    public void patchGeneratedAllureReportIndexShouldHandleMissingHeadAndBodyTagsDespitePriorCheckpointPollution() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+        Files.writeString(index, "<main>x</main>", StandardCharsets.UTF_8);
+
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+
+        String html = Files.readString(index, StandardCharsets.UTF_8);
+        Assert.assertTrue(html.startsWith("<style id=\"shaft-allure-attachment-preview-fix\">"), html);
+        Assert.assertTrue(html.endsWith("</style>\n"), html);
+        Assert.assertTrue(html.contains("<main>x</main>"), html);
+    }
+
+    @Test
+    public void patchGeneratedAllureReportIndexShouldStreamLargeReportsWithBoundedAllocation() throws Exception {
+        Path reportDirectory = testDirectory.resolve("generated-report");
+        Files.createDirectories(reportDirectory);
+        Path index = reportDirectory.resolve("index.html");
+
+        String chunk = "AbCdEfGhIj0123456789".repeat(51); // ~1KB
+        ByteArrayOutputStream largeContentBuilder = new ByteArrayOutputStream();
+        largeContentBuilder.writeBytes("<html><head></head><body><img src=\"data:image/png;base64,".getBytes(StandardCharsets.UTF_8));
+        for (int i = 0; i < 24 * 1024; i++) {
+            largeContentBuilder.writeBytes(chunk.getBytes(StandardCharsets.UTF_8));
+        }
+        largeContentBuilder.writeBytes("\"></body></html>".getBytes(StandardCharsets.UTF_8));
+        byte[] largeContent = largeContentBuilder.toByteArray();
+        Files.write(index, largeContent);
+        long originalLength = Files.size(index);
+
+        AllureManager.IndexMarkerScan originalScan;
+        try (InputStream in = new ByteArrayInputStream(largeContent)) {
+            originalScan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+        }
+        long originalBodyEndOffset = originalScan.bodyEndOffset();
+
+        var threadMxBean = ManagementFactory.getThreadMXBean();
+        if (!(threadMxBean instanceof com.sun.management.ThreadMXBean sunThreadMxBean)
+                || !sunThreadMxBean.isThreadAllocatedMemorySupported()) {
+            throw new SkipException("Per-thread allocation measurement is not supported on this JVM.");
+        }
+
+        long before = sunThreadMxBean.getCurrentThreadAllocatedBytes();
+        invoke("patchGeneratedAllureReportIndex", new Class[]{Path.class}, reportDirectory);
+        long allocated = sunThreadMxBean.getCurrentThreadAllocatedBytes() - before;
+
+        long patchedLength = Files.size(index);
+        Assert.assertTrue(allocated < 8L * 1024 * 1024, "allocated=" + allocated);
+        Assert.assertTrue(patchedLength > originalLength);
+
+        // The last </body> shifts by every inserted byte: the head patches land before </head>,
+        // and the theme style is inserted immediately before </body> itself.
+        try (InputStream in = Files.newInputStream(index)) {
+            var scan = (AllureManager.IndexMarkerScan) invoke("scanIndexMarkers", new Class[]{InputStream.class}, in);
+            Assert.assertTrue(scan.previewFixPresent());
+            Assert.assertTrue(scan.previewScriptPresent());
+            Assert.assertTrue(scan.themeColorsPresent());
+            Assert.assertEquals(scan.bodyEndOffset() - originalBodyEndOffset, patchedLength - originalLength);
+        }
+    }
+
+    @Test
+    public void patchMissingStatusDetailsInResultsShouldPatchResultAndContainerFilesButPreserveAttachments() throws Exception {
+        Path resultFile = allureResultsDirectory.resolve("sample-result.json");
+        Files.writeString(resultFile, """
+                {"name":"result","steps":[{"name":"step","steps":[{"name":"nested"}]}],"attachments":[{"name":"kept","source":"kept.txt"}]}
+                """, StandardCharsets.UTF_8);
+        Path containerFile = allureResultsDirectory.resolve("sample-container.json");
+        Files.writeString(containerFile, """
+                {"befores":[{"name":"empty"},{"name":"fixture","steps":[{"name":"fixture-step","statusDetails":{"trace":"trace"}}],"attachments":[{"name":"fixture-attachment"}]}],"afters":[{"name":"after","parameters":[{"name":"p"}]}]}
+                """, StandardCharsets.UTF_8);
+        Path ignoredFile = allureResultsDirectory.resolve("ignored.json");
+        Files.writeString(ignoredFile, "{\"steps\":[{\"name\":\"ignored\"}]}", StandardCharsets.UTF_8);
+
+        invoke("patchMissingStatusDetailsInResults", new Class[]{String.class}, allureResultsDirectory.toString());
+
+        String patchedResult = Files.readString(resultFile, StandardCharsets.UTF_8);
+        String patchedContainer = Files.readString(containerFile, StandardCharsets.UTF_8);
+        String ignored = Files.readString(ignoredFile, StandardCharsets.UTF_8);
+
+        Assert.assertTrue(patchedResult.contains("\"statusDetails\""), patchedResult);
+        Assert.assertTrue(patchedResult.contains("\"message\":\"\""), patchedResult);
+        Assert.assertTrue(patchedResult.contains("\"attachments\":[{\"name\":\"kept\",\"source\":\"kept.txt\"}]"), patchedResult);
+        Assert.assertFalse(patchedContainer.contains("\"name\":\"empty\""), patchedContainer);
+        Assert.assertTrue(patchedContainer.contains("\"trace\":\"trace\",\"message\":\"\""), patchedContainer);
+        Assert.assertTrue(patchedContainer.contains("\"attachments\":[{\"name\":\"fixture-attachment\"}]"), patchedContainer);
+        Assert.assertEquals(ignored, "{\"steps\":[{\"name\":\"ignored\"}]}");
+    }
+
+    @Test
+    public void patchMissingStatusDetailsInResultsShouldNormalizePackageLabelFromTestClass() throws Exception {
+        Path resultFile = allureResultsDirectory.resolve("sample-result.json");
+        Files.writeString(resultFile, """
+                {"name":"testMethod","fullName":"example.tests.SampleTest.testMethod","labels":[{"name":"package","value":"example.tests.SampleTest"},{"name":"testClass","value":"example.tests.SampleTest"}]}
+                """, StandardCharsets.UTF_8);
+
+        invoke("patchMissingStatusDetailsInResults", new Class[]{String.class}, allureResultsDirectory.toString());
+
+        String patchedResult = Files.readString(resultFile, StandardCharsets.UTF_8);
+        Assert.assertTrue(patchedResult.contains("\"name\":\"package\",\"value\":\"example.tests\""), patchedResult);
+        Assert.assertTrue(patchedResult.contains("\"name\":\"testClass\",\"value\":\"example.tests.SampleTest\""), patchedResult);
+    }
+
+    @Test
+    public void renameAllureReportShouldReturnNullWhenIndexIsMissingAndRenameWhenPresent() throws Exception {
+        Path reportDirectory = Path.of("allure-report");
+        deleteRecursively(reportDirectory);
+
+        Assert.assertNull(invoke("renameAllureReport"));
+
+        Files.createDirectories(reportDirectory);
+        Files.writeString(reportDirectory.resolve("index.html"), "<html></html>", StandardCharsets.UTF_8);
+        SHAFT.Properties.allure.set().accumulateReports(false);
+
+        Assert.assertEquals(invoke("renameAllureReport"), "AllureReport.html");
+        Assert.assertFalse(Files.exists(reportDirectory.resolve("index.html")));
+        Assert.assertTrue(Files.exists(reportDirectory.resolve("AllureReport.html")));
+    }
+
+    @Test
+    public void executeAllureGenerateCommandShouldHandleFailingAndMissingCommandsWithoutThrowing() throws Exception {
+        invoke("executeAllureGenerateCommand", new Class[]{String.class}, "printf 'allure stdout'; printf 'allure stderr' >&2; exit 7");
+        invoke("executeAllureGenerateCommand", new Class[]{String.class}, "definitely_missing_allure_command_for_coverage");
+    }
+
+    @Test
+    public void getCompletedProcessOutputShouldHandleSuccessExecutionFailureAndInterruption() throws Exception {
+        CompletableFuture<String> completed = CompletableFuture.completedFuture("output");
+        Assert.assertEquals(invoke("getCompletedProcessOutput", new Class[]{java.util.concurrent.Future.class, String.class}, completed, "stdout"), "output");
+
+        CompletableFuture<String> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new ExecutionException("boom", new RuntimeException("root")));
+        Assert.assertEquals(invoke("getCompletedProcessOutput", new Class[]{java.util.concurrent.Future.class, String.class}, failed, "stderr"), "");
+
+        CompletableFuture<String> interrupted = new CompletableFuture<>() {
+            @Override
+            public String get() throws InterruptedException {
+                throw new InterruptedException("interrupted");
+            }
+        };
+        Assert.assertEquals(invoke("getCompletedProcessOutput", new Class[]{java.util.concurrent.Future.class, String.class}, interrupted, "stdout"), "");
+        Assert.assertTrue(Thread.currentThread().isInterrupted());
+        Thread.interrupted();
+    }
+
+    @Test
+    public void generateAllureReportArchiveShouldSkipWhenDisabledAndCreateArchiveWhenEnabledWithoutCli() throws Exception {
+        SHAFT.Properties.allure.set().generateArchive(false);
+        AllureManager.generateAllureReportArchive();
+        Assert.assertEquals(countMatchingFiles("generatedReport_", ".zip"), 0L);
+
+        setField("cachedAllureCommandPrefix", "");
+        SHAFT.Properties.allure.set().generateArchive(true);
+        AllureManager.generateAllureReportArchive();
+
+        Assert.assertTrue(countMatchingFiles("generatedReport_", ".zip") >= 1L);
+        deleteGeneratedArchives();
+    }
+
+    private static Object invoke(String methodName, Object... args) throws Exception {
+        Class<?>[] parameterTypes = new Class<?>[args.length];
+        for (int i = 0; i < args.length; i++) {
+            parameterTypes[i] = args[i].getClass();
+        }
+        return invoke(methodName, parameterTypes, args);
+    }
+
+    private static Object invoke(String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        Method method = AllureManager.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        try {
+            return method.invoke(null, args);
+        } catch (InvocationTargetException e) {
+            if (e.getCause() instanceof Exception exception) {
+                throw exception;
+            }
+            throw e;
+        }
+    }
+
+    private static void setField(String fieldName, Object value) throws Exception {
+        Field field = AllureManager.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(null, value);
+    }
+
+    private static void resetAllureManagerState() throws Exception {
+        setField("cachedAllureCommandPrefix", null);
+        setField("allureResultsFolderPath", "");
+        setField("allureOutPutDirectory", "");
+        setField("realtimeMonitoringProcess", null);
+    }
+
+    /**
+     * Clears {@link CheckpointCounter}'s process-wide {@code checkpoints}/{@code passedCheckpoints}/
+     * {@code failedCheckpoints} state (issue #3821). That state is static and shared by every test in
+     * the same forked JVM (any SHAFT Validation/Verification records a checkpoint via
+     * {@code ValidationsHelper}), so without this reset, {@link AllureManager#allureOverviewPanelPatch()}
+     * silently picked up checkpoints left behind by unrelated, earlier-run tests: the "SHAFT Overview"
+     * panel would be appended to the patched {@code index.html} even in tests that expect a plain
+     * theme-colors-only patch, making the outcome depend on execution order within the fork rather
+     * than on this test's own setup. Mirrors the reflection pattern {@code CheckpointAndReportingTest}
+     * and {@code PlaywrightActionsE2ETestBase} already use to reach the same private fields.
+     *
+     * <p>Delegates to {@link CheckpointCounter#resetForTesting()} (issue #3846) so the reset logic
+     * lives in one testing-support hook instead of being duplicated as field reflection here.
+     */
+    private static void resetCheckpointCounterState() {
+        CheckpointCounter.resetForTesting();
+    }
+
+    private static String quote(String value) {
+        return "\"" + value + "\"";
+    }
+
+    private static long countChildren(Path directory) throws IOException {
+        try (var children = Files.list(directory)) {
+            return children.count();
+        }
+    }
+
+    private static long countMatchingFiles(String prefix, String suffix) throws IOException {
+        try (var files = Files.list(Path.of("."))) {
+            return files
+                    .map(Path::getFileName)
+                    .map(Path::toString)
+                    .filter(name -> name.startsWith(prefix) && name.endsWith(suffix))
+                    .count();
+        }
+    }
+
+    private static void deleteGeneratedArchives() throws IOException {
+        try (var files = Files.list(Path.of("."))) {
+            for (Path file : files
+                    .filter(path -> path.getFileName().toString().startsWith("generatedReport_"))
+                    .filter(path -> path.getFileName().toString().endsWith(".zip"))
+                    .toList()) {
+                Files.deleteIfExists(file);
+            }
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        try (var paths = Files.walk(path)) {
+            for (Path currentPath : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(currentPath);
+            }
+        }
+    }
+
+    @Test(description = "#6822: allurerc.yaml paths under the execution root are written relative to it")
+    public void portableConfigPathRelativizesInsideTheExecutionRootOnly() throws Exception {
+        Path root = (Path) invoke("getExecutionRootPath", new Class[]{});
+        Assert.assertEquals(AllureManager.portableConfigPath(root.resolve("target").resolve("allure-report")),
+                "target/allure-report");
+        Path outside = root.getRoot().resolve("elsewhere").resolve("report");
+        Assert.assertEquals(AllureManager.portableConfigPath(outside), outside.toString().replace("\\", "/"));
+    }
+}

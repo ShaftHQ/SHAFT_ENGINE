@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/decisions/issue-4234-closed-as-non-issue-preferredheightrow-cannot-reach-wrappingargumentsareas-shrink-below-minimum-bug.md",
+  "content_hash": "sha256:8467881abbbc909e252a1caa529f6199c81d87a24ee13935ad5b1a666b73828b",
+  "created_at": "2026-07-27T10:24:34+03:00",
+  "evidence": [
+    {
+      "id": "cf330c65d2ce7848b7d794c6e3a74a88a87cdabd",
+      "kind": "commit"
+    },
+    {
+      "id": "8a91441cc795b6fa1cd47efa01dbed70d24bdeda",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.issue-4234-closed-as-non-issue-preferredheightrow-cannot-reach-wrappingargumentsareas-shrink-below-minimum-bug",
+  "source": {
+    "kind": "agent",
+    "task": "Investigate issue #4234 (AssistantTranscriptView.PreferredHeightRow may share ToolApprovalPromptPanel's missing-getMinimumSize pattern)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing",
+    "boxlayout",
+    "gotcha",
+    "issue-4234",
+    "pr-4232",
+    "assistanttranscriptview"
+  ],
+  "title": "Issue #4234 closed as non-issue: PreferredHeightRow cannot reach WrappingArgumentsArea's shrink-below-minimum bug",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

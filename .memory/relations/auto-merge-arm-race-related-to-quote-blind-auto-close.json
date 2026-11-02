@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:71d020dc62b2fc77792c2ec70ae40ebbbee7a73231c476b8f663cbde884c6b4b",
+  "created_at": "2026-07-26T19:07:37+03:00",
+  "from": "gotcha.arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute",
+  "id": "rel.auto-merge-arm-race-related-to-quote-blind-auto-close",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n",
+  "updated_at": "2026-07-26T19:07:37+03:00"
+}

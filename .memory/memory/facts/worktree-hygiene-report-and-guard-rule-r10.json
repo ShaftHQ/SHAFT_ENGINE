@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/facts/worktree-hygiene-report-and-guard-rule-r10.md",
+  "content_hash": "sha256:f669fe86e313a87fa7feaa2a6790ddd3307b081206f1ea5229227f1fe492d001",
+  "created_at": "2026-08-04T09:39:35+03:00",
+  "evidence": [
+    {
+      "id": "4437",
+      "kind": "task"
+    },
+    {
+      "id": "004895ca73b6216c27708838aac908de705bf6b9",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.worktree-hygiene-report-and-guard-rule-r10",
+  "source": {
+    "kind": "agent",
+    "task": "Issue #4437: harden the harness against abandoned worktrees and NUL-byte corruption (PR #4439)"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "guard",
+    "worktree",
+    "validation"
+  ],
+  "title": "Worktree hygiene report and guard rule R10 detect abandoned and zeroed work",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T09:39:35+03:00"
+}

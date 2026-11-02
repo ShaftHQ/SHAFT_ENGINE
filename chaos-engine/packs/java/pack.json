@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "java",
+  "description": "Java language pack: managed Temurin JDK, managed Maven, and the Maven Tools MCP server.",
+  "enabledWhen": {"projectFile": "pom.xml"},
+  "modules": {
+    "hosts": "maven_tools.py",
+    "installer": "installer.py"
+  },
+  "components": ["maven-tools-mcp"]
+}

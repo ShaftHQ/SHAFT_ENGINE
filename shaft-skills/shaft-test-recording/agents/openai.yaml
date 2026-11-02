@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Recording"
+  short_description: "Record auditable SHAFT test flows"
+  default_prompt: "Use $shaft-test-recording to capture this approved web or mobile flow as evidence."

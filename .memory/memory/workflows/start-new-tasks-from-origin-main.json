@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/workflows/start-new-tasks-from-origin-main.md",
+  "content_hash": "sha256:64b29eafa9cf956c38f5b3a6f09b09245e27d8a0c05a56ba8f25d4a4d51d6675",
+  "created_at": "2026-06-16T08:33:26+03:00",
+  "evidence": [
+    {
+      "id": "source.agents",
+      "kind": "source"
+    },
+    {
+      "id": "AGENTS.md",
+      "kind": "file"
+    }
+  ],
+  "id": "feature.start-new-tasks-from-origin-main",
+  "source": {
+    "kind": "agent",
+    "task": "Remember durable workflow correction from user: new SHAFT_ENGINE implementation tasks should start from a fresh branch based on the remote main branch, without waiting for the user to repeat this instruction."
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "workflow",
+    "branches",
+    "pull-requests",
+    "validation",
+    "ci"
+  ],
+  "title": "Run the SHAFT new-task PR flow",
+  "type": "feature",
+  "updated_at": "2026-07-08T16:41:17+03:00"
+}

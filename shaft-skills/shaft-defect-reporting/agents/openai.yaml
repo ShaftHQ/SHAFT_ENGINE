@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Defect Reporting"
+  short_description: "File reproducible product defects"
+  default_prompt: "Use $shaft-defect-reporting to turn this confirmed finding into a reproducible defect report."

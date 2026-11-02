@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/decisions/intellij-plugin-ux-program-umbrella-3666-tracks-children-3659-3665.md",
+  "content_hash": "sha256:cdec40cee802d711df722514e9c87c648cc3e5daff264675c6fa147d4a27c831",
+  "created_at": "2026-07-17T16:50:31+03:00",
+  "evidence": [
+    {
+      "id": "8019ac2684ce384a3c6543b99456ee637c8173d5",
+      "kind": "commit"
+    },
+    {
+      "id": "e51b4fc04f259d94ecd242a9bc49cd5e10fdbcd2",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.intellij-plugin-ux-program-umbrella-3666-tracks-children-3659-3665",
+  "source": {
+    "kind": "agent",
+    "task": "file IntelliJ plugin UX enhancement backlog focused on test-execution transparency, recorder parity with Playwright's VS Code extension, and a real discovery tree for tests"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "ux-program",
+    "github-issue",
+    "recorder",
+    "test-discovery-tree",
+    "run-configuration"
+  ],
+  "title": "IntelliJ plugin UX program: umbrella #3666 tracks children #3659-#3665",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

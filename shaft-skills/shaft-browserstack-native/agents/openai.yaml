@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT BrowserStack Native"
+  short_description: "App Automate secrets, devices, triage"
+  default_prompt: "Use $shaft-browserstack-native to configure or triage this BrowserStack native run."

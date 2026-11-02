@@ -1,0 +1,1 @@
+{"uuid":"cluster-b","historyId":"hist-checkout","name":"checkoutTest","fullName":"demo.CheckoutTest.checkoutTest","status":"failed","start":110,"stop":210,"statusDetails":{"message":"NoSuchElementException: Unable to locate element: #login-btn","trace":"at demo.CheckoutTest.checkoutTest(CheckoutTest.java:18)"}}

@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""Verify published SHAFT artifacts and smoke consumers from Maven Central."""
+
+from __future__ import annotations
+
+import argparse
+import platform
+import shutil
+import subprocess  # nosec B404 - runs Maven artifacts as smoke tests with controlled pom templates.
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+GROUP_PATH = "io/github/shafthq"
+DEFAULT_REPOSITORY = "https://repo.maven.apache.org/maven2"
+JAR_ARTIFACTS = (
+    "shaft-engine", "shaft-infrastructure", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
+    "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-ui-match", "shaft-ocr", "shaft-sikulix",
+    "shaft-mcp", "shaft-cli",
+)
+POM_ARTIFACTS = ("shaft-parent", "shaft-bom", "SHAFT_ENGINE")
+# Standalone zip module versioned with Allure 3, not shaftEngineVersion (#5833).
+ALLURE_CLI_ARTIFACT = "allure-cli"
+ALLURE_CLI_POM = Path("allure-cli/pom.xml")
+
+
+def allure_cli_version(root: Path = ROOT) -> str:
+    """Return allure-cli/<version> from allure-cli/pom.xml (falls back to root property)."""
+    cli_pom = root / ALLURE_CLI_POM
+    if cli_pom.is_file():
+        text = cli_pom.read_text(encoding="utf-8")
+        match = re.search(
+            r"<artifactId>\s*allure-cli\s*</artifactId>\s*<version>\s*([^<\s]+)\s*</version>",
+            text,
+        )
+        if match is None:
+            # Standalone pom keeps <version> near the project root before packaging.
+            match = re.search(r"<version>\s*([^<\s]+)\s*</version>", text)
+        if match is not None:
+            return match.group(1).strip()
+    root_text = (root / "pom.xml").read_text(encoding="utf-8")
+    match = re.search(
+        r"<allure\.cli\.version>\s*([^<\s]+)\s*</allure\.cli\.version>",
+        root_text,
+    )
+    if match is None:
+        raise RuntimeError("Unable to resolve allure.cli.version for Central verification")
+    return match.group(1).strip()
+
+
+def allure_cli_publication_paths(cli_version: str | None = None) -> list[str]:
+    """Expected Central paths for the standalone allure-cli zip (+ pom/asc)."""
+    version = cli_version or allure_cli_version()
+    base = f"{GROUP_PATH}/{ALLURE_CLI_ARTIFACT}/{version}/{ALLURE_CLI_ARTIFACT}-{version}"
+    return [
+        f"{base}.pom",
+        f"{base}.pom.asc",
+        f"{base}.zip",
+        f"{base}.zip.asc",
+    ]
+
+FIXTURE_GOALS = {
+    "api": "test-compile",
+    "combined-modules": "verify",
+    "junit-web": "test",
+    "legacy-coordinate": "test-compile",
+    "mcp": "verify",
+    "pilot-core": "verify",
+    "sikulix": "test-compile",
+    "testng-web": "test",
+}
+
+
+def maven_executable(system: str | None = None) -> str:
+    system = system or platform.system()
+    candidates = ("mvn.cmd", "mvn") if system == "Windows" else ("mvn",)
+    for candidate in candidates:
+        executable = shutil.which(candidate)
+        if executable:
+            return executable
+    raise RuntimeError("Maven executable was not found on PATH.")
+
+
+def publication_paths(version: str, *, include_allure_cli: bool = True) -> list[str]:
+    paths = []
+    for artifact in JAR_ARTIFACTS:
+        base = f"{GROUP_PATH}/{artifact}/{version}/{artifact}-{version}"
+        paths.extend(
+            f"{base}{suffix}"
+            for suffix in (".pom", ".pom.asc", ".jar", ".jar.asc", "-sources.jar",
+                           "-sources.jar.asc", "-javadoc.jar", "-javadoc.jar.asc")
+        )
+    for artifact in POM_ARTIFACTS:
+        base = f"{GROUP_PATH}/{artifact}/{version}/{artifact}-{version}.pom"
+        paths.extend((base, f"{base}.asc"))
+    if include_allure_cli:
+        # Version tracks Allure 3; may differ from the SHAFT release version (#5833).
+        paths.extend(allure_cli_publication_paths())
+    return paths
+
+
+def missing_central_paths(repository_url: str, paths: list[str]) -> list[str]:
+    """Return publication paths that are absent from a Maven repository."""
+    missing = []
+    for path in paths:
+        request = urllib.request.Request(f"{repository_url.rstrip('/')}/{path}", method="HEAD")
+        try:
+            with urllib.request.urlopen(request, timeout=30):
+                pass
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+            missing.append(path)
+    return missing
+
+
+def missing_publication_paths(repository_url: str, version: str) -> list[str]:
+    return missing_central_paths(repository_url, publication_paths(version))
+
+
+# Exit status for ``--allure-cli-only`` when the standalone zip is not on Central yet.
+ALLURE_CLI_MISSING_EXIT = 2
+
+
+def allure_cli_only_status(repository_url: str = DEFAULT_REPOSITORY) -> int:
+    """Return 0 when the current allure-cli zip is already published, else 2.
+
+    The zip tracks Allure 3, not ``shaftEngineVersion`` (#5833). Republishing the
+    same coordinate fails Central with "already exists" and must not fail a SHAFT
+    release whose reactor deploy already succeeded.
+    """
+    missing = missing_central_paths(repository_url, allure_cli_publication_paths())
+    if missing:
+        print("missing allure-cli: " + ", ".join(missing))
+        return ALLURE_CLI_MISSING_EXIT
+    print(f"allure-cli {allure_cli_version()} is already on Maven Central.")
+    return 0
+
+
+def write_settings(path: Path, repository_url: str) -> None:
+    path.write_text(
+        "<settings><mirrors><mirror><id>release-central</id>"
+        f"<url>{repository_url}</url><mirrorOf>*</mirrorOf>"
+        "</mirror></mirrors></settings>\n",
+        encoding="utf-8",
+    )
+
+
+def fixture_commands(version: str, repository: Path, settings: Path) -> list[list[str]]:
+    commands = []
+    for fixture, goal in FIXTURE_GOALS.items():
+        commands.append([
+            maven_executable(), "--batch-mode", "--no-transfer-progress", "-U",
+            "--settings", str(settings),
+            "-f", str(ROOT / "tools" / "modularization" / "consumer-fixtures" / fixture / "pom.xml"),
+            f"-Dmaven.repo.local={repository / fixture}",
+            f"-Dshaft.version={version}",
+            goal,
+        ])
+    return commands
+
+
+def verify_release(version: str, repository_url: str = DEFAULT_REPOSITORY,
+                   attempts: int = 10, delay_seconds: int = 30) -> None:
+    with tempfile.TemporaryDirectory(prefix="shaft-central-smoke-") as temp_dir:
+        temp = Path(temp_dir)
+        settings = temp / "settings.xml"
+        write_settings(settings, repository_url)
+        last_error = ""
+        for attempt in range(1, attempts + 1):
+            missing = missing_publication_paths(repository_url, version)
+            if missing:
+                last_error = "missing artifacts: " + ", ".join(missing)
+            else:
+                failed = []
+                for command in fixture_commands(version, temp / "repository", settings):
+                    completed = subprocess.run(command, cwd=ROOT, check=False)
+                    if completed.returncode:
+                        failed.append(Path(command[command.index("-f") + 1]).parent.name)
+                if not failed:
+                    return
+                last_error = "failed consumer fixtures: " + ", ".join(failed)
+            if attempt < attempts:
+                print(f"Central smoke attempt {attempt}/{attempts} failed: {last_error}")
+                time.sleep(delay_seconds)
+        raise RuntimeError(f"Maven Central release verification failed after {attempts} attempts: {last_error}")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("version", nargs="?")
+    parser.add_argument("--repository-url", default=DEFAULT_REPOSITORY)
+    parser.add_argument("--attempts", type=int, default=10)
+    parser.add_argument("--delay-seconds", type=int, default=30)
+    parser.add_argument(
+        "--allure-cli-only",
+        action="store_true",
+        help="Exit 0 when the standalone allure-cli zip is already published, else 2.",
+    )
+    args = parser.parse_args(argv)
+    if args.allure_cli_only:
+        return allure_cli_only_status(args.repository_url)
+    if not args.version:
+        parser.error("version is required unless --allure-cli-only is set")
+    verify_release(args.version, args.repository_url, args.attempts, args.delay_seconds)
+    print(f"Verified SHAFT {args.version} from Maven Central.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

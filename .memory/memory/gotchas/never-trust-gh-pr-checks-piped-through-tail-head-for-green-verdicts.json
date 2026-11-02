@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/never-trust-gh-pr-checks-piped-through-tail-head-for-green-verdicts.md",
+  "content_hash": "sha256:a2a811dbc31c719047dbd4d08e218443f68322bdf9a4ccd79729dbdfdb178c5c",
+  "created_at": "2026-07-12T16:28:50+03:00",
+  "evidence": [
+    {
+      "id": "6bba7439dfd308d8f4c081cc5d50904e91348ff2",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.never-trust-gh-pr-checks-piped-through-tail-head-for-green-verdicts",
+  "source": {
+    "kind": "agent",
+    "task": "Fix MCP tool catalog drift after #3454/#3459"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Never trust gh pr checks piped through tail/head for green verdicts",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

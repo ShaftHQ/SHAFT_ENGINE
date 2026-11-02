@@ -1,0 +1,304 @@
+name: 'Post-Test Report and Check'
+description: 'Uploads coverage, generates Allure report artifacts, creates test summary, and checks test results using Allure data'
+outputs:
+  job:
+    description: 'Job display name'
+    value: ${{ steps.collect_results.outputs.job }}
+  total:
+    description: 'Total executed tests'
+    value: ${{ steps.collect_results.outputs.total }}
+  passed:
+    description: 'Total passed tests'
+    value: ${{ steps.collect_results.outputs.passed }}
+  failed:
+    description: 'Total failed tests'
+    value: ${{ steps.collect_results.outputs.failed }}
+  broken:
+    description: 'Total broken tests'
+    value: ${{ steps.collect_results.outputs.broken }}
+  skipped:
+    description: 'Total skipped tests'
+    value: ${{ steps.collect_results.outputs.skipped }}
+  duration:
+    description: 'Execution duration in milliseconds'
+    value: ${{ steps.collect_results.outputs.duration }}
+  coverage-status:
+    description: 'JaCoCo/Codecov result: success, failure, or skipped'
+    value: ${{ steps.coverage.outputs.status }}
+inputs:
+  job-name:
+    description: 'Name of the job (used for naming the Allure report artifact)'
+    required: true
+
+  module-directory:
+    description: 'Module that produced the test and report outputs'
+    required: false
+    default: 'shaft-engine'
+
+  codecov-token:
+    description: 'Codecov upload token'
+    required: false
+    default: ''
+  coverage-files:
+    description: 'Candidate JaCoCo XML files to upload. Defaults to the module required report.'
+    required: false
+    default: ''
+  require-coverage:
+    description: 'Whether JaCoCo coverage is expected and should be required for this module'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - name: Upload coverage to Codecov
+      id: coverage
+      if: always()
+      uses: ./.github/actions/upload-jacoco-coverage
+      with:
+        codecov-token: ${{ inputs.codecov-token }}
+        files: ${{ inputs.coverage-files }}
+        required-files: ./${{ inputs.module-directory }}/target/jacoco/jacoco.xml
+        source-id: ${{ inputs.job-name }}
+        allow-missing-coverage: ${{ inputs.require-coverage != 'true' }}
+    - name: Generate Allure Report Fallback
+      if: always()
+      shell: bash
+      run: |
+        # Derive Allure 3 version from Internal.java — the single source of truth for the engine.
+        ALLURE3_VERSION=$(grep -A2 'Key("allure3Version")' \
+          shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java \
+          | grep '@DefaultValue' | sed 's/.*@DefaultValue("\([^"]*\)").*/\1/')
+        ALLURE3_VERSION=${ALLURE3_VERSION:-3.3.1}
+        if [ -d "${{ inputs.module-directory }}/allure-results" ] && [ -n "$(ls -A "${{ inputs.module-directory }}/allure-results" 2>/dev/null)" ]; then
+          # Generate single-file report if SHAFT didn't already create one
+          if ! ls "${{ inputs.module-directory }}"/allure-report/*AllureReport.html 1>/dev/null 2>&1; then
+            CONFIG_FILE="${{ inputs.module-directory }}/allurerc.yaml"
+            if [ ! -f "$CONFIG_FILE" ]; then
+              CONFIG_FILE="${RUNNER_TEMP:-/tmp}/shaft-allurerc.yaml"
+              cat > "$CONFIG_FILE" <<'YAML'
+        plugins:
+          awesome:
+            options:
+              reportName: "SHAFT-powered test report"
+              singleFile: true
+              theme: "auto"
+        YAML
+            fi
+            npx --yes allure@${ALLURE3_VERSION} generate "${{ inputs.module-directory }}/allure-results" --config "$CONFIG_FILE" -o "${{ inputs.module-directory }}/allure-report" 2>/dev/null || true
+            if [ -f "${{ inputs.module-directory }}/allure-report/index.html" ]; then
+              SHAFT_ALLURE_INDEX="${{ inputs.module-directory }}/allure-report/index.html" node <<'NODE'
+        const fs = require('fs');
+        const javaPath = 'shaft-engine/src/main/java/com/shaft/tools/io/internal/AllureManager.java';
+        const reportPath = process.env.SHAFT_ALLURE_INDEX;
+
+        try {
+          const html = fs.readFileSync(reportPath, 'utf8');
+          if (!html.includes('id="shaft-allure-theme-colors"')) {
+            const source = fs.readFileSync(javaPath, 'utf8');
+            const match = source.match(/ALLURE_THEME_COLORS_STYLE\s*=\s*"""\r?\n([\s\S]*?)\r?\n\s*""";/);
+            if (match) {
+              const patchedHtml = html.includes('</body>')
+                ? html.replace('</body>', `${match[1]}\n</body>`)
+                : `${html}${match[1]}`;
+              fs.writeFileSync(reportPath, patchedHtml);
+            }
+          }
+        } catch (error) {
+          console.warn(`Unable to inject SHAFT Allure 3 theme colors: ${error.message}`);
+        }
+        NODE
+              mv "${{ inputs.module-directory }}/allure-report/index.html" "${{ inputs.module-directory }}/allure-report/AllureReport.html"
+            fi
+          fi
+        fi
+    - name: Rename Allure Report for Upload
+      if: always()
+      shell: bash
+      run: mv "${{ inputs.module-directory }}"/allure-report/*AllureReport.html "${{ inputs.module-directory }}/allure-report/${{ inputs.job-name }}_Allure.html" 2>/dev/null || true
+    - name: Upload Allure Report as Pipeline Artifact
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+      with:
+        path: "${{ inputs.module-directory }}/allure-report/${{ inputs.job-name }}_Allure.html"
+        archive: false
+    - name: Write Summary and Check Test Results
+      id: collect_results
+      if: always()
+      shell: bash
+      run: |
+        # Parse Allure's JSON statistics without accepting numeric prefixes from malformed values.
+        read_statistics() {
+          python3 - "$1" <<'PY'
+        import json
+        import sys
+
+        try:
+            document = json.loads(open(sys.argv[1], encoding="utf-8").read())
+            if not isinstance(document, dict):
+                raise ValueError("root must be an object")
+            fields = ("total", "passed", "failed", "broken", "skipped", "unknown")
+            has_root_verdicts = any(field in document for field in fields)
+            has_allure3_statistics = "stats" in document
+            has_allure2_statistics = "statistic" in document
+            if has_allure3_statistics and has_allure2_statistics:
+                raise ValueError("contains ambiguous mixed schemas")
+            if has_root_verdicts and (has_allure3_statistics or has_allure2_statistics):
+                raise ValueError("contains root verdicts beside statistics container")
+            if "duration" in document and "time" in document:
+                raise ValueError("contains ambiguous mixed schemas")
+            if (has_allure3_statistics and "time" in document) or (
+                has_allure2_statistics and "duration" in document
+            ):
+                raise ValueError("timing schema does not match statistics")
+            if has_allure3_statistics:
+                statistic = document.get("stats")
+                timing = document
+            else:
+                statistic = document.get("statistic")
+                timing = document.get("time", {})
+            if not isinstance(statistic, dict) or not isinstance(timing, dict):
+                raise ValueError("statistic and time must be objects")
+            values = []
+            for field in fields:
+                value = statistic.get(field, 0)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"statistic '{field}'")
+                values.append(value)
+            duration = timing.get("duration", 0)
+            if isinstance(duration, bool) or not isinstance(duration, int) or duration < 0:
+                raise ValueError("time 'duration'")
+            values.append(duration)
+            print(*values)
+        except (OSError, json.JSONDecodeError, ValueError) as error:
+            print(f"::error::Invalid Allure summary {error}: expected a non-negative integer.", file=sys.stderr)
+            raise SystemExit(1)
+        PY
+        }
+
+        # Describe why RESULT_COUNT is zero: absent directory vs. present-but-empty
+        # are different diagnostics and both should be actionable.
+        describe_allure_results_dir() {
+          if [ -d "$ALLURE_RESULTS_DIR" ]; then
+            echo "$ALLURE_RESULTS_DIR exists but contains no raw result files"
+          else
+            echo "$ALLURE_RESULTS_DIR does not exist"
+          fi
+        }
+
+        # Count raw Allure result files before interpreting the generated summary.
+        # An empty raw-results directory means the run is invalid, even if a stale summary exists.
+        # GNU find exits nonzero when its start path is entirely absent (not merely
+        # empty) -- guard with -d first so a missing directory can't kill the step
+        # via pipefail before reaching the diagnostics below (#4105).
+        ALLURE_RESULTS_DIR="${{ inputs.module-directory }}/allure-results"
+        if [ -d "$ALLURE_RESULTS_DIR" ]; then
+          RESULT_COUNT=$(find "$ALLURE_RESULTS_DIR" -name '*-result.json' -type f 2>/dev/null | wc -l | tr -d ' ')
+          RESULT_COUNT=${RESULT_COUNT:-0}
+        else
+          RESULT_COUNT=0
+        fi
+        echo "Allure raw result files: $RESULT_COUNT"
+
+        # SHAFT writes summary.json at the report root after generating the single-file HTML.
+        ALLURE_SUMMARY="${{ inputs.module-directory }}/allure-report/summary.json"
+
+        if [ -f "$ALLURE_SUMMARY" ]; then
+          if ! STATISTICS=$(read_statistics "$ALLURE_SUMMARY"); then
+            exit 1
+          fi
+          read -r TOTAL PASSED FAILED BROKEN SKIPPED UNKNOWN DURATION <<< "$STATISTICS"
+        else
+          TOTAL=0; PASSED=0; FAILED=0; BROKEN=0; SKIPPED=0; UNKNOWN=0; DURATION=0
+        fi
+
+        # Compute job wallclock duration using the GitHub Actions job timing recorded by setup-test-env.
+        # SHAFT_JOB_STARTED_S is set to $(date +%s) at the start of setup-test-env.
+        # This uses date +%s which is supported on Linux (GNU), macOS (BSD), and Windows (Git Bash).
+        if [ -n "$SHAFT_JOB_STARTED_S" ]; then
+          NOW_S=$(date +%s)
+          COMPUTED_DURATION=$(( (NOW_S - SHAFT_JOB_STARTED_S) * 1000 ))
+          if [ "$COMPUTED_DURATION" -gt 0 ]; then
+            DURATION=$COMPUTED_DURATION
+          fi
+        else
+          echo "::warning::SHAFT_JOB_STARTED_S is not set; duration may be inaccurate. Ensure setup-test-env runs before post-test-report."
+        fi
+
+        # Write the per-job Allure results table to this job's step summary.
+        {
+          echo "## 📊 ${{ inputs.job-name }} — Test Results"
+          echo "| Total | ✅ Passed | ❌ Failed | 💥 Broken | ⊘ Skipped |"
+          echo "|------:|----------:|----------:|----------:|----------:|"
+          echo "| $TOTAL | $PASSED | $FAILED | $BROKEN | $SKIPPED |"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        {
+          echo "job=${{ inputs.job-name }}"
+          echo "total=$TOTAL"
+          echo "passed=$PASSED"
+          echo "failed=$FAILED"
+          echo "broken=$BROKEN"
+          echo "skipped=$SKIPPED"
+          echo "duration=$DURATION"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "=== Checking test results using Allure report data ==="
+        echo "Allure Report Summary: Total=$TOTAL, Passed=$PASSED, Failed=$FAILED, Broken=$BROKEN, Skipped=$SKIPPED, Unknown=$UNKNOWN"
+
+        # Primary check: use Allure report data.
+        if [ -f "$ALLURE_SUMMARY" ]; then
+          if [ "$RESULT_COUNT" -eq 0 ]; then
+            echo "::error::No raw Allure result files were generated: $(describe_allure_results_dir). Treating this as an invalid test run."
+            exit 1
+          fi
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::No tests were executed according to the Allure summary. Check test configuration."
+            exit 1
+          fi
+          KNOWN_VERDICT_TOTAL=$((PASSED + FAILED + BROKEN + SKIPPED))
+          if [ "$KNOWN_VERDICT_TOTAL" -eq 0 ]; then
+            echo "::error::Allure summary reports $TOTAL total tests but 0 known status verdicts. Treating this as an invalid test run."
+            exit 1
+          fi
+          VERDICT_TOTAL=$((KNOWN_VERDICT_TOTAL + UNKNOWN))
+          if [ "$VERDICT_TOTAL" -ne "$TOTAL" ]; then
+            echo "::error::Allure summary reports $TOTAL total tests but $VERDICT_TOTAL status verdicts. Treating this as an invalid test run."
+            exit 1
+          fi
+          if [ "$FAILED" -gt 0 ] || [ "$BROKEN" -gt 0 ]; then
+            if command -v python3 >/dev/null 2>&1; then
+              ALLURE_FAILURE_SOURCE=""
+              if [ -d "${{ inputs.module-directory }}/allure-results" ]; then
+                ALLURE_FAILURE_SOURCE="${{ inputs.module-directory }}/allure-results"
+              elif [ -d "${{ inputs.module-directory }}/allure-report" ]; then
+                ALLURE_FAILURE_SOURCE="${{ inputs.module-directory }}/allure-report"
+              fi
+              if [ -n "$ALLURE_FAILURE_SOURCE" ]; then
+                # tee instead of a bare redirect so the failure list also lands in the
+                # raw job log, where gh run view --log and log-download forensics can
+                # see it -- previously it was visible only in the step summary (#3807)
+                {
+                  echo ""
+                  echo "### ❌ Failed and broken test methods"
+                  python3 scripts/ci/extract_allure_failures.py "$ALLURE_FAILURE_SOURCE" || true
+                } | tee -a "$GITHUB_STEP_SUMMARY"
+              fi
+            fi
+            echo "::error::Allure report shows $FAILED failed and $BROKEN broken test(s) out of $TOTAL total. Check the Allure report artifact for details."
+            exit 1
+          fi
+          echo "All tests passed according to Allure report."
+        else
+          if [ "$RESULT_COUNT" -eq 0 ]; then
+            echo "::error::No Allure summary was generated for ${{ inputs.module-directory }}, and $(describe_allure_results_dir)."
+            exit 1
+          fi
+          echo "::warning::Allure report summary not found. Falling back to surefire reports."
+          # Fallback: Check surefire reports if allure data is unavailable.
+          if [ -d "${{ inputs.module-directory }}/target/surefire-reports" ]; then
+            if grep -rq "failures=\"[1-9]" "${{ inputs.module-directory }}/target/surefire-reports/" || grep -rq "errors=\"[1-9]" "${{ inputs.module-directory }}/target/surefire-reports/"; then
+              echo "::error::Surefire reports indicate test failures. Failing the job."
+              exit 1
+            fi
+          fi
+        fi

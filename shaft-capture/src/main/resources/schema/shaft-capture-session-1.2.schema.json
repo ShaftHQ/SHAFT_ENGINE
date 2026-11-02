@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schemas/capture/session-1.2.schema.json",
+  "title": "SHAFT Capture Session",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "status",
+    "startedAt",
+    "browser",
+    "events",
+    "checkpoints",
+    "dataReferences",
+    "redactionSummary",
+    "extensions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": [
+        "1.2"
+      ]
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "INCOMPLETE",
+        "COMPLETED"
+      ]
+    },
+    "startedAt": {
+      "type": "string"
+    },
+    "endedAt": {
+      "type": "string"
+    },
+    "browser": {
+      "type": "object",
+      "required": [
+        "browserName",
+        "logicalSessionId",
+        "capabilities"
+      ]
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "context"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "navigation",
+              "click",
+              "type",
+              "clear",
+              "select",
+              "toggle",
+              "upload",
+              "keyboard",
+              "window",
+              "frame",
+              "alert",
+              "wait",
+              "verification",
+              "network"
+            ]
+          },
+          "context": {
+            "type": "object",
+            "required": [
+              "sequence",
+              "timestamp",
+              "page",
+              "replayStatus",
+              "evidence",
+              "extensions"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "resourceKind": {
+            "type": "string",
+            "enum": [
+              "XHR",
+              "FETCH",
+              "DOCUMENT",
+              "WEBSOCKET_HANDSHAKE",
+              "OTHER",
+              "STYLESHEET",
+              "SCRIPT",
+              "IMAGE",
+              "FONT",
+              "MEDIA"
+            ]
+          },
+          "request": {
+            "type": "object",
+            "required": [
+              "method",
+              "url",
+              "headers"
+            ],
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "headers": {
+                "type": "object"
+              },
+              "body": {
+                "$comment": "BodyRef: safe reference to a captured request body, never the raw content.",
+                "type": "object",
+                "required": [
+                  "ref",
+                  "sizeBytes",
+                  "truncated"
+                ],
+                "properties": {
+                  "ref": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "encoding": {
+                    "type": "string"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": [
+              "statusCode",
+              "headers"
+            ],
+            "properties": {
+              "statusCode": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599
+              },
+              "headers": {
+                "type": "object"
+              },
+              "body": {
+                "$comment": "BodyRef: safe reference to a captured response body, never the raw content.",
+                "type": "object",
+                "required": [
+                  "ref",
+                  "sizeBytes",
+                  "truncated"
+                ],
+                "properties": {
+                  "ref": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "encoding": {
+                    "type": "string"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          },
+          "timing": {
+            "type": "object",
+            "properties": {
+              "blocked": {
+                "type": "string"
+              },
+              "dns": {
+                "type": "string"
+              },
+              "connect": {
+                "type": "string"
+              },
+              "send": {
+                "type": "string"
+              },
+              "ttfb": {
+                "type": "string"
+              },
+              "receive": {
+                "type": "string"
+              }
+            }
+          },
+          "failureReason": {
+            "type": "string"
+          },
+          "initiatorPageUrl": {
+            "type": "string"
+          },
+          "correlatedUiSequence": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "checkpoints": {
+      "type": "array"
+    },
+    "dataReferences": {
+      "type": "array"
+    },
+    "redactionSummary": {
+      "type": "object",
+      "required": [
+        "redactedValueCount",
+        "removedAttributeCount",
+        "redactedUrlParameterCount",
+        "appliedRules"
+      ]
+    },
+    "extensions": {
+      "type": "object"
+    }
+  }
+}

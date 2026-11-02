@@ -1,0 +1,41 @@
+# Failure-analysis playbook
+
+## Ten practices
+
+1. Verify that the intended test ran and that populated result artifacts identify the build, environment, and attempt. [`ALLURE-RESULTS`, `SHAFT-REPORTING`]
+2. Preserve original results, logs, traces, screenshots, network data, and configuration before reproducing or cleaning anything. [`SHAFT-REPORTING`]
+3. Read the first decisive error, complete stack trace, failed step, assertion, and status semantics literally. [`ALLURE-RESULTS`]
+4. Correlate the failure timeline with environment, data, browser or device state, dependencies, and recent changes. [`SHAFT-REPORTING`, `GOOGLE-SRE-TESTING`]
+5. Classify the current evidence as product, test, data, environment, dependency, or unknown without forcing certainty. [`ISTQB-CTFL`, `ALLURE-RESULTS`]
+6. List competing hypotheses and choose the next observation that best distinguishes them. [`GOOGLE-SRE-MONITORING`]
+7. Reproduce the smallest affected scope under equivalent conditions before changing code or configuration. [`ISTQB-CTFL`, `SELENIUM-PRACTICES`]
+8. Compare passing history, failing history, retries, changes, and sibling failures to find the earliest divergence. [`ALLURE-STABILITY`]
+9. Fix or recommend action at the owner of the root cause; do not weaken assertions, widen waits, or replace locators merely to force green. [`SELENIUM-PRACTICES`, `ISTQB-CTFL`]
+10. Report cause, confidence, supporting and contradictory evidence, impact, and the exact check that will verify resolution. [`ISTQB-TM`, `SHAFT-REPORTING`]
+
+## Examples
+
+- Diagnose a `NoSuchElementException` by checking frame, state, locator uniqueness, timing trace, and recent UI changes.
+- Distinguish an API assertion failure caused by changed product behavior from stale expected data or a broken dependency.
+- Show that an empty `allure-results` directory means execution is unproven despite a stale generated report saying passed.
+- A later assertion timeout can hide a no-op tap; inspect the tap step before widening the wait.
+- Do not replace a silent no-op with a coordinate workaround.
+
+## Boundary case
+
+- If decisive artifacts are missing, return “root cause undetermined,” list the minimum evidence or reproduction needed, and do not fabricate a likely fix.
+- Healer and `doctor_propose_healed_locator` belong to Reporting (Stage 3). Never fold heal into Automation record or codegen.
+
+## Output
+
+Return classification, timeline, hypotheses tested, root cause or unknowns,
+confidence, affected owner, corrective action, and verification check.
+
+## Execution class
+
+- When an upstream issue already tracks the failure, do not work around it. Leave the test failed or blocked with that issue id.
+- #6940 is the list that reports end of page while the screen is still mid-list. Do not work around it with a coordinate tap, a null container, or a reversed direction. #6942 closed it; prove a nested mobile list on a device before relying on that fix. Do not claim that it did without that evidence. Web scroll in that pull is not evidence about the mobile list.
+- #6908 stays the example of a control that reports success and does not activate. A missing control is not #6908.
+- A non-blank custom report message is on the thrown `AssertionError`. A raw driver exception still needs the defect id on that throwable.
+- Look at the screen before naming a UI failure: record the foreground activity or window (mobile) or URL and title (web), the visible automation ids, and the failure screenshot. A known-defect label or the assertion text is not a classification until the screen state agrees with it (#7068).
+- Each hypothesis names the one cheap check that would disprove it (session status, device proxy, screenshot, page source). Run that check before naming the cause and record its outcome in the triage note; a label taken from the error text is not a cause (#7084).

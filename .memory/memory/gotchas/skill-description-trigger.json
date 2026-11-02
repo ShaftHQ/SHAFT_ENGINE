@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/skill-description-trigger.md",
+  "content_hash": "sha256:dcad6f02db65927251253a4d9aa98d47693ff26c6e0b80b41bd4b19c0f9808f3",
+  "created_at": "2026-10-17T10:06:12+03:00",
+  "evidence": [],
+  "id": "gotcha.skill-description-trigger",
+  "source": {
+    "kind": "agent",
+    "task": "architect skill PR"
+  },
+  "status": "active",
+  "tags": [
+    "skills",
+    "validator"
+  ],
+  "title": "Skill descriptions need an explicit trigger",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T10:06:12+03:00"
+}

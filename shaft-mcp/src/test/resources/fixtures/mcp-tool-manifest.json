@@ -1,0 +1,805 @@
+{
+  "schemaVersion": "1.0",
+  "tools": [
+    {
+      "name": "autobot_local_agent_clients",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_local_agent_run",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_provider_chat",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_provider_models",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "autobot_provider_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_accessibility_audit",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_aria_snapshot",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_delete_cookies",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_current_url",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_page_dom",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_get_title",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate_back",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_navigate_forward",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_network_requests",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_open_intent",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_refresh",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_route",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_set_window_size",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "browser_storage_state_load",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_storage_state_save",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_take_screenshot",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "browser_unroute",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_generate",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_response_leaves",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_api_transactions",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_backend_comparison",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_checkpoint",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_code_blocks",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_codegen_features",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_evidence_pack",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_generate_replay",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_pick_locator",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_record_at_target_code_blocks",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_set_mode",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "start recording",
+        "start a recording",
+        "start recorder",
+        "start capture",
+        "start browser recording",
+        "start a browser recording",
+        "start webdriver recording",
+        "start a webdriver recording",
+        "record my browser actions"
+      ]
+    },
+    {
+      "name": "capture_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_delete",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_step_reorder",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "capture_target_candidates",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "design_analyze",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_coverage",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_examples",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_gap_map",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_gherkin_draft",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_handoff",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_ingest",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_lexicon",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_lint",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "design_readiness",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_analyze_failed_allure",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "run doctor",
+        "analyze allure",
+        "analyse allure",
+        "diagnose my last run",
+        "diagnose the last run",
+        "diagnose the latest run",
+        "analyze the latest report",
+        "analyze latest report",
+        "why did my test fail",
+        "why did my tests fail"
+      ]
+    },
+    {
+      "name": "doctor_analyze_trace",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_cause_label",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_managed_local_ai_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_propose_advisory_locator",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_propose_healed_locator",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "doctor_suggest_fix",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "driver_initialize",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "driver_quit",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_clear",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_click",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_drag_and_drop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_hover",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_displayed",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_count",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_highlight",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_enabled",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_is_selected",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "element_type",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "element_upload_file",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "generate_test_report",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "healer_run_failed_test",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_activate_app",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_background_app",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_get_accessibility_tree",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_get_contexts",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_hide_keyboard",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_inspector_record_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_keyboard_key",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_rotate",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_swipe",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_switch_context",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_tap_coordinates",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "mobile_toolchain_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "toolchain",
+        "appium",
+        "adb",
+        "sdk"
+      ]
+    },
+    {
+      "name": "report_clusters",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_flake",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_heal",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_history",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_merge_shards",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_mute",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_open",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "description": "Open Allure HTML or return generate_test_report CTA"
+    },
+    {
+      "name": "report_smart_tags",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "report_summary",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "description": "Engineer and stakeholder summaries with reconciled counts"
+    },
+    {
+      "name": "setup_catalog",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_doctor",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_install",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_logs",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "setup_plan",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_start",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_status",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_stop",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "setup_verify",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_coding_partner_diff",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_coding_partner_plan",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "plan coding partner work for",
+        "plan partner work for",
+        "coding partner plan for",
+        "partner plan for",
+        "find reuse for"
+      ]
+    },
+    {
+      "name": "shaft_guide_search",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "search shaft docs",
+        "search the shaft docs",
+        "search shaft guide",
+        "search the shaft guide",
+        "find shaft docs",
+        "find shaft guide",
+        "guide me on",
+        "docs for"
+      ]
+    },
+    {
+      "name": "shaft_project_create",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_project_init_agents",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "shaft_project_upgrade",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false,
+      "intentKeywords": [
+        "preview shaft upgrade",
+        "preview upgrade",
+        "dry run shaft upgrade",
+        "upgrade shaft project",
+        "upgrade this shaft project"
+      ]
+    },
+    {
+      "name": "test_automation_scenarios",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "find scenarios",
+        "find automation scenarios",
+        "show scenarios",
+        "automation scenarios for",
+        "scenario ideas for"
+      ]
+    },
+    {
+      "name": "test_code_guardrails_check",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false,
+      "intentKeywords": [
+        "check generated java code",
+        "check this java code",
+        "run guardrails",
+        "guardrails check"
+      ]
+    },
+    {
+      "name": "test_plan_explore",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "trace_latest",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "trace_open_viewer",
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "trace_read",
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    {
+      "name": "trace_summarize",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
+      "name": "verify_run_focused",
+      "mutation": true,
+      "sensitive": true,
+      "deprecated": false
+    }
+  ]
+}

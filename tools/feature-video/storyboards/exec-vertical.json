@@ -1,0 +1,131 @@
+{
+ "title": "exec-vertical",
+ "audience": "social",
+ "targetDuration": 41.5,
+ "aspect": [
+  "9:16"
+ ],
+ "scenes": [
+  {
+   "id": "x01",
+   "beat": "hook",
+   "pad": 0.6,
+   "duration": 3.6,
+   "visual": "red CI badge pulses once, then splits into two labels: 'real bug?' / 'flaky test?'",
+   "vo": "Red build. Real bug, or flaky test?",
+   "lines": [
+    "e01"
+   ],
+   "onScreenText": "Red build. Real bug, or flaky test?",
+   "textHold": 3.6,
+   "asset": "scenes/x01.html",
+   "source": "motion graphic",
+   "claims": []
+  },
+  {
+   "id": "x02",
+   "beat": "problem",
+   "pad": 1.2,
+   "duration": 5.5,
+   "visual": "data-viz: 100-dot grid, 16 dots light up from zero; source line under it",
+   "vo": "At Google, almost 16% of tests show some flakiness.",
+   "lines": [
+    "e02"
+   ],
+   "onScreenText": "16% of Google's tests show flakiness",
+   "textHold": 5.5,
+   "asset": "scenes/x02.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "almost 16% of tests show some flakiness",
+     "evidence": "https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html"
+    }
+   ]
+  },
+  {
+   "id": "x04",
+   "beat": "solution",
+   "pad": 0.8,
+   "duration": 7.5,
+   "visual": "the three lanes collapse into one SHAFT engine block; five surface chips orbit it",
+   "vo": "SHAFT is one open-source Java engine for web, mobile, API, database and command-line tests.",
+   "lines": [
+    "e04"
+   ],
+   "onScreenText": "One engine: web, mobile, API, database, command-line",
+   "textHold": 7.5,
+   "asset": "scenes/x04.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "one engine for web, mobile, API, database and CLI",
+     "evidence": "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java (GUI, API, CLI, DB, TestData) + https://shafthq.github.io/docs/features/modules"
+    }
+   ]
+  },
+  {
+   "id": "x07",
+   "beat": "solution",
+   "pad": 0.8,
+   "duration": 7.8,
+   "visual": "real Allure report capture: timeline of steps, one screenshot expands",
+   "vo": "Every run produces an Allure report with steps and screenshots that anyone on the team can read.",
+   "lines": [
+    "e07"
+   ],
+   "onScreenText": "Allure report, steps and screenshots",
+   "textHold": 7.8,
+   "asset": "scenes/x07.html",
+   "source": "capture",
+   "claims": [
+    {
+     "text": "Allure steps and screenshots",
+     "evidence": "https://shafthq.github.io/docs/features/reporting"
+    }
+   ]
+  },
+  {
+   "id": "x09",
+   "beat": "proof",
+   "pad": 1.0,
+   "duration": 10.4,
+   "visual": "upgrade pipeline: compile check, add engine, compile again; a red branch rewinds every file icon back to its original",
+   "vo": "Adopting it is low risk. The upgrade tool compiles your project first, keeps your existing tests, and restores every file if anything fails.",
+   "lines": [
+    "e09"
+   ],
+   "onScreenText": "Compiles first, restores every file",
+   "textHold": 10.4,
+   "asset": "scenes/x09.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "compiles first, keeps existing tests, byte-for-byte rollback",
+     "evidence": "https://shafthq.github.io/docs/start/upgrade/how-it-works"
+    }
+   ]
+  },
+  {
+   "id": "x12v",
+   "beat": "cta",
+   "pad": 2.0,
+   "duration": 6.7,
+   "visual": "vertical end card: SHAFT logo, URL; footer 'Narration: synthetic voice'",
+   "vo": "Start free at shafthq.github.io.",
+   "lines": [
+    "e14"
+   ],
+   "onScreenText": "Start free at shafthq.github.io",
+   "textHold": 6.7,
+   "asset": "scenes/x12v.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "MIT licensed, free to start",
+     "evidence": "GitHub API 2026-10-08: licence MIT, created 2018-07-15, 216 product releases, 62 contributors (refresh at render)"
+    }
+   ]
+  }
+ ]
+}

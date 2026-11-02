@@ -1,0 +1,171 @@
+"""Agent-facing doctor summary stays bounded; --json stays the full document."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    if spec is None or spec.loader is None:
+        raise ImportError(path)
+    spec.loader.exec_module(module)
+    return module
+
+
+INSTALL = load("chaos_engine_install_agent_summary", ROOT / "chaos-engine/install.py")
+
+
+def _document(**overrides):
+    document = {
+        "status": "healthy",
+        "policySha256": "ab" * 32,
+        "commit": "c" * 40,
+        "components": {"core": {"status": "healthy"}},
+    }
+    document.update(overrides)
+    return document
+
+
+class DoctorAgentSummaryTest(unittest.TestCase):
+    def test_agent_summary_is_four_lines_and_passes_when_healthy(self):
+        rendered = INSTALL.format_agent_summary(_document())
+        self.assertLessEqual(len(rendered.splitlines()), INSTALL.AGENT_SUMMARY_MAX_LINES)
+        self.assertEqual(0, INSTALL.agent_summary_exit_code(_document()))
+        self.assertIn("doctor: pass", rendered)
+        self.assertIn("component: core healthy", rendered)
+        self.assertIn("hash: " + "ab" * 32, rendered)
+        self.assertIn("drift: none", rendered)
+
+    def test_kept_addon_shows_stale_source_and_still_passes(self):
+        """#7250: an add-on kept from its installed copy gets an advisory row."""
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            INSTALL.record_kept_addons(project, ["automatest-coach"])
+            with mock.patch.object(INSTALL, "installed_project", return_value=project):
+                rendered = INSTALL.format_agent_summary(_document())
+            self.assertIn("addon automatest-coach: stale-source", rendered)
+            self.assertIn("doctor: pass", rendered)
+            self.assertLessEqual(len(rendered.splitlines()), INSTALL.AGENT_SUMMARY_MAX_LINES)
+            INSTALL.record_kept_addons(project, [])
+            self.assertEqual("", INSTALL.kept_addons_line(project))
+
+    def test_policy_hash_drift_fails_closed(self):
+        drifted = _document(
+            status="recovery-required",
+            components={
+                "core": {
+                    "status": "recovery-required",
+                    "detail": "overlay-commit-mismatch",
+                    "coreMatchesSource": False,
+                }
+            },
+        )
+        rendered = INSTALL.format_agent_summary(drifted)
+        self.assertLessEqual(len(rendered.splitlines()), INSTALL.AGENT_SUMMARY_MAX_LINES)
+        self.assertIn("drift: overlay-commit-mismatch", rendered)
+        self.assertEqual(1, INSTALL.agent_summary_exit_code(drifted))
+        placeholder = _document(policySha256="0" * 64)
+        self.assertEqual(1, INSTALL.agent_summary_exit_code(placeholder))
+        self.assertIn("drift: policy-hash-drift", INSTALL.format_agent_summary(placeholder))
+
+    def test_json_flag_still_serializes_the_full_document(self):
+        document = _document(clients={"grok": {"status": "healthy"}}, phaseLedger={"status": "absent"})
+        rendered = json.dumps(document, sort_keys=True, separators=(",", ":"))
+        parsed = json.loads(rendered)
+        self.assertEqual(parsed, document)
+        self.assertGreater(rendered.count(","), INSTALL.format_agent_summary(document).count(","))
+        parser = INSTALL.parser()
+        args = parser.parse_args(["doctor", "--project", ".", "--json"])
+        self.assertTrue(args.json)
+        self.assertFalse(args.agent_summary)
+        summary = parser.parse_args(["doctor", "--project", ".", "--agent-summary"])
+        self.assertTrue(summary.agent_summary)
+        self.assertFalse(summary.json)
+        with self.assertRaises(ValueError):
+            INSTALL.validate_install_options(
+                parser.parse_args(["doctor", "--project", ".", "--json", "--agent-summary"])
+            )
+
+    def test_policy_overlay_reason_is_the_drift_row(self):
+        overlay_match = load("ce_overlay_match_summary", ROOT / "chaos-engine/overlay_match.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for tree_name in ("chaos-engine", ".chaos-engine"):
+                tree = root / tree_name
+                for relative, body in (
+                    ("identity.md", "same-identity\n"),
+                    ("skills/chaos-engine/SKILL.md", "router\n"),
+                    ("references/roles.md", "roles\n"),
+                    ("hooks/guard.py", "guard\n"),
+                ):
+                    path = tree / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(body, encoding="utf-8")
+            (root / ".chaos-engine" / "identity.md").write_text("other-identity\n", encoding="utf-8")
+            result = {
+                "status": "healthy",
+                "policySha256": "ab" * 32,
+                "components": {"core": {"status": "healthy"}},
+            }
+            overlay_match.apply_policy_hash_doctor(result, root)
+            policy = result["components"]["policy-overlay"]
+            self.assertEqual("policy hash drift", policy["reason"])
+            self.assertNotIn("detail", policy)
+            self.assertNotIn("code", policy)
+            rendered = INSTALL.format_agent_summary(result)
+            self.assertIn("component: policy-overlay recovery-required", rendered)
+            self.assertIn("drift: policy hash drift", rendered)
+            self.assertNotIn("component: core healthy", rendered)
+            self.assertNotIn("drift: none", rendered)
+            self.assertEqual(1, INSTALL.agent_summary_exit_code(result))
+
+    def test_learning_session_non_skip_sentence_stays_reachable(self):
+        # #6229: the router core card moved the Learning Session into the router
+        # contract, so the sentence lives there and the card must link it (one hop).
+        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
+        self.assertIn("](../../references/router-contract.md)", skill)
+        session = contract.split("## Learning Session", 1)[1].split("\n## ", 1)[0]
+        flat = " ".join(session.split())
+        # #6739: every final delivery owes the session (was trigger-based, epic #6342).
+        self.assertIn("Learning Session after every final delivery", flat)
+        laws = skill.split("## Iron laws", 1)[1].split("## Triage", 1)[0]
+        for number in range(1, 8):
+            self.assertIn(f"{number}. ", laws)
+
+
+    def test_doctor_exit_code_fails_on_recovery_required_for_every_output(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from unittest import mock
+
+        broken = _document(status="recovery-required")
+        for extra in ([], ["--json"]):
+            with self.subTest(extra=extra), mock.patch.object(
+                INSTALL, "status_json", return_value=broken
+            ), mock.patch.object(INSTALL, "legacy_profile_layout", return_value=[]), mock.patch(
+                "sys.argv", ["install.py", "doctor", "--project", ".", *extra]
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(1, INSTALL.main())
+        for status in ("healthy", "sync-advisory"):
+            with self.subTest(status=status), mock.patch.object(
+                INSTALL, "status_json", return_value=_document(status=status)
+            ), mock.patch.object(INSTALL, "legacy_profile_layout", return_value=[]), mock.patch(
+                "sys.argv", ["install.py", "doctor", "--project", "."]
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(0, INSTALL.main())
+
+
+if __name__ == "__main__":
+    unittest.main()

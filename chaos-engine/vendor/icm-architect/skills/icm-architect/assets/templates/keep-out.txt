@@ -1,0 +1,8 @@
+# One phrase per line. Plain text, case-insensitive, whole words.
+# Matching is whole-word, so list each form of a word: budget and budgets, layoff and layoffs.
+# _tools/quotes.py fails on a hit anywhere in the bundle outside sources/raw/ and _meta/,
+# frontmatter, indexes and entry files included. It cannot catch synonyms.
+# Put names here, and anything the speaker asked to keep out of every artifact.
+# Keep this file out of anything that is published.
+{a name}
+{a phrase the speaker asked to keep out}

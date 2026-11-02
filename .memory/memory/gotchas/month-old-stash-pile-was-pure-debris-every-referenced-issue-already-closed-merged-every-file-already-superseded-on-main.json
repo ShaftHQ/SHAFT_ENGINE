@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/gotchas/month-old-stash-pile-was-pure-debris-every-referenced-issue-already-closed-merged-every-file-already-superseded-on-main.md",
+  "content_hash": "sha256:aafd59482439e292f3503fdc56c8678ba59fb11394a7e81de2310dc69f0bc3a8",
+  "created_at": "2026-07-29T15:24:50+03:00",
+  "evidence": [
+    {
+      "id": "bf6e5094a94105517cfafdfaac724e12258b49b0",
+      "kind": "commit"
+    },
+    {
+      "id": "bc8e11c3427ccb59cba6ffb850fbc5ec6858035f",
+      "kind": "commit"
+    },
+    {
+      "id": "0218813486a155d3d04dfc51d807ba90d43ff6e4",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.month-old-stash-pile-was-pure-debris-every-referenced-issue-already-closed-merged-every-file-already-superseded-on-main",
+  "source": {
+    "kind": "agent",
+    "task": "clean local worktrees/branches/stashes, land dangling work as PRs"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "stash",
+    "cleanup",
+    "supersession-check"
+  ],
+  "title": "Month-old stash pile was pure debris: every referenced issue already closed/merged, every file already superseded on main",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

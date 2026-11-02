@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec.md",
+  "content_hash": "sha256:2e3e12fbdbda7d6fbb8651984d104f078515e3af21ec9014fd1532957e13ab37",
+  "created_at": "2026-07-21T06:13:44+03:00",
+  "evidence": [
+    {
+      "id": "c15fdfa45612f1fe74235bc43a39941f62f0c1ca",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-cli-pom-argline-clobbers-root-jacoco-prepare-agent-mvn-pl-shaft-cli-test-silently-produces-no-jacoco-exec",
+  "source": {
+    "kind": "agent",
+    "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"
+  },
+  "status": "active",
+  "tags": [
+    "jacoco",
+    "maven",
+    "surefire",
+    "shaft-cli",
+    "coverage"
+  ],
+  "title": "shaft-cli pom argLine clobbers root JaCoCo prepare-agent: mvn -pl shaft-cli test silently produces no jacoco.exec",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

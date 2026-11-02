@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine.md",
+  "content_hash": "sha256:fca65e93eaa95be1efe3f53ab28f658cbb48d55ba008b3a57549b3bc8d0f909c",
+  "created_at": "2026-07-17T04:16:33+03:00",
+  "evidence": [],
+  "id": "gotcha.c-program-files-java-jdk-21-is-a-broken-jdk-install-on-this-machine",
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij Gradle test setup + issue #3628 incremental transcript rendering"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "gradle",
+    "jdk",
+    "build-setup"
+  ],
+  "title": "C:\\Program Files\\Java\\jdk-21 is a broken JDK install on this machine",
+  "type": "gotcha",
+  "updated_at": "2026-07-17T04:16:33+03:00"
+}

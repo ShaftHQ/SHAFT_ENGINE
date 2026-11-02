@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/capture-recorder-navigation-consequence-suppression-traversal-via-pageshow-bfcache-dead-channel.md",
+  "content_hash": "sha256:a81970d31c9a165858fba6d7652a2ff4d7f897a4940ad9fd85c045b697c6ba54",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "d348c742ec78402f3f3a103612ba8ae6b8e72e16",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.capture-recorder-navigation-consequence-suppression-traversal-via-pageshow-bfcache-dead-channel",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "capture",
+    "recorder",
+    "navigation",
+    "bidi"
+  ],
+  "title": "Capture recorder navigation: consequence suppression, traversal via pageshow, bfcache dead-channel",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:55:58+03:00"
+}

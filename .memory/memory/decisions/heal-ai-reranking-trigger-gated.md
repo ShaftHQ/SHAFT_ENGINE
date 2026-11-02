@@ -1,0 +1,1 @@
+When healing.ai.enabled=true, the default healing.ai.trigger=ambiguous keeps deterministic recovery first and calls AI reranking only for ambiguous or below-threshold candidate sets; other allowed triggers are never, below-threshold, and always.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Android APK Select"
+  short_description: "Pick universal vs ABI-split APKs"
+  default_prompt: "Use $shaft-android-apk-select to choose the correct APK for this target."

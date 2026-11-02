@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Mobile Actions"
+  short_description: "Use SHAFT mobile and touch actions"
+  default_prompt: "Use $shaft-mobile-actions to implement these mobile interactions with SHAFT."

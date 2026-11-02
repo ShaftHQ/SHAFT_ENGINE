@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/absorb-open-scaffold-prs-before-stacking-host-parity-follow-ons.md",
+  "content_hash": "sha256:026f6cc264aaf0f47510199c495431548530c15b5fb128709b0b76440acfdad3",
+  "created_at": "2026-09-14T23:36:35+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5787",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.absorb-open-scaffold-prs-before-stacking-host-parity-follow-ons",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver ChaosEngine learning ticket #5787 absorb scaffold before stacking"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "pr-workflow",
+    "scaffold",
+    "host-parity",
+    "gotcha"
+  ],
+  "title": "Absorb open scaffold PRs before stacking host-parity follow-ons",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T23:36:35+03:00"
+}

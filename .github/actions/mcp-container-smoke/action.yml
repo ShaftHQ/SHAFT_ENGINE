@@ -1,0 +1,44 @@
+name: 'MCP Container Smoke Test'
+description: 'Builds the shaft-mcp Docker image and verifies it answers the MCP initialize handshake.'
+inputs:
+  dockerfile:
+    description: 'Dockerfile to build'
+    required: false
+    default: 'shaft-mcp/Dockerfile'
+  image-tag:
+    description: 'Tag to build and run'
+    required: true
+  container-name:
+    description: 'Name for the smoke-test container'
+    required: true
+  client-name:
+    description: 'clientInfo.name sent in the MCP initialize request'
+    required: false
+    default: 'container-smoke'
+runs:
+  using: 'composite'
+  steps:
+    - name: Build and smoke the container
+      shell: bash
+      run: |
+        docker build -f "${{ inputs.dockerfile }}" -t "${{ inputs.image-tag }}" .
+        cleanup() {
+          docker rm -f "${{ inputs.container-name }}" >/dev/null 2>&1 || true
+        }
+        trap cleanup EXIT
+        docker run -d --name "${{ inputs.container-name }}" \
+          -e SPRING_PROFILES_ACTIVE=http \
+          -p 127.0.0.1:8081:8081 \
+          "${{ inputs.image-tag }}"
+        for attempt in {1..60}; do
+          if curl --fail --silent --show-error \
+            -H "Accept: application/json, text/event-stream" \
+            -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"${{ inputs.client-name }}","version":"1.0"}}}' \
+            http://127.0.0.1:8081/mcp | grep -q '"name":"shaft-mcp"'; then
+            exit 0
+          fi
+          sleep 1
+        done
+        docker logs "${{ inputs.container-name }}"
+        exit 1

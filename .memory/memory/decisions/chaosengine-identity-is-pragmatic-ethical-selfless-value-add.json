@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/decisions/chaosengine-identity-is-pragmatic-ethical-selfless-value-add.md",
+  "content_hash": "sha256:61969b88aecfe9dded76ee22417c972c9c99375e830c92a673b5e78c15486b00",
+  "created_at": "2026-09-15T21:50:47+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5807",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5810",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.chaosengine-identity-is-pragmatic-ethical-selfless-value-add",
+  "source": {
+    "kind": "agent",
+    "task": "G3 Learning Session identity personality enhancement"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "identity",
+    "personality",
+    "permanent"
+  ],
+  "title": "ChaosEngine identity is pragmatic ethical selfless value-add",
+  "type": "decision",
+  "updated_at": "2026-09-15T21:50:47+03:00"
+}

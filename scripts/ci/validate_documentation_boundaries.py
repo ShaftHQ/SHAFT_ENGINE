@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+"""Enforce the engine repository's operational Markdown boundary."""
+
+from fnmatch import fnmatch
+import os
+from pathlib import Path
+import sys
+
+try:
+    from scripts.ci.readme_contract import (
+        destinations,
+        validate_readme_contract,
+    )
+except ModuleNotFoundError:  # Direct script execution adds scripts/ci to sys.path.
+    from readme_contract import destinations, validate_readme_contract
+
+ROOT = Path(__file__).resolve().parents[2]
+RELEASES_URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/releases"
+
+ALLOWED_EXACT = {
+    "README.md",
+    "modular-era-feature-catalog.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    ".github/copilot-instructions.md",
+    ".github/pull_request_template.md",
+    ".github/RELEASE_BODY_TEMPLATE.md",
+    # Internal agent guidance, not a public guide or a module README. Needs an
+    # exact entry because ALLOWED_GLOBS uses fnmatch, where "**" is ordinary
+    # "*" and so ".agents/skills/**/*.md" requires a second path segment --
+    # the same reason ".github/skills/README.md" is listed here.
+    ".agents/skills/README.md",
+    ".claude/CLAUDE.md",
+    ".claude/user-harness/README.md",
+    "scripts/agents/user-harness/README.md",
+    ".github/skills/README.md",
+    ".github/workflows/README.md",
+    "agent-plugins/shaft-skills/candidate-intake/README.md",
+    "agent-plugins/shaft-skills/evals/README.md",
+    "shaft-mcp/.github/copilot-instructions.md",
+    "tools/intellij-plugin-recording/README.md",
+    "tools/local-ai-poc/README.md",
+    "tools/repository-map/README.md",
+    "GEMINI.md",
+    "chaos-engine/README.md",
+    # Short in-repo orientation only. Product guides stay on the user-guide site.
+    "shaft-engine/README.md",
+    "shaft-infrastructure/README.md",
+    "shaft-pilot-core/README.md",
+    "shaft-capture/README.md",
+    "shaft-capture-proxy/README.md",
+    "shaft-doctor/README.md",
+    "shaft-ai/README.md",
+    "shaft-heal/README.md",
+    "shaft-mcp/README.md",
+    "shaft-cli/README.md",
+    "shaft-browserstack/README.md",
+    "shaft-video/README.md",
+    "shaft-visual/README.md",
+    "shaft-ui-match/README.md",
+    "shaft-ocr/README.md",
+    "shaft-sikulix/README.md",
+    "report-aggregate/README.md",
+    "shaft-bom/README.md",
+    # Redistributed Cucumber 8 adapter. Same short reactor orientation as the
+    # other module READMEs; product usage stays on the user-guide site.
+    "allure-cucumber8-jvm/README.md",
+    "legacy-shaft-engine/README.md",
+    "shaft-intellij/README.md",
+    "shaft-skills/README.md",
+    "chaos-engine/profiles/README.md",
+    ".chaos-engine/profiles/README.md",
+    ".chaos-engine/THIRD_PARTY_NOTICES.md",
+    "chaos-engine/RESEARCH.md",
+    "chaos-engine/decision-quality-baseline.md",
+    "chaos-engine/decision-quality-rubric.md",
+    "chaos-engine/decision-quality-calibration.md",
+    "chaos-engine/decision-quality-report.md",
+    "chaos-engine/STANDALONE.md",
+    "chaos-engine/INSTALL.md",
+    "chaos-engine/identity.md",
+    "chaos-engine/THIRD_PARTY_NOTICES.md",
+    # Internal mega-PR throughput lesson (agent ops); not a public product guide.
+    "scripts/ci/mega-pr-throughput-20261102.md",
+    "scripts/ci/mega-pr-throughput-20261102b.md",
+    "scripts/ci/mega-pr-throughput-20261102c.md",
+}
+ALLOWED_NESTED_READMES = {
+    path for path in ALLOWED_EXACT
+    if path != "README.md" and Path(path).name.lower() == "readme.md"
+}
+ALLOWED_GLOBS = (
+    ".agents/skills/**/*.md",
+    ".claude/agents/*.md",
+    ".claude/skills/**/*.md",
+    ".claude/user-harness/*.md",
+    "scripts/agents/user-harness/*.md",
+    ".gemini/skills/**/*.md",
+    ".codex/**/*.md",
+    # Grok always scans this directory into the model prompt. It is host
+    # project rules, not a public product guide.
+    ".grok/rules/*.md",
+    ".github/codex/prompts/*.md",
+    ".github/instructions/*.instructions.md",
+    ".github/ISSUE_TEMPLATE/*.md",
+    ".github/skills/**/*.md",
+    "chaos-engine/**/*.md",
+    ".chaos-engine/**/*.md",
+    "plugins/**/*.md",
+    ".memory/memory/*.md",
+    ".memory/memory/**/*.md",
+    "skills/*/SKILL.md",
+    "shaft-skills/*.md",
+    "shaft-skills/**/*.md",
+    "agent-plugins/**/*.md",
+    "tools/**/*.md",
+    "scripts/ci/chaos_gauge/dataset/*/instruction.md",
+    "*/src/test/resources/fixtures/**/*.md",
+)
+FORBIDDEN_LINK_FRAGMENTS = (
+    "github.com/ShaftHQ/SHAFT_ENGINE/blob/main/docs/",
+    "github.com/ShaftHQ/SHAFT_ENGINE/tree/main/docs/",
+)
+IGNORED_DIRECTORIES = {
+    # Gitignored install and backup trees. They mirror the portable overlay and
+    # are not repository markdown.
+    ".chaos-engine",
+    ".chaos-engine.backup",
+    ".chaos-engine-state",
+    ".chaos-engine-runtime",
+    ".chaos-engine-runtime-generations",
+    ".chaos-engine-runtime-transactions",
+    ".git",
+    ".idea",
+    "allure-report",
+    "allure-results",
+    "build",
+    "graphify-out",
+    "node_modules",
+    "target",
+}
+# Root-relative directories (concurrent agent worktrees and memory recovery areas hold full repo copies).
+IGNORED_RELATIVE_DIRECTORIES = {
+    ".claude/worktrees",
+    ".memory/recovery",
+}
+
+
+def tracked_markdown(root: Path = ROOT) -> list[str]:
+    paths: list[str] = []
+    for directory, child_directories, files in os.walk(root):
+        relative_directory = Path(directory).relative_to(root).as_posix()
+        child_directories[:] = [
+            child for child in child_directories
+            if child not in IGNORED_DIRECTORIES
+            and (
+                child if relative_directory == "." else f"{relative_directory}/{child}"
+            ) not in IGNORED_RELATIVE_DIRECTORIES
+        ]
+        for filename in files:
+            if Path(filename).suffix.lower() not in {".md", ".mdx"}:
+                continue
+            paths.append(
+                (Path(directory) / filename).relative_to(root).as_posix()
+            )
+    return sorted(paths)
+
+
+def is_allowed(path: str) -> bool:
+    return path in ALLOWED_EXACT or any(fnmatch(path, pattern) for pattern in ALLOWED_GLOBS)
+
+
+def validate_repository(root: Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    markdown = tracked_markdown(root)
+
+    for path in markdown:
+        if not is_allowed(path):
+            errors.append(f"public or unapproved Markdown remains: {path}")
+        if path != "README.md" and Path(path).name.lower() == "readme.md":
+            if path not in ALLOWED_NESTED_READMES:
+                errors.append(f"non-root README is prohibited: {path}")
+
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    readme_links = set(destinations(readme))
+    if len(readme.splitlines()) > 160:
+        errors.append("README.md exceeds the 160-line landing-page budget")
+    errors.extend(validate_readme_contract(readme))
+    if "https://github.com/sponsors/MohabMohie" not in readme_links:
+        errors.append("README.md is missing the GitHub Sponsors call to action")
+
+    catalog_path = root / "modular-era-feature-catalog.md"
+    if catalog_path.is_file():
+        catalog_links = set(destinations(catalog_path.read_text(encoding="utf-8")))
+        if RELEASES_URL not in catalog_links:
+            errors.append(
+                "modular-era-feature-catalog.md is missing the canonical release-history link"
+            )
+
+    scan_paths = [
+        path for path in markdown
+        if path != "shaft-doctor/src/test/resources/fixtures/golden/doctor-report.md"
+    ]
+    for path in scan_paths:
+        content = (root / path).read_text(encoding="utf-8")
+        for fragment in FORBIDDEN_LINK_FRAGMENTS:
+            if fragment in content:
+                errors.append(f"{path}: links to deleted repository documentation")
+
+    if (root / "docs").exists():
+        errors.append("the local docs/ tree must not exist")
+
+    return errors
+
+
+def main() -> int:
+    errors = validate_repository()
+    if errors:
+        print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
+        return 1
+    print(
+        f"Documentation boundary is valid ({len(tracked_markdown())} tracked Markdown files)."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,11 @@
+{
+  "exclusions": [
+    {"glob": "*/src/main/java/**/internal/**", "reason": "Packages named internal are implementation details, not the customer contract (#6375 owner decision); properties/internal is re-included below."},
+    {"glob": "shaft-intellij/*", "reason": "The IntelliJ plugin ships IDE extension classes loaded by the IDE, not a Java API that customers call."},
+    {"glob": "report-aggregate/*", "reason": "Build-only aggregation module; it is never deployed (maven.deploy.skip)."}
+  ],
+  "included_overrides": [
+    {"glob": "shaft-engine/src/main/java/com/shaft/properties/internal/*", "reason": "SHAFT.Properties getters and setters are the customer configuration contract even though the package is named internal."}
+  ],
+  "baseline": {}
+}

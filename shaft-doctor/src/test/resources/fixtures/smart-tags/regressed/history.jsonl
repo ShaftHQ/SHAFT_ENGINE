@@ -1,0 +1,2 @@
+{"uuid":"l1","name":"R1","timestamp":1700001000000,"testResults":{"hist-regressed":{"name":"regressed","fullName":"demo.Regressed.t","status":"passed","duration":100,"historyId":"hist-regressed"}}}
+{"uuid":"l2","name":"R2","timestamp":1700002000000,"testResults":{"hist-regressed":{"name":"regressed","fullName":"demo.Regressed.t","status":"failed","duration":120,"historyId":"hist-regressed"}}}

@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle.md",
+  "content_hash": "sha256:89c36933b11d02c30b9382798ad412661fa0d8f1dd834a63919a80531241993a",
+  "created_at": "2026-07-19T22:15:10+03:00",
+  "evidence": [
+    {
+      "id": "d5bd860de73b74c6516d08e1a15ea8a2f4b125a8",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-example-project-sample-test-wikipedia-search-is-not-evergreen-live-search-ranking-drift-breaks-expectedresulttitle",
+  "source": {
+    "kind": "agent",
+    "task": "Issue #3788: grid execution broken -- chromium double-HasCdp augmentation, green-masked example CI, stale sample test data"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-examples",
+    "sample-test",
+    "flaky",
+    "wikipedia",
+    "gotcha"
+  ],
+  "title": "SHAFT example-project sample test (Wikipedia search) is not evergreen -- live search ranking drift breaks expectedResultTitle",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

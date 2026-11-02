@@ -1,0 +1,1 @@
+Owner directive (2026-07-18): any request the application owner makes must be tracked via a GitHub issue, then closed by pushing code, opening a PR with a Closes #N keyword, and babysitting that PR until green and merged. All follow-up or further work is also tracked via GitHub issues -- never chat-only. Applies to every session and every agent.

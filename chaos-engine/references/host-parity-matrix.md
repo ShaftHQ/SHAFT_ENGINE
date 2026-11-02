@@ -1,0 +1,116 @@
+---
+description: Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies.
+---
+
+# Host Parity Matrix v0
+
+Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot; independent bots (GPTs and others) follow the Grok Bot column via the bot entry.
+
+Parity means the same workflow *outcomes* on all eight hosts (not UI chrome parity).
+Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.json`.
+
+## Harness parity (permanent)
+
+Any lasting behavior or policy — including the trigger-based Learning Session, the ban on traffic proxies ([no-proxy](no-proxy.md)), and token optimization as Kanban eliminate-waste ([eliminate-waste](eliminate-waste.md)) — MUST live in the portable ChaosEngine overlay: hooks, skills,
+installer/doctor, and host guidance adapters (`AGENTS.md` / `CLAUDE.md` /
+`GEMINI.md` equivalents). Never leave lasting harness rules only in one
+agent's memory or routines. Unchanged `chaos-engine/` sources are not a
+valid Learning Session skip on any host.
+
+## One implementation for every host
+
+Claude, Codex (the GPT host), Copilot, Gemini, Grok, OpenCode, Cursor, and
+Grok Bot run one portable implementation. Do not add a separate GPT adapter, and do not copy a rule
+into a host skill, a host guard, or a second policy file. A new harness
+rule is one shared row in `scripts/ci/agent_harness_parity.json`: every
+host column names the same evidence path, and one test runs that decision
+for every host in `hosts`. File reads and file searches follow this rule
+through `hooks/retrieve_justification.py` and `hooks/guard.py`. A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session. Downloading a GitHub Actions job log (`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`, or curl of that logs URL), including a filter pipeline or a write into a scratch directory, is not a project read and does not require MemPalace or Graphify. Opening a checkout file in that same command still does. `tool.py
+--help` is the same CLI on every host.
+
+A new host is receipt-compatible only when previous routes are a subset
+(`host_routes_cover` in `hosts.py`). Rollback writes `priorHostReceipt` bytes
+through the still-current candidate before the old core runs. Those checks
+already live in `tests/scripts/test_chaos_engine_hosts.py`
+(`test_added_host_route_upgrades_without_rewriting_shared_routes`) and
+`tests/scripts/test_chaos_engine_generation_runtime.py`
+(`test_offline_rollback_validates_previous_before_core_swap`).
+Copilot CLI repo-settings hook decisions are covered by
+`tests/scripts/test_copilot_cli_hook.py`.
+Do not reimplement them.
+
+Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
+
+
+## Matrix
+
+| Surface | Claude Code | Codex | Grok | Gemini | Copilot | OpenCode | Cursor | Grok Bot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Install / doctor human UX | P | P | P | P | P | P | P | P |
+| Host onboarding / activation path | A marketplace/plugin | A marketplace/plugin | A file/hook | A file/hook | A file/hook | A AGENTS.md | A AGENTS.md | A bot entry |
+| Router skill (`chaos-engine`) | P | P | P | P | P | P | P | P |
+| Lifecycle hooks | A | A | A | A | A | G | G | G |
+| Exit-2 / blocking denial fidelity | A | A | G | A | G | G | G | G |
+| SessionStart locator-only / progressive disclosure | A | A | A | A | A | G | G | G |
+| Skills discovery | A | A | A | A | A | A | A | A |
+| Companions (Caveman + Ponytail) | P | P | P | P | P | P | P | P |
+| Self-improve skill (Learning Session) | P | P | P | P | P | P | P | P |
+| Retrieval soft-degrade (Memory/MemPalace/Graphify) | P | P | P | P | P | P | P | P |
+| Work-item to merge playbook | P | P | P | P | P | P | P | P |
+| Learning Session | P | P | P | P | P | P | P | P |
+
+## Measured gaps (severity)
+
+| ID | Host(s) | Severity | Gap | Evidence / next |
+| --- | --- | --- | --- | --- |
+| GAP-EXIT2 | Grok, Copilot | high | `HostCapability.process_exit2_honored=False`; ChaosEngine still returns deny exit 2 + native deny payload (`decision`/`permissionDecision`). Owner doctor surfaces `blockingGap`. | Proven by `tests/scripts/test_chaos_engine_exit2_fidelity.py`; fields on HOST_CAPABILITIES. |
+| GAP-SESSIONSTART | — (cleared) | info | ChaosEngine emits identical locator-only SessionStart context (`SESSION_START_MAX_BYTES`=4096) on all five hosts; residual risk is a host ignoring SessionStart output (companions still load via entrypoint). | Proven by `tests/scripts/test_chaos_engine_sessionstart_locator_parity.py`. |
+| GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) is host-gated; doctor stays healthy and reports sync-advisory until the operator trusts hooks. Never flip overall doctor to recovery-required for Grok trust alone when hosts verify is healthy. | Host onboarding card + grok_runtime_status (advisory);. |
+| GAP-GROK-LEAN | Grok | medium | Dual Claude-compat + native `.grok` hooks double CE context; installer merges lean `[compat.*]` into user `~/.grok/config.toml`; optional `--lean-grok-skills`; skill adapters stay pointers. | [`grok_lean_config.py`](../grok_lean_config.py) + doctor sync-advisory. |
+| GAP-IMPL-COMPANIONS | all | medium | Implementation must load Caveman+Ponytail at ultra via portable overlay; not optional and not SessionStart-only. Doctor **self-heals** missing companions from CE vendor (official publish); agentic handoff with official repair/install only if heal fails. | `rematerialize_companions` + doctor. |
+| GAP-IDENTITY-MD | all | medium | Durable `.chaos-engine/identity.md` with protected Truth markers; SessionStart/instruction pointer inject; doctor create-on-heal. | [`identity_md.py`](../identity_md.py) + seed [`identity.md`](../identity.md);. |
+| GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
+| GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |
+| GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
+| GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only agent: auto-loads nothing from the checkout and has no hook runtime. At task start it reads the core card and both companion cards itself, then runs one retrieve. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-BOT-ENTRY | Independent bots (GPTs, Claude Projects, others) | medium | No checkout auto-load and no hooks: start from [bot entry](bot-entry.md) (`tool.py entry`, or an exported entry file for bots without repository access). | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | prefer-cli-over-mcp. |
+| GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
+
+
+
+## Official self-heal
+
+Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + `chaos-engine/INSTALL.md` (repo-only). Opt-out `--without-*` stays off. Parent epic:.
+
+## How to refresh
+
+1. Update rows when adapter contracts or Host Parity Wave B issues land.
+2. Keep `scripts/ci/agent_harness_parity.json` as the machine-checked pin set.
+3. Prefer outcome language (P/A/G) over host UI chrome comparisons.
+4. Re-run the eval / parity fixture suite (`python3 scripts/ci/chaos_engine_eval_parity.py`, repo-only;
+   see [eval-parity-fixtures](eval-parity-fixtures.md)) after hook or adapter changes.
+   Fixture failures ratchet into hooks, skills, or a documented matrix gap — never
+   weaken the fixture to look green.
+
+Checked-in memory for one-router / CLI-owned MCP / project-mode Caveman:
+`.memory/memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md` (repo-only).
+See also the [hook trigger map](hook-trigger-map.md).
+
+
+## GAP-EXIT2 compensating UX checklist (Grok / Copilot)
+
+GAP-EXIT2-SENTENCE: GAP-EXIT2: ChaosEngine still emits decision=block or permissionDecision=deny and exit 2; verify host trust.
+
+Do **not** pretend a hard process exit-2 block on these hosts. ChaosEngine still
+emits `decision=block` / `permissionDecision=deny` and exit 2; owners must
+verify trust and static surfaces.
+
+- [x] Doctor human output shows `blockingGap` / GAP-EXIT2 warning for Grok and Copilot (`format_blocking_fidelity_warnings`)
+- [x] Host parity row `GAP-EXIT2` stays documented with severity and proof test
+- [x] After a deny, tell the owner to check project trust / hooks trust (Grok: `grok inspect --json`, `/hooks-trust`) and IDE Copilot trust — not “the tool was hard-blocked by exit code”
+- [x] SessionStart / Heal locators remain available when marketplace plugins are absent
+- [x] Exit-2 fidelity unit test remains green: `tests.scripts.test_chaos_engine_exit2_fidelity`
+

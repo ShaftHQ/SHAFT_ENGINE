@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "locator-renamed-checkout-button",
+      "diagnosis": "The deterministic locator finding reports that the submitted selector no longer matches the checkout control.",
+      "expectedCategory": "LOCATOR",
+      "actionConcepts": ["data-testid", "locator", "selector"],
+      "safeActionPatterns": ["(?i)^(use|update|replace|verify|inspect) (the |a )?(stable )?(data-testid|locator|selector)( (for|on) [a-z0-9 _-]+)?[.]?$"],
+      "evidence": [
+        {"id": "loc-exception", "category": "LOG", "content": "NoSuchElementException: no element matches css selector #submit-order"},
+        {"id": "loc-dom", "category": "DOM", "content": "Checkout snapshot contains <button data-testid=\"checkout-submit\">Place order</button>."}
+      ]
+    },
+    {
+      "id": "timing-api-longer-than-wait",
+      "diagnosis": "The deterministic timing finding reports that the configured wait expires before the observed request completes.",
+      "expectedCategory": "TIMING_SYNCHRONIZATION",
+      "actionConcepts": ["wait", "condition", "timeout"],
+      "safeActionPatterns": ["(?i)^(use|update|verify|increase|inspect) (the |a )?(explicit )?(wait|condition|timeout)( (for|to) [a-z0-9 _-]+)?[.]?$"],
+      "evidence": [
+        {"id": "time-exception", "category": "LOG", "content": "TimeoutException after 500 ms while waiting for the loading indicator to disappear."},
+        {"id": "time-network", "category": "LOG", "content": "GET /api/orders completed successfully in 1842 ms immediately before the indicator disappeared."}
+      ]
+    },
+    {
+      "id": "environment-browser-driver-skew",
+      "diagnosis": "The deterministic environment finding reports incompatible browser and driver major versions.",
+      "expectedCategory": "ENVIRONMENT_CONFIGURATION",
+      "actionConcepts": ["version", "driver", "browser"],
+      "safeActionPatterns": ["(?i)^(align|match|update|verify|inspect) (the )?(browser|driver|version)( (version|configuration))?[.]?$"],
+      "evidence": [
+        {"id": "env-session", "category": "LOG", "content": "SessionNotCreatedException: driver supports browser version 139; current browser version is 140.0."},
+        {"id": "env-config", "category": "CONFIGURATION", "content": "The run uses a fixed locally cached driver rather than automatic driver management."}
+      ]
+    },
+    {
+      "id": "data-required-customer-id",
+      "diagnosis": "The deterministic data finding reports that a required request property is absent from the test fixture.",
+      "expectedCategory": "DATA",
+      "actionConcepts": ["customerId", "fixture", "payload"],
+      "safeActionPatterns": ["(?i)^(include|update|verify|inspect|fix) (the )?(customerid|fixture|payload)( (field|data))?[.]?$"],
+      "evidence": [
+        {"id": "data-response", "category": "LOG", "content": "POST /api/orders returned 400 with validation message: customerId is required."},
+        {"id": "data-request", "category": "TEXT", "content": "Sanitized request fixture keys: items, shippingAddress. customerId is absent."}
+      ]
+    },
+    {
+      "id": "product-order-service-null",
+      "diagnosis": "The deterministic product finding reports a server-side application failure after a valid request reached the order service.",
+      "expectedCategory": "PRODUCT",
+      "actionConcepts": ["application", "server", "order"],
+      "safeActionPatterns": ["(?i)^(inspect|investigate|fix|verify|escalate) (the )?(application|server|order)( (failure|service|defect))?[.]?$"],
+      "evidence": [
+        {"id": "product-response", "category": "LOG", "content": "A valid create-order request returned HTTP 500 instead of the expected HTTP 201."},
+        {"id": "product-log", "category": "LOG", "content": "Application log: NullPointerException in OrderService.calculateTotal after request validation passed."}
+      ]
+    },
+    {
+      "id": "infrastructure-grid-port-closed",
+      "diagnosis": "The deterministic infrastructure finding reports that the configured Selenium Grid service cannot be reached.",
+      "expectedCategory": "INFRASTRUCTURE",
+      "actionConcepts": ["grid", "service", "port"],
+      "safeActionPatterns": ["(?i)^(start|restore|check|verify|inspect|configure) (the )?(grid|service|port)( (availability|configuration))?[.]?$"],
+      "evidence": [
+        {"id": "infra-connect", "category": "LOG", "content": "Connection refused while opening http://selenium-grid:4444/wd/hub."},
+        {"id": "infra-dns", "category": "LOG", "content": "The selenium-grid host resolves, but a TCP connection to port 4444 is refused."}
+      ]
+    }
+  ]
+}

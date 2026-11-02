@@ -1,0 +1,318 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
+import org.gradle.process.CommandLineArgumentProvider
+
+plugins {
+    java
+    jacoco
+    id("org.jetbrains.intellij.platform") version "2.18.1"
+}
+
+group = providers.gradleProperty("pluginGroup").get()
+version = providers.gradleProperty("pluginVersion").get()
+
+repositories {
+    mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+        // Nightly EAP verification (#6429) resolves LATEST-EAP-SNAPSHOT from the snapshots repository.
+        if (providers.gradleProperty("verifyEap").isPresent) {
+            snapshots()
+        }
+    }
+}
+
+dependencies {
+    intellijPlatform {
+        intellijIdea(providers.gradleProperty("platformVersion").get())
+        bundledPlugin("com.intellij.java")
+        // JUnitConfiguration/TestNGConfiguration classes live in these separate bundled plugins
+        // (see io.github.shafthq.shaft-withJUnit.xml / shaft-withTestNG.xml), not in com.intellij.java.
+        bundledPlugin("JUnit")
+        bundledPlugin("TestNG-J")
+        // Gradle run-configuration overrides (#6428).
+        bundledPlugin("com.intellij.gradle")
+        // Kotlin SHAFT gutter (#6427).
+        bundledPlugin("org.jetbrains.kotlin")
+        // SHAFT property completion/validation/docs (#6417, #6418) need the Properties PSI.
+        bundledPlugin("com.intellij.properties")
+        // Editor fixtures (BasePlatformTestCase) for completion, inspection and template tests.
+        testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Plugin.Java)
+        // The verifier's default is dynamic (latest), which makes the CI verdict depend on cache age.
+        // Keep upgrades reviewable and prevent a remote version-list lookup during verification.
+        pluginVerifier("1.410")
+    }
+    implementation("com.google.code.gson:gson:2.14.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    testImplementation(gradleTestKit())
+    testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// A SHAFT test run regenerates src/test/resources/META-INF/services/ from scratch (Allure and
+// TestNG listener registrations), deleting anything else that lives there. This module's own
+// JUnit 5 extension registration (ShaftPanelBackgroundWorkExtension, issue #4500) was silently
+// wiped that way after a few runs, so it keeps its own resources root that the generator does not
+// manage.
+sourceSets["test"].resources.srcDir("src/test/junit-extensions")
+
+intellijPlatform {
+    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows.
+    // The plugin verifier still validates the built ZIP; track re-enabling this task separately.
+    buildSearchableOptions = false
+    instrumentCode = true
+
+    pluginConfiguration {
+        id = "io.github.shafthq.shaft"
+        name = "SHAFT"
+        version = project.version.toString()
+        description = """
+            <p>SHAFT's official IntelliJ IDEA companion: design Gherkin from a story, record and generate fluent Java,
+            then analyze Allure/Doctor/heal evidence — powered by
+            <a href="https://shafthq.github.io">SHAFT Engine</a> and the SHAFT MCP server.</p>
+
+            <h3>Highlights</h3>
+            <ul>
+              <li><b>Assistant chat</b> — describe a scenario in plain language and get runnable SHAFT test code;
+              slash commands cover recording, inspection, test generation, and failed-test triage.</li>
+              <li><b>Web recorder</b> — capture real browser sessions and turn them into SHAFT tests, with
+              Pick-Locator results flowing straight into the editor.</li>
+              <li><b>Editor intelligence</b> — completion, typo detection, value checks and quick docs for SHAFT
+              properties, inspections for <code>Thread.sleep</code> and deprecated SHAFT APIs, and
+              <code>shtest</code>/<code>shclick</code>/<code>shtype</code>/<code>shassert</code>/<code>shapi</code>
+              live templates.</li>
+              <li><b>Run from the gutter</b> — SHAFT-aware JUnit and TestNG run configurations for test classes
+              and methods.</li>
+              <li><b>SHAFT Tests panel</b> — recent runs at a glance, with one-click Doctor diagnosis and Healer
+              locator repair for failures.</li>
+              <li><b>Inspector &amp; locator tools</b> — inspect live pages, propose resilient locators, and
+              validate them before committing.</li>
+              <li><b>Visual baselines &amp; evidence</b> — triage visual-regression diffs and browse execution
+              evidence without leaving the IDE.</li>
+              <li><b>Guided setup</b> — a five-step wizard detects this project, checks JDK, Maven, and Git,
+              then shows a copy-and-run installer command. The plugin does not execute the installer.
+              A setup report is sent only after Allow and becomes a public GitHub issue.</li>
+              <li><b>Advanced tools</b> — the full SHAFT MCP tool catalog, refreshed live, with curated safe
+              defaults and explicit approval prompts before anything runs.</li>
+            </ul>
+
+            <p>The plugin activates only in projects that use SHAFT and stays out of the way everywhere else.</p>
+        """.trimIndent()
+        changeNotes = """
+            <ul>
+              <li>Replaces first-run setup with a five-step wizard. The plugin shows a copy-and-run installer
+              command and does not execute it. A completed wizard stays complete across updates while a stale
+              MCP command is dropped. A setup report is sent only after Allow and becomes a public GitHub issue.</li>
+              <li>Fixes plugin installation failing with "Failed to load the plugin descriptor" caused by a
+              malformed optional JUnit integration descriptor.</li>
+              <li>Migrates run-configuration producers off deprecated IntelliJ Platform APIs flagged by the
+              JetBrains Plugin Verifier.</li>
+              <li>Hardens the release pipeline: builds now fail on deprecated API usage, plugin-structure
+              defects, and invalid descriptors before anything reaches the Marketplace.</li>
+              <li>Refreshes the Marketplace description and screenshots.</li>
+            </ul>
+        """.trimIndent()
+        ideaVersion {
+            sinceBuild = providers.gradleProperty("pluginSinceBuild")
+            untilBuild = provider { null }
+        }
+        vendor {
+            name = "ShaftHQ"
+            email = "Mohab.MohieElDeen@outlook.com"
+            url = "https://shafthq.github.io"
+        }
+    }
+
+    publishing {
+        token = providers.gradleProperty("intellijPlatformPublishingToken")
+        channels = listOf("default")
+    }
+
+    signing {
+        certificateChain = providers.gradleProperty("intellijPlatformCertificateChain")
+        privateKey = providers.gradleProperty("intellijPlatformPrivateKey")
+        password = providers.gradleProperty("intellijPlatformPrivateKeyPassword")
+    }
+
+    pluginVerification {
+        // The default failure level (COMPATIBILITY_PROBLEMS only) let the 10.3.20260712 release
+        // ship with deprecated API usages and a malformed optional descriptor that made the
+        // Marketplace archive uninstallable ("Failed to load the plugin descriptor"). Fail CI on
+        // anything that would degrade or break the plugin at Marketplace review or install time.
+        failureLevel = listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
+            VerifyPluginTask.FailureLevel.DEPRECATED_API_USAGES,
+            VerifyPluginTask.FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
+            VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
+            VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            VerifyPluginTask.FailureLevel.NON_EXTENDABLE_API_USAGES,
+            VerifyPluginTask.FailureLevel.PLUGIN_STRUCTURE_WARNINGS,
+            VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
+            VerifyPluginTask.FailureLevel.INVALID_PLUGIN,
+        )
+        ides {
+            current()
+            // Pin the build that rejected 10.3.20260707 (LafManager.removeLafManagerListener removal)
+            // so a future platform-API removal is caught locally instead of at Marketplace review time.
+            create(IntelliJPlatformType.IntellijIdeaUltimate, "262.8665.81")
+            // Nightly only (-PverifyEap, #6429): catch next-IDE API breaks before they ship.
+            if (providers.gradleProperty("verifyEap").isPresent) {
+                create(IntelliJPlatformType.IntellijIdeaUltimate, "LATEST-EAP-SNAPSHOT") { useInstaller = false }
+            }
+        }
+    }
+}
+
+tasks {
+    withType<RunIdeTask>().configureEach {
+        jvmArgumentProviders.add(CommandLineArgumentProvider {
+            listOf("-XX:ErrorFile=${sandboxLogDirectory.file("hs_err_pid%p.log").get().asFile.absolutePath}")
+        })
+    }
+
+    val verifyRunIdeCrashLogConfiguration by registering {
+        group = "verification"
+        description = "Verifies that every runIde JVM writes fatal-error logs outside immutable Gradle caches."
+        doLast {
+            val runIdeTasks = withType<RunIdeTask>().toList()
+            check(runIdeTasks.isNotEmpty()) { "No RunIdeTask instances were registered." }
+            runIdeTasks.forEach { runIdeTask ->
+                val expected = "-XX:ErrorFile=${
+                    runIdeTask.sandboxLogDirectory.file("hs_err_pid%p.log").get().asFile.absolutePath
+                }"
+                val configured = runIdeTask.jvmArgumentProviders
+                    .flatMap { it.asArguments().toList() }
+                    .filter { it.startsWith("-XX:ErrorFile=") }
+                check(configured == listOf(expected)) {
+                    "${runIdeTask.path} must have exactly one sandbox-owned fatal-error log argument; " +
+                        "expected '$expected', found $configured"
+                }
+            }
+        }
+    }
+
+    check {
+        dependsOn(verifyRunIdeCrashLogConfiguration)
+    }
+
+    withType<JavaCompile>().configureEach {
+        options.release.set(17)
+        // Deprecated platform APIs must fail the build at compile time, before the plugin
+        // verifier (and long before Marketplace review) sees them.
+        options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Werror"))
+    }
+
+    // SHAFT property catalog (#6417): parsed from the engine's @Key interfaces at build time, so the
+    // editor's completion, validation and quick docs can never drift from the engine source.
+    val generateShaftPropertyCatalog by registering {
+        val sources = project.fileTree("../shaft-engine/src/main/java/com/shaft/properties/internal") {
+            include("*.java")
+        }
+        val catalog = layout.buildDirectory.file("generated/shaft-property-catalog/property-catalog.tsv")
+        inputs.files(sources)
+        outputs.file(catalog)
+        doLast {
+            val entry = Regex(
+                """(?:/\*\*((?:(?!\*/)[\s\S])*)\*/\s*)?(?:@\w+(?:\([^)]*\))?\s*)*@Key\("([^"]+)"\)\s*""" +
+                    """(?:@DefaultValue\("((?:[^"\\]|\\.)*)"\)\s*)?(?:@\w+(?:\([^)]*\))?\s*)*([\w.<>\[\]]+)\s+\w+\(\)"""
+            )
+            fun summary(javadoc: String) = javadoc.lines()
+                .map { it.trim().removePrefix("*").trim() }
+                .takeWhile { !it.startsWith("@") }
+                .joinToString(" ")
+                .replace(Regex("""\{@\w+\s+([^}]*)}"""), "$1")
+                .replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            val rows = sources.files.sortedBy { it.name }.flatMap { file ->
+                entry.findAll(file.readText()).map { match ->
+                    listOf(
+                        match.groupValues[2],
+                        match.groupValues[4],
+                        match.groupValues[3].replace("\\\"", "\"").replace("\\\\", "\\"),
+                        summary(match.groupValues[1]),
+                        file.nameWithoutExtension,
+                    ).joinToString("\t") { it.replace('\t', ' ').replace('\n', ' ') }
+                }.toList()
+            }.distinctBy { it.substringBefore('\t') }
+            check(rows.size > 100) { "SHAFT property catalog is suspiciously small (${rows.size} keys)" }
+            catalog.get().asFile.apply {
+                parentFile.mkdirs()
+                writeText(rows.joinToString("\n", postfix = "\n"))
+            }
+        }
+    }
+
+    processResources {
+        from(generateShaftPropertyCatalog) {
+            into("META-INF/shaft-engine")
+        }
+        inputs.property("pluginVersion", project.version.toString())
+        filesMatching("messages/*.properties") {
+            expand("pluginVersion" to project.version.toString())
+        }
+        // Bundles a build-time copy of shaft-mcp's canonical tool catalog (design doc Decision 4/5;
+        // issue #3870/#3866 T4) so ToolCatalogIndex can read the canonical tool list and any
+        // curated intentKeywords overlay entries from the plugin's own classpath at runtime, instead
+        // of hand-maintaining a second copy that can drift from the live @Tool registrations.
+        from(project.file("../shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json")) {
+            into("META-INF/shaft-mcp")
+        }
+        from(project.file("../shaft-cli/src/main/resources/META-INF/shaft-cli/command-index.json")) {
+            into("META-INF/shaft-cli")
+        }
+    }
+
+    test {
+        inputs.file("build.gradle.kts")
+        finalizedBy(jacocoTestReport)
+        useJUnitPlatform()
+        systemProperty("java.awt.headless", "true")
+        systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
+        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
+        systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
+        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", "false"))
+        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveUnrestrictedAgentE2E",
+                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveShaftVersion",
+                System.getProperty("shaft.intellij.liveShaftVersion", project.version.toString()))
+        systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))
+        systemProperty("shaft.intellij.workspaceRoot", System.getProperty("shaft.intellij.workspaceRoot", ".."))
+        systemProperty("shaft.intellij.gradleUserHome", gradle.gradleUserHomeDir.absolutePath)
+        systemProperty("shaft.intellij.mcp.applicationDataRoot",
+                System.getProperty("shaft.intellij.mcp.applicationDataRoot", ""))
+        systemProperty("shaft.intellij.mcp.bootstrapRoot",
+                System.getProperty("shaft.intellij.mcp.bootstrapRoot", ""))
+        systemProperty("shaft.intellij.liveGeminiModel",
+                System.getProperty("shaft.intellij.liveGeminiModel", "gemini-3.5-flash"))
+        // IntelliJ-instrumented classes carry no source-location attributes, so JaCoCo discards
+        // their probes unless no-location classes are explicitly included (JetBrains FAQ fix).
+        configure<JacocoTaskExtension> {
+            isIncludeNoLocationClasses = true
+            excludes = listOf("jdk.internal.*")
+        }
+    }
+
+    jacocoTestReport {
+        dependsOn(test)
+        // The IntelliJ Platform plugin instruments production classes before tests run, so the
+        // exec data's class ids match build/instrumented, not build/classes; the report must
+        // analyze the same instrumented bytes or every class shows 0% coverage.
+        classDirectories.setFrom(layout.buildDirectory.dir("instrumented/instrumentCode"))
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+}

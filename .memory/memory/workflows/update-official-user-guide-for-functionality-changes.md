@@ -1,0 +1,1 @@
+When SHAFT functionality changes, update the external public user guide checkout at `C:\Users\Mohab\IdeaProjects\shafthq.github.io` with targeted `rg` searches and small excerpts. Edit only pages related to the functionality change, validate with the smallest docs check that proves the update, and open a separate docs PR alongside the implementation PR when publishing.

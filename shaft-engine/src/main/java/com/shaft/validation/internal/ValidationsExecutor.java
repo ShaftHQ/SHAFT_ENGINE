@@ -1,0 +1,372 @@
+package com.shaft.validation.internal;
+
+import com.shaft.api.RestActions;
+import com.shaft.cli.FileActions;
+import com.shaft.cli.TerminalActions;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.driver.ElementRectangle;
+import com.shaft.tools.io.PdfFileManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.ProgressBarLogger;
+import com.shaft.validation.ValidationEnums;
+import io.qameta.allure.Step;
+import io.restassured.response.Response;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+public class ValidationsExecutor {
+    protected final StringBuilder reportMessageBuilder;
+    private final ValidationEnums.ValidationCategory validationCategory;
+    private final ValidationEnums.ValidationType validationType;
+    private final String validationMethod;
+    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private final ThreadLocal<Object> response = new ThreadLocal<>();
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    private String validationCategoryString;
+    private By locator;
+    private String customReportMessage = "";
+    private boolean suppliedCustomReportMessage;
+    private boolean deferred;
+    private ValidationEnums.VisualValidationEngine visualValidationEngine;
+    private String elementAttribute;
+    private String elementCssProperty;
+    private String browserAttribute;
+    private ValidationEnums.ValidationComparisonType validationComparisonType;
+    private Object expectedValue;
+    private boolean condition;
+    private Object actualValue;
+    private ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
+    private String fileAbsolutePath;
+    private RestActions.ComparisonType restComparisonType;
+    private String jsonPath;
+    private String folderRelativePath;
+    private String fileName;
+    private boolean jsonIgnoringOrderComparison;
+    private Integer maxDiffPixels;
+    private Double maxDiffPixelRatio;
+    private List<By> maskLocators;
+    private String ariaSnapshotFileName;
+    private Supplier<Object> mobileValueReader;
+    private String mobileValueName;
+    private Supplier<Object> browserValueReader;
+    private String browserValueName;
+    private Supplier<Object> apiValueReader;
+    private String apiValueDescription;
+
+    public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
+        this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
+        this.driver.set(webDriverElementValidationsBuilder.driver);
+        this.locator = webDriverElementValidationsBuilder.locator;
+        this.validationType = webDriverElementValidationsBuilder.validationType;
+        this.validationMethod = webDriverElementValidationsBuilder.validationMethod;
+        this.visualValidationEngine = webDriverElementValidationsBuilder.visualValidationEngine;
+        this.ariaSnapshotFileName = webDriverElementValidationsBuilder.ariaSnapshotFileName;
+        this.reportMessageBuilder = webDriverElementValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(VisualValidationsBuilder visualValidationsBuilder) {
+        this.validationCategory = visualValidationsBuilder.validationCategory;
+        this.driver.set(visualValidationsBuilder.driver);
+        this.locator = visualValidationsBuilder.locator;
+        this.validationType = visualValidationsBuilder.validationType;
+        this.validationMethod = visualValidationsBuilder.pageLevel ? "pageMatchesScreenshot" : "elementMatchesScreenshot";
+        this.maxDiffPixels = visualValidationsBuilder.maxDiffPixels;
+        this.maxDiffPixelRatio = visualValidationsBuilder.maxDiffPixelRatio;
+        this.maskLocators = visualValidationsBuilder.maskLocators;
+        this.reportMessageBuilder = visualValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(NativeValidationsBuilder nativeValidationsBuilder) {
+        this.validationCategory = nativeValidationsBuilder.validationCategory;
+        this.driver.set(nativeValidationsBuilder.driver);
+        this.locator = nativeValidationsBuilder.locator;
+        this.validationType = nativeValidationsBuilder.validationType;
+        this.validationMethod = nativeValidationsBuilder.validationMethod;
+        this.elementAttribute = nativeValidationsBuilder.elementAttribute;
+        this.validationComparisonType = nativeValidationsBuilder.validationComparisonType;
+        this.expectedValue = nativeValidationsBuilder.expectedValue;
+        this.actualValue = nativeValidationsBuilder.actualValue;
+        this.elementCssProperty = nativeValidationsBuilder.elementCssProperty;
+        this.browserAttribute = nativeValidationsBuilder.browserAttribute;
+        this.mobileValueReader = nativeValidationsBuilder.mobileValueReader;
+        this.mobileValueName = nativeValidationsBuilder.mobileValueName;
+        this.browserValueReader = nativeValidationsBuilder.browserValueReader;
+        this.browserValueName = nativeValidationsBuilder.browserValueName;
+        this.apiValueReader = nativeValidationsBuilder.apiValueReader;
+        this.apiValueDescription = nativeValidationsBuilder.apiValueDescription;
+
+        this.response.set(nativeValidationsBuilder.response);
+        this.jsonPath = nativeValidationsBuilder.jsonPath;
+
+        this.folderRelativePath = nativeValidationsBuilder.folderRelativePath;
+        this.fileName = nativeValidationsBuilder.fileName;
+        this.jsonIgnoringOrderComparison = nativeValidationsBuilder.jsonIgnoringOrderComparison;
+
+        this.reportMessageBuilder = nativeValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(ValidationsBuilder validationsBuilder) {
+        this.validationCategory = validationsBuilder.validationCategory;
+        this.validationType = validationsBuilder.validationType;
+        this.validationMethod = validationsBuilder.validationMethod;
+
+        this.condition = validationsBuilder.condition;
+        this.actualValue = validationsBuilder.actualValue;
+
+        this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(NumberValidationsBuilder numberValidationsBuilder) {
+        this.validationCategory = numberValidationsBuilder.validationCategory;
+        this.validationType = numberValidationsBuilder.validationType;
+        this.validationMethod = numberValidationsBuilder.validationMethod;
+
+        this.expectedValue = numberValidationsBuilder.expectedValue;
+        this.actualValue = numberValidationsBuilder.actualValue;
+
+        this.numbersComparativeRelation = numberValidationsBuilder.numbersComparativeRelation;
+
+        this.response.set(numberValidationsBuilder.response);
+        this.jsonPath = numberValidationsBuilder.jsonPath;
+
+        this.reportMessageBuilder = numberValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(RestValidationsBuilder restValidationsBuilder) {
+
+        this.validationCategory = restValidationsBuilder.validationCategory;
+        this.validationMethod = restValidationsBuilder.validationMethod;
+        this.validationType = restValidationsBuilder.validationType;
+        this.response.set(restValidationsBuilder.response);
+        this.fileAbsolutePath = restValidationsBuilder.fileAbsolutePath;
+        this.restComparisonType = restValidationsBuilder.restComparisonType;
+
+        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
+    }
+
+    public ValidationsExecutor(FileValidationsBuilder fileValidationsBuilder) {
+        this.validationCategory = fileValidationsBuilder.validationCategory;
+        this.validationMethod = fileValidationsBuilder.validationMethod;
+        this.validationType = fileValidationsBuilder.validationType;
+        this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
+        this.fileName = fileValidationsBuilder.fileName;
+
+        this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
+    }
+
+    /**
+     * Set a customized business-readable message that will appear in the execution report instead of the technical log message which will be nested under it
+     *
+     * @param customReportMessage the message that you would like to describe this validation in the execution report
+     * @return the current executor for source compatibility with legacy validation chains
+     */
+    public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
+        this.customReportMessage = customReportMessage == null ? "" : customReportMessage;
+        this.suppliedCustomReportMessage = customReportMessage != null && !customReportMessage.isBlank();
+        return settleUnlessChained();
+    }
+
+    /**
+     * Execute this validation
+     */
+    public void perform() {
+        runDeferredNow();
+        ReportManager.log(customReportMessage);
+    }
+
+    /**
+     * Run the terminal now, unless this same statement still attaches a custom report message or calls {@link #perform()}.
+     * An unchained terminal still fails immediately.
+     */
+    public final ValidationsExecutor finishOrDefer() {
+        if (ValidationChain.callerContinues()) {
+            deferred = true;
+            return this;
+        }
+        internalPerform();
+        return this;
+    }
+
+    protected final void runDeferredNow() {
+        if (deferred) {
+            deferred = false;
+            internalPerform();
+        }
+    }
+
+    protected final ValidationsExecutor settleUnlessChained() {
+        if (deferred && !ValidationChain.callerContinues()) {
+            deferred = false;
+            internalPerform();
+        }
+        return this;
+    }
+
+    protected void internalPerform() {
+        if (driver.get() != null && !List.of("mobileValueEquals", "browserValueEquals").contains(validationMethod)) {
+            JavaScriptWaitManager.waitForLazyLoading(driver.get());
+        }
+        boolean generatedCustomReportMessage = false;
+        if (customReportMessage.isBlank()) {
+            customReportMessage = generatedReportMessage();
+            generatedCustomReportMessage = true;
+        }
+        this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
+        ReportManager.logDiscrete(this.validationCategoryString + " that " + this.customReportMessage);
+        String progressTaskName = this.validationCategoryString.equals("Assert") ? "Asserting..." : "Verifying...";
+        try {
+            try (ProgressBarLogger ignored = new ProgressBarLogger(progressTaskName)) {
+                performValidation();
+            }
+        } finally {
+            if (generatedCustomReportMessage) {
+                customReportMessage = "";
+            }
+            driver.remove();
+            response.remove();
+        }
+    }
+
+    private String generatedReportMessage() {
+        if ("browserAttributeEquals".equals(validationMethod)
+                && browserAttribute != null
+                && List.of("pagesource", "windowsource", "source")
+                .contains(browserAttribute.toLowerCase())) {
+            return "the browser page source payload matches the requested comparison.";
+        }
+        return reportMessageBuilder.toString();
+    }
+
+    @Step(" {this.validationCategoryString} that {this.customReportMessage}")
+    private void performValidation() {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        boolean successful = false;
+        var validationsHelper = new ValidationsHelper(validationCategory);
+        if (suppliedCustomReportMessage) {
+            validationsHelper.useCustomReportMessage(customReportMessage);
+        }
+        ValidationsHelper.beginProfiledValidation();
+        try {
+            switch (validationMethod) {
+            case "forceFail" -> validationsHelper.validateFail(customReportMessage);
+            case "objectsAreEqual" ->
+                    validationsHelper.validateEquals(expectedValue, actualValue, validationComparisonType, validationType);
+            case "conditionIsTrue" ->
+                    validationsHelper.validateTrue(condition, validationType);
+            case "elementExists" ->
+                    validationsHelper.validateElementExists(driver.get(), locator, validationType);
+            case "elementMatches" ->
+                    validationsHelper.validateElementMatches(driver.get(), locator, visualValidationEngine, validationType);
+            case "elementMatchesScreenshot" ->
+                    validationsHelper.validateMatchesScreenshot(driver.get(), locator, false, maskLocators, maxDiffPixels, maxDiffPixelRatio, validationType);
+            case "pageMatchesScreenshot" ->
+                    validationsHelper.validateMatchesScreenshot(driver.get(), locator, true, maskLocators, maxDiffPixels, maxDiffPixelRatio, validationType);
+            case "elementAriaSnapshotMatches" ->
+                    validationsHelper.validateElementAriaSnapshot(driver.get(), locator, ariaSnapshotFileName, validationType);
+            case "elementAttributeEquals" ->
+                    validationsHelper.validateElementAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementDomAttributeEquals" ->
+                    validationsHelper.validateElementDomAttribute(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementDomPropertyEquals" ->
+                    validationsHelper.validateElementDomProperty(driver.get(), locator, elementAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementCssPropertyEquals" ->
+                    validationsHelper.validateElementCSSProperty(driver.get(), locator, elementCssProperty, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "elementCountEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "match count",
+                            () -> driver.get().findElements(locator).size(), expectedValue, validationComparisonType, validationType);
+            case "elementRectangleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "rectangle", () -> {
+                        var rectangle = driver.get().findElement(locator).getRect();
+                        return new ElementRectangle(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+                    }, expectedValue, validationComparisonType, validationType);
+            case "elementEnabledEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "enabled",
+                            () -> driver.get().findElement(locator).isEnabled(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementDisplayedEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "displayed",
+                            () -> driver.get().findElement(locator).isDisplayed(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementAccessibleNameEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessible name",
+                            () -> driver.get().findElement(locator).getAccessibleName(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementRoleEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "accessibility role",
+                            () -> driver.get().findElement(locator).getAriaRole(), expectedValue,
+                            validationComparisonType, validationType);
+            case "browserAttributeEquals" ->
+                    validationsHelper.validateBrowserAttribute(driver.get(), browserAttribute, String.valueOf(expectedValue), validationComparisonType, validationType);
+            case "mobileValueEquals" ->
+                    validationsHelper.validateMobileValue(driver.get(), mobileValueName, mobileValueReader,
+                            expectedValue, validationComparisonType, validationType);
+            case "browserValueEquals" ->
+                    validationsHelper.validateBrowserValue(driver.get(), browserValueName, browserValueReader,
+                            expectedValue, validationComparisonType, validationType);
+            case "apiValueEquals" ->
+                    validationsHelper.validateApiValue(apiValueDescription, expectedValue, apiValueReader.get(),
+                            validationComparisonType, validationType);
+            case "responseStatusCode" ->
+                    validationsHelper.validateNumber((Number) expectedValue,
+                            ((Response) response.get()).statusCode(), numbersComparativeRelation, validationType);
+            case "comparativeRelationBetweenNumbers" ->
+                    validationsHelper.validateNumber((Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType);
+            case "fileExists" ->
+                    validationsHelper.validateFileExists(folderRelativePath, fileName, 5, validationType);
+            case "responseEqualsFileContent" ->
+                    validationsHelper.validateJSONFileContent((Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType);
+            case "jsonPathValueEquals" ->
+                    validationsHelper.validateEquals(expectedValue, RestActions.getResponseJSONValue(response.get(), jsonPath), validationComparisonType, validationType);
+            case "jsonPathValueAsListEquals" -> {
+                for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response.get(), jsonPath))) {
+                    validationsHelper.validateEquals(expectedValue, value.toString(), validationComparisonType, validationType);
+                }
+            }
+            case "responseBody" -> {
+                String actualResponseBody = RestActions.getResponseBody((Response) response.get());
+                if (jsonIgnoringOrderComparison) {
+                    validationsHelper.validateJsonEqualsIgnoringOrder(expectedValue, actualResponseBody, validationType);
+                } else {
+                    validationsHelper.validateEquals(expectedValue, actualResponseBody, validationComparisonType, validationType);
+                }
+            }
+            case "responseTime" ->
+                    validationsHelper.validateNumber((Number) expectedValue, RestActions.getResponseTime((Response) response.get()), numbersComparativeRelation, validationType);
+            case "checkResponseSchema" ->
+                    validationsHelper.validateResponseFileSchema((Response) response.get(), fileAbsolutePath, restComparisonType, "", validationType);
+            case "fileContent" -> {
+                String fileContent;
+                if (fileName.contains(".pdf")) {
+                    fileContent = PdfFileManager.readFileContent(folderRelativePath + fileName);
+                } else {
+                    fileContent = FileActions.getInstance(true).readFile(folderRelativePath, fileName);
+                }
+                validationsHelper.validateEquals(expectedValue, fileContent, validationComparisonType, validationType);
+            }
+            case "fileChecksum" -> {
+                var fileChecksum = FileActions.getInstance(true).getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
+                validationsHelper.validateEquals(expectedValue, fileChecksum, validationComparisonType, validationType);
+            }
+            default -> {
+            }
+            }
+            successful = ValidationsHelper.profiledValidationSuccessful();
+        } finally {
+            if (profilerStart != 0L) {
+                FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of(
+                        validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "assertion" : "verification",
+                        validationMethod)
+                        .target(customReportMessage)
+                        .durationMillis(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart))
+                        .successful(successful));
+            }
+            ValidationsHelper.clearProfiledValidation();
+        }
+    }
+}

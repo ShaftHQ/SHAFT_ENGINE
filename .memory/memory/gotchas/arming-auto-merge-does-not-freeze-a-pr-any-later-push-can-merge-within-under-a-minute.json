@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute.md",
+  "content_hash": "sha256:2675ce3b165f3a044e7ac3b66b39e4246ba2056739761e8d5d94dae546e7e630",
+  "created_at": "2026-07-26T19:06:15+03:00",
+  "evidence": [],
+  "id": "gotcha.arming-auto-merge-does-not-freeze-a-pr-any-later-push-can-merge-within-under-a-minute",
+  "source": {
+    "kind": "agent",
+    "task": "Record verified gotchas from the PR #4141 auto-close-of-#3930 incident and the #4137 events.jsonl investigation: GitHub's keyword scanner is quote-blind (not just negation-blind), auto-merge fires on any post-arm push with no review window, and events.jsonl presence-vs-content plus the GitHub false-positive CONFLICTING mechanism"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "auto-merge",
+    "force-push",
+    "pr-lifecycle"
+  ],
+  "title": "Arming auto-merge does not freeze a PR to its current commits -- any later push can merge within under a minute, with no review window",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T19:06:15+03:00"
+}

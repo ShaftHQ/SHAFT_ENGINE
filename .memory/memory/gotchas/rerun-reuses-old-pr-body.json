@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/rerun-reuses-old-pr-body.md",
+  "content_hash": "sha256:953a5f12321349bc06cab0d68207b3323a38af1c821ba6f1dcd891b612c3aced",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.rerun-reuses-old-pr-body",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "pr-body",
+    "ci"
+  ],
+  "title": "Re-running a PR-body check reuses the old event payload",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T18:17:15+03:00"
+}

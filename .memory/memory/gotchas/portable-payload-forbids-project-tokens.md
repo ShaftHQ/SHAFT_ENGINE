@@ -1,0 +1,1 @@
+distributions.json forbiddenTokens (incl. 'shaft' via profile) rejects any chaos-engine/ file naming the project; installer and overlay tests fail with 'distribution policy rejected forbidden content'. Say 'project test skill pack (identity.md)' instead.

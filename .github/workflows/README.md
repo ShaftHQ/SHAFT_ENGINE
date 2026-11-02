@@ -1,0 +1,206 @@
+# GitHub Actions workflow map
+
+**Humans:** this is the repository-local inventory of workflow triggers. Public release guidance stays on the maintainer guide linked below.
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) before changing workflows. This page is an inventory, not ChaosEngine policy. Skip it unless the task touches `.github/workflows/`.
+
+This is the repository-local operating inventory for `.github/workflows/`.
+Public release and architecture guidance belongs in the
+[maintainer guide](https://shafthq.github.io/docs/maintainers/overview); this
+page records volatile trigger and dependency details that must change beside
+the workflow files themselves.
+
+## Delivery relationships
+
+```mermaid
+flowchart TD
+  PR[Pull request] --> GATE[PR Gate]
+  PR --> SEC[Security]
+  PR --> CANDIDATE[SHAFT Pilot Release Candidate]
+  MAIN[Push to main] --> CD[Maven Central Continuous Delivery]
+  CD --> RELEASE[GitHub Release]
+  CD --> JAVADOCS[JavaDocs Publisher]
+  CD --> GUIDE[User Guide dispatch]
+  RELEASE --> IDEA[Publish IntelliJ Plugin]
+  RELEASE --> MCP[Publish shaft-mcp Distributions]
+  MCP --> DEPLOY[Deploy shaft-mcp]
+  COVERAGE[Coverage artifact] --> COVERAGE_ISSUE[Coverage failure notifier]
+  MANUAL[Manual recovery] --> RECONCILE[Maven Central Release Reconciliation]
+```
+
+`workflow_run` consumers match the upstream workflow `name`, not its filename.
+Renaming **Maven Central Continuous Delivery**, **Publish shaft-mcp
+Distributions**, or a coverage-producing workflow requires updating downstream
+listeners in the same change.
+
+The release workflow creates GitHub Releases with `BOT_TOKEN`. GitHub does not
+fan out a `release` event created by a workflow's default `GITHUB_TOKEN`, so
+changing that token silently breaks both distribution publishers.
+
+## Active inventory
+
+| File | Trigger | Responsibility |
+|---|---|---|
+| `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `setup-lock-pins.yml` | pull request touching setup lockfiles/planners/tooling | Checks that planner lock SHA-256 pins match the bundled `package-lock.json` files. On same-repo Dependabot PRs, `compute` (no secrets) runs the base `refresh_setup_lock_pins.py --write` against the PR tree and uploads the pin patch as an artifact for `setup-lock-pins-push.yml` (#6357, #7035). |
+| `setup-lock-pins-push.yml` | `workflow_run` of Setup Lock Pins (same-repo Dependabot PRs) | Privileged half (#7035): re-reads the PR from the API, accepts only `*SetupPlanner.java` changes, applies the patch as data (hooks off, no PR code run), re-checks pins with the base script and pushes with `BOT_TOKEN` so PR Gate reruns. First checks the token has push access and fails with a named error if missing or expired (#6370). Fallback: run `python3 scripts/ci/refresh_setup_lock_pins.py --write` on the PR branch and push. |
+| `dependabot-auto-merge.yml` | `pull_request_target` from `dependabot[bot]` (opened/reopened/synchronize); `schedule` every 20m; `workflow_dispatch` | Enables GitHub auto-merge for same-repo Dependabot PRs so they enter the merge queue when required checks pass. Schedule/dispatch re-arms after merge-queue evictions (`checks_timed_out` / `merge_conflict`), which clear auto-merge and do not re-fire `pull_request_target`; skips drafts and `CONFLICTING` PRs and soft-fails per PR (`::warning`, exit 0) so one unarmable PR cannot spam red scheduled runs. Never checks out PR code; every `gh` call uses `-R "$GITHUB_REPOSITORY"` so schedule runners without `.git` still list/arm PRs. Release-note governance already exempts dependabot[bot], so no classification label is added. |
+| `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
+| `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label, release template placeholders, and the release-notes renderer tests; always reports, no path filter (#6190, #6232). |
+| `copilot-setup-steps.yml` | manual; push/pull request touching itself | Copilot cloud setup job: opens the pending ChaosEngine research receipt before the agent's first read (#6218). |
+| `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
+| `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
+| `skillspector.yml` | pull request touching ChaosEngine skills/addons/adapters or the gate pin/baseline; manual | Static NVIDIA SkillSpector `--no-llm` scan of changed first-party skills. Blocks risk score >50 or any unsuppressed HIGH/CRITICAL; baseline in `scripts/ci/skillspector/`. |
+| `shaft-pilot-release.yml` | release-relevant pull request, nightly, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, container, and a release-prep dry run; a failed nightly run files or recovers one `nightly-failure:release-candidate` issue. |
+| `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases with minimal notes from `scripts/ci/render_release_notes.py` (#6232), dispatches the guide, and announces. Released jars and the aggregate SBOM get SLSA build provenance, and the SBOM is attached to the GitHub Release (#7003); verify with `gh attestation verify <jar> --repo ShaftHQ/SHAFT_ENGINE`. |
+| `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
+| `publish-allure-cucumber8.yml` | manual; push of this workflow or `allure-cucumber8-jvm` on `ChaosEngine/6262-consume-adapter` | Publishes `io.github.shafthq:allure-cucumber8-jvm` at the reactor version when Maven Central does not already have that version. |
+| `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
+| `publishJavaDocs.yml` | successful Maven Central workflow, manual | Publishes aggregate JavaDocs to the `javadoc` branch. |
+| `intellij-eap-verify.yml` | nightly schedule, manual | Builds and tests the IntelliJ plugin against the latest EAP snapshot (`-PverifyEap`). |
+| `publish-intellij-plugin.yml` | published GitHub release, manual | Checks out the release tag, verifies, signs, and publishes the IntelliJ plugin. |
+| `publish-shaft-mcp.yml` | published GitHub release, manual | Publishes MCP images and registry metadata. |
+| `deploy-shaft-mcp.yml` | successful MCP distribution workflow, manual | Deploys configured MCP services and records optional-provider handoffs. |
+| `codecoverage-failure-notifier.yml` | completed coverage-producing workflow on `main` | Consolidates coverage failure artifacts into one manually closed tracking issue. |
+| `epic-autoclose.yml` | issue closed, manual | Closes eligible CE program epics (#5569 or `ce-program-epic`) when every GitHub sub-issue is closed. |
+| `e2eTests.yml` | nightly, manual | Broad hosted database, API, browser, mobile, visual, video, Cucumber, and JUnit coverage. |
+| `e2eLocalTests.yml` | nightly, manual | Windows and macOS local browser and desktop coverage. |
+| `lambdatestTests.yml` | manual | Serial LambdaTest app upload plus native and desktop suites. |
+| `shaft-mcp.yml` | nightly, manual | Public installer matrix, MCP packaging, coverage, and container smoke. |
+| `guided-workflows-live.yml` | nightly, manual | Live IntelliJ guided Web, mobile-emulation, and Doctor flows through real MCP. |
+| `live-tools-nightly.yml` | nightly, manual | Live SHAFT CLI and IntelliJ assistant tool calls that cannot run in the PR gate. |
+| `trace-viewer-acceptance.yml` | trace-relevant pull request and push to `main` | Native Playwright trace parity across engines plus offline Chromium viewer acceptance. |
+| `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
+| `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
+| `upstream-watch.yml` | weekly, manual | Compares repository pins for MemPalace, Graphify, and vendored companion skills with the latest stable upstream. Opens or updates one issue when a pin is behind. Does not merge or install. |
+| `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 last-commit→merge minutes for non-bot PRs (primary; a median above 15 minutes opens or updates one `ci-pr-time` issue), plus open→merge context and average PR Gate runs and the main quality trend: Codacy check runs plus Codecov coverage (a regression opens or updates one `ci-quality` issue) (#6990). |
+| `mutation-weekly.yml` | weekly, manual | Full PIT mutation run per module (`-Ppitest`), report-only: score in the run summary, XML reports uploaded; the PR gate runs the diff-scoped variant (#7004). |
+| `fuzz-weekly.yml` | weekly, manual | Time-boxed Jazzer run per parser target (`com.shaft.fuzz.*`, checksum-verified Jazzer); a crash uploads the reproducer and opens one tracking issue per target. The PR gate replays fixed seeds via `ParserFuzzSeedsUnitTest` (#7012). |
+| `perf-weekly.yml` | weekly, manual | JMH hot-path benchmarks (`benchmarks/jmh`, standalone, not published); >15% regression vs the previous successful run opens/updates one tracker issue (#7009). |
+| `docs-links.yml` | PR (`**.md`), weekly, manual | lychee (checksum-verified, `lychee.toml`): offline internal Markdown links on PRs; external links weekly, opening/updating one tracker issue (#7008). |
+| `pr-title-lint.yml` | PR | Advisory conventional `type(scope): subject` title check with a suggested fix; never fails (#7010). |
+| `spotbugs-nightly.yml` | nightly, manual | Full-reactor SpotBugs + FindSecBugs (`-Pspotbugs`) with SARIF to code scanning; a per-module count above `.github/spotbugs-baseline.json` opens or updates one `ci-spotbugs` issue, closed when clean (#6999). |
+| `quarantine-nightly.yml` | nightly, manual | Runs shaft-engine tests tagged `quarantine` (known-flaky, excluded from the PR gate via `surefire.excludedGroups`) so they keep running without blocking PRs (#7005). |
+
+The quality validator fails when an active `*.yml` file is missing from this
+table. Remove a row only in the same change that deletes its workflow.
+
+## Scheduling and trigger contracts
+
+- `e2eTests.yml`, `e2eLocalTests.yml`, and `shaft-mcp.yml` intentionally share
+  the `01:00 UTC` nightly slot; configuration validators enforce the literal
+  MCP schedule.
+- `guided-workflows-live.yml` runs at `02:30 UTC`, followed by
+  `live-tools-nightly.yml` at `03:30 UTC` so resource-heavy live lanes do not
+  collide.
+- `pr-gate.yml` intentionally has no `workflow_dispatch`: its path filter needs
+  a pull-request or push diff and a manual run could pass vacuously.
+- `pr-gate.yml` cancels superseded pull-request runs only. Each `main` push
+  gets its own concurrency group and is never cancelled, so every merge commit
+  finishes its post-merge legs. `Main red reaction` then files or updates one
+  `ci-main-red` issue per failing leg, closes it when the leg passes again on
+  `main`. It never opens a revert PR: main rolls forward (#6185, #6990).
+- The ChaosEngine fresh-installer matrix and the installer UX contracts
+  (`chaos-installer-contracts`, non-Linux runners) start right after
+  `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
+  inside Agent Guidance's `installer` surface, which every `chaos_installer`
+  path selects (#6186).
+- `Unit Tests (shaft-engine-shard-1|2|3)` split the unchanged shaft-engine
+  `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
+  named classes); each shard verifies `testng-results.xml` and uploads its own
+  coverage (#6188).
+- Label and body edits re-run only `release-note-governance.yml`; PR Gate
+  ignores them. Both `PR Gate Summary` and `Release-note governance` are
+  required status checks (#6190).
+- Agent Guidance Gate runs its selected harness checks concurrently
+  (`harness_pr_gate.py --jobs 6`, one temp dir per check, protected checks
+  first); `--jobs 1` restores the sequential run (#6191). The installer and
+  bootstrap modules run as 4 and 2 deterministic shards
+  (`scripts/ci/unittest_shard.py`, #6207).
+- Seven modules that used to run only in the weekly acceptance run now have
+  path-filtered harness checks (`router-contract`, `harness-portability-contract`,
+  `portable-core-contract`, `user-harness-sync-contract`, `plugin-assembly-contract`,
+  `research-matrix-contract`, `graphify-maintenance-contract`, #6222). A check
+  whose module is red on main because of tracked drift carries `known_drift`
+  (the issue number): its failure is reported as `known-drift` and does not
+  block, and once it passes the receipt tells the author to clear `known_drift`.
+- Workflow Timeout Guard runs `scripts/ci/check_plugin_changelog_version.py`
+  on pom, workflow and plugin CHANGELOG edits: a `pom.xml` version bump needs a
+  `## <version>` entry in `agent-plugins/chaos-engine/CHANGELOG.md` and the
+  version in `COMPATIBILITY.md` (#6222).
+- `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
+  `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
+  through `intellij-verify` modes `build`/`plugin`, both retried. Release
+  workflows keep the combined `verify: true` build (#6189).
+
+### ChaosEngine fresh-installer tiers (#6187)
+
+| Trigger | Fresh installer | Installer UX contracts |
+|---|---|---|
+| Pull request | ubuntu-22.04, windows-2025 | — (Linux via Agent Guidance; Windows post-merge, #6990) |
+| Pull request labelled `ci:installer-windows` | ubuntu-22.04, windows-2025 | windows-2025 |
+| Pull request labelled `ci:installer-macos` | + macos-15 | + macos-15 |
+| Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
+| Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
+
+### Merge queue readiness (#6990 phase 4)
+
+`pr-gate.yml` and `release-note-governance.yml` trigger on `merge_group`. A
+queue group runs the PR tier (no post-merge legs), path-filtered against the
+default branch. Governance skips label validation there, because labels were
+already checked on the pull request. Before enabling the queue, every required
+check must report on `merge_group`: the external `Codacy Static Code Analysis`
+app does not, so drop it from the required list (keep it as a PR check) first.
+
+### Post-merge legs with label opt-in (#6990 phase 3)
+
+| Leg | Pull request | Push to `main` (path-scoped) | PR opt-in label |
+|---|---|---|---|
+| SHAFT Capture Browser E2E | skipped | runs | `ci:capture-e2e` |
+| Verify IntelliJ plugin (Plugin Verifier) | skipped (Build IntelliJ plugin still runs) | runs | `ci:intellij-verify` |
+| shaft-cli | ubuntu-22.04 | ubuntu-22.04, windows-2025 | `ci:cli-windows` |
+| All post-merge legs incl. macOS/Windows installer | — | — | `ci:full` |
+
+Release workflows keep their full verify. A red post-merge leg is tracked by
+`Main red reaction` (rolling issue, auto-closed on green); main rolls forward.
+
+`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels;
+adding the label re-runs PR Gate automatically via `installer-macos-rerun.yml`
+(#6208). A macOS-only break is caught post-merge
+and tracked by `Main red reaction` (rolling issue, auto-closed on green; no revert).
+- `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
+  published release rather than the Maven workflow conclusion, because an
+  already-published version is a successful no-op delivery.
+- Coverage-producing jobs upload complete JaCoCo/Gradle XML evidence on `main`.
+  Upload failures stay separate from test verdicts and feed the notifier.
+- Agent-plugin native evidence has a 900-second execution budget;
+  routing stops after 600 seconds, setup reserves 120 seconds for cleanup, and cleanup keeps
+  60 seconds for artifact writing.
+- The agnix job copies staged plugin content outside canonical roots, validates
+  it with a pinned checksum-verified binary in a no-network, read-only,
+  nonroot container, and fails on new errors.
+- External credentials and infrastructure can make cloud/live lanes report an
+  explicit external blocker. Unknown client exits, contract drift, and
+  ordinary test failures remain failures.
+
+## Shared coverage actions
+
+| Action | Responsibility |
+|---|---|
+| `.github/actions/upload-jacoco-coverage` | Discovers every Maven `jacoco.exec`, generates XML, includes Gradle reports, and uploads the complete report set on `main`. |
+| `.github/actions/post-test-report` | Invokes coverage upload for E2E jobs, creates Allure artifacts, writes summaries, and derives the test verdict. |
+| `.github/actions/notify-codecoverage-failure` | Files or updates the consolidated coverage tracking issue from failure artifacts. |
+
+## Safe editing checklist
+
+1. Search `workflow_run`, `release`, `repository_dispatch`, and workflow-name
+   references before renaming or deleting a file.
+2. Keep `pr-gate.yml` path filters aligned with every input read by each leg;
+   a green job that never triggers is not coverage.
+3. Mirror release-critical Maven module lists and checks between
+   `shaft-pilot-release.yml` and `mavenCentral_cd.yml`.
+4. Run the focused workflow-contract unit tests, then
+   `py -3 scripts/ci/validate_quality_configuration.py` and
+   `py -3 scripts/ci/validate_agent_setup.py --skip-external`.
+5. Never test a real publish, deploy, reconciliation, or cloud lane without
+   explicit authorization and the required infrastructure.

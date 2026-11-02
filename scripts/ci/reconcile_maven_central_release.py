@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""On-demand Maven Central release reconciliation.
+
+Additive companion to ``verify_maven_central_release.py`` / ``check_maven_release_version.py``.
+A partially-failed reactor deploy (parent POM published, a later module fails on a transient
+error) leaves ``check_maven_release_version.py``'s parent-only guard reporting
+``already_released=true`` forever, so the missing module is never re-uploaded and
+``announce_release`` never runs. This script is meant to be run by hand (or via
+``workflow_dispatch``) against a version already reported "released": it finds exactly which
+packages are still missing from Central, deploys only those, and then creates the GitHub
+Release/Slack announcement if they, too, never ran for this version. Every external action
+(deploy, ``gh release``, Slack POST) goes through a plain module-level call site so tests can
+monkeypatch it - the real network/subprocess call is never made from a test.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess  # nosec B404 - runs Maven deployment of release artifacts.
+import sys
+import tempfile
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.ci import render_release_notes as release_notes  # noqa: E402
+from scripts.ci import verify_maven_central_release as verify  # noqa: E402
+from scripts.ci.validate_maven_publication import PUBLIC_ARTIFACTS  # noqa: E402
+
+RELEASE_BODY_TEMPLATE = ROOT / ".github" / "RELEASE_BODY_TEMPLATE.md"
+
+# Reuse validate_maven_publication's packaging-aware, pom-derived artifact map instead of
+# assuming "directory name == artifact name" (false for shaft-parent/root and the SHAFT_ENGINE
+# relocation pom, which lives in legacy-shaft-engine/).
+MODULE_DIR_BY_ARTIFACT = {
+    name: str(pom_path.parent) for name, (pom_path, _packaging) in PUBLIC_ARTIFACTS.items()
+}
+
+
+def missing_module_dirs(missing_paths: list[str]) -> list[str]:
+    """
+    Reduce missing Central publication paths to their unique reactor module directories.
+
+    Skips the standalone ``allure-cli`` zip module (#5833): it is versioned with Allure 3
+    and deployed via ``mvn -f allure-cli/pom.xml``, not reactor ``-pl``.
+    """
+    seen: list[str] = []
+    for path in missing_paths:
+        artifact = path.split("/")[3]
+        if artifact == verify.ALLURE_CLI_ARTIFACT:
+            continue
+        if artifact not in seen:
+            seen.append(artifact)
+    return [MODULE_DIR_BY_ARTIFACT[artifact] for artifact in seen]
+
+
+def allure_cli_missing(missing_paths: list[str]) -> bool:
+    """True when any standalone allure-cli Central path is still missing."""
+    return any(f"/{verify.ALLURE_CLI_ARTIFACT}/" in path for path in missing_paths)
+
+
+def build_allure_cli_deploy_command(gpg_keyname: str, gpg_passphrase: str) -> list[str]:
+    """Build standalone ``mvn -f allure-cli/pom.xml deploy`` (same secrets as reactor)."""
+    return [
+        verify.maven_executable(),
+        "--batch-mode",
+        "-f",
+        str(ROOT / "allure-cli" / "pom.xml"),
+        "deploy",
+        "-DskipTests",
+        f"-Dgpg.keyname={gpg_keyname}",
+        f"-Dgpg.passphrase={gpg_passphrase}",
+    ]
+
+
+def build_deploy_command(module_dirs: list[str], gpg_keyname: str, gpg_passphrase: str) -> list[str]:
+    """Build a targeted ``mvn deploy -pl`` command, mirroring mavenCentral_cd.yml's deploy flags."""
+    return [
+        verify.maven_executable(),
+        "--batch-mode",
+        "deploy",
+        "-pl", ",".join(module_dirs),
+        "-DskipTests",
+        f"-Dgpg.keyname={gpg_keyname}",
+        f"-Dgpg.passphrase={gpg_passphrase}",
+    ]
+
+
+def release_exists(version: str) -> bool:
+    """Check whether a GitHub Release already exists for this version."""
+    result = subprocess.run(["gh", "release", "view", version], cwd=ROOT, check=False)
+    return result.returncode == 0
+
+
+def gh_executable() -> str:
+    """Return the resolved GitHub CLI executable for fixed release commands."""
+    executable = shutil.which("gh")
+    if executable is None:
+        raise RuntimeError("GitHub CLI is required for release reconciliation")
+    return executable
+
+
+def render_release_body(
+    version: str, template_path: Path = RELEASE_BODY_TEMPLATE
+) -> tuple[str, bool]:
+    """Render the body like announce_release's "Prepare Release Body" step (#6232).
+
+    Returns ``(body, fallback)``; fallback means GitHub's generated notes must be appended.
+    """
+    request = release_notes.ReleaseRequest(
+        version=version,
+        template_path=template_path,
+        repository=os.environ.get("GITHUB_REPOSITORY", release_notes.DEFAULT_REPOSITORY),
+    )
+    return release_notes.build_release_body(request)
+
+
+def build_release_create_command(
+    version: str, body_file: Path, assets: list[Path], generate_notes: bool = True
+) -> list[str]:
+    """Build the `gh release create` invocation for a version, given a rendered body file."""
+    return [
+        "gh", "release", "create", version,
+        "--title", version,
+        "--notes-file", str(body_file),
+        *(["--generate-notes"] if generate_notes else []),
+        *(str(asset) for asset in assets),
+    ]
+
+
+def build_plugin_release_assets(version: str, output_directory: Path) -> list[Path]:
+    """Build package assets from the checked-out release revision."""
+    from scripts.ci.agent_plugin_release import build_release_artifacts
+
+    if read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
+    return build_release_artifacts(ROOT, output_directory)
+
+
+def release_assets_need_repair(version: str, assets: list[Path]) -> bool:
+    """Return whether a release is missing any expected asset bytes."""
+    result = subprocess.run(
+        [gh_executable(), "release", "view", version, "--json", "assets"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"could not inspect GitHub Release {version}")
+    if not result.stdout:
+        return True
+    try:
+        remote = {asset["name"]: asset.get("digest") for asset in json.loads(result.stdout)["assets"]}
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid GitHub Release asset data for {version}") from error
+    return any(remote.get(asset.name) != f"sha256:{hashlib.sha256(asset.read_bytes()).hexdigest()}" for asset in assets)
+
+
+def upload_plugin_release_assets(version: str, assets: list[Path]) -> None:
+    """Attach or replace package assets on an existing GitHub Release."""
+    result = subprocess.run(
+        ["gh", "release", "upload", version, "--clobber", *(str(asset) for asset in assets)],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gh release upload failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+
+
+def create_release(version: str, assets: list[Path]) -> tuple[str, str]:
+    """Create the GitHub Release for a version and return its URL and rendered body."""
+    with tempfile.TemporaryDirectory(prefix="shaft-release-body-") as temp_dir:
+        body_file = Path(temp_dir) / "release_body.md"
+        body, fallback = render_release_body(version)
+        body_file.write_text(body, encoding="utf-8")
+        command = build_release_create_command(version, body_file, assets, generate_notes=fallback)
+        result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"gh release create failed (exit {result.returncode}): "
+                f"{result.stderr.strip() or result.stdout.strip()}"
+            )
+        return result.stdout.strip(), body
+
+
+def build_slack_payload(version: str, release_url: str, body: str = "") -> dict:
+    """Build the Slack payload with the same helper as mavenCentral_cd.yml (#6241)."""
+    return release_notes.slack_payload(version, release_url, body)
+
+
+def post_slack_notification(webhook_url: str, payload: dict) -> None:
+    """POST the release announcement payload to a Slack incoming webhook."""
+    request = urllib.request.Request(
+        webhook_url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30):
+        pass
+
+
+def read_reactor_version() -> str:
+    """Read the reactor version the same way mavenCentral_cd.yml's release_version step does."""
+    result = subprocess.run(
+        [
+            verify.maven_executable(), "-f", str(ROOT / "pom.xml"), "help:evaluate",
+            "-Dexpression=project.version", "-q", "-DforceStdout",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Could not read the reactor version: {result.stderr.strip() or result.stdout.strip()}"
+        )
+    return result.stdout.strip()
+
+
+def reconcile_release(
+    version: str, repository_url: str, gpg_keyname: str, gpg_passphrase: str, dry_run: bool
+) -> int:
+    """Reconcile one version: deploy missing artifacts, then announce if genuinely new."""
+    if not dry_run and read_reactor_version() != version:
+        raise RuntimeError(
+            f"checked-out reactor version does not match requested reconciliation version: {version}"
+        )
+    missing = verify.missing_publication_paths(repository_url, version)
+    module_dirs = missing_module_dirs(missing)
+    need_allure_cli = allure_cli_missing(missing)
+
+    if module_dirs or need_allure_cli:
+        if dry_run:
+            if module_dirs:
+                command = build_deploy_command(module_dirs, gpg_keyname, gpg_passphrase)
+                print(f"[dry-run] missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
+                print("[dry-run] would run: " + " ".join(command))
+            if need_allure_cli:
+                cli_command = build_allure_cli_deploy_command(gpg_keyname, gpg_passphrase)
+                print("[dry-run] missing standalone allure-cli zip on Maven Central")
+                print("[dry-run] would run: " + " ".join(cli_command))
+            return 0
+        if module_dirs:
+            print(f"Missing Maven Central artifacts for modules: {', '.join(module_dirs)}")
+            command = build_deploy_command(module_dirs, gpg_keyname, gpg_passphrase)
+            result = subprocess.run(command, cwd=ROOT, check=False)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Targeted deploy failed (exit {result.returncode}) for modules: "
+                    f"{', '.join(module_dirs)}"
+                )
+            print(f"Deployed missing modules to Maven Central: {', '.join(module_dirs)}")
+        if need_allure_cli:
+            print("Missing standalone allure-cli zip on Maven Central (#5833).")
+            cli_command = build_allure_cli_deploy_command(gpg_keyname, gpg_passphrase)
+            result = subprocess.run(cli_command, cwd=ROOT, check=False)  # nosec B603
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Standalone allure-cli deploy failed (exit {result.returncode})"
+                )
+            print("Deployed standalone allure-cli zip to Maven Central.")
+    else:
+        print(f"All Maven Central artifacts already present for {version}.")
+
+    if dry_run:
+        print(f"[dry-run] would create GitHub Release {version}")
+        return 0
+
+    with tempfile.TemporaryDirectory(prefix="shaft-agent-plugin-release-") as temp_dir:
+        assets = build_plugin_release_assets(version, Path(temp_dir) / "assets")
+        if release_exists(version):
+            if not release_assets_need_repair(version, assets):
+                print(f"GitHub Release {version} already has complete portable Agent Plugin assets.")
+                return 0
+            upload_plugin_release_assets(version, assets)
+            print(f"Repaired portable Agent Plugin assets on GitHub Release {version}.")
+            return 0
+        release = create_release(version, assets)  # (url, rendered body)
+        print(f"Created GitHub Release {version}: {release[0]}")
+
+    webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
+    if not webhook_url:
+        print("SLACK_WEBHOOK_URL is not configured; skipping Slack release announcement.")
+        return 0
+
+    post_slack_notification(webhook_url, build_slack_payload(version, *release))
+    print("Posted Slack release announcement.")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--version", default=None,
+        help="Release version to reconcile. Default: read from the reactor via mvn help:evaluate.",
+    )
+    parser.add_argument("--repository-url", default=verify.DEFAULT_REPOSITORY)
+    parser.add_argument("--gpg-keyname", default=os.environ.get("GPG_KEYNAME", ""))
+    parser.add_argument("--gpg-passphrase", default=os.environ.get("GPG_PASSPHRASE", ""))
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Print the planned actions without executing them.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    version = args.version or read_reactor_version()
+    return reconcile_release(
+        version=version,
+        repository_url=args.repository_url,
+        gpg_keyname=args.gpg_keyname,
+        gpg_passphrase=args.gpg_passphrase,
+        dry_run=args.dry_run,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

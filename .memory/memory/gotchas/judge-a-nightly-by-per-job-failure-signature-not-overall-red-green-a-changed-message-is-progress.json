@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/judge-a-nightly-by-per-job-failure-signature-not-overall-red-green-a-changed-message-is-progress.md",
+  "content_hash": "sha256:72f492032690a1aead549c27a76f4f7ccef822c6767e4b1f9c1d78be809cb9a3",
+  "created_at": "2026-07-26T17:14:32+03:00",
+  "evidence": [
+    {
+      "id": "930c0b5546c22bfdcf04da803298a56e0cf68569",
+      "kind": "commit"
+    },
+    {
+      "id": "e06e9856797673edf1236b1685e44aa9ca567e87",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.judge-a-nightly-by-per-job-failure-signature-not-overall-red-green-a-changed-message-is-progress",
+  "source": {
+    "kind": "agent",
+    "task": "#4086 mid-session Learning Loop: record durable lessons from the day's parallel orchestration run (Augmenter closure bug, Surefire report path shape, GLOBAL_TESTING_SCOPE, find/pipefail, nightly signature progression, Gradle evidence artifacts) before session end risk"
+  },
+  "status": "active",
+  "tags": [
+    "ci-forensics",
+    "nightly",
+    "gemini",
+    "methodology",
+    "debugging",
+    "gotcha"
+  ],
+  "title": "Judge a nightly by per-job failure signature, not overall red/green; a changed message is progress",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

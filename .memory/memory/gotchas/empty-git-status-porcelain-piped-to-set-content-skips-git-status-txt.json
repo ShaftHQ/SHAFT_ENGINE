@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt.md",
+  "content_hash": "sha256:c534d5e98eced6a912d7c309c194ae6ff566184adb82d82c332a9ff5efce6b3f",
+  "created_at": "2026-08-18T20:03:45+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5144",
+      "kind": "task"
+    },
+    {
+      "id": "3ffaa0757e53c5d6aa3498cd49310177286ff66f",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.empty-git-status-porcelain-piped-to-set-content-skips-git-status-txt",
+  "source": {
+    "kind": "agent",
+    "task": "Record #5144 Java-flow gotchas after hardened rerun"
+  },
+  "status": "active",
+  "tags": [
+    "aider",
+    "powershell",
+    "report-json",
+    "issue-5144"
+  ],
+  "title": "Empty git status porcelain piped to Set-Content skips git-status.txt",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T20:03:45+03:00"
+}

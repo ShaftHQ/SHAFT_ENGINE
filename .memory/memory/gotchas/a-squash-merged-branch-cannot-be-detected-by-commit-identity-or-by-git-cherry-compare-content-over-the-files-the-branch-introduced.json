@@ -1,0 +1,23 @@
+{
+  "body_path": "memory/gotchas/a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced.md",
+  "content_hash": "sha256:d75244b0b5920ffa584366ed370727fd5bd1cd6fb3844c49c2f2e7a9ac703530",
+  "created_at": "2026-08-10T15:22:23+03:00",
+  "evidence": [],
+  "id": "gotcha.a-squash-merged-branch-cannot-be-detected-by-commit-identity-or-by-git-cherry-compare-content-over-the-files-the-branch-introduced",
+  "source": {
+    "kind": "agent",
+    "task": "Adversarial review of PR #4539 found two blockers; record the two durable lessons"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "squash-merge",
+    "guard",
+    "hooks",
+    "branch-cleanup",
+    "companion-docs-repo"
+  ],
+  "title": "A squash-merged branch cannot be detected by commit identity or by git cherry; compare content over the files the branch introduced",
+  "type": "gotcha",
+  "updated_at": "2026-08-11T10:31:36+03:00"
+}

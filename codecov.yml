@@ -1,0 +1,76 @@
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    # PR Gate Summary polls Codecov (#6990); waiting for CI would deadlock it.
+    wait_for_ci: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "1..100"
+
+  status:
+    # #6990 coverage layer: blocking statuses. Project may not drop more than
+    # 0.5%; new/changed lines need 80%. Not ruleset-required (Codecov does not
+    # report on merge_group); babysitting treats a red status as blocking and
+    # the weekly quality report tracks drops on main.
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+        informational: false
+    patch:
+      default:
+        target: 80%
+        informational: false
+
+flag_management:
+  default_rules:
+    # Path-scoped PR legs upload only the modules they touch; carry the rest.
+    carryforward: true
+  # Every flag main uploads, named exactly as the upload steps name them.
+  individual_flags:
+    - name: shaft-ai
+      carryforward: true
+    - name: shaft-capture
+      carryforward: true
+    - name: shaft-capture-e2e
+      carryforward: true
+    - name: shaft-cli
+      carryforward: true
+    - name: shaft-doctor
+      carryforward: true
+    - name: shaft-engine-shard-1
+      carryforward: true
+    - name: shaft-engine-shard-2
+      carryforward: true
+    - name: shaft-engine-shard-3
+      carryforward: true
+    - name: shaft-heal
+      carryforward: true
+    - name: shaft-infrastructure
+      carryforward: true
+    - name: shaft-intellij
+      carryforward: true
+    - name: shaft-mcp
+      carryforward: true
+    - name: shaft-ocr
+      carryforward: true
+    - name: shaft-pilot-core
+      carryforward: true
+    - name: templates
+      carryforward: true
+    # #7057: every non-PR upload without a module flag (e2e, release, nightly).
+    - name: main-suites
+      carryforward: true
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "src/test/**"
+  - "**/src/test/**"
+  - "src/main/resources/**"
+  - "**/src/main/resources/**"

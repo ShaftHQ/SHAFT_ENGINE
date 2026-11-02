@@ -1,0 +1,660 @@
+"""Coverage and orchestration tests for repository-owned Graphify maintenance."""
+
+from contextlib import redirect_stdout
+import importlib.util
+import hashlib
+import io
+import json
+import os
+import shutil
+import subprocess  # nosec B404 - tests run fixed repository-owned commands.
+import sys
+import tempfile
+from pathlib import Path
+from unittest import TestCase, main, mock
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/repository-map/graphify_maintenance.py"
+
+
+class GraphifyMaintenanceTest(TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.repository = Path(self.temporary.name) / "portable-repository"
+        self.graph_out = self.repository / "cache" / "map"
+        self.graph_out.mkdir(parents=True)
+
+    def write_cache(self, paths, covered=()):
+        manifest = {path: {"ast_hash": "", "semantic_hash": ""} for path in paths}
+        graph = {
+            "nodes": [
+                {"id": f"node-{index}", "source_file": source}
+                for index, source in enumerate(covered)
+            ],
+            "links": [],
+        }
+        (self.graph_out / "manifest.json").write_text(
+            json.dumps(manifest), encoding="utf-8"
+        )
+        (self.graph_out / "graph.json").write_text(
+            json.dumps(graph), encoding="utf-8"
+        )
+
+    def command(self, *args, cwd=None):
+        return subprocess.run(  # nosec B603 - current interpreter and repository-owned script.
+            [sys.executable, str(SCRIPT), *args],
+            cwd=cwd or self.repository.parent,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def load_module(self):
+        spec = importlib.util.spec_from_file_location("graphify_maintenance", SCRIPT)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def write_default_marker(self):
+        output = self.repository / "graphify-out"
+        output.mkdir(exist_ok=True)
+        marker = output / ".shaft-source-revision.json"
+        marker.write_text("{}", encoding="utf-8")
+        return marker
+
+    def test_audit_classifies_every_manifest_path_and_fails_on_parser_gaps(self):
+        paths = ["src/covered.py", "data/config.json", "db/schema.sql", "src/gap.java"]
+        self.write_cache(paths, covered=("src\\covered.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(1, completed.returncode)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["src/covered.py"], report["covered"])
+        self.assertEqual(["data/config.json"], report["expected_data_only"])
+        self.assertEqual(["db/schema.sql"], report["missing_optional_parser"])
+        self.assertEqual(["src/gap.java"], report["unexpected_parser_gap"])
+        self.assertEqual(4, report["total_manifest_paths"])
+
+    def test_88_json_data_files_are_visible_but_nonfatal(self):
+        paths = [f"fixtures/data-{index:02}.json" for index in range(88)]
+        self.write_cache(paths)
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(paths, report["expected_data_only"])
+        self.assertEqual([], report["missing_optional_parser"])
+        self.assertEqual([], report["unexpected_parser_gap"])
+
+    def test_non_json_sibling_of_expected_data_is_actionable(self):
+        self.write_cache(["fixtures/data.json", "fixtures/data.yaml"])
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(1, completed.returncode)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["fixtures/data.json"], report["expected_data_only"])
+        self.assertEqual(["fixtures/data.yaml"], report["unexpected_parser_gap"])
+
+    def _git_tracked_fixture(self, files: dict[str, str], ignore: str = "") -> None:
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("git is required")
+        self.repository.mkdir(parents=True, exist_ok=True)
+        (self.repository / ".graphifyignore").write_text(ignore, encoding="utf-8")
+        for relative, content in files.items():
+            path = self.repository / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args],
+                cwd=self.repository,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        run_git("init")
+        run_git("config", "user.email", "graphify@example.invalid")
+        run_git("config", "user.name", "Graphify Test")
+        run_git("add", ".")
+        run_git("commit", "-m", "fixture")
+
+    def test_json_absent_from_manifest_is_expected_data_only(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "data/config.json": "{}\n",
+            }
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["src/ok.py"], report["covered"])
+        self.assertIn("data/config.json", report["expected_data_only"])
+        self.assertEqual([], report["unclassified_unexpected"])
+
+    def test_intellij_build_contract_tests_are_ignored_because_graphify_skips_build_segments(self):
+        ignore = (ROOT / ".graphifyignore").read_text(encoding="utf-8")
+        self.assertIn(
+            "Graphify extract omits path segments named build/",
+            ignore,
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/",
+            ignore,
+        )
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java": "class T {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java": "class U {}\n",
+                "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java": "class V {}\n",
+            },
+            ignore=ignore,
+        )
+        self.write_cache(
+            ["src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"],
+            covered=("src/ok.py", "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java"),
+        )
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijBuildJdkContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/build/IntellijRunIdeCrashLogContractTest.java",
+            report["ignored_by_policy"],
+        )
+        self.assertIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["covered"],
+        )
+        self.assertNotIn(
+            "shaft-intellij/src/test/java/com/shaft/intellij/ui/OtherTest.java",
+            report["ignored_by_policy"],
+        )
+
+    def test_css_ignored_by_policy_does_not_fail_audit(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "docs/javadoc.css": "body{}\n",
+            },
+            ignore="*.css\n",
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertIn("docs/javadoc.css", report["ignored_by_policy"])
+        self.assertNotIn("docs/javadoc.css", report["unclassified_unexpected"])
+
+    def test_unclassified_unexpected_suffix_fails_audit(self):
+        self._git_tracked_fixture(
+            {
+                "src/ok.py": "print(1)\n",
+                "noise/.sdkmanrc": "java=21\n",
+                "keep/custom.properties": "k=v\n",
+                "keep/new.weirdsuffix": "nope\n",
+            },
+            ignore=".sdkmanrc\n",
+        )
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(1, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(["src/ok.py"], report["covered"])
+        self.assertIn("keep/custom.properties", report["unclassified_allowlisted"])
+        self.assertIn("keep/new.weirdsuffix", report["unclassified_unexpected"])
+        self.assertNotIn("noise/.sdkmanrc", report["unclassified_unexpected"])
+        self.assertNotIn("noise/.sdkmanrc", report["unclassified_allowlisted"])
+
+    def test_tracked_data_files_from_issue_6750_are_allowlisted(self):
+        data = [
+            "scripts/ci/chaos_gauge/dataset/case/environment/default.ini",
+            "scripts/ci/chaos_gauge/dataset/case/environment/build.manifest",
+            "scripts/ci/chaos_gauge/dataset/case/environment/current.conf",
+            "scripts/ci/chaos_gauge/requirements.in",
+            "scripts/ci/chaos_gauge/requirements.lock",
+            "module/src/test/resources/fixtures/empty/.keep",
+            "module/src/main/resources/intentionDescriptions/Fix/before.java.template",
+        ]
+        self._git_tracked_fixture({"src/ok.py": "print(1)\n", **{path: "x\n" for path in data}})
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual([], report["unclassified_unexpected"])
+        self.assertEqual(sorted(data), sorted(report["unclassified_allowlisted"]))
+
+    def test_normalization_preserves_leading_dot_directories(self):
+        self.write_cache(["./.github/config.json"], covered=(".github\\config.json",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertEqual([".github/config.json"], json.loads(completed.stdout)["covered"])
+
+    def test_refresh_runs_ephemeral_sql_build_audit_cluster_then_marker(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        refresh_source = source[source.index("def refresh(") : source.index("def parser(")]
+
+        self.assertIn('"--with",\n        "tree-sitter-sql"', source)
+        self.assertIn('"--from",\n        "graphifyy",\n        "graphify"', source)
+        self.assertLess(refresh_source.index('"build",'), refresh_source.index('run_audit('))
+        self.assertLess(refresh_source.index('run_audit('), refresh_source.index('run_stage("cluster"'))
+        self.assertLess(refresh_source.index('run_stage("cluster"'), refresh_source.index('"record",'))
+
+    def test_build_failure_stops_before_audit_cluster_and_marker(self):
+        marker = self.write_default_marker()
+        generic = marker.with_name(".chaos-engine-source-revision.json")
+        generic.write_text("{}", encoding="utf-8")  # stale marker outranks the fresh one in --check (#6750)
+        module = self.load_module()
+        stages = []
+
+        def fail_build(name, command, root):
+            stages.append(name)
+            raise RuntimeError("build failed")
+
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
+            module.shutil, "which", return_value="uv"
+        ), mock.patch.object(module, "run_stage", side_effect=fail_build):
+            with self.assertRaisesRegex(RuntimeError, "build failed"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual(["build"], stages)
+        self.assertFalse(marker.exists())
+        self.assertFalse(generic.exists())
+        with module.refresh_lock(self.repository):
+            pass
+
+    def test_refresh_lock_contention_stops_before_marker_or_stages(self):
+        module = self.load_module()
+        marker = self.write_default_marker()
+        lock = self.repository / "shaft-graphify-refresh.lock"
+        stages = []
+
+        with module.refresh_lock(self.repository):
+            with mock.patch.object(
+                module, "require_primary_checkout", return_value=self.repository
+            ), mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+                module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+            ):
+                with self.assertRaisesRegex(RuntimeError, "refresh is already running"):
+                    module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
+        self.assertTrue(lock.exists())
+
+    def test_refresh_rejects_a_custom_output_before_any_stage(self):
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ):
+            with self.assertRaisesRegex(ValueError, "fixed graphify-out"):
+                module.refresh(self.repository, Path("cache/map"))
+
+        self.assertEqual([], stages)
+
+    def test_refresh_rejects_mismatched_environment_override_before_any_stage(self):
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.dict(
+            os.environ,
+            {"SHAFT_GRAPHIFY_OUT": str(self.repository / "alternate-cache")},
+        ), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ):
+            with self.assertRaisesRegex(ValueError, "must match the refresh checkout"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+
+    def test_refresh_rejects_a_non_git_root_before_any_stage(self):
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ):
+            with self.assertRaisesRegex(ValueError, "primary Git checkout"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+
+    def test_git_executable_disappearing_is_a_fail_closed_preflight_error(self):
+        module = self.load_module()
+        missing_git = self.repository / "missing-git.exe"
+
+        with mock.patch.object(module.shutil, "which", return_value=str(missing_git)):
+            try:
+                module.require_primary_checkout(self.repository)
+            except ValueError as error:
+                raised = error
+            except OSError as error:
+                self.fail(f"preflight leaked platform OSError: {error}")
+            else:
+                self.fail("missing Git executable was accepted")
+
+        self.assertRegex(str(raised), "primary Git checkout")
+        self.assertIsInstance(raised.__cause__, OSError)
+
+    def test_refresh_preflight_rejects_a_linked_worktree(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        primary = Path(self.temporary.name) / "primary"
+        linked = Path(self.temporary.name) / "linked"
+        primary.mkdir()
+
+        def run_git(*args, cwd):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args], cwd=cwd, check=True, capture_output=True, text=True
+            )
+
+        run_git("init", cwd=primary)
+        run_git("config", "user.email", "graphify@example.invalid", cwd=primary)
+        run_git("config", "user.name", "Graphify Test", cwd=primary)
+        (primary / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+        run_git("add", "tracked.txt", cwd=primary)
+        run_git("commit", "-m", "fixture", cwd=primary)
+        run_git("worktree", "add", "-b", "linked-test", str(linked), cwd=primary)
+        module = self.load_module()
+
+        module.require_primary_checkout(primary)
+        with self.assertRaisesRegex(ValueError, "linked worktree"):
+            module.require_primary_checkout(linked)
+
+    def test_audit_failure_stops_before_cluster_and_marker(self):
+        module = self.load_module()
+        stages = []
+        marker = self.write_default_marker()
+
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
+            module.shutil, "which", return_value="uv"
+        ), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ), mock.patch.object(module, "run_audit", side_effect=RuntimeError("audit failed")):
+            with self.assertRaisesRegex(RuntimeError, "audit failed"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual(["build"], stages)
+        self.assertFalse(marker.exists())
+
+    def test_cluster_failure_stops_before_marker(self):
+        module = self.load_module()
+        stages = []
+        marker = self.write_default_marker()
+
+        def fail_cluster(name, command, root):
+            stages.append(name)
+            if name == "cluster":
+                raise RuntimeError("cluster failed")
+
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
+            module.shutil, "which", return_value="uv"
+        ), mock.patch.object(
+            module, "run_stage", side_effect=fail_cluster
+        ), mock.patch.object(module, "run_audit", return_value={}):
+            with self.assertRaisesRegex(RuntimeError, "cluster failed"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual(["build", "cluster"], stages)
+        self.assertFalse(marker.exists())
+
+    def test_success_records_only_after_build_audit_and_cluster(self):
+        module = self.load_module()
+        events = []
+        commands = []
+
+        def record_stage(name, command, root):
+            events.append(name)
+            commands.append(command)
+
+        def record_audit(root, graph_out):
+            events.append("audit")
+            return {}
+
+        with mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(
+            module.shutil, "which", return_value="uv"
+        ), mock.patch.object(
+            module, "run_stage", side_effect=record_stage
+        ), mock.patch.object(module, "run_audit", side_effect=record_audit):
+            module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual(["build", "audit", "cluster", "record"], events)
+        self.assertEqual(
+            [
+                "uv",
+                "tool",
+                "run",
+                "--with",
+                "tree-sitter-sql",
+                "--from",
+                "graphifyy",
+                "graphify",
+                "extract",
+                ".",
+                "--code-only",
+                "--no-cluster",
+            ],
+            commands[0],
+        )
+
+    def test_external_primary_uses_bundled_resolver_and_records_target_revision(self):
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        primary = Path(self.temporary.name) / "external-primary"
+        primary.mkdir()
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args],
+                cwd=primary,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        run_git("init")
+        run_git("config", "user.email", "graphify@example.invalid")
+        run_git("config", "user.name", "Graphify Test")
+        (primary / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+        run_git("add", "tracked.txt")
+        run_git("commit", "-m", "fixture")
+        # The resolver records only when HEAD equals origin/main (#6202).
+        run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.assertFalse(
+            (primary / "tools/repository-map/resolve_graph_out.py").exists()
+        )
+
+        module = self.load_module()
+        output = primary / "graphify-out"
+        events = []
+        resolve_executable = shutil.which
+
+        def run_fixture_stage(name, command, root):
+            events.append(name)
+            if name == "build":
+                output.mkdir()
+                (output / "manifest.json").write_text(
+                    json.dumps({"tracked.txt": {}}), encoding="utf-8"
+                )
+                (output / "graph.json").write_text(
+                    json.dumps(
+                        {
+                            "nodes": [
+                                {"id": "tracked", "source_file": "tracked.txt"}
+                            ],
+                            "links": [],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return
+            if name == "cluster":
+                return
+            try:
+                subprocess.run(  # nosec B603 - controlled fixture command from production.
+                    command,
+                    cwd=root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as error:
+                raise RuntimeError(
+                    f"Graphify {name} stage failed with exit {error.returncode}: {error.stderr}"
+                ) from error
+
+        refresh_error = None
+        with mock.patch.object(
+            module, "run_stage", side_effect=run_fixture_stage
+        ), mock.patch.object(
+            module.shutil,
+            "which",
+            side_effect=lambda name: (
+                sys.executable if name == "uv" else resolve_executable(name)
+            ),
+        ), redirect_stdout(io.StringIO()):
+            try:
+                module.refresh(primary, Path("graphify-out"))
+            except RuntimeError as error:
+                cause = error.__cause__
+                expected_parent_failure = (
+                    str(error) == "Graphify record stage failed with exit 2"
+                    and isinstance(cause, subprocess.CalledProcessError)
+                    and cause.cmd
+                    == [
+                        sys.executable,
+                        "tools/repository-map/resolve_graph_out.py",
+                        "--record-current",
+                    ]
+                )
+                if not expected_parent_failure:
+                    raise
+                refresh_error = error
+
+        self.assertIsNone(refresh_error, f"external refresh failed: {refresh_error}")
+
+        marker = json.loads(
+            (output / ".shaft-source-revision.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(["build", "cluster", "record"], events)
+        self.assertEqual(run_git("rev-parse", "HEAD").stdout.strip(), marker["indexed_revision"])
+        self.assertEqual(
+            hashlib.sha256((output / "manifest.json").read_bytes()).hexdigest(),
+            marker["manifest_sha256"],
+        )
+
+    def test_head_ahead_of_origin_main_fails_before_any_stage_or_marker_removal(self):  # #6762
+        self._git_tracked_fixture({"tracked.txt": "tracked\n"})
+        git = shutil.which("git")
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args], cwd=self.repository, check=True, capture_output=True, text=True
+            )
+
+        run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        (self.repository / "ahead.txt").write_text("ahead\n", encoding="utf-8")
+        run_git("add", "ahead.txt")
+        run_git("commit", "-m", "ahead of origin/main")
+        marker = self.write_default_marker()
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.object(module.shutil, "which", side_effect=lambda name: git if name == "git" else "uv"), \
+                mock.patch.object(module, "run_stage", side_effect=lambda name, command, root: stages.append(name)):
+            with self.assertRaisesRegex(ValueError, "HEAD must equal origin/main"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
+
+    def test_missing_bundled_resolver_fails_before_cache_mutation(self):
+        module = self.load_module()
+        marker = self.write_default_marker()
+        stages = []
+        missing_controller = self.repository / "bundled/graphify_maintenance.py"
+        missing_controller.parent.mkdir()
+
+        with mock.patch.object(module, "__file__", str(missing_controller)), mock.patch.object(
+            module, "require_primary_checkout", return_value=self.repository
+        ), mock.patch.object(module.shutil, "which", return_value="uv"), mock.patch.object(
+            module, "run_stage", side_effect=lambda name, command, root: stages.append(name)
+        ), mock.patch.object(module, "run_audit", return_value={}):
+            with self.assertRaisesRegex(ValueError, "bundled Graphify resolver"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
+
+    def test_wrapper_is_thin_and_has_no_checkout_specific_path(self):
+        wrapper = (ROOT / "tools/agent-infra/graphify-refresh.cmd").read_text(
+            encoding="utf-8"
+        )
+        updater = (ROOT / "tools/agent-infra/shaft_knowledge_refresh.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("%~dp0shaft_knowledge_refresh.py", wrapper)
+        self.assertIn("tools/repository-map/graphify_maintenance.py", updater)
+        self.assertNotIn("call graphify", wrapper.lower())
+        self.assertNotIn("shafthq.github.io", wrapper.lower())
+        self.assertNotIn("C:\\Users\\", wrapper)
+
+
+if __name__ == "__main__":
+    main()

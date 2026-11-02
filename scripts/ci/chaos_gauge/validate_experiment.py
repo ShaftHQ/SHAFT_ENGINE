@@ -1,0 +1,620 @@
+#!/usr/bin/env python3
+"""Validate an immutable ChaosGauge two-arm experiment before Harbor runs."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import tomllib
+from pathlib import Path
+
+import yaml
+
+
+SCHEMA_VERSION = 1
+ARM_FIELDS = {
+    "name",
+    "agent",
+    "model",
+    "effort",
+    "repositoryRevision",
+    "harness",
+    "harnessSha256",
+    "treatmentSha256",
+    "imageDigest",
+    "timeoutSeconds",
+    "resources",
+}
+TREATMENT_FIELDS = {"name", "harness", "harnessSha256", "treatmentSha256"}
+SHA256 = re.compile(r"[0-9a-f]{64}")
+GIT_SHA = re.compile(r"[0-9a-f]{40}")
+IMAGE_DIGEST = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
+
+
+def _sha256(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+_SKIP_TREE_PARTS = frozenset({"__pycache__", ".pytest_cache"})
+_SKIP_TREE_SUFFIXES = frozenset({".pyc", ".pyo", ".so"})
+
+
+def _skip_tree_path(path: Path, root: Path) -> bool:
+    relative = path.relative_to(root)
+    if any(part in _SKIP_TREE_PARTS or part.endswith(".egg-info") for part in relative.parts):
+        return True
+    return path.suffix in _SKIP_TREE_SUFFIXES
+
+
+def _git_head_blobs(root: Path) -> list[tuple[str, bytes]] | None:
+    """Return HEAD blob bytes under root, independent of worktree smudge/EOL."""
+    root = root.resolve()
+    try:
+        top = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    top_path = Path(top).resolve()
+    try:
+        prefix = root.relative_to(top_path).as_posix()
+    except ValueError:
+        return None
+    spec = prefix if prefix != "." else "."
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(top_path), "ls-tree", "-r", "-z", "HEAD", "--", spec],
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    entries: list[tuple[str, str]] = []
+    for item in raw.split(b"\0"):
+        if not item or b"\t" not in item:
+            continue
+        meta, path_b = item.split(b"\t", 1)
+        parts = meta.split(b" ")
+        if len(parts) != 3 or parts[1] != b"blob":
+            continue
+        posix = path_b.decode()
+        if prefix != "." and posix.startswith(prefix + "/"):
+            rel = posix[len(prefix) + 1 :]
+        else:
+            rel = posix
+        entries.append((rel, parts[2].decode()))
+    if not entries:
+        return []
+    payload = b"".join(f"{sha}\n".encode() for _rel, sha in entries)
+    try:
+        dumped = subprocess.check_output(
+            ["git", "-C", str(top_path), "cat-file", "--batch"],
+            input=payload,
+            stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    blobs: list[tuple[str, bytes]] = []
+    offset = 0
+    for rel, _sha in entries:
+        newline = dumped.find(b"\n", offset)
+        if newline < 0:
+            return None
+        header = dumped[offset:newline].decode()
+        fields = header.split(" ")
+        if len(fields) < 3 or fields[1] != "blob":
+            return None
+        size = int(fields[2])
+        start = newline + 1
+        finish = start + size
+        blobs.append((rel, dumped[start:finish]))
+        offset = finish + 1
+    return blobs
+
+
+def _tree_sha256(root: Path, *, task_package: bool = False) -> str:
+    digest = hashlib.sha256()
+    root = root.resolve()
+    blobs = _git_head_blobs(root)
+    if blobs is not None:
+        items = blobs
+        if task_package:
+            items = [
+                (rel, data)
+                for rel, data in items
+                if Path(rel).name not in {"README.md", "trajectory.json"}
+            ]
+        for rel, data in sorted(items, key=lambda item: item[0]):
+            if _skip_tree_path(root / rel, root):
+                continue
+            digest.update(f"{rel}\0{hashlib.sha256(data).hexdigest()}\n".encode())
+        return digest.hexdigest()
+    files = [path for path in root.rglob("*") if path.is_file() and not path.is_symlink()]
+    if task_package:
+        files = [path for path in files if path.name not in {"README.md", "trajectory.json"}]
+    for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+        if _skip_tree_path(path, root):
+            continue
+        digest.update(
+            f"{path.relative_to(root).as_posix()}\0{_file_sha256(path)}\n".encode()
+        )
+    return digest.hexdigest()
+
+
+def _gauge_root(root: Path) -> Path:
+    direct = root / "experiment.json"
+    return root if direct.is_file() else root / "scripts/ci/chaos_gauge"
+
+
+def validate_live_evidence(
+    manifest: dict[str, object], jobs: dict[str, object], root: Path, campaign: str
+) -> dict[str, str]:
+    """Check digest fields are well-formed. Do not pin live tree bytes to stored hashes.
+
+    Exact harness, task, dataset, adapter, lock, and treatment hashes drift on
+    every harness edit. Presence and hex shape are enough. Callers still get
+    live identities so scheduling can proceed without a refresh commit.
+    """
+    gauge = _gauge_root(root.resolve())
+    repository = root.resolve() if (root.resolve() / "chaos-engine").is_dir() else gauge.parents[2]
+    tasks = manifest["tasks"]
+    for task in tasks if isinstance(tasks, list) else []:
+        if task.get("visibility") != "public":
+            continue
+        digest = str(task.get("sha256") or "")
+        if digest and not SHA256.fullmatch(digest):
+            raise ValueError(f"task digest is not a sha256 hex: {task.get('name')}")
+    dataset = _mapping(manifest.get("dataset"), "dataset")
+    dataset_digest = str(dataset.get("sha256") or "")
+    if dataset_digest and not SHA256.fullmatch(dataset_digest):
+        raise ValueError("dataset digest is not a sha256 hex")
+    harness = _tree_sha256(repository / "chaos-engine")
+    adapter = _file_sha256(gauge / "agent.py")
+    lock = _file_sha256(gauge / "requirements.lock")
+    candidate_kwargs = jobs["chaos-engine"]["agents"][0]["kwargs"]
+    for label, value in (
+        ("job harness digest", candidate_kwargs.get("harness_sha256")),
+        ("manifest harness digest", manifest["arms"][1].get("harnessSha256")),
+        ("adapter digest", candidate_kwargs.get("adapter_sha256")),
+        ("dependency lock digest", manifest.get("dependencyLockSha256")),
+    ):
+        text_value = str(value or "")
+        if text_value and not SHA256.fullmatch(text_value):
+            raise ValueError(f"{label} is not a sha256 hex")
+    identities = {
+        name: _sha256({
+            "repositoryRevision": manifest["arms"][index]["repositoryRevision"],
+            "taskDataset": dataset_digest,
+            "harnessTree": "none" if name == "control" else harness,
+            "adapter": "none" if name == "control" else adapter,
+            "dependencyLock": lock,
+            "campaign": campaign,
+            "job": jobs[name],
+        })
+        for index, name in enumerate(("control", "chaos-engine"))
+    }
+    for index, name in enumerate(("control", "chaos-engine")):
+        treatment = _mapping(manifest["arms"][index].get("treatmentSha256"), "treatment identity")
+        stored = str(treatment.get(campaign) or "")
+        if stored and not SHA256.fullmatch(stored):
+            raise ValueError(f"{name} treatment digest is not a sha256 hex")
+    return identities
+
+
+
+def _mapping(value: object, name: str) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{name} must be an object")
+    return value
+
+
+def validate_manifest(  # noqa: MC0001 - immutable schema validation stays fail-closed.
+    value: object, *, root: Path | None = None
+) -> str:
+    manifest = _mapping(value, "experiment manifest")
+    expected = {
+        "schemaVersion",
+        "identity",
+        "implementationRevision",
+        "harbor",
+        "dataset",
+        "privatePackage",
+        "attemptsPerTask",
+        "dependencyLockSha256",
+        "seed",
+        "campaigns",
+        "arms",
+        "tasks",
+    }
+    if set(manifest) != expected or manifest["schemaVersion"] != SCHEMA_VERSION:
+        raise ValueError("experiment schema is unsupported")
+    if manifest["identity"] != "ShaftHQ/chaos-engine-effectiveness":
+        raise ValueError("experiment identity is invalid")
+    if not GIT_SHA.fullmatch(str(manifest["implementationRevision"])):
+        raise ValueError("implementation identity is invalid")
+    if manifest["attemptsPerTask"] != 5 or not isinstance(manifest["seed"], int):
+        raise ValueError("experiment attempts or seed is invalid")
+    if not SHA256.fullmatch(str(manifest["dependencyLockSha256"])):
+        raise ValueError("dependency lock digest is invalid")
+    if manifest["campaigns"] != {
+        "calibration": {"taskVisibility": ["public"], "taskCount": 12, "privateResolutionRequired": False},
+        "full-pilot": {"taskVisibility": ["public", "private-reference"], "taskCount": 16, "privateResolutionRequired": True},
+    }:
+        raise ValueError("campaign selection contract is invalid")
+
+    harbor = _mapping(manifest["harbor"], "Harbor")
+    if harbor != {
+        "version": "0.22.0",
+        "source": "harbor-framework/harbor@v0.22.0",
+        "commit": "4407eb5227a2ff4f0d3f16b2eb48849382fdf276",
+    }:
+        raise ValueError("Harbor source is not the approved immutable v0.22.0 release")
+
+    dataset = _mapping(manifest["dataset"], "dataset")
+    if dataset.get("schemaVersion") != "1.4" or dataset.get("version") != "1.0.0":
+        raise ValueError("dataset identity is invalid")
+    if not SHA256.fullmatch(str(dataset.get("sha256", ""))):
+        raise ValueError("dataset digest is invalid")
+
+    private_package = _mapping(manifest["privatePackage"], "private package")
+    if private_package != {
+        "repository": "ShaftHQ/ChaosGauge-private",
+        "commit": "5c5c00896139c767946747ba38029d88fe750472",
+        "contentSha256": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
+        "name": "ShaftHQ/chaosgauge-private",
+        "ref": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
+        "status": "requires-credentials",
+    }:
+        raise ValueError("private package plan is invalid")
+
+    arms = manifest["arms"]
+    if not isinstance(arms, list) or len(arms) != 2:
+        raise ValueError("experiment must contain exactly two arms")
+    checked: list[dict[str, object]] = []
+    for arm in arms:
+        candidate = _mapping(arm, "arm")
+        if set(candidate) != ARM_FIELDS:
+            raise ValueError("arm fields do not match schema v1")
+        if not GIT_SHA.fullmatch(str(candidate["repositoryRevision"])):
+            raise ValueError("arm repository identity is invalid")
+        if not SHA256.fullmatch(str(candidate["harnessSha256"])):
+            raise ValueError("harness digest is invalid")
+        treatment = _mapping(candidate["treatmentSha256"], "treatment identity")
+        if set(treatment) != {"calibration", "full-pilot"} or not all(
+            SHA256.fullmatch(str(digest)) for digest in treatment.values()
+        ):
+            raise ValueError("treatment digest is invalid")
+        if not IMAGE_DIGEST.fullmatch(str(candidate["imageDigest"])):
+            raise ValueError("image digest is immutable")
+        resources = _mapping(candidate["resources"], "arm resources")
+        if resources != {"cpus": 2, "memoryMb": 4096, "storageMb": 10240}:
+            raise ValueError("arm resources are invalid")
+        if candidate["timeoutSeconds"] != 1800:
+            raise ValueError("arm timeout is invalid")
+        checked.append(candidate)
+    control, candidate = checked
+    if control["repositoryRevision"] != manifest["implementationRevision"]:
+        raise ValueError("implementation revision is not bound to both arms")
+    if control["name"] != "control" or control["harness"] != "none":
+        raise ValueError("control treatment is invalid")
+    if candidate["name"] != "chaos-engine" or candidate["harness"] != "chaos-engine":
+        raise ValueError("candidate treatment is invalid")
+    for field in sorted(ARM_FIELDS - TREATMENT_FIELDS):
+        if control[field] != candidate[field]:
+            label = {"imageDigest": "image", "repositoryRevision": "repository"}.get(
+                field, field
+            )
+            raise ValueError(f"arm {label} drift is not allowed")
+    if control["harnessSha256"] == candidate["harnessSha256"]:
+        raise ValueError("harness treatment digests must differ")
+
+    tasks = manifest["tasks"]
+    if not isinstance(tasks, list):
+        raise ValueError("tasks must be an array")
+    raw_names = [item.get("name") for item in tasks if isinstance(item, dict)]
+    if len(raw_names) != len(set(raw_names)):
+        raise ValueError("duplicate task identity")
+    if len(tasks) != 16:
+        raise ValueError("task corpus must contain exactly 16 tasks")
+    names: set[str] = set()
+    public = private = 0
+    for task in tasks:
+        item = _mapping(task, "task")
+        expected_fields = {"name", "visibility", "sha256"}
+        if item.get("visibility") == "private-reference":
+            expected_fields.add("stratum")
+        if set(item) != expected_fields:
+            raise ValueError("task fields do not match schema v1")
+        name = str(item["name"])
+        names.add(name)
+        if not SHA256.fullmatch(str(item["sha256"])):
+            raise ValueError("task digest is invalid")
+        if item["visibility"] == "public":
+            public += 1
+        elif item["visibility"] == "private-reference":
+            if item.get("stratum") not in {
+                "diagnosis", "focused-repair", "cross-file-recovery", "safety-delivery"
+            }:
+                raise ValueError("private task stratum is invalid")
+            private += 1
+        else:
+            raise ValueError("task visibility is invalid")
+    if (public, private) != (12, 4):
+        raise ValueError("task visibility split must be 12 public and 4 private references")
+
+    return _sha256(manifest)
+
+
+def validate_private_package(manifest: object, resolution_path: Path) -> None:
+    value = _mapping(manifest, "experiment manifest")
+    package = _mapping(value.get("privatePackage"), "private package")
+    if resolution_path.is_symlink() or not resolution_path.is_file():
+        raise ValueError("private Harbor package is unresolved")
+    try:
+        resolution = json.loads(resolution_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError("private Harbor package is unresolved") from error
+    private_tasks = [task for task in value.get("tasks", []) if task.get("visibility") == "private-reference"]
+    expected = {
+        **package,
+        "tasks": [
+            {"name": task["name"], "stratum": task["stratum"], "sha256": task["sha256"]}
+            for task in private_tasks
+        ],
+    }
+    if resolution != expected or len(private_tasks) != 4:
+        raise ValueError("private Harbor package resolution does not match the 4-task holdout")
+
+
+def validate_job_contracts(  # noqa: MC0001 - cross-arm equality is one invariant.
+    manifest: object, jobs: object, *, campaign: str = "calibration", root: Path | None = None
+) -> dict[str, str] | None:
+    value = _mapping(manifest, "experiment manifest")
+    job_map = _mapping(jobs, "Harbor jobs")
+    if set(job_map) != {"control", "chaos-engine"}:
+        raise ValueError("Harbor job arms are incomplete")
+    arms = value.get("arms")
+    if not isinstance(arms, list):
+        raise ValueError("experiment arms are invalid")
+    arm_map = {
+        str(arm["name"]): arm for arm in arms if isinstance(arm, dict) and "name" in arm
+    }
+    if campaign not in {"calibration", "full-pilot"}:
+        raise ValueError("campaign identity is invalid")
+    package = _mapping(value.get("privatePackage"), "private package")
+    datasets = [{"path": "scripts/ci/chaos_gauge/dataset"}]
+    if campaign == "full-pilot":
+        datasets.append({"name": package["name"], "ref": package["ref"]})
+    for name in ("control", "chaos-engine"):
+        job = _mapping(job_map[name], f"{name} Harbor job")
+        suffix = name if campaign == "calibration" else f"full-pilot-{name}"
+        if job.get("job_name") != f"chaos-gauge-{suffix}" or job.get("jobs_dir") != "scripts/ci/chaos_gauge/jobs":
+            raise ValueError("Harbor job identity is invalid")
+        if job.get("n_concurrent_trials") != 2 or job.get("timeout_multiplier") != 1.0:
+            raise ValueError("Harbor execution budget drift is not allowed")
+        if job.get("retry") != {
+            "max_retries": 2,
+            "include_exceptions": ["EnvironmentStartError", "EnvironmentBuildError"],
+        }:
+            raise ValueError("Harbor retry budget drift is not allowed")
+        expected_environment = {
+            "type": "docker", "delete": True,
+            "cpu_enforcement_policy": "limit", "memory_enforcement_policy": "limit",
+            "extra_allowed_hosts": ["chroma-onnx-models.s3.amazonaws.com"],
+        }
+        if job.get("environment") != expected_environment:
+            raise ValueError("Harbor environment budget drift is not allowed")
+        if campaign == "full-pilot" and job.get("quiet") is not False:
+            raise ValueError("full-pilot job visibility is invalid")
+        if campaign == "calibration" and "quiet" in job:
+            raise ValueError("calibration job visibility is invalid")
+        agents = job.get("agents")
+        job_datasets = job.get("datasets")
+        if not isinstance(agents, list) or len(agents) != 1 or not isinstance(agents[0], dict):
+            raise ValueError("job agent contract is invalid")
+        if not isinstance(job_datasets, list) or job_datasets != datasets:
+            raise ValueError("job dataset contract is invalid")
+        agent = agents[0]
+        arm = _mapping(arm_map.get(name), "experiment arm")
+        if name == "control":
+            if agent.get("name") != "codex" or "import_path" in agent:
+                raise ValueError("job agent drift is not allowed")
+        elif (
+            agent.get("import_path")
+            != "scripts.ci.chaos_gauge.agent:ChaosEngineCodex"
+            or "name" in agent
+        ):
+            raise ValueError("job harness treatment is invalid")
+        if agent.get("model_name") != arm.get("model"):
+            raise ValueError("job model drift is not allowed")
+        kwargs = _mapping(agent.get("kwargs"), "job agent arguments")
+        if kwargs.get("reasoning_effort") != arm.get("effort"):
+            raise ValueError("job effort drift is not allowed")
+        if "skills" in agent:
+            raise ValueError("job harness treatment is invalid")
+        if agent.get("override_setup_timeout_sec") != 900:
+            raise ValueError("job setup timeout drift is not allowed")
+        if name == "chaos-engine":
+            expected_keys = {
+                "version",
+                "reasoning_effort",
+                "harness_source",
+                "harness_commit",
+                "harness_sha256",
+                "adapter_sha256",
+            }
+            if set(kwargs) != expected_keys:
+                raise ValueError("job harness treatment is invalid")
+            if kwargs.get("version") != "0.152.0":
+                raise ValueError("job harness treatment is invalid")
+            if kwargs.get("reasoning_effort") != arm.get("effort"):
+                raise ValueError("job harness treatment is invalid")
+            if kwargs.get("harness_source") != "chaos-engine":
+                raise ValueError("job harness treatment is invalid")
+            if kwargs.get("harness_commit") != arm.get("repositoryRevision"):
+                raise ValueError("job harness treatment is invalid")
+            for field in ("harness_sha256", "adapter_sha256"):
+                digest = str(kwargs.get(field) or "")
+                if not SHA256.fullmatch(digest):
+                    raise ValueError("job harness treatment is invalid")
+        if job.get("n_attempts") != value.get("attemptsPerTask"):
+            raise ValueError("job attempt drift is not allowed")
+    control = json.loads(json.dumps(job_map["control"]))
+    candidate = json.loads(json.dumps(job_map["chaos-engine"]))
+    for job in (control, candidate):
+        job.pop("job_name", None)
+        selected = _mapping(job["agents"][0], "job agent")
+        selected.pop("name", None)
+        selected.pop("import_path", None)
+        selected_kwargs = _mapping(selected["kwargs"], "job agent arguments")
+        for field in ("harness_source", "harness_commit", "harness_sha256", "adapter_sha256"):
+            selected_kwargs.pop(field, None)
+    if control != candidate:
+        raise ValueError("Harbor jobs differ outside the harness treatment")
+    return None if root is None else validate_live_evidence(value, job_map, root, campaign)
+
+
+def load_jobs(root: Path, campaign: str = "calibration") -> dict[str, object]:
+    jobs: dict[str, object] = {}
+    if campaign not in {"calibration", "full-pilot"}:
+        raise ValueError("campaign identity is invalid")
+    for name in ("control", "chaos-engine"):
+        prefix = "" if campaign == "calibration" else "full-pilot-"
+        path = root / "job-configs" / f"{prefix}{name}.yaml"
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 64 * 1024:
+            raise ValueError("Harbor job configuration path is unsafe")
+        try:
+            jobs[name] = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, yaml.YAMLError) as error:
+            raise ValueError("Harbor job configuration is malformed") from error
+    return jobs
+
+
+def load_manifest(path: Path) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 256 * 1024:
+        raise ValueError("experiment manifest path is unsafe")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError("experiment manifest JSON is malformed") from error
+    validate_manifest(value, root=path.parent)
+    return value
+
+
+def _replace_yaml_scalar(text: str, key: str, value: str) -> str:
+    pattern = re.compile(
+        rf"^([ \t]*{re.escape(key)}:[ \t]*)\"?[0-9a-f]{{64}}\"?[ \t]*$",
+        re.MULTILINE,
+    )
+    replaced, count = pattern.subn(rf'\1"{value}"', text, count=1)
+    if count != 1:
+        raise ValueError(f"job identity field is missing: {key}")
+    return replaced
+
+
+def _replace_exact_sha(text: str, old: str, new: str) -> str:
+    if not SHA256.fullmatch(old) or not SHA256.fullmatch(new):
+        raise ValueError("identity digest is invalid")
+    if old == new:
+        return text
+    if text.count(old) != 1:
+        raise ValueError(f"identity digest is not unique: {old}")
+    return text.replace(old, new, 1)
+
+
+def write_generated(root: Path) -> None:
+    """Refresh coupled manifest and job identities from live harness bytes."""
+    repository = root.resolve()
+    gauge = _gauge_root(repository)
+    if not (repository / "chaos-engine").is_dir():
+        raise ValueError("canonical ChaosEngine source tree is required")
+    harness = _tree_sha256(repository / "chaos-engine")
+    adapter = _file_sha256(gauge / "agent.py")
+    lock = _file_sha256(gauge / "requirements.lock")
+    manifest_path = gauge / "experiment.json"
+    original = manifest_path.read_text(encoding="utf-8")
+    manifest = json.loads(original)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("arms"), list):
+        raise ValueError("experiment manifest JSON is malformed")
+    if len(manifest["arms"]) != 2:
+        raise ValueError("experiment arms are invalid")
+    control = _mapping(manifest["arms"][0], "control arm")
+    candidate = _mapping(manifest["arms"][1], "candidate arm")
+    old_candidate_harness = str(candidate.get("harnessSha256"))
+    old_lock = str(manifest.get("dependencyLockSha256"))
+    candidate["harnessSha256"] = harness
+    treatments: dict[str, dict[str, str]] = {"control": {}, "chaos-engine": {}}
+    old_treatments: dict[str, dict[str, str]] = {"control": {}, "chaos-engine": {}}
+    for index, name in enumerate(("control", "chaos-engine")):
+        arm = _mapping(manifest["arms"][index], "experiment arm")
+        current = _mapping(arm.get("treatmentSha256"), "treatment identity")
+        for campaign in ("calibration", "full-pilot"):
+            old_treatments[name][campaign] = str(current[campaign])
+    for campaign in ("calibration", "full-pilot"):
+        prefix = "" if campaign == "calibration" else "full-pilot-"
+        path = gauge / "job-configs" / f"{prefix}chaos-engine.yaml"
+        text = path.read_text(encoding="utf-8")
+        text = _replace_yaml_scalar(text, "harness_sha256", harness)
+        text = _replace_yaml_scalar(text, "adapter_sha256", adapter)
+        path.write_text(text, encoding="utf-8")
+        jobs = load_jobs(gauge, campaign)
+        for index, name in enumerate(("control", "chaos-engine")):
+            arm = control if name == "control" else candidate
+            treatments[name][campaign] = _sha256(
+                {
+                    "repositoryRevision": arm["repositoryRevision"],
+                    "taskDataset": _mapping(manifest.get("dataset"), "dataset")["sha256"],
+                    "harnessTree": "none" if name == "control" else harness,
+                    "adapter": "none" if name == "control" else adapter,
+                    "dependencyLock": lock,
+                    "campaign": campaign,
+                    "job": jobs[name],
+                }
+            )
+    rendered = original
+    rendered = _replace_exact_sha(rendered, old_lock, lock)
+    rendered = _replace_exact_sha(rendered, old_candidate_harness, harness)
+    for name in ("control", "chaos-engine"):
+        for campaign in ("calibration", "full-pilot"):
+            rendered = _replace_exact_sha(
+                rendered,
+                old_treatments[name][campaign],
+                treatments[name][campaign],
+            )
+    if rendered != original:
+        manifest_path.write_text(rendered, encoding="utf-8")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("manifest", type=Path)
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="refresh coupled manifest and job identities from live harness bytes",
+    )
+    args = parser.parse_args()
+    root = args.manifest.parent
+    if args.write:
+        repository = root.parents[2] if root.name == "chaos_gauge" else root
+        write_generated(repository)
+    value = load_manifest(args.manifest)
+    for selected_campaign in ("calibration", "full-pilot"):
+        validate_job_contracts(
+            value, load_jobs(args.manifest.parent, selected_campaign), campaign=selected_campaign, root=args.manifest.parent
+        )
+    print(validate_manifest(value, root=args.manifest.parent))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

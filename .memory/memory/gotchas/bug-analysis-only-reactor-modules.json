@@ -1,0 +1,23 @@
+{
+  "anchors": [
+    ".github/workflows/pr-gate.yml",
+    "scripts/ci/pit_diff_scope.py"
+  ],
+  "body_path": "memory/gotchas/bug-analysis-only-reactor-modules.md",
+  "content_hash": "sha256:adcc4916942ebc2775b6ff4d31de5e39a4ca69d8862230dec8fdeb923f262767",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.bug-analysis-only-reactor-modules",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "maven"
+  ],
+  "title": "Changed-module detection must keep only Maven reactor modules",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T19:25:20+03:00"
+}

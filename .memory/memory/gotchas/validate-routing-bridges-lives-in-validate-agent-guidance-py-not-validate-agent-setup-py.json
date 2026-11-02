@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/validate-routing-bridges-lives-in-validate-agent-guidance-py-not-validate-agent-setup-py.md",
+  "content_hash": "sha256:dd825d4ccb101f137841a3c556d26fc1bff942be62bbdd9d20eaa7f0b1b38143",
+  "created_at": "2026-07-26T17:57:51+03:00",
+  "evidence": [
+    {
+      "id": "scripts/ci/validate_agent_guidance.py",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.validate-routing-bridges-lives-in-validate-agent-guidance-py-not-validate-agent-setup-py",
+  "source": {
+    "kind": "agent",
+    "task": "record five durable gotchas from the crash-recovery session (2026-07-26)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "validator",
+    "agent-guidance"
+  ],
+  "title": "validate_routing_bridges lives in validate_agent_guidance.py, not validate_agent_setup.py",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:05:07+03:00"
+}

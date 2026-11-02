@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Monitoring"
+  short_description: "Monitor progress and quality gates"
+  default_prompt: "Use $shaft-test-monitoring to assess this SHAFT run against its plan and quality gates."

@@ -1,0 +1,298 @@
+package com.shaft.infrastructure;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import java.time.Duration;
+
+/** Download cache that publishes an artifact only after its approved SHA-256 matches. */
+public final class VerifiedArtifactStore {
+    static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
+    private static final long MAX_ANDROID_SDK_BYTES = 256L * 1024 * 1024;
+    private static final long MAX_PLAYWRIGHT_BROWSER_BYTES = 512L * 1024 * 1024;
+    private final Path downloads;
+
+    /**
+     * Creates a store that keeps verified downloads in the given folder.
+     */
+    public VerifiedArtifactStore(Path downloads) {
+        this.downloads = downloads.toAbsolutePath().normalize();
+    }
+
+    /**
+     * Fetches the action's artifact and verifies its checksum.
+     *
+     * @throws IOException when the artifact cannot be fetched or fails verification
+     */
+    public Path fetch(SetupAction action) throws IOException {
+        return fetch(action, false);
+    }
+
+    /**
+     * Fetches the action's artifact, using only the cache when offline, and verifies its checksum.
+     *
+     * @throws IOException when the artifact cannot be fetched or fails verification
+     */
+    public Path fetch(SetupAction action, boolean offline) throws IOException {
+        return fetchInternal(action, offline, null);
+    }
+
+    Path fetch(SetupAction action, boolean offline, Duration timeout) throws IOException {
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException("timeout must be positive.");
+        }
+        return fetchInternal(action, offline, timeout);
+    }
+
+    private Path fetchInternal(SetupAction action, boolean offline, Duration timeout) throws IOException {
+        requireUnlinkedAncestors(downloads);
+        String expected = action.checksum().substring("sha256:".length()).toLowerCase();
+        String sourcePath = action.source().getPath();
+        String sourceName = sourcePath.substring(sourcePath.lastIndexOf('/') + 1);
+        if (sourceName.isBlank()) throw new IOException("Artifact source has no file name: " + action.source());
+        Path destination = downloads.resolve(expected + '-' + sourceName);
+        if (Files.isRegularFile(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                && expected.equals(digest(destination))) return destination;
+        if (offline) throw new IOException("Artifact is not available in the verified offline cache: " + sourceName);
+        Files.createDirectories(downloads);
+        requireUnlinkedAncestors(downloads);
+        if (Files.isSymbolicLink(destination)) {
+            throw new IOException("Verified artifact cache entry must not be a symbolic link: " + destination);
+        }
+        Path temporary = Files.createTempFile(downloads, sourceName, ".part");
+        Path quarantine = downloads.resolve(destination.getFileName() + ".quarantine");
+        long deadline = timeout == null ? Long.MAX_VALUE
+                : Math.addExact(System.nanoTime(), timeout.toNanos());
+        try (InputStream input = open(action.source(), deadline);
+             OutputStream output = Files.newOutputStream(temporary)) {
+            copyBounded(input, output, action.source(), maximumArtifactBytes(action.target()), deadline);
+            String actual = digest(temporary);
+            if (!expected.equals(actual)) {
+                throw new IOException("SHA-256 mismatch for " + action.source() + ": expected " + expected
+                        + " but received " + actual);
+            }
+            replaceWithRollback(temporary, destination, quarantine);
+            return destination;
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
+    static void replaceWithRollback(Path replacement, Path destination, Path quarantine) throws IOException {
+        replaceWithRollback(replacement, destination, quarantine, VerifiedArtifactStore::move);
+    }
+
+    static void replaceWithRollback(Path replacement, Path destination, Path quarantine,
+                                    MoveOperation mover) throws IOException {
+        replaceWithRollback(replacement, destination, quarantine, mover, VerifiedArtifactStore::deleteRecursively);
+    }
+
+    static void replaceWithRollback(Path replacement, Path destination, Path quarantine,
+                                    MoveOperation mover, DeleteOperation deleter) throws IOException {
+        Path obsolete = quarantine.resolveSibling(quarantine.getFileName() + ".obsolete");
+        deleteObsolete(obsolete, deleter);
+        restoreUnresolvedQuarantine(destination, quarantine, mover);
+        boolean hadDestination = Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+        if (hadDestination) mover.move(destination, quarantine);
+        installReplacement(replacement, destination, quarantine, mover, hadDestination);
+        if (!hadDestination) return;
+        retireQuarantine(replacement, destination, quarantine, obsolete, mover);
+        try {
+            deleter.delete(obsolete);
+        } catch (IOException ignored) {
+            // The replacement is committed and the canonical quarantine is clear. Retry cleanup next publish.
+        }
+    }
+
+    private static void deleteObsolete(Path obsolete, DeleteOperation deleter) throws IOException {
+        if (Files.exists(obsolete, java.nio.file.LinkOption.NOFOLLOW_LINKS)) deleter.delete(obsolete);
+    }
+
+    private static void restoreUnresolvedQuarantine(Path destination, Path quarantine, MoveOperation mover)
+            throws IOException {
+        if (!Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
+        if (Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Unresolved setup quarantine requires manual recovery: " + quarantine);
+        }
+        mover.move(quarantine, destination);
+    }
+
+    private static void installReplacement(Path replacement, Path destination, Path quarantine,
+                                           MoveOperation mover, boolean hadDestination) throws IOException {
+        try {
+            mover.move(replacement, destination);
+        } catch (IOException failure) {
+            if (hadDestination && Files.exists(quarantine, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                restoreAfterFailure(quarantine, destination, mover, failure);
+            }
+            throw failure;
+        }
+    }
+
+    private static void retireQuarantine(Path replacement, Path destination, Path quarantine, Path obsolete,
+                                         MoveOperation mover) throws IOException {
+        try {
+            mover.move(quarantine, obsolete);
+        } catch (IOException failure) {
+            try {
+                mover.move(destination, replacement);
+                mover.move(quarantine, destination);
+            } catch (IOException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
+    }
+
+    private static void restoreAfterFailure(Path quarantine, Path destination, MoveOperation mover,
+                                            IOException failure) {
+        try {
+            mover.move(quarantine, destination);
+        } catch (IOException rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
+        }
+    }
+
+    private static void deleteRecursively(Path path) throws IOException {
+        if (Files.notExists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) return;
+        requireUnlinkedAncestors(path);
+        if (!Files.isDirectory(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            Files.deleteIfExists(path);
+            return;
+        }
+        try (var stream = Files.walk(path)) {
+            for (Path entry : stream.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(entry);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    interface MoveOperation {
+        void move(Path source, Path destination) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface DeleteOperation {
+        void delete(Path path) throws IOException;
+    }
+
+    static long maximumArtifactBytes(SetupTarget target) {
+        return switch (target) {
+            case ANDROID_SDK -> MAX_ANDROID_SDK_BYTES;
+            case PLAYWRIGHT_CHROMIUM, PLAYWRIGHT_FIREFOX, PLAYWRIGHT_WEBKIT ->
+                    MAX_PLAYWRIGHT_BROWSER_BYTES;
+            default -> MAX_ARTIFACT_BYTES;
+        };
+    }
+
+    private static void copyBounded(InputStream input, OutputStream output, URI source, long maximum,
+                                    long deadline) throws IOException {
+        byte[] buffer = new byte[64 * 1024];
+        long total = 0;
+        for (int read; (read = input.read(buffer)) >= 0;) {
+            if (deadline != Long.MAX_VALUE && System.nanoTime() >= deadline) {
+                throw new IOException("Artifact download exceeded its shared setup deadline: " + source);
+            }
+            total += read;
+            if (total > maximum) {
+                throw new IOException("Artifact exceeds the " + maximum + " byte safety limit: " + source);
+            }
+            output.write(buffer, 0, read);
+        }
+    }
+
+    static void requireUnlinkedAncestors(Path path) throws IOException {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path trustedAnchor = trustedAnchor(absolute);
+        for (Path current = absolute; current != null; current = current.getParent()) {
+            if (Files.isSymbolicLink(current)) {
+                throw new IOException("SHAFT setup paths must not contain symbolic links: " + current);
+            }
+            if (Files.exists(current, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    && Files.getAttribute(current, "basic:isOther", java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    .equals(Boolean.TRUE)) {
+                throw new IOException("SHAFT setup paths must not contain reparse/special entries: " + current);
+            }
+            if (current.equals(trustedAnchor)) {
+                break;
+            }
+        }
+    }
+
+    private static Path trustedAnchor(Path absolute) {
+        Path trusted = absolute.getRoot();
+        for (String property : new String[]{"java.io.tmpdir", "user.home"}) {
+            String configured = System.getProperty(property);
+            if (configured == null || configured.isBlank()) {
+                continue;
+            }
+            Path candidate = Path.of(configured).toAbsolutePath().normalize();
+            if (absolute.startsWith(candidate)
+                    && (trusted == null || candidate.getNameCount() > trusted.getNameCount())) {
+                trusted = candidate;
+            }
+        }
+        return trusted;
+    }
+
+    private static InputStream open(URI source, long deadline) throws IOException {
+        if ("file".equalsIgnoreCase(source.getScheme())) return Files.newInputStream(Path.of(source));
+        if (!"https".equalsIgnoreCase(source.getScheme())) {
+            throw new IOException("Only HTTPS and file setup artifacts are supported: " + source);
+        }
+        HttpURLConnection connection = (HttpURLConnection) source.toURL().openConnection();
+        connection.setConnectTimeout(boundedTimeoutMillis(deadline, 30_000));
+        connection.setReadTimeout(boundedTimeoutMillis(deadline, 120_000));
+        connection.setInstanceFollowRedirects(true);
+        int status = connection.getResponseCode();
+        if (status < 200 || status >= 300) {
+            connection.disconnect();
+            throw new IOException("Artifact download failed with HTTP " + status + ": " + source);
+        }
+        return connection.getInputStream();
+    }
+
+    private static int boundedTimeoutMillis(long deadline, int maximum) throws IOException {
+        if (deadline == Long.MAX_VALUE) return maximum;
+        long remainingNanos = deadline - System.nanoTime();
+        if (remainingNanos <= 0) throw new IOException("Artifact download exceeded its shared setup deadline.");
+        long remainingMillis = Math.max(1, java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+        return (int) Math.min(maximum, remainingMillis);
+    }
+
+    /**
+     * Returns the SHA-256 digest of the file.
+     *
+     * @throws IOException when the file cannot be read
+     */
+    public static String digest(Path file) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = Files.newInputStream(file)) {
+                byte[] buffer = new byte[64 * 1024];
+                for (int read; (read = input.read(buffer)) >= 0;) digest.update(buffer, 0, read);
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is required by the Java platform.", impossible);
+        }
+    }
+
+    static void move(Path source, Path destination) throws IOException {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(source, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+}

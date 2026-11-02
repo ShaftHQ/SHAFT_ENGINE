@@ -1,0 +1,889 @@
+import json
+
+import tempfile
+import unittest
+from pathlib import Path
+
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+import scripts.ci.validate_agent_guidance as guidance_validator
+
+from scripts.ci.validate_agent_guidance import (
+    parse_frontmatter,
+    validate_repository,
+)
+
+
+class ValidateAgentGuidanceTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary_directory.name)
+        self.write(
+            "AGENTS.md",
+            "# Agents\n\n[Local](docs/local.md)\n\n"
+            "## Routing\n\nEntrypoint: `.agents/skills/act-as-mohab/SKILL.md`.\n",
+        )
+        self.write("CLAUDE.md", "# Claude\n\n@AGENTS.md\n")
+        self.write(".github/copilot-instructions.md", "# Copilot\n")
+        self.write(
+            ".github/instructions/source.instructions.md",
+            '---\napplyTo: "**/src/main/java/**/*.java"\n---\n\n# Source\n',
+        )
+        self.write(
+            ".github/instructions/tests.instructions.md",
+            '---\napplyTo: "**/src/test/java/**/*.java"\n---\n\n# Tests\n',
+        )
+        self.write("module/src/main/java/Example.java", "class Example {}\n")
+        self.write("module/src/test/java/ExampleTest.java", "class ExampleTest {}\n")
+        self.write("docs/local.md", "# Local\n")
+        self.write(
+            ".github/skills/example/SKILL.md",
+            "---\nname: example\ndescription: Example task workflow.\n---\n\n# Example\n",
+        )
+        self.write(
+            ".agents/skills/example-bridge/SKILL.md",
+            "---\nname: example-bridge\ndescription: Load the example workflow.\n---\n\n# Bridge\n",
+        )
+        self.write(
+            ".github/workflows/refresh-agent-instructions.yml",
+            """name: Refresh
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        required: true
+      force_ai:
+        default: false
+steps:
+  - id: audit
+    run: python3 scripts/ci/validate_agent_setup.py
+  - if: steps.audit.outputs.needs_ai == 'true'
+    uses: openai/codex-action@v1
+  - id: changes
+    run: |
+      case "$file" in
+        .agents/skills/*|.claude/skills/*|.github/instructions/*|.github/skills/*)
+          ;;
+      esac
+""",
+        )
+        self.budget = {
+            "file_budgets": {
+                "AGENTS.md": {"max_bytes": 1000},
+                "CLAUDE.md": {"max_bytes": 1000, "max_lines": 20},
+                ".github/copilot-instructions.md": {"max_chars": 3999},
+            },
+            "host_contexts": {
+                "codex": ["AGENTS.md"],
+                "claude": ["AGENTS.md", "CLAUDE.md"],
+                "copilot": ["AGENTS.md", ".github/copilot-instructions.md"],
+            },
+            "max_estimated_tokens_per_host": 10000,
+            "active_guidance_globs": [
+                "AGENTS.md",
+                "CLAUDE.md",
+                ".agents/skills/*/SKILL.md",
+                ".github/copilot-instructions.md",
+                ".github/instructions/*.instructions.md",
+                ".github/skills/*/SKILL.md",
+            ],
+            "reference_scan_globs": [
+                "AGENTS.md",
+                "CLAUDE.md",
+                ".agents/skills/*/SKILL.md",
+                ".github/copilot-instructions.md",
+                ".github/instructions/*.instructions.md",
+                ".github/skills/*/SKILL.md",
+            ],
+            "scope_files": [
+                ".github/instructions/source.instructions.md",
+                ".github/instructions/tests.instructions.md",
+            ],
+            "skills_roots": [".agents/skills", ".github/skills"],
+            "duplicate_paragraph_min_chars": 80,
+            "forbidden_patterns": [
+                {"pattern": "(?i)before every commit", "message": "per-commit ceremony"}
+            ],
+            "stale_references": ["retired.md"],
+            "refresh_workflow": ".github/workflows/refresh-agent-instructions.yml",
+        }
+        self.budget_path = self.root / "scripts/ci/agent_guidance_budget.json"
+        self.write_budget()
+
+    def tearDown(self):
+        self.temporary_directory.cleanup()
+
+    def write(self, relative_path, content):
+        path = self.root / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def write_budget(self):
+        self.budget_path.parent.mkdir(parents=True, exist_ok=True)
+        self.budget_path.write_text(json.dumps(self.budget), encoding="utf-8")
+
+    def codes(self):
+        return {error["code"] for error in validate_repository(self.root, self.budget_path)}
+
+    def test_valid_repository_passes(self):
+        self.assertEqual(validate_repository(self.root, self.budget_path), [])
+
+    def test_rejects_oversized_file(self):
+        self.budget["file_budgets"]["AGENTS.md"]["max_bytes"] = 10
+        self.write_budget()
+        self.assertIn("size-budget", self.codes())
+
+    def test_enforces_copilot_4000_character_limit(self):
+        self.write(".github/copilot-instructions.md", "x" * 4000)
+        self.assertIn("character-budget", self.codes())
+
+    def test_total_reduction_is_noop_when_unconfigured(self):
+        # The global byte-reduction floor (reduction_baseline_bytes /
+        # minimum_reduction_percent) was replaced by per-surface caps matched to
+        # actual load cost (issue #3745): when those keys are absent from the
+        # budget -- as in the default self.budget used across this suite --
+        # validate_total_reduction must never fire, no matter how large the
+        # scanned guidance is.
+        self.budget["total_guidance_globs"] = ["AGENTS.md"]
+        self.write_budget()
+        self.write("AGENTS.md", "x" * 500_000)
+        self.assertNotIn("total-reduction", self.codes())
+
+    def test_a_glob_file_budget_caps_every_file_the_pattern_matches(self):
+        # The on-demand reference surface is many files under one directory, and
+        # the cost a task actually pays is the single largest one it loads --
+        # never their sum, which is what the retired global pool measured
+        # (#3745, #4458). Enumerating 31 paths in file_budgets to express that
+        # would rot on the next added file, so a budget key may be a glob and
+        # binds each matched file on its own.
+        self.write(".agents/skills/example-bridge/references/big.md", "x" * 400)
+        self.write(".agents/skills/example-bridge/references/small.md", "x\n")
+        self.budget["file_budgets"][".agents/skills/*/references/**/*.md"] = {
+            "max_bytes": 100
+        }
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        offenders = {
+            error["path"] for error in errors if error["code"] == "size-budget"
+        }
+        self.assertEqual(
+            offenders, {".agents/skills/example-bridge/references/big.md"}
+        )
+
+    def test_a_glob_file_budget_matching_nothing_is_reported_as_missing(self):
+        # A cap on a surface that no longer exists is stale config, and it fails
+        # open: the pattern quietly matches zero files and the budget looks
+        # enforced. Same verdict a configured literal path gets when it is gone.
+        self.budget["file_budgets"][".agents/skills/*/references/**/*.md"] = {
+            "max_bytes": 100
+        }
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/references/**/*.md", "missing-file"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_a_glob_file_budget_that_escapes_the_root_is_missing_not_a_crash(self):
+        # relative() resolves before it subtracts the root, so a match outside
+        # the root raises ValueError there and takes down the whole validation
+        # run -- a budget file typo turning into a stack trace instead of an
+        # issue. The literal branch was guarded against this; the glob branch
+        # was not.
+        outside = self.root.parent / "outside-the-root.md"
+        outside.write_text("x" * 400, encoding="utf-8")
+        self.addCleanup(outside.unlink)
+        self.budget["file_budgets"]["../outside-the-root.md"] = {"max_bytes": 10}
+        self.budget["file_budgets"]["../outside*.md"] = {"max_bytes": 10}
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            ("../outside*.md", "missing-file"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_an_active_guidance_glob_matching_nothing_is_reported_as_empty(self):
+        # active_guidance_globs feeds validate_forbidden_patterns and
+        # validate_duplicate_paragraphs, both "every matched file must hold"
+        # checks: a pattern that resolves to zero files -- a moved directory,
+        # a typo -- used to shrink the scanned set with no trace, so the check
+        # kept passing having verified nothing for it (#4481).
+        self.budget["active_guidance_globs"].append(".agents/skills/*/moved-away/**/*.md")
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_a_reference_scan_glob_matching_nothing_is_reported_as_empty(self):
+        # reference_scan_globs feeds validate_local_references and
+        # validate_stale_references -- same fail-open shape as
+        # active_guidance_globs, a different consuming pair of checks.
+        self.budget["reference_scan_globs"].append(".agents/skills/*/moved-away/**/*.md")
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_a_total_guidance_glob_matching_nothing_is_reported_as_empty(self):
+        # total_guidance_globs only runs once reduction_baseline_bytes and
+        # minimum_reduction_percent are configured (see
+        # test_total_reduction_is_noop_when_unconfigured); once it does, the
+        # same empty-glob reporting must apply to its own copy of the list.
+        self.budget["reduction_baseline_bytes"] = 1_000_000
+        self.budget["minimum_reduction_percent"] = 10
+        self.budget["total_guidance_globs"] = [
+            "AGENTS.md",
+            ".agents/skills/*/moved-away/**/*.md",
+        ]
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_an_active_guidance_glob_key_that_is_deleted_is_reported_as_empty(self):
+        # expand_reported_globs only guards patterns *within* an already
+        # present list -- deleting the key itself makes its loop run zero
+        # times, so no empty-glob issue fires and every downstream check
+        # scans nothing. That is #4481 one level up, at the list rather than
+        # the pattern; require_glob_list closes it by declaring the key
+        # required in code instead of inferring it from the JSON.
+        del self.budget["active_guidance_globs"]
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_an_active_guidance_glob_key_set_to_an_empty_list_is_reported_as_empty(self):
+        self.budget["active_guidance_globs"] = []
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_an_active_guidance_glob_key_that_is_renamed_is_reported_as_empty(self):
+        # A future budget restructure renaming the key, or a bad merge that
+        # drops it, must be caught the same way as deleting it outright.
+        self.budget["active_guidance_globs_renamed"] = self.budget.pop("active_guidance_globs")
+        self.write_budget()
+        self.assertIn(
+            ("active_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_reference_scan_glob_key_that_is_deleted_is_reported_as_empty(self):
+        del self.budget["reference_scan_globs"]
+        self.write_budget()
+        self.assertIn(
+            ("reference_scan_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_total_guidance_glob_key_that_is_deleted_is_reported_as_empty(self):
+        # total_guidance_globs only runs once reduction_baseline_bytes and
+        # minimum_reduction_percent are configured -- see
+        # test_total_reduction_is_noop_when_unconfigured -- but once it does,
+        # the same required-key guard must apply to its own copy of the list.
+        self.budget["reduction_baseline_bytes"] = 1_000_000
+        self.budget["minimum_reduction_percent"] = 10
+        self.budget.pop("total_guidance_globs", None)
+        self.write_budget()
+        self.assertIn(
+            ("total_guidance_globs", "empty-glob-list"),
+            {(error["path"], error["code"]) for error in validate_repository(self.root, self.budget_path)},
+        )
+
+    def test_a_host_skill_metadata_glob_matching_nothing_is_reported_as_empty(self):
+        # host_skill_metadata_globs is a {host: [patterns]} dict feeding
+        # skill_listing_chars via expand_globs directly -- a separate path
+        # from active_guidance_globs/reference_scan_globs/total_guidance_globs,
+        # so it needs its own wiring through the reporting resolver, per host.
+        self.budget["host_skill_metadata_globs"] = {
+            "codex": [".agents/skills/*/moved-away/**/*.md"]
+        }
+        self.budget["max_skill_listing_chars"] = 10_000
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn(
+            (".agents/skills/*/moved-away/**/*.md", "empty-glob"),
+            {(error["path"], error["code"]) for error in errors},
+        )
+
+    def test_rejects_oversized_skill_md_file(self):
+        self.budget["skill_budgets"] = {".github/skills": {"max_skill_md_bytes": 10}}
+        self.write_budget()
+        self.assertIn("skill-md-byte-budget", self.codes())
+
+    def test_accepts_skill_md_file_at_configured_byte_cap(self):
+        content = self.root.joinpath(".github/skills/example/SKILL.md").read_text(encoding="utf-8")
+        self.budget["skill_budgets"] = {
+            ".github/skills": {"max_skill_md_bytes": len(content.encode("utf-8"))}
+        }
+        self.write_budget()
+        self.assertNotIn("skill-md-byte-budget", self.codes())
+
+    def test_rejects_skill_md_file_one_byte_over_lf_normalized_cap(self):
+        # The cap counts LF-normalized bytes (matching the existing per-file
+        # byte-budget precedent), so a CRLF-heavy working tree checkout must not
+        # be penalized for line-ending width alone.
+        content = self.root.joinpath(".github/skills/example/SKILL.md").read_text(encoding="utf-8")
+        lf_normalized_bytes = len(content.encode("utf-8"))
+        self.root.joinpath(".github/skills/example/SKILL.md").write_bytes(
+            content.replace("\n", "\r\n").encode("utf-8")
+        )
+        self.budget["skill_budgets"] = {
+            ".github/skills": {"max_skill_md_bytes": lf_normalized_bytes}
+        }
+        self.write_budget()
+        self.assertNotIn("skill-md-byte-budget", self.codes())
+
+    def test_budgets_always_loaded_body_separately_from_skill_listing(self):
+        """Body and listing hit different documented host caps, so they are
+        counted against different ceilings and reported with different codes."""
+        self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
+        self.budget["host_skill_metadata_globs"] = {
+            "codex": [".agents/skills/*/SKILL.md"]
+        }
+        self.budget["max_always_loaded_body_chars"] = 10
+        self.budget["max_skill_listing_chars"] = 10_000
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        codes = {error["code"] for error in errors if error["path"] == "codex"}
+        self.assertIn("host-body-budget", codes)
+        self.assertNotIn("host-listing-budget", codes)
+
+        self.budget["max_always_loaded_body_chars"] = 10_000
+        self.budget["max_skill_listing_chars"] = 5
+        self.write_budget()
+        errors = validate_repository(self.root, self.budget_path)
+        codes = {error["code"] for error in errors if error["path"] == "codex"}
+        self.assertIn("host-listing-budget", codes)
+        self.assertNotIn("host-body-budget", codes)
+
+    def test_always_loaded_body_uses_utf8_bytes(self):
+        self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
+        self.budget["max_always_loaded_body_chars"] = 1
+        (self.root / "AGENTS.md").write_text("é", encoding="utf-8")
+        self.write_budget()
+        codes = {error["code"] for error in validate_repository(self.root, self.budget_path)}
+        self.assertIn("host-body-budget", codes)
+
+    def test_always_loaded_body_accepts_16_kib_and_rejects_one_more_byte(self):
+        self.budget["host_contexts"] = {"codex": ["AGENTS.md"]}
+        self.budget["host_skill_metadata_globs"] = {}
+        self.budget["max_always_loaded_body_chars"] = 16_384
+        (self.root / "AGENTS.md").write_text("x" * 16_384, encoding="utf-8")
+        self.write_budget()
+        exact = {error["code"] for error in validate_repository(self.root, self.budget_path)}
+        self.assertNotIn("host-body-budget", exact)
+
+        (self.root / "AGENTS.md").write_text("x" * 16_385, encoding="utf-8")
+        over = {error["code"] for error in validate_repository(self.root, self.budget_path)}
+        self.assertIn("host-body-budget", over)
+
+    def configure_routing_bridges(self, **overrides) -> None:
+        self.budget["routing_bridges"] = {
+            "source": ".agents/skills/act-as-mohab/references/routing.md",
+            "skill_roots": [".agents/skills"],
+            **overrides,
+        }
+        self.write_budget()
+
+    def test_rejects_a_routed_skill_that_does_not_exist(self):
+        """The table itself is parsed, so a new ghost row fails without anyone
+        remembering to register it in the budget."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `ghost-skill` |\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn("routing-bridge-missing", {error["code"] for error in errors})
+
+    def test_accepts_a_routed_skill_that_exists(self):
+        self.write(
+            ".agents/skills/real-skill/SKILL.md",
+            "---\nname: real-skill\ndescription: Use when the router points here.\n---\n\n# Real\n",
+        )
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\n| Deliverable | Load |\n| --- | --- |\n| Anything | `real-skill` |\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_ignores_paths_and_filenames_that_are_not_skill_names(self):
+        """`src/main/java` and `AGENTS.md` are backticked in real routing prose
+        and must not be mistaken for skills."""
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\nEdit `src/main/java` per `AGENTS.md`, verify with `rg`.\n",
+        )
+        self.configure_routing_bridges()
+        errors = validate_repository(self.root, self.budget_path)
+        bridge_errors = [e for e in errors if e["code"].startswith("routing-bridge")]
+        self.assertEqual(bridge_errors, [])
+
+    def test_rejects_a_required_handoff_the_router_no_longer_mentions(self):
+        self.write(
+            ".agents/skills/act-as-mohab/references/routing.md",
+            "# Routing\n\nNothing is routed here.\n",
+        )
+        self.configure_routing_bridges(required_names=["consult-first"])
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertIn("routing-bridge-unrouted", {error["code"] for error in errors})
+
+    def test_rejects_duplicate_long_paragraphs(self):
+        paragraph = "This duplicated instruction is deliberately long enough for deterministic detection. " * 2
+        self.write("AGENTS.md", f"# Agents\n\n{paragraph}\n")
+        self.write("CLAUDE.md", f"# Claude\n\n{paragraph}\n")
+        self.assertIn("duplicate-paragraph", self.codes())
+
+    def test_rejects_broken_local_reference(self):
+        self.write("AGENTS.md", "# Agents\n\n[Missing](docs/missing.md)\n")
+        self.assertIn("broken-reference", self.codes())
+
+    def test_rejects_local_reference_outside_repository(self):
+        self.write("AGENTS.md", "# Agents\n\n[Outside](../outside.md)\n")
+        self.assertIn("reference-outside-root", self.codes())
+
+    def test_rejects_invalid_skill_frontmatter(self):
+        self.write(".github/skills/example/SKILL.md", "---\nname: wrong\n---\n\n# Example\n")
+        codes = self.codes()
+        self.assertIn("skill-name", codes)
+        self.assertIn("skill-description", codes)
+
+    def test_rejects_invalid_codex_skill_frontmatter(self):
+        self.write(
+            ".agents/skills/example-bridge/SKILL.md",
+            "---\nname: wrong\n---\n\n# Bridge\n",
+        )
+        codes = self.codes()
+        self.assertIn("skill-name", codes)
+        self.assertIn("skill-description", codes)
+
+    def test_enforces_exact_skill_set(self):
+        self.budget["expected_skill_names"] = {
+            ".agents/skills": ["example-bridge"],
+            ".github/skills": ["example"],
+        }
+        self.write_budget()
+        self.write(
+            ".agents/skills/unexpected/SKILL.md",
+            "---\nname: unexpected\ndescription: Unexpected workflow.\n---\n\n# Unexpected\n",
+        )
+        self.assertIn("skill-set", self.codes())
+
+    def test_requires_valid_codex_skill_metadata(self):
+        self.budget["skill_budgets"] = {
+            ".agents/skills": {
+                "max_description_chars": 100,
+                "max_body_chars": 100,
+                "require_openai_yaml": True,
+            }
+        }
+        self.write_budget()
+        self.assertIn("skill-metadata", self.codes())
+
+        self.write(
+            ".agents/skills/example-bridge/agents/openai.yaml",
+            """interface:
+  display_name: "Example Bridge"
+  short_description: "Load the canonical example workflow"
+  default_prompt: "Use $example-bridge to handle this example task."
+policy:
+  allow_implicit_invocation: true
+""",
+        )
+        self.assertNotIn("skill-metadata", self.codes())
+
+    def test_rejects_unmatched_path_scope(self):
+        self.write(
+            ".github/instructions/source.instructions.md",
+            '---\napplyTo: "**/src/missing/**/*.java"\n---\n\n# Source\n',
+        )
+        self.assertIn("unmatched-scope", self.codes())
+
+    def test_rejects_costly_mandate(self):
+        self.write("AGENTS.md", "# Agents\n\nRun the build before every commit.\n")
+        self.assertIn("forbidden-mandate", self.codes())
+
+    def test_current_repository_configuration_is_valid(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        self.assertEqual(validate_repository(repository_root), [])
+
+    def test_parse_frontmatter_reads_folded_block_scalar_description_in_full(self):
+        # Regression: the parser used to stop at the "description: >-" marker
+        # line itself, so every multi-line folded description in
+        # .claude/skills/*/SKILL.md was silently counted as its 2-character
+        # marker -- undercounting the "claude" host_context token estimate
+        # (validate_host_contexts) for every skill using folded style.
+        content = (
+            "---\n"
+            "name: example\n"
+            "description: >-\n"
+            "  First line of the description.\n"
+            "  Second line, still folded onto the first with a space.\n"
+            "---\n\nBody.\n"
+        )
+        frontmatter = parse_frontmatter(content)
+        self.assertEqual(
+            frontmatter["description"],
+            "First line of the description. Second line, still folded onto the first with a space.",
+        )
+
+    def test_parse_frontmatter_reads_literal_block_scalar_preserving_newlines(self):
+        content = "---\nname: example\ndescription: |-\n  Line one.\n  Line two.\n---\n\nBody.\n"
+        frontmatter = parse_frontmatter(content)
+        self.assertEqual(frontmatter["description"], "Line one.\nLine two.")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
+
+class VendorEnumerationIsEnforcedTest(unittest.TestCase):
+    """#4531 gap 3: the vendor list is enumerated, so enforce the enumeration.
+
+    `host_skill_metadata_globs` names codex, claude and grok. `host_contexts`
+    names those three plus copilot. Nothing required the two to agree, so a
+    host could be fully described in one list and absent from the other -- and
+    a fourth vendor dropping in an adapter gets a skill-listing budget only if
+    someone remembers to add one.
+
+    The owner requirement is *any manufacturer*. Generalising over vendors is
+    not achievable here -- each host's guidance lives at paths only that host
+    reads, and there is no pattern that discovers them -- so the honest answer
+    is the other one #4531 offers: enumerate, but enforce the enumeration, so
+    a gap is loud rather than silent. Same shape as gap 1's fix, and the same
+    principle as #4542: an unknown must never be indistinguishable from a no.
+    """
+
+    def test_every_host_context_has_a_skill_metadata_budget(self):
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        contexts = set(budget.get("host_contexts", {}))
+        budgeted = set(budget.get("host_skill_metadata_globs", {}))
+        exempt = set(budget.get("host_skill_metadata_exemptions", {}))
+        missing = sorted(contexts - budgeted - exempt)
+        self.assertEqual(
+            missing,
+            [],
+            "a host with guidance but no skill-listing budget is a vendor the "
+            "size checks silently do not cover; add a glob list or an exemption "
+            "with a stated reason",
+        )
+
+    def test_every_exemption_states_a_reason(self):
+        """An exemption without a reason is the gap wearing a hat (#4489)."""
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        for host, reason in budget.get("host_skill_metadata_exemptions", {}).items():
+            with self.subTest(host=host):
+                self.assertTrue(
+                    isinstance(reason, str) and reason.strip(),
+                    f"{host} is exempt from a skill-listing budget with no reason",
+                )
+
+    def test_no_exemption_names_a_host_that_does_not_exist(self):
+        """A dead exemption is a hatch nobody closed."""
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        contexts = set(budget.get("host_contexts", {}))
+        stale = sorted(set(budget.get("host_skill_metadata_exemptions", {})) - contexts)
+        self.assertEqual(stale, [])
+
+
+
+
+class ExecutableSpecificationGuidanceValidatorTest(unittest.TestCase):
+    """Independent schema and weakening mutations for the final #4656 design."""
+
+    CONSULT = """## Executable specification for consequential work
+
+For cross-cutting or hard-to-reverse work, the three matrices below are mandatory.
+Every required cell must be resolved. Blank cells, TODO, TBD, placeholders, and guesses are invalid, even when qualified by explanatory text.
+Any unresolved cell blocks RED/GREEN.
+Every acceptance criterion and invariant must map to positive and negative proof.
+At least one sibling/caller omission mutation must fail.
+Record the completed matrices on the target GitHub issue comment before the first implementing commit.
+Add one resolved data row for every caller/site, every state/transition/failure mode, and every acceptance criterion/invariant.
+
+### Resolved caller matrix
+| Site | Effective cwd/path | Runtime/version/platform | Permissions/trust | Configuration precedence | Input existence |
+| --- | --- | --- | --- | --- | --- |
+
+### State/failure matrix
+| State | Immutable ownership | Preflight | Mutation order | Mixed state | Atomicity | Concurrency | Idempotency | Recovery | Fail-closed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+### Acceptance-to-proof map
+| Criterion or invariant | Positive proof | Negative or mutation proof | Command |
+| --- | --- | --- | --- |
+
+Treat these as mandatory regression prompts when relevant. Cover each applicable scenario:
+- Effective working-directory/path resolution.
+- Interpreter/version/conditional dependency marker.
+- Mixed owned+unknown preflight.
+- Immutable ownership.
+- Atomic backup/concurrent replacement.
+- Post-migration adapter/link resolution.
+"""
+    PLANNING = "Record the completed executable-specification matrices on the target GitHub issue comment before the first implementing commit.\n"
+
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.root = Path(self.temporary_directory.name)
+        consult = self.root / "chaos-engine/references/consult-first.md"
+        planning = self.root / "chaos-engine/references/work-github-planning.md"
+        consult.parent.mkdir(parents=True)
+        consult.write_text(self.CONSULT, encoding="utf-8")
+        planning.write_text(self.PLANNING, encoding="utf-8")
+
+    def _issues(self):
+        validator = getattr(guidance_validator, "validate_executable_spec_guidance", None)
+        self.assertIsNotNone(validator, "executable-specification guidance validator is missing")
+        return validator(self.root)
+
+    def test_exact_contract_passes_and_escaped_pipe_is_one_cell(self):
+        self.assertEqual(self._issues(), [])
+        splitter = getattr(guidance_validator, "split_markdown_table_row", None)
+        self.assertIsNotNone(splitter, "escaped-pipe-aware table parser is missing")
+        self.assertEqual(splitter(r"| proof | `py -3 x.py \| Select-String PASS` |"), ("proof", "`py -3 x.py | Select-String PASS`"))
+        path = self.root / "chaos-engine/references/consult-first.md"
+        acceptance_table = (
+            "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
+            "| --- | --- | --- | --- |\n"
+        )
+        escaped = self.CONSULT.replace(
+            acceptance_table,
+            acceptance_table + "| criterion | positive | negative | `py -3 x.py \\| Select-String PASS` |\n",
+        )
+        path.write_text(escaped, encoding="utf-8")
+        self.assertEqual(self._issues(), [])
+
+    def test_fenced_contract_is_not_operative_guidance(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        fenced = self.CONSULT.replace(
+            "For cross-cutting or hard-to-reverse work",
+            "```markdown\nFor cross-cutting or hard-to-reverse work",
+            1,
+        ) + "```\n"
+        path.write_text(fenced, encoding="utf-8")
+        self.assertTrue(self._issues(), "a code sample is not operative guidance")
+
+    def test_duplicate_table_fails_exactly_one_table_contract(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        acceptance_table = (
+            "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
+            "| --- | --- | --- | --- |\n"
+        )
+        duplicate = self.CONSULT.replace(
+            acceptance_table,
+            acceptance_table + "\n" + acceptance_table,
+        )
+        path.write_text(duplicate, encoding="utf-8")
+        self.assertTrue(self._issues(), "each named matrix must contain exactly one table")
+
+    def test_even_backslashes_leave_the_pipe_as_a_delimiter(self):
+        splitter = guidance_validator.split_markdown_table_row
+        self.assertEqual(splitter(r"| left \\| right |"), ("left " + "\\", "right"))
+
+    def test_fence_closer_must_match_character_length_and_trailing_whitespace(self):
+        remove = guidance_validator._without_fenced_markdown
+        self.assertEqual(
+            remove("visible\n````markdown\nhidden\n```\nstill hidden\n"),
+            "visible\n",
+        )
+        self.assertEqual(
+            remove("visible\n~~~text\nhidden\n```\nstill hidden\n"),
+            "visible\n",
+        )
+        self.assertEqual(
+            remove("visible\n```text\nhidden\n```not-a-close\nstill hidden\n"),
+            "visible\n",
+        )
+        self.assertEqual(
+            remove("visible\n```text\nhidden\n````   \nvisible again\n"),
+            "visible\nvisible again\n",
+        )
+
+    def test_mandatory_clauses_cannot_be_borrowed_from_after_the_matrices(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        clause = "Every acceptance criterion and invariant must map to positive and negative proof."
+        moved_after_tables = self.CONSULT.replace(clause + "\n", "", 1) + clause + "\n"
+        path.write_text(moved_after_tables, encoding="utf-8")
+        self.assertTrue(self._issues())
+
+        appendix = self.CONSULT.replace(clause + "\n", "", 1) + "## Appendix\n\n" + clause + "\n"
+        path.write_text(appendix, encoding="utf-8")
+        self.assertTrue(self._issues())
+
+    def test_unresolved_cells_are_position_aware_and_proof_examples_stay_legal(self):
+        checker = getattr(guidance_validator, "executable_spec_cell_is_unresolved", None)
+        self.assertIsNotNone(checker, "position-aware unresolved-cell predicate is missing")
+        unresolved = (
+            "TBA after review",
+            "TBC when confirmed",
+            "to be confirmed by owner",
+            "pending owner response",
+            "N/A until Windows run",
+            "—",
+            "–",
+            "<fill in owner>",
+            "[fill in command]",
+            "placeholder after review",
+            "TODO after review",
+            "TBD after review",
+            "Windows verified; TODO macOS",
+            "Linux works, probably Windows",
+            "owner known, TBD after migration",
+            "negative proof rejects TODO placeholders; platform TBD",
+            "Unknown target is rejected by preflight; fallback TODO",
+            "Assumption is verified by test; probably Windows",
+            "negative proof rejects TODO placeholders, but platform TBD",
+            "negative proof rejects TODO placeholders. Platform TBD",
+            "Unknown target is rejected by preflight, fallback TODO",
+            "Assumption is verified by test — probably Windows",
+            "negative proof rejects TODO placeholders, yet platform TBD",
+            "negative proof rejects TODO placeholders while platform probably Windows",
+            "Unknown target is rejected by preflight and fallback TODO",
+            "Assumption is verified by test but probably Windows",
+            "guess Linux",
+            "?",
+            "",
+        )
+        for value in unresolved:
+            with self.subTest(unresolved=value):
+                self.assertTrue(checker(value))
+
+        concrete = (
+            "negative proof rejects TODO, TBD, TBA, TBC, pending, N/A, and guess placeholders",
+            "Unknown target is rejected by preflight test",
+            "Assumption is verified by test_matrix",
+            "https://example.test/check?state=pending",
+            "query ?state=ready",
+            "glob file?.txt",
+        )
+        for value in concrete:
+            with self.subTest(concrete=value):
+                self.assertFalse(checker(value))
+
+    def test_schema_flattening_removed_cells_placeholders_and_guesses_fail(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        acceptance_table = (
+            "| Criterion or invariant | Positive proof | Negative or mutation proof | Command |\n"
+            "| --- | --- | --- | --- |\n"
+        )
+        mutations = (
+            self.CONSULT.replace(" | Input existence |", " |"),
+            self.CONSULT.replace("| Site | Effective cwd/path | Runtime/version/platform | Permissions/trust | Configuration precedence | Input existence |", "Site Effective cwd/path Runtime/version/platform Permissions/trust Configuration precedence Input existence"),
+            self.CONSULT.replace(acceptance_table, acceptance_table + "| rule | TODO after review | negative | command |\n"),
+            self.CONSULT.replace(acceptance_table, acceptance_table + "| rule | probably supported | negative | command |\n"),
+            self.CONSULT.replace(acceptance_table, acceptance_table + "| rule |  | negative | command |\n"),
+        )
+        for mutation in mutations:
+            with self.subTest(sample=mutation[-80:]):
+                path.write_text(mutation, encoding="utf-8")
+                self.assertTrue(self._issues())
+
+    def test_mandatory_trigger_mapping_omission_and_ordering_weakening_fail(self):
+        consult = self.root / "chaos-engine/references/consult-first.md"
+        planning = self.root / "chaos-engine/references/work-github-planning.md"
+        mutations = (
+            (consult, "or hard-to-reverse", "and hard-to-reverse"),
+            (consult, "are mandatory", "are suggested"),
+            (consult, "must be resolved", "should be resolved"),
+            (consult, "blocks RED/GREEN", "suggests delaying RED/GREEN"),
+            (consult, "must map", "may map"),
+            (consult, "sibling/caller omission mutation must fail", "sibling/caller omission mutation can be reviewed"),
+            (consult, "target GitHub issue comment", "target GitHub issue"),
+            (consult, "target GitHub issue comment", "target GitHub body"),
+            (consult, "target GitHub issue comment", "local record"),
+            (consult, "before the first implementing commit", "after the first implementing commit"),
+            (planning, "target GitHub issue comment", "target GitHub issue"),
+            (planning, "target GitHub issue comment", "target GitHub body"),
+            (planning, "target GitHub issue comment", "local record"),
+            (planning, "before the first implementing commit", "after the first implementing commit"),
+        )
+        originals = {consult: self.CONSULT, planning: self.PLANNING}
+        for path, old, new in mutations:
+            with self.subTest(mutation=f"{old}->{new}"):
+                consult.write_text(self.CONSULT, encoding="utf-8")
+                planning.write_text(self.PLANNING, encoding="utf-8")
+                path.write_text(originals[path].replace(old, new, 1), encoding="utf-8")
+                self.assertTrue(self._issues())
+
+    def test_every_matrix_dimension_is_exhaustive(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        dimensions = (
+            "every caller/site",
+            "every state/transition/failure mode",
+            "every acceptance criterion/invariant",
+        )
+        for dimension in dimensions:
+            for weakening in ("one", "some", "at least one"):
+                with self.subTest(dimension=dimension, weakening=weakening):
+                    path.write_text(
+                        self.CONSULT.replace(dimension, f"{weakening} {dimension.removeprefix('every ')}", 1),
+                        encoding="utf-8",
+                    )
+                    self.assertTrue(self._issues())
+
+    def test_each_regression_scenario_is_independently_load_bearing(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        scenarios = (
+            "Effective working-directory/path resolution.",
+            "Interpreter/version/conditional dependency marker.",
+            "Mixed owned+unknown preflight.",
+            "Immutable ownership.",
+            "Atomic backup/concurrent replacement.",
+            "Post-migration adapter/link resolution.",
+        )
+        for scenario in scenarios:
+            for replacement in ("", scenario + " Use when convenient."):
+                with self.subTest(scenario=scenario, replacement=replacement):
+                    path.write_text(self.CONSULT.replace(scenario, replacement, 1), encoding="utf-8")
+                    self.assertTrue(self._issues())
+
+    def test_regression_prompt_cannot_be_weakened_from_mandatory(self):
+        path = self.root / "chaos-engine/references/consult-first.md"
+        path.write_text(
+            self.CONSULT.replace("mandatory regression prompts", "optional regression prompts", 1),
+            encoding="utf-8",
+        )
+        self.assertTrue(self._issues())
+
+
+class TokenEconomyWave2GuidanceParityTest(unittest.TestCase):
+    """#6176 / #6180 parity rows, one decision for every host."""
+
+    def test_mandated_chain_budget_holds_on_every_host(self):
+        root = Path(__file__).resolve().parents[2]
+        budget = json.loads((root / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
+        hosts = json.loads((root / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))["hosts"]
+        self.assertEqual(set(hosts), set(budget["mandated_chain"]["hosts"]))
+        self.assertEqual([], guidance_validator.mandated_chain_errors(root, budget))
+
+    def test_always_loaded_guidance_does_not_mandate_local_writers(self):
+        root = Path(__file__).resolve().parents[2]
+        for relative in ("AGENTS.md", "chaos-engine/identity.md", "chaos-engine/skills/chaos-engine/SKILL.md"):
+            text = (root / relative).read_text(encoding="utf-8")
+            with self.subTest(file=relative):
+                self.assertNotIn("prefer a READY loopback coder", text)
+                self.assertNotIn("Keep long work-machine writers", text)

@@ -1,0 +1,124 @@
+{
+  "duties": {
+    "router skill inventory": {
+      "owner": "chaos-engine/references/catalog.md",
+      "terms": ["router-skill-inventory-contract"],
+      "allowed": ["tests/scripts/test_agent_router_contract.py", "chaos-engine/harness_index.py"]
+    },
+    "router": {
+      "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
+      "terms": ["Canonical provider-neutral skill router"],
+      "allowed": ["chaos-engine/harness_index.py", "chaos-engine/harness-index.json", "chaos-engine/references/catalog.md", "chaos-engine/references/harness-map.md"]
+    },
+    "router contract": {
+      "owner": "chaos-engine/references/router-contract.md",
+      "terms": ["Roles and capability levels", "Always-composed behavior", "Ownership and completion"]
+    },
+    "execution workflow policy": {
+      "owner": "chaos-engine/references/execution-workflows.md",
+      "terms": ["SOLO", "ORCHESTRATOR + SINGLE IMPLEMENTER", "ORCHESTRATOR + PARALLEL IMPLEMENTERS"],
+      "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", ".agents/skills/README.md", "chaos-engine/README.md"]
+    },
+    "optional OmniRoute transport": {
+      "owner": "chaos-engine/skills/local-runtimes/references/omniroute.md",
+      "terms": ["Optional provider-neutral transport", "Missing, stopped, unauthenticated"],
+      "allowed": ["chaos-engine/skills/omniroute/scripts/runner.py", "chaos-engine/guides/omniroute.md", "chaos-engine/README.md", "chaos-engine/INSTALL.md", ".agents/skills/README.md"]
+    },
+    "lifecycle dispatch and protocol": {
+      "owner": "chaos-engine/hooks/lifecycle.py",
+      "terms": ["run_hook_protocol", "LIFECYCLE_EVENTS", "session_start_context"],
+      "allowed": ["chaos-engine/hooks/guard.py", "scripts/agents/guard.py"]
+    },
+    "repository guard policy": {
+      "owner": "scripts/agents/guard.py",
+      "terms": ["run_session_start", "run_pretooluse", "run_stop"],
+      "allowed": [".agents/skills/README.md"]
+    },
+    "portable guard adapter": {
+      "owner": "chaos-engine/hooks/guard.py",
+      "terms": ["_lifecycle.run_hook_protocol", "def main"],
+      "allowed": ["scripts/agents/guard.py"]
+    },
+    "cleanup policy": {
+      "owner": "chaos-engine/references/cleanup-scopes.md",
+      "terms": ["Task scope (default)", "Repository scope (explicit)", "Machine scope (approval-gated)"]
+    },
+    "host installer": {
+      "owner": "chaos-engine/hosts.py",
+      "terms": ["REQUIRED_HOOK_EVENTS", "chaos_guard_locator_command", "lifecycle_hooks_document"]
+    },
+    "hook matcher policy": {
+      "owner": "chaos-engine/hooks/matchers.json",
+      "terms": ["preventive", "observational"],
+      "allowed": ["chaos-engine/hosts.py", "chaos-engine/hooks/launch.js", "chaos-engine/hooks/launch.py", "chaos-engine/references/lifecycle-hooks.md", ".agents/skills/README.md", ".codex/hooks.json", ".claude/settings.json", ".github/hooks/chaos-engine.json"]
+    },
+    "tool dispatch": {
+      "owner": "chaos-engine/tool.py",
+      "terms": ["load_host_controller", "guard_mempalace_mcp", "resolve_command"]
+    },
+    "plugin manifests": {
+      "owner": "scripts/ci/validate_agent_plugins.py",
+      "terms": ["MANIFEST_PATH", "ALLOWED_MANIFEST_FIELDS", "manifest_field_errors"]
+    },
+    "shaft skill routing": {
+      "owner": "shaft-skills/shaft-developer/SKILL.md",
+      "terms": ["select exactly one lifecycle implementation or tool specialist", "desktop automation has no skill"]
+    },
+    "CI aggregation": {
+      "owner": "scripts/ci/validate_agent_setup.py",
+      "terms": ["validate_repository", "collect_metrics", "collect_worktree_metrics"]
+    },
+    "promotion evaluation": {
+      "owner": "scripts/ci/chaos_engine_promotion.py",
+      "terms": ["case_manifest", "validate_receipt", "pairedTrials", "individualRuns"],
+      "allowed": [
+        "scripts/ci/chaos_engine_promotion_trials.py",
+        "tests/scripts/test_chaos_engine_promotion.py"
+      ]
+    },
+    "ChaosGauge evaluation": {
+      "owner": "scripts/ci/chaos_gauge/compare_results.py",
+      "terms": ["task-paired bootstrap inference", "SCORE_VERSION"],
+      "allowed": [
+        "scripts/ci/chaos_gauge/validate_experiment.py",
+        "scripts/ci/chaos_gauge/dataset/metric.py",
+        "tests/scripts/test_chaos_gauge_contracts.py",
+        "tests/scripts/test_chaos_gauge_corpus.py",
+        "tests/scripts/test_chaos_gauge_scoring.py"
+      ]
+    },
+    "ChaosEngine README inventory": {
+      "owner": "scripts/ci/validate_chaos_engine_readme.py",
+      "terms": ["inventory_sections", "rendered_inventory", "REQUIRED_DIAGRAMS"],
+      "allowed": ["tests/scripts/test_validate_chaos_engine_readme.py"]
+    },
+    "Markdown harness map": {
+      "owner": ".agents/skills/README.md",
+      "terms": ["Every harness element", "reachable from the entrypoint", "assertions themselves are unit tests"]
+    },
+    "repository adapter": {
+      "owner": "AGENTS.md",
+      "terms": ["SHAFT_ENGINE Maven Java automation framework", "Repository safety", "Canonical policy"]
+    },
+    "process owner scrum-master": {
+      "owner": "chaos-engine/references/process-owner-scrum-master.md",
+      "terms": [
+        "verify delegation deliverables before parent-slice completion",
+        "no Plan→Complete without red/green or automated verifier proof",
+        "Evidence-backed status",
+        "Impediment removal",
+        "consult on ambiguity",
+        "recurring process-failure / impediment classes (2+)"
+      ],
+      "allowed": ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/references/roles.md", "chaos-engine/references/orchestrator-follow-through.md", "chaos-engine/references/execution-workflows.md", ".agents/skills/README.md", "tests/scripts/test_process_owner_scrum_master.py"]
+    }
+
+  },
+  "adapters": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    ".github/copilot-instructions.md",
+    "GEMINI.md"
+  ]
+}

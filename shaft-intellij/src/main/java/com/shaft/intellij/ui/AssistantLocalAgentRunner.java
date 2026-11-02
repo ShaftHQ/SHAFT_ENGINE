@@ -1,0 +1,2511 @@
+package com.shaft.intellij.ui;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+import com.shaft.intellij.approval.AgentApprovalCapability;
+import com.shaft.intellij.approval.LocalAgentApprovalBridge;
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Runs selected local assistant CLIs directly so their markdown stays user-facing.
+ */
+final class AssistantLocalAgentRunner {
+    static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
+    private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    /**
+     * Hard ceiling for a streaming run (issue #6748). For Claude, Codex and Grok the configured timeout
+     * is an inactivity limit that every output line resets, so a session that keeps working is never
+     * killed at the five-minute mark; this cap only stops a run that streams forever.
+     */
+    static final int MAX_STREAMING_RUN_SECONDS = 4 * 60 * 60;
+    /**
+     * Cap on how much a run's deadline can be extended by accumulated approval-deliberation time
+     * (see {@link #awaitProcessWithApprovalExtension}) -- deliberation up to this cap never kills a
+     * run, but abandonment past it still gets cleaned up, per issue #3633.
+     */
+    static final int MAX_APPROVAL_EXTENSION_SECONDS = 600;
+    private static final long DEADLINE_POLL_INTERVAL_MILLIS = 200;
+    private static final int MODEL_LIST_TIMEOUT_SECONDS = 20;
+    private static final int COMPACT_TIMEOUT_SECONDS = 30;
+    private static final int MCP_ACCESS_TIMEOUT_SECONDS = 45;
+    private static final String CUSTOM_AGENT_APPROVAL_WARNING =
+            "Custom Agent commands require Allow source edits because SHAFT cannot enforce read-only execution.";
+    private static final String BUFFERED_MODE_NOTICE =
+            "This CLI has no structured live stream; its raw output is shown as-is below until it completes.";
+    private static final Pattern MODEL_LINE_PATTERN = Pattern.compile("(claude-[a-z0-9.-]+|gpt-[a-z0-9.-]+|o[0-9][a-z0-9.-]*)",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * Invisible prefix tagging a line delivered to the live output consumer as genuinely raw, non-JSON
+     * CLI stdout (a banner/warning outside the structured NDJSON contract, see {@link
+     * StructuredStreamParser#accept}) as opposed to a SHAFT-translated milestone line ("Calling tool
+     * ...", "Thinking: ...", ...). Both travel through the same {@code Consumer<String>}, so
+     * ShaftAssistantPanel needs this tag to tell them apart without guessing from content: issue #3918
+     * gates non-verbose mode's compact milestone bubbles to translated content only, while Verbose mode
+     * must still see the raw line unchanged (the marker is stripped before any display). Never sent for
+     * buffered-default (Copilot) or custom-command output -- see {@link #hasStructuredStream}.
+     */
+    static final String RAW_STDOUT_MARKER = "\u0000raw-stdout\u0000";
+
+    enum ModelDiscoveryState {
+        AVAILABLE,
+        EMPTY,
+        UNAVAILABLE,
+        FAILED
+    }
+
+    record ModelDiscovery(List<String> models, ModelDiscoveryState state) {
+        ModelDiscovery {
+            models = List.copyOf(models);
+        }
+    }
+
+    private AssistantLocalAgentRunner() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Whether {@code arguments} launches a command whose live stream can ever contain a SHAFT-
+     * translated milestone line -- true only for Claude Code/Codex default commands, which get a
+     * {@link StructuredStreamParser} (see {@link #structuredStreamParser}); false for Copilot's default
+     * command (buffered, zero translation -- see {@link #effectiveConsumer}) and for any custom
+     * command (forwarded raw and unwrapped). Issue #3918: ShaftAssistantPanel uses this once per run to
+     * decide whether its non-verbose compact milestone bubbles have anything legitimate to show, since
+     * a buffered/custom run's entire live stream is raw CLI passthrough with no SHAFT authorship at
+     * all.
+     */
+    static boolean hasStructuredStream(JsonObject arguments) {
+        return defaultCommand(arguments) && !"COPILOT_CLI".equals(normalize(string(arguments, "client", "")));
+    }
+
+    static boolean supports(AssistantCommand.Invocation invocation) {
+        return invocation != null && LOCAL_AGENT_TOOL.equals(invocation.toolName());
+    }
+
+    static ShaftMcpInvocation start(AssistantCommand.Invocation invocation) {
+        return start(invocation, null);
+    }
+
+    static ShaftMcpInvocation start(AssistantCommand.Invocation invocation, Consumer<String> outputConsumer) {
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Package-private overload that accepts a custom process launcher so tests can drive a stub
+     * process instead of spawning a real CLI.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
+        return start(invocation, outputConsumer, processLauncher, true);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process for a default-command
+     * invocation (Claude/Codex/Copilot) whose real executable is not guaranteed to be installed on
+     * the test machine's PATH, bypassing the {@code isCommandAvailable} gate that protects the real
+     * CLI path in {@link #start(AssistantCommand.Invocation, Consumer, ProcessLauncher)}. Mirrors the
+     * existing bypass overloads for {@link #runCompactPreamble} and {@link #listModels(JsonObject,
+     * ProcessLauncher)}.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, null,
+                LocalAgentApprovalBridge::start);
+    }
+
+    /**
+     * Package-private overload used by tests to drive the {@code verbose} parameter (see {@link
+     * #agentOutput(boolean, String, String, String, boolean)}) directly without an approval handler.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            boolean verbose) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, null,
+                LocalAgentApprovalBridge::start, verbose);
+    }
+
+    /**
+     * Package-private overload used by {@link com.shaft.intellij.ui.ShaftAssistantPanel} to supply a
+     * real interactive-approval callback. Tests that don't exercise the approval bridge should keep
+     * using the shorter overloads above rather than passing a handler.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                LocalAgentApprovalBridge::start);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a fake {@link ApprovalBridgeLauncher} instead
+     * of spawning a real HTTP server, so bridge-wiring tests stay fast and deterministic. Defaults
+     * {@code verbose} to {@code true} (today's unconditional behavior, unchanged) -- see {@link
+     * #start(AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean)} for the
+     * verbose-aware entry point.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                bridgeLauncher, true);
+    }
+
+    /**
+     * Canonical overload: every shorter {@code start} overload above ultimately delegates here.
+     * {@code verbose} gates whether {@link #run} folds raw stderr into the compact terminal answer
+     * on a buffered/failed run (issue #3965) -- {@code true} preserves the CLI's raw stderr in that
+     * answer exactly as before, {@code false} withholds it (the content remains reachable via the
+     * live {@code outputConsumer} stream, which this parameter never affects).
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose) {
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                bridgeLauncher, verbose, null);
+    }
+
+    /**
+     * Same as the 7-arg overload above, plus {@code terminalAnswerConsumer} (issue #3962). {@code
+     * ShaftMcpInvocation.cancel()}/{@code kill()} call {@code future.cancel(true)} <em>before</em>
+     * running their cancel/kill action (issue #3758/#3768's validated ordering, untouched here) -- so
+     * once that call wins, the JDK's own {@code Future} contract silently discards whatever {@link
+     * #run} later returns or throws, even a real parsed terminal answer. {@code
+     * terminalAnswerConsumer}, when non-null, is notified exactly once from {@code run()}'s own
+     * {@code finally} block (see the canonical {@link #run} overload) with the parsed terminal answer
+     * -- or {@code null} if the structured stream never produced one -- regardless of {@code
+     * future.cancel(true)}, since it is a side channel the primary future's cancellation cannot touch.
+     * {@code null} (the default via the 7-arg overload) means "no one is listening"; every existing
+     * caller is unaffected.
+     */
+    static ShaftMcpInvocation start(
+            AssistantCommand.Invocation invocation,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        JsonObject arguments = invocation.arguments();
+        AtomicReference<Process> processReference = new AtomicReference<>();
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+        AtomicBoolean forceCancellationRequested = new AtomicBoolean();
+        CompletableFuture<ShaftMcpToolResult> future = CompletableFuture.supplyAsync(() -> run(
+                arguments, processReference, cancellationRequested, forceCancellationRequested, outputConsumer,
+                processLauncher,
+                requireCommandAvailable, approvalHandler, bridgeLauncher, verbose, terminalAnswerConsumer),
+                ShaftPluginExecutor.getInstance().executor());
+        return new ShaftMcpInvocation(
+                future,
+                () -> cancel(processReference, cancellationRequested, forceCancellationRequested, false),
+                () -> cancel(processReference, cancellationRequested, forceCancellationRequested, true));
+    }
+
+    /**
+     * Launches a {@link LocalAgentApprovalBridge}. Extracted so tests can substitute a fake bridge
+     * instead of spawning a real HTTP server.
+     */
+    @FunctionalInterface
+    interface ApprovalBridgeLauncher {
+        LocalAgentApprovalBridge launch(LocalAgentApprovalBridge.ApprovalRequestHandler handler, Duration decisionTimeout)
+                throws IOException;
+    }
+
+    /**
+     * Starts a local agent invocation, first sending the agent CLI's compact/compress command as a
+     * preamble when {@code autoCompactEnabled} is true. The compact call always completes (or is
+     * skipped) before the user prompt invocation is dispatched. Compaction failures or an
+     * unsupported CLI never block the user's request — they are logged into the transcript of the
+     * eventual result via the {@code outputConsumer}, and the main invocation proceeds regardless.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer);
+    }
+
+    /**
+     * Starts a local agent invocation with a real interactive-approval callback (see {@link
+     * #startWithOptionalCompact(AssistantCommand.Invocation, boolean, Consumer)} for the compact
+     * preamble behavior, unchanged here).
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler);
+    }
+
+    /**
+     * Starts a local agent invocation with a real interactive-approval callback and an explicit
+     * {@code verbose} flag (see {@link #startWithOptionalCompact(AssistantCommand.Invocation, boolean,
+     * Consumer)} for the compact preamble behavior, unchanged here, and {@link #start(
+     * AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean)} for what
+     * {@code verbose} gates). {@link ShaftAssistantPanel} calls this overload -- not the 4-arg one
+     * above, which always defaults to {@code verbose=true} -- so its live Verbose checkbox state
+     * actually reaches the CLI's raw-stderr folding decision (issue #3965).
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose) {
+        return startWithOptionalCompact(invocation, autoCompactEnabled, outputConsumer, approvalHandler, verbose, null);
+    }
+
+    /**
+     * Same as the 5-arg overload above, plus {@code terminalAnswerConsumer} (issue #3962) -- see the
+     * matching {@link #start(AssistantCommand.Invocation, Consumer, ProcessLauncher, boolean,
+     * LocalAgentApprovalBridge.ApprovalRequestHandler, ApprovalBridgeLauncher, boolean, Consumer)}
+     * overload for what it is notified with and when. {@link ShaftAssistantPanel} calls this overload
+     * for its local-agent runs so it can recover a cancelled/killed run's parsed terminal answer,
+     * which {@code future.cancel(true)} would otherwise discard unconditionally.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments());
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, AssistantLocalAgentRunner::launchProcess, true, approvalHandler,
+                LocalAgentApprovalBridge::start, verbose, terminalAnswerConsumer);
+    }
+
+    /**
+     * Panel-facing overload that keeps production's executable check while allowing headless panel
+     * tests to replace the process boundary.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        if (autoCompactEnabled) {
+            ShaftMcpToolResult compactResult = runCompactPreamble(invocation.arguments(), processLauncher);
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, processLauncher, requireCommandAvailable, approvalHandler,
+                LocalAgentApprovalBridge::start, verbose, terminalAnswerConsumer);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process for both the compact preamble
+     * and the main invocation, and to assert their relative ordering.
+     */
+    static ShaftMcpInvocation startWithOptionalCompact(
+            AssistantCommand.Invocation invocation,
+            boolean autoCompactEnabled,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
+        if (autoCompactEnabled) {
+            JsonObject arguments = invocation.arguments();
+            ShaftMcpToolResult compactResult = runCompactPreamble(arguments, processLauncher);
+            if (outputConsumer != null && compactResult.output() != null && !compactResult.output().isBlank()) {
+                outputConsumer.accept(compactResult.output());
+            }
+        }
+        return start(invocation, outputConsumer, processLauncher);
+    }
+
+    /**
+     * Launches a local agent process. Extracted so tests can substitute a stub process without
+     * spawning a real CLI executable.
+     */
+    @FunctionalInterface
+    interface ProcessLauncher {
+        Process launch(List<String> command, Path workingDirectory, Map<String, String> environment) throws IOException;
+    }
+
+    static Process launchProcess(List<String> command, Path workingDirectory, Map<String, String> environment)
+            throws IOException {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(workingDirectory.toFile());
+        builder.environment().putAll(environment);
+        return builder.start();
+    }
+
+    static ShaftMcpToolResult readiness(String client, String runtime) {
+        return readiness(client, runtime, System.getenv("PATH"), SetupPrerequisites.userHome(), isWindows(), true);
+    }
+
+    /**
+     * PATH string and home are explicit so a test can prove an official on-disk install is visible
+     * when the IDE process PATH is empty.
+     */
+    static ShaftMcpToolResult readiness(String client, String runtime, String path, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        if (!"CLI".equals(normalize(runtime))) {
+            return ShaftMcpToolResult.success("Selected agent runtime is configured by SHAFT MCP.");
+        }
+        String executable = switch (normalize(client)) {
+            case "CLAUDE_CODE" -> "claude";
+            case "COPILOT_CLI" -> "copilot";
+            case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "agy";
+            default -> "codex";
+        };
+        String displayName = displayName(client);
+        boolean present = SetupPrerequisites.commandResolvable(executable, path, home, windows,
+                includeProcessEnvironment);
+        return present
+                ? ShaftMcpToolResult.success(displayName + " executable is available on PATH.")
+                : ShaftMcpToolResult.failure(displayName + " executable is not available on PATH.");
+    }
+
+    /**
+     * Deep readiness for the setup screen's "Check now" button: beyond {@link #readiness}'s PATH
+     * check, asks the selected CLI itself whether it can access shaft-mcp, so a user who just
+     * reinstalled shaft-mcp gets a real "your agent CLI can now use it" verdict instead of a bare
+     * executable check. Claude's {@code claude mcp get shaft-mcp} actually spawns and connects to
+     * the server (empirically ~11s, exit code 0 even for an unknown server, so the OUTPUT is the
+     * contract); Codex's {@code codex mcp get shaft-mcp} is a fast config read. Never called at
+     * panel-construction time — only from an explicit user-triggered check on a background thread.
+     */
+    static ShaftMcpToolResult connectionReadiness(String client, String runtime) {
+        return connectionReadiness(client, runtime, System.getenv("PATH"), SetupPrerequisites.userHome(),
+                isWindows(), true, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Same check as {@link #connectionReadiness(String, String)}, with the PATH string, home, and
+     * process launcher supplied by the caller. The MCP probe is started with the absolute official
+     * installer path when the executable is not on {@code path}.
+     */
+    static ShaftMcpToolResult connectionReadiness(String client, String runtime, String path, Path home,
+            boolean windows, boolean includeProcessEnvironment, ProcessLauncher processLauncher) {
+        ShaftMcpToolResult basic = readiness(client, runtime, path, home, windows, includeProcessEnvironment);
+        if (!basic.success() || !"CLI".equals(normalize(runtime))) {
+            return basic;
+        }
+        return mcpAccessReadiness(client, path, home, windows, includeProcessEnvironment, processLauncher);
+    }
+
+    /**
+     * Returns the CLI command that reports shaft-mcp access for the client, or an empty list when
+     * the client has no known MCP inspection command (Copilot CLI today).
+     */
+    static List<String> mcpAccessCommandFor(String client) {
+        return switch (normalize(client)) {
+            case "CLAUDE_CODE" -> List.of("claude", "mcp", "get", "shaft-mcp");
+            case "COPILOT_CLI" -> List.of();
+            case "GROK" -> List.of("grok", "mcp", "list");
+            case "ANTIGRAVITY" -> List.of();
+            default -> List.of("codex", "mcp", "get", "shaft-mcp");
+        };
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process. Unknown output shapes and
+     * probe launch failures fail OPEN (PATH-level success) so an older CLI without an {@code mcp
+     * get} subcommand never blocks setup; only explicit negative markers fail the check.
+     */
+    static ShaftMcpToolResult mcpAccessReadiness(String client, ProcessLauncher processLauncher) {
+        return mcpAccessReadiness(client, System.getenv("PATH"), SetupPrerequisites.userHome(), isWindows(), true,
+                processLauncher);
+    }
+
+    static ShaftMcpToolResult mcpAccessReadiness(String client, String path, Path home, boolean windows,
+            boolean includeProcessEnvironment, ProcessLauncher processLauncher) {
+        List<String> command = SetupPrerequisites.withOfficialExecutable(mcpAccessCommandFor(client), path, home,
+                windows, includeProcessEnvironment);
+        String displayName = displayName(client);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success(displayName + " executable is available on PATH.");
+        }
+        try {
+            Process process = processLauncher.launch(command, Path.of("."), Map.of());
+            process.getOutputStream().close();
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
+            if (!process.waitFor(MCP_ACCESS_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return ShaftMcpToolResult.success(displayName
+                        + " is on PATH; the shaft-mcp access check timed out and was skipped.");
+            }
+            String output = (stdoutNow(stdout) + "\n" + stderrNow(stderr)).strip();
+            return interpretMcpAccessOutput(client, process.exitValue(), output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return ShaftMcpToolResult.success(displayName
+                    + " is on PATH; the shaft-mcp access check was interrupted and skipped.");
+        } catch (IOException | RuntimeException exception) {
+            return ShaftMcpToolResult.success(displayName
+                    + " is on PATH; the shaft-mcp access check could not run (" + exception.getMessage() + ").");
+        }
+    }
+
+    private static ShaftMcpToolResult interpretMcpAccessOutput(String client, int exitValue, String output) {
+        return "CLAUDE_CODE".equals(normalize(client))
+                ? interpretClaudeMcpAccessOutput(displayName(client), exitValue, output)
+                : interpretCodexMcpAccessOutput(displayName(client), exitValue, output);
+    }
+
+    private static ShaftMcpToolResult interpretClaudeMcpAccessOutput(
+            String displayName, int exitValue, String output) {
+        String lower = output.toLowerCase(Locale.ROOT);
+        if (lower.contains("no mcp server named")) {
+            return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
+                    + ". Run the SHAFT MCP installer command, then check again.");
+        }
+        if (lower.contains("failed to connect") || output.contains("✘")) {
+            return ShaftMcpToolResult.failure(displayName + " sees shaft-mcp but could not connect to it."
+                    + " If you just installed or updated shaft-mcp, restart " + displayName
+                    + " with the restart command below, then check again.\n\n" + output);
+        }
+        if (lower.contains("connected")) {
+            return ShaftMcpToolResult.success(displayName + " can access shaft-mcp (status: connected).");
+        }
+        if (exitValue != 0) {
+            return ShaftMcpToolResult.failure(displayName + " could not verify shaft-mcp access:\n" + output);
+        }
+        return undeterminedMcpAccess(displayName);
+    }
+
+    /**
+     * Codex: {@code codex mcp get} is a config read; enabled registration is the positive marker.
+     */
+    private static ShaftMcpToolResult interpretCodexMcpAccessOutput(
+            String displayName, int exitValue, String output) {
+        String lower = output.toLowerCase(Locale.ROOT);
+        if (lower.contains("shaft-mcp") && lower.contains("enabled: true")) {
+            return ShaftMcpToolResult.success(displayName + " has shaft-mcp registered and enabled.");
+        }
+        if (exitValue != 0 || lower.contains("not found") || lower.contains("no mcp server")
+                || lower.contains("unknown server")) {
+            return ShaftMcpToolResult.failure("shaft-mcp is not registered with " + displayName
+                    + ". Run the SHAFT MCP installer command, then check again.");
+        }
+        return undeterminedMcpAccess(displayName);
+    }
+
+    private static ShaftMcpToolResult undeterminedMcpAccess(String displayName) {
+        return ShaftMcpToolResult.success(displayName
+                + " is on PATH; the shaft-mcp access status could not be determined from its output.");
+    }
+
+    static List<String> commandFor(JsonObject arguments) {
+        return commandFor(arguments, null);
+    }
+
+    private static List<String> commandFor(JsonObject arguments, LocalAgentApprovalBridge bridge) {
+        List<String> custom = customCommand(arguments);
+        if (!custom.isEmpty()) {
+            return custom;
+        }
+        boolean allowSourceMutation = allowSourceMutation(arguments);
+        boolean readOnlyCodegenRecording = booleanValue(arguments, "readOnlyCodegenRecording");
+        boolean unrestrictedLocalAgentAccess = booleanValue(arguments, "unrestrictedLocalAgentAccess");
+        String mode = normalize(string(arguments, "mode", "ASK"));
+        String model = string(arguments, "model", "").trim();
+        String effort = normalize(string(arguments, "effort", ""));
+        return switch (normalize(string(arguments, "client", ""))) {
+            case "CLAUDE_CODE" -> readOnlyCodegenRecording
+                    ? List.of()
+                    : claudeCommand(mode, allowSourceMutation, model, bridge);
+            case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
+            case "GROK" -> grokCommand(mode, allowSourceMutation, string(arguments, "prompt", ""));
+            case "ANTIGRAVITY" -> List.of("agy", "-p", string(arguments, "prompt", ""));
+            case "CODEX" -> codexCommand(
+                    mode, allowSourceMutation, readOnlyCodegenRecording,
+                    unrestrictedLocalAgentAccess, model, effort);
+            default -> List.of();
+        };
+    }
+
+    /**
+     * Returns whether an interactive mid-run approval bridge should be launched for this invocation:
+     * every default (non-custom) Claude Code AGENT-mode run whose caller supplied a real {@code
+     * approvalHandler}. Granted runs ("Allow source edits" checked) need the bridge too: {@code
+     * --permission-mode acceptEdits} only auto-approves file edits, so without a bridge every Bash
+     * and MCP tool call is auto-DENIED in {@code --print} mode — reproduced live as 16 denials in a
+     * single capture-integration run that burned ~28 turns retrying declined tools before answering
+     * with a terse no-op. Other combinations (a {@code null} handler, PLAN/ASK mode, a different
+     * client, a custom command) are unchanged: {@code plan} remains the fallback when no bridge is
+     * available (headless/tests/legacy call sites).
+     */
+    private static boolean needsInteractiveApproval(
+            JsonObject arguments, LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler) {
+        if (approvalHandler == null || !defaultCommand(arguments)) {
+            return false;
+        }
+        if (!"CLAUDE_CODE".equals(normalize(string(arguments, "client", "")))) {
+            return false;
+        }
+        return "AGENT".equals(normalize(string(arguments, "mode", "ASK")));
+    }
+
+    /**
+     * Wraps {@code handler} so the transcript shows a status line while a tool-approval decision is
+     * pending and another when it resolves, satisfying issue #3633's "status line reflects the
+     * paused timer during a pending approval" acceptance criterion via the existing narration
+     * (output-consumer) hooks -- no new UI plumbing needed. Returns {@code handler} unchanged when
+     * either it or {@code outputConsumer} is {@code null} (nothing to narrate, or nowhere to narrate
+     * it to).
+     */
+    static LocalAgentApprovalBridge.ApprovalRequestHandler narrateApproval(
+            LocalAgentApprovalBridge.ApprovalRequestHandler handler, Consumer<String> outputConsumer) {
+        if (handler == null || outputConsumer == null) {
+            return handler;
+        }
+        return (toolName, toolInput) -> {
+            outputConsumer.accept("Waiting for your approval on " + toolName + " -- run timer paused.");
+            CompletableFuture<LocalAgentApprovalBridge.Decision> future = handler.requestApproval(toolName, toolInput);
+            future.whenComplete((decision, throwable) ->
+                    outputConsumer.accept("Approval resolved -- run timer resumed."));
+            return future;
+        };
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher) {
+        return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher, true);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable) {
+        return run(arguments, processReference, cancellationRequested, outputConsumer, processLauncher,
+                requireCommandAvailable, null, LocalAgentApprovalBridge::start, true, null);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        return run(arguments, processReference, cancellationRequested, new AtomicBoolean(), outputConsumer,
+                processLauncher, requireCommandAvailable, approvalHandler, bridgeLauncher, verbose,
+                terminalAnswerConsumer);
+    }
+
+    private static ShaftMcpToolResult run(
+            JsonObject arguments,
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            AtomicBoolean forceCancellationRequested,
+            Consumer<String> outputConsumer,
+            ProcessLauncher processLauncher,
+            boolean requireCommandAvailable,
+            LocalAgentApprovalBridge.ApprovalRequestHandler approvalHandler,
+            ApprovalBridgeLauncher bridgeLauncher,
+            boolean verbose,
+            Consumer<String> terminalAnswerConsumer) {
+        Duration timeout = Duration.ofSeconds(intValue(arguments, "timeoutSeconds", DEFAULT_TIMEOUT_SECONDS));
+        LocalAgentApprovalBridge.ApprovalRequestHandler narratingApprovalHandler =
+                narrateApproval(approvalHandler, outputConsumer);
+        LocalAgentApprovalBridge bridge = null;
+        if (needsInteractiveApproval(arguments, approvalHandler)) {
+            try {
+                // The bridge's own decision timeout is deliberately a little longer than the process
+                // timeout below: if the user never answers, the process timeout fires first and this
+                // run fails on its own; the bridge timeout is a defensive backstop for the case where
+                // close() somehow isn't reached promptly, not the primary mechanism.
+                bridge = bridgeLauncher.launch(narratingApprovalHandler, timeout.plusSeconds(5));
+            } catch (IOException exception) {
+                if (outputConsumer != null) {
+                    outputConsumer.accept("Interactive approval is unavailable (" + exception.getMessage()
+                            + "); "
+                            + (AgentApprovalCapability.forClient(string(arguments, "client", ""))
+                            .isAutoApproveGranted(allowSourceMutation(arguments))
+                            ? "file edits stay auto-approved, but other tool calls will be denied."
+                            : "running in propose-only plan mode."));
+                }
+            }
+        }
+        // Declared here (not inside the try below) so the outer finally can always reach it -- issue
+        // #3962's terminalAnswerConsumer notification below must fire from every exit path of this
+        // method, including the early-return guard clauses at the top of the try that run before a
+        // structured stream parser is even created.
+        StructuredStreamParser streamParser = null;
+        List<String> launchedCommand = List.of();
+        try {
+            List<String> command = SetupPrerequisites.withOfficialExecutable(commandFor(arguments, bridge),
+                    System.getenv("PATH"), SetupPrerequisites.userHome(), isWindows(), true);
+            launchedCommand = command;
+            if (command.isEmpty()) {
+                return ShaftMcpToolResult.failure("No local assistant command was configured.");
+            }
+            if (!defaultCommand(arguments)
+                    && "AGENT".equals(normalize(string(arguments, "mode", "ASK")))
+                    && !allowSourceMutation(arguments)) {
+                return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
+            }
+            if (requireCommandAvailable && defaultCommand(arguments)
+                    && !SetupPrerequisites.commandResolvable(command.get(0), System.getenv("PATH"),
+                    SetupPrerequisites.userHome(), isWindows(), true)) {
+                return ShaftMcpToolResult.failure(displayName(string(arguments, "client", ""))
+                        + " executable is not available on PATH.");
+            }
+            String stdin = string(arguments, "prompt", "");
+            Path workingDirectory = workingDirectory(arguments);
+            boolean isDefaultCommand = defaultCommand(arguments);
+            streamParser = isDefaultCommand ? structuredStreamParser(command) : null;
+            Consumer<String> effectiveConsumer =
+                    effectiveConsumer(outputConsumer, streamParser, isDefaultCommand);
+            OutputStream stdinStream = null;
+            try {
+                // A cancel/kill that arrives before this point cannot reach the process: cancel()
+                // reads processReference, which is still null until the line below. Everything ahead
+                // of it -- commandFor, the approval bridge, and isCommandAvailable's full PATH scan --
+                // takes long enough for that to be a routine race rather than a corner case (issue
+                // #4500), so re-check the flag on both sides of publishing the handle. Without the
+                // second check the run launches the CLI, throws its CancellationException below and
+                // leaves the child process and both readAsync reader threads alive.
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                Process process = processLauncher.launch(command, workingDirectory, environment(arguments));
+                processReference.set(process);
+                if (cancellationRequested.get()) {
+                    destroy(process, forceCancellationRequested.get());
+                    throw new CancellationException("Operation cancelled");
+                }
+                InputStream stdoutStream = process.getInputStream();
+                InputStream stderrStream = process.getErrorStream();
+                stdinStream = process.getOutputStream();
+                AtomicLong lastActivityNanos = new AtomicLong(System.nanoTime());
+                Consumer<String> activityConsumer = activityStamped(effectiveConsumer, lastActivityNanos);
+                StreamRead stdout = readAsync(stdoutStream, activityConsumer);
+                StreamRead stderr = readAsync(stderrStream, activityConsumer);
+                stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
+                // Every local CLI is launched with plain text input (no CLI here supports a stream-json
+                // *input* protocol yet), so each one reads its prompt from stdin until EOF before doing
+                // anything at all. Closing stdin immediately is therefore required for every command, not
+                // just an optimization: holding it open past this point guarantees a hang until the
+                // timeout below fires, no matter what the prompt says. The approval bridge above is a
+                // separate side channel (its own HTTP port) that the CLI talks to independently of this
+                // stdin/stdout pipe, so it needs none of this.
+                stdinStream.close();
+
+                if (cancellationRequested.get()) {
+                    // Same reason as the guard around the launch above: a kill that landed while the
+                    // handle was unpublished set only the flag, so this path owns the destroy.
+                    destroy(process, forceCancellationRequested.get());
+                    closeQuietly(stdoutStream);
+                    closeQuietly(stderrStream);
+                    stdoutNow(stdout);
+                    stderrNow(stderr);
+                    throw new CancellationException("Operation cancelled");
+                }
+                if (!awaitRun(process, timeout, streamParser, lastActivityNanos, bridge)) {
+                    process.destroyForcibly();
+                    return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
+                            timeoutMessage(arguments, timeout, streamParser), verbose));
+                }
+                if (cancellationRequested.get()) {
+                    closeQuietly(stdoutStream);
+                    closeQuietly(stderrStream);
+                    stdoutNow(stdout);
+                    stderrNow(stderr);
+                    throw new CancellationException("Operation cancelled");
+                }
+                boolean success = process.exitValue() == 0;
+                String rawStdout = stdoutNow(stdout);
+                String rawStderr = stderrNow(stderr);
+                String output;
+                if (success) {
+                    if (streamParser != null && streamParser.hasTerminalEvent()) {
+                        output = streamParser.finalOutput(rawStderr);
+                    } else {
+                        // Issue #4424 review round 3, finding 4: when streamParser != null, this CLI
+                        // is structured (Claude stream-json / Codex --json), so rawStdout here is raw
+                        // NDJSON even though the run exited 0 -- never safe to hand to
+                        // bufferedSuccessOutput as literal stdout content, mirroring the failure
+                        // branch's guard three lines below (its own comment names thinking_tokens as
+                        // exactly the leak this prevents). A genuinely buffered/custom command
+                        // (streamParser == null) has ordinary text in rawStdout instead, unaffected.
+                        output = bufferedSuccessOutput(streamParser == null ? rawStdout : "", rawStderr, verbose);
+                    }
+                } else if (streamParser != null) {
+                    // A structured (stream-json / --json) CLI writes machine NDJSON to stdout, so on a
+                    // failed run the raw stream must never reach the transcript verbatim -- rerun/codegen
+                    // failures used to dump lines like {"type":"system","subtype":"thinking_tokens",...}.
+                    // Render the parser's cleaned answer, or a plain-language reason plus stderr when the
+                    // CLI died before emitting a terminal event -- gated on live Verbose state (issue
+                    // #3965) exactly like agentOutput below, since that stderr is already surfaced live
+                    // through outputConsumer while the run is in progress.
+                    output = streamParser.failureOutput(process.exitValue(), rawStderr, verbose)
+                            + resumeHint(streamParser);
+                } else {
+                    output = agentOutput(false, rawStdout, rawStderr, "", verbose);
+                }
+                return success
+                        ? ShaftMcpToolResult.success(output)
+                        : ShaftMcpToolResult.failure(output);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                // Plugin unload interrupts the bounded worker directly rather than going through a
+                // ShaftMcpInvocation cancel action. Destroy the still-published child before the
+                // finally block clears its only handle, or the CLI survives the unloaded plugin.
+                destroy(processReference.getAndSet(null), true);
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                return ShaftMcpToolResult.failure("Interrupted while running local assistant.");
+            } catch (IOException | RuntimeException exception) {
+                if (cancellationRequested.get()) {
+                    throw new CancellationException("Operation cancelled");
+                }
+                return ShaftMcpToolResult.failure(exception.getMessage());
+            } finally {
+                closeQuietly(stdinStream);
+                processReference.set(null);
+            }
+        } finally {
+            deleteGrokPromptFile(launchedCommand);
+            try {
+                // Issue #3962: notified exactly once, from every exit path of this method (normal
+                // return, timeout, a thrown exception, or a cancellation the checks above turned into a
+                // thrown CancellationException) -- unconditionally, regardless of whether
+                // cancellationRequested was ever observed. This runs strictly before this method
+                // returns/throws to the supplyAsync wrapper that completes the primary future, so by the
+                // time any caller's future.whenComplete callback can possibly observe this run's
+                // outcome, this notification has already happened -- closing the race #3758/#3768
+                // exploit differently (this side channel is never subject to future.cancel(true), which
+                // only ever affects the primary future's own stored result).
+                if (terminalAnswerConsumer != null) {
+                    terminalAnswerConsumer.accept(streamParser != null && streamParser.hasTerminalEvent()
+                            ? streamParser.finalOutput()
+                            : null);
+                }
+            } finally {
+                // Nested so a misbehaving terminalAnswerConsumer (e.g. a caller's completion callback
+                // throwing) can never suppress closing the approval bridge's HTTP server underneath it.
+                if (bridge != null) {
+                    bridge.close();
+                }
+            }
+        }
+    }
+
+    /**
+     * Waits for the process to finish, extending the nominal {@code timeout} by however long the
+     * user has spent deliberating on interactive approval prompts (per {@code bridge}), up to
+     * {@link #MAX_APPROVAL_EXTENSION_SECONDS} -- so a user genuinely reading a diff at the approval
+     * gate doesn't lose the whole run to the same deadline that governs unattended abandonment. When
+     * no bridge is in play (no interactive approval for this run), behavior is unchanged: a single
+     * plain wait on the nominal timeout.
+     */
+    private static boolean awaitProcessWithApprovalExtension(
+            Process process, Duration timeout, LocalAgentApprovalBridge bridge) throws InterruptedException {
+        if (bridge == null) {
+            return process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        return awaitProcessWithDeadlineExtension(
+                process,
+                timeout,
+                TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS),
+                bridge::accumulatedPendingMillis);
+    }
+
+    /** Waits for the run: an inactivity deadline for streaming CLIs, the fixed deadline for the rest. */
+    private static boolean awaitRun(
+            Process process, Duration timeout, StructuredStreamParser streamParser, AtomicLong lastActivityNanos,
+            LocalAgentApprovalBridge bridge) throws InterruptedException {
+        if (streamParser == null) {
+            return awaitProcessWithApprovalExtension(process, timeout, bridge);
+        }
+        return awaitProcessWithIdleDeadline(process, timeout, Duration.ofSeconds(MAX_STREAMING_RUN_SECONDS),
+                lastActivityNanos::get, bridge == null ? () -> 0L : bridge::accumulatedPendingMillis,
+                TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS));
+    }
+
+    private static String timeoutMessage(JsonObject arguments, Duration timeout, StructuredStreamParser parser) {
+        if (parser == null) {
+            return "Timed out after " + timeout.toSeconds() + " seconds.";
+        }
+        return displayName(string(arguments, "client", "")) + " produced no output for " + timeout.toSeconds()
+                + " seconds (or ran past the " + MAX_STREAMING_RUN_SECONDS / 3600 + " hour limit), so SHAFT stopped it."
+                + resumeHint(parser);
+    }
+
+    /** Hint appended to an early-ended run so the user can pick the same Grok session back up. */
+    private static String resumeHint(StructuredStreamParser parser) {
+        String sessionId = parser == null ? null : parser.currentSessionId();
+        return sessionId == null || sessionId.isBlank() ? ""
+                : " Continue it with `grok --resume " + sessionId + "`.";
+    }
+
+    /** Wraps {@code consumer} so every output line (even with no consumer) counts as run activity. */
+    private static Consumer<String> activityStamped(Consumer<String> consumer, AtomicLong lastActivityNanos) {
+        return line -> {
+            lastActivityNanos.set(System.nanoTime());
+            if (consumer != null) {
+                consumer.accept(line);
+            }
+        };
+    }
+
+    /**
+     * Waits for {@code process} with an inactivity deadline instead of a fixed wall clock (issue #6748):
+     * the run is given up on only after {@code idleTimeout} (plus accumulated approval-deliberation time,
+     * capped at {@code maxExtensionMillis}) passes with no output, or when {@code maxTotal} elapses.
+     * Package-private so tests drive it with a fake process and tiny durations.
+     */
+    static boolean awaitProcessWithIdleDeadline(
+            Process process, Duration idleTimeout, Duration maxTotal, LongSupplier lastActivityNanos,
+            LongSupplier accumulatedPendingMillis, long maxExtensionMillis) throws InterruptedException {
+        long startNanos = System.nanoTime();
+        long totalDeadlineNanos = startNanos + maxTotal.toNanos();
+        while (true) {
+            long now = System.nanoTime();
+            long extensionNanos = TimeUnit.MILLISECONDS.toNanos(
+                    Math.min(accumulatedPendingMillis.getAsLong(), maxExtensionMillis));
+            long idleDeadlineNanos = lastActivityNanos.getAsLong() + idleTimeout.toNanos() + extensionNanos;
+            long remainingNanos = Math.min(idleDeadlineNanos, totalDeadlineNanos) - now;
+            if (remainingNanos <= 0) {
+                return process.waitFor(0, TimeUnit.MILLISECONDS);
+            }
+            long sliceMillis = Math.max(1, Math.min(TimeUnit.NANOSECONDS.toMillis(remainingNanos),
+                    DEADLINE_POLL_INTERVAL_MILLIS));
+            if (process.waitFor(sliceMillis, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Polls {@code process} in short slices (instead of one long blocking wait) so the effective
+     * deadline -- {@code timeout + min(accumulatedPendingMillis, maxExtensionMillis)} -- can be
+     * recomputed on the fly as {@code accumulatedPendingMillisSupplier} grows during a pending
+     * approval. Package-private (not {@code private}) so tests can drive it directly with a fake
+     * supplier and a tiny cap, without waiting on real approval-bridge wall-clock time or the real
+     * 10-minute cap.
+     */
+    static boolean awaitProcessWithDeadlineExtension(
+            Process process, Duration timeout, long maxExtensionMillis, LongSupplier accumulatedPendingMillisSupplier)
+            throws InterruptedException {
+        long startNanos = System.nanoTime();
+        long baseMillis = timeout.toMillis();
+        while (true) {
+            long extensionMillis = Math.min(accumulatedPendingMillisSupplier.getAsLong(), maxExtensionMillis);
+            long effectiveDeadlineMillis = baseMillis + extensionMillis;
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+            long remainingMillis = effectiveDeadlineMillis - elapsedMillis;
+            if (remainingMillis <= 0) {
+                return false;
+            }
+            long sliceMillis = Math.min(remainingMillis, DEADLINE_POLL_INTERVAL_MILLIS);
+            if (process.waitFor(sliceMillis, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Returns a stream-event parser when {@code command} is a structured-stream default command
+     * (Claude's {@code stream-json} output or Codex's experimental {@code --json} output), or
+     * {@code null} for buffered-output commands (Copilot, custom commands) so callers know to fall
+     * back to today's buffered {@link #agentOutput} handling untouched.
+     */
+    private static StructuredStreamParser structuredStreamParser(List<String> command) {
+        if (command.isEmpty()) {
+            return null;
+        }
+        String executable = command.get(0);
+        if ("claude".equals(executable) && command.contains("stream-json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.CLAUDE);
+        }
+        if ("codex".equals(executable) && command.contains("--json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.CODEX);
+        }
+        if ("grok".equals(executable) && command.contains("streaming-json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.GROK);
+        }
+        return null;
+    }
+
+    /**
+     * Wraps the caller's {@code outputConsumer} so that structured-stream default commands receive
+     * human-readable progress lines translated from NDJSON (with unmapped events passed through raw
+     * — Verbose mode must never hide information), while buffered-output <em>default</em> commands
+     * (Copilot, whose CLI has no known streaming flag) receive a one-time notice followed by their
+     * raw lines as-is. Custom commands are never wrapped — SHAFT cannot know a hand-typed command's
+     * output shape, so its raw lines are forwarded unchanged exactly as before. A {@code null}
+     * caller consumer is left as {@code null} in every case since there is nothing to forward lines
+     * to.
+     */
+    private static Consumer<String> effectiveConsumer(
+            Consumer<String> outputConsumer, StructuredStreamParser streamParser, boolean isDefaultCommand) {
+        if (outputConsumer == null) {
+            return null;
+        }
+        if (streamParser != null) {
+            return line -> streamParser.accept(line, outputConsumer);
+        }
+        if (!isDefaultCommand) {
+            return outputConsumer;
+        }
+        AtomicBoolean notified = new AtomicBoolean();
+        return line -> {
+            if (notified.compareAndSet(false, true)) {
+                outputConsumer.accept(BUFFERED_MODE_NOTICE);
+            }
+            outputConsumer.accept(line);
+        };
+    }
+
+    /**
+     * Translates a structured NDJSON stream (Claude {@code stream-json} or Codex experimental
+     * {@code --json} events) into human-readable progress lines delivered through the caller's
+     * {@code outputConsumer}, while separately capturing the terminal event's final answer text and
+     * usage object. Both CLIs' event schemas are experimental/subject to drift, so unrecognized event
+     * types and missing fields are skipped rather than treated as parse failures — only a
+     * well-formed terminal event upgrades the result away from today's buffered {@link #agentOutput}
+     * fallback. The Verbose toggle exists precisely so the user can watch what the wrapped CLI is
+     * doing, so this is deliberately generous rather than sparse: non-JSON output (banners, warnings)
+     * passes straight through, and internal chain-of-thought (Claude's {@code thinking} blocks,
+     * Codex's {@code reasoning} items) is surfaced with a clear label instead of hidden.
+     *
+     * <p>Not thread-safe: each invocation of {@link #run} creates its own instance, but stdout and
+     * stderr are each read on their own thread via {@link #readAsync}, so access to the mutable
+     * terminal-event fields is synchronized.
+     */
+    static final class StructuredStreamParser {
+        enum Format { CLAUDE, CODEX, GROK }
+
+        private final Format format;
+        private final StreamEventMapper mapper;
+        private final Map<String, String> toolNamesByUseId = new HashMap<>();
+        private final LinkedHashSet<String> filesTouched = new LinkedHashSet<>();
+        private final Map<String, Integer> permissionDenialsByTool = new LinkedHashMap<>();
+        private String answer;
+        private Integer inputTokens;
+        private Integer outputTokens;
+        // A short, human-readable reason captured from a non-success terminal event (Claude's error
+        // subtype, Codex's turn.failed detail), used to explain a failure whose answer text is empty.
+        private String terminalDetail;
+        // Grok reports its resumable session id on the final `end` event (issue #6748).
+        private String sessionId;
+        // The plan text from a Claude Code ExitPlanMode tool_use call (see ClaudeStreamEventMapper's
+        // tool_use handling), if any. Carried through composeOutput's trailing metadata line so
+        // ShaftAssistantPanel can recover it via parsePlanProposal and render the terminal "Plan
+        // proposed" card (issue #3680), without changing the ShaftMcpToolResult contract.
+        private String planProposal;
+        // The structured question/options (issue #3719) detected in the terminal answer text via
+        // AssistantQuestion.detectStructuredLine, if any -- detected and stripped out of `answer`
+        // the moment it is captured below (before activitySummary/usageHolder append anything
+        // after it), then carried through composeOutput's trailing metadata line so
+        // AssistantLocalAgentRunner.parseQuestion can recover it, mirroring planProposal above.
+        private AssistantQuestion structuredQuestion;
+        // Whether any tool call was ever attempted, regardless of its outcome (issue #4424 round 2):
+        // distinct from filesTouched/permissionDenialsByTool, which only record a tool call's *result*.
+        // A run that attempted a (successful, non-mutating) tool call must not be treated as "silent"
+        // by finalOutput(String) just because it had nothing file/denial-worthy to report -- only a run
+        // that never got to attempt anything at all is that shape.
+        private boolean toolCallObserved;
+
+        StructuredStreamParser(Format format) {
+            this.format = format;
+            this.mapper = switch (format) {
+                case CLAUDE -> new ClaudeStreamEventMapper(this);
+                case CODEX -> new CodexStreamEventMapper(this);
+                case GROK -> new GrokStreamEventMapper(this);
+            };
+        }
+
+        synchronized void accept(String line, Consumer<String> outputConsumer) {
+            String trimmed = line == null ? "" : line.strip();
+            if (trimmed.isEmpty()) {
+                return;
+            }
+            JsonObject event = StreamJson.parseObject(trimmed);
+            if (event == null) {
+                // Non-JSON output (banners, warnings) is not part of the structured contract but is
+                // still useful progress information, so it passes through unchanged (content-wise) --
+                // tagged with RAW_STDOUT_MARKER (issue #3918) so ShaftAssistantPanel can withhold it
+                // from non-verbose mode's compact milestone bubbles without guessing from content.
+                outputConsumer.accept(RAW_STDOUT_MARKER + line);
+                return;
+            }
+            MapResult result = mapper.map(event);
+            if (result instanceof MapResult.Rendered rendered) {
+                outputConsumer.accept(rendered.text());
+            } else if (result instanceof MapResult.Unknown) {
+                // No human-readable mapping for this event: share it as-is (raw JSON) so Verbose
+                // mode never hides information the CLI sent. Non-verbose runs only ever show the
+                // parsed final answer, so this raw line is invisible unless the user opted in.
+                outputConsumer.accept(line);
+            }
+            // MapResult.Consumed: fully absorbed into parser state by the mapper (a terminal
+            // result/turn event that becomes the final answer), so it is neither shown nor passed
+            // through raw.
+        }
+
+        synchronized boolean hasTerminalEvent() {
+            return answer != null;
+        }
+
+        synchronized String finalOutput() {
+            return finalOutput(null);
+        }
+
+        /**
+         * Same as {@link #finalOutput()}, plus consulting {@code stderr} (issue #4424). {@code run()}'s
+         * success branch used to call the no-arg overload unconditionally, discarding {@code rawStderr}
+         * entirely once a terminal event had arrived. The general rule (round 2 of this issue, after an
+         * adversarial review showed a single-string {@code sandbox-setup} match was both incomplete --
+         * an unrelated MCP-startup failure hit the identical silent shape -- and fragile -- a bare
+         * naming-convention drift such as {@code SandboxSetup.exe} defeated it): <b>a zero-exit run that
+         * attempted zero tool calls, touched zero files and hit zero denials, but did emit stderr, must
+         * surface that stderr -- or a notice pointing at it -- regardless of the Verbose toggle.</b> That
+         * is not ordinary noise (contrast the Verbose-gated stderr fence in {@link #failureOutput}, issue
+         * #3965): if literally nothing else happened, the stderr is the only account of what went wrong,
+         * so withholding it makes the whole request silently impossible without a trace. {@code
+         * toolCallObserved} is what keeps this from becoming "always surface any stderr": a run that DID
+         * attempt a tool call but simply had nothing file/denial-worthy to report keeps withholding
+         * incidental stderr noise exactly as issue #3965 established.
+         *
+         * <p>{@code recognizedBootstrapFailure} (round 3): {@link #sandboxBootstrapFailureHeadline}
+         * recognizing the sandbox-bootstrap shape fires <em>on its own</em>, independent of {@code
+         * silentRun} -- round 2 had folded it in only as an enrichment gated behind {@code silentRun},
+         * which silently dropped a <em>recognized</em> bootstrap failure whenever the run also had real
+         * tool activity to report (e.g. a patch-application call that succeeded via one path while a
+         * different operation's sandbox helper failed to launch, leaving its only trace on stderr).
+         * That partially-degraded shape is precisely the case a user cannot diagnose alone, so a
+         * recognized failure surfaces regardless of tool activity, alongside (not instead of) the
+         * general {@code silentRun} rule for the unrecognized case. An unrecognized, non-{@code
+         * silentRun} shape (ordinary chatter from a run that also did real work) still stays withheld.
+         * A {@code null}/blank stderr, or a plain empty/empty/no-activity run with unrecognized
+         * stderr, leaves {@code core} untouched, so this overload is byte-identical to {@link
+         * #finalOutput()} for the overwhelmingly common case. This overload is deliberately separate
+         * from (rather than replacing) {@link #finalOutput()}, which stays in use where {@code
+         * terminalAnswerConsumer} recovers a cancelled/killed run's answer with no stderr in scope.
+         */
+        synchronized String finalOutput(String stderr) {
+            String core = answer.strip();
+            boolean silentRun = filesTouched.isEmpty() && permissionDenialsByTool.isEmpty() && !toolCallObserved;
+            String stderrText = stderr == null ? "" : stderr.strip();
+            boolean recognizedBootstrapFailure = sandboxBootstrapFailureHeadline(stderrText) != null;
+            boolean surfaceStderr = !stderrText.isBlank() && (silentRun || recognizedBootstrapFailure);
+            if (surfaceStderr) {
+                String notice = stderrNotice(stderrText);
+                core = core.isBlank() ? notice : core + "\n\n" + notice;
+            }
+            return composeOutput(core, surfaceStderr);
+        }
+
+        /**
+         * Cleaned output for a failed structured run. Prefers the terminal answer text; when the CLI
+         * died before returning one, synthesizes a plain-language reason (from {@link #terminalDetail}
+         * or the exit code) and, when {@code verbose} is {@code true}, appends stderr as a fenced block.
+         * Never returns the raw NDJSON stdout, so native stream events such as
+         * {@code {"type":"system","subtype":"thinking_tokens",...}} can no longer leak verbatim into
+         * the transcript. Issue #3965: a non-verbose run withholds the stderr fence from this compact
+         * answer -- it never needed to duplicate it here, since the same raw stderr already reached the
+         * live {@code outputConsumer} stream (Verbose-gated there, at the panel) while the process ran.
+         */
+        synchronized String failureOutput(int exitCode, String stderr, boolean verbose) {
+            String core = answer == null ? "" : answer.strip();
+            if (core.isBlank()) {
+                core = terminalDetail != null && !terminalDetail.isBlank()
+                        ? "The local assistant stopped before finishing: " + terminalDetail + "."
+                        : "The local assistant exited with code " + exitCode + " before returning an answer.";
+            }
+            String stderrText = stderr == null ? "" : stderr.strip();
+            if (verbose && !stderrText.isBlank()) {
+                core = core + "\n\n```\n" + stderrText + "\n```";
+            }
+            return composeOutput(core);
+        }
+
+        /**
+         * Builds the notice {@link #finalOutput(String)} appends for a silent run that emitted stderr:
+         * a specific, actionable headline for the recognized sandbox-bootstrap-failure shape when
+         * {@link #sandboxBootstrapFailureHeadline} recognizes it, or a generic headline otherwise --
+         * either way the full raw {@code stderrText} always follows as a fenced block, so an
+         * unrecognized shape is never dropped just because it doesn't match a known pattern (issue
+         * #4424 review round 2, finding 2). {@code stderrText} is assumed already non-blank.
+         */
+        private static String stderrNotice(String stderrText) {
+            String headline = sandboxBootstrapFailureHeadline(stderrText);
+            if (headline == null) {
+                headline = "**Note:** no tool ran for this request, but the CLI reported this on stderr:";
+            }
+            return headline + "\n\n```\n" + stderrText + "\n```";
+        }
+
+        /**
+         * Recognizes the sandbox-bootstrap-failure shape (Codex's sandbox helper failing to launch,
+         * e.g. {@code sandbox-setup.exe ... Access is denied (os error 5)}) for a more specific,
+         * actionable headline than {@link #stderrNotice}'s generic fallback. This is deliberately an
+         * enrichment only, never a gate: {@link #finalOutput(String)} surfaces stderr on a silent run
+         * regardless of whether this recognizes it, so a naming-convention drift (e.g. {@code
+         * SandboxSetup.exe}, no hyphen) degrades to the generic headline instead of silently dropping
+         * the stderr the way a single fitted string match would (issue #4424 review round 2, finding
+         * 2). Matches on "sandbox" and "setup" as separate substrings (order- and separator-agnostic)
+         * rather than the literal token, plus an access/permission-denied signal.
+         */
+        private static String sandboxBootstrapFailureHeadline(String stderrText) {
+            String lower = stderrText.toLowerCase(Locale.ROOT);
+            if (!lower.contains("sandbox") || !lower.contains("setup")) {
+                return null;
+            }
+            if (!(lower.contains("access is denied") || lower.contains("permission denied")
+                    || lower.contains("os error 5"))) {
+                return null;
+            }
+            return "**Environment setup failed:** the sandbox helper could not launch, so no tool could "
+                    + "run for this request. Ask an administrator to grant it access, then try again.";
+        }
+
+        private String composeOutput(String core) {
+            return composeOutput(core, false);
+        }
+
+        private String composeOutput(String core, boolean explicitNoActivityNotice) {
+            StringBuilder output = new StringBuilder(core);
+            String activity = activitySummary(explicitNoActivityNotice);
+            if (!activity.isBlank()) {
+                output.append("\n\n").append(activity);
+            }
+            return output + "\n\n" + usageHolder(core);
+        }
+
+        static String modelOutput(String composedOutput) {
+            if (composedOutput == null || composedOutput.isBlank()) {
+                return composedOutput;
+            }
+            int end = composedOutput.length();
+            while (end > 0 && Character.isWhitespace(composedOutput.charAt(end - 1))) {
+                end--;
+            }
+            int lineStart = composedOutput.lastIndexOf('\n', end - 1) + 1;
+            JsonObject metadata = StreamJson.parseObject(composedOutput.substring(lineStart, end).trim());
+            if (!validRunnerMetadata(metadata)) {
+                return composedOutput;
+            }
+            int modelOutputCharacters = metadata.getAsJsonObject("shaft_runner")
+                    .get("model_output_characters").getAsInt();
+            if (modelOutputCharacters < 0
+                    || modelOutputCharacters > lineStart
+                    || !composedOutput.substring(modelOutputCharacters, lineStart).startsWith("\n\n")) {
+                return composedOutput;
+            }
+            return composedOutput.substring(0, modelOutputCharacters);
+        }
+
+        /**
+         * Detects the structured question protocol (issue #3719) in a just-captured terminal
+         * answer, via {@link AssistantQuestion#detectStructuredLine}, stashing it in {@link
+         * #structuredQuestion} for {@link #usageHolder(String)} and returning the answer text with the
+         * marker line removed. Detecting here -- at the moment the terminal event's raw text is
+         * captured, before {@link #activitySummary()} or the usage/plan metadata line are appended
+         * after it -- is what keeps this reliable: those later append their own trailing lines,
+         * which would otherwise bury a model-authored trailing marker mid-text by the time any
+         * later, UI-layer pass over the fully composed output could look for it. When no valid
+         * structured line is found, {@code answer} is returned unchanged and {@link
+         * #structuredQuestion} stays {@code null}, so the fence remains the fallback exactly as
+         * before this issue.
+         */
+        private String captureStructuredQuestion(String answer) {
+            AssistantQuestion detected = AssistantQuestion.detectStructuredLine(answer);
+            if (detected == null) {
+                return answer;
+            }
+            structuredQuestion = detected;
+            return detected.promptMarkdown();
+        }
+
+        private JsonObject usageHolder(String core) {
+            JsonObject usage = new JsonObject();
+            usage.addProperty("input_tokens", StreamJson.orZero(inputTokens));
+            usage.addProperty("output_tokens", StreamJson.orZero(outputTokens));
+            JsonObject usageHolder = new JsonObject();
+            usageHolder.add("usage", usage);
+            if (planProposal != null && !planProposal.isBlank()) {
+                usageHolder.addProperty("plan", planProposal);
+            }
+            if (structuredQuestion != null) {
+                JsonObject question = new JsonObject();
+                question.addProperty("text", structuredQuestion.promptMarkdown());
+                JsonArray options = new JsonArray();
+                for (String option : structuredQuestion.options()) {
+                    options.add(option);
+                }
+                question.add("options", options);
+                usageHolder.add("question", question);
+            }
+            if (endsWithCodegenMarker(core)) {
+                JsonObject runner = new JsonObject();
+                runner.addProperty("model_output_characters", core.length());
+                usageHolder.add("shaft_runner", runner);
+            }
+            return usageHolder;
+        }
+
+        private static boolean endsWithCodegenMarker(String core) {
+            String[] lines = core.split("\\R");
+            for (int index = lines.length - 1; index >= 0; index--) {
+                String line = lines[index].trim();
+                if (!line.isBlank()) {
+                    return line.startsWith(AssistantCodegenWorkflowCoordinator.PROPOSAL_PREFIX)
+                            || line.startsWith(AssistantCodegenWorkflowCoordinator.RESULT_PREFIX);
+                }
+            }
+            return false;
+        }
+
+        private static boolean validRunnerMetadata(JsonObject metadata) {
+            if (!validRunnerMetadataShape(metadata) || !validRunnerMetadataKeys(metadata)) {
+                return false;
+            }
+            JsonObject usage = metadata.getAsJsonObject("usage");
+            JsonObject runner = metadata.getAsJsonObject("shaft_runner");
+            return validUsageMetadata(usage) && validModelOutputMetadata(runner);
+        }
+
+        private static boolean validRunnerMetadataShape(JsonObject metadata) {
+            return metadata != null
+                    && metadata.has("usage")
+                    && metadata.get("usage").isJsonObject()
+                    && metadata.has("shaft_runner")
+                    && metadata.get("shaft_runner").isJsonObject();
+        }
+
+        private static boolean validRunnerMetadataKeys(JsonObject metadata) {
+            return metadata.keySet().stream().allMatch(key -> "usage".equals(key)
+                    || "plan".equals(key)
+                    || "question".equals(key)
+                    || "shaft_runner".equals(key));
+        }
+
+        private static boolean validUsageMetadata(JsonObject usage) {
+            return usage.size() == 2
+                    && usage.has("input_tokens")
+                    && usage.get("input_tokens").isJsonPrimitive()
+                    && usage.get("input_tokens").getAsJsonPrimitive().isNumber()
+                    && usage.has("output_tokens")
+                    && usage.get("output_tokens").isJsonPrimitive()
+                    && usage.get("output_tokens").getAsJsonPrimitive().isNumber();
+        }
+
+        private static boolean validModelOutputMetadata(JsonObject runner) {
+            return runner.size() == 1
+                    && runner.has("model_output_characters")
+                    && runner.get("model_output_characters").isJsonPrimitive()
+                    && runner.get("model_output_characters").getAsJsonPrimitive().isNumber();
+        }
+
+        /**
+         * Compact factual footer for the final transcript bubble: which files the CLI actually
+         * created or edited, and which tool calls were denied. This renders even with Verbose off,
+         * so a run that silently lost most of its tool calls to permission denials can never end as
+         * an unexplained bare confirmation with no visible trace of what happened.
+         *
+         * <p>{@code explicitNoActivityNotice} (issue #4424) widens that guarantee to the shape the
+         * original "no silent bare confirmation" guard missed: a run whose CLI process died before any
+         * tool executed (a sandbox/environment bootstrap failure, an MCP server that failed to start,
+         * or any other pre-tool-call collapse) leaves {@code filesTouched}, {@code
+         * permissionDenialsByTool}, <em>and</em> {@code toolCallObserved} all empty/false, so this
+         * footer used to render nothing at all between the answer and the usage line. {@link
+         * #finalOutput(String)} passes {@code true} whenever it has decided to surface stderr; when
+         * that happens for a recognized bootstrap failure alongside real activity (round 3), {@code
+         * filesTouched}/{@code permissionDenialsByTool} are non-empty anyway, so this method's
+         * empty/empty branch below never engages and the parameter is simply unused for that call --
+         * only a genuinely empty/empty run's rendering depends on it. A plain empty/empty run that
+         * genuinely has nothing to report (an ordinary Q&A that never needed a tool, or a tool call
+         * that ran but touched no files and was never denied) still renders {@code ""} exactly as
+         * before -- this stays additive, not a blanket "always explain an empty run" change.
+         */
+        private String activitySummary(boolean explicitNoActivityNotice) {
+            if (filesTouched.isEmpty() && permissionDenialsByTool.isEmpty()) {
+                if (!explicitNoActivityNotice) {
+                    return "";
+                }
+                return String.join("\n", "---", "**Local agent activity**",
+                        "- No files were created or edited, and no tool calls ran.");
+            }
+            List<String> lines = new ArrayList<>();
+            lines.add("---");
+            lines.add("**Local agent activity**");
+            if (filesTouched.isEmpty()) {
+                lines.add("- No files were created or edited by this run.");
+            } else {
+                lines.add("- Files created or edited: "
+                        + filesTouched.stream().map(path -> "`" + path + "`")
+                        .collect(Collectors.joining(", ")));
+            }
+            if (!permissionDenialsByTool.isEmpty()) {
+                // Codex's --json schema (status "failed" / a non-zero exit_code) cannot distinguish a
+                // sandbox/approval denial from an ordinary execution failure the way Claude's
+                // permission_denials array can, so Codex failures are merged into this same bucket
+                // under an honest "failed or denied" label instead of Claude's more precise "denied"
+                // wording -- an explicit, documented tradeoff (issue #3679) rather than a silent no-op.
+                // Codex also has no interactive approval prompt to "approve" at (see
+                // AgentApprovalCapability#CODEX), so its hint points at the Allow source edits toggle
+                // instead of Claude's "approve them when prompted".
+                lines.add(format == Format.CODEX
+                        ? "- Failed or denied tool calls: "
+                        + permissionDenialsByTool.entrySet().stream()
+                        .map(entry -> entry.getKey() + (entry.getValue() > 1 ? " ×" + entry.getValue() : ""))
+                        .collect(Collectors.joining(", "))
+                        + " — re-run with Allow source edits enabled, since Codex has no interactive"
+                        + " approval prompt."
+                        : "- Denied tool calls: "
+                        + permissionDenialsByTool.entrySet().stream()
+                        .map(entry -> entry.getKey() + (entry.getValue() > 1 ? " ×" + entry.getValue() : ""))
+                        .collect(Collectors.joining(", "))
+                        + " — approve them when prompted, or re-run after adjusting permissions.");
+            }
+            return String.join("\n", lines);
+        }
+
+        synchronized boolean touchedFiles() {
+            return !filesTouched.isEmpty();
+        }
+
+        // -- Package-private accumulator API used by StreamEventMapper implementations --------
+
+        /**
+         * Remembers a {@code tool_use} block's id -> name mapping (Claude stream-json correlates a
+         * later {@code tool_result} back to the call that produced it via this id, see {@link
+         * ClaudeStreamEventMapper}).
+         */
+        void rememberToolName(String toolUseId, String toolName) {
+            toolNamesByUseId.put(toolUseId, toolName);
+        }
+
+        /** Looks up a previously remembered tool name by its {@code tool_use_id}, or {@code null}. */
+        String toolNameFor(String toolUseId) {
+            return toolNamesByUseId.get(toolUseId);
+        }
+
+        /**
+         * Marks that a tool call was attempted, whatever its outcome (issue #4424 round 2) -- see
+         * {@link #toolCallObserved}. Called once per tool-call event from either mapper, regardless of
+         * whether the call also turns out to touch a file or fail/get denied.
+         */
+        void recordToolCallObserved() {
+            toolCallObserved = true;
+        }
+
+        /** Records that {@code path} was created or edited, for the final activity-summary footer. */
+        void recordFileTouched(String path) {
+            filesTouched.add(path);
+        }
+
+        /**
+         * Records one failed/denied tool call for {@code toolName} in the shared per-tool bucket
+         * both Claude's {@code permission_denials} array and Codex's completed-item failure/decline
+         * detection feed into (see {@link #activitySummary()}).
+         */
+        void recordToolFailure(String toolName) {
+            permissionDenialsByTool.merge(toolName, 1, Integer::sum);
+        }
+
+        /** Stashes a Claude Code {@code ExitPlanMode} plan proposal (issue #3680). */
+        void setPlanProposal(String plan) {
+            this.planProposal = plan;
+        }
+
+        /**
+         * Sets the terminal answer text, running it through {@link #captureStructuredQuestion} so the
+         * structured-question protocol (issue #3719) is detected and stripped at the moment the raw
+         * text is captured, before {@link #activitySummary(boolean)}/{@link #usageHolder(String)} append their own
+         * trailing content.
+         */
+        void setAnswer(String rawAnswer) {
+            this.answer = captureStructuredQuestion(rawAnswer);
+        }
+
+        /** Overwrites the captured usage token counts. */
+        void setUsage(Integer inputTokens, Integer outputTokens) {
+            this.inputTokens = inputTokens;
+            this.outputTokens = outputTokens;
+        }
+
+        /** Remembers the CLI session id so a run that ended early can say how to resume it. */
+        void setSessionId(String sessionId) {
+            this.sessionId = sessionId;
+        }
+
+        /** The CLI session id reported by the stream, or {@code null} if none was seen. */
+        synchronized String currentSessionId() {
+            return sessionId;
+        }
+
+        /** Stashes a short human-readable reason for a non-success terminal event. */
+        void setTerminalDetail(String detail) {
+            this.terminalDetail = detail;
+        }
+
+        /** The input token count captured so far, or {@code null} if none has been seen yet. */
+        Integer currentInputTokens() {
+            return inputTokens;
+        }
+
+        /** The output token count captured so far, or {@code null} if none has been seen yet. */
+        Integer currentOutputTokens() {
+            return outputTokens;
+        }
+
+        /** The terminal answer text captured so far, or {@code null} if none has been seen yet. */
+        String currentAnswer() {
+            return answer;
+        }
+    }
+
+    private static void cancel(
+            AtomicReference<Process> processReference,
+            AtomicBoolean cancellationRequested,
+            AtomicBoolean forceCancellationRequested,
+            boolean force) {
+        if (force) {
+            forceCancellationRequested.set(true);
+        }
+        cancellationRequested.set(true);
+        Process process = force ? processReference.getAndSet(null) : processReference.get();
+        destroy(process, force);
+    }
+
+    private static void destroy(Process process, boolean force) {
+        if (process != null) {
+            if (force) {
+                process.destroyForcibly();
+            } else {
+                process.destroy();
+            }
+        }
+    }
+
+    /**
+     * {@code --json} is an experimental Codex CLI flag (documented alongside its
+     * {@code --experimental-json} alias) that switches {@code codex exec} to emit newline-delimited
+     * JSON events (thread/turn/item lifecycle plus a final {@code turn.completed} usage summary)
+     * instead of a single buffered blob. Because it is experimental, its event schema is subject to
+     * drift between Codex CLI releases, so the NDJSON parser in {@link #run} is deliberately
+     * tolerant: unrecognized event types or fields are skipped rather than treated as errors.
+     *
+     * <p>{@code mcp_servers.shaft-mcp.default_tools_approval_mode="approve"} is a launch-time
+     * pre-approval flag — see {@link AgentApprovalCapability#CODEX}, which has no interactive
+     * approval scopes, so this is the only approval mechanism available to Codex today. It is only
+     * added when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)} grants it. Source-edit
+     * runs remain project-scoped unless the user separately enables the explicitly disclosed
+     * unrestricted recovery option; ungranted runs retain the read-only sandbox.
+     */
+    private static List<String> codexCommand(
+            String mode, boolean allowSourceMutation, boolean readOnlyCodegenRecording,
+            boolean unrestrictedLocalAgentAccess,
+            String model, String effort) {
+        boolean unrestrictedAgent = "AGENT".equals(mode) && allowSourceMutation && unrestrictedLocalAgentAccess;
+        List<String> command = new ArrayList<>(unrestrictedAgent
+                ? List.of("codex", "--dangerously-bypass-approvals-and-sandbox", "exec")
+                : List.of("codex", "--ask-for-approval", "never", "exec"));
+        command.add("--skip-git-repo-check");
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        if (AssistantModelCatalog.isExplicitEffort(effort)) {
+            command.add("-c");
+            command.add("model_reasoning_effort=\"" + effort.toLowerCase(Locale.ROOT) + "\"");
+        }
+        if (!unrestrictedAgent) {
+            command.add("--sandbox");
+            command.add("AGENT".equals(mode) && allowSourceMutation ? "workspace-write" : "read-only");
+        }
+        if ("AGENT".equals(mode)) {
+            if (AgentApprovalCapability.CODEX.isAutoApproveGranted(allowSourceMutation)
+                    || readOnlyCodegenRecording) {
+                command.add("-c");
+                command.add("mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"");
+            }
+            if (readOnlyCodegenRecording) {
+                command.add("-c");
+                command.add("mcp_servers.shaft-mcp.enabled_tools=" + recordMcpToolsToml());
+            }
+            command.add("-c");
+            command.add("mcp_servers.shaft-mcp.tool_timeout_sec=600");
+        }
+        command.add("--json");
+        command.add("-");
+        return List.copyOf(command);
+    }
+
+    /**
+     * {@code --output-format stream-json} requires {@code --verbose} whenever it is paired with
+     * {@code --print} (the CLI rejects the combination otherwise), so every mode below carries both
+     * flags together to receive incremental NDJSON events instead of a single buffered blob. The
+     * AGENT-mode permission mode is the Claude equivalent of an auto-approve flag: {@code
+     * acceptEdits} is only selected when {@link AgentApprovalCapability#isAutoApproveGranted(boolean)}
+     * grants it. When it does not, an ungranted AGENT run wires up {@code bridge} (when the caller
+     * supplied one -- see {@link #needsInteractiveApproval}) so the CLI can ask SHAFT for a real,
+     * interactive per-tool decision via {@code --permission-prompt-tool} instead of falling all the
+     * way back to {@code plan} (propose-only, no real actions), which remains the fallback when no
+     * bridge is available. Validated empirically against the real {@code claude} CLI: no {@code
+     * --input-format stream-json} or held-open stdin is needed for this -- the bridge is a separate
+     * HTTP side channel the CLI talks to independently of the stdout stream already being read for
+     * display, and the CLI's own built-in safety classifier still auto-allows obviously-safe tool
+     * calls without ever reaching the bridge, matching what an interactive user would see.
+     */
+    /** Prompts longer than this travel in a temp file: Windows rejects command lines past ~32k characters. */
+    static final int GROK_MAX_ARGV_PROMPT_CHARS = 8_000;
+    private static final String GROK_PROMPT_FILE_FLAG = "--prompt-file";
+
+    private static List<String> grokCommand(String mode, boolean allowSourceMutation, String prompt) {
+        List<String> command = new ArrayList<>(grokPromptArguments(prompt));
+        // streaming-json is Grok's live NDJSON stream (issue #6748): without it the plain output stays
+        // empty until the run exits, so a working session looks dead and cannot be told from a hang.
+        command.addAll(List.of("--output-format", "streaming-json", "--no-auto-update"));
+        switch (mode) {
+            case "PLAN" -> command.addAll(List.of("--permission-mode", "plan"));
+            case "AGENT" -> {
+                if (allowSourceMutation) {
+                    command.addAll(List.of("--permission-mode", "acceptEdits"));
+                } else {
+                    command.addAll(List.of("--permission-mode", "default", "--tools", "read_file,grep,list_dir"));
+                }
+            }
+            default -> command.addAll(List.of("--permission-mode", "default", "--tools", "read_file,grep,list_dir"));
+        }
+        return command;
+    }
+
+    private static List<String> grokPromptArguments(String prompt) {
+        List<String> command = new ArrayList<>(List.of("grok"));
+        if (prompt.length() <= GROK_MAX_ARGV_PROMPT_CHARS) {
+            command.addAll(List.of("-p", prompt));
+            return command;
+        }
+        try {
+            Path file = Files.createTempFile("shaft-grok-prompt-", ".txt");
+            file.toFile().deleteOnExit();
+            Files.writeString(file, prompt, StandardCharsets.UTF_8);
+            command.addAll(List.of(GROK_PROMPT_FILE_FLAG, file.toString()));
+        } catch (IOException exception) {
+            command.addAll(List.of("-p", prompt));
+        }
+        return command;
+    }
+
+    /** Removes the temp prompt file {@link #grokPromptArguments} created for a long prompt, once the run is over. */
+    private static void deleteGrokPromptFile(List<String> command) {
+        int flag = command.indexOf(GROK_PROMPT_FILE_FLAG);
+        if (flag >= 0 && flag + 1 < command.size()) {
+            try {
+                Files.deleteIfExists(Path.of(command.get(flag + 1)));
+            } catch (IOException | RuntimeException ignored) {
+                // deleteOnExit is the backstop for a file that cannot be removed now.
+            }
+        }
+    }
+
+    private static List<String> claudeCommand(
+            String mode, boolean allowSourceMutation, String model, LocalAgentApprovalBridge bridge) {
+        List<String> command = new ArrayList<>(List.of("claude", "--print"));
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        if ("PLAN".equals(mode) || "AGENT".equals(mode)) {
+            boolean granted = "AGENT".equals(mode)
+                    && AgentApprovalCapability.CLAUDE_CODE.isAutoApproveGranted(allowSourceMutation);
+            if (granted) {
+                // acceptEdits only auto-approves file edits; Bash and MCP tool calls are still
+                // permission-gated and would be auto-denied in --print mode, so granted runs keep
+                // the interactive bridge for everything beyond edits whenever one is available.
+                command.add("--permission-mode");
+                command.add("acceptEdits");
+                if (bridge != null) {
+                    command.add("--mcp-config");
+                    command.add(bridge.mcpConfigArgument());
+                    command.add("--permission-prompt-tool");
+                    command.add(bridge.permissionPromptToolName());
+                }
+                addShaftMcpAllowedTools(command);
+            } else if ("AGENT".equals(mode) && bridge != null) {
+                command.add("--permission-mode");
+                command.add("default");
+                command.add("--mcp-config");
+                command.add(bridge.mcpConfigArgument());
+                command.add("--permission-prompt-tool");
+                command.add(bridge.permissionPromptToolName());
+                addShaftMcpAllowedTools(command);
+            } else {
+                command.add("--permission-mode");
+                command.add("plan");
+            }
+        }
+        command.add("--output-format");
+        command.add("stream-json");
+        command.add("--verbose");
+        return List.copyOf(command);
+    }
+
+    /**
+     * Pre-approves every SHAFT MCP tool for Claude Code AGENT runs. SHAFT's own tools are
+     * first-party capabilities of the Assistant (Codex runs already pre-approve them via
+     * {@code mcp_servers.shaft-mcp.default_tools_approval_mode="approve"}), so they never need a
+     * per-call approval prompt; the bridge remains for shell commands and third-party MCP tools.
+     * The server-level rule {@code mcp__shaft-mcp} allows every tool on that server — validated
+     * empirically against claude v2.1.203: a tools/call on an {@code mcp__shaft-mcp__*} tool
+     * executes with zero permission denials and no permission-prompt round trip.
+     */
+    private static void addShaftMcpAllowedTools(List<String> command) {
+        command.add("--allowedTools");
+        command.add("mcp__shaft-mcp");
+    }
+
+    private static String recordMcpToolsToml() {
+        return AssistantCodegenWorkflowCoordinator.recordMcpTools().stream()
+                .map(tool -> "\"" + tool + "\"")
+                .collect(Collectors.joining(",", "[", "]"));
+    }
+
+    private static List<String> copilotCommand(String mode, boolean allowSourceMutation, String model) {
+        List<String> command = new ArrayList<>();
+        command.add("copilot");
+        command.add(switch (mode) {
+            case "PLAN" -> "plan";
+            case "AGENT" -> AgentApprovalCapability.COPILOT_CLI.isAutoApproveGranted(allowSourceMutation)
+                    ? "agent" : "ask";
+            default -> "ask";
+        });
+        if (!model.isBlank()) {
+            command.add("--model");
+            command.add(model);
+        }
+        return List.copyOf(command);
+    }
+
+    /**
+     * Returns the command used to list the models supported by the selected agent CLI, or an
+     * empty list when the CLI has no known model-listing capability.
+     */
+    static List<String> modelsCommandFor(JsonObject arguments) {
+        return switch (normalize(string(arguments, "client", ""))) {
+            case "CLAUDE_CODE" -> List.of("claude", "config", "list-models");
+            case "COPILOT_CLI" -> List.of("copilot", "models");
+            case "CODEX" -> List.of("codex", "debug", "models");
+            default -> List.of();
+        };
+    }
+
+    /**
+     * Queries the connected agent CLI for its supported model list. Returns an empty list when the
+     * CLI is unavailable or the query fails or times out.
+     */
+    static List<String> listModels(JsonObject arguments) {
+        return discoverModels(arguments).models();
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process directly, bypassing the PATH
+     * availability check that gates the real CLI in {@link #listModels(JsonObject)}.
+     */
+    static List<String> listModels(JsonObject arguments, ProcessLauncher processLauncher) {
+        return discoverModels(arguments, processLauncher).models();
+    }
+
+    static ModelDiscovery discoverModels(JsonObject arguments) {
+        List<String> command = modelsCommandFor(arguments);
+        if (!isCommandAvailable(command.get(0))) {
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.UNAVAILABLE);
+        }
+        return discoverModels(arguments, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    static ModelDiscovery discoverModels(JsonObject arguments, ProcessLauncher processLauncher) {
+        List<String> command = modelsCommandFor(arguments);
+        Path workingDirectory = workingDirectory(arguments);
+        try {
+            Process process = processLauncher.launch(command, workingDirectory, Map.of());
+            process.getOutputStream().close();
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
+            boolean finished = process.waitFor(MODEL_LIST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
+            }
+            String output = process.exitValue() == 0 ? stdoutNow(stdout) : "";
+            if (output.isBlank()) {
+                stderrNow(stderr);
+                return new ModelDiscovery(List.of(), process.exitValue() == 0
+                        ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.FAILED);
+            }
+            List<String> models = parseDiscoveredModelNames(arguments, output);
+            return new ModelDiscovery(models, models.isEmpty()
+                    ? ModelDiscoveryState.EMPTY : ModelDiscoveryState.AVAILABLE);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
+        } catch (IOException | RuntimeException exception) {
+            return new ModelDiscovery(List.of(), ModelDiscoveryState.FAILED);
+        }
+    }
+
+    /**
+     * Parses model names out of a CLI's model-listing output. Accepts either a JSON array of
+     * strings/objects (with a {@code name} or {@code id} field) or plain newline-delimited text.
+     */
+    static List<String> parseModelNames(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return List.of();
+        }
+        Set<String> models = new LinkedHashSet<>();
+        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            try {
+                JsonElement parsed = JsonParser.parseString(trimmed);
+                collectModelNames(parsed, models);
+                if (!models.isEmpty()) {
+                    return List.copyOf(models);
+                }
+            } catch (JsonParseException ignored) {
+                // Fall through to line-based parsing below.
+            }
+        }
+        for (String line : trimmed.split("\\r?\\n")) {
+            String candidate = line.strip();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            candidate = candidate.replaceFirst("^[-*]\\s+", "").strip();
+            Matcher matcher = MODEL_LINE_PATTERN.matcher(candidate);
+            if (matcher.find()) {
+                models.add(matcher.group(1));
+            } else if (!candidate.contains(" ") && candidate.length() < 64) {
+                models.add(candidate);
+            }
+        }
+        return List.copyOf(models);
+    }
+
+    private static List<String> parseDiscoveredModelNames(JsonObject arguments, String output) {
+        if (!"CODEX".equals(normalize(string(arguments, "client", "")))) {
+            return parseModelNames(output);
+        }
+        try {
+            JsonElement parsed = JsonParser.parseString(output == null ? "" : output.strip());
+            if (!parsed.isJsonObject()) {
+                return List.of();
+            }
+            JsonElement catalog = parsed.getAsJsonObject().get("models");
+            if (catalog == null || !catalog.isJsonArray()) {
+                return List.of();
+            }
+            Set<String> models = new LinkedHashSet<>();
+            for (JsonElement item : catalog.getAsJsonArray()) {
+                if (!item.isJsonObject()) {
+                    continue;
+                }
+                JsonObject model = item.getAsJsonObject();
+                JsonElement slug = model.get("slug");
+                JsonElement visibility = model.get("visibility");
+                if (slug != null && slug.isJsonPrimitive()
+                        && visibility != null && "list".equalsIgnoreCase(visibility.getAsString())) {
+                    models.add(slug.getAsString());
+                }
+            }
+            return List.copyOf(models);
+        } catch (JsonParseException | IllegalStateException ignored) {
+            return List.of();
+        }
+    }
+
+    private static void collectModelNames(JsonElement element, Set<String> models) {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement item : element.getAsJsonArray()) {
+                collectModelNames(item, models);
+            }
+            return;
+        }
+        if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+            models.add(element.getAsString());
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            for (String key : List.of("id", "name", "model")) {
+                JsonElement value = object.get(key);
+                if (value != null && value.isJsonPrimitive()) {
+                    models.add(value.getAsString());
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns the agent CLI's compact/compress command preamble, or an empty list when the
+     * selected client has no known compaction command.
+     */
+    static List<String> compactCommandFor(JsonObject arguments) {
+        return switch (normalize(string(arguments, "client", ""))) {
+            case "CLAUDE_CODE" -> List.of("claude", "--print", "/compact");
+            case "COPILOT_CLI" -> List.of();
+            default -> List.of();
+        };
+    }
+
+    static boolean supportsCompact(JsonObject arguments) {
+        return !compactCommandFor(arguments).isEmpty();
+    }
+
+    /**
+     * Sends the agent CLI's compact/compress command as a preamble before a new user request, when
+     * the client supports one. Returns a successful no-op result immediately when the CLI does not
+     * support compaction so callers can skip it gracefully without failing the request.
+     */
+    static ShaftMcpToolResult runCompactPreamble(JsonObject arguments) {
+        List<String> command = compactCommandFor(arguments);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success("Compaction is not supported by the selected agent CLI.");
+        }
+        if (!isCommandAvailable(command.get(0))) {
+            return ShaftMcpToolResult.success("Compaction skipped: agent executable is not available on PATH.");
+        }
+        return runCompactPreamble(arguments, AssistantLocalAgentRunner::launchProcess);
+    }
+
+    /**
+     * Package-private overload used by tests to drive a stub process directly, bypassing the PATH
+     * availability check that gates the real CLI in {@link #runCompactPreamble(JsonObject)}.
+     */
+    static ShaftMcpToolResult runCompactPreamble(JsonObject arguments, ProcessLauncher processLauncher) {
+        List<String> command = compactCommandFor(arguments);
+        if (command.isEmpty()) {
+            return ShaftMcpToolResult.success("Compaction is not supported by the selected agent CLI.");
+        }
+        Path workingDirectory = workingDirectory(arguments);
+        try {
+            Process process = processLauncher.launch(command, workingDirectory, Map.of());
+            process.getOutputStream().close();
+            StreamRead stdout = readAsync(process.getInputStream(), null);
+            StreamRead stderr = readAsync(process.getErrorStream(), null);
+            boolean finished = process.waitFor(COMPACT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return ShaftMcpToolResult.success("Compaction timed out; continuing without it.");
+            }
+            String output = agentOutput(process.exitValue() == 0, stdoutNow(stdout), stderrNow(stderr), "");
+            return ShaftMcpToolResult.success(output.isBlank() ? "Compaction complete." : output);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return ShaftMcpToolResult.success("Compaction interrupted; continuing without it.");
+        } catch (IOException | RuntimeException exception) {
+            return ShaftMcpToolResult.success("Compaction skipped: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Token usage parsed from an agent's structured result metadata (for example, the
+     * {@code usage} object in the Claude CLI's {@code --output-format json} result), or an
+     * estimated fallback when the agent reports no usage fields.
+     *
+     * @param inputTokens reported or estimated input token count
+     * @param outputTokens reported or estimated output token count
+     * @param estimated true when the counts are an estimate rather than agent-reported values
+     */
+    record TokenUsage(int inputTokens, int outputTokens, boolean estimated) {
+        static TokenUsage estimate(int inputTokens, int outputTokens) {
+            return new TokenUsage(Math.max(0, inputTokens), Math.max(0, outputTokens), true);
+        }
+
+        static TokenUsage reported(int inputTokens, int outputTokens) {
+            return new TokenUsage(Math.max(0, inputTokens), Math.max(0, outputTokens), false);
+        }
+
+        int totalTokens() {
+            return inputTokens + outputTokens;
+        }
+    }
+
+    /**
+     * Parses token usage from an agent's raw output. First tries the output as NDJSON: each line is
+     * parsed independently as a JSON object carrying (or holding a nested {@code usage} object with)
+     * {@code input_tokens}/{@code output_tokens}, and the <em>last</em> line that yields usage fields
+     * wins — matching a structured-stream terminal event that may be followed by later
+     * housekeeping/log lines. When no line parses to usage, falls back to the original
+     * first-brace/last-brace whole-text extraction (the Claude CLI {@code --output-format json}
+     * shape). Returns {@code null} when no structured usage metadata is present in either form, so
+     * callers can fall back to an estimate and label it accordingly.
+     */
+    static TokenUsage parseTokenUsage(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        TokenUsage fromLines = parseTokenUsageFromLines(trimmed);
+        if (fromLines != null) {
+            return fromLines;
+        }
+        JsonObject usageHolder = extractJsonObject(trimmed);
+        if (usageHolder == null) {
+            return null;
+        }
+        return usageFromHolder(usageHolder);
+    }
+
+    /**
+     * Scans {@code text} line by line, parsing each non-blank line as a standalone JSON object and
+     * keeping the usage parsed from the last line that has one. Lines that are not valid JSON (plain
+     * prose, partial output) are skipped rather than treated as errors, since NDJSON output is
+     * expected to interleave structured events with the occasional non-JSON banner line.
+     */
+    private static TokenUsage parseTokenUsageFromLines(String text) {
+        TokenUsage lastMatch = null;
+        for (String line : text.split("\\r?\\n")) {
+            String candidate = line.strip();
+            if (candidate.length() < 2 || !candidate.startsWith("{") || !candidate.endsWith("}")) {
+                continue;
+            }
+            JsonObject parsed;
+            try {
+                JsonElement element = JsonParser.parseString(candidate);
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                parsed = element.getAsJsonObject();
+            } catch (JsonParseException exception) {
+                continue;
+            }
+            TokenUsage usage = usageFromHolder(parsed);
+            if (usage != null) {
+                lastMatch = usage;
+            }
+        }
+        return lastMatch;
+    }
+
+    private static TokenUsage usageFromHolder(JsonObject usageHolder) {
+        JsonObject usage = resolveUsageObject(usageHolder);
+        Integer inputTokens = StreamJson.intField(usage, "input_tokens");
+        Integer outputTokens = StreamJson.intField(usage, "output_tokens");
+        if (inputTokens == null && outputTokens == null) {
+            return null;
+        }
+        return TokenUsage.reported(StreamJson.orZero(inputTokens), StreamJson.orZero(outputTokens));
+    }
+
+    /**
+     * Returns {@code output} with its trailing usage-metadata JSON line removed, leaving only the
+     * human-facing answer text. This is the display-side counterpart to {@link #parseTokenUsage}:
+     * both inspect the same trailing line, so a change to one's line-detection rules must be mirrored
+     * in the other. When the last non-blank line is not a parseable usage object, {@code output} is
+     * returned unchanged (stripped of surrounding whitespace) so plain prose responses are never
+     * altered.
+     */
+    static String stripTrailingUsageMetadata(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return trimmed;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        int lastLineIndex = lines.length - 1;
+        JsonObject parsed = parseTrailingJsonLine(lines[lastLineIndex].strip());
+        if (parsed == null || usageFromHolder(parsed) == null) {
+            return trimmed;
+        }
+        StringBuilder remainder = new StringBuilder();
+        for (int index = 0; index < lastLineIndex; index++) {
+            remainder.append(lines[index]).append('\n');
+        }
+        return remainder.toString().strip();
+    }
+
+    /**
+     * Parses {@code lastLine} as a trailing metadata JSON object (the shape {@link
+     * #stripTrailingUsageMetadata}, {@link #parsePlanProposal}, and {@link #parseQuestion} all look
+     * for), or {@code null} when it isn't brace-delimited or isn't valid/object JSON. Shared so no
+     * caller re-implements the same guard-clause parse and to keep each caller's own NPath
+     * complexity low.
+     */
+    private static JsonObject parseTrailingJsonLine(String lastLine) {
+        if (lastLine.length() < 2 || !lastLine.startsWith("{") || !lastLine.endsWith("}")) {
+            return null;
+        }
+        try {
+            JsonElement element = JsonParser.parseString(lastLine);
+            return element.isJsonObject() ? element.getAsJsonObject() : null;
+        } catch (JsonParseException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Extracts the {@code ExitPlanMode} plan text embedded in the trailing usage-metadata JSON line
+     * (see {@code StructuredStreamParser#usageHolder}), or {@code null} when the run never called
+     * {@code ExitPlanMode} (or the output has no trailing metadata line at all). Used by {@code
+     * ShaftAssistantPanel} to render the terminal "Plan proposed" structured card (issue #3680)
+     * independently of whether Claude's own final answer text happened to restate the plan. Mirrors
+     * {@link #stripTrailingUsageMetadata}'s trailing-line detection: both inspect the same last line,
+     * so a change to one's line-detection rules must be mirrored in the other.
+     */
+    static String parsePlanProposal(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        JsonObject parsed = parseTrailingJsonLine(lines[lines.length - 1].strip());
+        if (parsed == null) {
+            return null;
+        }
+        JsonElement planElement = parsed.get("plan");
+        if (planElement == null || !planElement.isJsonPrimitive() || !planElement.getAsJsonPrimitive().isString()) {
+            return null;
+        }
+        String plan = planElement.getAsString();
+        return plan.isBlank() ? null : plan;
+    }
+
+    /**
+     * Extracts the runner-recognized structured question (issue #3719) from the trailing
+     * usage-metadata JSON line's {@code question} field -- the preferred, protocol-level
+     * counterpart to {@link AssistantQuestion#detect}'s fence-in-markdown fallback. Returns {@code
+     * null} when {@code output} has no trailing metadata line, or the field is absent (the
+     * overwhelming majority of runs, which never attempted the protocol), so callers fall back to
+     * fence detection exactly as before this issue. Mirrors {@link #parsePlanProposal}'s
+     * trailing-line extraction. Enforces the same validation as {@link AssistantQuestion#detect}:
+     * blanks are filtered from options, and the final count must be 2-6 (issue #3719).
+     */
+    static AssistantQuestion parseQuestion(String output) {
+        String trimmed = output == null ? "" : output.strip();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        String[] lines = trimmed.split("\\r?\\n");
+        JsonObject parsed = parseTrailingJsonLine(lines[lines.length - 1].strip());
+        if (parsed == null) {
+            return null;
+        }
+
+        JsonObject question = questionObject(parsed);
+        if (question == null) {
+            return null;
+        }
+
+        String text = questionText(question);
+        if (text == null) {
+            return null;
+        }
+
+        List<String> options = questionOptions(question);
+        if (options == null) {
+            return null;
+        }
+
+        return new AssistantQuestion(text, options);
+    }
+
+    /**
+     * Extracts and validates the question object from the parsed JSON. Returns {@code null} if
+     * the field is missing or not a JSON object.
+     */
+    private static JsonObject questionObject(JsonObject parsed) {
+        JsonElement questionElement = parsed.get("question");
+        if (questionElement == null || !questionElement.isJsonObject()) {
+            return null;
+        }
+        return questionElement.getAsJsonObject();
+    }
+
+    /**
+     * Extracts the question text from the question object. Returns {@code null} if the text
+     * field is missing, not a string, or empty after trimming.
+     */
+    private static String questionText(JsonObject question) {
+        JsonElement textElement = question.get("text");
+        if (textElement == null || !textElement.isJsonPrimitive()
+                || !textElement.getAsJsonPrimitive().isString()) {
+            return null;
+        }
+        String text = textElement.getAsString().strip();
+        if (text.isEmpty()) {
+            return null;
+        }
+        return text;
+    }
+
+    /**
+     * Extracts and validates the options array from the question object. Returns {@code null} if
+     * the options field is missing, not an array, or the final count falls outside MIN/MAX bounds.
+     * Reuses AssistantQuestion's validation (issue #3719).
+     */
+    private static List<String> questionOptions(JsonObject question) {
+        JsonElement optionsElement = question.get("options");
+        if (optionsElement == null || !optionsElement.isJsonArray()) {
+            return null;
+        }
+        List<String> options = AssistantQuestion.parseOptionsArray(optionsElement.getAsJsonArray());
+        if (options.isEmpty()) {
+            return null;
+        }
+        return options;
+    }
+
+    private static JsonObject resolveUsageObject(JsonObject usageHolder) {
+        JsonElement usage = usageHolder.get("usage");
+        if (usage != null && usage.isJsonObject()) {
+            return usage.getAsJsonObject();
+        }
+        return usageHolder;
+    }
+
+    private static JsonObject extractJsonObject(String text) {
+        int start = text.indexOf('{');
+        if (start < 0) {
+            return null;
+        }
+        int end = text.lastIndexOf('}');
+        if (end <= start) {
+            return null;
+        }
+        String candidate = text.substring(start, end + 1);
+        try {
+            JsonElement parsed = JsonParser.parseString(candidate);
+            return parsed.isJsonObject() ? parsed.getAsJsonObject() : null;
+        } catch (JsonParseException exception) {
+            return null;
+        }
+    }
+
+    private static boolean allowSourceMutation(JsonObject arguments) {
+        return booleanValue(arguments, "allowSourceMutation");
+    }
+
+    private static boolean defaultCommand(JsonObject arguments) {
+        return customCommand(arguments).isEmpty();
+    }
+
+    private static List<String> customCommand(JsonObject arguments) {
+        JsonElement command = arguments == null ? null : arguments.get("command");
+        if (command == null || !command.isJsonArray()) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (JsonElement item : command.getAsJsonArray()) {
+            if (item != null && item.isJsonPrimitive()) {
+                String value = item.getAsString();
+                if (value != null && !value.isBlank()) {
+                    values.add(value);
+                }
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private static Map<String, String> environment(JsonObject arguments) {
+        JsonElement environment = arguments == null ? null : arguments.get("environment");
+        if (environment == null || !environment.isJsonObject()) {
+            return Map.of();
+        }
+        java.util.HashMap<String, String> values = new java.util.HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : environment.getAsJsonObject().entrySet()) {
+            JsonElement value = entry.getValue();
+            if (value != null && value.isJsonPrimitive()) {
+                values.put(entry.getKey(), value.getAsString());
+            }
+        }
+        return values;
+    }
+
+    private static Path workingDirectory(JsonObject arguments) {
+        String configured = string(arguments, "workingDirectory", "");
+        return configured.isBlank() ? Path.of(".") : Path.of(configured);
+    }
+
+    /**
+     * Unconditional overload retained for callers with no live Verbose context of their own (for
+     * example {@link #runCompactPreamble}, whose result never reaches the interactive transcript's
+     * live stream) -- always folds {@code stderr} in, matching the behavior of every caller before
+     * issue #3965. See {@link #agentOutput(boolean, String, String, String, boolean)} for the
+     * verbose-gated version {@link #run} uses for the compact terminal answer.
+     */
+    static String agentOutput(boolean success, String stdout, String stderr, String fallback) {
+        return agentOutput(success, stdout, stderr, fallback, true);
+    }
+
+    /**
+     * Composes the buffered/non-structured fallback answer (used for Copilot's default command, any
+     * custom command, and a timed-out run) from the CLI's raw stdout/stderr. Issue #3965: {@code
+     * stderr} is folded into the compact terminal answer only when {@code verbose} is {@code true} --
+     * a non-verbose run withholds it here, but never loses it entirely, since the same raw stderr
+     * already reached the live {@code outputConsumer} stream (Verbose-gated there, at the panel) while
+     * the process was running. On success with non-blank {@code stdout}, {@code stderr} is never
+     * folded in at all, verbose or not -- see {@link #bufferedSuccessOutput} for why a successful
+     * {@link #run} answer needs different treatment than this general-purpose composer's other
+     * callers (issue #4424 review round 2, finding 3).
+     */
+    static String agentOutput(boolean success, String stdout, String stderr, String fallback, boolean verbose) {
+        if (success && stdout != null && !stdout.isBlank()) {
+            return stdout.strip();
+        }
+        List<String> sections = new ArrayList<>();
+        if (stdout != null && !stdout.isBlank()) {
+            sections.add(stdout.strip());
+        }
+        if (verbose && stderr != null && !stderr.isBlank()) {
+            sections.add(stderr.strip());
+        }
+        if (sections.isEmpty() && fallback != null && !fallback.isBlank()) {
+            sections.add(fallback);
+        }
+        return String.join("\n\n", sections).trim();
+    }
+
+    /**
+     * Composes {@link #run}'s buffered/custom-command <em>success</em> answer for the interactive
+     * transcript. Issue #4424 review round 2, finding 3: {@link #agentOutput}'s short-circuit above
+     * (returning bare {@code stdout} on success, unconditionally) is a deliberate, tested design
+     * choice for its other caller ({@link #runCompactPreamble}'s low-stakes auxiliary status line,
+     * pinned by {@code AssistantCommandTest#directLocalAgentOutputPrefersStdoutOnSuccessAndIncludes
+     * StderrOnFailure}), but it is the wrong choice for a custom command's or Copilot's actual answer:
+     * a CLI that printed a confident-looking answer to stdout while its real failure reason went to
+     * stderr (the reviewer's reproduction: {@code sandbox-setup.exe ... Access is denied (os error
+     * 5)}) stayed silent about it even with Verbose on, since the short-circuit runs before {@code
+     * verbose}-gated stderr is ever considered. This dedicated composer folds {@code stdout} and
+     * {@code verbose}-gated {@code stderr} together the same way regardless of whether {@code stdout}
+     * is present, closing that gap for the one caller where it actually matters, without touching
+     * {@code agentOutput}'s existing contract elsewhere.
+     *
+     * <p>Issue #4424 review round 3, finding 2: round 2's javadoc claimed this path "has no reliable
+     * way to tell a silent failure apart from ordinary successful-run stderr chatter" -- that claim
+     * was too broad. Blank {@code stdout} <em>is</em> a reliable discriminator here, the buffered
+     * analogue of the structured-stream path's {@code toolCallObserved == false} (see {@link
+     * StructuredStreamParser#finalOutput(String)}): if the CLI produced no stdout at all, nothing
+     * else happened worth staying silent about, so {@code stderr} surfaces regardless of {@code
+     * verbose} in that case. A run that DID produce {@code stdout} keeps withholding {@code stderr}
+     * on {@code verbose} off exactly as before -- that part of the round-2 claim holds, since there
+     * genuinely is no signal to distinguish a real failure from ordinary chatter once the CLI has
+     * already produced real output.
+     */
+    static String bufferedSuccessOutput(String stdout, String stderr, boolean verbose) {
+        String stdoutText = stdout == null ? "" : stdout.strip();
+        String stderrText = stderr == null ? "" : stderr.strip();
+        if (stdoutText.isBlank()) {
+            return stderrText;
+        }
+        List<String> sections = new ArrayList<>();
+        sections.add(stdoutText);
+        if (verbose && !stderrText.isBlank()) {
+            sections.add(stderrText);
+        }
+        return String.join("\n\n", sections).trim();
+    }
+
+    /**
+     * Pairs a background stream-read's eventual {@link #future} with a live {@link #capturedSoFar}
+     * view of whatever has been buffered up to any given moment. A {@code CompletableFuture} only
+     * ever yields a value once it completes, so a caller that gives up waiting on it (a timeout, or
+     * any other exception) has no way to recover partial progress from the future alone; {@code
+     * capturedSoFar} reads the same underlying (synchronized) buffer the reader thread is still
+     * writing to, so it is safe to consult at any time, whether or not the future has finished
+     * (issue #4164 follow-up: {@code stdoutNow}/{@code stderrNow} used to discard this on any
+     * exception, including a plain timeout, exactly like {@link #readAsync}'s own now-fixed
+     * IOException discard).
+     */
+    private record StreamRead(CompletableFuture<String> future, Supplier<String> capturedSoFar) {
+    }
+
+    private static StreamRead readAsync(InputStream stream, Consumer<String> outputConsumer) {
+        StringBuffer output = new StringBuffer();
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append('\n');
+                        if (outputConsumer != null) {
+                            outputConsumer.accept(line);
+                        }
+                    }
+                }
+            } catch (IOException exception) {
+                // Issue #4164: a torn-down pipe (e.g. destroyForcibly() during a Kill) must not discard
+                // whatever was already read and streamed to outputConsumer -- return the partial buffer
+                // instead of blanking it.
+            }
+            return output.toString();
+        }, ShaftPluginExecutor.getInstance().executor());
+        return new StreamRead(future, output::toString);
+    }
+
+    private static String stdoutNow(StreamRead read) {
+        try {
+            return read.future().get(2, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            // Issue #4164: the process has already terminated by every caller of this method, so a
+            // read that is still incomplete at this point is slow, not silent (a timeout is the case
+            // that matters most here) -- or failed for an unrelated reason (e.g. a throwing
+            // outputConsumer). Either way, fall back to whatever the buffer already holds instead of
+            // blanking it to "".
+            return read.capturedSoFar().get();
+        }
+    }
+
+    private static String stderrNow(StreamRead read) {
+        return stdoutNow(read);
+    }
+
+    private static void closeQuietly(InputStream stream) {
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // Stream readers treat closed process streams as empty output.
+        }
+    }
+
+    private static void closeQuietly(OutputStream stream) {
+        if (stream == null) {
+            return;
+        }
+        try {
+            stream.close();
+        } catch (IOException ignored) {
+            // The process may have already exited and closed its own end of the pipe.
+        }
+    }
+
+    static boolean isCommandAvailable(String command) {
+        return SetupPrerequisites.commandOnPath(command, System.getenv("PATH"), isWindows());
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static String displayName(String client) {
+        return switch (normalize(client)) {
+            case "CLAUDE_CODE" -> "Claude Code";
+            case "COPILOT_CLI" -> "GitHub Copilot CLI";
+            case "GROK" -> com.shaft.intellij.settings.GrokInstallIdentity.detectedLabel();
+            case "ANTIGRAVITY" -> "Antigravity";
+            case "CODEX" -> "Codex CLI";
+            default -> "Select an option";
+        };
+    }
+
+    private static int intValue(JsonObject object, String key, int fallback) {
+        JsonElement value = object == null ? null : object.get(key);
+        if (value == null || !value.isJsonPrimitive()) {
+            return fallback;
+        }
+        try {
+            return Math.max(1, value.getAsInt());
+        } catch (RuntimeException exception) {
+            return fallback;
+        }
+    }
+
+    private static String string(JsonObject object, String key, String fallback) {
+        JsonElement value = object == null ? null : object.get(key);
+        return value == null || !value.isJsonPrimitive() ? fallback : value.getAsString();
+    }
+
+    private static boolean booleanValue(JsonObject object, String key) {
+        JsonElement value = object == null ? null : object.get(key);
+        return value != null && value.isJsonPrimitive() && value.getAsBoolean();
+    }
+
+    private static String normalize(String value) {
+        return (value == null || value.isBlank() ? "" : value.trim())
+                .toUpperCase(Locale.ROOT)
+                .replace('-', '_')
+                .replace(' ', '_');
+    }
+}

@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/constraints/every-actionable-learning-requires-its-own-standalone-github-issue.md",
+  "content_hash": "sha256:c92e5a80871c4cf1f7f6f7a26042bd5a8e6e21e817fa60cf33c06a26e8331915",
+  "created_at": "2026-08-11T22:18:25+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4731",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.every-actionable-learning-requires-its-own-standalone-github-issue",
+  "source": {
+    "kind": "agent",
+    "task": "Make every actionable learning a standalone GitHub issue"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "learning-loop",
+    "tracking",
+    "user-correction"
+  ],
+  "title": "Every actionable learning requires its own standalone GitHub issue",
+  "type": "gotcha",
+  "updated_at": "2026-08-11T22:21:03+03:00"
+}

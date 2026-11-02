@@ -1,0 +1,18 @@
+{
+  "body_path": "memory/gotchas/tool-py-import-time-dependency-breaks-heal-path.md",
+  "content_hash": "sha256:e6f205788a9e4e8449add076f834f45e33cdeff51a97bfeac5da3fc15a1b3afa",
+  "created_at": "2026-10-17T00:19:07+03:00",
+  "evidence": [],
+  "id": "gotcha.tool-py-import-time-dependency-breaks-heal-path",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7097"
+  },
+  "status": "active",
+  "tags": [
+    "harness"
+  ],
+  "title": "tool.py must not load other harness files at import time",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:19:07+03:00"
+}

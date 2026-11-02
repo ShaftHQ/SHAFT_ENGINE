@@ -1,0 +1,25 @@
+{
+  "name": "shaft-managed-appium",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "appium": "3.9.0",
+    "appium-inspector-plugin": "2026.9.2",
+    "appium-uiautomator2-driver": "8.7.3"
+  },
+  "overrides": {
+    "body-parser": "2.4.0",
+    "fast-uri": "3.1.9",
+    "qs": "6.16.1",
+    "@xmldom/xmldom": "0.9.12",
+    "morgan": "1.12.1",
+    "sharp": "0.35.5",
+    "shell-quote": "1.11.0",
+    "axios": "1.20.0",
+    "brace-expansion": "5.0.12",
+    "proxy-addr": "2.0.8"
+  },
+  "scripts": {
+    "postinstall": "node ./repair-shell-quote.js"
+  }
+}

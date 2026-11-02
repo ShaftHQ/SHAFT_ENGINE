@@ -1,0 +1,195 @@
+package com.shaft.gui.playwright.internal;
+
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.internal.BrowserStorageStateManager;
+import com.shaft.gui.browser.internal.PlaywrightStorageStateManager;
+import com.shaft.tools.io.ReportManager;
+import org.apache.logging.log4j.Level;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.nio.file.Path;
+import java.util.Locale;
+
+/**
+ * Creates Playwright sessions from SHAFT web and Playwright properties.
+ */
+public final class PlaywrightSessionFactory {
+    private PlaywrightSessionFactory() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    public static PlaywrightSession create() {
+        var managedEnvironment = PlaywrightManagedRuntime.environment(SHAFT.Infrastructure.options(),
+                SHAFT.Properties.playwright.connectionMode(), SHAFT.Properties.playwright.channel(), System.getenv());
+        Playwright playwright = managedEnvironment.isEmpty() ? Playwright.create()
+                : Playwright.create(new Playwright.CreateOptions().setEnv(managedEnvironment));
+        PlaywrightDeviceDescriptor deviceDescriptor =
+                PlaywrightDeviceDescriptor.resolve(playwright, SHAFT.Properties.playwright.deviceName()).orElse(null);
+        String resolvedBrowserName = browserName(deviceDescriptor);
+        BrowserType browserType = resolveBrowserType(playwright, resolvedBrowserName);
+        Browser browser = createBrowser(browserType, resolvedBrowserName);
+        BrowserContext browserContext = browser.newContext(createContextOptions(deviceDescriptor));
+        Page page = browserContext.newPage();
+        page.setDefaultTimeout(SHAFT.Properties.playwright.defaultTimeoutMilliseconds());
+        page.setDefaultNavigationTimeout(SHAFT.Properties.playwright.navigationTimeoutMilliseconds());
+
+        PlaywrightTraceManager traceManager = PlaywrightTraceManager.startIfEnabled(browserContext, artifactsPath());
+        PlaywrightSession session = new PlaywrightSession(playwright, browser, browserContext, page, traceManager);
+        PlaywrightSessionManager.setSession(session);
+        String device = deviceDescriptor == null ? "" : " and device '" + deviceDescriptor.name() + "'";
+        ReportManager.logDiscrete("Created Playwright GUI session using browser '" + resolvedBrowserName + "'" + device + ".", Level.INFO);
+        loadInitialStorageState(browserContext, page);
+        return session;
+    }
+
+    /**
+     * Loads {@code SHAFT.Properties.web.storageStatePath()} into the freshly-created session, when configured.
+     *
+     * <p>Navigates to the origin recorded inside the storage-state file (falling back to
+     * {@code SHAFT.Properties.web.baseURL()}) before loading, so origin-scoped {@code localStorage} and
+     * {@code sessionStorage} are restored correctly. Failures are logged as warnings and never fail
+     * session creation.
+     */
+    private static void loadInitialStorageState(BrowserContext browserContext, Page page) {
+        String storageStatePath = SHAFT.Properties.web.storageStatePath();
+        if (storageStatePath.isBlank()) {
+            return;
+        }
+        try {
+            String origin = peekStorageStateOrigin(storageStatePath);
+            if (origin.isBlank()) {
+                origin = SHAFT.Properties.web.baseURL();
+            }
+            if (!origin.isBlank()) {
+                page.navigate(origin);
+            }
+            PlaywrightStorageStateManager.load(browserContext, page, storageStatePath);
+            ReportManager.logDiscrete("Loaded Playwright browser storage state from \"" + storageStatePath + "\".");
+        } catch (RuntimeException exception) {
+            ReportManager.logDiscrete("Could not load Playwright browser storage state from \"" + storageStatePath
+                    + "\". Cause: " + exception.getClass().getSimpleName(), Level.WARN);
+        }
+    }
+
+    private static String peekStorageStateOrigin(String filePath) {
+        try {
+            var mapper = JsonMapper.builder().build();
+            BrowserStorageStateManager.StorageState state = mapper.readValue(
+                    Path.of(filePath).toFile(), BrowserStorageStateManager.StorageState.class);
+            return state.origin == null ? "" : state.origin;
+        } catch (RuntimeException exception) {
+            return "";
+        }
+    }
+
+    public static PlaywrightSession attach(Playwright playwright, Browser browser, BrowserContext browserContext, Page page) {
+        PlaywrightTraceManager traceManager = PlaywrightTraceManager.startIfEnabled(browserContext, artifactsPath());
+        PlaywrightSession session = new PlaywrightSession(playwright, browser, browserContext, page, traceManager);
+        PlaywrightSessionManager.setSession(session);
+        return session;
+    }
+
+    private static Browser createBrowser(BrowserType browserType, String resolvedBrowserName) {
+        String connectionMode = SHAFT.Properties.playwright.connectionMode().trim().toLowerCase(Locale.ROOT);
+        String endpoint = SHAFT.Properties.playwright.endpoint().trim();
+        return switch (connectionMode) {
+            case "connect" -> browserType.connect(endpoint, new BrowserType.ConnectOptions()
+                    .setTimeout(SHAFT.Properties.playwright.launchTimeoutMilliseconds())
+                    .setSlowMo(SHAFT.Properties.playwright.slowMo()));
+            case "connectovercdp", "cdp" -> {
+                if (!isChromium(resolvedBrowserName)) {
+                    throw new IllegalArgumentException("Playwright connectOverCDP supports Chromium only.");
+                }
+                yield browserType.connectOverCDP(endpoint, new BrowserType.ConnectOverCDPOptions()
+                        .setTimeout(SHAFT.Properties.playwright.launchTimeoutMilliseconds())
+                        .setSlowMo(SHAFT.Properties.playwright.slowMo()));
+            }
+            case "local", "" -> browserType.launch(createLaunchOptions());
+            default -> throw new IllegalArgumentException("Unsupported Playwright connection mode: " + connectionMode);
+        };
+    }
+
+    private static BrowserType.LaunchOptions createLaunchOptions() {
+        BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
+                .setHeadless(SHAFT.Properties.web.headlessExecution())
+                .setTimeout(SHAFT.Properties.playwright.launchTimeoutMilliseconds())
+                .setSlowMo(SHAFT.Properties.playwright.slowMo());
+
+        if (!SHAFT.Properties.playwright.channel().isBlank()) {
+            launchOptions.setChannel(SHAFT.Properties.playwright.channel());
+        }
+        if (!SHAFT.Properties.playwright.downloadsDirectory().isBlank()) {
+            launchOptions.setDownloadsPath(Path.of(SHAFT.Properties.playwright.downloadsDirectory()));
+        }
+        return launchOptions;
+    }
+
+    private static Browser.NewContextOptions createContextOptions(PlaywrightDeviceDescriptor deviceDescriptor) {
+        Browser.NewContextOptions contextOptions = new Browser.NewContextOptions()
+                .setAcceptDownloads(SHAFT.Properties.playwright.acceptDownloads());
+
+        if (!SHAFT.Properties.web.baseURL().isBlank()) {
+            contextOptions.setBaseURL(SHAFT.Properties.web.baseURL());
+        }
+        if (deviceDescriptor != null) {
+            deviceDescriptor.applyTo(contextOptions);
+        } else {
+            contextOptions.setViewportSize(SHAFT.Properties.web.browserWindowWidth(), SHAFT.Properties.web.browserWindowHeight());
+        }
+        if (deviceDescriptor == null && SHAFT.Properties.web.isMobileEmulation()) {
+            contextOptions.setIsMobile(true)
+                    .setDeviceScaleFactor(SHAFT.Properties.web.mobileEmulationPixelRatio());
+            if (!SHAFT.Properties.web.mobileEmulationUserAgent().isBlank()) {
+                contextOptions.setUserAgent(SHAFT.Properties.web.mobileEmulationUserAgent());
+            }
+            if (SHAFT.Properties.web.mobileEmulationWidth() > 0 && SHAFT.Properties.web.mobileEmulationHeight() > 0) {
+                contextOptions.setViewportSize(SHAFT.Properties.web.mobileEmulationWidth(), SHAFT.Properties.web.mobileEmulationHeight());
+            }
+        }
+        if (!SHAFT.Properties.playwright.timezoneId().isBlank()) {
+            contextOptions.setTimezoneId(SHAFT.Properties.playwright.timezoneId());
+        }
+        if (!SHAFT.Properties.playwright.locale().isBlank()) {
+            contextOptions.setLocale(SHAFT.Properties.playwright.locale());
+        }
+        if (!SHAFT.Properties.playwright.userAgent().isBlank()) {
+            contextOptions.setUserAgent(SHAFT.Properties.playwright.userAgent());
+        }
+        contextOptions.setJavaScriptEnabled(SHAFT.Properties.playwright.javaScriptEnabled());
+        return contextOptions;
+    }
+
+    private static BrowserType resolveBrowserType(Playwright playwright, String resolvedBrowserName) {
+        return switch (resolvedBrowserName) {
+            case "firefox" -> playwright.firefox();
+            case "safari", "webkit" -> playwright.webkit();
+            default -> playwright.chromium();
+        };
+    }
+
+    private static String browserName(PlaywrightDeviceDescriptor deviceDescriptor) {
+        String playwrightBrowser = SHAFT.Properties.playwright.browserName();
+        String browserName;
+        if (playwrightBrowser == null || playwrightBrowser.isBlank()) {
+            browserName = deviceDescriptor == null || deviceDescriptor.defaultBrowserType().isBlank()
+                    ? SHAFT.Properties.web.targetBrowserName()
+                    : deviceDescriptor.defaultBrowserType();
+        } else {
+            browserName = playwrightBrowser;
+        }
+        return browserName.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isChromium(String browser) {
+        return !("firefox".equals(browser) || "safari".equals(browser) || "webkit".equals(browser));
+    }
+
+    private static Path artifactsPath() {
+        return Path.of(SHAFT.Properties.playwright.artifactsDirectory());
+    }
+}

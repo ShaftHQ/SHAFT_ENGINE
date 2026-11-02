@@ -1,0 +1,898 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/symbol-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/brand/symbol-light.svg">
+    <img alt="ChaosEngine symbol" src="assets/brand/symbol-light.svg" width="180">
+  </picture>
+</p>
+
+# Install or upgrade ChaosEngine
+
+ChaosEngine is a portable, provider-neutral working contract for software
+agents. This page is the installation reference. See [`README.md`](README.md) for purpose and operating loop, and [`skills/chaos-engine/SKILL.md`](skills/chaos-engine/SKILL.md) for the always-loaded contract.
+
+## Source vs generated paths
+
+| Path | Kind | Who reads it |
+| --- | --- | --- |
+| <code>chaos-engine/</code> | Source (origin tracks) | Installer, pack, humans |
+| <code>.chaos-engine/</code> | Generated overlay | Hosts, doctor, tool.py |
+| <code>.agents/</code> | Generated host adapters | Codex |
+| <code>.claude/</code> | Generated host adapters | Claude |
+| <code>.codex/</code> | Generated host adapters | Codex |
+| <code>.gemini/</code> | Generated host adapters | Gemini |
+| <code>.grok/</code> | Generated host adapters | Grok |
+| <code>.github/skills/</code> | Generated host adapters | Copilot |
+| <code>plugins/chaos-engine/</code> | Generated plugin payloads | Host plugin loaders |
+| <code>AGENTS.md</code> <code>CLAUDE.md</code> <code>GEMINI.md</code> | Origin files plus generated markers | Every host |
+| `.mcp.json` CE merge | Generated | Host MCP clients |
+| Marker blocks in `AGENTS.md` `CLAUDE.md` `GEMINI.md` `.github/copilot-instructions.md` | Generated pointers to `.chaos-engine` only | Every host |
+
+Generated host markers, skill adapters, MCP args, and doctor heal prompts always
+name `.chaos-engine/`. They never point at source `chaos-engine/`. Origin still
+tracks the source tree as the copy-from payload.
+
+Adopters track generated harness files. Origin SHAFT_ENGINE ignores them after
+the `# CHAOSENGINE-RUNTIME` block so last-match gitignore wins.
+
+## Golden path (first run)
+
+1. Change into the project directory you want ChaosEngine to manage.
+2. Run exactly one of these one-liners (Python is not required beforehand).
+3. When it finishes, run human doctor and confirm it reports healthy.
+
+Windows PowerShell, using [install.ps1](install.ps1):
+
+```powershell
+irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
+```
+
+macOS or Linux, using [install.sh](install.sh):
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+```
+
+Verify:
+
+```text
+python3 .chaos-engine/install.py doctor --project .
+```
+
+On Windows use py -3 instead of python3. A successful install also prints a
+first-session brief and five host onboarding cards. You can stop reading here
+for a normal first install.
+
+## Optional add-ons
+
+The default install is the lean core only. These add-ons are never installed
+by default and never auto-selected; opt in with a flag:
+
+| Add-on | For | sh / bootstrap.py / install.py | PowerShell |
+| --- | --- | --- | --- |
+| `design-skills` | Anyone designing web pages, images, motion graphics, or videos: 23 verified design cards and the zero-LLM `design_qc.py` | `--with-design-skills` | `-WithDesignSkills` |
+| `shaft-engine-users` | Projects that use SHAFT: the `shaft-developer` router and its specialist skills | `--with-shaft-engine-users` | `-WithShaftEngineUsers` |
+| `shaft-core-developers` | Contributors to `ShaftHQ/SHAFT_ENGINE`: repository profile, playbooks, mastery chapters (adds `shaft-engine-users`) | `--with-shaft-core-developers` | `-WithShaftCoreDevelopers` |
+
+Remove with `--without-<name>` or `-Without<Name>`. Combine any of them.
+
+PowerShell needs the script-block form to pass switches:
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"))) -WithDesignSkills -WithShaftEngineUsers
+```
+
+or an environment variable with the plain one-liner (any installer):
+
+```powershell
+$env:CHAOS_ENGINE_ADDONS = "design-skills,shaft-engine-users"; irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex
+```
+
+macOS or Linux:
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+curl -fsSL "$url" | bash -s -- "$url" --with-design-skills --with-shaft-engine-users
+```
+
+- The selection is recorded in `.chaos-engine/manifest.json`; a later upgrade
+  without flags keeps it. An explicit `--without-<name>` wins.
+- Unknown names fail closed and list the valid ones. Removing an add-on that a
+  selected add-on requires (for example `shaft-engine-users` while
+  `shaft-core-developers` stays) is refused.
+- List what is available and installed:
+  `python3 .chaos-engine/install.py addons --project .` (`--json` for tools).
+- Files land under `.chaos-engine/addons/<name>/`; `shaft-core-developers`
+  switches the profile to the repository distribution (`packs/shaft/`).
+- Existing SHAFT_ENGINE checkouts that already run the repository profile keep
+  it on upgrade and gain `shaft-engine-users`.
+- Sources: the catalog and resolver [addon_catalog.py](addon_catalog.py); the
+  [design-skills router](addons/design-skills/SKILL.md) and its
+  [manifest](addons/design-skills/addon.json); the SHAFT manifests
+  `shaft-skills/ce-addons/shaft-engine-users/addon.json` and
+  `shaft-skills/ce-pack/addon.json`; the agent route
+  [addons.md](references/addons.md).
+
+## Grok lean defaults (#5802 / #5803 / #5805)
+
+When Grok CLI is detected or the project already has `.grok/hooks`, install/activate/repair
+merges an owned span into user `~/.grok/config.toml` (or `$GROK_HOME/config.toml`):
+
+```toml
+# CHAOSENGINE-GROK-LEAN:START
+[compat.claude]
+hooks = false
+rules = false
+agents = false
+mcps = false
+skills = false
+sessions = false
+
+[compat.cursor]
+hooks = false
+rules = false
+agents = false
+mcps = false
+skills = false
+sessions = false
+# CHAOSENGINE-GROK-LEAN:END
+```
+
+This keeps native `.grok/hooks` + `AGENTS.md` as the CE path and avoids double-loading
+Claude-compat hooks/skills. Uninstall removes **only** the CE marker span.
+
+### Recommended: `--lean-grok-skills` (opt-in)
+
+Default install does **not** thin Grok's bundled skill catalog. For ChaosEngine engineering
+sessions, pass the flag (or set `CHAOS_ENGINE_LEAN_GROK_SKILLS=1`):
+
+```bash
+# one-liner / bootstrap
+python3 chaos-engine/bootstrap.py --repository ShaftHQ/SHAFT_ENGINE --lean-grok-skills
+
+# or after overlay exists
+python3 .chaos-engine/install.py install --project . --source … --commit … --lean-grok-skills
+```
+
+Self-install from the SHAFT_ENGINE checkout itself: `--source` must not sit
+inside the project, so point it at a detached worktree of the same commit.
+From the source tree use `chaos-engine/install.py`; after install, doctor and
+`tool.py` use `.chaos-engine/install.py`.
+
+```bash
+sha="$(git rev-parse HEAD)"
+git worktree add -f --detach ../ce-src "$sha"
+python3 chaos-engine/install.py install --project . --consumer \
+  --source ../ce-src/chaos-engine --commit "$sha"
+```
+
+`--source` and `--commit` still win when set. When omitted, install auto-detects
+`<repo>/chaos-engine` as `--source` and `git rev-parse HEAD` (40-hex) as
+`--commit`. A bare ref such as `--commit HEAD` is refused. When an add-on lives
+beside the core, set `CHAOS_ENGINE_ADDON_PATHS` to the intended pack so the
+correct root is chosen (sibling trees with the same add-on name and divergent
+content fail closed):
+
+```bash
+CHAOS_ENGINE_ADDON_PATHS=../addons-pack/ce-addons \
+  python3 .chaos-engine/install.py install --project . --consumer \
+  --source ../ce-src/chaos-engine --commit <40-hex-sha>
+```
+
+### Doctor commit and MemPalace index
+
+`doctor --agent-summary` prints the installed core commit and warns when it is
+behind the source tree `HEAD` (typical after a failed or partial install). The
+first doctor after install may leave a MemPalace full-index build running in the
+background; that is expected. Wait for it to finish, or run an explicit
+foreground refresh via `tool.py mempalace` / store repair — do not treat the
+background worker as a hung install.
+
+### Install and doctor logs
+
+Tee install/doctor output into
+`<project>/.chaos-engine-state/logs/install.log` (or `doctor.log`), not
+workspace-root `*.log` files. Use [`session_logs.py`](session_logs.py)
+(`log_path("install")`) so the session created-paths manifest records the
+file and cleanup-at-close can self-delete it.
+
+That merges:
+
+```toml
+# CHAOSENGINE-GROK-SKILLS:START
+[skills]
+disabled = ["game-animation-frames", "game-asset-core", "game-character-consistency", "game-tilesets", "game-ui-icons", "imagine"]
+# CHAOSENGINE-GROK-SKILLS:END
+```
+
+**Undo:** delete the `# CHAOSENGINE-GROK-SKILLS` span from `~/.grok/config.toml` (or rerun
+uninstall, which strips both CE Grok spans). Doctor may emit a sync-advisory tip when Grok
+is present and the lean-skills flag was not used — never recovery-required.
+
+### Secret guard git hooks
+
+`install` wires `secret_guard.py` into git `pre-commit` and `pre-push` for the clone. The
+hooks live in `<git common dir>/chaos-engine-hooks`, which is untracked and shared by every
+worktree, and `core.hooksPath` points there. A hooks setup that already exists is chained:
+the old `core.hooksPath` (or a populated `.git/hooks`) is kept in
+`chaosengine.chainedHooksPath`, and it still runs after the guard passes. Other hook names
+get pass-through shims.
+
+The guard blocks local secret files (`secrets.properties`, `browserstack.yml`), the
+generated report paths the project lists as regexes in `.secret-guard-paths` (or
+`SECRET_GUARD_PATHS`), values from the local secret files named by `SECRET_GUARD_FILES` (raw and inside base64
+report blobs), JWT-like tokens and secret assignments. It also refuses a direct push to
+`main`. It never prints a value. Path globs in `.secret-guard-allow` skip the token and
+assignment checks. Audit a branch with
+`python3 .git/chaos-engine-hooks/secret_guard.py --rev @{upstream}..HEAD`.
+
+**Opt out:** `--no-secret-guard`, or `CHAOS_ENGINE_SECRET_GUARD=0`.
+**Undo:** set `core.hooksPath` back to the value in `chaosengine.chainedHooksPath`, or unset it.
+
+### Project CE dedupe (#5804)
+
+Host skill adapters under `.agents/skills/chaos-engine/` and `plugins/chaos-engine/skills/`
+remain **pointer** stubs (`skill_adapter_bytes` / load-canonical text). Prefer `AGENTS.md` +
+`.grok/hooks` for Grok. Doctor may sync-advise if `grok inspect` lists duplicate chaos-engine
+skills.
+
+## Identity and implementation companions (#5806 / #5807)
+
+### [`identity.md`](identity.md) (seed + [`identity_md.py`](identity_md.py))
+
+Install/activate creates tracked `.chaos-engine/identity.md` from the ChaosEngine seed when
+missing (pragmatic / calculating / confident; unabridged Truth; kind mentor + honest worker).
+Host instruction markers and SessionStart inject a **pointer** only. The Truth section is
+wrapped in `CHAOSENGINE-IDENTITY-TRUTH` markers; Learning must not silently rewrite it.
+
+Doctor: create-on-heal when missing.
+
+### Caveman + Ponytail on implementation (ICM Architect is advisory)
+
+Portable `skills/chaos-engine/SKILL.md` requires Caveman and Ponytail at **ultra** on
+implementation entrypoints (router implement path / implementer role) — not every
+SessionStart turn. Opt out only with `--without-caveman` / `--without-ponytail`.
+Doctor flags missing companions when the bundle still enables them.
+
+
+## Advanced topics
+
+Everything below is optional on first run: agent install instruction, payload
+details, OmniRoute, identity/portability, interactive flags, Maven Tools,
+uninstall/rollback, and empty-project smoke.
+
+Origin identity masters under `assets/brand/`, the origin adoption matrix
+`RESEARCH.md`, and `STANDALONE.md` stay in the source tree and are not copied
+into the adopter payload. The installer also merges receipt-bound LF attributes for canonical harness paths,
+so Windows Git checkouts retain the exact owned bytes while unrelated
+`.gitattributes` rules remain untouched.
+
+The canonical one-liners above use the official `ShaftHQ/SHAFT_ENGINE` upstream
+URLs. The scripts parse their invocation URL and do not copy that identity into
+the adopter payload. `CHAOS_ENGINE_REPOSITORY` remains a local-file override when
+the invocation URL cannot be parsed (for example when you run `install.sh` from a
+checked-out tree). Change into the target project or folder first; both scripts
+install into the current working directory.
+
+Python is not required before either command. The wrapper bootstraps Python as
+needed. ChaosEngine supports Python 3.11 or newer (3.10 reaches end of life in
+October 2026); the wrappers ignore an older interpreter and the Python entry
+points exit with a clear message. The installer then discovers the invoking account's tools, resolves
+official stable channels, and chooses `reused`, `installed`, `upgraded`,
+`repaired`, or `blocked` per dependency. The python contract caps the series at maximumSeries 3.14 because pinned native wheels (chromadb/onnxruntime) have no build for the next CPython ABI. It installs that capped stable Python
+through uv, uv itself through Astral, active
+LTS Node 22 or newer through the platform provider, and Temurin 25 through
+Adoptium-supported packages. uv tools and npm globals remain user scoped;
+neither uses sudo. An unavailable stable channel blocks activation because an
+older installation cannot be certified as latest. `.chaos-engine-dependencies.json` records
+sanitized observed versions, absolute executables, probes, providers, actions,
+and freshness without claiming ownership of global packages.
+
+Host MCP files carry only the profile's servers by default. Memory, MemPalace
+and Context7 have CLIs (`tool.py memory|mempalace`, `npx ctx7@latest`), so
+their MCP servers are opt-in: `install --with-mcp` publishes them and persists the
+choice in `.chaos-engine-state/with-mcp`; `--without-mcp` withdraws it. Doctor
+MCP health skips opted-out servers. Tracked host files name `python3` / `py -3`
+and `node`; the managed interpreter lives in `.chaos-engine-state/hook-python`.
+
+A root `pom.xml` enables Maven Tools MCP automatically. Pass `--with-maven-tools`
+to force it on a non-Maven project. `--skip-tools` still skips it. Java
+resolution prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH` and requires
+Temurin Java 25. No private JDK archive is downloaded. Project uninstall retains
+user-account packages, project knowledge data, and the shared Maven Tools cache;
+cache purge removes only exact receipt-verified cache content.
+
+POSIX:
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"; curl -fsSL "$url" | bash -s -- "$url" --with-maven-tools
+```
+
+PowerShell:
+
+```powershell
+$installer = irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"; & ([scriptblock]::Create($installer)) -WithMavenTools
+```
+
+Inspect the linked installer and [bootstrap.py](bootstrap.py) first when policy
+requires review before execution. The bootstrap resolves the default branch to
+an immutable commit and downloads only its validated `chaos-engine/` subtree;
+`portable` is already the default and need not be supplied. Restart any client
+that was open during installation so it loads its verified local plugin cache.
+
+Pass `--interactive` on macOS/Linux (PowerShell `-Interactive`) for the first-run
+wizard: it detects host CLIs, explains what will be installed (including Caveman +
+Ponytail companions), and prints a host-specific next-actions checklist before any
+download. The non-interactive one-liner path is unchanged.
+
+Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
+branch (otherwise `main`). The bootstrap resolves that mutable branch through
+the GitHub API, downloads the exact commit's declared harness files, rejects
+unsafe tree entries, and records repository, immutable provenance digests and
+the commit in `.chaos-engine/manifest.json`.
+The public default is the neutral `portable` distribution. Project files never
+select anything else (hard cut: a matching root `pom.xml` used to select the
+repository profile; it now only prints a tip). The repository profile comes
+from the `shaft-core-developers` add-on, or from an earlier install that
+already recorded it; see [Optional add-ons](#optional-add-ons). Re-running the
+same command upgrades to the latest resolved commit; an offline or invalid
+download leaves the last verified installation unchanged. A drifted, CRLF-converted,
+extra-file, or otherwise broken `.chaos-engine` directory is replaced with a
+fresh verified payload. Controllers from that broken tree are not executed, and
+the broken tree is not kept as a rollback backup. A leftover install journal
+in front of a still-broken tree is dropped so the next run can retry. Link or
+reparse trees stay fail-closed. Uninstall and rollback of a still-drifted tree
+also stay fail-closed. Generated `__pycache__` files are not treated as
+ownership drift. The bootstrap retries
+transient timeout, connection, rate-limit, and server responses with bounded
+backoff, while permanent client errors fail immediately. GitHub requests
+authenticate with `GITHUB_TOKEN`, then `GH_TOKEN`, then a signed-in `gh`
+(`gh auth token`, bounded; `CHAOS_ENGINE_GH_AUTH=0` disables it), else run
+anonymously. The token is never printed or written. A spent quota fails with
+`CE-GITHUB-RATE-LIMIT`, the reset time, and the fix: `gh auth login` or
+`export GITHUB_TOKEN="$(gh auth token)"`.
+
+Installations created before distribution-bound manifests are reported as
+`legacy`. To prevent repository-specific content from surviving in a backup,
+convert them with an explicit uninstall followed by the portable bootstrap.
+The installer refuses an in-place legacy conversion and leaves the old tree
+unchanged.
+
+ChaosEngine initializes and mines the current folder with upstream MemPalace,
+then installs Graphify's project integration and runs code-only extraction when
+its index is absent. Existing initialized data and indexes are preserved.
+ChaosEngine-created MemPalace MCP servers use MemPalace's bundled
+`sqlite_exact` backend explicitly. It keeps the complete local MCP contract but
+has no native HNSW index, so separate agent sessions cannot enter Chroma's
+process-crash and derived-index-corruption path. An upgrade never converts or
+deletes existing generated memory state silently. After dependency provisioning,
+a fresh install creates only the empty SQLite-exact schema and default collection;
+it never files adopter content. Passive `status` and active `doctor` validate
+that state through read-only SQLite queries. A structurally valid legacy Chroma
+palace reports `migration-required` before any MCP launch; corrupt, unrecognized,
+or incomplete state reports `recovery-required`. ChaosEngine does not migrate,
+archive, rename, delete, or claim receipt ownership of palace state, so install
+rollback and uninstall deliberately leave initialized or user-generated state unchanged.
+Migration remains an explicit operator-owned MemPalace procedure and must use a
+verified backup plus the upstream workflow appropriate to that MemPalace
+version. `doctor` stays blocked until the operator supplies a fresh or valid
+SQLite-exact palace. This containment avoids the native HNSW path for generated
+clients; it does not repair the upstream Chroma/HNSW defect. Never remove a
+writer lock or rename an HNSW segment while a MemPalace process is live.
+
+The consumer folder may be a GitHub checkout, another Git checkout, or a
+non-Git directory. ChaosEngine installs project-locally and does not infer its
+upstream from the consumer repository.
+
+In a repository you do not own, install with `--consumer` (bootstrap or
+`install.py install`; or `CHAOS_ENGINE_CONSUMER=1`). Consumer mode never edits a
+tracked file and never writes `.gitignore`; it writes one marked block to
+`.git/info/exclude` (shared by linked worktrees), so `git status` stays empty.
+The choice persists in `.chaos-engine-state/consumer-mode`. Tracked files it
+left without ChaosEngine instructions, such as `AGENTS.md`, are listed under
+`consumerMode.untouchedTrackedFiles`. Uninstall removes only its exclude block.
+
+`status` and `doctor` report every component with its `owner`, `scope`,
+`lifecycle`, and `taskImpact`. Without `--json`, `doctor` (and `status`) print a
+short human summary when healthy, or a scannable failure list with one
+`fix-next` action per unhealthy component. Pass `--json` for the stable
+schema v2 machine contract. **Contract:** for every **required** component,
+`status` ⊆ `doctor` — status must never report healthier than doctor (the
+plugins false-healthy case is closed by reconciling marketplace activation in
+both commands). `doctor --json` also emits per-host `activationProof` and
+`clients`. CE-INSTALL-FAILED / Verify installation / doctor share the same
+component ids and fix-next vocabulary for **install-owned** health. User/global
+MCP alias pairs and non-owned host hook probes (for example Grok trust/loaded
+hooks, or a failed runtime hook probe when owned hook files are present) nest
+under `hostEnvironment` as `sync-advisory` findings with the existing heal
+prompt; they do not flip install-owned `hooks` / `mcps` to `recovery-required`
+and do not cause CE-INSTALL-FAILED. Default MCP catalogs never include GitHub MCP; prefer `gh`. An existing GitHub
+MCP server is left unchanged and does not fail doctor. Memory, MemPalace, and Graphify are advisory to ordinary
+tasks but remain strict in `doctor`; an unhealthy selected store still returns
+`recovery-required`. Maven Tools MCP is auto-installed when the project has a
+root `pom.xml`. On non-Maven projects it stays optional and absent does not make
+project health fail.
+
+### Default-on all-in-one bundle
+
+The unattended one-liner provisions **Memory + MemPalace + Graphify + Ponytail + ICM Architect**
+and keeps Caveman on. Disable only with flags (combinable), including `--without-icm-architect`:
+
+```bash
+--without-memory --without-mempalace --without-graphify \
+  --without-ponytail --without-caveman
+```
+
+### Official self-heal (#5811)
+
+Doctor heals **required** third-party / bundle items by running each item's
+**official install command** (or CE's bundled vendor publish when CE vendors the
+bytes). Implementation: [`official_self_heal.py`](official_self_heal.py).
+Deterministic first; if heal is impossible, doctor writes a pasteable
+handoff under `.chaos-engine-state/` with the exact official command — never a
+bare "rerun doctor".
+
+| Item | Official install / publish | Heal path |
+| --- | --- | --- |
+| Caveman / Ponytail / ICM Architect | CE vendor rematerialize (`chaos-engine/vendor/{caveman,ponytail,icm-architect}` → `plugins/`) | `hosts.rematerialize_companions` on doctor when enabled-but-missing |
+| MemPalace | `uv tool install` of `tools.mempalace` `package` and `with` from [`dependencies.json`](dependencies.json) | `repair --component mempalace` / account provisioner |
+| Graphify | `uv tool install` of `tools.graphify` `package` and `with` from [`dependencies.json`](dependencies.json) | `repair --component graphify` |
+| Memory | `npm install -g @aictx/memory@0.2.1` | `repair --component memory` |
+| Context7 | `npm install -g ctx7@latest` | doctor auto-heal via `repair --component tools` / official npm (#5812) |
+| uv / Node / Temurin Java / Maven | Astral / nodejs.org / Adoptium / Apache (CE managed helpers) | doctor auto-heal via `repair --component tools` + managed helpers (#5813) |
+| CE MCPs / skills | `repair --component mcps` / `skills` (hosts rebind) | doctor auto-heal via official repair (#5812) |
+| GitHub CLI (`gh`) | https://cli.github.com/ | advisory fix-next only (operator tool; CE does not auto-install) |
+
+Opt-out flags (`--without-memory`, `--without-caveman`, …) stay off — doctor
+does not heal disabled bundle items. Failed heal handoffs:
+
+- `.chaos-engine-state/companion-handoff.md`
+- `.chaos-engine-state/official-self-heal-handoff.md`
+
+See also epic #5803 and policy issue #5811. Follow-ons #5812/#5813.
+
+Overall doctor status stays **healthy** when the only non-healthy findings are `compatible-legacy`, `sync-advisory`, or `degraded` (shown as info/warning). Those soft statuses must not flip overall to `recovery-required`. Hard fails (e.g. `recovery-required` on an advisory store like MemPalace) still escalate. The install receipt counts those same soft statuses in the `N/N components healthy` line. Historical Memory objects that the current `@aictx/memory` runtime rejects (`scope`/`facets`, extra types, string evidence) are rewritten in place after a copy under `.memory/.backup/`; a failed rewrite restores the originals and stays `compatible-legacy`. MemPalace palace state is still never migrated.
+
+### Component repair (no full wipe)
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component plugins
+python3 .chaos-engine/install.py repair --project . --component mempalace
+A degraded MemPalace or Graphify retrieve is blocking doctor row `retrieve-mempalace` or `retrieve-graphify`. Use that existing repair command. Do not auto-migrate `~/.mempalace` and do not refresh stores from doctor.
+Doctor row `mempalace-backend` flags a backend selection other than
+`sqlite_exact`: a host MCP entry blocks (`repair --component hosts`), an ambient
+`MEMPALACE_BACKEND` is advisory because ChaosEngine calls pin `--backend sqlite_exact`.
+```
+
+Supported components: `plugins`, `hosts`, `core`, `mempalace`,
+`graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`,
+`maven-tools-mcp`, `policy-overlay`. One-command
+**update** is the same install one-liner (repair/reinstall semantics aligned with
+this health truth).
+
+
+
+
+### Offline install and shared download cache
+
+- Build a bundle where you have network access: `python3 chaos-engine/install.py bundle --source chaos-engine --commit <sha> --output ce.zip`.
+- Install offline with `python3 install.py install --project . --from-bundle ce.zip`. Every file is checked against the bundle's sha256 manifest first, and any mismatch aborts the install.
+- Runtime downloads are cached per user and keyed by sha256 (`~/.cache/chaos-engine/downloads`, `%LOCALAPPDATA%\chaos-engine\downloads`, or `CHAOS_ENGINE_CACHE_DIR`), so a second project reuses them. Inspect or empty the cache with `install.py cache status|purge --component downloads`.
+
+## Uninstall / rollback (first-time recovery)
+
+Use these when a first install goes wrong and you need a clean retry.
+
+### Commands
+
+- doctor: python3 .chaos-engine/install.py doctor --project .
+- rollback: python3 .chaos-engine/install.py rollback --project .
+- uninstall: python3 .chaos-engine/install.py uninstall --project .
+
+On Windows, use py -3 instead of python3. Prefer rollback for a bad upgrade; prefer uninstall then the one-liner for a wiped or drifted tree.
+
+When an upgrade installs but fails verification, the installer rolls the core
+back automatically. The failure output then says
+`Rolled back: requested core <new> was not kept; the previous core <old> is installed again`.
+It also records `.chaos-engine-state/install-rollback.json`, so `status` and
+`doctor` report the installed commit plus `lastInstall: rolled-back` until a
+later install completes (#6338).
+
+### What is removed vs retained
+
+Removed (receipt-owned): portable core tree; CE-owned host adapters; CE-owned dependency/runtime generations; CE install journals/locks.
+
+Retained: user-account packages; project knowledge data; shared Maven Tools MCP cache; unrelated project files.
+
+Mixed or unknown ownership fails closed. Knowledge stores are never deleted by uninstall or rollback.
+
+### Clean reinstall after a bad first run
+
+1. Run human doctor and follow each fix-next line.
+2. If rollback is available, rollback then rerun the Install one-liner.
+3. Otherwise uninstall, confirm retained knowledge data if needed, then rerun the Install one-liner.
+4. Restart open hosts and re-run doctor.
+
+## One-shot install and heal handoff
+
+The one-liner is meant to run once. If doctor is still recovery-required after
+core is on disk, the installer writes `.chaos-engine-state/heal-handoff.md`,
+prints a GitHub issue URL with every required form field filled, prints one
+agent prompt, and exits 0. Paste that prompt into any supported host in the
+same folder. Do not rerun the one-liner unless `.chaos-engine/install.py` is
+missing. Console log and doctor JSON are optional on the GitHub form because
+a URL cannot attach files.
+
+`CE-INSTALL-FAILED` with core present (including provision-phase MemPalace
+failures) also writes `.chaos-engine-state/heal-handoff.md`,
+`install-console.log`, and `doctor-failure.json`. The printed agent prompt
+names only artifacts that exist on disk.
+
+
+## Empty-project smoke (< 5 minutes)
+
+Reference profile: brand-new empty directory on **Ubuntu 22.04** with Python 3.13
+and no prior ChaosEngine install.
+
+1. `mkdir /tmp/ce-empty-smoke && cd /tmp/ce-empty-smoke`
+2. Run the **same macOS/Linux one-liner** from the Install section above (do not
+   duplicate it here — keep a single documented URL).
+3. Time it (`time` / `/usr/bin/time`) and then run
+   `python3 .chaos-engine/install.py doctor --project .`
+
+Expect install + healthy human doctor within **300 seconds**. CI attaches the
+fresh-account phase stopwatch from
+`scripts/ci/chaos_engine_live_installer_acceptance.py` as evidence on that
+reference profile. Local/CI fixture helper:
+
+`python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json`
+
+If doctor is not healthy, follow every `fix-next` line, then open a GitHub
+issue and paste the full doctor output (including fix-next lines).
+
+## Self-heal (official install paths)
+
+Required third-party companions, dependencies, skills, and MCPs are **self-healed** by the ChaosEngine installer/doctor using each item's official install or CE vendor publish path (not ad-hoc workarounds). If deterministic heal is impossible, doctor writes an agentic handoff with the exact official command. Policy: [#5811](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5811).
+
+## Troubleshooting
+
+### `another ChaosEngine operation is already running`
+
+Install, doctor, and repair take an exclusive project lock (`.chaos-engine.lock`).
+The lock file existing with magic `chaos-engine-lock-v1` is normal; the flock is
+released when the holding process exits. Do **not** delete the lock file.
+
+A concurrent one-liner **waits up to ~30s** for the holder (with a stderr
+progress line) before failing. After that timeout the error lists Linux holder
+PID(s) and cmdline when `/proc` can see them, plus a `fix-next` line. Wait for
+those PID(s) to finish. Prefer not to run the install one-liner in parallel with
+doctor/install/repair.
+
+### `status` healthy but `doctor` unhealthy (false-healthy)
+
+For **required** components this must not happen. If you still see it on an
+older install, upgrade ChaosEngine, then:
+
+```bash
+python3 .chaos-engine/install.py status --project .
+python3 .chaos-engine/install.py doctor --project .
+python3 .chaos-engine/install.py repair --project . --component plugins
+```
+
+`doctor --json` includes `activationProof` per detected host.
+
+
+### `tool.py` says primary checkout HEAD != origin/main
+
+On the SHAFT_ENGINE monorepo (or any checkout that ships
+`tools/repository-map/resolve_mempalace.py`), ChaosEngine pins the shared
+**Memory** store to the primary checkout's `origin/main` revision.
+
+- `memory` / `memory-mcp` **hard-fail** when primary `HEAD` is not exactly
+  `refs/remotes/origin/main`, and print a `fix-next` line.
+- `mempalace` / `mempalace-mcp` / `graphify` **soft-warn** and still run when
+  their own doctor status is healthy, so advisory stores stay queryable on a
+  behind-main primary checkout or worktree.
+
+Fix the primary checkout (not a task worktree):
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+Then rerun the tool, or confirm with
+`python3 .chaos-engine/install.py doctor --project .`
+(and `--fix-next-only` when scripting).
+
+### Codex MCP collision / orphan `context7`
+
+Re-running install self-heals CE-owned Codex MCP sections (`context7`,
+`chaosengine-memory`, `chaosengine-mempalace`, `maven-tools-mcp`) that sit
+outside or inside a drifted `# CHAOSENGINE:START`…`END` block. Non-owned
+user MCP servers are left untouched. No need to empty the generated Codex
+config file manually.
+
+### Orphan `.chaos-engine-hosts.active-*` anchors
+
+Leftover active/removing host anchors when `.chaos-engine/` is missing are
+quarantined under `.chaos-engine-state/orphaned-*` on the next install
+(same wiped-runtime heal as a stale hosts receipt).
+
+### Install verify / doctor and `HEAD != origin/main`
+
+`memory` / `memory-mcp` **tools** still hard-fail writes when primary
+`HEAD` is not `origin/main`. Install verify and doctor treat that probe
+exit as **compatible-legacy** for required `mcps` (advisory + fix-next),
+while still probing `mempalace-mcp`. Sync when you need Memory writes:
+
+```bash
+git fetch origin main && git merge --ff-only origin/main
+```
+
+### JRE without `javac` (Maven Tools)
+
+If only a JRE is on `PATH`, install provisions a Temurin JDK into the
+ChaosEngine tools cache so Maven Tools can compile.
+
+### Windows `WinError 2` during Provision dependencies
+
+Install resolves `pwsh`/`powershell` and PATHEXT launchers before
+CreateProcess. A missing tool names the executable and prints fix-next
+instead of an opaque WinError 2; the portable core is kept so re-run can
+self-heal.
+
+### MemPalace `sqlite_exact` FTS5 malformed
+
+Doctor/heal attempts a bounded FTS rebuild and quarantines clearly-operator
+`*.bak` siblings when safe.
+
+### Missing dependency receipt / wiped `.chaos-engine` runtime
+
+If `.chaos-engine/` was deleted or replaced, and/or
+`.chaos-engine-dependencies.json` is missing, tools fail closed:
+
+- `python3 chaos-engine/tool.py …` / `python3 .chaos-engine/tool.py …` prints
+  `dependency pointer is missing or invalid` (or a wiped-runtime controller
+  error) with a **fix-next** that names install/doctor, and exits **non-zero**.
+- `doctor` / `status` report `CE_CORE_MISSING` or `CE_WIPED_RUNTIME` when a
+  stale `.chaos-engine-hosts.json` (and/or `.chaos-engine-hosts.active-*`
+  anchor) no longer matches the installed core.
+
+**Heal (preferred):** rerun the official install one-liner from the Install
+section above. Install quarantines orphaned host receipt/anchors under
+`.chaos-engine-state/`, rematerializes `.chaos-engine/` from upstream or the
+local `chaos-engine/` source tree, recreates the dependency receipt, and
+rebinds hosts from the current core. No manual receipt surgery.
+
+Then confirm:
+
+```bash
+python3 .chaos-engine/install.py doctor --project .
+```
+
+Data directories (`mempalace.yaml`, `graphify-out`, `.memory`) are left in place
+when possible; heal restores tooling without requiring a full data rebuild.
+
+### Host adapter drift with deps + core still present
+
+After a git fast-forward (or `git restore`) of receipt-owned host overlays while
+`.chaos-engine/` and `.chaos-engine-dependencies.json` remain, doctor may report
+`CE_HOST_ADAPTER_DRIFT` / Blocked host receipt mismatch, and install can fail
+closed with `host adapter drift`. This is the post-#5631 upgrade gap: wiped-runtime
+quarantine does **not** fire when the dependency receipt is present.
+
+**Heal (preferred):** rerun the official install one-liner, or:
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component hosts
+```
+
+Install/repair quarantines the drifted `.chaos-engine-hosts.json` (+ active
+anchors) under `.chaos-engine-state/`, then rebinds hosts from the current core.
+Foreign user MCP servers outside ChaosEngine ownership are preserved. Do not
+manually delete MCP config to clear the drift.
+
+### Kept core without hosts receipt
+
+If a prior install kept `.chaos-engine/` after a provision failure (#5631) but
+never wrote `.chaos-engine-hosts.json` (doctor/`CE_HOSTS_RECEIPT_MISSING`),
+rerun the one-liner or:
+
+```bash
+python3 .chaos-engine/install.py repair --project . --component hosts
+```
+
+Install clears a stale account-rollback journal that cannot authenticate host
+pairing, then binds hosts from the current core. No manual quarantine.
+
+### Install progress phases (core vs dependencies)
+
+Install core and Provision dependencies run **sequentially**. The TTY checklist
+shows only the active phase as running. Interactive installs default to a richer
+live trace (downloads, tool commands with secrets redacted); set
+`CHAOS_ENGINE_QUIET=1` or run under `CI=1` for the compact trace window.
+
+### Installer output: one visual language (#6325)
+
+The installer, `doctor`, and `status --digest` share one grammar.
+
+| Surface | TTY | Pipe, CI, `TERM=dumb` |
+| --- | --- | --- |
+| Steps | Fixed-height checklist with a spinner on the running row and aligned durations | `[n/N] START <step>`, `[n/N] DONE  <step>`, and `[+mm:ss] PASS <step> (mm:ss)`. No ANSI escapes and no redraw frames |
+| Detail | The last 4 trace lines (all of them with `--verbose`) | Trace lines only with `--verbose` or `CHAOS_ENGINE_VERBOSE=1`. A stalled download prints one `... waiting for data` line per 15 s |
+| Glyphs | `✓` done, `✗` failed, `!` warning, braille spinner | ASCII `+`, `x`, `!`, spinner `-\|/`. Every glyph sits next to a word or a duration, so meaning never depends on color |
+| Summary | Headline, aligned `Project/Source/Commit/Doctor/Hosts` rows, numbered next steps, a `Receipt` block with the stable `Resolved commit:`, `Doctor:`, `Clients:`, and `Full install trace:` lines | Same text, no color |
+| Failure | `✗ Installation failed (<code>)`, `<code>: <one-line cause>`, then exactly one `Next fix:` | Same. A long prefilled issue URL becomes a terminal hyperlink on a TTY, and the full URL is saved in `.chaos-engine-state/heal-handoff.md` |
+| Doctor rows | `[error\|warning\|info] <name> — <status>` plus `  fix-next: <command>` | `status --digest` prints the same rows for failing checks only |
+
+Color follows [no-color.org](https://no-color.org/): a non-empty `NO_COLOR`
+turns it off, and so does `TERM=dumb` or a non-TTY stream. Set
+`CHAOS_ENGINE_ASCII=1` to force ASCII glyphs on terminals whose font lacks
+them. Glyphs fall back to ASCII automatically when the stream encoding
+(for example a Windows `cp1252` console) cannot encode them. On such consoles
+the installer switches stderr to `errors=replace`, so a path containing `Ω`
+cannot crash the install. POSIX callers pass `--verbose` after the one-liner
+URL, and PowerShell callers pass `-Verbose` or set `CHAOS_ENGINE_VERBOSE=1`.
+
+### Python patch lag (#6325)
+
+The python contract caps the series at maximumSeries 3.14 because pinned native wheels (chromadb/onnxruntime) have no build for the next CPython ABI. Within that cap, ChaosEngine resolves the newest CPython from python.org and installs it with uv.
+python.org can publish a patch (for example 3.14.8) before uv can download it.
+The installer then asks `uv python list --only-downloads` for the newest
+downloadable patch that is no newer than python.org's and no older than the
+minimum, and installs that one. When that patch is already installed and
+healthy, the step is `reused`. The account receipt records
+`upstreamResolvedVersion` and `downloadLag`. The scheduled live acceptance
+marks the immutable-base upgrade chain `skipped` with the reason
+`upstream-python-download-lag` only when the frozen base fails for exactly this
+reason. The fresh candidate phases still run in the same window.
+
+
+
+## Optional native Maven Tools MCP
+
+Do not put `docker run -i --rm` in a default stdio MCP configuration. Each
+active client owns its own stdio server process, so a Docker-backed declaration
+creates one container per client and keeps Docker Desktop and its VM resident.
+
+A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow:
+
+1. Resolve Temurin JDK 25+ (with `javac`) from `CHAOSENGINE_JAVA`, `JAVA_HOME`,
+   or `PATH`. When no suitable ambient JDK exists, provision the checksum-verified
+   managed Temurin JDK from `dependencies.json` into the CE tools cache.
+2. When ambient `mvn` is missing or below the declared Maven minimum, provision a
+   checksum-verified managed Apache Maven distribution into the CE tools cache.
+   Resolve the latest compatible stable GitHub release, clone its tag with
+   `--depth 1`, record the tag's immutable commit, ensure `./mvnw` is executable,
+   set `JAVA_HOME` to the managed/ambient JDK, and run
+   `./mvnw -B clean package -Pci -DskipTests`. Git is required; the upstream
+   wrapper remains the build entrypoint. Upstream tests stay upstream CI's job,
+   so a crashing upstream test cannot block a tagged release (#6339).
+3. Stage `maven-tools-mcp-<resolved-version>.jar` under a fresh unique directory on the same
+   filesystem as the current user's data directory, then publish that directory
+   with a no-overwrite rename to
+   `ChaosEngine/tools/maven-tools-mcp/<resolved-version>/`. On Windows the data directory is
+   `%LOCALAPPDATA%`; elsewhere it is `$XDG_DATA_HOME`, or `~/.local/share` when
+   that variable is unset. `CHAOSENGINE_MAVEN_TOOLS_MCP_JAR` may name a
+   different verified JAR. Beside it, write `install-receipt.json` with exactly
+   these keys: `version`, immutable `commit`, `jar` =
+   the installed filename, and `sha256` = the lowercase SHA-256 of its bytes.
+   Discovery recomputes the digest and rejects a missing, malformed, stale, or
+   differently pinned receipt. The version directory is an immutable,
+   receipt-owned shared cache: parallel projects may read the verified pair, while
+   project uninstall never changes or removes it.
+   Doctor and `cache status` judge the JAR that discovery selects: the verified
+   `CHAOSENGINE_MAVEN_TOOLS_MCP_JAR`, else the newest cached version whose
+   receipt verifies, never a pinned release (#6336). A corrupt cached JAR
+   (checksum or CRC failure) reports `invalid` with
+   `python3 .chaos-engine/install.py repair --project . --component maven-tools-mcp`
+   as its fix-next. That repair discards invalid version trees, reuses a healthy
+   cached version or reinstalls the latest stable one, then rebinds hosts (#6337).
+4. Host installation discovers both files and atomically rewrites project MCP
+   JSON, Gemini settings, and the generated Codex config with their resolved
+   absolute paths. Upgrades repeat
+   discovery, so another user's Java or data path is never inherited.
+5. Start a fresh client session and prove both the MCP initialize and tools/list
+   responses over the upstream default stdio transport. Native mode launches
+   only `java -jar <verified-jar>` and never installs or starts Docker.
+
+Docker remains opt-in for users who already run a healthy Docker daemon:
+
+```text
+python .chaos-engine/install.py install --project . --with-maven-tools --maven-tools-mode docker
+```
+
+This resolves the same latest stable Maven Tools release, pins
+`arvindand/maven-tools-mcp:<resolved-version>`, and writes the absolute Docker
+executable into each generated MCP configuration. ChaosEngine never installs,
+starts, or upgrades Docker.
+
+If an ambient Temurin 25 runtime cannot run the JAR,
+installation fails closed on a Maven project and omits the server on a
+non-Maven project. Maven CLI, repository files, Context7, and authoritative
+Maven Central sources remain the no-Docker fallback.
+
+Inspect or remove the exact supported cache version with:
+
+```text
+python .chaos-engine/install.py cache status --component maven-tools-mcp
+python .chaos-engine/install.py cache purge --component maven-tools-mcp --version <resolved-version>
+```
+
+`cache status` returns `healthy`, `absent`, `invalid`, or `busy`. `cache purge`
+takes a non-waiting user-cache lock and removes only the verified receipt-owned
+JAR and receipt. It refuses modified, linked, unknown, broad, or busy targets;
+an absent version is already successful.
+
+An installing agent can use this PowerShell sequence after the source build:
+
+```powershell
+$version = '3.2.0'
+$commit = '41c786b6a7440dec09d7c70f294e22533b88faa4'
+$cacheRoot = Join-Path $env:LOCALAPPDATA "ChaosEngine\tools\maven-tools-mcp"
+$staging = Join-Path $cacheRoot (".staging-" + [guid]::NewGuid().ToString('N'))
+$jar = Join-Path $staging "maven-tools-mcp-$version.jar"
+New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+New-Item -ItemType Directory -Path $staging | Out-Null
+Copy-Item -LiteralPath "target\maven-tools-mcp-$version.jar" -Destination $jar
+$receipt = [ordered]@{
+  version = $version
+  commit = $commit
+  jar = [IO.Path]::GetFileName($jar)
+  sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $jar).Hash.ToLowerInvariant()
+}
+$receipt | ConvertTo-Json | Set-Content -Encoding utf8NoBOM (Join-Path $staging 'install-receipt.json')
+py -3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" $staging $cacheRoot
+```
+
+The equivalent POSIX installation is:
+
+```sh
+version=3.2.0
+commit=41c786b6a7440dec09d7c70f294e22533b88faa4
+data_root=${XDG_DATA_HOME:-"$HOME/.local/share"}
+cache_root="$data_root/ChaosEngine/tools/maven-tools-mcp"
+mkdir -p "$cache_root"
+staging=$(mktemp -d "$cache_root/.staging.XXXXXXXX")
+jar="$staging/maven-tools-mcp-$version.jar"
+cp "target/maven-tools-mcp-$version.jar" "$jar"
+sha=$(python3 -c 'import hashlib,pathlib,sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' "$jar")
+printf '{"version":"%s","commit":"%s","jar":"%s","sha256":"%s"}\n' \
+  "$version" "$commit" "maven-tools-mcp-$version.jar" "$sha" \
+  > "$staging/install-receipt.json"
+python3 -c "import runpy,sys; from pathlib import Path; api=runpy.run_path('.chaos-engine/hosts.py'); api.get('publish_maven_tools_cache')(Path(sys.argv[1]), root=Path(sys.argv[2]))" "$staging" "$cache_root"
+```
+
+
+## Self-improve skill
+
+Post-delivery Learning Session loads
+[skills/self-improve/SKILL.md](skills/self-improve/SKILL.md) (CC BY 4.0
+attribution for Task Observer methodology). It wraps `learning.py` privacy gates
+for harness + product dual-track observations. Portable Stop / delivery-complete
+hooks enforce the Learning Session after a confirmed delivery (including
+`gh pr merge` and `delivery-status`): Learning Session after every final delivery.
+The Learning Session reason comes before any retrieve citation, and
+`stop_hook_active` does not clear unpaid delivery-complete debt.
+Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart
+stays locator-only; the heavy protocol runs on the delivery Stop path (not an
+always-on Task Observer). Harness parity: lasting policy lives in this overlay
+so every supported host shares the same outcomes.
+
+## Latency budgets
+
+CI (`tests/scripts/test_ce_h2_gates.py`) fails when a per-turn command exceeds its budget:
+`tool.py entry` under 1 s, `retrieve --store graphify` under 5 s, `install.py doctor --json`
+under 10 s on a fixture project.
+
+## Host prerequisites
+
+After a successful install, ChaosEngine checks git (git folders), mvn (Maven projects),
+gh (github.com remotes), and Node.js; on Windows also winget and PowerShell 7, with
+Chocolatey only as a fallback when winget stays unavailable. An interactive, non-CI run
+installs what is missing or outdated (Windows: winget; macOS: Homebrew). CI, no TTY, or
+Linux only reports the official command. Present tools at the latest known version are
+skipped; the latest-version lookup is cached for 24 h and offline counts as current.
+Selected add-ons may ship `post-install.json` to run a framework's agentic installer and
+offer its upgrader (default No, 10 s timeout, never in CI).
+Set `CHAOS_ENGINE_PREREQUISITES=off|report|install` or pass `--skip-prerequisites`.

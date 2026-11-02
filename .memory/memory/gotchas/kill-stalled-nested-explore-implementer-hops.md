@@ -1,0 +1,1 @@
+A coding hop can hang on nested explore with zero diffs for many minutes while the orchestrator thinks work is progressing. Forbid nested explore in cheap implementer prompts and kill hops with no file change past the inspect cadence.

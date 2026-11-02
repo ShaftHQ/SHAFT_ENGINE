@@ -1,0 +1,147 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.shafthq</groupId>
+        <artifactId>shaft-parent</artifactId>
+        <version>10.4.20261102</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>shaft-capture</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>Deterministic SHAFT Capture recording, privacy, TestNG generation, and replay validation.</description>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-engine</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-pilot-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Jackson 2 (legacy) annotations, distinct from the tools.jackson (Jackson 3) family
+                 above, needed solely so NetworkCaptureOptions can compile against
+                 com.fasterxml.jackson.annotation.JsonProperty; see that class's javadoc. Version
+                 managed by the root pom (jackson.annotations.version). -->
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.bytebuddy</groupId>
+                    <artifactId>byte-buddy</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- Test-only: proves the generation-time fingerprint seeding (issue #4172) actually
+                 satisfies a later shaft-heal history lookup, the same way
+                 ShaftHealingProviderTest#seededFingerprintShouldSatisfyHistoryLookupWithoutALiveElementOrDriver
+                 proves it at the shaft-heal layer. Production code never depends on shaft-heal,
+                 only the optional runtime ServiceLoader seam in shaft-engine (issue #4161). -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-heal</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>com/**/*</include>
+                        <include>schema/**/*</include>
+                        <include>browser/**/*</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+                <configuration>
+                    <excludedGroups>external-e2e</excludedGroups>
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    <argLine>@{argLine} ${surefireArgLine} ${mockitoAgentArgLine}</argLine>
+                    <systemPropertyVariables>
+                        <!-- Engine property bootstrap must not rewrite this module's tracked
+                             src/main/resources/properties files during tests. -->
+                        <shaft.properties.bootstrapDirectory>target/shaft-properties</shaft.properties.bootstrapDirectory>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>capture-browser-e2e</id>
+            <activation>
+                <property>
+                    <name>includeCaptureBrowserE2E</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration combine.self="override">
+                            <groups>external-e2e</groups>
+                            <excludedGroups/>
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

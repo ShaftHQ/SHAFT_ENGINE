@@ -1,0 +1,37 @@
+{
+  "body_path": "memory/decisions/guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool.md",
+  "content_hash": "sha256:d023a868f632df16986b0a707412ec6e064c603b3e061f6ae6aaf8a9052d9a14",
+  "created_at": "2026-08-04T14:32:23+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#3745",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4452",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4458",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4475",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.guidance-budgets-bound-each-surface-by-who-pays-not-by-a-shared-pool",
+  "source": {
+    "kind": "agent",
+    "task": "Record the #4458 guidance-ratchet decision made in PR #4475."
+  },
+  "status": "active",
+  "tags": [
+    "guidance-budget",
+    "agent-harness",
+    "ci"
+  ],
+  "title": "Guidance budgets bound each surface by who pays, not by a shared pool",
+  "type": "decision",
+  "updated_at": "2026-08-04T23:28:39+03:00"
+}

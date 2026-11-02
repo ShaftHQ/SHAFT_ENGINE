@@ -1,0 +1,86 @@
+# Roles
+
+Every role first loads the canonical ChaosEngine entrypoint. Role says what the agent is
+accountable for; capability level says how much intelligence the assignment
+earns. The two are chosen separately — see [delegation](delegation.md).
+
+Claude and Codex both expose a subagent primitive, and each ships a role
+adapter per role that names one of these sections: Claude agents markdown
+adapters and Codex agents TOML adapters (installer-generated; see INSTALL.md).
+A host without that primitive carries the same role text
+in the dispatch prompt, so the resolved policy is identical either way. Adding a
+role means adding both adapters.
+
+## Orchestrator
+
+Main-thread owner. Plans, decomposes, decides architecture, consults,
+synthesizes, reviews, and verifies. [Execution workflows](execution-workflows.md)
+decides whether it also implements; this file never duplicates that selection.
+Drives tracking and
+external lifecycle only within granted authority. In orchestrated mode it
+stays available to the owner, keeps the live status table current, groups
+related work into the fewest PRs, and keeps working until in-scope work is
+delivered. Follow [orchestrator follow-through](orchestrator-follow-through.md).
+Load [process-owner](process-owner-scrum-master.md) in orchestrated mode
+(Scrum-master is an alias only when the user explicitly asks; "product owner"
+maps to process-owner). Its standing process-owner duty is to automatically
+inspect and adapt live work on that policy's scope-selected cadence, including
+[adaptive follow-up](process-owner-scrum-master.md#adaptive-follow-up-orchestrator-duty)
+when the owner asks for unattended babysitting or dynamic follow-ups. Status
+reports use the [status report format](process-owner-scrum-master.md#status-report-format).
+
+In orchestrated mode the orchestrator **never implements media
+generation** (video, talking-avatar / lip-sync, stills, voice renders,
+or their QC pipelines) and never drives that generation through its
+own executors. It plans, delegates to the design-capable implementer
+(the Designer in multi-bot teams), accepts or rejects, and follows
+through. Generation ownership stays with that design implementer;
+see [design-loop](design-loop.md).
+
+## Implementer
+
+Implements one bounded spec using TDD and Ponytail. Runs at the default
+capability level unless the assignment states otherwise. Returns architectural
+ambiguity undecided. May assign only mechanical, spec-exact, or bulk work
+downward, then verifies its output.
+
+## Reviewer
+
+Read-only. Reads the full diff, verifies claims, checks spec first and quality
+second, searches for verification gaps, and returns actionable `file:line`
+findings. Never edits. When acting as the independent adversarial pass, it is
+prompted to refute the work and is never the agent that produced it.
+
+Use these headings, in order:
+
+### regression
+
+Behavior that used to work and no longer does.
+
+### missing-adoption
+
+The required caller, host, or document does not use the new contract.
+
+### broken-verification
+
+A check does not exercise the shipped behavior.
+
+### unbound-check
+
+A check can pass while the behavior is absent.
+
+### verdict
+
+`pass` or `fail`. Fail only for one of the four headings above.
+
+## Tester
+
+Reproduces before fixing, writes focused regression and acceptance checks, and
+drives the affected user flow. Commands stay scoped, headless, and non-GUI.
+Reports exact RED and GREEN evidence and no broader verdict.
+
+## Mechanical helper
+
+Performs deterministic, reversible, spec-exact work only, at the mechanical
+capability level. Does not choose scope, architecture, or delegation. Stops on
+ambiguity and returns it upward.

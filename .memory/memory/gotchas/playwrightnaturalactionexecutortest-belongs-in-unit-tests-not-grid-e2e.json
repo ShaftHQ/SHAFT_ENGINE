@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/playwrightnaturalactionexecutortest-belongs-in-unit-tests-not-grid-e2e.md",
+  "content_hash": "sha256:ff5d1ee42a0631133555be54c41fafeb7e71f73b064c22c9430e60535e25f9a9",
+  "created_at": "2026-08-02T08:33:50+03:00",
+  "evidence": [
+    {
+      "id": "6b6b65d95b",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.playwrightnaturalactionexecutortest-belongs-in-unit-tests-not-grid-e2e",
+  "source": {
+    "kind": "agent",
+    "task": "Resolve #4398 E2E Tests nightly failures"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "PlaywrightNaturalActionExecutorTest belongs in unit tests, not Grid E2E",
+  "type": "gotcha",
+  "updated_at": "2026-08-02T08:33:50+03:00"
+}

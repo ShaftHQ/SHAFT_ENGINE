@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/capture-generate-replays-mobile-playwright-branch-never-got-4029-4220s-replay-honesty-fix-issue-4230.md",
+  "content_hash": "sha256:368417fb65baf5ebda31eba37fd52cd86202a3ec62c8c1a6bc8ee05c253eff12",
+  "created_at": "2026-07-27T09:37:13+03:00",
+  "evidence": [
+    {
+      "id": "bc6b5c311f224e8e3e852b05a49a94704cca776b",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.capture-generate-replays-mobile-playwright-branch-never-got-4029-4220s-replay-honesty-fix-issue-4230",
+  "source": {
+    "kind": "agent",
+    "task": "capture generate record replay codegen -- mobile/Playwright replay honesty audit"
+  },
+  "status": "active",
+  "tags": [
+    "capture",
+    "mcp",
+    "mobile",
+    "playwright",
+    "replay",
+    "status-honesty",
+    "issue-4230",
+    "issue-4029",
+    "issue-4220"
+  ],
+  "title": "capture_generate_replay's mobile/Playwright branch never got #4029/#4220's replay-honesty fix (issue #4230)",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

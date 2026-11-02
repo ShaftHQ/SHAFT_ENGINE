@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Web Actions"
+  short_description: "Use SHAFT browser and element actions"
+  default_prompt: "Use $shaft-web-actions to implement these browser and element interactions with SHAFT."

@@ -1,0 +1,10 @@
+{"uuid":"launch-tr-1","name":"TR #1","timestamp":1700002010000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"failed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-2","name":"TR #2","timestamp":1700002020000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"passed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-3","name":"TR #3","timestamp":1700002030000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"failed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-4","name":"TR #4","timestamp":1700002040000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"passed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-5","name":"TR #5","timestamp":1700002050000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"failed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-6","name":"TR #6","timestamp":1700002060000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"passed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-7","name":"TR #7","timestamp":1700002070000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"failed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-8","name":"TR #8","timestamp":1700002080000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"passed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-9","name":"TR #9","timestamp":1700002090000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"failed","duration":50,"historyId":"hist-transitions"}}}
+{"uuid":"launch-tr-10","name":"TR #10","timestamp":1700002100000,"testResults":{"hist-transitions":{"name":"flippy","fullName":"demo.Flippy.flip","status":"passed","duration":50,"historyId":"hist-transitions"}}}

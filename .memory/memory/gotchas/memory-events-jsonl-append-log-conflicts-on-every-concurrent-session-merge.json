@@ -1,0 +1,36 @@
+{
+  "body_path": "memory/gotchas/memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge.md",
+  "content_hash": "sha256:e5cd38c4f9ddb84a55ee5099d47c69b64ebe24a632033cea9b3ad8e631c98acb",
+  "created_at": "2026-07-08T17:09:56+03:00",
+  "evidence": [
+    {
+      "id": "b219c60fd3386f21f3b836a268b36ce10c7aed7c",
+      "kind": "commit"
+    },
+    {
+      "id": "82b4106e07ba1eae4e09314df2605f7a04a8dc88",
+      "kind": "commit"
+    },
+    {
+      "id": "2e9311ab7480be581a8d576d041d21e051a5ea9d",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.memory-events-jsonl-append-log-conflicts-on-every-concurrent-session-merge",
+  "source": {
+    "kind": "agent",
+    "task": "Persistence audit 2026-07-08: capture the .memory/events.jsonl merge-conflict pattern discovered while landing this session's memory migration"
+  },
+  "status": "active",
+  "tags": [
+    "memory",
+    "git",
+    "merge",
+    "concurrency",
+    "github",
+    "false-positive"
+  ],
+  "title": ".memory/events.jsonl append-log conflicts on every concurrent-session merge",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

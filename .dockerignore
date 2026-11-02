@@ -1,0 +1,6 @@
+.git
+.idea
+**/target
+**/allure-results
+**/allure-report
+**/*.log

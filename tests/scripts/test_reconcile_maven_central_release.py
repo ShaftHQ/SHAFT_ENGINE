@@ -1,0 +1,384 @@
+import json
+import os
+import subprocess  # nosec B404 - tests monkeypatch subprocess, never running external commands.
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+import scripts.ci.reconcile_maven_central_release as reconcile
+
+
+class MissingModuleDirsTest(unittest.TestCase):
+    def test_maps_missing_artifact_paths_to_unique_module_directories_in_order(self):
+        missing_paths = [
+            "io/github/shafthq/shaft-mcp/1.2.3/shaft-mcp-1.2.3.jar",
+            "io/github/shafthq/shaft-mcp/1.2.3/shaft-mcp-1.2.3.jar.asc",
+            "io/github/shafthq/shaft-cli/1.2.3/shaft-cli-1.2.3.jar",
+        ]
+
+        self.assertEqual(reconcile.missing_module_dirs(missing_paths), ["shaft-mcp", "shaft-cli"])
+
+    def test_maps_root_and_legacy_pom_artifacts_to_their_real_directories(self):
+        missing_paths = [
+            "io/github/shafthq/shaft-parent/1.2.3/shaft-parent-1.2.3.pom",
+            "io/github/shafthq/SHAFT_ENGINE/1.2.3/SHAFT_ENGINE-1.2.3.pom",
+        ]
+
+        self.assertEqual(reconcile.missing_module_dirs(missing_paths), [".", "legacy-shaft-engine"])
+
+
+class BuildDeployCommandTest(unittest.TestCase):
+    def test_builds_targeted_deploy_command_mirroring_the_workflow_flags(self):
+        with mock.patch.object(reconcile.verify, "maven_executable", return_value="mvn"):
+            command = reconcile.build_deploy_command(["shaft-mcp", "shaft-cli"], "KEY123", "s3cr3t")
+
+        self.assertEqual(command, [
+            "mvn", "--batch-mode", "deploy", "-pl", "shaft-mcp,shaft-cli",
+            "-DskipTests", "-Dgpg.keyname=KEY123", "-Dgpg.passphrase=s3cr3t",
+        ])
+
+
+class ReleaseExistsTest(unittest.TestCase):
+    def test_existing_release_reports_true(self):
+        with mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run:
+            self.assertTrue(reconcile.release_exists("1.2.3"))
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0][:3], ["gh", "release", "view"])
+
+    def test_missing_release_reports_false(self):
+        with mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 1)
+        ):
+            self.assertFalse(reconcile.release_exists("1.2.3"))
+
+    def test_complete_release_assets_need_no_repair(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            archive = Path(temporary_directory) / "act-as-mohab-1.0.0.zip"
+            archive.write_bytes(b"archive")
+            checksum = archive.with_suffix(".zip.sha256")
+            checksum.write_text("digest  act-as-mohab-1.0.0.zip\n", encoding="utf-8")
+            expected_digest = "sha256:" + __import__("hashlib").sha256(b"archive").hexdigest()
+            with mock.patch.object(
+                reconcile.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    [], 0,
+                    stdout=json.dumps({"assets": [
+                        {"name": archive.name, "digest": expected_digest},
+                        {"name": checksum.name, "digest": "sha256:" + __import__("hashlib").sha256(checksum.read_bytes()).hexdigest()},
+                    ]}),
+                ),
+            ):
+                self.assertFalse(reconcile.release_assets_need_repair("1.2.3", [archive, checksum]))
+
+
+class SlackPayloadTest(unittest.TestCase):
+    def test_payload_matches_the_workflows_inline_python_block(self):
+        payload = reconcile.build_slack_payload("1.2.3", "https://example.test/release")
+
+        self.assertEqual(payload["text"], "SHAFT_ENGINE 1.2.3 released: https://example.test/release")
+        self.assertIn(
+            ":tada: *SHAFT_ENGINE 1.2.3* is now available!",
+            payload["blocks"][0]["text"]["text"],
+        )
+        self.assertEqual(payload["blocks"][2]["elements"][0]["url"], "https://example.test/release")
+
+    def test_payload_reuses_the_rendered_summary_line(self):
+        body = "# SHAFT 1.2.3\n\n**Heads-up:** 1 breaking change.\n\n```xml\n```\n"
+        payload = reconcile.build_slack_payload("1.2.3", "https://example.test/release", body)
+
+        self.assertEqual(
+            "*Heads-up:* 1 breaking change. <https://example.test/release|Release notes>",
+            payload["blocks"][1]["text"]["text"],
+        )
+        self.assertNotIn("new contributors", json.dumps(payload))
+
+
+class RenderReleaseBodyTest(unittest.TestCase):
+    def test_uses_the_minimal_release_notes_renderer(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            template = Path(temp_dir) / "RELEASE_BODY_TEMPLATE.md"
+            template.write_text(
+                "# SHAFT $RELEASE_VERSION\n\n$RELEASE_SUMMARY\n\n$RELEASE_CHANGES\n\n"
+                "$RELEASE_CHANGELOG\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                reconcile.release_notes, "build_release_body", return_value=("body", False)
+            ) as build:
+                body = reconcile.render_release_body("1.2.3", template)
+
+        self.assertEqual(("body", False), body)
+        request = build.call_args.args[0]
+        self.assertEqual(("1.2.3", template), (request.version, request.template_path))
+
+    def test_generated_notes_are_only_requested_on_fallback(self):
+        rendered = reconcile.build_release_create_command("1.2.3", Path("b.md"), [], False)
+        fallback = reconcile.build_release_create_command("1.2.3", Path("b.md"), [])
+        self.assertNotIn("--generate-notes", rendered)
+        self.assertIn("--generate-notes", fallback)
+
+
+class ReconcileReleaseTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.dict(os.environ, {}, clear=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        asset_patcher = mock.patch.object(
+            reconcile,
+            "build_plugin_release_assets",
+            return_value=[Path("assets/act-as-mohab-1.0.0.zip")],
+        )
+        asset_patcher.start()
+        self.addCleanup(asset_patcher.stop)
+        version_patcher = mock.patch.object(reconcile, "read_reactor_version", return_value="1.2.3")
+        version_patcher.start()
+        self.addCleanup(version_patcher.stop)
+        os.environ.pop("SLACK_WEBHOOK_URL", None)
+
+    def test_all_artifacts_missing_deploys_every_configured_module(self):
+        all_missing = reconcile.verify.publication_paths("1.2.3")
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=all_missing
+        ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run, mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
+        ), mock.patch.object(
+            reconcile.verify, "maven_executable", return_value="mvn"
+        ):
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        command = run.call_args_list[0].args[0]
+        self.assertEqual(command[:4], ["mvn", "--batch-mode", "deploy", "-pl"])
+        modules = command[4].split(",")
+        self.assertEqual(set(modules), set(reconcile.MODULE_DIR_BY_ARTIFACT.values()))
+
+    def test_mismatched_checked_out_version_does_not_deploy(self):
+        with mock.patch.object(reconcile, "read_reactor_version", return_value="9.9.9"), mock.patch.object(
+            reconcile.subprocess, "run"
+        ) as run:
+            with self.assertRaisesRegex(RuntimeError, "does not match"):
+                reconcile.reconcile_release(
+                    version="1.2.3", repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                    gpg_keyname="KEY", gpg_passphrase="not-a-secret", dry_run=False,
+                )
+
+        run.assert_not_called()
+
+    def test_some_artifacts_missing_deploys_only_those_modules(self):
+        missing = [p for p in reconcile.verify.publication_paths("1.2.3") if "/shaft-cli/" in p]
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=missing
+        ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run:
+            reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+
+        command = run.call_args_list[0].args[0]
+        self.assertEqual(command[command.index("-pl") + 1], "shaft-cli")
+
+    def test_no_missing_artifacts_and_missing_release_creates_release_and_posts_slack(self):
+        os.environ["SLACK_WEBHOOK_URL"] = "https://hooks.slack.test/services/x"
+        release_result = subprocess.CompletedProcess(
+            [], 0, stdout="https://github.test/releases/1.2.3\n"
+        )
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=[]
+        ), mock.patch.object(reconcile, "release_exists", return_value=False), mock.patch.object(
+            reconcile.subprocess, "run", return_value=release_result
+        ) as run, mock.patch.object(
+            reconcile, "render_release_body", return_value=("# SHAFT 1.2.3\n", False)
+        ), mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            urlopen.return_value.__enter__.return_value = object()
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0][:3], ["gh", "release", "create"])
+        self.assertNotIn("--generate-notes", run.call_args.args[0])
+        urlopen.assert_called_once()
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, "https://hooks.slack.test/services/x")
+        payload = json.loads(request.data)
+        self.assertIn("https://github.test/releases/1.2.3", payload["text"])
+
+    def test_no_missing_artifacts_and_existing_release_repairs_assets(self):
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=[]
+        ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run, mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(run.call_args.args[0][:3], ["gh", "release", "upload"])
+        urlopen.assert_not_called()
+
+    def test_existing_release_repairs_portable_plugin_assets(self):
+        assets = [Path("assets/act-as-mohab-1.0.0.zip"), Path("assets/shaft-skills-1.0.0.zip")]
+        with mock.patch.object(reconcile.verify, "missing_publication_paths", return_value=[]), mock.patch.object(
+            reconcile, "release_exists", return_value=True
+        ), mock.patch.object(reconcile, "build_plugin_release_assets", return_value=assets), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3", repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY", gpg_passphrase="PASS", dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(run.call_args.args[0], [
+            "gh", "release", "upload", "1.2.3", "--clobber", *(str(asset) for asset in assets),
+        ])
+
+    def test_repeated_no_op_run_stays_idempotent(self):
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=[]
+        ), mock.patch.object(reconcile, "release_exists", return_value=True), mock.patch.object(
+            reconcile.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)
+        ) as run, mock.patch.object(
+            reconcile, "release_assets_need_repair", return_value=False
+        ), mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            kwargs = dict(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+            first = reconcile.reconcile_release(**kwargs)
+            second = reconcile.reconcile_release(**kwargs)
+
+        self.assertEqual((first, second), (0, 0))
+        run.assert_not_called()
+        urlopen.assert_not_called()
+
+    def test_missing_slack_webhook_url_skips_cleanly_after_release_creation(self):
+        os.environ.pop("SLACK_WEBHOOK_URL", None)
+        release_result = subprocess.CompletedProcess(
+            [], 0, stdout="https://github.test/releases/1.2.3\n"
+        )
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=[]
+        ), mock.patch.object(reconcile, "release_exists", return_value=False), mock.patch.object(
+            reconcile.subprocess, "run", return_value=release_result
+        ), mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=False,
+            )
+
+        self.assertEqual(exit_code, 0)
+        urlopen.assert_not_called()
+
+    def test_dry_run_prints_plan_without_deploying_or_creating_anything(self):
+        missing = [p for p in reconcile.verify.publication_paths("1.2.3") if "/shaft-cli/" in p]
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=missing
+        ), mock.patch.object(reconcile.subprocess, "run") as run, mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=True,
+            )
+
+        self.assertEqual(exit_code, 0)
+        run.assert_not_called()
+        urlopen.assert_not_called()
+
+    def test_dry_run_with_nothing_missing_reports_the_planned_release_without_creating_it(self):
+        with mock.patch.object(
+            reconcile.verify, "missing_publication_paths", return_value=[]
+        ), mock.patch.object(reconcile, "release_exists", return_value=False), mock.patch.object(
+            reconcile.subprocess, "run"
+        ) as run, mock.patch.object(
+            reconcile.urllib.request, "urlopen"
+        ) as urlopen:
+            exit_code = reconcile.reconcile_release(
+                version="1.2.3",
+                repository_url=reconcile.verify.DEFAULT_REPOSITORY,
+                gpg_keyname="KEY",
+                gpg_passphrase="PASS",
+                dry_run=True,
+            )
+
+        self.assertEqual(exit_code, 0)
+        run.assert_not_called()
+        urlopen.assert_not_called()
+
+
+class MainTest(unittest.TestCase):
+    def test_main_reads_version_from_the_reactor_when_not_given(self):
+        version_result = subprocess.CompletedProcess([], 0, stdout="9.9.20260101\n")
+        with mock.patch.object(
+            reconcile, "reconcile_release", return_value=0
+        ) as reconcile_fn, mock.patch.object(
+            reconcile.subprocess, "run", return_value=version_result
+        ), mock.patch.object(
+            reconcile.verify, "maven_executable", return_value="mvn"
+        ):
+            exit_code = reconcile.main([])
+
+        self.assertEqual(exit_code, 0)
+        reconcile_fn.assert_called_once()
+        self.assertEqual(reconcile_fn.call_args.kwargs["version"], "9.9.20260101")
+
+    def test_main_uses_the_explicit_version_flag_without_reading_the_reactor(self):
+        with mock.patch.object(
+            reconcile, "reconcile_release", return_value=0
+        ) as reconcile_fn, mock.patch.object(reconcile.subprocess, "run") as run:
+            exit_code = reconcile.main(["--version", "1.2.3", "--dry-run"])
+
+        self.assertEqual(exit_code, 0)
+        run.assert_not_called()
+        self.assertEqual(reconcile_fn.call_args.kwargs["version"], "1.2.3")
+        self.assertTrue(reconcile_fn.call_args.kwargs["dry_run"])
+
+
+if __name__ == "__main__":
+    unittest.main()

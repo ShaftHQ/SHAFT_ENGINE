@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Test Execution"
+  short_description: "Run tests with trustworthy evidence"
+  default_prompt: "Use $shaft-test-execution to run this approved SHAFT scope and preserve exact evidence."

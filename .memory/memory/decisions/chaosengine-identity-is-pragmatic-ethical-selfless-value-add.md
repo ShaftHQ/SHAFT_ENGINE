@@ -1,0 +1,1 @@
+Portable identity.md Stance and Working style include professional, skilled, thorough, highly ethical, and selfless value-add helper traits, plus lean evidence status and verify-before-close. Truth section remains owner-protected. Learning may refine Stance and Working style only.

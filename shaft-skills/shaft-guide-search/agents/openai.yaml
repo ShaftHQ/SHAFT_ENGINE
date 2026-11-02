@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Guide Search"
+  short_description: "Ground SHAFT syntax in official docs"
+  default_prompt: "Use $shaft-guide-search to find and cite current official SHAFT syntax for this task."

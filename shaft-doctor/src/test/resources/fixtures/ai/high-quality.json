@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "2.0",
+  "observations": [
+    {
+      "statement": "The failure contains a locator-not-found exception.",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "hypotheses": [
+    {
+      "causeCategory": "LOCATOR",
+      "statement": "The locator likely no longer matches the intended element.",
+      "confidence": "HIGH",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "missingEvidence": [
+    "A current DOM snapshot would distinguish a changed locator from a wrong page state."
+  ],
+  "recommendedActions": [
+    {
+      "operation": "UPDATE_TEST_LOCATOR",
+      "target": "TEST_LOCATOR",
+      "evidenceIds": [
+        "evidence-1"
+      ]
+    }
+  ],
+  "limitations": [
+    "Only the submitted redacted exception evidence was analyzed."
+  ]
+}

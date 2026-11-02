@@ -1,0 +1,2975 @@
+#!/usr/bin/env python3
+"""Objective, zero-LLM checks for the design-skills add-on.
+
+Every sub-command prints one JSON object and exits:
+0 pass, 1 fail, 2 usage error, 4 skipped (a required tool is missing).
+Advisory checks (e.g. ``viralpacing``) may report status=flag with exit 0;
+a flag is a warning to review, never a hard fail.
+A skipped check is never a pass. Stdlib only; media checks call ffmpeg/ffprobe.
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import difflib
+import glob
+import hashlib
+import json
+import math
+import os
+import re
+import shutil
+import subprocess  # nosec B404 - list-form argv for resolved media tools, never a shell.
+import sys
+import time
+from array import array
+from pathlib import Path
+
+PASS, FAIL, USAGE, SKIPPED = 0, 1, 2, 4
+FLAG = "flag"  # advisory: status=flag, exit 0 (never a hard fail)
+STATUS = {PASS: "pass", FAIL: "fail", USAGE: "error", SKIPPED: "skipped"}
+
+
+class Skip(Exception):
+    """A required external tool is unavailable."""
+
+
+def report(check: str, code: int | str, **details: object) -> int:
+    if code == FLAG or code == "flag":
+        print(json.dumps({"check": check, "status": "flag", **details}, sort_keys=True))
+        return PASS
+    print(json.dumps({"check": check, "status": STATUS[code], **details}, sort_keys=True))
+    return code
+
+
+def need(tool: str) -> str:
+    found = shutil.which(tool)
+    if not found:
+        raise Skip(f"{tool} not found on PATH")
+    return found
+
+
+def run(command: list[str], timeout: float | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, capture_output=True, text=True, check=False, timeout=timeout)  # nosec B603 - list argv, no shell.
+
+
+def ffprobe(path: str) -> dict:
+    result = run([need("ffprobe"), "-v", "error", "-print_format", "json", "-show_streams", "-show_format", path])
+    if result.returncode != 0:
+        raise ValueError(f"ffprobe failed: {result.stderr.strip()}")
+    return json.loads(result.stdout)
+
+
+def video_stream(probe: dict) -> dict:
+    for stream in probe.get("streams", []):
+        if stream.get("codec_type") == "video":
+            return stream
+    raise ValueError("no video stream")
+
+
+def decode_raw(path: str, output_args: list[str]) -> bytes:
+    """Decode a media file to raw bytes on stdout (pcm or rawvideo)."""
+    command = [need("ffmpeg"), "-v", "error", "-nostdin", "-i", path, *output_args, "-"]
+    result = subprocess.run(command, capture_output=True, check=False)  # nosec B603 - list argv, no shell.
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg decode failed: {result.stderr.decode(errors='replace').strip()[-400:]}")
+    return result.stdout
+
+
+def ffmpeg_filter_log(path: str, filters: str, audio: bool = False) -> str:
+    flag = "-af" if audio else "-vf"
+    result = run([need("ffmpeg"), "-hide_banner", "-nostats", "-i", path, flag, filters, "-f", "null", "-"])
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    return result.stderr
+
+
+# ---------------------------------------------------------------- color
+def hex_rgb(value: str) -> tuple[float, float, float]:
+    text = value.strip().lstrip("#")
+    if len(text) == 3:
+        text = "".join(ch * 2 for ch in text)
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", text):
+        raise ValueError(f"not a hex color: {value}")
+    return tuple(int(text[i:i + 2], 16) / 255 for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def luminance(rgb: tuple[float, float, float]) -> float:
+    def channel(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast_ratio(a: str, b: str) -> float:
+    la, lb = sorted((luminance(hex_rgb(a)), luminance(hex_rgb(b))), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def lab(value: str) -> tuple[float, float, float]:
+    """Convert an sRGB hex colour to CIE L*a*b* (D65)."""
+    def linear(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (linear(c) for c in hex_rgb(value))
+    xyz = (
+        (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+        0.2126 * r + 0.7152 * g + 0.0722 * b,
+        (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+    )
+    fx, fy, fz = (t ** (1 / 3) if t > 216 / 24389 else (24389 / 27 * t + 16) / 116 for t in xyz)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def cmd_skin(args: argparse.Namespace) -> int:
+    """Skin patches sampled from two sources (a:b hex) differ by at most --max Lab points (CIE76)."""
+    results, failed = [], False
+    for pair in args.pair:
+        a, _, b = pair.partition(":")
+        delta = round(math.dist(lab(a), lab(b)), 2)
+        ok = delta <= args.max
+        failed |= not ok
+        results.append({"pair": pair, "delta_e": delta, "ok": ok})
+    return report("skin", FAIL if failed else PASS, max=args.max, results=results)
+
+
+def cmd_contrast(args: argparse.Namespace) -> int:
+    """Pairs as fg:bg[:kind] where kind is text (4.5), large (3) or ui (3)."""
+    minimum = {"text": 4.5, "large": 3.0, "ui": 3.0}
+    pairs = list(args.pair)
+    if args.tokens:
+        data = json.loads(Path(args.tokens).read_text(encoding="utf-8"))
+        for item in data.get("contrastPairs", []):
+            pairs.append(f"{item['fg']}:{item['bg']}:{item.get('kind', 'text')}")
+    if not pairs:
+        return report("contrast", USAGE, error="give --pair fg:bg[:kind] or --tokens with contrastPairs")
+    results, failed = [], False
+    for pair in pairs:
+        parts = pair.split(":")
+        kind = parts[2] if len(parts) > 2 else "text"
+        ratio = round(contrast_ratio(parts[0], parts[1]), 2)
+        ok = ratio >= minimum.get(kind, 4.5)
+        failed |= not ok
+        results.append({"pair": pair, "ratio": ratio, "min": minimum.get(kind, 4.5), "ok": ok})
+    return report("contrast", FAIL if failed else PASS, results=results)
+
+
+# ---------------------------------------------------------------- captions
+TIME = re.compile(r"(\d+):(\d\d):(\d\d)[,.](\d{3})")
+
+
+def seconds(stamp: str) -> float:
+    match = TIME.search(stamp)
+    if not match:
+        raise ValueError(f"bad timestamp: {stamp}")
+    h, m, s, ms = (int(x) for x in match.groups())
+    return h * 3600 + m * 60 + s + ms / 1000
+
+
+def parse_cues(text: str) -> list[dict]:
+    cues = []
+    for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n").strip()):
+        lines = [line for line in block.split("\n") if line.strip()]
+        timing = next((i for i, line in enumerate(lines) if "-->" in line), None)
+        if timing is None:
+            continue
+        start, end = lines[timing].split("-->")
+        body = [re.sub(r"<[^>]+>", "", line) for line in lines[timing + 1:]]
+        cues.append({"start": seconds(start), "end": seconds(end.strip().split(" ")[0]), "lines": body})
+    return cues
+
+
+def cmd_captions(args: argparse.Namespace) -> int:
+    cues = parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return report("captions", FAIL, problems=["no cues"])
+    frame = 1 / args.fps
+    problems = []
+    for index, cue in enumerate(cues, 1):
+        duration = cue["end"] - cue["start"]
+        chars = sum(len(line) for line in cue["lines"])
+        if len(cue["lines"]) > args.max_lines:
+            problems.append(f"cue {index}: {len(cue['lines'])} lines")
+        for line in cue["lines"]:
+            if len(line) > args.max_chars:
+                problems.append(f"cue {index}: line of {len(line)} chars")
+        if duration < args.min_duration - 1e-6 or duration > args.max_duration + 1e-6:
+            problems.append(f"cue {index}: duration {duration:.3f}s")
+        if duration > 0 and chars / duration > args.max_cps:
+            problems.append(f"cue {index}: {chars / duration:.1f} chars/s")
+        if index > 1:
+            gap = cue["start"] - cues[index - 2]["end"]
+            if gap < -1e-6:
+                problems.append(f"cue {index}: overlaps previous cue")
+            elif 1e-6 < gap < 2 * frame - 1e-6:
+                problems.append(f"cue {index}: gap {gap:.3f}s under two frames")
+    if args.script:
+        spoken = words(Path(args.script).read_text(encoding="utf-8"))
+        shown = words(" ".join(" ".join(c["lines"]) for c in cues))
+        coverage = 1 - word_error_rate(spoken, shown) if spoken else 1.0
+        if coverage < 0.95:
+            problems.append(f"script coverage {coverage:.2%}")
+    return report("captions", FAIL if problems else PASS, cues=len(cues), problems=problems)
+
+
+# ---------------------------------------------------------------- words
+def words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9']+", text.lower())
+
+
+def word_error_rate(reference: list[str], hypothesis: list[str]) -> float:
+    if not reference:
+        return 0.0 if not hypothesis else 1.0
+    previous = list(range(len(hypothesis) + 1))
+    for i, ref in enumerate(reference, 1):
+        current = [i] + [0] * len(hypothesis)
+        for j, hyp in enumerate(hypothesis, 1):
+            current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ref != hyp))
+        previous = current
+    return previous[-1] / len(reference)
+
+
+def parse_folds(items: list[str]) -> list[tuple[str, str]]:
+    """`heard=meant` pairs: known ASR mishearings of the same spoken word."""
+    pairs = []
+    for item in items:
+        heard, sep, meant = item.partition("=")
+        if not sep or not heard.strip():
+            raise ValueError(f"fold must be heard=meant: {item}")
+        pairs.append((heard.strip().lower(), meant.strip().lower()))
+    return pairs
+
+
+def char_error_rate(reference: str, hypothesis: str) -> float:
+    """Arabic-friendly CER (Levenshtein over characters, spaces kept)."""
+    ref = list(reference)
+    hyp = list(hypothesis)
+    if not ref:
+        return 0.0 if not hyp else 1.0
+    # classic DP
+    prev = list(range(len(hyp) + 1))
+    for i, rc in enumerate(ref, 1):
+        cur = [i]
+        for j, hc in enumerate(hyp, 1):
+            ins = cur[j - 1] + 1
+            delete = prev[j] + 1
+            sub = prev[j - 1] + (rc != hc)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1] / len(ref)
+
+
+def tokenizer_unk_rate(tokens: list[str], *, unk_token: str = "<unk>") -> float:
+    if not tokens:
+        return 0.0
+    return sum(1 for t in tokens if t == unk_token or t.lower() == "unk") / len(tokens)
+
+
+
+# Common English sentence-starters / greetings — not proper nouns (L96 / Carl L4).
+_SENTENCE_START_DENYLIST = frozenset(
+    {
+        "a", "an", "the", "this", "that", "these", "those",
+        "i", "we", "you", "he", "she", "it", "they",
+        "my", "our", "your", "his", "her", "its", "their",
+        "in", "on", "at", "to", "for", "of", "from", "with", "by", "as",
+        "and", "but", "or", "so", "yet", "nor",
+        "if", "when", "while", "where", "what", "who", "whom", "whose",
+        "which", "why", "how",
+        "is", "are", "was", "were", "be", "been", "being", "am",
+        "do", "does", "did", "have", "has", "had",
+        "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+        "not", "no", "yes", "here", "there", "now", "then",
+        "today", "tomorrow", "yesterday",
+        "hello", "hi", "hey", "please", "thanks", "thank", "welcome", "dear",
+        "after", "before", "during", "until", "unless", "although", "though",
+        "because", "since",
+        "also", "just", "only", "even", "still", "already", "always", "never",
+        "often", "first", "second", "next", "last", "once", "again",
+        "let", "lets", "ok", "okay",
+    }
+)
+
+
+def extract_proper_nouns(script: str) -> list[str]:
+    """
+    Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
+
+    Sentence-initial Capitalized tokens are kept unless they match the common
+    English starter denylist (Carl L4: leading TitleCase names).
+    Explicit ``--proper-noun`` values are merged by the caller.
+    """
+    found: list[str] = []
+    # Multi-word Title Case (e.g. "New York")
+    for m in re.finditer(r"\b([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)+)\b", script):
+        found.append(m.group(1))
+    # CamelCase / brand tokens (Automatest, iPhone-like with leading capital)
+    for m in re.finditer(r"\b([A-Z][a-z0-9]*[A-Z][A-Za-z0-9]*)\b", script):
+        found.append(m.group(1))
+    # Mid-sentence Capitalized tokens (not after .!? or start)
+    for m in re.finditer(
+        r"(?<!^)(?<![.!?\n]\s)\b([A-Z][a-zA-Z0-9]{1,})\b",
+        script,
+        re.M,
+    ):
+        found.append(m.group(1))
+    # Sentence-initial Capitalized tokens (L96): keep names, skip common starters.
+    for m in re.finditer(r"(?:^|[.!?\n]\s+)([A-Z][a-zA-Z0-9]{1,})\b", script, re.M):
+        token = m.group(1)
+        if token.lower() in _SENTENCE_START_DENYLIST:
+            continue
+        found.append(token)
+    # Dedupe preserving order
+    out: list[str] = []
+    seen: set[str] = set()
+    for noun in found:
+        key = noun.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(noun)
+    return out
+
+
+def proper_noun_misses(script: str, transcript: str, nouns: list[str]) -> list[str]:
+    """Return proper nouns from *nouns* present in script but missing in transcript."""
+    missing: list[str] = []
+    script_l = script.lower()
+    transcript_l = transcript.lower()
+    for noun in nouns:
+        n = noun.strip()
+        if not n:
+            continue
+        if n.lower() in script_l and n.lower() not in transcript_l:
+            missing.append(n)
+    return missing
+
+
+def fold(text: str, folds: list[tuple[str, str]]) -> str:
+    folded = text.lower()
+    for heard, meant in folds:
+        folded = re.sub(r"\b" + re.escape(heard) + r"\b", meant, folded)
+    return folded
+
+
+def cmd_tts(args: argparse.Namespace) -> int:
+    """Gate on WER/CER + L93/L96 ASR intelligibility (speaker alone is not enough)."""
+    script = Path(args.script).read_text(encoding="utf-8")
+    transcript = Path(args.transcript).read_text(encoding="utf-8")
+    folds = parse_folds(args.fold)
+    reference = words(script)
+    raw = word_error_rate(reference, words(transcript))
+    wer = word_error_rate(words(fold(script, folds)), words(fold(transcript, folds)))
+    # L93: default ceiling 15% EN WER; keep --max-wer override for stricter runs.
+    problems = [] if wer <= args.max_wer else [f"WER {wer:.2%} above {args.max_wer:.0%}"]
+    cer = None
+    if getattr(args, "lang", "en") == "ar" or getattr(args, "cer", False):
+        cer = char_error_rate(fold(script, folds), fold(transcript, folds))
+        max_cer = getattr(args, "max_cer", 0.15)
+        if cer > max_cer:
+            problems.append(f"CER {cer:.2%} above {max_cer:.0%}")
+    # L93 fail-closed: tokenizer unk-rate is mandatory on the default voice path.
+    unk = None
+    tokens_path = getattr(args, "tokens", None)
+    if not tokens_path:
+        problems.append("tokenizer tokens required (L93)")
+    else:
+        token_list = Path(tokens_path).read_text(encoding="utf-8").split()
+        if not token_list:
+            problems.append("tokenizer tokens empty (L93)")
+        else:
+            unk = tokenizer_unk_rate(token_list)
+            max_unk = getattr(args, "max_unk", 0.05)
+            if unk > max_unk:
+                problems.append(f"tokenizer unk {unk:.2%} above {max_unk:.0%}")
+    # L93 fail-closed: language_id is mandatory; default expect = --lang.
+    lang_id = getattr(args, "language_id", None)
+    expect_lang = getattr(args, "expect_language", None) or getattr(args, "lang", "en")
+    if not lang_id:
+        problems.append("language_id required (L93)")
+    elif lang_id.lower() != str(expect_lang).lower():
+        problems.append(f"language_id {lang_id!r} != expected {expect_lang!r}")
+    # L96 fail-closed: auto-extract script proper nouns; --proper-noun merges in.
+    nouns = list(dict.fromkeys(
+        extract_proper_nouns(script) + list(getattr(args, "proper_noun", None) or [])
+    ))
+    if nouns:
+        # Honour --fold aliases (ASR heard→meant) the same way WER does.
+        missing = proper_noun_misses(fold(script, folds), fold(transcript, folds), nouns)
+        if missing:
+            problems.append("proper-noun misses: " + ", ".join(missing))
+    wpm = None
+    if args.duration:
+        wpm = round(len(reference) / (args.duration / 60), 1)
+        if not args.min_wpm <= wpm <= args.max_wpm:
+            problems.append(f"pace {wpm} wpm outside {args.min_wpm}-{args.max_wpm}")
+    return report(
+        "tts",
+        FAIL if problems else PASS,
+        wer=round(wer, 4),
+        raw_wer=round(raw, 4),
+        cer=None if cer is None else round(cer, 4),
+        unk=None if unk is None else round(unk, 4),
+        language_id=lang_id,
+        proper_nouns=nouns,
+        wpm=wpm,
+        folds=len(folds),
+        problems=problems,
+    )
+
+
+# ---------------------------------------------------------------- narration text
+STOP = frozenset("a an the and or to of in it is for with on so its that this".split())
+
+
+def load_lines(path: str, spoken: bool = False) -> dict[str, str]:
+    """Script lines as id -> text from {"lines": [...]}, a mapping, or plain text (one line per id).
+
+    With `spoken`, a line's optional `say` (its spoken form) replaces `text`.
+    """
+    raw = Path(path).read_text(encoding="utf-8")
+    if not path.endswith(".json"):
+        return {f"L{n}": line for n, line in enumerate(raw.splitlines(), 1) if line.strip()}
+    data = json.loads(raw)
+    if isinstance(data, dict) and isinstance(data.get("lines"), list):
+        key = "say" if spoken else "text"
+        return {str(item["id"]): str(item.get(key, item["text"])) for item in data["lines"]}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected an object")
+
+    def text(value: object) -> str:
+        if isinstance(value, dict):
+            return str(value.get("transcript", value.get("text", "")))
+        return str(value)
+    return {str(key): text(value) for key, value in data.items()}
+
+
+def compare_line(reference: list[str], hypothesis: list[str]) -> tuple[list[str], list[str]]:
+    """Dropped content words, and repeats the script does not contain."""
+    joined = "".join(hypothesis)
+
+    def heard(word: str) -> bool:
+        return word in hypothesis or word in joined or bool(difflib.get_close_matches(word, hypothesis, n=1, cutoff=0.8))
+    dropped = [w for w in reference if w not in STOP and len(w) > 1 and not heard(w)]
+    scripted = {a for a, b in zip(reference, reference[1:]) if a == b}
+    repeated = [b for a, b in zip(hypothesis, hypothesis[1:]) if a == b and a not in STOP and a not in scripted]
+    return dropped, repeated
+
+
+def cmd_vowords(args: argparse.Namespace) -> int:
+    """Per-line transcript versus the one source string of that line."""
+    script, heard, folds = load_lines(args.script), load_lines(args.transcripts), parse_folds(args.fold)
+    lines, failed = [], False
+    for line_id, text in script.items():
+        if line_id not in heard:
+            lines.append({"id": line_id, "dropped": [], "repeated": [], "problem": "no transcript"})
+            failed = True
+            continue
+        dropped, repeated = compare_line(words(fold(text, folds)), words(fold(heard[line_id], folds)))
+        failed |= bool(dropped or repeated)
+        lines.append({"id": line_id, "dropped": dropped, "repeated": repeated})
+    return report("vowords", FAIL if failed else PASS, lines=lines)
+
+
+CLI_SYNTAX = {
+    "flag": r"(?<![\w-])--?[A-Za-z][\w-]*",
+    "backtick": r"`",
+    "variable": r"\$\{?\w",
+    "path": r"\w/\w|~/",
+    "pipe": r"\s\|\s",
+}
+SPACED_LETTERS = re.compile(r"\b[A-Z]\b(?:[ \t]+[A-Z]\b)+")
+VOWELS = "aeiouyɑɐɒæɔəɘɚɛɜɝɞɨɪʊʉʌʏøœɤɯᵻː"
+
+
+def phoneme_repeats(text: str, ipa: str) -> list[str]:
+    """Word joins where an open final syllable meets the same vowel (after an optional glide)."""
+    spoken = [re.sub(r"[ˈˌ.,!?;:]", "", word) for word in ipa.split()]
+    written = words(text)
+    names = written if len(written) == len(spoken) else spoken
+    pairs = []
+    for index, (left, right) in enumerate(zip(spoken, spoken[1:])):
+        end = re.search(f"[{VOWELS}]+$", left)
+        start = re.match(f"[jwh]?([{VOWELS}]+)", right)
+        if end and start and end.group(0) == start.group(1):
+            pairs.append(f"{names[index]} {names[index + 1]}")
+    return pairs
+
+
+def lint_line(line_id: str, text: str, ipa: str | None, allow: set[str]) -> list[str]:
+    hits = [f"{line_id}: cli {kind} in spoken text" for kind, pattern in CLI_SYNTAX.items() if re.search(pattern, text)]
+    hits += [f"{line_id}: spaced letters '{m.group(0)}' (write {m.group(0).replace(' ', '-')})"
+             for m in SPACED_LETTERS.finditer(text) if m.group(0).lower() not in allow]
+    tokens = words(text)
+    hits += [f"{line_id}: repeated word '{a}'" for a, b in zip(tokens, tokens[1:]) if a == b and f"{a} {b}" not in allow]
+    if ipa:
+        hits += [f"{line_id}: phoneme repeat '{pair}'" for pair in phoneme_repeats(text, ipa) if pair not in allow]
+    return hits
+
+
+def cmd_ttslint(args: argparse.Namespace) -> int:
+    """Narration written for the ear: no literal CLI syntax, no merged repeats."""
+    lines = load_lines(args.script, spoken=True)
+    phonemes = load_lines(args.phonemes) if args.phonemes else {}
+    allow = {item.lower() for item in args.allow}
+    hits = [hit for line_id, text in lines.items() for hit in lint_line(line_id, text, phonemes.get(line_id), allow)]
+    return report("ttslint", FAIL if hits else PASS, lines=len(lines), hits=hits)
+
+
+def cmd_holds(args: argparse.Namespace) -> int:
+    """On-screen text needs words/3 seconds plus 0.5 s of hold time."""
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    problems = []
+    for scene in data.get("scenes", []):
+        text = scene.get("onScreenText", "")
+        hold = float(scene.get("textHold", scene.get("duration", 0)))
+        needed = len(words(text)) / 3 + 0.5 if text else 0
+        if hold + 1e-6 < needed:
+            problems.append(f"{scene.get('id', '?')}: hold {hold:.2f}s < {needed:.2f}s")
+    return report("holds", FAIL if problems else PASS, problems=problems)
+
+
+# ---------------------------------------------------------------- brief / manifest
+def cmd_brief(args: argparse.Namespace) -> int:
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    problems = []
+    scenes = data.get("scenes", [])
+    if not scenes:
+        problems.append("no scenes")
+    for scene in scenes:
+        for key in ("id", "duration", "visual", "vo", "asset", "source"):
+            if not scene.get(key) and scene.get(key) != 0:
+                problems.append(f"{scene.get('id', '?')}: missing {key}")
+        for claim in scene.get("claims", []):
+            if not claim.get("evidence"):
+                problems.append(f"{scene.get('id', '?')}: claim without evidence: {claim.get('text', '')[:60]}")
+    target = data.get("targetDuration")
+    total = sum(float(scene.get("duration", 0)) for scene in scenes)
+    if target and abs(total - float(target)) > 0.05 * float(target):
+        problems.append(f"total {total:.1f}s not within 5% of {target}s")
+    return report("brief", FAIL if problems else PASS, scenes=len(scenes), total=total, problems=problems)
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def cmd_manifest(args: argparse.Namespace) -> int:
+    path = Path(args.manifest)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    problems = []
+    for asset in data.get("assets", []):
+        name = asset.get("path", "?")
+        if not asset.get("licence") and not asset.get("license"):
+            problems.append(f"{name}: no licence")
+        target = (path.parent / name)
+        if not target.is_file():
+            problems.append(f"{name}: missing file")
+        elif asset.get("sha256") and asset["sha256"] != sha256(target):
+            problems.append(f"{name}: sha256 mismatch")
+        elif not asset.get("sha256"):
+            problems.append(f"{name}: no sha256")
+    return report("manifest", FAIL if problems else PASS, assets=len(data.get("assets", [])), problems=problems)
+
+
+# ---------------------------------------------------------------- lint
+UNSLOP = {
+    "gradient-text": r"background-clip\s*:\s*text",
+    "glassmorphism": r"backdrop-filter\s*:\s*blur",
+    "over-rounding": r"border-radius\s*:\s*(?:[3-9]\d|\d{3,})px",
+    "pure-black-surface": r"background(?:-color)?\s*:\s*(?:#000(?:000)?|black)\b",
+    "pure-white-surface": r"background(?:-color)?\s*:\s*(?:#fff(?:fff)?|white)\b",
+}
+EASING = {
+    "linear-easing": r"(?:transition|animation)[^;{}]*\blinear\b|ease\s*:\s*['\"]linear",
+    "inline-cubic-bezier": r"cubic-bezier\(",
+}
+LINT_SUFFIXES = {".css", ".scss", ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mdx"}
+
+
+def lint(check: str, root: str, rules: dict[str, str], allow: list[str]) -> int:
+    base = Path(root)
+    files = [base] if base.is_file() else [p for p in base.rglob("*") if p.suffix in LINT_SUFFIXES and p.is_file()]
+    hits = []
+    for file in files:
+        for number, line in enumerate(file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if "design-qc: allow" in line:
+                continue
+            for rule, pattern in rules.items():
+                if rule not in allow and re.search(pattern, line, re.IGNORECASE):
+                    hits.append(f"{file}:{number} {rule}")
+    return report(check, FAIL if hits else PASS, files=len(files), hits=hits)
+
+
+def cmd_unslop(args: argparse.Namespace) -> int:
+    return lint("unslop", args.path, UNSLOP, args.allow)
+
+
+def cmd_easing(args: argparse.Namespace) -> int:
+    return lint("easing", args.path, EASING, args.allow)
+
+
+# ---------------------------------------------------------------- media
+def cmd_loudness(args: argparse.Namespace) -> int:
+    log = ffmpeg_filter_log(args.file, "ebur128=peak=true", audio=True)
+    summary = log.rsplit("Summary:", 1)[-1]
+
+    def value(label: str) -> float:
+        match = re.search(label + r":\s*(-?[\d.]+|-inf)", summary)
+        if not match:
+            raise ValueError(f"no {label} in ebur128 summary")
+        return float(match.group(1))
+    if getattr(args, "profile", None):
+        args.target, args.tolerance, args.max_peak = {"r128": (-23.0, 1.0, -1.0), "atsc": (-24.0, 2.0, -2.0),
+                                                      "podcast": (-16.0, 1.0, -1.0), "spotify": (-14.0, 1.0, -1.0)}[args.profile]
+    integrated, lra, peak = value(r"I"), value(r"LRA"), value(r"Peak")
+    problems = []
+    if abs(integrated - args.target) > args.tolerance:
+        problems.append(f"integrated {integrated} LUFS not {args.target}±{args.tolerance}")
+    if peak > args.max_peak:
+        problems.append(f"true peak {peak} dBTP above {args.max_peak}")
+    if args.max_lra is not None and lra > args.max_lra:
+        problems.append(f"LRA {lra} LU above {args.max_lra}")
+    return report("loudness", FAIL if problems else PASS, integrated=integrated, lra=lra, true_peak=peak, problems=problems)
+
+
+def cmd_colortags(args: argparse.Namespace) -> int:
+    stream = video_stream(ffprobe(args.file))
+    expected = {"color_primaries": "bt709", "color_transfer": "bt709", "color_space": "bt709", "color_range": "tv"}
+    problems = [f"{k}={stream.get(k)} (want {v})" for k, v in expected.items() if stream.get(k) != v]
+    return report("colortags", FAIL if problems else PASS, problems=problems)
+
+
+def level_violations(log: str, limit: int = 5) -> list[dict]:
+    """First frames outside BT.709 legal luma 16-235, with their timestamps."""
+    found = []
+    for chunk in log.split("frame:")[1:]:
+        stamp = re.search(r"pts_time:([\d.]+)", chunk)
+        low = re.search(r"YMIN=([\d.]+)", chunk)
+        high = re.search(r"YMAX=([\d.]+)", chunk)
+        if not (stamp and low and high):
+            continue
+        ymin, ymax = float(low.group(1)), float(high.group(1))
+        if ymin < 16 or ymax > 235:
+            found.append({"t": float(stamp.group(1)), "ymin": ymin, "ymax": ymax})
+            if len(found) >= limit:
+                break
+    return found
+
+
+def cmd_levels(args: argparse.Namespace) -> int:
+    log = ffmpeg_filter_log(args.file, "signalstats,metadata=mode=print")
+    lows = [float(x) for x in re.findall(r"YMIN=([\d.]+)", log)]
+    highs = [float(x) for x in re.findall(r"YMAX=([\d.]+)", log)]
+    if not lows:
+        raise ValueError("no signalstats output")
+    ymin, ymax = min(lows), max(highs)
+    problems = []
+    if ymin < 16:
+        problems.append(f"YMIN {ymin} below 16")
+    if ymax > 235:
+        problems.append(f"YMAX {ymax} above 235")
+    return report("levels", FAIL if problems else PASS, ymin=ymin, ymax=ymax, problems=problems,
+                  violations=level_violations(log) if problems else [])
+
+
+def ratio(text: str) -> float:
+    num, _, den = str(text).partition("/")
+    return float(num) / float(den or 1) if float(den or 1) else 0.0
+
+
+PRESETS = {
+    "1080p": (1920, 1080), "2160p": (3840, 2160), "vertical": (1080, 1920), "vertical-2160": (2160, 3840),
+}
+
+
+def cmd_delivery(args: argparse.Namespace) -> int:
+    probe = ffprobe(args.file)
+    video = video_stream(probe)
+    audio = [s for s in probe.get("streams", []) if s.get("codec_type") == "audio"]
+    width, height = PRESETS[args.preset]
+    problems = []
+    checks = {
+        "codec_name": "h264", "pix_fmt": "yuv420p", "width": width, "height": height,
+        "color_primaries": "bt709", "color_transfer": "bt709", "color_space": "bt709",
+    }
+    for key, want in checks.items():
+        if video.get(key) != want:
+            problems.append(f"{key}={video.get(key)} (want {want})")
+    if str(video.get("profile", "")).lower() not in {"high", "main"}:
+        problems.append(f"profile={video.get('profile')} (want High)")
+    fps = ratio(video.get("avg_frame_rate", "0/1"))
+    if args.fps and abs(fps - args.fps) > 0.01:
+        problems.append(f"fps {fps:.3f} (want {args.fps})")
+    if not audio:
+        problems.append("no audio stream")
+    elif audio[0].get("codec_name") != "aac":
+        problems.append(f"audio codec {audio[0].get('codec_name')} (want aac)")
+    elif int(audio[0].get("sample_rate", 0)) not in {48000, 44100}:
+        problems.append(f"audio sample rate {audio[0].get('sample_rate')}")
+    return report("delivery", FAIL if problems else PASS, fps=round(fps, 3), problems=problems)
+
+
+def cmd_blackfreeze(args: argparse.Namespace) -> int:
+    log = ffmpeg_filter_log(args.file, f"blackdetect=d={args.min}:pix_th=0.10,freezedetect=n=-60dB:d={args.min}")
+    blacks = re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", log)
+    freezes = re.findall(r"freeze_start: ([\d.]+)", log)
+    allowed = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+
+    def free(start: float) -> bool:
+        return not any(lo - 0.05 <= start <= hi + 0.05 for lo, hi in allowed)
+    problems = [f"black at {s}s" for s, _ in blacks if free(float(s))]
+    problems += [f"freeze at {s}s" for s in freezes if free(float(s))]
+    return report("blackfreeze", FAIL if problems else PASS, problems=problems)
+
+
+def runs(flags: list[bool]) -> list[tuple[int, int]]:
+    """Half-open index ranges where flags are true."""
+    found, start = [], None
+    for index, flag in enumerate([*flags, False]):
+        if flag and start is None:
+            start = index
+        elif not flag and start is not None:
+            found.append((start, index))
+            start = None
+    return found
+
+
+def static_spans(frames: list[bytes], fps: float, thresh: float, max_s: float,
+                 allow: list[tuple[float, float]]) -> tuple[list[dict], float]:
+    """Windows where no grid cell differs by `thresh` levels from the window's first frame (cumulative)."""
+    spans, longest, anchor = [], 0.0, 0
+    for end in range(1, len(frames) + 1):
+        if end < len(frames) and max(abs(a - b) for a, b in zip(frames[end], frames[anchor])) < thresh:
+            continue
+        start, stop = anchor / fps, end / fps
+        longest = max(longest, stop - start)
+        if stop - start > max_s and not any(lo <= start and stop <= hi for lo, hi in allow):
+            spans.append({"start": round(start, 2), "end": round(stop, 2), "dur": round(stop - start, 2)})
+        anchor = end
+    return spans, round(longest, 2)
+
+
+def cmd_static(args: argparse.Namespace) -> int:
+    """Visually static stretches: no 32x18 grid cell changes against the window start (a sub-pixel push-in is not static)."""
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    crop = f"crop={args.crop}," if args.crop else ""
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{crop}{grid}", "-f", "rawvideo"])
+    frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+    if not frames:
+        raise ValueError("no decoded frames")
+    allow = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+    spans, longest = static_spans(frames, args.fps, args.thresh, args.max, allow)  # type: ignore[arg-type]
+    return report("static", FAIL if spans else PASS, spans=spans, longest_static_s=longest, max_s=args.max)
+
+
+
+def cmd_renderfresh(args: argparse.Namespace) -> int:
+    """L46: fix-round mp4 must change sha256 vs prior; REUSE_MP4 fails the gate."""
+    reuse_flag = bool(getattr(args, "reuse_mp4", False))
+    env_raw = os.environ.get("REUSE_MP4", "").strip().lower()
+    reuse_env = env_raw in {"1", "true", "yes", "y", "on"}
+    if reuse_flag or reuse_env:
+        return report(
+            "renderfresh", FAIL,
+            hits=["REUSE_MP4"],
+            error="REUSE_MP4 fails the gate; re-render and prove a new sha256",
+            reuse_mp4=True,
+        )
+    target = Path(args.file)
+    if not target.is_file():
+        return report("renderfresh", FAIL, hits=["missing-mp4"], error=f"no file: {target}")
+    current = sha256(target)
+    prior = (getattr(args, "prior_sha256", None) or "").strip().lower()
+    if not prior and getattr(args, "prior", None):
+        prior_path = Path(args.prior)
+        if not prior_path.is_file():
+            return report("renderfresh", FAIL, hits=["missing-prior-mp4"], error=f"no prior: {prior_path}")
+        prior = sha256(prior_path)
+    if not prior:
+        return report(
+            "renderfresh", FAIL, hits=["missing-prior"],
+            error="pass --prior-sha256 or --prior (previous round mp4)",
+        )
+    if current == prior:
+        return report(
+            "renderfresh", FAIL, hits=["mp4-sha256-unchanged"],
+            sha256=current, prior_sha256=prior,
+            error="output sha256 equals prior round; re-render required",
+        )
+    return report(
+        "renderfresh", PASS,
+        sha256=current, prior_sha256=prior,
+        note="mp4 sha256 differs from prior round",
+    )
+
+
+HOP_S, SPEECH_DBFS = 0.02, -45.0
+
+
+def mask_overlaps(placed: list[tuple[int, list[bool]]], hop: float) -> list[dict]:
+    """Time ranges where two or more placed speech masks are active."""
+    counts: dict[int, int] = {}
+    for start, mask in placed:
+        for offset, active in enumerate(mask):
+            if active:
+                counts[start + offset] = counts.get(start + offset, 0) + 1
+    if not counts:
+        return []
+    flags = [counts.get(i, 0) >= 2 for i in range(max(counts) + 1)]
+    return [{"start": round(a * hop, 2), "end": round(b * hop, 2)} for a, b in runs(flags)]
+
+
+def speech_mask(path: str) -> list[bool]:
+    """20 ms frames whose RMS is above -45 dBFS."""
+    samples = array("h")
+    samples.frombytes(decode_raw(path, ["-ac", "1", "-ar", "16000", "-f", "s16le"]))
+    hop = int(16000 * HOP_S)
+    mask = []
+    for i in range(0, len(samples) - hop + 1, hop):
+        power = sum(x * x for x in samples[i:i + hop]) / hop
+        mask.append(10 * math.log10(power / 32768 ** 2 + 1e-12) > SPEECH_DBFS)
+    return mask
+
+
+
+def _speech_end_s(path: str, explicit: float | None) -> float | None:
+    if explicit is not None:
+        return float(explicit)
+    mask = speech_mask(path)
+    if not mask:
+        return None
+    last = None
+    for index, active in enumerate(mask):
+        if active:
+            last = (index + 1) * HOP_S
+    return last
+
+
+def cmd_frozentail(args: argparse.Namespace) -> int:
+    """L47: frame-diff last N s and any span after speech ends; static = FAIL."""
+    probe = ffprobe(args.file)
+    video = video_stream(probe)
+    duration = float(video.get("duration") or probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        raise ValueError("cannot read media duration")
+    tail_s = float(args.tail)
+    speech_end = _speech_end_s(args.file, getattr(args, "speech_end", None))
+    windows: list[tuple[float, float, str]] = []
+    start_tail = max(0.0, duration - tail_s)
+    if start_tail < duration - 1e-6:
+        windows.append((start_tail, duration, "last-tail"))
+    if speech_end is not None and speech_end < duration - 1e-6:
+        windows.append((max(0.0, float(speech_end)), duration, "after-speech"))
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    hits: list[str] = []
+    longest = 0.0
+    for start, stop, label in windows:
+        span = max(0.05, stop - start)
+        vf = f"fps={args.fps},{grid}"
+        raw = decode_raw(
+            args.file,
+            ["-ss", f"{start:.3f}", "-t", f"{span:.3f}", "-an", "-vf", vf, "-f", "rawvideo"],
+        )
+        frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+        if len(frames) < 2:
+            hits.append(f"{label}: too-few-frames")
+            continue
+        spans, win_longest = static_spans(frames, args.fps, args.thresh, args.max, [])
+        longest = max(longest, win_longest)
+        for item in spans:
+            hits.append(
+                f"{label}: static {item['start']:.2f}-{item['end']:.2f}s "
+                f"(dur {item['dur']:.2f}s) in media window starting {start:.2f}s"
+            )
+    return report(
+        "frozentail", FAIL if hits else PASS,
+        duration_s=round(duration, 3),
+        speech_end_s=None if speech_end is None else round(float(speech_end), 3),
+        tail_s=tail_s,
+        longest_static_s=longest,
+        max_s=args.max,
+        hits=hits,
+        note="trim to speech end plus a short natural tail when frozen",
+    )
+
+
+def cmd_motionstill(args: argparse.Namespace) -> int:
+    """Still-span + end-hold gate (a2e motion_check idea; own implementation).
+
+    Fails when any static span exceeds --max-still seconds, or when the final
+    --end-hold-frames sampled frames are not a held still (idle float banned).
+    """
+    probe = ffprobe(args.file)
+    video = video_stream(probe)
+    duration = float(video.get("duration") or probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        raise ValueError("cannot read media duration")
+    fps = float(args.fps)
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={fps},{grid}", "-f", "rawvideo"])
+    frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+    if len(frames) < 2:
+        return report("motionstill", FAIL, hits=["too-few-frames"], error="need >=2 sampled frames")
+    allow = [tuple(float(x) for x in span.split("-")) for span in (args.allow or [])]
+    max_still = float(args.max_still)
+    spans, longest = static_spans(frames, fps, args.thresh, max_still, allow)
+    hits = [
+        f"still {item['start']:.2f}-{item['end']:.2f}s (dur {item['dur']:.2f}s > {max_still}s)"
+        for item in spans
+    ]
+    end_n = max(1, int(args.end_hold_frames))
+    hold_ok = False
+    if len(frames) >= end_n:
+        tail = frames[-end_n:]
+        # All end-hold frames must match the first of the hold window (stillness).
+        deltas = [
+            max(abs(a - b) for a, b in zip(tail[0], frame))
+            for frame in tail[1:]
+        ]
+        hold_ok = all(d < float(args.thresh) for d in deltas) if deltas else True
+        if not hold_ok:
+            hits.append(
+                f"end-hold: last {end_n} frames not still "
+                f"(max cell delta {max(deltas) if deltas else 0:.1f} >= {args.thresh})"
+            )
+    else:
+        hits.append(f"end-hold: need >= {end_n} frames, got {len(frames)}")
+    return report(
+        "motionstill", FAIL if hits else PASS,
+        duration_s=round(duration, 3),
+        longest_static_s=longest,
+        max_still_s=max_still,
+        end_hold_frames=end_n,
+        end_hold_ok=hold_ok,
+        hits=hits,
+        note="max still <=3s; end-hold required; no idle float to game the meter",
+    )
+
+
+def _wardrobe_spec_hits(spec: dict) -> list[str]:
+    """Missing required wardrobe spec keys."""
+    required = ("garment", "sleeve", "buttons_closed", "colour")
+    missing = [key for key in required if key not in spec]
+    return [f"spec-missing:{','.join(missing)}"] if missing else []
+
+
+def _wardrobe_button_hits(index: int, row: dict, spec: dict) -> list[str]:
+    """Aggregate and per-button wardrobe hits for one sample."""
+    hits: list[str] = []
+    expected_closed = int(spec.get("buttons_closed", -1))
+    closed = row.get("buttons_closed")
+    if closed is None and not isinstance(spec.get("buttons"), list):
+        hits.append(f"sample[{index}]:missing-button-count")
+    elif closed is not None and expected_closed >= 0 and int(closed) != expected_closed:
+        hits.append(
+            f"sample[{index}]:buttons_closed={closed}!=spec:{expected_closed}"
+        )
+    spec_buttons = spec.get("buttons")
+    if isinstance(spec_buttons, list) and len(spec_buttons) > 0:
+        got = row.get("buttons")
+        if not isinstance(got, list) or len(got) == 0:
+            hits.append(f"sample[{index}]:missing-per-button")
+        else:
+            by_id = {
+                str(item.get("id")): item
+                for item in got
+                if isinstance(item, dict) and item.get("id") is not None
+            }
+            for expected in spec_buttons:
+                if not isinstance(expected, dict):
+                    continue
+                bid = str(expected.get("id"))
+                sample = by_id.get(bid)
+                if sample is None:
+                    hits.append(f"sample[{index}]:button-missing:{bid}")
+                    continue
+                if bool(sample.get("closed")) != bool(expected.get("closed")):
+                    hits.append(
+                        f"sample[{index}]:button[{bid}]:"
+                        f"closed={sample.get('closed')}!=spec:{expected.get('closed')}"
+                    )
+    return hits
+
+
+def _wardrobe_observation_hits(
+    observations: list,
+    spec: dict,
+    *,
+    sample_s: float,
+    duration: float,
+) -> list[str]:
+    """Per-sample collar/button/colour drift vs spec and sample density."""
+    hits: list[str] = []
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
+    if len(observations) < max(1, expected_samples - 1):
+        hits.append(f"undersampled:{len(observations)}<{expected_samples} at {sample_s}s")
+    for index, row in enumerate(observations):
+        if not row.get("collar_crop"):
+            hits.append(f"sample[{index}]:missing-collar-crop")
+        hits.extend(_wardrobe_button_hits(index, row, spec))
+        if spec.get("colour") and row.get("colour") and row.get("colour") != spec.get("colour"):
+            hits.append(f"sample[{index}]:colour-drift:{row.get('colour')}")
+        if spec.get("sleeve") and row.get("sleeve") and row.get("sleeve") != spec.get("sleeve"):
+            hits.append(f"sample[{index}]:sleeve-drift:{row.get('sleeve')}")
+    return hits
+
+
+
+_REAL_REF_KINDS = frozenset({"real_photo", "yt_frame", "real_audio"})
+_BANNED_REF_KINDS = frozenset({"ai_still", "ai_speech", "prior_generation", "ai"})
+
+
+def _likenessvoice_ref_hits(axis: str, refs: list) -> list[str]:
+    """Require real-source provenance on every likeness/voice ref (L60)."""
+    hits: list[str] = []
+    for index, ref in enumerate(refs):
+        label = f"{axis}-ref[{index}]"
+        if isinstance(ref, str):
+            hits.append(f"{label}-missing-provenance")
+            continue
+        if not isinstance(ref, dict):
+            hits.append(f"{label}-bad-ref")
+            continue
+        kind = str(ref.get("kind") or "").strip().lower()
+        if not kind:
+            hits.append(f"{label}-missing-kind")
+        elif kind in _BANNED_REF_KINDS:
+            hits.append(f"{label}-banned-kind:{kind}")
+        elif kind not in _REAL_REF_KINDS:
+            hits.append(f"{label}-bad-kind:{kind}")
+        sha = str(ref.get("sha256") or "").strip()
+        if not sha:
+            hits.append(f"{label}-missing-sha256")
+        source = str(ref.get("source_url") or ref.get("source_path") or "").strip()
+        if not source:
+            hits.append(f"{label}-missing-source")
+    return hits
+
+
+def _likenessvoice_axis_hits(axis: str, block: object) -> list[str]:
+    """FAIL closed on missing/doubt/fail for one likeness or voice axis."""
+    hits: list[str] = []
+    if not isinstance(block, dict):
+        return [f"missing-{axis}"]
+    refs = block.get("refs")
+    if not isinstance(refs, list) or len(refs) == 0:
+        hits.append(f"{axis}-missing-refs")
+    else:
+        hits.extend(_likenessvoice_ref_hits(axis, refs))
+    if block.get("side_by_side") is not True:
+        hits.append(f"{axis}-not-side-by-side")
+    verdict = block.get("verdict")
+    if verdict is None:
+        hits.append(f"{axis}-missing-verdict")
+    elif str(verdict).lower() in {"doubt", "fail", "ambiguous", "unsure"}:
+        hits.append(f"{axis}-{str(verdict).lower()}")
+    elif str(verdict).lower() != "pass":
+        hits.append(f"{axis}-bad-verdict:{verdict}")
+    return hits
+
+
+def _likenessvoice_obs_hits(obs: dict) -> list[str]:
+    """Independent + blind + dual-axis hits for digital-human acceptance."""
+    hits: list[str] = []
+    if obs.get("independent_reviewer") is not True:
+        hits.append("missing-independent-reviewer")
+    if obs.get("blind") is not True:
+        hits.append("missing-blind")
+    builder = obs.get("builder_id")
+    reviewer = obs.get("reviewer_id")
+    if builder and reviewer and str(builder) == str(reviewer):
+        hits.append("reviewer-same-as-builder")
+    hits.extend(_likenessvoice_axis_hits("likeness", obs.get("likeness")))
+    hits.extend(_likenessvoice_axis_hits("voice", obs.get("voice")))
+    return hits
+
+
+def cmd_likenessvoice(args: argparse.Namespace) -> int:
+    """L56: blind likeness + voice vs real refs; fresh independent reviewer."""
+    render = Path(args.file)
+    if not render.is_file():
+        return report(
+            "likenessvoice", FAIL, hits=["missing-render"],
+            error=f"no file: {render}",
+        )
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        return report(
+            "likenessvoice", FAIL, hits=["missing-observations"],
+            error="--observations required (independent+blind likeness+voice)",
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report(
+            "likenessvoice", FAIL, hits=["missing-observations"],
+            error=f"no file: {op}",
+        )
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("likenessvoice", FAIL, hits=["bad-observations"], error=str(exc))
+    if not isinstance(raw, dict):
+        return report(
+            "likenessvoice", FAIL, hits=["bad-observations"],
+            error="observations must be an object",
+        )
+    hits = _likenessvoice_obs_hits(raw)
+    return report(
+        "likenessvoice", FAIL if hits else PASS,
+        hits=hits,
+        render=str(render),
+        note="fresh independent reviewer; blind likeness+voice; any doubt=FAIL",
+    )
+
+
+
+
+def _ytprecheck_load(obs_path: object) -> tuple[dict | None, list[str], str | None]:
+    """Load ytprecheck observations; return (raw, hits, error)."""
+    if not obs_path:
+        return None, ["missing-observations"], "--observations required (Studio search receipt)"
+    op = Path(str(obs_path))
+    if not op.is_file():
+        return None, ["missing-observations"], f"no file: {op}"
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, ["bad-observations"], str(exc)
+    if not isinstance(raw, dict):
+        return None, ["bad-observations"], "observations must be an object"
+    return raw, [], None
+
+
+def _ytprecheck_matches_list(search: dict) -> tuple[list, list[str]]:
+    """Normalize matches list; return (matches, hits)."""
+    matches = search.get("matches")
+    if matches is None:
+        return [], ["missing-matches"]
+    if not isinstance(matches, list):
+        return [], ["bad-matches"]
+    return matches, []
+
+
+def _ytprecheck_allow_hits(raw: dict, matches: list) -> list[str]:
+    """Hits for allow_replace vs existing Studio matches."""
+    if not matches:
+        return []
+    allow = raw.get("allow_replace") is True
+    if not allow:
+        return [f"existing-upload:{len(matches)}"]
+    allow_id = str(raw.get("yt_id") or raw.get("allow_yt_id") or "").strip()
+    if not allow_id:
+        return ["allow-replace-missing-yt-id"]
+    ids = {
+        str(m.get("yt_id") or m.get("id") or "")
+        for m in matches if isinstance(m, dict)
+    }
+    if allow_id not in ids:
+        return [f"allow-yt-id-not-in-matches:{allow_id}"]
+    return []
+
+
+def _ytprecheck_match_hits(raw: dict) -> tuple[list[str], int]:
+    """Score Studio search matches / allow_replace."""
+    hits: list[str] = []
+    search = raw.get("studio_search") if isinstance(raw.get("studio_search"), dict) else raw
+    if search.get("queried") is not True:
+        hits.append("studio-not-queried")
+    matches, match_hits = _ytprecheck_matches_list(search)
+    hits.extend(match_hits)
+    hits.extend(_ytprecheck_allow_hits(raw, matches))
+    return hits, len(matches)
+
+
+def cmd_ytprecheck(args: argparse.Namespace) -> int:
+    """L57: Studio search before upload; existing matches fail closed."""
+    raw, hits, err = _ytprecheck_load(getattr(args, "observations", None))
+    if raw is None:
+        return report("ytprecheck", FAIL, hits=hits, error=err)
+    match_hits, match_count = _ytprecheck_match_hits(raw)
+    hits.extend(match_hits)
+    return report(
+        "ytprecheck", FAIL if hits else PASS,
+        hits=hits,
+        matches=match_count,
+        note="search Studio before upload; dups fail closed",
+    )
+
+
+def _ytid_row_needs_id(unit: dict) -> bool:
+    status = str(unit.get("status") or unit.get("state") or "").strip().lower()
+    return status in {"scheduled", "uploaded", "public", "live", "published"}
+
+
+def cmd_ytidbackfill(args: argparse.Namespace) -> int:
+    """L58: scheduled/uploaded rows must carry a non-empty yt_id."""
+    path = Path(args.inventory)
+    if not path.is_file():
+        return report("ytidbackfill", FAIL, hits=["missing-inventory"], error=f"no file: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("ytidbackfill", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("ytidbackfill", FAIL, hits=["bad-inventory"], error="units list required")
+    hits: list[str] = []
+    checked = 0
+    for index, unit in enumerate(units):
+        if not isinstance(unit, dict) or not _ytid_row_needs_id(unit):
+            continue
+        checked += 1
+        yt_id = unit.get("yt_id") or unit.get("youtube_id") or unit.get("video_id")
+        if yt_id is None or str(yt_id).strip() == "" or str(yt_id).strip().lower() == "null":
+            label = unit.get("id") or unit.get("title") or index
+            hits.append(f"stale-null-yt-id:{label}")
+    return report(
+        "ytidbackfill", FAIL if hits else PASS,
+        hits=hits,
+        checked=checked,
+        note="backfill yt_id after every schedule; no stale nulls",
+    )
+
+
+def cmd_retainmp4(args: argparse.Namespace) -> int:
+    """L59: keep final mp4 until public URL proof exists."""
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        return report(
+            "retainmp4", FAIL, hits=["missing-observations"],
+            error="--observations required (final_mp4 + public_url proof)",
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report("retainmp4", FAIL, hits=["missing-observations"], error=f"no file: {op}")
+    try:
+        raw = json.loads(op.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("retainmp4", FAIL, hits=["bad-observations"], error=str(exc))
+    if not isinstance(raw, dict):
+        return report("retainmp4", FAIL, hits=["bad-observations"], error="observations must be an object")
+    hits: list[str] = []
+    public_url = str(raw.get("public_url") or "").strip()
+    mp4_path = raw.get("final_mp4") or raw.get("mp4")
+    present = raw.get("mp4_present")
+    if mp4_path:
+        on_disk = Path(str(mp4_path)).is_file()
+        if present is None:
+            present = on_disk
+        elif present and not on_disk:
+            hits.append("mp4-claimed-present-missing")
+    if present is None:
+        hits.append("missing-mp4-present")
+        present = False
+    if not public_url and not present:
+        hits.append("mp4-dropped-before-public-url")
+    return report(
+        "retainmp4", FAIL if hits else PASS,
+        hits=hits,
+        public_url=public_url or None,
+        mp4_present=bool(present),
+        note="keep final mp4 until public URL proof",
+    )
+
+
+
+def _norm_title(value: object) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def _window_of(unit: dict) -> tuple[str, str]:
+    start = str(unit.get("start") or unit.get("window_start") or unit.get("src_start") or "")
+    end = str(unit.get("end") or unit.get("window_end") or unit.get("src_end") or "")
+    return start.strip(), end.strip()
+
+
+def cmd_scheduledup(args: argparse.Namespace) -> int:
+    """L61: title+window dup vs live inventory before rebuild/schedule."""
+    inv_path = getattr(args, "inventory", None)
+    if not inv_path:
+        return report(
+            "scheduledup", FAIL, hits=["missing-inventory"],
+            error="--inventory required (live inventory JSON)",
+        )
+    path = Path(str(inv_path))
+    if not path.is_file():
+        return report(
+            "scheduledup", FAIL, hits=["missing-inventory"], error=f"no file: {path}",
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("scheduledup", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("scheduledup", FAIL, hits=["bad-inventory"], error="units list required")
+    candidate_title = _norm_title(getattr(args, "title", "") or "")
+    candidate_window = (
+        str(getattr(args, "start", "") or "").strip(),
+        str(getattr(args, "end", "") or "").strip(),
+    )
+    if not candidate_title:
+        return report("scheduledup", FAIL, hits=["missing-title"], error="--title required")
+    allow = getattr(args, "allow_replace", False) is True
+    hits: list[str] = []
+    matches = 0
+    for index, unit in enumerate(units):
+        if not isinstance(unit, dict):
+            continue
+        title = _norm_title(unit.get("title") or unit.get("name"))
+        window = _window_of(unit)
+        if title == candidate_title and (
+            not candidate_window[0]
+            or not candidate_window[1]
+            or window == candidate_window
+            or window == ("", "")
+        ):
+            matches += 1
+            label = unit.get("id") or unit.get("yt_id") or index
+            hits.append(f"dup-title-window:{label}")
+    if matches and not allow:
+        return report(
+            "scheduledup", FAIL, hits=hits, matches=matches,
+            note="dup vs live inventory before rebuild/schedule",
+        )
+    if matches and allow and not str(getattr(args, "yt_id", "") or "").strip():
+        return report(
+            "scheduledup", FAIL, hits=["allow-replace-missing-yt-id"], matches=matches,
+        )
+    return report(
+        "scheduledup", PASS, hits=[], matches=matches,
+        note="dup vs live inventory before rebuild/schedule",
+    )
+
+
+def cmd_wardrobe(args: argparse.Namespace) -> int:
+    """L48: wardrobe gate — ref first, collar crop, button counts, 0.5 s samples."""
+    hits: list[str] = []
+    ref = Path(args.ref) if args.ref else None
+    if ref is None or not ref.is_file():
+        return report(
+            "wardrobe", FAIL, hits=["missing-ref"],
+            error="check the REF IMAGE first; --ref is required and must exist",
+        )
+    spec_path = Path(args.spec)
+    if not spec_path.is_file():
+        return report("wardrobe", FAIL, hits=["missing-spec"], error=f"no spec: {spec_path}")
+    try:
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("wardrobe", FAIL, hits=["bad-spec"], error=str(exc))
+    hits.extend(_wardrobe_spec_hits(spec))
+    sample_s = float(getattr(args, "sample", 0.5))
+    if sample_s > 0.5 + 1e-9:
+        hits.append(f"sample-interval:{sample_s}>0.5")
+    render = Path(args.file)
+    if not render.is_file():
+        return report("wardrobe", FAIL, hits=["missing-render"], error=f"no file: {render}")
+    probe = ffprobe(str(render))
+    duration = float(probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        hits.append("unreadable-duration")
+    observations: list = []
+    obs_path = getattr(args, "observations", None)
+    if not obs_path:
+        hits.append("missing-observations")
+        return report(
+            "wardrobe", FAIL, hits=hits,
+            error="--observations required (collar crops + button counts at 0.5s)",
+            observations=0,
+        )
+    op = Path(obs_path)
+    if not op.is_file():
+        return report("wardrobe", FAIL, hits=["missing-observations"], error=f"no file: {op}")
+    observations = json.loads(op.read_text(encoding="utf-8"))
+    if not isinstance(observations, list):
+        return report("wardrobe", FAIL, hits=["bad-observations"], error="observations must be a list")
+    if len(observations) == 0:
+        hits.append("missing-observations")
+    hits.extend(_wardrobe_observation_hits(
+        observations, spec, sample_s=sample_s, duration=duration,
+    ))
+    if spec.get("ref_ok") is False:
+        hits.append("ref-disagrees-spec")
+    expected_samples = max(1, int(duration / sample_s) + 1) if duration > 0 else 0
+    return report(
+        "wardrobe", FAIL if hits else PASS,
+        hits=hits,
+        ref=str(ref),
+        sample_s=sample_s,
+        duration_s=round(duration, 3) if duration else None,
+        observations=len(observations),
+        expected_samples=expected_samples or None,
+        note="ref first; collar crop; count buttons; sample every 0.5s",
+    )
+
+
+def cmd_rendermeta(args: argparse.Namespace) -> int:
+    """L50: meta.render_rev / sha must match the current render bytes."""
+    target = Path(args.file)
+    if not target.is_file():
+        return report("rendermeta", FAIL, hits=["missing-mp4"], error=f"no file: {target}")
+    meta_path = Path(args.meta)
+    if not meta_path.is_file():
+        return report("rendermeta", FAIL, hits=["missing-meta"], error=f"no meta: {meta_path}")
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("rendermeta", FAIL, hits=["bad-meta"], error=str(exc))
+    hits: list[str] = []
+    file_sha = sha256(target)
+    meta_sha = (
+        meta.get("sha")
+        or meta.get("sha256")
+        or meta.get("render_sha")
+        or meta.get("render_sha256")
+        or ""
+    )
+    meta_sha = str(meta_sha).strip().lower()
+    if not meta_sha:
+        hits.append("missing-meta-sha")
+    elif meta_sha != file_sha:
+        hits.append("sha-mismatch")
+    rev = meta.get("render_rev") or meta.get("rev") or meta.get("revision")
+    expected_rev = getattr(args, "rev", None)
+    if rev is None or str(rev).strip() == "":
+        hits.append("missing-render-rev")
+    elif expected_rev is not None and str(rev).strip() != str(expected_rev).strip():
+        hits.append(f"rev-mismatch:meta={rev} expected={expected_rev}")
+    return report(
+        "rendermeta", FAIL if hits else PASS,
+        hits=hits,
+        sha256=file_sha,
+        meta_sha=meta_sha or None,
+        render_rev=rev,
+        note="regenerate meta on every render; bind rev+sha to file bytes",
+    )
+
+
+_G6_BLOCKED_TOKENS = frozenset({
+    "blocked", "block", "fail", "failed", "yes", "y", "1", "true",
+})
+
+
+def _extendfeas_g6_value(unit: dict) -> object:
+    """Return the first present G6 / price-block field on a unit row."""
+    for key in ("g6", "price_block", "G6"):
+        if key in unit and unit.get(key) is not None:
+            return unit.get(key)
+    return None
+
+
+def _extendfeas_dup_value(unit: dict) -> object:
+    """Return dup_multiple or legacy dup on a unit row."""
+    if unit.get("dup_multiple") is not None:
+        return unit.get("dup_multiple")
+    return unit.get("dup")
+
+
+def _extendfeas_row_hits(unit: dict, min_dup: float) -> tuple[list[str], object, object]:
+    """Score one inventory unit; return (hits, dup, g6)."""
+    dup = _extendfeas_dup_value(unit)
+    g6 = _extendfeas_g6_value(unit)
+    row_hits: list[str] = []
+    if dup is None:
+        row_hits.append("missing-dup-multiple")
+    elif float(dup) < min_dup - 1e-9:
+        row_hits.append(f"dup<{min_dup}:{dup}")
+    if g6 is None:
+        row_hits.append("missing-g6")
+    else:
+        blocked = g6 if isinstance(g6, bool) else str(g6).strip().lower() in _G6_BLOCKED_TOKENS
+        if blocked:
+            row_hits.append("g6-blocked")
+    return row_hits, dup, g6
+
+
+def cmd_extendfeas(args: argparse.Namespace) -> int:
+    """
+    L51: dup multiple >=3x and price-block G6 clear before slotting.
+    """
+    path = Path(args.inventory)
+    if not path.is_file():
+        return report("extendfeas", FAIL, hits=["missing-inventory"], error=f"no file: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return report("extendfeas", FAIL, hits=["bad-inventory"], error=str(exc))
+    units = data.get("units") if isinstance(data, dict) else data
+    if not isinstance(units, list):
+        return report("extendfeas", FAIL, hits=["bad-inventory"], error="units list required")
+    min_dup = float(getattr(args, "min_dup", 3.0))
+    hits: list[str] = []
+    checked = []
+    for index, unit in enumerate(units):
+        uid = unit.get("id") or unit.get("title") or f"unit[{index}]"
+        row_hits, dup, g6 = _extendfeas_row_hits(unit, min_dup)
+        if row_hits:
+            hits.extend(f"{uid}:{h}" for h in row_hits)
+        checked.append({"id": uid, "dup_multiple": dup, "g6": g6, "ok": not row_hits})
+    return report(
+        "extendfeas", FAIL if hits else PASS,
+        hits=hits,
+        min_dup=min_dup,
+        units=checked,
+        note="feasibility before slot; dup>=3x; G6 clear",
+    )
+
+
+def vo_entries(edl: dict) -> list[dict]:
+    audio = edl.get("audio", [])
+    flagged = [item for item in audio if item.get("vo")]
+    return sorted(flagged or [item for item in audio if not item.get("duck")], key=lambda item: float(item["at"]))
+
+
+def entry_duration(item: dict, base: Path, edl_only: bool) -> float:
+    if "dur" in item:
+        return float(item["dur"])
+    if edl_only:
+        raise ValueError(f"{item.get('src')}: --edl-only needs dur on every VO entry")
+    return float(ffprobe(str(base / item["src"]))["format"]["duration"])
+
+
+def cmd_vooverlap(args: argparse.Namespace) -> int:
+    """Narration lines never overlap: edit-list gap plus per-line speech masks."""
+    path = Path(args.edl)
+    lines = vo_entries(json.loads(path.read_text(encoding="utf-8")))
+    durations = [entry_duration(item, path.parent, args.edl_only) for item in lines]
+    edl_overlaps = []
+    for (a, dur), b in zip(zip(lines, durations), lines[1:]):
+        end, start = float(a["at"]) + dur, float(b["at"])
+        if start < end + args.gap - 1e-6:
+            edl_overlaps.append({"a": a["src"], "a_end": round(end, 3), "b": b["src"], "b_start": round(start, 3),
+                                 "overlap_s": round(end - start, 3)})
+    audio_overlaps = []
+    if not args.edl_only:
+        placed = [(round(float(item["at"]) / HOP_S), speech_mask(str(path.parent / item["src"]))) for item in lines]
+        audio_overlaps = mask_overlaps(placed, HOP_S)
+    failed = bool(edl_overlaps or audio_overlaps)
+    return report("vooverlap", FAIL if failed else PASS, lines=len(lines), gap=args.gap, edl_overlaps=edl_overlaps,
+                  audio_overlaps=audio_overlaps, audio_checked=not args.edl_only)
+
+
+def cmd_idle(args: argparse.Namespace) -> int:
+    """Run ASR and full QC only on a quiet machine: 1-minute load per CPU at or below the limit."""
+    if not hasattr(os, "getloadavg"):
+        raise Skip("load average is unavailable on this platform")
+    deadline = time.monotonic() + args.wait
+    while True:
+        load = round(os.getloadavg()[0] / (os.cpu_count() or 1), 2)
+        if load <= args.max_load:
+            return report("idle", PASS, load_per_cpu=load, max_load=args.max_load)
+        if time.monotonic() >= deadline:
+            return report("idle", FAIL, load_per_cpu=load, max_load=args.max_load)
+        time.sleep(min(5.0, max(deadline - time.monotonic(), 0.0)))
+
+
+def cmd_silence(args: argparse.Namespace) -> int:
+    log = ffmpeg_filter_log(args.file, f"silencedetect=n={args.noise}dB:d={args.max}", audio=True)
+    starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", log)]
+    allowed = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+    problems = [f"silence at {s:.2f}s" for s in starts if not any(lo - 0.05 <= s <= hi for lo, hi in allowed)]
+    return report("silence", FAIL if problems else PASS, problems=problems)
+
+
+def cmd_ssim(args: argparse.Namespace) -> int:
+    result = run([need("ffmpeg"), "-hide_banner", "-nostats", "-i", args.file, "-i", args.reference,
+                  "-lavfi", "[0:v][1:v]scale2ref[a][b];[a][b]ssim", "-f", "null", "-"])
+    match = re.search(r"All:([\d.]+)", result.stderr)
+    if result.returncode != 0 or not match:
+        raise ValueError("ssim failed")
+    score = float(match.group(1))
+    return report("ssim", PASS if score >= args.min else FAIL, ssim=score, min=args.min)
+
+
+def has_libvmaf() -> bool:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return False
+    return "libvmaf" in run([ffmpeg, "-hide_banner", "-filters"]).stdout
+
+
+def cmd_vmaf(args: argparse.Namespace) -> int:
+    if not has_libvmaf():
+        raise Skip("ffmpeg has no libvmaf filter (install a build with libvmaf or the vmaf CLI)")
+    result = run([need("ffmpeg"), "-hide_banner", "-nostats", "-i", args.file, "-i", args.reference,
+                  "-lavfi", "[0:v][1:v]scale2ref[a][b];[a][b]libvmaf", "-f", "null", "-"])
+    match = re.search(r"VMAF score:\s*([\d.]+)", result.stderr)
+    if not match:
+        raise ValueError("vmaf failed")
+    score = float(match.group(1))
+    return report("vmaf", PASS if score >= args.min else FAIL, vmaf=score, min=args.min)
+
+
+def cmd_flash(args: argparse.Namespace) -> int:
+    """Approximate WCAG 2.3.1: count large average-luma swings per second."""
+    log = ffmpeg_filter_log(args.file, "signalstats,metadata=mode=print")
+    times = [float(x) for x in re.findall(r"pts_time:([\d.]+)", log)]
+    lumas = [float(x) for x in re.findall(r"YAVG=([\d.]+)", log)]
+    events = []
+    for i in range(1, min(len(times), len(lumas))):
+        if abs(lumas[i] - lumas[i - 1]) >= args.delta:
+            events.append(times[i])
+    worst = 0
+    for i, start in enumerate(events):
+        worst = max(worst, sum(1 for t in events[i:] if t < start + 1.0) // 2)
+    return report("flash", FAIL if worst > 3 else PASS, max_flashes_per_second=worst)
+
+
+def cmd_noisefloor(args: argparse.Namespace) -> int:
+    def floor(path: str) -> float:
+        log = ffmpeg_filter_log(path, "astats=metadata=0:reset=0", audio=True)
+        match = re.findall(r"Noise floor dB:\s*(-?[\d.]+|-inf)", log)
+        if not match:
+            raise ValueError("astats gave no noise floor")
+        return float(match[-1]) if match[-1] != "-inf" else -120.0
+    before, after = floor(args.before), floor(args.after)
+    gain = round(before - after, 2)
+    return report("noisefloor", PASS if gain >= args.min_gain else FAIL, before=before, after=after, gain_db=gain)
+
+
+def gap_mask(lines: list[dict], total: float, margin: float, allow: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Spans of the timeline that are neither narration (+margin) nor allowed (fades, deliberate sounds)."""
+    busy = sorted([(float(x["start"]) - margin, float(x["end"]) + margin) for x in lines] + list(allow))
+    spans, cursor = [], 0.0
+    for start, stop in busy:
+        if start > cursor:
+            spans.append((cursor, min(start, total)))
+        cursor = max(cursor, stop)
+    if cursor < total:
+        spans.append((cursor, total))
+    return [(a, b) for a, b in spans if b - a > 0]
+
+
+def cmd_gapfloor(args: argparse.Namespace) -> int:
+    """Noise floor (RMS dBFS) of a mix in the gaps between narration lines (#6706): a bed or hum shows here."""
+    timeline = json.loads(Path(args.timeline).read_text(encoding="utf-8"))
+    lines = timeline.get("lines", timeline if isinstance(timeline, list) else [])
+    rate = 16000
+    raw = decode_raw(args.file, ["-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le"])
+    samples = array("f")
+    samples.frombytes(raw[: len(raw) // 4 * 4])
+    total = len(samples) / rate
+    allow = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+    allow += [(0.0, args.fade), (total - args.fade, total + 1.0)]
+    spans = gap_mask(lines, total, args.margin, allow)  # type: ignore[arg-type]
+    energy, count = 0.0, 0
+    for start, stop in spans:
+        for value in samples[int(start * rate): int(stop * rate)]:
+            energy += value * value
+            count += 1
+    seconds = round(count / rate, 2)
+    floor = round(10 * math.log10(energy / count), 1) if count and energy > 0 else -120.0
+    status = PASS if floor <= args.max else FAIL
+    return report("gapfloor", status, gap_seconds=seconds, floor_dbfs=floor, max_dbfs=args.max,
+                  spans=len(spans))
+
+
+def cmd_image(args: argparse.Namespace) -> int:
+    stream = video_stream(ffprobe(args.file))
+    problems = []
+    if args.size:
+        width, height = (int(x) for x in args.size.lower().split("x"))
+        if (stream.get("width"), stream.get("height")) != (width, height):
+            problems.append(f"size {stream.get('width')}x{stream.get('height')} (want {args.size})")
+    if args.max_bytes and Path(args.file).stat().st_size > args.max_bytes:
+        problems.append(f"file {Path(args.file).stat().st_size} bytes above {args.max_bytes}")
+    if args.file.endswith(".svg") and "<title" not in Path(args.file).read_text(encoding="utf-8"):
+        problems.append("svg has no <title>")
+    return report("image", FAIL if problems else PASS, problems=problems)
+
+
+
+# ---------------------------------------------------------------- layout
+def _right(b: dict) -> float:
+    return float(b["x"]) + float(b["w"])
+
+
+def _bottom(b: dict) -> float:
+    return float(b["y"]) + float(b["h"])
+
+
+def _baseline(b: dict) -> float:
+    return float(b.get("baseline", _bottom(b)))
+
+
+def _spread(values: list[float]) -> float:
+    return max(values) - min(values) if values else 0.0
+
+
+def _check_baselines(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for row in data.get("baselines", []):
+        spread = _spread([_baseline(box(name)) for name in row])
+        if spread > tol:
+            out.append(f"baselines {','.join(row)}: spread {spread:.1f}px")
+    return out
+
+
+def _check_mixed(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for run in data.get("mixed", []):
+        ids = run["ids"] if isinstance(run, dict) else run
+        limit = float(run.get("max", 1.0)) if isinstance(run, dict) else 1.0
+        spread = _spread([_baseline(box(name)) for name in ids])
+        if spread > limit + 1e-6:
+            out.append(f"mixed-script {','.join(ids)}: baseline offset {spread:.1f}px > {limit:g}px")
+    return out
+
+
+def _check_brackets(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for bracket in data.get("brackets", []):
+        b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
+        first, last = min(float(s["x"]) for s in spans), max(_right(s) for s in spans)
+        if abs(float(b["x"]) - first) > tol or abs(_right(b) - last) > tol:
+            out.append(f"{bracket['id']}: spans {b['x']}-{_right(b):.1f}, steps {first:.1f}-{last:.1f}")
+    return out
+
+
+def _check_gutters(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for group in data.get("gutters", []):
+        start, end = ("x", _right) if group.get("axis", "x") == "x" else ("y", _bottom)
+        ordered = sorted((box(name) for name in group["ids"]), key=lambda b: float(b[start]))
+        gaps = [float(n[start]) - end(p) for p, n in zip(ordered, ordered[1:])]
+        if _spread(gaps) > tol:
+            out.append(f"gutters {','.join(group['ids'])}: {[round(g, 1) for g in gaps]}")
+    return out
+
+
+def _check_clearance(data: dict, box, clearance: float) -> list[str]:
+    out = []
+    for pair in data.get("clearance", []):
+        inner, outer = box(pair["text"]), box(pair["box"])
+        least = min(float(inner["x"]) - float(outer["x"]), _right(outer) - _right(inner),
+                    float(inner["y"]) - float(outer["y"]), _bottom(outer) - _bottom(inner))
+        if least < float(pair.get("min", clearance)) - 1e-6:
+            out.append(f"{pair['text']} in {pair['box']}: clearance {least:.1f}px")
+    return out
+
+
+def _centre_offset(inner: dict, outer: dict, axis: str) -> float:
+    if axis == "x":
+        return (float(inner["x"]) + float(inner["w"]) / 2) - (float(outer["x"]) + float(outer["w"]) / 2)
+    ink = float(inner["h"]) - float(inner.get("descender", 0))
+    return (float(inner["y"]) + ink / 2) - (float(outer["y"]) + float(outer["h"]) / 2)
+
+
+def _check_centre(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for item in data.get("centre", []):
+        axis = item.get("axis", "x")
+        offset = _centre_offset(box(item["id"]), box(item["in"]), axis)
+        if abs(offset) > tol:
+            out.append(f"{item['id']}: off-centre {offset:+.1f}px on {axis}")
+    return out
+
+
+def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
+    """Measured alignment checks on element boxes {id: {x, y, w, h[, baseline, descender]}}."""
+    boxes = {str(item["id"]): item for item in data.get("elements", [])}
+
+    def box(name: str) -> dict:
+        if name not in boxes:
+            raise KeyError(f"unknown element {name}")
+        return boxes[name]
+    return (_check_baselines(data, box, tol) + _check_mixed(data, box, tol) + _check_brackets(data, box, tol)
+            + _check_gutters(data, box, tol) + _check_clearance(data, box, clearance) + _check_centre(data, box, tol))
+
+
+def cmd_layout(args: argparse.Namespace) -> int:
+    """Shared baselines, bracket spans, equal gutters, inner clearance, optical centring (safe zones: safezones)."""
+    data = json.loads(Path(args.boxes).read_text(encoding="utf-8"))
+    problems = layout_problems(data, args.tol, args.clearance)
+    return report("layout", FAIL if problems else PASS, elements=len(data.get("elements", [])), problems=problems)
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    tools = ["ffmpeg", "ffprobe", "node", "npx", "vhs", "ttyd", "manim", "whisper-cli", "tesseract", "pwsh",
+             "realesrgan-ncnn-vulkan", "vmaf", "deep-filter"]
+    found = {tool: bool(shutil.which(tool)) for tool in tools}
+    found["libvmaf"] = has_libvmaf()
+    core = found["ffmpeg"] and found["ffprobe"]
+    return report("doctor", PASS if core else SKIPPED, tools=found,
+                  note="media checks skip without ffmpeg/ffprobe; optional tools unlock their cards")
+
+
+# ---------------------------------------------------------------- round-3 picture and capture gates
+def video_rate(path: str) -> float:
+    num, _, den = video_stream(ffprobe(path)).get("r_frame_rate", "30/1").partition("/")
+    return float(num) / float(den or 1)
+
+
+def frame_std(frame: bytes) -> float:
+    count = len(frame)
+    mean = sum(frame) / count
+    return math.sqrt(max(sum(value * value for value in frame) / count - mean * mean, 0.0))
+
+
+def flat_runs(stds: list[float], fps: float, edge: float, limit: float) -> list[dict]:
+    """Runs of solid frames (luma std below `limit`) outside the first and last `edge` seconds."""
+    head, tail = round(edge * fps), len(stds) - round(edge * fps)
+    flags = [head <= i < tail and std < limit for i, std in enumerate(stds)]
+    return [{"start": round(a / fps, 2), "frames": b - a} for a, b in runs(flags)]
+
+
+def cmd_flatframes(args: argparse.Namespace) -> int:
+    """Solid frames at cuts: a fade-to-void dip or an empty card before its first element."""
+    fps = video_rate(args.file)
+    raw = decode_raw(args.file, ["-an", "-vf", "scale=64:36:flags=area,format=gray", "-f", "rawvideo"])
+    stds = [frame_std(raw[i:i + 2304]) for i in range(0, len(raw) - 2303, 2304)]
+    if not stds:
+        raise ValueError("no decoded frames")
+    found = flat_runs(stds, fps, args.edge, args.std)
+    return report("flatframes", FAIL if found else PASS, runs=found, frames=len(stds), edge_s=args.edge)
+
+
+def segment_seconds(segment: dict) -> float:
+    if "hold" in segment:
+        return float(segment["hold"])
+    if "src" in segment:
+        return (float(segment["src"][1]) - float(segment["src"][0])) / float(segment.get("speed", 1.0))
+    return 0.0
+
+
+def hold_limit(segment: dict, plain: float, stepped: float) -> float:
+    return stepped if len(segment.get("marks", [])) >= 2 or segment.get("scroll") else plain
+
+
+def cmd_contenthold(args: argparse.Namespace) -> int:
+    """EDL holds: plain holds up to --plain s, holds with 2+ stepping marks or a scroll up to --stepped s."""
+    edl = json.loads(Path(args.edl).read_text(encoding="utf-8"))
+    over, count, clip_start = [], 0, 0.0
+    for clip in edl.get("clips", []):
+        now = 0.0
+        for segment in clip.get("segments", []):
+            limit = hold_limit(segment, args.plain, args.stepped)
+            count += "hold" in segment
+            if "hold" in segment and float(segment["hold"]) > limit + 1e-6:
+                over.append({"clip": clip.get("id", "?"), "at": round(clip_start + now, 2),
+                             "hold": float(segment["hold"]), "limit": limit})
+            now += segment_seconds(segment)
+        clip_start += float(clip.get("dur", now))
+    return report("contenthold", FAIL if over else PASS, holds=count, over_limit=over)
+
+
+def screen_text(claim: dict, base: Path, video: str | None) -> str:
+    if "screen" in claim:
+        return str(claim["screen"])
+    if "screenFile" in claim:
+        return (base / claim["screenFile"]).read_text(encoding="utf-8")
+    if not video:
+        raise ValueError(f"{claim.get('id', '?')}: needs screen, screenFile or --video")
+    tesseract = need("tesseract")
+    frame = Path(video).with_name(f".claim-{claim.get('id', 'x')}.png")
+    try:
+        run([need("ffmpeg"), "-v", "error", "-y", "-ss", str(claim["t"]), "-i", video, "-frames:v", "1", str(frame)])
+        return run([tesseract, str(frame), "stdout"]).stdout
+    finally:
+        frame.unlink(missing_ok=True)
+
+
+def check_claim(claim: dict, screen: str) -> dict:
+    lines = [line.strip() for line in screen.splitlines()]
+
+    def seen(pattern: str) -> bool:
+        return any(re.search(pattern, line) for line in lines)
+    missing = [p for p in claim.get("must", []) if not seen(p)]
+    unexpected = [p for p in claim.get("mustNot", []) if seen(p)]
+    return {"id": claim.get("id", "?"), "t": claim.get("t"), "ok": not missing and not unexpected,
+            "missing": missing, "unexpected": unexpected}
+
+
+def cmd_claims(args: argparse.Namespace) -> int:
+    """Screen state at each narration claim word: required and forbidden patterns."""
+    path = Path(args.claims)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = [check_claim(c, screen_text(c, path.parent, args.video)) for c in data.get("claims", [])]
+    return report("claims", FAIL if any(not r["ok"] for r in rows) else PASS, claims=rows)
+
+
+def edge_hits(rows: list, strip: int, delta: int, min_pixels: int) -> list[str]:
+    """Sides whose outer `strip` columns hold more than `min_pixels` text-bright pixels."""
+    width = len(rows[0])
+    center = sorted(v for row in rows[::4] for v in row[width // 10: width - width // 10: 5])
+    bright = center[len(center) // 2] + delta
+    sides = []
+    for side, cut in (("left", slice(0, strip)), ("right", slice(width - strip, width))):
+        if sum(1 for row in rows for v in row[cut] if v > bright) > min_pixels:
+            sides.append(side)
+    return sides
+
+
+def cmd_edgeclip(args: argparse.Namespace) -> int:
+    """Vertical cuts: text touching the frame edge means a cropped, not reflowed, line."""
+    stream = video_stream(ffprobe(args.file))
+    width, height = int(stream["width"]), int(stream["height"])
+    top, _, bottom = (args.region or f"0:{height}").partition(":")
+    rows_high = int(bottom) - int(top)
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},crop={width}:{rows_high}:0:{top},format=gray",
+                                 "-f", "rawvideo"])
+    size, clipped = width * rows_high, []
+    for index in range(len(raw) // size):
+        frame = raw[index * size:(index + 1) * size]
+        rows = [frame[y * width:(y + 1) * width] for y in range(0, rows_high, 2)]
+        clipped += [{"t": round(index / args.fps, 2), "side": side}
+                    for side in edge_hits(rows, args.strip, args.delta, args.min_pixels)]
+    return report("edgeclip", FAIL if clipped else PASS, clipped=clipped[:20], clipped_frames=len(clipped))
+
+
+CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z@`])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]|\x1b.")
+
+
+class StaleScreen:
+    """Minimal terminal model: finds rows rewritten from their start with shorter text and no erase."""
+
+    def __init__(self, width: int, height: int = 24):
+        self.width, self.height = width, height
+        self.rows: dict[int, list[str]] = {}
+        self.x = self.y = 0
+        self.visit: dict | None = None
+        self.hits: list[dict] = []
+        self.t = 0.0
+
+    def line(self, y: int) -> str:
+        return "".join(self.rows.get(y, [])).rstrip()
+
+    def end(self) -> None:
+        visit, self.visit = self.visit, None
+        if not visit or visit["erased"]:
+            return
+        before = visit["before"]
+        first = len(before) - len(before.lstrip())
+        if not before.strip() or visit["start"] > first or visit["max"] >= len(before) - 1:
+            return
+        now, cut = self.line(visit["y"]), visit["max"] + 1
+        if now[cut:].strip() and now[cut:] == before[cut:]:
+            self.hits.append({"t": round(self.t, 3), "line": now.strip()[:90], "stale_tail": before[cut:].strip()[:40]})
+
+    def draw(self, char: str) -> None:
+        if self.x >= self.width:
+            self.end()
+            self.x, self.y = 0, self.y + 1
+        if self.visit is None:
+            self.visit = {"y": self.y, "before": self.line(self.y), "start": self.x, "max": -1, "erased": False}
+        row = self.rows.setdefault(self.y, [])
+        row.extend(" " * (self.x + 1 - len(row)))
+        row[self.x] = char
+        self.visit["max"] = max(self.visit["max"], self.x)
+        self.x += 1
+
+    def erase(self, kind: str, mode: int) -> None:
+        if self.visit:
+            self.visit["erased"] = True
+        row = self.rows.setdefault(self.y, [])
+        if kind == "K":
+            spans = {0: range(self.x, len(row)), 1: range(min(self.x + 1, len(row))), 2: range(len(row))}
+            for i in spans.get(mode, range(0)):
+                row[i] = " "
+        elif mode in (2, 3):
+            self.rows.clear()
+        else:
+            del row[self.x:]
+            for y in [y for y in self.rows if y > self.y]:
+                del self.rows[y]
+
+    def move(self, final: str, values: list[int]) -> None:
+        self.end()
+        first = values[0] if values and values[0] else 1
+        second = values[1] if len(values) > 1 and values[1] else 1
+        top = max(0, max(self.rows, default=0) - self.height + 1)
+        x, y = {
+            "A": (self.x, max(0, self.y - first)), "B": (self.x, self.y + first), "C": (self.x + first, self.y),
+            "D": (max(0, self.x - first), self.y), "E": (0, self.y + first), "F": (0, max(0, self.y - first)),
+            "G": (first - 1, self.y), "H": (second - 1, top + first - 1), "f": (second - 1, top + first - 1),
+        }[final]
+        self.x, self.y = x, y
+
+    def control(self, char: str) -> None:
+        if char in "\r\n":
+            self.end()
+            if char == "\r":
+                self.x = 0
+            else:
+                self.y += 1
+        elif char == "\b":
+            self.x = max(0, self.x - 1)
+        elif char == "\t":
+            self.x = min(self.width - 1, (self.x // 8 + 1) * 8)
+        elif char >= " ":
+            self.draw(char)
+
+    def csi(self, final: str, values: list[int]) -> None:
+        if final in "KJ":
+            self.erase(final, values[0] if values else 0)
+        elif final in "ABCDEFGHf":
+            self.move(final, values)
+
+    def feed(self, data: str) -> None:
+        position = 0
+        for match in CSI.finditer(data):
+            for char in data[position:match.start()]:
+                self.control(char)
+            position = match.end()
+            if match.group(2):
+                self.csi(match.group(2), [int(v) for v in match.group(1).replace("?", "").split(";") if v.isdigit()])
+        for char in data[position:]:
+            self.control(char)
+        self.end()
+
+
+def stale_rewrites(events: list[tuple[float, str]], width: int, height: int = 24) -> list[dict]:
+    screen = StaleScreen(width, height)
+    for t, data in events:
+        screen.t = t
+        screen.feed(data)
+    return screen.hits
+
+
+def cmd_staletext(args: argparse.Namespace) -> int:
+    """Replay an asciicast v2 capture and report stale tails left by shorter rewrites without erase."""
+    lines = Path(args.cast).read_text(encoding="utf-8").splitlines()
+    header = json.loads(lines[0])
+    events = [(float(t), d) for t, kind, d in (json.loads(line) for line in lines[1:] if line.strip()) if kind == "o"]
+    hits = stale_rewrites(events, int(header.get("width", 80)), int(header.get("height", 24)))
+    return report("staletext", FAIL if hits else PASS, events=len(events), hits=hits[:50], count=len(hits))
+
+
+PS_PARSE = ("$e=$null;$t=$null;"
+            "[void][System.Management.Automation.Language.Parser]::ParseInput($env:CMD,[ref]$t,[ref]$e);"
+            "$e | ForEach-Object { $_.Message }")
+
+
+def ps_commands(text: str) -> list[str]:
+    blocks = re.split(r"\n\s*\n", text.replace("\r\n", "\n"))
+    return [re.sub(r"(?m)^PS> ?", "", block).rstrip() for block in blocks if block.strip()]
+
+
+def ps_row(command: str, pwsh: str | None) -> dict:
+    errors = []
+    if pwsh:
+        result = subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", PS_PARSE],  # nosec B603
+                                capture_output=True, text=True, check=False, env={"CMD": command, "PATH": os.environ.get("PATH", ""), "SystemRoot": os.environ.get("SystemRoot", "")})
+        errors = [line for line in result.stdout.splitlines() if line.strip()]
+    return {"command": command.replace("\n", " / ")[:200], "parse_errors": errors,
+            "backslash_continuation": bool(re.search(r"\\\s*$", command, re.MULTILINE))}
+
+
+def cmd_psparse(args: argparse.Namespace) -> int:
+    """PowerShell on screen parses with pwsh and never ends a line with a bash backslash."""
+    pwsh = None if args.static else need("pwsh")
+    rows = [ps_row(command, pwsh) for command in ps_commands(Path(args.file).read_text(encoding="utf-8"))]
+    failed = not rows or any(r["parse_errors"] or r["backslash_continuation"] for r in rows)
+    return report("psparse", FAIL if failed else PASS, commands=rows, parsed=bool(pwsh))
+
+
+# ---------------------------------------------------------------- explainer arc and description
+BEATS = ("hook", "problem", "solution", "proof", "cta")
+BANDS = {"exec": (60.0, 120.0), "technical": (180.0, 300.0), "social": (15.0, 60.0)}
+
+
+def placed_scenes(scenes: list[dict]) -> list[tuple[dict, float, float]]:
+    placed, now = [], 0.0
+    for scene in scenes:
+        start = float(scene.get("start", now))
+        now = start + float(scene.get("duration", 0))
+        placed.append((scene, start, now))
+    return placed
+
+
+def beat_order_problems(beats: list) -> list[str]:
+    problems = [f"missing beat: {beat}" for beat in BEATS if beat not in beats]
+    core = [b for b in beats[:-1] if b != "cta"] + beats[-1:]
+    ranks = [BEATS.index(b) for b in core if b in BEATS]
+    if any(a > b for a, b in zip(ranks, ranks[1:])):
+        problems.append("order: beats must run hook, problem, solution, proof, cta")
+    return problems
+
+
+def hook_problems(placed: list[tuple[dict, float, float]], hook_s: float) -> list[str]:
+    if not placed or placed[0][0].get("beat") != "hook" or placed[0][1] > 0:
+        return ["hook: the first scene must be the hook, starting at 0 s"]
+    hook_end = max(end for scene, _, end in placed if scene.get("beat") == "hook")
+    return [f"hook ends at {hook_end:.1f}s > {hook_s:.1f}s"] if hook_end > hook_s + 1e-6 else []
+
+
+def cta_problems(placed: list[tuple[dict, float, float]], total: float) -> list[str]:
+    if not placed or placed[-1][0].get("beat") != "cta":
+        return ["cta: the last beat must be the call to action"]
+    start = placed[-1][1]
+    return [f"cta starts at {start:.1f}s, before 80% of {total:.1f}s"] if start < 0.8 * total else []
+
+
+def proof_problems(scenes: list[dict]) -> list[str]:
+    def evidenced(scene: dict) -> bool:
+        claims = scene.get("claims", [])
+        return bool(claims) and all(c.get("evidence") for c in claims)
+    return [f"proof {s.get('id', '?')}: needs claims with evidence" for s in scenes
+            if s.get("beat") == "proof" and not evidenced(s)]
+
+
+def arc_problems(scenes: list[dict], band: tuple[float, float], audience: str, hook_s: float) -> list[str]:
+    placed = placed_scenes(scenes)
+    total = placed[-1][2] if placed else 0.0
+    problems = beat_order_problems([scene.get("beat") for scene in scenes])
+    problems += hook_problems(placed, hook_s) + cta_problems(placed, total) + proof_problems(scenes)
+    if not band[0] <= total <= band[1]:
+        problems.append(f"duration {total:.1f}s outside {audience} band {band[0]:.0f}-{band[1]:.0f}s")
+    return problems
+
+
+def cmd_arc(args: argparse.Namespace) -> int:
+    """Explainer arc: hook in the first seconds, problem, solution, evidenced proof, closing CTA, length band."""
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    audience = args.audience or data.get("audience", "exec")
+    low, high = BANDS.get(audience, BANDS["exec"])
+    band = (args.min if args.min is not None else low, args.max if args.max is not None else high)
+    problems = arc_problems(data.get("scenes", []), band, audience, args.hook)
+    return report("arc", FAIL if problems else PASS, audience=audience, band=list(band), problems=problems)
+
+
+def description_gap(scene: dict, minimum: float) -> dict | None:
+    shown = [w for w in words(scene.get("onScreenText", "")) if w not in STOP and len(w) > 1]
+    if not shown or scene.get("description"):
+        return None
+    spoken = set(words(scene.get("vo", "")))
+    missing = [w for w in shown if w not in spoken]
+    coverage = round(1 - len(missing) / len(shown), 2)
+    return {"id": scene.get("id", "?"), "coverage": coverage, "missing": missing} if coverage < minimum else None
+
+
+def cmd_describe(args: argparse.Namespace) -> int:
+    """WCAG 2.2 1.2.5: on-screen text is spoken in the scene's narration or described."""
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    failed = [gap for scene in data.get("scenes", []) if (gap := description_gap(scene, args.min))]
+    return report("describe", FAIL if failed else PASS, scenes=failed, min=args.min)
+
+
+# ---------------------------------------------------------------- pauses, reveals, freshness
+def line_words(value: object) -> list[dict]:
+    words_ = value.get("words", []) if isinstance(value, dict) else value
+    if not isinstance(words_, list):
+        raise ValueError("each line needs a list of {word, start, end}")
+    return words_
+
+
+def cmd_vopauses(args: argparse.Namespace) -> int:
+    """Intra-line pauses from per-line ASR word timings (a misread acronym leaves a gap)."""
+    data = json.loads(Path(args.words).read_text(encoding="utf-8"))
+    pauses = []
+    for line_id, value in data.items():
+        timed = line_words(value)
+        for left, right in zip(timed, timed[1:]):
+            gap = round(float(right["start"]) - float(left["end"]), 3)
+            sentence = str(left["word"]).strip().endswith((".", "?", "!", ";", ":"))
+            if gap > (args.sentence_max if sentence else args.max):
+                pauses.append({"id": line_id, "after": str(left["word"]).strip(), "before": str(right["word"]).strip(),
+                               "at": round(float(left["end"]), 3), "gap": gap})
+    return report("vopauses", FAIL if pauses else PASS, lines=len(data), pauses=pauses)
+
+
+AT_RE = re.compile(r"^\s*([A-Za-z_]\w*|-?\d+(?:\.\d+)?)((?:\s*[+-]\s*\d+(?:\.\d+)?)*)\s*$")
+
+
+def resolve_at(expression: str, beats: dict) -> float:
+    """`beat+offset+offset` (or a number) to scene seconds; unknown beat raises KeyError."""
+    match = AT_RE.match(expression)
+    if not match:
+        raise ValueError(f"cannot parse data-at {expression!r}")
+    base, offsets = match.groups()
+    value = float(beats[base]) if re.match(r"[A-Za-z_]", base) else float(base)
+    return value + sum(float(term.replace(" ", "")) for term in re.findall(r"[+-]\s*\d+(?:\.\d+)?", offsets))
+
+
+def cmd_revealhold(args: argparse.Namespace) -> int:
+    """The last element revealed in a scene holds long enough before the cut."""
+    data = json.loads(Path(args.timeline).read_text(encoding="utf-8"))
+    problems, scenes = [], []
+    for scene in data.get("scenes", []):
+        reveals = [float(t) for t in scene.get("reveals", [])]
+        page = Path(args.html) / f"{scene['id']}.html" if args.html else None
+        if page and page.is_file():
+            for expression in re.findall(r'data-at="([^"]+)"', page.read_text(encoding="utf-8")):
+                try:
+                    reveals.append(resolve_at(expression, scene.get("beats", {})))
+                except KeyError:
+                    problems.append({"id": scene["id"], "problem": f"unknown beat in data-at {expression!r}"})
+        if not reveals:
+            continue
+        last = max(reveals)
+        hold = round(float(scene["duration"]) - last, 3)
+        scenes.append({"id": scene["id"], "last": round(last, 3), "hold": hold})
+        if hold < args.min:
+            problems.append({"id": scene["id"], "last": round(last, 3), "hold": hold,
+                             "problem": f"last reveal holds {hold:.2f}s < {args.min:.2f}s"})
+    return report("revealhold", FAIL if problems else PASS, scenes=scenes, problems=problems)
+
+
+def expand(patterns: list[str]) -> list[Path]:
+    return sorted({Path(found) for pattern in patterns for found in glob.glob(pattern, recursive=True)})
+
+
+def cmd_fresh(args: argparse.Namespace) -> int:
+    """Generated targets are newer than every generator and source (a build never ships stale inputs)."""
+    sources, targets = expand(args.source), expand(args.target)
+    problems = [f"no file matches {pattern}" for pattern in args.source + args.target if not expand([pattern])]
+    newest = max((path.stat().st_mtime for path in sources), default=0.0)
+    stale = [str(path) for path in targets if path.stat().st_mtime < newest]
+    if stale:
+        problems.append(f"{len(stale)} target(s) older than the newest source; regenerate them")
+    return report("fresh", FAIL if problems else PASS, sources=len(sources), targets=len(targets), stale=stale,
+                  problems=problems)
+
+
+# ---------------------------------------------------------------- review verification
+SEVERITIES = ("blocker", "major", "moderate", "minor")
+VERDICTS = ("true", "false", "unverified")
+
+
+def ledger_findings(ledger: dict) -> list[dict]:
+    return [{"round": item.get("round"), "output": item.get("output", "?"), **finding}
+            for item in ledger.get("rounds", []) for finding in item.get("findings", [])]
+
+
+def open_finding(finding: dict) -> bool:
+    gating = finding.get("severity") in SEVERITIES[:3] and finding.get("verdict") == "true"
+    return gating and not (finding.get("status") == "fixed" and finding.get("fix_evidence"))
+
+
+def ledger_markdown(findings: list[dict]) -> str:
+    lines = ["# Review log", "", "Every finding was checked with a tool before any change; only verified ones were fixed.",
+             "", "| Round | Output | Time | Severity | Finding | Verdict | Evidence |", "|---|---|---|---|---|---|---|"]
+    for item in findings:
+        evidence = item.get("evidence", "")
+        if item.get("fix_evidence"):
+            evidence += f"; fixed: {item['fix_evidence']}"
+        cells = (item.get("round"), item.get("output"), item.get("t", ""), item.get("severity", ""),
+                 item.get("claim", ""), item.get("verdict", ""), evidence)
+        lines.append("| " + " | ".join(str(cell).replace("|", "/") for cell in cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def cmd_findings(args: argparse.Namespace) -> int:
+    """Review gate: every finding verified with evidence; none open at moderate or worse; rounds capped."""
+    ledger = json.loads(Path(args.ledger).read_text(encoding="utf-8"))
+    findings = ledger_findings(ledger)
+    problems = []
+    for item in findings:
+        name = f"r{item['round']} {item['output']} {item.get('id', '?')}"
+        if item.get("verdict") not in VERDICTS:
+            problems.append(f"{name}: verdict must be one of {', '.join(VERDICTS)}")
+        if item.get("severity") not in SEVERITIES:
+            problems.append(f"{name}: severity must be one of {', '.join(SEVERITIES)}")
+        if not str(item.get("evidence", "")).strip():
+            problems.append(f"{name}: no evidence (frame sheet, ASR timing or measurement)")
+    unverified = bool(problems)
+    rounds: dict[str, set] = {}
+    for item in ledger.get("rounds", []):
+        rounds.setdefault(item.get("output", "?"), set()).add(item.get("round"))
+    counts = {output: len(numbers) for output, numbers in rounds.items()}
+    problems += [f"{output}: {count} review rounds exceed the cap of {args.cap}"
+                 for output, count in counts.items() if count > args.cap]
+    still_open = [f"r{item['round']} {item['output']} {item.get('id', '?')}" for item in findings if open_finding(item)]
+    at_cap = any(counts.get(item["output"], 0) >= args.cap for item in findings if open_finding(item))
+    over_cap = any(count > args.cap for count in counts.values())
+    if unverified:
+        step = "verify"
+    elif over_cap or (still_open and at_cap):
+        step = "owner"
+    else:
+        step = "fix" if still_open else "deliver"
+    judged = [item for item in findings if item.get("verdict") in VERDICTS]
+    false_rate = round(sum(item["verdict"] == "false" for item in judged) / len(judged), 3) if judged else 0.0
+    if args.markdown:
+        Path(args.markdown).write_text(ledger_markdown(findings), encoding="utf-8")
+    failed = bool(problems or still_open)
+    return report("findings", FAIL if failed else PASS, next=step, rounds=counts, findings=len(findings),
+                  open=still_open, false_rate=false_rate, problems=problems)
+
+
+def parse_time(stamp: str) -> float:
+    total = 0.0
+    for part in str(stamp).split(":"):
+        total = total * 60 + float(part)
+    return total
+
+
+def cmd_frames(args: argparse.Namespace) -> int:
+    """Frames at t-span, t, t+span for each finding timestamp in one sheet (plus an optional spectrum)."""
+    ffmpeg = need("ffmpeg")
+    duration = float(ffprobe(args.video)["format"]["duration"])
+    rows = []
+    for stamp in args.at:
+        at = parse_time(stamp)
+        rows.append({"at": at, "times": [round(min(max(at + d, 0.0), max(duration - 0.05, 0.0)), 3)
+                                         for d in (-args.span, 0.0, args.span)]})
+    inputs, chains = [], []
+    for index, time_s in enumerate(t for row in rows for t in row["times"]):
+        inputs += ["-ss", f"{time_s:.3f}", "-i", args.video]
+        chains.append(f"[{index}:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale={args.width}:-2,setsar=1[v{index}]")
+    count = len(rows) * 3
+    graph = ";".join(chains) + ";" + "".join(f"[v{i}]" for i in range(count)) + \
+        f"concat=n={count}:v=1:a=0,tile=3x{len(rows)}[sheet]"
+    result = run([ffmpeg, "-v", "error", "-y", *inputs, "-filter_complex", graph, "-map", "[sheet]",
+                  "-frames:v", "1", args.out])
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    details: dict = {"out": args.out, "frames": rows}
+    if args.spectrum:
+        inputs, chains = [], []
+        for index, row in enumerate(rows):
+            start = max(row["at"] - args.span, 0.0)
+            inputs += ["-ss", f"{start:.3f}", "-t", f"{2 * args.span:.3f}", "-i", args.video]
+            chains.append(f"[{index}:a]showspectrumpic=s={args.width * 3}x200:legend=0[a{index}]")
+        stack = "".join(f"[a{i}]" for i in range(len(rows))) + f"vstack=inputs={len(rows)}[spec]" \
+            if len(rows) > 1 else "[a0]null[spec]"
+        result = run([ffmpeg, "-v", "error", "-y", *inputs, "-filter_complex", ";".join(chains) + ";" + stack,
+                      "-map", "[spec]", "-frames:v", "1", args.spectrum])
+        if result.returncode != 0:
+            raise ValueError(f"ffmpeg spectrum failed: {result.stderr.strip()[-400:]}")
+        details["spectrum"] = args.spectrum
+    return report("frames", PASS, **details)
+
+
+def file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def step_key(step: dict) -> str:
+    args = [str(a) for a in step.get("args", [])]
+    digest = hashlib.sha256(json.dumps([step["check"], args], sort_keys=True).encode())
+    for name in [*args, *[str(i) for i in step.get("inputs", [])]]:
+        path = Path(name)
+        if path.is_file():
+            digest.update(f"{name}\0{file_digest(path)}".encode())
+    return digest.hexdigest()
+
+
+# ---------------------------------------------------------------- photo frames: sharpness, eyes, reflections, leak
+def parse_ppm(data: bytes, offset: int = 0) -> tuple[int, int, bytes, int]:
+    """One binary P6 PPM at `offset`: (width, height, rgb bytes, next offset)."""
+    fields, pos = [], offset
+    while len(fields) < 4:
+        while data[pos:pos + 1].isspace():
+            pos += 1
+        if data[pos:pos + 1] == b"#":
+            pos = data.index(b"\n", pos) + 1
+            continue
+        end = pos
+        while not data[end:end + 1].isspace():
+            end += 1
+        fields.append(data[pos:end])
+        pos = end
+    if fields[0] != b"P6" or int(fields[3]) != 255:
+        raise ValueError("expected an 8-bit P6 PPM")
+    width, height = int(fields[1]), int(fields[2])
+    pos += 1
+    return width, height, data[pos:pos + width * height * 3], pos + width * height * 3
+
+
+FRAME_TIMEOUT_S = 600  # bounded decode for the photo-frame checks
+MAX_FRAMES = 2000  # framescore sampling cap (memory: every frame is held as rgb24)
+
+
+def local_path(path: str) -> str:
+    """An absolute local path, so a name like "-y" or "concat:a|b" never reaches ffmpeg as an option or protocol."""
+    return os.path.abspath(path)
+
+
+def ppm_frames(command: list[str]) -> list[tuple[int, int, bytes]]:
+    result = subprocess.run(command + ["-f", "image2pipe", "-vcodec", "ppm", "-"],  # nosec B603 - list argv.
+                            capture_output=True, check=False, timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.decode(errors='replace').strip()[-400:]}")
+    frames, pos, data = [], 0, result.stdout
+    while pos < len(data):
+        width, height, rgb, pos = parse_ppm(data, pos)
+        frames.append((width, height, rgb))
+    return frames
+
+
+def read_image(path: str) -> tuple[int, int, bytes]:
+    """Any image ffmpeg can read, as (width, height, rgb24 bytes)."""
+    return ppm_frames([need("ffmpeg"), "-v", "error", "-nostdin", "-i", local_path(path), "-frames:v", "1"])[0]
+
+
+def box_arg(text: str | None) -> tuple[int, int, int, int] | None:
+    if not text:
+        return None
+    values = [int(float(v)) for v in re.split(r"[,:x]", text)]
+    if len(values) != 4:
+        raise ValueError(f"box needs x,y,w,h: {text}")
+    return values[0], values[1], values[2], values[3]
+
+
+def clip_box(box: tuple[int, int, int, int], width: int, height: int) -> tuple[int, int, int, int]:
+    x0, y0 = max(0, box[0]), max(0, box[1])
+    x1, y1 = min(width, box[0] + box[2]), min(height, box[1] + box[3])
+    if x1 - x0 < 3 or y1 - y0 < 3:
+        raise ValueError(f"box {box} is outside the {width}x{height} image")
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def sharpness(width: int, height: int, rgb: bytes, box: tuple[int, int, int, int]) -> float:
+    """Variance of the 4-neighbour Laplacian of luma inside box (higher is sharper)."""
+    x, y, w, h = clip_box(box, width, height)
+    luma = [[(299 * rgb[i] + 587 * rgb[i + 1] + 114 * rgb[i + 2]) / 1000.0
+             for i in range(((y + r) * width + x) * 3, ((y + r) * width + x + w) * 3, 3)] for r in range(h)]
+    total = square = 0.0
+    count = 0
+    for r in range(1, h - 1):
+        up, row, down = luma[r - 1], luma[r], luma[r + 1]
+        for c in range(1, w - 1):
+            value = 4 * row[c] - up[c] - down[c] - row[c - 1] - row[c + 1]
+            total += value
+            square += value * value
+            count += 1
+    mean = total / count
+    return square / count - mean * mean
+
+
+def lens_band(box: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    """Glasses band of a face box: a little wider than the face, brow to mid-nose."""
+    x, y, w, h = box
+    return x - w // 10, y - h // 10, w + w // 5, h * 7 // 10
+
+
+def reflection_pixels(width: int, height: int, rgb: bytes, box: tuple[int, int, int, int]) -> int:
+    """Cyan/green ring-light highlight pixels: hue 85-212 deg, saturation > 0.16, value > 0.55."""
+    x, y, w, h = clip_box(box, width, height)
+    count = 0
+    for r in range(y, y + h):
+        base = r * width * 3
+        for c in range(x, x + w):
+            i = base + c * 3
+            red, green, blue = rgb[i], rgb[i + 1], rgb[i + 2]
+            high, low = max(red, green, blue), min(red, green, blue)
+            if high <= 140 or high == low or (high - low) * 255 <= 40 * high:
+                continue
+            if high == red:
+                hue = (60.0 * (green - blue) / (high - low)) % 360
+            elif high == green:
+                hue = 60.0 * (blue - red) / (high - low) + 120
+            else:
+                hue = 60.0 * (red - green) / (high - low) + 240
+            count += 84.7 < hue < 211.8
+    return count
+
+
+def opencv():
+    """(cv2, numpy) when opencv-python is installed, else None: face and eye scoring degrade."""
+    try:
+        import cv2  # type: ignore[import-not-found]
+        import numpy  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    return (cv2, numpy) if hasattr(cv2, "CascadeClassifier") else None
+
+
+def face_and_eyes(width: int, height: int, rgb: bytes, cv) -> tuple[tuple[int, int, int, int] | None, bool | None]:
+    cv2, numpy = cv
+    gray = cv2.cvtColor(numpy.frombuffer(rgb, numpy.uint8).reshape(height, width, 3), cv2.COLOR_RGB2GRAY)
+    data = cv2.data.haarcascades
+    faces = cv2.CascadeClassifier(data + "haarcascade_frontalface_default.xml").detectMultiScale(
+        gray, 1.1, 6, minSize=(max(24, height // 6),) * 2)
+    if len(faces) == 0:
+        return None, None
+    x, y, w, h = (int(v) for v in max(faces, key=lambda f: f[2]))
+    eyes = cv2.CascadeClassifier(data + "haarcascade_eye_tree_eyeglasses.xml").detectMultiScale(
+        gray[y:y + h // 2, x:x + w], 1.05, 5, minSize=(max(4, w // 10),) * 2)
+    return (x, y, w, h), len(eyes) >= 2
+
+
+def score_frame(width: int, height: int, rgb: bytes, face: tuple | None, cv) -> dict:
+    eyes = None
+    if cv is not None and face is None:
+        face, eyes = face_and_eyes(width, height, rgb, cv)
+        if face is None:
+            return {"face": None}
+    box = face or (0, 0, width, height)
+    return {"face": list(box), "sharpness": round(sharpness(width, height, rgb, box), 1), "eyes_open": eyes,
+            "reflections": reflection_pixels(width, height, rgb, lens_band(box))}
+
+
+def cmd_framescore(args: argparse.Namespace) -> int:
+    if args.fps <= 0 or args.width <= 0 or args.end <= args.start or args.start < 0:
+        raise ValueError("framescore needs 0 <= --start < --end, --fps > 0 and --width > 0")
+    if (args.end - args.start) * args.fps > MAX_FRAMES:
+        raise ValueError(f"framescore samples at most {MAX_FRAMES} frames: narrow --start/--end or lower --fps")
+    ffmpeg = need("ffmpeg")
+    chain = f"fps={args.fps},scale={args.width}:-2" + (f",{args.vf}" if args.vf else "")
+    frames = ppm_frames([ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.start}", "-t", f"{args.end - args.start}",
+                         "-i", local_path(args.video), "-vf", chain])
+    cv = opencv()
+    rows = []
+    for index, (width, height, rgb) in enumerate(frames):
+        row = {"index": index, "t": round(args.start + index / args.fps, 3),
+               **score_frame(width, height, rgb, box_arg(args.face_box), cv)}
+        row["ok"] = bool(row["face"]) and row["eyes_open"] is not False and row["reflections"] <= args.max_reflections
+        rows.append(row)
+    ranked = sorted((r for r in rows if r["ok"]), key=lambda r: -r["sharpness"])
+    Path(args.out).write_text(json.dumps({"video": args.video, "fps": args.fps, "width": args.width,
+                                          "frames": rows}, indent=1), encoding="utf-8")
+    return report("framescore", PASS if ranked else FAIL, frames=len(rows), usable=len(ranked), out=args.out,
+                  best=[{k: r[k] for k in ("t", "sharpness", "reflections", "eyes_open")} for r in ranked[:5]],
+                  eyes="scored" if cv else "unscored (install opencv-python for face and eye detection)",
+                  note="white lens highlights escape the colour test: inspect an eye close-up of the pick")
+
+
+def cmd_reflections(args: argparse.Namespace) -> int:
+    width, height, rgb = read_image(args.image)
+    face, eyes, cv = box_arg(args.face_box), None, None
+    if face is None:
+        cv = opencv()
+        if cv is None:
+            raise Skip("no --face-box and opencv-python is not installed for face detection")
+        face, eyes = face_and_eyes(width, height, rgb, cv)
+        if face is None:
+            return report("reflections", FAIL, problems=["no face found"])
+    band = clip_box(lens_band(face), width, height)
+    count = reflection_pixels(width, height, rgb, band)
+    if args.closeup:
+        x, y, w, h = band
+        result = run([need("ffmpeg"), "-v", "error", "-nostdin", "-y", "-i", local_path(args.image), "-vf",
+                      f"crop={w}:{h}:{x}:{y},scale={w * 2}:-2", "-frames:v", "1", local_path(args.closeup)],
+                     timeout=FRAME_TIMEOUT_S)
+        if result.returncode != 0:
+            raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    return report("reflections", FAIL if count > args.max else PASS, reflections=count, max=args.max,
+                  band=list(band), eyes_open=eyes, closeup=args.closeup,
+                  note="white lens highlights escape the colour test: look at the close-up")
+
+
+def fresh_frame(args: argparse.Namespace, directory: str) -> tuple[int, int, bytes]:
+    ffmpeg = need("ffmpeg")
+    if args.grid:
+        start, fps = (float(v) for v in args.grid.split(":"))
+        index = round((args.t - start) * fps)
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{start}", "-i", local_path(args.source), "-vf",
+                   f"fps={fps},select=eq(n\\,{index})" + (f",{args.vf}" if args.vf else ""), "-frames:v", "1"]
+    else:
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.t}", "-i", local_path(args.source), "-frames:v", "1"]
+        command += ["-vf", args.vf] if args.vf else []
+    if not args.crop_cmd:
+        return ppm_frames(command)[0]
+    raw, cropped = os.path.join(directory, "fresh.png"), os.path.join(directory, "crop.png")
+    result = run(command + ["-y", raw], timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    result = run(crop_argv(args.crop_cmd, raw, cropped), timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0 or not os.path.exists(cropped):
+        raise ValueError(f"--crop-cmd failed: {result.stderr.strip()[-400:]}")
+    return read_image(cropped)
+
+
+def crop_argv(template: str, source: str, target: str) -> list[str]:
+    """The build's crop step as a fixed argv: shlex-split, no shell, {in} and {out} as whole arguments only."""
+    import shlex
+    parts = shlex.split(template)
+    if not parts or parts.count("{in}") != 1 or parts.count("{out}") != 1:
+        raise ValueError("--crop-cmd needs an argv with exactly one {in} and one {out} argument")
+    if any(("{in}" in p or "{out}" in p) and p not in ("{in}", "{out}") for p in parts):
+        raise ValueError("--crop-cmd placeholders must be whole arguments")
+    if "{in}" in parts[0] or "{out}" in parts[0]:
+        raise ValueError("--crop-cmd must start with a program")
+    program = shutil.which(parts[0])
+    if program is None:
+        raise ValueError(f"--crop-cmd program not found: {parts[0]}")
+    return [program, *(source if p == "{in}" else target if p == "{out}" else p for p in parts[1:])]
+
+
+def leak_diff(rendered: tuple[int, int, bytes], reference: tuple[int, int, bytes], offset: tuple[int, int],
+              region: tuple[int, int, int, int], tol: int) -> tuple[int, int]:
+    """(max channel difference, pixels above tol) of reference[region] vs rendered[region + offset]."""
+    rw, rh, rbytes = rendered
+    fw, fh, fbytes = reference
+    x, y, w, h = clip_box(region, fw, fh)
+    if offset[0] + x + w > rw or offset[1] + y + h > rh or min(offset) < 0:
+        raise ValueError("region plus offset falls outside the rendered image")
+    worst = over = 0
+    for r in range(h):
+        a = ((offset[1] + y + r) * rw + offset[0] + x) * 3
+        b = ((y + r) * fw + x) * 3
+        for c in range(0, w * 3, 3):
+            d = max(abs(rbytes[a + c + k] - fbytes[b + c + k]) for k in range(3))
+            worst = max(worst, d)
+            over += d > tol
+    return worst, over
+
+
+def cmd_leak(args: argparse.Namespace) -> int:
+    import tempfile
+    rendered = read_image(args.rendered)
+    with tempfile.TemporaryDirectory() as directory:
+        reference = fresh_frame(args, directory)
+    region = box_arg(args.region) or (0, 0, reference[0], reference[1])
+    offset = tuple(int(v) for v in args.offset.split(",")) if args.offset else (0, 0)
+    worst, over = leak_diff(rendered, reference, offset, region, args.tol)
+    return report("leak", FAIL if over > args.max_pixels else PASS, max_diff=worst, pixels_over_tol=over,
+                  tol=args.tol, region=list(region), offset=list(offset), reference_size=list(reference[:2]))
+
+
+def cmd_all(args: argparse.Namespace) -> int:
+    plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
+    cache_path = Path(args.cache) if args.cache else None
+    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path and cache_path.is_file() else {}
+    worst, cached = PASS, 0
+    for step in plan.get("checks", []):
+        if any(str(a).startswith("--crop-cmd") for a in step.get("args", [])):
+            raise ValueError("plans may not carry --crop-cmd (it runs a program); run leak directly")
+        key = step_key(step) if cache_path else ""
+        if key and cache.get(key) == "pass":
+            cached += 1
+            report(step["check"], PASS, cached=True)
+            continue
+        code = main([step["check"], *[str(a) for a in step.get("args", [])]])
+        if code == PASS and key:
+            cache[key] = "pass"
+            cache_path.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
+        if code == FAIL or code == USAGE:
+            worst = FAIL
+        elif code == SKIPPED and worst == PASS:
+            worst = SKIPPED
+    return report("all", worst, steps=len(plan.get("checks", [])), cached=cached)
+
+
+def craft_qc(name: str = "craft_qc"):
+    """Load a sibling check module (craft: motion, copy, layout, rhythm; surface: tokens, a11y, decks, OG)."""
+    spec = importlib.util.spec_from_file_location(f"design_{name}", Path(__file__).with_name(f"{name}.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ODD_SPACES = re.compile("[\u00a0\u2000-\u200b\u202f\u205f\u3000\ufeff]")
+
+
+def cmd_codeparse(args: argparse.Namespace) -> int:
+    """Code extracted from a render or export: no odd-space indents, and it parses."""
+    text = Path(args.file).read_text(encoding="utf-8")
+    odd = [n for n, line in enumerate(text.splitlines(), 1) if ODD_SPACES.search(line)]
+    if odd:
+        return report("code-parse", FAIL, error="non-ASCII space (NBSP/em-space) in code", lines=odd[:20])
+    try:
+        if args.lang == "json":
+            json.loads(text)
+        elif args.lang == "python":
+            compile(text, args.file, "exec", dont_inherit=True)
+        else:
+            if importlib.util.find_spec("yaml") is None:
+                return report("code-parse", SKIPPED, error="PyYAML not installed")
+            import yaml  # noqa: PLC0415 - optional dependency, checked above.
+
+            list(yaml.safe_load_all(text))
+    except Exception as error:  # noqa: BLE001 - any parser error is the finding.
+        return report("code-parse", FAIL, lang=args.lang, error=str(error).splitlines()[0][:200])
+    return report("code-parse", PASS, lang=args.lang)
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = root.add_subparsers(dest="command", required=True)
+
+    def add(name: str, func, help_text: str) -> argparse.ArgumentParser:
+        command = sub.add_parser(name, help=help_text)
+        command.set_defaults(func=func)
+        return command
+
+    p = add("code-parse", cmd_codeparse, "extracted code: no odd-space indents, parses")
+    p.add_argument("file")
+    p.add_argument("--lang", choices=("yaml", "json", "python"), default="yaml")
+    p = add("contrast", cmd_contrast, "WCAG contrast of color pairs")
+    p.add_argument("--pair", action="append", default=[], help="fg:bg[:text|large|ui]")
+    p.add_argument("--tokens", help="theme.json with contrastPairs")
+    p = add("captions", cmd_captions, "SRT/WebVTT timing and line rules")
+    p.add_argument("file")
+    p.add_argument("--script")
+    p.add_argument("--fps", type=float, default=30.0)
+    p.add_argument("--max-chars", type=int, default=42)
+    p.add_argument("--max-lines", type=int, default=2)
+    p.add_argument("--max-cps", type=float, default=20.0)
+    p.add_argument("--min-duration", type=float, default=0.833)
+    p.add_argument("--max-duration", type=float, default=7.0)
+    p = add("tts", cmd_tts, "script vs transcript WER/CER + L93/L96 ASR intelligibility")
+    p.add_argument("script")
+    p.add_argument("transcript")
+    p.add_argument("--duration", type=float)
+    p.add_argument("--max-wer", type=float, default=0.15, help="L93 EN WER ceiling (default 15%)")
+    p.add_argument("--max-cer", type=float, default=0.15, help="L93 AR CER ceiling (default 15%)")
+    p.add_argument("--cer", action="store_true", help="force CER even when --lang is not ar")
+    p.add_argument("--lang", choices=("en", "ar"), default="en")
+    p.add_argument("--tokens", required=False, help="tokenizer output file; L93 mandatory unk<=5%")
+    p.add_argument("--max-unk", type=float, default=0.05)
+    p.add_argument("--language-id", dest="language_id", help="observed ASR language_id (L93 mandatory)")
+    p.add_argument("--expect-language", help="required language_id (L93; defaults to --lang)")
+    p.add_argument("--proper-noun", action="append", default=[], help="extra L96 proper noun; script nouns auto-extracted")
+    p.add_argument("--min-wpm", type=float, default=140)
+    p.add_argument("--max-wpm", type=float, default=160)
+    p.add_argument("--fold", action="append", default=[], help="heard=meant (known ASR mishearing)")
+    p = add("vowords", cmd_vowords, "per-line transcript vs script words")
+    p.add_argument("script")
+    p.add_argument("transcripts")
+    p.add_argument("--fold", action="append", default=[], help="heard=meant")
+    p = add("ttslint", cmd_ttslint, "spoken-form CLI syntax and repeated phonemes")
+    p.add_argument("script")
+    p.add_argument("--phonemes", help="JSON of line id to IPA")
+    p.add_argument("--allow", action="append", default=[], help="'word1 word2' pair to accept")
+    p = add("vooverlap", cmd_vooverlap, "narration lines never overlap")
+    p.add_argument("edl")
+    p.add_argument("--gap", type=float, default=0.25)
+    p.add_argument("--edl-only", action="store_true", help="edit-list method only (needs dur)")
+    p = add("static", cmd_static, "visually static stretches")
+    p.add_argument("file")
+    p.add_argument("--max", type=float, default=3.0)
+    p.add_argument("--fps", type=float, default=10.0)
+    p.add_argument("--thresh", type=float, default=3.0)
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p.add_argument("--crop", help="w:h:x:y region to measure (overlay-free picture)")
+    p = add("idle", cmd_idle, "machine is quiet enough for ASR or full QC")
+    p.add_argument("--max-load", type=float, default=0.5)
+    p.add_argument("--wait", type=float, default=0.0)
+    p = add("holds", cmd_holds, "on-screen text hold time")
+    p.add_argument("storyboard")
+    p = add("brief", cmd_brief, "storyboard completeness and evidence")
+    p.add_argument("storyboard")
+    p = add("manifest", cmd_manifest, "asset licences and checksums")
+    p.add_argument("manifest")
+    for name, func, text in (("unslop", cmd_unslop, "banned visual patterns"), ("easing", cmd_easing, "linear or inline easing")):
+        p = add(name, func, text)
+        p.add_argument("path")
+        p.add_argument("--allow", action="append", default=[])
+    p = add("loudness", cmd_loudness, "EBU R128 integrated loudness and true peak")
+    p.add_argument("file")
+    p.add_argument("--target", type=float, default=-16.0)
+    p.add_argument("--tolerance", type=float, default=1.0)
+    p.add_argument("--max-peak", type=float, default=-1.0)
+    p.add_argument("--max-lra", type=float, default=11.0)
+    p.add_argument("--profile", choices=("r128", "atsc", "podcast", "spotify"),
+                   help="delivery loudness map; sets target, tolerance and max peak")
+    for name, func, text in (("colortags", cmd_colortags, "BT.709 tags"), ("levels", cmd_levels, "legal luma range"),
+                             ("flash", cmd_flash, "flash rate")):
+        p = add(name, func, text)
+        p.add_argument("file")
+        if name == "flash":
+            p.add_argument("--delta", type=float, default=40.0)
+    p = add("delivery", cmd_delivery, "encode preset conformance")
+    p.add_argument("file")
+    p.add_argument("--preset", choices=sorted(PRESETS), default="1080p")
+    p.add_argument("--fps", type=float)
+    p = add("blackfreeze", cmd_blackfreeze, "unintended black or frozen frames")
+    p.add_argument("file")
+    p.add_argument("--min", type=float, default=0.5)
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p = add("renderfresh", cmd_renderfresh,
+            "L46: fix-round mp4 sha256 must differ from prior; REUSE_MP4 fails")
+    p.add_argument("file", help="current round mp4")
+    p.add_argument("--prior-sha256", dest="prior_sha256", default=None,
+                   help="previous round sha256 hex")
+    p.add_argument("--prior", default=None, help="previous round mp4 path")
+    p.add_argument("--reuse-mp4", action="store_true", dest="reuse_mp4",
+                   help="explicit REUSE_MP4 claim (always fails)")
+    p = add("frozentail", cmd_frozentail,
+            "L47: frame-diff last N s and after speech; static frame fails")
+    p.add_argument("file", help="avatar / talk video")
+    p.add_argument("--tail", type=float, default=2.0, help="last N seconds to check (default 2)")
+    p.add_argument("--speech-end", type=float, default=None, dest="speech_end",
+                   help="seconds; default = last speech frame from audio")
+    p.add_argument("--fps", type=float, default=8.0, help="sample fps for frame-diff")
+    p.add_argument("--thresh", type=float, default=3.0, help="grid cell delta for static")
+    p.add_argument("--max", type=float, default=0.35,
+                   help="static longer than this in checked windows fails (seconds)")
+    p = add("motionstill", cmd_motionstill,
+            "still-span + end-hold (max still 3s; idle float banned)")
+    p.add_argument("file", help="motion / explainer mp4")
+    p.add_argument("--max-still", type=float, default=3.0, dest="max_still",
+                   help="static longer than this fails (default 3.0s)")
+    p.add_argument("--end-hold-frames", type=int, default=30, dest="end_hold_frames",
+                   help="last N sampled frames must be a held still (default 30)")
+    p.add_argument("--fps", type=float, default=10.0, help="sample fps")
+    p.add_argument("--thresh", type=float, default=3.0, help="grid cell delta for static")
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds exempt")
+    p = add("wardrobe", cmd_wardrobe,
+            "L48: ref-first wardrobe; collar crop; buttons; 0.5s samples")
+    p.add_argument("file", help="avatar / talk render")
+    p.add_argument("--ref", required=True, help="wardrobe reference image")
+    p.add_argument("--spec", required=True, help="wardrobe JSON (garment/sleeve/buttons_closed/colour)")
+    p.add_argument("--sample", type=float, default=0.5, help="sample interval seconds (max 0.5)")
+    p.add_argument("--observations", required=True,
+                   help="required JSON list of per-sample collar crops + button counts (0 = FAIL)")
+    p = add("likenessvoice", cmd_likenessvoice,
+            "L56: blind likeness+voice vs real refs; fresh independent reviewer")
+    p.add_argument("file", help="digital-human / avatar / talk render")
+    p.add_argument("--observations", required=True,
+                   help="required JSON: independent_reviewer, blind, likeness{}, voice{}")
+    p = add("scheduledup", cmd_scheduledup,
+            "L61: title+window dup vs live inventory before rebuild/schedule")
+    p.add_argument("--inventory", required=True, help="live inventory JSON")
+    p.add_argument("--title", required=True, help="candidate title")
+    p.add_argument("--start", default="", help="candidate source window start")
+    p.add_argument("--end", default="", help="candidate source window end")
+    p.add_argument("--allow-replace", action="store_true", dest="allow_replace")
+    p.add_argument("--yt-id", default="", dest="yt_id", help="required with --allow-replace")
+    p = add("ytprecheck", cmd_ytprecheck,
+            "L57: YouTube Studio search before upload; dups fail closed")
+    p.add_argument("--observations", required=True,
+                   help="JSON: studio_search.queried + matches; optional allow_replace")
+    p = add("ytidbackfill", cmd_ytidbackfill,
+            "L58: scheduled/uploaded inventory rows must have yt_id")
+    p.add_argument("inventory", help="inventory JSON with units[{status,yt_id,...}]")
+    p = add("retainmp4", cmd_retainmp4,
+            "L59: keep final mp4 until public URL proof")
+    p.add_argument("--observations", required=True,
+                   help="JSON: final_mp4, mp4_present, public_url")
+    p = add("rendermeta", cmd_rendermeta,
+            "L50: meta.render_rev/sha must match current render")
+    p.add_argument("file", help="current render mp4")
+    p.add_argument("--meta", required=True, help="upload/render meta JSON")
+    p.add_argument("--rev", default=None, help="expected render_rev (optional)")
+    p = add("extendfeas", cmd_extendfeas,
+            "L51: dup>=3x + G6 clear before scheduling a slot")
+    p.add_argument("inventory", help="JSON inventory with units[{dup_multiple,g6,...}]")
+    p.add_argument("--min-dup", type=float, default=3.0, dest="min_dup",
+                   help="minimum dup multiple (default 3)")
+    p = add("gapfloor", cmd_gapfloor, "noise floor between narration lines")
+    p.add_argument("file")
+    p.add_argument("--timeline", required=True, help="EDL JSON with lines [{start, end}]")
+    p.add_argument("--max", type=float, default=-60.0, help="loudest allowed gap RMS in dBFS")
+    p.add_argument("--margin", type=float, default=0.05)
+    p.add_argument("--fade", type=float, default=2.5, help="head and tail seconds excluded")
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds of deliberate sound")
+    p = add("silence", cmd_silence, "dead air")
+    p.add_argument("file")
+    p.add_argument("--max", type=float, default=0.7)
+    p.add_argument("--noise", type=float, default=-50.0)
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    for name, func, default in (("ssim", cmd_ssim, 0.95), ("vmaf", cmd_vmaf, 90.0)):
+        p = add(name, func, f"{name} against a reference")
+        p.add_argument("file")
+        p.add_argument("reference")
+        p.add_argument("--min", type=float, default=default)
+    p = add("noisefloor", cmd_noisefloor, "noise floor improvement")
+    p.add_argument("before")
+    p.add_argument("after")
+    p.add_argument("--min-gain", type=float, default=10.0)
+    p = add("image", cmd_image, "image size, weight and SVG title")
+    p.add_argument("file")
+    p.add_argument("--size")
+    p.add_argument("--max-bytes", type=int)
+    p = add("skin", cmd_skin, "skin tone match across sources (Lab delta E)")
+    p.add_argument("--pair", action="append", required=True, help="hexA:hexB sampled skin patches")
+    p.add_argument("--max", type=float, default=2.0)
+    p = add("layout", cmd_layout, "measured alignment of a rendered layout")
+    p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, mixed, brackets, gutters, clearance, centre")
+    p.add_argument("--tol", type=float, default=2.0, help="pixels")
+    p.add_argument("--clearance", type=float, default=20.0, help="minimum inner clearance in pixels")
+    p = add("flatframes", cmd_flatframes, "solid frames at cuts")
+    p.add_argument("file")
+    p.add_argument("--edge", type=float, default=1.0, help="seconds exempt at head and tail")
+    p.add_argument("--std", type=float, default=1.0, help="luma standard deviation below which a frame is solid")
+    p = add("contenthold", cmd_contenthold, "EDL hold limits")
+    p.add_argument("edl")
+    p.add_argument("--plain", type=float, default=3.0)
+    p.add_argument("--stepped", type=float, default=5.5)
+    p = add("claims", cmd_claims, "screen state at narration claims")
+    p.add_argument("claims")
+    p.add_argument("--video", help="OCR the frame at t when a claim has no screen text")
+    p = add("edgeclip", cmd_edgeclip, "text touching the frame edge")
+    p.add_argument("file")
+    p.add_argument("--fps", type=float, default=2.0)
+    p.add_argument("--strip", type=int, default=14)
+    p.add_argument("--delta", type=int, default=70)
+    p.add_argument("--min-pixels", type=int, default=12)
+    p.add_argument("--region", help="y0:y1 rows holding text (default whole frame)")
+    p = add("staletext", cmd_staletext, "stale terminal text in a capture")
+    p.add_argument("cast")
+    p = add("psparse", cmd_psparse, "PowerShell commands parse")
+    p.add_argument("file")
+    p.add_argument("--static", action="store_true", help="backslash check only, no pwsh")
+    p = add("arc", cmd_arc, "explainer beats, hook, CTA and length band")
+    p.add_argument("storyboard")
+    p.add_argument("--audience", choices=sorted(BANDS))
+    p.add_argument("--hook", type=float, default=5.0)
+    p.add_argument("--min", type=float)
+    p.add_argument("--max", type=float)
+    p = add("describe", cmd_describe, "on-screen text spoken or described")
+    p.add_argument("storyboard")
+    p.add_argument("--min", type=float, default=0.8)
+    p = add("vopauses", cmd_vopauses, "pauses inside a narration line (ASR word timings)")
+    p.add_argument("words", help="JSON of line id to [{word, start, end}] or {words: [...]}")
+    p.add_argument("--max", type=float, default=0.8, help="longest gap inside a clause")
+    p.add_argument("--sentence-max", type=float, default=1.6, help="longest gap after . ? ! ; :")
+    p = add("revealhold", cmd_revealhold, "last reveal holds before the scene cut")
+    p.add_argument("timeline", help="JSON with scenes [{id, start, duration, beats, reveals}]")
+    p.add_argument("--html", help="dir of <scene id>.html whose data-at attributes are reveals")
+    p.add_argument("--min", type=float, default=1.5)
+    p = add("fresh", cmd_fresh, "generated targets newer than their sources")
+    p.add_argument("--source", action="append", required=True, help="glob of generators and inputs")
+    p.add_argument("--target", action="append", required=True, help="glob of generated files")
+    p = add("findings", cmd_findings, "review findings ledger gate")
+    p.add_argument("ledger")
+    p.add_argument("--cap", type=int, default=3, help="review rounds per output")
+    p.add_argument("--markdown", help="write the review log here")
+    p = add("frames", cmd_frames, "frame sheet (and spectrum) around timestamps")
+    p.add_argument("video")
+    p.add_argument("--at", action="append", required=True, help="seconds or mm:ss")
+    p.add_argument("--span", type=float, default=1.0)
+    p.add_argument("--width", type=int, default=640)
+    p.add_argument("--out", required=True)
+    p.add_argument("--spectrum", help="also write a spectrum picture of each window")
+    p = add("framescore", cmd_framescore, "score sampled frames: sharpness, eyes open, lens reflections")
+    p.add_argument("video")
+    p.add_argument("--start", type=float, default=0.0)
+    p.add_argument("--end", type=float, required=True)
+    p.add_argument("--fps", type=float, default=4.0)
+    p.add_argument("--width", type=int, default=960, help="decode width; boxes are in these pixels")
+    p.add_argument("--vf", help="extra ffmpeg filters after scaling (for example the grade)")
+    p.add_argument("--face-box", help="x,y,w,h when opencv-python is absent or the framing is fixed")
+    p.add_argument("--max-reflections", type=int, default=15)
+    p.add_argument("--out", required=True, help="JSON with one row per frame")
+    p = add("reflections", cmd_reflections, "cyan/green lens highlights on the glasses band")
+    p.add_argument("image")
+    p.add_argument("--face-box", help="x,y,w,h (default: opencv face detection)")
+    p.add_argument("--max", type=int, default=15)
+    p.add_argument("--closeup", help="also write a 2x crop of the band for the visual check")
+    p = add("leak", cmd_leak, "rendered photo matches a fresh extraction of its source frame")
+    p.add_argument("rendered")
+    p.add_argument("--source", required=True, help="video the photo came from")
+    p.add_argument("--t", type=float, required=True, help="frame time in seconds")
+    p.add_argument("--grid", help="start:fps sampling used when the frame was scored (select by index)")
+    p.add_argument("--vf", help="ffmpeg filters the build applied (scale, grade, crop)")
+    p.add_argument("--crop-cmd", help="argv with {in} and {out}: the build's own crop/resize step")
+    p.add_argument("--offset", help="x,y where the reference sits in the rendered image")
+    p.add_argument("--region", help="x,y,w,h of the reference compared (unmasked area)")
+    p.add_argument("--tol", type=int, default=0, help="per-channel difference allowed")
+    p.add_argument("--max-pixels", type=int, default=0, help="pixels above tol allowed")
+    add("doctor", cmd_doctor, "which tools are present")
+    craft_qc().register(add, sys.modules[__name__])
+    craft_qc("surface_qc").register(add, sys.modules[__name__])
+    p = add("all", cmd_all, "run a JSON plan of checks")
+    p.add_argument("plan")
+    p.add_argument("--cache", help="JSON cache: skip steps whose inputs match a cached pass")
+    return root
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    try:
+        return args.func(args)
+    except Skip as skip:
+        return report(args.command, SKIPPED, reason=str(skip))
+    except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
+        return report(args.command, USAGE, error=str(error))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

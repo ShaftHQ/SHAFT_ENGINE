@@ -1,0 +1,1 @@
+The Playwright GUI backend exposes only SHAFT.GUI.Playwright, matching Java UpperCamelCase and Microsoft Playwright naming. Do not add a deprecated SHAFT.GUI.PlayWright bridge; the old spelling existed only during PR review and was removed before release.

@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/bootstrap-reachability-pin-must-stay-in-skill-md-itself.md",
+  "content_hash": "sha256:1c6b3bdb89d99cb3e7b3089e30396eeb9181b042906580b646b0bff0ff4ac772",
+  "created_at": "2026-08-17T13:15:57+03:00",
+  "evidence": [],
+  "id": "gotcha.bootstrap-reachability-pin-must-stay-in-skill-md-itself",
+  "origin": {
+    "kind": "file",
+    "locator": "tests/scripts/test_chaos_engine_bootstrap.py"
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Learning loop after #5035 merge: SKILL.md bootstrap reachability pin is file-local"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "skill-router",
+    "bootstrap",
+    "ci"
+  ],
+  "title": "Bootstrap reachability pin must stay in SKILL.md itself",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T13:15:57+03:00"
+}

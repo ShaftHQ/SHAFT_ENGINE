@@ -1,0 +1,2 @@
+{"uuid":"f1","name":"F1","timestamp":1700006000000,"testResults":{"hist-fixed":{"name":"fixed","fullName":"demo.Fixed.t","status":"failed","duration":80,"historyId":"hist-fixed"}}}
+{"uuid":"f2","name":"F2","timestamp":1700007000000,"testResults":{"hist-fixed":{"name":"fixed","fullName":"demo.Fixed.t","status":"passed","duration":70,"historyId":"hist-fixed"}}}

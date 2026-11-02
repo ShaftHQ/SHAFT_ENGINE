@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/surefire-testng-provider-multi-class-dtest-writes-junitreports-not-top-level-surefire-reports.md",
+  "content_hash": "sha256:568cc060cb3f9e207d8581b86f93641b9df775d498d775cf6a974be88f9bc24e",
+  "created_at": "2026-07-26T17:14:32+03:00",
+  "evidence": [
+    {
+      "id": "ad6726057fe2cde046550c7683b1e25498a6ce1f",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.surefire-testng-provider-multi-class-dtest-writes-junitreports-not-top-level-surefire-reports",
+  "source": {
+    "kind": "agent",
+    "task": "#4086 mid-session Learning Loop: record durable lessons from the day's parallel orchestration run (Augmenter closure bug, Surefire report path shape, GLOBAL_TESTING_SCOPE, find/pipefail, nightly signature progression, Gradle evidence artifacts) before session end risk"
+  },
+  "status": "active",
+  "tags": [
+    "surefire",
+    "testng",
+    "cucumber",
+    "ci",
+    "assert-tests-executed",
+    "issue-4079",
+    "gotcha"
+  ],
+  "title": "Surefire TestNG provider: multi-class -Dtest writes junitreports/, not top-level surefire-reports/",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

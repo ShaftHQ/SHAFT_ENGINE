@@ -1,0 +1,245 @@
+# Work GitHub — playbook
+
+A session-shaped method for taking an issue from filed to merged. Load
+the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
+
+GitHub writes use `gh` (`issue create`, `pr create`, comments, labels). Never
+GitHub MCP for those jobs. Default ChaosEngine MCP catalogs never include
+GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
+
+## Harness program
+
+Skip planning questions only when the owner explicitly asked for unattended planning.
+
+Program: epic plus native sub-issues; one orchestrator; local implementers; one adversarial reviewer per PR; one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close only when every sub-issue is merged or explicitly dropped on the tracker.
+
+## 4. Implement, check, review, deliver
+
+Rule every open design choice on the issue before the first implementing commit;
+a ticket that reaches code still choosing between candidate fixes converts that
+choice into review rounds. Before committing any subagent's work: Before reviewing or shipping any nontrivial diff, file deferred/out-of-scope/adjacent-finding/follow-up items.
+
+Complete approved scope and create its final scope commit before any local
+validation or review. Triage automated CI, annotations, bots, and PR comments;
+batch-fix applicable findings.
+Never push one tip per micro-fix when fresh-installer paths are implicated ([how](tip-churn-preflight.md)).
+Then run planning-approved adversarial review,
+at most two rounds, followed by extra local tests. Do not stop behavior work
+for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
+
+After the implementation batch is ready, resolve repository identity from the
+active worktree, bind the full `HEAD` SHA and branch, push, and create or update
+the PR with an explicit base. Persist its `baseRefName`, PR identity, and
+`closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
+`## Continuation` sections current for the delivered head.
+On pull request 6913, a body-only edit does not re-run PR Gate Summary or
+Release-note governance. `pr-gate.yml` has no `edited` type.
+`release-note-governance.yml` includes `edited`, so a body-only edit does
+re-run Release-note governance.
+
+### Riskiest assumption (before merge)
+
+Name the riskiest assumption and one targeted test, or `N/A`. The body gate rejects a missing `## Riskiest assumption` section. Dependabot is exempt.
+
+### Human PR open checklist (before first push)
+
+Human-authored PRs fail Release-note governance without a classification label.
+Language-specific static-analysis rules come from the active profile's
+playbooks. Before the first push of **any** human PR:
+
+1. Apply exactly one classification label in the same `gh pr create` step
+   (`breaking-change`, `enhancement`, `bug`, or `skip-release-notes`).
+   Governance reads live PR labels when the event payload has none.
+   Docs, skills and harness-only PRs take `skip-release-notes`. A supplemental
+   label (`dependencies`) is not a classification. If
+   `gh pr edit --add-label` or `--remove-label` fails (a Projects (classic)
+   GraphQL error), use REST `gh api -X POST` (or `-X DELETE .../labels/<label>`)
+   on `repos/<owner>/<repo>/issues/<n>/labels`, then push a commit (a rerun
+   keeps the old labels).
+   A `chaos-engine/` push runs the portable-core path check first.
+2. Confirm the active profile's language rules (for example exhaustive
+   `switch` defaults) before the first push.
+3. When editing ChaosEngine `SKILL.md` bodies: keep each skill under the
+   skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
+   the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external` (repo-only)
+   plus the skill's phrase-contract unit tests before push.
+4. When changing `.gitignore` or `hosts.py` Memory tracking policy: update the
+   `generated-assets` inventory row in
+   `scripts/ci/validate_chaos_engine_readme.py` (and the README inventory it
+   renders) in the **same** PR, then run that inventory's unit checks before
+   push.
+5. Before stacking host-parity / harness follow-ons on an unmerged scaffold
+   PR: merge the scaffold first **or** absorb it into the follow-on PR and
+   close both together.
+6. Prepare the next PR in its own `git worktree`. `git switch` with a dirty
+   tree silently carries edits onto the wrong branch.
+
+## 5. Docs, catalog, and screenshots — only where real
+
+Update user documentation and the feature catalog only for shipped behavior.
+Regenerate screenshots only for changed panels. Externally documented behavior
+changes in the companion documentation repository require their own PR.
+
+## 6. Terminal Learning Session
+
+Collect durable findings during work, but route them through exactly one root-owned
+Learning Session after every final delivery (approval, publish, final merge), unasked, before the final report.
+Delegates and intermediate pushes never start another session.
+When reflection is required, put the changed approach and focused proof on the
+tracker before resuming. The hook never writes issues; the agent files leftover
+risks and out-of-scope items with `gh` after duplicate search, then records
+those URLs on the terminal receipt. After delivery, a session over one hour
+records its terminal reflection receipt before the Learning Session.
+
+### Learned-lessons workflow
+
+1. Collect receipts from the root session and every delegate created during the
+   runtime. Examine durable costs, decisions, structural changes, procedure gaps,
+   and deliberately deferred work. Explicitly look for ways to improve
+   effectiveness, efficiency, token use, commands that failed, paths that became
+   dead ends, retrieval or memory use, skill gaps, and research gaps. A clean run
+   still receives this search; `no-durable` is the honest result when it finds none.
+2. Classify each knowledge result with the entrypoint's Learning Session table and
+   use exactly one knowledge destination.
+3. Separately classify actionability as `fixed-now`, `existing`, `new`,
+   `blocked`, or `no-durable`. Deduplicate repeated incidents across root and
+   delegate receipts. For every unfixed problem, follow-up action, or potential
+   improvement needing work, search the configured main ChaosEngine upstream
+   repository for duplicates. Reuse the existing issue when it is the same
+   action; otherwise open one standalone enhancement issue using existing GitHub
+   authentication. When authentication or the CLI is unavailable, preserve the
+   queued candidate and report its prefilled clickable enhancement URL so the
+   user can open the same privacy-gated issue without reconstructing it.
+4. Link the receipt ID and incident evidence in the issue, then bind that issue's
+   canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
+   issue comment is evidence only and never replaces the action ticket.
+5. Write the knowledge result via `memory save --stdin` (default write path
+   after Memory migrate), or explicitly record that nothing durable or
+   actionable surfaced. Do not manufacture an issue for a genuinely no-action
+   result. Do **not** hand-author `.memory/**` sidecars; never bypass a rejected
+   save by editing JSON/markdown under `.memory/` directly. Non-private Memory
+   objects and relations are source-controlled: commit them on the task branch.
+   Secrets never enter `.memory/memory`; they stay in `.memory/private/`
+   (gitignored).
+
+Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
+playbook can take another lesson without deleting that guidance.
+
+
+## 7. Push, PR, green, merge, compact
+
+- After the implementation and Check/Act batch, push the branch and open or
+  update the agreed PR shape with a
+  description that lists each sub-item and its commit. Keep that description
+  current as later commits land.
+- Verify `closingIssuesReferences` after opening: GitHub matches closing words
+  even inside negated or illustrative prose, so partial work says `Related to
+  #N`, never a closing keyword adjacent to an issue number. If it lists an issue
+  this PR does not fully resolve, unlink it from the PR's Development sidebar.
+- A nightly-failure tracker (label prefix `nightly-failure:`) is recovered only
+  when its owning workflow concludes success with a full job set (`jobs=all`,
+  nothing skipped). A merge, a closing keyword, a manual `gh issue close`, and
+  a partial `workflow_dispatch` are not recovery. A product pull request must
+  not use a closing keyword on that tracker. Say `Related to #N`.
+  Decision: `scripts/ci/validate_pr_closing_keywords.py` `nightly_tracker_recovered`.
+- ROG writes go through the parent Shell that has `machineId`. A Task child
+  has no `machineId` and must not be described as ROG delivery.
+  The platform schema is outside this repository.
+- Merge only within granted authority. A companion PR in another publishing
+  repository needs its own authority.
+- Compact after a confirmed merge if the host supports it.
+
+### PR-merger workflow: arm, watch, fix, confirm
+
+The entrypoint makes this a duty. The terminal states are merged, red,
+conflicting, and stale; a watcher observes only green and red.
+The Stop hook blocks while a pull request is open and this session has not
+recorded `gh pr merge`. That includes an active delivery goal whose pull
+request was already open, and a session that only pushes new commits.
+`delivery-status` does not clear the block. A delivery goal keeps babysitting
+until that merge.
+When attendance is fully unattended (default) or the owner says babysit and merge it when green, follow this PR-merger
+(arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
+do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
+
+This repository uses merge commits so a delivered branch remains identifiable
+by ancestry. Squash and rebase merging are disabled; do not substitute them.
+
+After **you** merge a PR that changes `chaos-engine/`, rebuild the
+live overlay from the new `origin/<default>` on the **primary checkout**:
+`git fetch origin <default> && git merge --ff-only origin/<default>`, then
+`python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch <default>`
+and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on the merge. Do not call
+`install.py install` without `--source` and `--commit`. Replace
+`<configured-upstream>` with the adopter repository from installer identity.
+
+Owner-authorized history correction and non-protected gate waivers:
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
+
+1. **Clear every GitHub comment before acceptance.** Read and address every open
+   review thread, inline review comment, conversation comment, check annotation,
+   and bot finding (including code-quality and security bots). A green check is
+   not evidence that its comments were handled. Reply or resolve only after the
+   finding is fixed, ruled non-applicable with evidence, or filed as explicitly
+   approved follow-up work. Re-query GitHub after the final push and require zero
+   unhandled comments before continuing.
+2. **Require the exact head to be fully green before acceptance.** Every required
+   and protected check must be complete and successful for the bound head SHA;
+   pending, red, conflicting, or stale is not green. Apply only the exact-head,
+   non-protected waiver rules above.
+3. **Run final holistic acceptance last.** Do not execute final holistic
+   acceptance until the current exact head is fully green and no bot finding,
+   review thread, inline comment, conversation comment, or annotation remains
+   unresolved. Map the approved initial plan and every closing ticket to the
+   user-facing affected flows. Re-read the original tracker or epic body (not a
+   later summary): every Functional Requirement, Success Criterion, and GitHub
+   sub-issue in that initial scope must map to live files and a merged or
+   currently-armed PR. Do not arm auto-merge while any in-scope sub-issue is
+   open, any FR/SC is unimplemented, or this PR would close an epic that still
+   has dropped scope. Owner-reduced scope counts only when the tracker body
+   itself records the drop. Remaining work becomes new sub-issues before merge;
+   it does not silently vanish. This is the final assurance action before arming
+   auto-merge. If the head or remote feedback changes afterward, the receipt is
+   stale: clear only that new observable state, then run one replacement
+   acceptance against the new exact head. Unchanged state never triggers a retry.
+#### Auto-merge safety
+
+Before arming: one `Fixes #N` → one open PR (close twins); all in-scope commits
+on the **remote** head; at most one armed PR per overlapping product path. On
+overlap, leave the later PR unarmed until the earlier merges, then merge
+`origin/<default>` (merge commit, no force-push) and re-arm. If the later merged
+first and the earlier is `DIRTY`, merge `origin/<default>` into the earlier and
+re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
+
+4. **Arm** immediately after that acceptance remains current:
+   `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
+5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (repo-only)
+   until merged or a red fix is pushed. One line on GREEN, RED, or MERGED.
+   No second poll. Reject a `gh run view` loop and a second watch while one task is pending.
+   Never pass `--admin`. Resume text: `scripts/agents/unattended_delivery.py`.
+6. One status channel. It reports `DIRTY` and `BEHIND`.
+   Do not add `gh pr view` beside it.
+7. **Fix** red checks, failed tests, review comments, and bot findings on the
+   branch, or merge the fetched configured upstream default branch for a
+   conflict or stale head, then return to watch. Never force-push away
+   owner-visible history. Any new push restarts the comment gate before
+   auto-merge may remain armed. Static-analysis `ACTION_REQUIRED` (≥medium, any category)
+   is unit red ([gate](static-analysis-gate.md),
+   [Complexity](complexity-gate.md)); never keep auto-merge armed on it.
+
+Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
+`resolveReviewThread` before returning to the watch.
+8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
+   Learning Session runs only after that `mergedAt`.
+
+#### Nightly full-matrix autoclose
+
+Nightly trackers on `E2E Tests` and `Local E2E Tests` auto-close only when
+those workflows succeed with `jobs=all`. A targeted workflow_dispatch must not close them.
+A merge-time close and a manual `gh issue close` are not that proof either.
+
+## 8. Report
+
+Report what shipped, what was deferred and why, what remains open, and any
+surprise worth flagging. State only verified facts.

@@ -1,0 +1,1648 @@
+package com.shaft.gui.element.internal;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.element.TouchActions;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.internal.image.AnimatedGifManager;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotHelper;
+import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FlakeProfiler;
+import io.appium.java_client.AppiumDriver;
+import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.model.Parameter;
+import io.qameta.allure.model.StepResult;
+import io.qameta.allure.model.Status;
+import io.qameta.allure.model.StatusDetails;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.By;
+import org.openqa.selenium.ElementClickInterceptedException;
+import org.openqa.selenium.InvalidElementStateException;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.SearchContext;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.UnsupportedCommandException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.remote.RemoteWebElement;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.awt.Color;
+import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@Test(singleThreaded = true)
+public class ActionsCoverageUnitTest {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final By LOCATOR = By.id("target");
+    private static final byte[] PNG = new byte[]{(byte) 0x89, 'P', 'N', 'G'};
+
+    @BeforeMethod
+    public void configureFastMockFriendlyProperties() {
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.set().scrollingMode("legacy");
+        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+        SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
+        SHAFT.Properties.platform.set().targetPlatform(org.openqa.selenium.Platform.LINUX.name());
+        SHAFT.Properties.mobile.set().browserName("chrome");
+        LocatorBuilder.cleanup();
+        ShadowLocatorBuilder.cleanup();
+        FlakeProfiler.reset();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanupThreadLocalState() {
+        LocatorBuilder.cleanup();
+        ShadowLocatorBuilder.cleanup();
+        FlakeProfiler.reset();
+        Properties.clearForCurrentThread();
+    }
+
+    @Test
+    public void publicWrapperMethodsShouldDelegateExpectedActionTypeLocatorAndData() {
+        WebDriver driver = mock(WebDriver.class);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RecordingActions actions = new RecordingActions(driver);
+
+            Assert.assertSame(actions.hover(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.HOVER, LOCATOR, null);
+            Assert.assertSame(actions.click(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLICK, LOCATOR, null);
+            Assert.assertSame(actions.clickAndHold(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLICK_AND_HOLD, LOCATOR, null);
+            Assert.assertSame(actions.doubleClick(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.DOUBLE_CLICK, LOCATOR, null);
+            Assert.assertSame(actions.clickUsingJavascript(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.JAVASCRIPT_CLICK, LOCATOR, null);
+            Assert.assertSame(actions.setValueUsingJavaScript(LOCATOR, "js-value"), actions);
+            assertRecorded(actions, Actions.ActionType.JAVASCRIPT_SET_VALUE, LOCATOR, "js-value");
+            Assert.assertSame(actions.type(LOCATOR, "typed"), actions);
+            assertRecorded(actions, Actions.ActionType.TYPE, LOCATOR, new CharSequence[]{"typed"});
+            Assert.assertSame(actions.typeSecure(LOCATOR, "secret"), actions);
+            assertRecorded(actions, Actions.ActionType.TYPE_SECURELY, LOCATOR, new CharSequence[]{"secret"});
+            Assert.assertSame(actions.typeAppend(LOCATOR, "suffix"), actions);
+            assertRecorded(actions, Actions.ActionType.TYPE_APPEND, LOCATOR, new CharSequence[]{"suffix"});
+            Assert.assertSame(actions.clear(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLEAR, LOCATOR, null);
+            Assert.assertSame(actions.dropFileToUpload(LOCATOR, "pom.xml"), actions);
+            assertRecorded(actions, Actions.ActionType.DROP_FILE_TO_UPLOAD, LOCATOR, "pom.xml");
+            Assert.assertSame(actions.scrollToElement(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SCROLL_TO_ELEMENT, LOCATOR, null);
+            Assert.assertSame(actions.select(LOCATOR, "option"), actions);
+            assertRecorded(actions, Actions.ActionType.SELECT, LOCATOR, "option");
+            Assert.assertSame(actions.submitFormUsingJavaScript(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SUBMIT_FORM_USING_JAVASCRIPT, LOCATOR, null);
+            Assert.assertSame(actions.switchToIframe(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.SWITCH_TO_IFRAME, LOCATOR, null);
+            Assert.assertSame(actions.typeFileLocationForUpload(LOCATOR, "pom.xml"), actions);
+            assertRecorded(actions, Actions.ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD, LOCATOR, "pom.xml");
+            Assert.assertSame(actions.dragAndDrop(LOCATOR, By.id("drop")), actions);
+            assertRecorded(actions, Actions.ActionType.DRAG_AND_DROP, LOCATOR, By.id("drop"));
+            Assert.assertSame(actions.dragAndDropByOffset(LOCATOR, 5, 7), actions);
+            assertRecorded(actions, Actions.ActionType.DRAG_AND_DROP_BY_OFFSET, LOCATOR, new ArrayList<>(List.of(5, 7)));
+            Assert.assertSame(actions.and(), actions);
+        }
+    }
+
+    @Test
+    public void silentPassedActionShouldOnlyWriteDebugDiscreteLog() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+
+        try (MockedStatic<JavaScriptWaitManager> javaScriptWaitManager = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<ReportManager> reportManager = org.mockito.Mockito.mockStatic(ReportManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            Actions actions = new Actions(driver, true);
+
+            invoke(actions, "report", new Class[]{String.class, String.class, Status.class, byte[].class, RuntimeException.class},
+                    "GET_TEXT", "By.id: target", Status.PASSED, null, null);
+
+            reportManager.verify(() -> ReportManager.logDiscrete("Get text \"By.id: target\"", Level.DEBUG));
+            allure.verifyNoInteractions();
+        }
+    }
+
+    @Test
+    public void typingActionsShouldShowTypedTextAndKeepTargetMetadataInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            String typedText = "first line\n" + "x".repeat(150);
+            String expectedPreview = ("first line " + "x".repeat(150)).substring(0, 117) + "...";
+
+            new Actions(helperFor(driver)).type(LOCATOR, typedText);
+
+            Assert.assertEquals(step.getName(), "Type \"" + expectedPreview + "\" into \"accessible target\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
+            Assert.assertFalse(hasParameter(step, "txt"));
+            Assert.assertEquals(parameterValue(step, "element name"), "accessible target");
+            Assert.assertTrue(step.getDescription().contains("locator: By.id: target"));
+            Assert.assertFalse(step.getDescription().contains("txt:"));
+        }
+    }
+
+    @Test
+    public void smartLocatorTypingShouldNotDuplicateElementNameInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenReturn("Email");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step,
+                    new Parameter().setName("elementName").setValue("Email"),
+                    new Parameter().setName("text").setValue("[user@example.com]"));
+
+            new Actions(helperFor(driver)).type("Email", "user@example.com");
+
+            Assert.assertEquals(step.getName(), "Type \"user@example.com\" into \"Email\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Email\"");
+            Assert.assertFalse(hasParameter(step, "elementName"));
+            Assert.assertFalse(hasParameter(step, "element name"));
+            Assert.assertEquals(parameterValue(step, "text"), "[user@example.com]");
+            Assert.assertFalse(step.getDescription().contains("element name:"));
+        }
+    }
+
+    @Test
+    public void selectActionShouldTreatUppercaseSelectTagNameAsNativeDropdown() {
+        // SafariDriver has been observed on nightly e2eLocalTests.yml runs (GUIWizardTests
+        // #test_selectFromDropdownList) failing with NoSuchElementException("No elements were
+        // found.") against a genuine, verified <select> element on a stable public test page.
+        // Selenium's own Select class treats the tag name check case-insensitively
+        // ("select".equalsIgnoreCase(tagName) - see org.openqa.selenium.support.ui.Select
+        // constructor), so SHAFT's own pre-check must not be stricter: a driver returning
+        // "SELECT" (or any other casing) must still be routed to the native <select> handling
+        // instead of the custom/non-select dropdown fallback, which can never find a matching
+        // option for a real native dropdown and throws "No elements were found."
+        SHAFT.Properties.flags.set().handleNonSelectDropDown(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement dropdown = standardElement();
+        when(dropdown.getTagName()).thenReturn("SELECT");
+        when(dropdown.getDomAttribute("multiple")).thenReturn(null);
+        WebElement option1 = standardElement();
+        when(option1.getText()).thenReturn("Option 1");
+        when(option1.getDomProperty("value")).thenReturn("1");
+        when(option1.getAttribute("index")).thenReturn("0");
+        WebElement option2 = standardElement();
+        when(option2.getText()).thenReturn("Option 2");
+        when(option2.getDomProperty("value")).thenReturn("2");
+        when(option2.getAttribute("index")).thenReturn("1");
+        when(dropdown.findElements(By.tagName("option"))).thenReturn(List.of(option1, option2));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(dropdown));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).select(LOCATOR, "Option 2");
+            verify(option2).click();
+            verify(dropdown, never()).click();
+        }
+    }
+
+    @Test
+    public void selectActionShouldShowSelectedValueAndKeepLocatorMetadataInAllureStep() {
+        SHAFT.Properties.flags.set().handleNonSelectDropDown(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement dropdown = standardElement();
+        WebElement option = standardElement();
+        when(dropdown.getTagName()).thenReturn("div");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(dropdown), List.of(option));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step,
+                    new Parameter().setName("elementLocator").setValue("By.id: countries_dropdown_menu"),
+                    new Parameter().setName("valueOrVisibleText").setValue("Egypt"));
+
+            new Actions(helperFor(driver)).select(By.id("countries_dropdown_menu"), "Egypt");
+
+            Assert.assertEquals(step.getName(), "Select \"Egypt\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: countries_dropdown_menu");
+            Assert.assertEquals(parameterValue(step, "valueOrVisibleText"), "Egypt");
+            Assert.assertFalse(hasParameter(step, "elementLocator"));
+        }
+    }
+
+    @Test
+    public void smartLocatorClickShouldKeepAccessibleTitleAndAddLocatorMetadataInAllureStep() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenReturn("Submit Order");
+        when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step, new Parameter().setName("elementName").setValue("Submit Order"));
+
+            new Actions(helperFor(driver)).click("Submit Order");
+
+            Assert.assertEquals(step.getName(), "Click \"Submit Order\"");
+            Assert.assertEquals(parameterValue(step, "locator"), "Smart Locator: \"Submit Order\"");
+            Assert.assertFalse(hasParameter(step, "elementName"));
+            Assert.assertFalse(hasParameter(step, "element name"));
+        }
+    }
+
+    @Test
+    public void locatorClickShouldAddNormalizedLocatorMetadataInAllureStep() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+            seedParameters(step, new Parameter().setName("locator").setValue(LOCATOR.toString()));
+
+            new Actions(helperFor(driver)).click(LOCATOR);
+
+            Assert.assertEquals(parameterValue(step, "locator"), "By.id: target");
+        }
+    }
+
+    @Test
+    public void secureTypingShouldKeepTypedSecretMaskedInAllureStep() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+
+            new Actions(helperFor(driver)).typeSecure(LOCATOR, "secret-value");
+
+            Assert.assertEquals(step.getName(), "Type securely \"********\"");
+            Assert.assertFalse(hasParameter(step, "txt"));
+            Assert.assertFalse(step.getName().contains("secret-value"));
+            Assert.assertFalse(step.getDescription().contains("secret-value"));
+        }
+    }
+
+    @Test
+    public void appendAndJavascriptSetValueShouldUseValueInAllureStepName() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (MockedStatic<JavaScriptWaitManager> ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedStatic<Allure> allure = org.mockito.Mockito.mockStatic(Allure.class)) {
+            AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+            allure.when(Allure::getLifecycle).thenReturn(lifecycle);
+            StepResult step = captureStepUpdates(lifecycle);
+
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "suffix");
+            Assert.assertEquals(step.getName(), "Type append \"suffix\"");
+            Assert.assertFalse(hasParameter(step, "txt"));
+
+            step = captureStepUpdates(lifecycle);
+            new Actions(helperFor(driver)).setValueUsingJavaScript(LOCATOR, "js value");
+            Assert.assertTrue(step.getName().contains("\"js value\""));
+            Assert.assertFalse(step.getName().contains("By.id: target"));
+            Assert.assertFalse(hasParameter(step, "txt"));
+        }
+    }
+
+    @Test
+    public void typingShouldClickBeforeTypingWhenConfigured() {
+        SHAFT.Properties.flags.set()
+                .attemptToClickBeforeTyping(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "typed");
+
+            verify(element).click();
+        }
+    }
+
+    @Test
+    public void typingShouldIgnoreUnsupportedDomPropertyReads() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty(anyString())).thenThrow(new UnsupportedCommandException("unsupported dom property"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "native text");
+
+            verify(element).sendKeys(new CharSequence[]{"native text"});
+        }
+    }
+
+    @Test
+    public void typingShouldIgnoreFlutterUnknownMethodDomPropertyReads() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty(anyString())).thenThrow(new WebDriverException(
+                "{\"error\":\"unknown method\",\"message\":\"Method has not yet been implemented\"}"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "native text");
+
+            verify(element).sendKeys(new CharSequence[]{"native text"});
+        }
+    }
+
+    @Test
+    public void failureScreenshotShouldSkipFlutterStringRectWithoutReplacingTheActionFailure() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        RuntimeException originalFailure = new WebDriverException("native click blocked by flutter");
+        doThrow(originalFailure).when(element).click();
+        when(element.getRect()).thenThrow(new ClassCastException(
+                "class java.lang.String cannot be cast to class java.lang.Number"));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).click(LOCATOR));
+            Throwable rootCause = exception;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            Assert.assertSame(rootCause, originalFailure);
+            Assert.assertFalse(java.util.Arrays.stream(rootCause.getSuppressed())
+                    .anyMatch(suppressed -> suppressed instanceof ClassCastException));
+        }
+    }
+
+    @Test
+    public void typingShouldFailWhenConfiguredTypedTextDoesNotMatchElementValue() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("wrong value");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).type(LOCATOR, "expected value"));
+
+            Assert.assertTrue(exception.getMessage().contains("Expected typed text"));
+            Assert.assertTrue(exception.getMessage().contains("expected value"));
+        }
+    }
+
+    @Test
+    public void appendTypingShouldValidateFinalElementValueWhenConfigured() {
+        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("prefix", "prefix-suffix");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).typeAppend(LOCATOR, "-suffix");
+
+            verify(element).sendKeys(new CharSequence[]{"-suffix"});
+        }
+    }
+
+    @Test
+    public void secureTypingShouldMaskFailedTypedTextVerification() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("wrong value");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).typeSecure(LOCATOR, "secret-value"));
+
+            Assert.assertTrue(exception.getMessage().contains("********"));
+            Assert.assertFalse(exception.getMessage().contains("secret-value"));
+        }
+    }
+
+    @Test
+    public void typingValidationShouldSkipSpecialKeys() {
+        SHAFT.Properties.flags.set()
+                .forceCheckTextWasTypedCorrectly(true)
+                .clearBeforeTypingMode("off");
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty("value")).thenReturn("unchanged");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, Keys.ENTER);
+
+            verify(element).sendKeys(new CharSequence[]{Keys.ENTER});
+        }
+    }
+
+    @Test
+    public void setValueUsingJavascriptShouldDispatchInputAndChangeEvents() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        ArgumentCaptor<String> scripts = ArgumentCaptor.forClass(String.class);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).setValueUsingJavaScript(LOCATOR, "js value");
+
+            verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(scripts.capture(), any(Object[].class));
+            String setValueScript = scripts.getAllValues().stream()
+                    .filter(script -> script.contains("arguments[0].value"))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("Missing JavaScript value assignment"));
+            Assert.assertTrue(setValueScript.contains("dispatchEvent(new Event('input'"));
+            Assert.assertTrue(setValueScript.contains("dispatchEvent(new Event('change'"));
+        }
+    }
+
+    @Test
+    public void smartLocatorWrappersShouldDelegateToSmartLocators() {
+        WebDriver driver = mock(WebDriver.class);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RecordingActions actions = new RecordingActions(driver);
+
+            actions.click("Submit");
+            Assert.assertEquals(actions.action, Actions.ActionType.CLICK);
+            Assert.assertTrue(actions.locator.toString().contains("Submit"));
+
+            actions.type("Email", "user@example.com");
+            Assert.assertEquals(actions.action, Actions.ActionType.TYPE);
+            Assert.assertTrue(actions.locator.toString().contains("Email"));
+            Assert.assertEquals((CharSequence[]) actions.data, new CharSequence[]{"user@example.com"});
+        }
+    }
+
+
+    @Test
+    public void constructorsAndDefaultWaitUntilShouldCoverConveniencePaths() {
+        WebDriver driver = mock(WebDriver.class);
+        @SuppressWarnings("unchecked")
+        FluentWait<WebDriver> wait = mock(FluentWait.class);
+        when(wait.withTimeout(any(Duration.class))).thenReturn(wait);
+        when(wait.until(any())).thenReturn(true);
+
+        SHAFT.Properties.timeouts.set().waitForUiStateTimeout(7);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             MockedConstruction<SynchronizationManager> ignoredWait = org.mockito.Mockito.mockConstruction(SynchronizationManager.class,
+                     (manager, context) -> when(manager.fluentWait()).thenReturn(wait))) {
+            Actions silentActions = new Actions(driver, true);
+            Assert.assertSame(silentActions.waitUntil(d -> true), silentActions);
+            verify(wait).withTimeout(Duration.ofSeconds(7));
+        }
+    }
+
+    @Test
+    public void getInformationAndClipboardWrappersShouldDelegateExpectedActions() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RecordingActions actions = new RecordingActions(driver);
+            actions.returnValue = "true";
+
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "href"), "true");
+            assertRecorded(actions, Actions.ActionType.GET_ATTRIBUTE, LOCATOR, "href");
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "data-id"), "true");
+            assertRecorded(actions, Actions.ActionType.GET_DOM_ATTRIBUTE, LOCATOR, "data-id");
+            Assert.assertEquals(actions.get().domProperty(LOCATOR, "value"), "true");
+            assertRecorded(actions, Actions.ActionType.GET_DOM_PROPERTY, LOCATOR, "value");
+            Assert.assertEquals(actions.get().name(LOCATOR), "true");
+            assertRecorded(actions, Actions.ActionType.GET_NAME, LOCATOR, null);
+            Assert.assertEquals(actions.get().text(LOCATOR), "true");
+            assertRecorded(actions, Actions.ActionType.GET_TEXT, LOCATOR, null);
+            Assert.assertEquals(actions.get().selectedText(LOCATOR), "true");
+            assertRecorded(actions, Actions.ActionType.GET_SELECTED_TEXT, LOCATOR, null);
+            Assert.assertEquals(actions.get().cssValue(LOCATOR, "color"), "true");
+            assertRecorded(actions, Actions.ActionType.GET_CSS_VALUE, LOCATOR, "color");
+            Assert.assertTrue(actions.get().isDisplayed(LOCATOR));
+            assertRecorded(actions, Actions.ActionType.GET_IS_DISPLAYED, LOCATOR, null);
+            Assert.assertTrue(actions.get().isEnabled(LOCATOR));
+            assertRecorded(actions, Actions.ActionType.GET_IS_ENABLED, LOCATOR, null);
+            Assert.assertTrue(actions.get().isSelected(LOCATOR));
+            assertRecorded(actions, Actions.ActionType.GET_IS_SELECTED, LOCATOR, null);
+
+            Assert.assertSame(actions.clipboard().deleteAll(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLIPBOARD_DELETE, LOCATOR, null);
+            Assert.assertSame(actions.clipboard().copyAll(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLIPBOARD_COPY, LOCATOR, null);
+            Assert.assertSame(actions.clipboard().cutAll(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLIPBOARD_CUT, LOCATOR, null);
+            Assert.assertSame(actions.clipboard().paste(LOCATOR), actions);
+            assertRecorded(actions, Actions.ActionType.CLIPBOARD_PASTE, LOCATOR, null);
+
+            var constructor = Actions.ClipboardAction.class.getDeclaredConstructor(Actions.class);
+            constructor.setAccessible(true);
+            Assert.assertNotNull(constructor.newInstance(actions));
+            var parentConstructor = Actions.ClipboardAction.class.getDeclaredConstructor(Actions.class, Actions.class);
+            parentConstructor.setAccessible(true);
+            Assert.assertNotNull(parentConstructor.newInstance(actions, actions));
+        }
+    }
+
+    @Test
+    public void performActionShouldExerciseClickTypingJavascriptClearTextAndClipboardBranches() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        DriverFactoryHelper helper = helperFor(driver);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(helper);
+
+            actions.click(LOCATOR)
+                    .clickUsingJavascript(LOCATOR)
+                    .setValueUsingJavaScript(LOCATOR, "js")
+                    .type(LOCATOR, "alpha")
+                    .typeSecure(LOCATOR, "secret")
+                    .typeAppend(LOCATOR, "omega")
+                    .clear(LOCATOR)
+                    .clipboard().copyAll(LOCATOR)
+                    .clipboard().cutAll(LOCATOR)
+                    .clipboard().paste(LOCATOR)
+                    .clipboard().deleteAll(LOCATOR);
+
+            Assert.assertEquals(actions.get().attribute(LOCATOR, "href"), "attr-href");
+            Assert.assertEquals(actions.get().domAttribute(LOCATOR, "data"), "dom-data");
+            Assert.assertEquals(actions.get().domProperty(LOCATOR, "value"), "");
+            Assert.assertEquals(actions.get().name(LOCATOR), "accessible target");
+            Assert.assertEquals(actions.get().text(LOCATOR), "visible text");
+            Assert.assertEquals(actions.get().cssValue(LOCATOR, "color"), "css-color");
+            Assert.assertTrue(actions.get().isDisplayed(LOCATOR));
+            Assert.assertTrue(actions.get().isEnabled(LOCATOR));
+            Assert.assertFalse(actions.get().isSelected(LOCATOR));
+
+            verify(element, atLeastOnce()).click();
+            verify(element).clear();
+            verify(element, atLeastOnce()).sendKeys(any(CharSequence[].class));
+            verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(anyString(), any(Object[].class));
+        }
+    }
+
+    @Test
+    public void performActionShouldRefreshElementAfterLazyLoadingBeforeNativeClick() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement originallyLocatedElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(originallyLocatedElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
+            new Actions(helper).click(LOCATOR);
+
+            verify(originallyLocatedElement, never()).click();
+            verify(refreshedElement).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldNotRefreshElementWhenLazyLoadingObservedNoActivity() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(false);
+            new Actions(helper).click(LOCATOR);
+
+            verify(driver).findElements(LOCATOR);
+            verify(element).click();
+        }
+    }
+
+    @Test
+    public void performActionShouldUseRefreshedActionableElementBeforeTyping() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement hiddenOriginalElement = standardElement();
+        WebElement refreshedElement = standardElement();
+        when(hiddenOriginalElement.isDisplayed()).thenReturn(false);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(hiddenOriginalElement), List.of(refreshedElement));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            ignored.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any(WebDriver.class)))
+                    .thenReturn(true);
+            new Actions(helper).type(LOCATOR, "ready");
+
+            verify(hiddenOriginalElement, never()).sendKeys(any(CharSequence[].class));
+            verify(refreshedElement).sendKeys(any(CharSequence[].class));
+        }
+    }
+
+    @Test
+    public void flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence() throws Exception {
+        SHAFT.Properties.reporting.set()
+                .flakeProfilerEnabled(true)
+                .flakeProfilerAttachPerTest(false);
+        SHAFT.Properties.visuals.set()
+                .screenshotParamsWhenToTakeAScreenshot("Always")
+                .screenshotParamsScreenshotType("VIEWPORT")
+                .screenshotParamsHighlightElements(false);
+
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenAnswer(invocation -> {
+            Thread.sleep(120);
+            return PNG;
+        });
+        TestExecutionInfo info = new TestExecutionInfo(
+                "com.shaft.gui.element.internal.ActionsCoverageUnitTest.flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence",
+                "com.shaft.gui.element.internal.ActionsCoverageUnitTest",
+                "flakeProfilerShouldSeparateElementActionDurationFromScreenshotEvidence",
+                "Element action profiler timing",
+                "Element action profiler timing",
+                null,
+                null,
+                false);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            FlakeProfiler.startTest(info);
+            new Actions(helperFor(driver)).click(LOCATOR);
+            FlakeProfiler.finishTest(info, "Passed");
+        }
+
+        JsonNode testProfile = MAPPER.readTree(profilerSummaryJson()).path("tests").get(0);
+        JsonNode locateAction = actionEvent(testProfile, "locate", "CLICK");
+        JsonNode waitAction = actionEvent(testProfile, "wait", "CLICK");
+        JsonNode clickAction = actionEvent(testProfile, "action", "CLICK");
+        JsonNode screenshotEvidence = testProfile.path("evidence").get(0);
+        boolean hasReportAttachmentTiming = false;
+        for (JsonNode evidence : testProfile.path("evidence")) {
+            hasReportAttachmentTiming |= "report attachment".equals(evidence.path("category").asText());
+        }
+
+        Assert.assertNotNull(locateAction, testProfile.toPrettyString());
+        Assert.assertNotNull(waitAction, testProfile.toPrettyString());
+        Assert.assertNotNull(clickAction, testProfile.toPrettyString());
+        Assert.assertEquals(clickAction.path("category").asText(), "action");
+        Assert.assertEquals(clickAction.path("name").asText(), "CLICK");
+        Assert.assertEquals(locateAction.path("locatorLookupCount").asInt(), 1);
+        Assert.assertEquals(waitAction.path("waitLoopCount").asInt(), 1);
+        Assert.assertEquals(screenshotEvidence.path("category").asText(), "screenshot");
+        Assert.assertTrue(hasReportAttachmentTiming, testProfile.toPrettyString());
+        Assert.assertTrue(screenshotEvidence.path("durationMillis").asLong() >= 100, testProfile.toPrettyString());
+        Assert.assertTrue(clickAction.path("durationMillis").asLong()
+                < screenshotEvidence.path("durationMillis").asLong(), testProfile.toPrettyString());
+    }
+
+    @Test
+    public void performActionShouldFallbackToJavascriptClickWhenWebDriverClickFails() {
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        doThrow(new InvalidElementStateException("native click blocked")).when(element).click();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(LOCATOR);
+            verify((JavascriptExecutor) driver).executeScript(eq("arguments[0].click();"), eq(element));
+        }
+    }
+
+    @Test
+    public void performActionShouldFallbackToJavascriptClickWhenWebDriverClickIsIntercepted() {
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        doThrow(new ElementClickInterceptedException("native click intercepted")).when(element).click();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(LOCATOR);
+            verify((JavascriptExecutor) driver).executeScript(eq("arguments[0].click();"), eq(element));
+        }
+    }
+
+    @Test
+    public void performActionShouldReportSeleniumExceptionWhenFallbackIsDisabled() {
+        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        doThrow(new InvalidElementStateException("native click blocked")).when(element).click();
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class, () -> new Actions(helper).click(LOCATOR));
+            Assert.assertTrue(hasCause(exception, InvalidElementStateException.class));
+            verify((JavascriptExecutor) driver, org.mockito.Mockito.never()).executeScript(eq("arguments[0].click();"), eq(element));
+        }
+    }
+
+    @Test
+    public void performActionShouldReportOriginalExceptionAsRootCauseWhenFailureScreenshotThrows() {
+        // Reproduces #3795: an action fails, and while SHAFT is capturing the failure screenshot
+        // the element has already gone stale (e.g. ENTER navigated away). The reported root cause
+        // must remain the ORIGINAL action failure, never the screenshot-capture failure.
+        // A plain WebDriverException is neither one of FluentWait's ignored/retried exceptions
+        // (unlike StaleElementReferenceException) nor InvalidElementStateException (which triggers
+        // a JavaScript-click fallback instead of failing) - so it propagates to the failure handler
+        // deterministically on the first attempt.
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        RuntimeException originalFailure = new WebDriverException(
+                "element became unusable after ENTER navigated away");
+        doThrow(originalFailure).when(element).click();
+        // Default highlight method is "AI": takeFailureScreenshot -> captureScreenshot ->
+        // takeAIHighlightedScreenshot calls element.getRect() first, which is now stale too.
+        when(element.getRect()).thenThrow(new StaleElementReferenceException(
+                "stale element reference: element is not attached to the page document"));
+        // The viewport fallback screenshot also fails here, so the outer safety net has to win.
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES))
+                .thenThrow(new WebDriverException("session deleted because of page crash"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helper).click(LOCATOR));
+
+            Throwable rootCause = exception;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            Assert.assertSame(rootCause, originalFailure,
+                    "Expected the original action failure to remain the reported root cause, not the screenshot failure.");
+            boolean screenshotFailureWasSuppressed = java.util.Arrays.stream(rootCause.getSuppressed())
+                    .anyMatch(suppressed -> suppressed.getMessage() != null
+                            && suppressed.getMessage().contains("element is not attached to the page document"));
+            Assert.assertTrue(screenshotFailureWasSuppressed,
+                    "Expected the screenshot-capture failure to be attached as suppressed, not to replace the root cause.");
+        }
+    }
+
+    @Test
+    public void takeFailureScreenshotUsesFallbackTextWhenCaptureFailureHasNoMessage() throws Exception {
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        // A null message and a blank message each take a different side of the fallback condition.
+        // A fresh mock per case keeps the next stub from replaying the previous throw.
+        for (String captureMessage : new String[]{null, " "}) {
+            WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+            DriverFactoryHelper helper = helperFor(driver);
+            when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES))
+                    .thenThrow(new RuntimeException(captureMessage));
+            InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                    () -> invoke(new Actions(helper), "takeFailureScreenshot", new Class[]{WebElement.class}, (Object) null));
+            Throwable wrapper = thrown.getCause();
+            Assert.assertEquals(wrapper.getClass(), Actions.ActionExecutionException.class);
+            Assert.assertEquals(wrapper.getMessage(), "Failure screenshot could not be captured.",
+                    "A capture failure with no text must keep a stable wrapper message.");
+            Assert.assertEquals(wrapper.getCause().getMessage(), captureMessage);
+        }
+    }
+
+    @Test
+    public void performActionShouldContinueWhenAccessibleNameIsUnsupportedWithoutReadingDomText() {
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenThrow(new UnsupportedCommandException("unsupported accessible name"));
+        when(element.getDomProperty("text")).thenThrow(new TimeoutException("firefox getDomProperty text hung"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).typeAppend(LOCATOR, "append");
+            verify(element, never()).getDomProperty("text");
+        }
+    }
+
+    @Test
+    public void performActionShouldContinueWhenAccessibleNameThrowsWithoutReadingDomText() {
+        // SafariDriver has been observed throwing a bare WebDriverException (rather than the
+        // narrower UnsupportedCommandException/StaleElementReferenceException already handled
+        // above) when computing the accessible name of a hidden/non-interactable element
+        // (nightly e2eLocalTests.yml MacOSX_Safari_Local run, E2ECoverageTests#elementIsHiddenShouldPass:
+        // "Get dom attribute ... is broken"). Reporting-only accessible-name lookup must never
+        // fail the actual requested action, and it must not call getDomProperty("text"):
+        // Firefox on Selenium Grid hangs that property until the remote command times out (#6552).
+        SHAFT.Properties.reporting.set().captureElementName(true);
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getAccessibleName()).thenThrow(new WebDriverException("element is not interactable"));
+        when(element.getDomProperty("text")).thenThrow(new TimeoutException("firefox getDomProperty text hung"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).typeAppend(LOCATOR, "append");
+            verify(element, never()).getDomProperty("text");
+        }
+    }
+
+    @Test
+    public void performActionShouldCoverDragAndDropAndOffsetBranchesWithMockedSeleniumActions() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement source = standardElement();
+        WebElement destination = standardElement();
+        By destinationLocator = By.id("destination");
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(source));
+        when(driver.findElements(destinationLocator)).thenReturn(List.of(destination));
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             var constructedActions = org.mockito.Mockito.mockConstruction(org.openqa.selenium.interactions.Actions.class,
+                     (mock, context) -> {
+                         when(mock.pause(any())).thenReturn(mock);
+                         when(mock.dragAndDrop(any(WebElement.class), any(WebElement.class))).thenReturn(mock);
+                         when(mock.dragAndDropBy(any(WebElement.class), anyInt(), anyInt())).thenReturn(mock);
+                     })) {
+            Actions actions = new Actions(helper);
+            actions.dragAndDrop(LOCATOR, destinationLocator)
+                    .dragAndDropByOffset(LOCATOR, 10, 20);
+
+            Assert.assertFalse(constructedActions.constructed().isEmpty());
+            verify(constructedActions.constructed().get(0), atLeastOnce()).perform();
+        }
+    }
+
+    @Test
+    public void performActionShouldCoverMobileClickDoubleClickAndDragBranchesWithMockedAppiumDriver() {
+        SHAFT.Properties.platform.set().targetPlatform(org.openqa.selenium.Platform.ANDROID.name());
+        SHAFT.Properties.mobile.set().browserName("");
+        AppiumDriver appiumDriver = mock(AppiumDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement hidden = standardElement();
+        when(hidden.isDisplayed()).thenReturn(false);
+        WebElement displayed = standardElement();
+        RemoteWebElement remoteSource = new RemoteWebElement();
+        remoteSource.setId("source-id");
+        WebElement destination = standardElement();
+        By destinationLocator = By.id("mobileDestination");
+        when(appiumDriver.findElements(LOCATOR)).thenReturn(List.of(hidden, displayed, remoteSource));
+        when(appiumDriver.findElements(destinationLocator)).thenReturn(List.of(destination));
+        when(((TakesScreenshot) appiumDriver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        DriverFactoryHelper helper = helperFor(appiumDriver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(helper);
+            actions.click(LOCATOR)
+                    .doubleClick(LOCATOR)
+                    .dragAndDrop(LOCATOR, destinationLocator);
+
+            verify(displayed).click();
+            verify(appiumDriver, atLeastOnce()).perform(any(List.class));
+        }
+    }
+
+    @Test
+    public void privateHelpersShouldCoverClearModesTextParsingScreenshotStylesAndMobileDragFallbacks() throws Exception {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        WebElement textElement = standardElement();
+        when(textElement.getText()).thenReturn("");
+        when(textElement.getDomProperty("value")).thenReturn("value-text");
+        when(element.getText()).thenReturn("plain");
+        when(element.getDomProperty("value")).thenReturn("");
+        when(element.getDomProperty("textContent")).thenReturn("");
+        when(element.getDomProperty("innerHTML")).thenReturn("inner-text");
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(helper);
+
+            invoke(actions, "executeClearBasedOnClearMode", new Class[]{WebElement.class, String.class}, element, "native");
+            invoke(actions, "executeClearBasedOnClearMode", new Class[]{WebElement.class, String.class}, element, "backspace");
+            invoke(actions, "executeClearBasedOnClearMode", new Class[]{WebElement.class, String.class}, element, "off");
+
+            Assert.assertEquals(invoke(actions, "parseElementText", new Class[]{WebElement.class}, textElement), "value-text");
+            Assert.assertEquals(invoke(actions, "parseElementText", new Class[]{WebElement.class}, element), "plain");
+            WebElement innerHtmlElement = standardElement();
+            when(innerHtmlElement.getText()).thenReturn("");
+            when(innerHtmlElement.getDomProperty("value")).thenReturn("");
+            when(innerHtmlElement.getDomProperty("textContent")).thenReturn("");
+            when(innerHtmlElement.getDomProperty("innerHTML")).thenReturn("inner-text");
+            Assert.assertEquals(invoke(actions, "parseElementText", new Class[]{WebElement.class}, innerHtmlElement), "inner-text");
+            Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, true)).contains("#46aad2"));
+            Assert.assertTrue(((String) invoke(actions, "setHighlightedElementStyle", new Class[]{boolean.class}, false)).contains("#FF0000"));
+            byte[] rawScreenshot = new byte[]{1, 2, 3};
+            Assert.assertEquals((byte[]) invoke(actions, "appendShaftWatermark", new Class[]{byte[].class}, rawScreenshot), rawScreenshot);
+        }
+
+        AppiumDriver appiumDriver = mock(AppiumDriver.class);
+        RemoteWebElement remoteSource = new RemoteWebElement();
+        remoteSource.setId("remote-id");
+        WebElement destination = standardElement();
+        invokeStatic("executeMobileDragAndDrop", new Class[]{AppiumDriver.class, WebElement.class, WebElement.class},
+                appiumDriver, remoteSource, destination);
+        verify(appiumDriver).executeScript(eq("mobile: dragGesture"), any(Map.class));
+
+        WebElement source = standardElement();
+        invokeStatic("executeMobileDragAndDrop", new Class[]{AppiumDriver.class, WebElement.class, WebElement.class},
+                appiumDriver, source, destination);
+        verify(appiumDriver).perform(any(List.class));
+    }
+
+    @Test
+    public void staticHelpersShouldCoverExceptionIgnoringAndStatusTraceBranches() {
+        WebElement throwing = mock(WebElement.class);
+        when(throwing.isDisplayed()).thenThrow(new WebDriverException("stale-ish"));
+        WebElement displayed = mock(WebElement.class);
+        when(displayed.isDisplayed()).thenReturn(true);
+
+        Assert.assertSame(Actions.chooseBestEffortDisplayedElement(List.of(throwing, displayed)), displayed);
+        Assert.assertTrue(Actions.hasDisplayedElement(List.of(throwing, displayed)));
+        Assert.assertSame(Actions.chooseDragAndDropElement(List.of(throwing, displayed), LOCATOR, "source"), displayed);
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        Assert.assertSame(Actions.chooseBestEffortDisplayedElement(List.of(hidden)), hidden);
+        Assert.expectThrows(NoSuchElementException.class, () -> Actions.chooseDragAndDropElement(List.of(hidden), LOCATOR, "source"));
+        Assert.expectThrows(NoSuchElementException.class, () -> Actions.chooseBestEffortDisplayedElement(List.of()));
+        Assert.expectThrows(NoSuchElementException.class, () -> Actions.chooseDragAndDropElement(null, LOCATOR, "source"));
+        Assert.assertFalse(Actions.hasDisplayedElement(null));
+        Assert.assertFalse(Actions.hasDisplayedElement(List.of(throwing)));
+
+        Sequence sequence = Actions.buildTouchDragAndDropSequence(new Rectangle(0, 0, 10, 10), new Rectangle(10, 20, 30, 40));
+        Assert.assertNotNull(sequence.toJson());
+        Assert.assertEquals(Actions.createDragGestureParameters("id", new Rectangle(10, 20, 30, 40)).get("endX"), 30);
+        Assert.assertTrue(Actions.createDragAndDropDestinationNotFoundException(LOCATOR, new NoSuchElementException("root"))
+                .getMessage().contains("destination element"));
+
+        StatusDetails blankDetails = new StatusDetails();
+        Assert.assertTrue(Actions.mergeStatusTrace(blankDetails, new RuntimeException("boom")).contains("boom"));
+        StatusDetails existingDetails = new StatusDetails().setTrace("existing");
+        Assert.assertTrue(Actions.mergeStatusTrace(existingDetails, new RuntimeException("boom")).startsWith("existing"));
+        Assert.assertTrue(Actions.createFailureMessageWithCausedBy(new RuntimeException("wrapper", new IllegalArgumentException("cause")))
+                .contains("Caused by: java.lang.IllegalArgumentException: cause"));
+    }
+
+    @Test
+    public void uniqueDisplayedAndEnabledElementShouldNarrowOnlyWhenExactlyOneQualifies() {
+        // issue #4321: disambiguation must only fire when the found-elements list has exactly one
+        // displayed-and-enabled candidate; any other split (zero, or two-or-more) must stay ambiguous.
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        WebElement visibleButDisabled = mock(WebElement.class);
+        when(visibleButDisabled.isDisplayed()).thenReturn(true);
+        when(visibleButDisabled.isEnabled()).thenReturn(false);
+        WebElement visibleEnabled = mock(WebElement.class);
+        when(visibleEnabled.isDisplayed()).thenReturn(true);
+        when(visibleEnabled.isEnabled()).thenReturn(true);
+
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(hidden, visibleButDisabled, visibleEnabled)),
+                Optional.of(visibleEnabled));
+
+        WebElement anotherVisibleEnabled = mock(WebElement.class);
+        when(anotherVisibleEnabled.isDisplayed()).thenReturn(true);
+        when(anotherVisibleEnabled.isEnabled()).thenReturn(true);
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(visibleEnabled, anotherVisibleEnabled)),
+                Optional.empty());
+
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(hidden, visibleButDisabled)),
+                Optional.empty());
+
+        WebElement throwing = mock(WebElement.class);
+        when(throwing.isDisplayed()).thenThrow(new WebDriverException("stale-ish"));
+        Assert.assertEquals(
+                Actions.uniqueDisplayedAndEnabledElement(List.of(throwing, visibleEnabled)),
+                Optional.of(visibleEnabled));
+
+        Assert.assertEquals(Actions.uniqueDisplayedAndEnabledElement(List.of()), Optional.empty());
+        Assert.assertEquals(Actions.uniqueDisplayedAndEnabledElement(null), Optional.empty());
+    }
+
+    @Test
+    public void isCausedByAmbiguousLocatorShouldWalkTheFullCauseChain() {
+        // issue #4321 second-pass review: the last-resort retry must trigger only when a
+        // MultipleElementsFoundException appears anywhere in the failure's cause chain -- typically
+        // wrapped by FluentWait's TimeoutException, but never assuming a fixed wrapping depth.
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(new com.shaft.gui.internal.exceptions.MultipleElementsFoundException()));
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(
+                new org.openqa.selenium.TimeoutException("timed out",
+                        new com.shaft.gui.internal.exceptions.MultipleElementsFoundException())));
+        Assert.assertTrue(Actions.isCausedByAmbiguousLocator(
+                new RuntimeException("wrapper", new RuntimeException("nested",
+                        new com.shaft.gui.internal.exceptions.MultipleElementsFoundException()))));
+        Assert.assertFalse(Actions.isCausedByAmbiguousLocator(new NoSuchElementException("not found")));
+        Assert.assertFalse(Actions.isCausedByAmbiguousLocator(
+                new org.openqa.selenium.TimeoutException("timed out", new StaleElementReferenceException("stale"))));
+    }
+
+    @Test
+    public void getTextShouldReturnEmptyStringWhenAllTextFallbacksAreNull() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        when(element.getText()).thenReturn(null);
+        when(element.getDomProperty(anyString())).thenReturn(null);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Assert.assertEquals(new Actions(helperFor(driver)).get().text(LOCATOR), "");
+        }
+    }
+
+    @Test
+    public void performActionShouldCoverHoverHoldDoubleClickDropFileTextFallbackAndSelectedTextBranches() throws Exception {
+        File uploadFile = File.createTempFile("shaft-actions-upload", ".txt");
+        uploadFile.deleteOnExit();
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        WebElement uploadInput = standardElement();
+        WebElement optionOne = standardElement();
+        WebElement optionTwo = standardElement();
+        when(element.getText()).thenReturn("");
+        when(element.getDomProperty("textContent")).thenReturn("", "content fallback");
+        when(element.getDomProperty("value")).thenReturn("", "value fallback");
+        when(element.getTagName()).thenReturn("select");
+        when(optionOne.isSelected()).thenReturn(true);
+        when(optionTwo.isSelected()).thenReturn(false);
+        when(optionOne.getText()).thenReturn("one");
+        when(optionTwo.getText()).thenReturn("two");
+        when(element.findElements(any(By.class))).thenReturn(List.of(optionOne, optionTwo));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(uploadInput);
+        DriverFactoryHelper helper = helperFor(driver);
+
+        try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             var ignoredSeleniumActions = org.mockito.Mockito.mockConstruction(org.openqa.selenium.interactions.Actions.class,
+                     (mock, context) -> {
+                         when(mock.pause(any())).thenReturn(mock);
+                         when(mock.moveToElement(any(WebElement.class))).thenReturn(mock);
+                         when(mock.clickAndHold(any(WebElement.class))).thenReturn(mock);
+                         when(mock.doubleClick(any(WebElement.class))).thenReturn(mock);
+                         when(mock.scrollToElement(any(WebElement.class))).thenReturn(mock);
+                     })) {
+            Actions actions = new Actions(helper);
+            actions.hover(LOCATOR)
+                    .clickAndHold(LOCATOR)
+                    .doubleClick(LOCATOR)
+                    .dropFileToUpload(LOCATOR, uploadFile.getAbsolutePath());
+
+            Assert.assertNotNull(actions.get().text(LOCATOR));
+            Assert.assertEquals(actions.get().selectedText(LOCATOR), "one");
+            verify(uploadInput).sendKeys(uploadFile.getAbsolutePath());
+            Assert.assertFalse(ignoredSeleniumActions.constructed().isEmpty());
+        }
+    }
+
+    @Test
+    public void waitUntilShouldCoverPassAndBrokenBranches() {
+        WebDriver driver = mock(WebDriver.class);
+        DriverFactoryHelper helper = helperFor(driver);
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(helper);
+            Assert.assertSame(actions.waitUntil(d -> "ready", java.time.Duration.ofMillis(50)), actions);
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> actions.waitUntil(d -> false, java.time.Duration.ofMillis(1)));
+            Assert.assertNotNull(exception);
+        }
+    }
+
+    @Test
+    public void findAllElementsShouldCoverShadowDomAndIFrameBranches() throws Exception {
+        WebDriver driver = mock(WebDriver.class);
+        DriverFactoryHelper helper = helperFor(driver);
+        WebElement host = standardElement();
+        SearchContext shadowRoot = mock(SearchContext.class);
+        WebDriver.TargetLocator targetLocator = mock(WebDriver.TargetLocator.class);
+        WebElement frame = standardElement();
+        By hostLocator = By.cssSelector("host");
+        By cssLocator = By.cssSelector("button");
+        By frameLocator = By.id("frame");
+        when(driver.switchTo()).thenReturn(targetLocator);
+        when(targetLocator.defaultContent()).thenReturn(driver);
+        when(targetLocator.frame(frame)).thenReturn(driver);
+        when(driver.findElement(hostLocator)).thenReturn(host);
+        when(host.getShadowRoot()).thenReturn(shadowRoot);
+        when(shadowRoot.findElements(cssLocator)).thenReturn(List.of(host));
+        when(driver.findElement(frameLocator)).thenReturn(frame);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(frame));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Actions actions = new Actions(helper);
+            new ShadowLocatorBuilder(hostLocator, cssLocator);
+            Assert.assertEquals(invoke(actions, "findAllElements", new Class[]{By.class}, cssLocator), List.of(host));
+            ShadowLocatorBuilder.cleanup();
+
+            Field iFrameLocator = LocatorBuilder.class.getDeclaredField("iFrameLocator");
+            iFrameLocator.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            ThreadLocal<By> iFrameThreadLocal = (ThreadLocal<By>) iFrameLocator.get(null);
+            iFrameThreadLocal.set(frameLocator);
+            Assert.assertEquals(invoke(actions, "findAllElements", new Class[]{By.class}, LOCATOR), List.of(frame));
+        }
+    }
+
+    @Test
+    public void screenshotHelpersShouldCoverFullElementViewportHighlightAndWatermarkBranches() throws Exception {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        DriverFactoryHelper helper = helperFor(driver);
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(element.getScreenshotAs(OutputType.BYTES)).thenThrow(new WebDriverException("element screenshot failed"));
+        when(element.getDomProperty("style")).thenReturn("display:block;");
+
+        try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+             var screenshotHelper = org.mockito.Mockito.mockStatic(ScreenshotHelper.class);
+             var animatedGif = org.mockito.Mockito.mockStatic(AnimatedGifManager.class);
+             var imageProcessing = org.mockito.Mockito.mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ElementActionsHelper> helperConstruction = org.mockito.Mockito.mockConstruction(ElementActionsHelper.class,
+                     (mock, context) -> {
+                         List<Object> skippedElementInformation = new ArrayList<>(List.of(
+                                 1, element, By.xpath("//div[@id='skip']"), "div", "skip", "", "", ""));
+                         when(mock.getMatchingElementsInformation(any(WebDriver.class), any(By.class), eq(false)))
+                                 .thenReturn(skippedElementInformation);
+                     })) {
+            screenshotHelper.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class))).thenReturn(PNG);
+            screenshotHelper.when(() -> ScreenshotHelper.makeFullScreenshot(any(WebDriver.class), any(WebElement[].class))).thenReturn(PNG);
+            imageProcessing.when(() -> ImageProcessingActions.highlightElementInScreenshot(any(byte[].class), any(Rectangle.class), any(Color.class))).thenReturn(PNG);
+            animatedGif.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class))).thenAnswer(inv -> null);
+            Actions actions = new Actions(helper);
+
+            SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Always");
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("FULL");
+            SHAFT.Properties.visuals.set().screenshotParamsSkippedElementsFromScreenshot("//div[@id='skip']");
+            Assert.assertNotNull(invoke(actions, "takeActionScreenshot", new Class[]{WebElement.class}, element));
+            Assert.assertNotNull(invoke(actions, "takeFailureScreenshot", new Class[]{WebElement.class}, element));
+            ElementActionsHelper mockedHelper = helperConstruction.constructed().getFirst();
+            verify(mockedHelper, atLeastOnce()).getMatchingElementsInformation(any(WebDriver.class), any(By.class), eq(false));
+            verify(mockedHelper, org.mockito.Mockito.never()).getElementsCount(any(WebDriver.class), any(By.class));
+            verify(mockedHelper, org.mockito.Mockito.never()).identifyUniqueElementIgnoringVisibility(any(WebDriver.class), any(By.class));
+
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("ELEMENT");
+            Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, true));
+
+            SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(true);
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("AI");
+            Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, true));
+            SHAFT.Properties.visuals.set().screenshotParamsHighlightMethod("JavaScript");
+            Assert.assertNotNull(invoke(actions, "captureScreenshot", new Class[]{WebElement.class, boolean.class}, element, false));
+            verify((JavascriptExecutor) driver, atLeastOnce()).executeScript(anyString(), any(Object[].class));
+        }
+    }
+
+    @Test
+    public void animatedGifActionScreenshotShouldNotAttachWhenPolicyIsValidationOnly() throws Exception {
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+        SHAFT.Properties.visuals.set().createAnimatedGif(true);
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        SHAFT.Properties.visuals.set().screenshotParamsHighlightElements(false);
+
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+        WebElement element = standardElement();
+        DriverFactoryHelper helper = helperFor(driver);
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+
+        try (var animatedGif = org.mockito.Mockito.mockStatic(AnimatedGifManager.class)) {
+            animatedGif.when(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false))).thenAnswer(inv -> null);
+
+            Object actionScreenshot = invoke(new Actions(helper), "takeActionScreenshot", new Class[]{WebElement.class}, element);
+            Object failureScreenshot = invoke(new Actions(helper), "takeFailureScreenshot", new Class[]{WebElement.class}, (Object) null);
+
+            Assert.assertNull(actionScreenshot, "GIF capture should not attach per-action screenshots by itself");
+            Assert.assertNotNull(failureScreenshot, "failed actions should attach screenshots regardless of policy");
+            animatedGif.verify(() -> AnimatedGifManager.startOrAppendToAnimatedGif(any(byte[].class), eq(false)), org.mockito.Mockito.atLeastOnce());
+        }
+    }
+
+    @Test
+    public void webScrollFinishesWithoutSmoothAndMovesNestedOverflowIntoView() throws Exception {
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
+        Integer firstScrollTop = null;
+        Integer firstApplyCount = null;
+        for (int run = 0; run < 2; run++) {
+            NestedScrollModel model = NestedScrollModel.belowTheFold();
+            List<String> scripts = new ArrayList<>();
+            WebDriver driver = scrollDriver(model, scripts);
+            WebElement element = standardElement();
+            when(element.getTagName()).thenReturn("button");
+            when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+            DriverFactoryHelper helper = helperFor(driver);
+
+            try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+                 var ignoredAllure = org.mockito.Mockito.mockStatic(Allure.class)) {
+                AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+                ignoredAllure.when(Allure::getLifecycle).thenReturn(lifecycle);
+
+                for (String mode : List.of("w3c", "javascript", "legacy")) {
+                    model.reset(NestedScrollModel.belowTheFold());
+                    SHAFT.Properties.flags.set().scrollingMode(mode);
+                    new Actions(helper).click(LOCATOR);
+                    Assert.assertTrue(model.childIntersects(), mode);
+                    Assert.assertEquals(model.scrollTop, 250, mode);
+                }
+                verify(element, atLeastOnce()).click();
+
+                model.reset(NestedScrollModel.belowTheFold());
+                Actions explicit = new Actions(helper);
+                Assert.assertSame(explicit.scrollToElement(LOCATOR), explicit);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+
+                model.reset(NestedScrollModel.unchanged());
+                RuntimeException unchanged = Assert.expectThrows(RuntimeException.class,
+                        () -> new Actions(helper).scrollToElement(LOCATOR));
+                Assert.assertTrue(hasCause(unchanged, IllegalStateException.class));
+                Assert.assertEquals(model.scrollTop, 0);
+                Assert.assertFalse(model.childIntersects());
+
+                model.reset(NestedScrollModel.cannotReach());
+                RuntimeException stillOutside = Assert.expectThrows(RuntimeException.class,
+                        () -> new Actions(helper).scrollToElement(LOCATOR));
+                Assert.assertTrue(hasCause(stillOutside, IllegalStateException.class));
+                Assert.assertFalse(model.childIntersects());
+                Assert.assertTrue(model.scrollTop > 0);
+
+                model.reset(NestedScrollModel.belowTheFold());
+                TouchActions touchActions = new TouchActions(driver);
+                Assert.assertSame(touchActions.swipeElementIntoView(null, LOCATOR, TouchActions.SwipeDirection.DOWN), touchActions);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+
+                model.reset(NestedScrollModel.belowTheFold());
+                new ElementActionsHelper(true).identifyUniqueElement(driver, LOCATOR);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+            }
+
+            for (String script : scripts) {
+                Assert.assertFalse(script.contains("smooth"), script);
+                Assert.assertFalse(script.contains("behavior"), script);
+            }
+            String metricsScript = scripts.stream()
+                    .filter(script -> script.contains("/* shaft-scroll-metrics */"))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("metrics script was not recorded"));
+            assertDocumentViewUsesLayoutViewport(metricsScript);
+            Assert.assertTrue(scripts.stream().anyMatch(script -> script.contains("parentElement") && script.contains("scrollHeight")));
+            int applyCount = (int) scripts.stream().filter(script -> script.contains("shaft-scroll-apply")).count();
+            Assert.assertTrue(applyCount > 0);
+            if (run == 0) {
+                firstScrollTop = model.scrollTop;
+                firstApplyCount = applyCount;
+            } else {
+                Assert.assertEquals(model.scrollTop, firstScrollTop);
+                Assert.assertEquals(applyCount, firstApplyCount);
+            }
+        }
+    }
+
+    private static void assertDocumentViewUsesLayoutViewport(String metricsScript) {
+        int root = metricsScript.indexOf("document.scrollingElement || document.documentElement");
+        int viewportWidth = metricsScript.indexOf("window.innerWidth");
+        int viewportHeight = metricsScript.indexOf("window.innerHeight");
+        int nestedBox = metricsScript.indexOf("return node.getBoundingClientRect()");
+        Assert.assertTrue(root >= 0, metricsScript);
+        Assert.assertTrue(viewportWidth > root && viewportHeight > root, metricsScript);
+        Assert.assertTrue(nestedBox > viewportHeight, metricsScript);
+        Assert.assertFalse(metricsScript.contains("const view = scroller.getBoundingClientRect()"), metricsScript);
+    }
+
+    private WebDriver scrollDriver(NestedScrollModel model, List<String> scripts) {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        doAnswer(invocation -> {
+            String script = invocation.getArgument(0);
+            scripts.add(script);
+            if (script.contains("shaft-scroll-apply")) {
+                double[] offset = lastTwoNumbers(invocation.getArguments());
+                model.apply(offset[0], offset[1]);
+                return Map.of("scrollLeft", model.scrollLeft, "scrollTop", model.scrollTop);
+            }
+            if (script.contains("shaft-scroll-metrics")) {
+                return model.metrics();
+            }
+            return null;
+        }).when((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class));
+        return driver;
+    }
+
+    private static double[] lastTwoNumbers(Object[] arguments) {
+        List<Object> flat = new ArrayList<>();
+        for (int index = 1; index < arguments.length; index++) {
+            if (arguments[index] instanceof Object[] nested) {
+                flat.addAll(List.of(nested));
+            } else {
+                flat.add(arguments[index]);
+            }
+        }
+        return new double[]{((Number) flat.get(flat.size() - 2)).doubleValue(),
+                ((Number) flat.get(flat.size() - 1)).doubleValue()};
+    }
+
+    private DriverFactoryHelper helperFor(WebDriver driver) {
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+        return helper;
+    }
+
+    @SuppressWarnings("unchecked")
+    private StepResult captureStepUpdates(AllureLifecycle lifecycle) {
+        StepResult step = new StepResult();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Consumer<StepResult> consumer = invocation.getArgument(0);
+            consumer.accept(step);
+            return null;
+        }).when(lifecycle).updateStep(org.mockito.ArgumentMatchers.<Consumer<StepResult>>any());
+        return step;
+    }
+
+    private String parameterValue(StepResult step, String name) {
+        return step.getParameters().stream()
+                .filter(parameter -> name.equals(parameter.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing parameter: " + name))
+                .getValue();
+    }
+
+    private void seedParameters(StepResult step, Parameter... parameters) {
+        step.setParameters(new ArrayList<>(List.of(parameters)));
+    }
+
+    private boolean hasParameter(StepResult step, String name) {
+        return step.getParameters().stream()
+                .anyMatch(parameter -> name.equals(parameter.getName()));
+    }
+
+    private boolean hasCause(Throwable throwable, Class<? extends Throwable> expectedCause) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (expectedCause.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private WebElement standardElement() {
+        WebElement element = mock(WebElement.class);
+        when(element.isDisplayed()).thenReturn(true);
+        when(element.isEnabled()).thenReturn(true);
+        when(element.isSelected()).thenReturn(false);
+        when(element.getAccessibleName()).thenReturn("accessible target");
+        when(element.getText()).thenReturn("visible text");
+        when(element.getAttribute(anyString())).thenAnswer(invocation -> "attr-" + invocation.getArgument(0));
+        when(element.getDomAttribute(anyString())).thenAnswer(invocation -> "dom-" + invocation.getArgument(0));
+        when(element.getDomProperty(anyString())).thenAnswer(invocation -> "value".equals(invocation.getArgument(0)) ? "" : "dom-" + invocation.getArgument(0));
+        when(element.getCssValue(anyString())).thenAnswer(invocation -> "css-" + invocation.getArgument(0));
+        when(element.getRect()).thenReturn(new Rectangle(10, 20, 30, 40));
+        when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        return element;
+    }
+
+    private void assertRecorded(RecordingActions actions, Actions.ActionType action, By locator, Object data) {
+        Assert.assertEquals(actions.action, action);
+        Assert.assertEquals(actions.locator, locator);
+        if (data instanceof CharSequence[] expected) {
+            Assert.assertEquals((CharSequence[]) actions.data, expected);
+        } else {
+            Assert.assertEquals(actions.data, data);
+        }
+    }
+
+    private Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        Method method = Actions.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(target, args);
+    }
+
+    private Object invokeStatic(String methodName, Class<?>[] parameterTypes, Object... args) throws Exception {
+        Method method = Actions.class.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return method.invoke(null, args);
+    }
+
+    private String profilerSummaryJson() throws Exception {
+        Method method = FlakeProfiler.class.getDeclaredMethod("buildSummaryJson");
+        method.setAccessible(true);
+        return (String) method.invoke(null);
+    }
+
+    private JsonNode actionEvent(JsonNode testProfile, String category, String name) {
+        for (JsonNode action : testProfile.path("actions")) {
+            if (category.equals(action.path("category").asText()) && name.equals(action.path("name").asText())) {
+                return action;
+            }
+        }
+        return null;
+    }
+
+    private static final class NestedScrollModel {
+        int scrollLeft;
+        int scrollTop;
+        int maxScrollLeft;
+        int maxScrollTop;
+        int contentLeft;
+        int contentTop;
+        int childWidth;
+        int childHeight;
+        int viewLeft;
+        int viewTop;
+        int viewWidth;
+        int viewHeight;
+        boolean honorScroll = true;
+
+        static NestedScrollModel belowTheFold() {
+            NestedScrollModel model = new NestedScrollModel();
+            model.maxScrollLeft = 400;
+            model.maxScrollTop = 400;
+            model.contentTop = 250;
+            model.childWidth = 40;
+            model.childHeight = 30;
+            model.viewWidth = 200;
+            model.viewHeight = 120;
+            return model;
+        }
+
+        static NestedScrollModel unchanged() {
+            NestedScrollModel model = belowTheFold();
+            model.honorScroll = false;
+            return model;
+        }
+
+        static NestedScrollModel cannotReach() {
+            NestedScrollModel model = belowTheFold();
+            model.maxScrollTop = 30;
+            return model;
+        }
+
+        void reset(NestedScrollModel source) {
+            scrollLeft = 0;
+            scrollTop = 0;
+            maxScrollLeft = source.maxScrollLeft;
+            maxScrollTop = source.maxScrollTop;
+            contentLeft = source.contentLeft;
+            contentTop = source.contentTop;
+            childWidth = source.childWidth;
+            childHeight = source.childHeight;
+            viewLeft = source.viewLeft;
+            viewTop = source.viewTop;
+            viewWidth = source.viewWidth;
+            viewHeight = source.viewHeight;
+            honorScroll = source.honorScroll;
+        }
+
+        void apply(double nextLeft, double nextTop) {
+            if (!honorScroll) {
+                return;
+            }
+            scrollLeft = clamp(nextLeft, maxScrollLeft);
+            scrollTop = clamp(nextTop, maxScrollTop);
+        }
+
+        Map<String, Object> metrics() {
+            int childLeft = contentLeft - scrollLeft + viewLeft;
+            int childTop = contentTop - scrollTop + viewTop;
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("childLeft", childLeft);
+            metrics.put("childTop", childTop);
+            metrics.put("childRight", childLeft + childWidth);
+            metrics.put("childBottom", childTop + childHeight);
+            metrics.put("viewLeft", viewLeft);
+            metrics.put("viewTop", viewTop);
+            metrics.put("viewRight", viewLeft + viewWidth);
+            metrics.put("viewBottom", viewTop + viewHeight);
+            metrics.put("scrollLeft", scrollLeft);
+            metrics.put("scrollTop", scrollTop);
+            metrics.put("maxScrollLeft", maxScrollLeft);
+            metrics.put("maxScrollTop", maxScrollTop);
+            return metrics;
+        }
+
+        boolean childIntersects() {
+            int childLeft = contentLeft - scrollLeft + viewLeft;
+            int childTop = contentTop - scrollTop + viewTop;
+            int left = Math.max(childLeft, viewLeft);
+            int top = Math.max(childTop, viewTop);
+            int right = Math.min(childLeft + childWidth, viewLeft + viewWidth);
+            int bottom = Math.min(childTop + childHeight, viewTop + viewHeight);
+            return right > left && bottom > top;
+        }
+
+        private static int clamp(double value, int max) {
+            int rounded = (int) Math.round(value);
+            if (rounded < 0) {
+                return 0;
+            }
+            return Math.min(rounded, Math.max(max, 0));
+        }
+    }
+
+    private static final class RecordingActions extends Actions {
+        private Actions.ActionType action;
+        private By locator;
+        private Object data;
+        private String returnValue = "";
+
+        private RecordingActions(WebDriver driver) {
+            super(driver);
+        }
+
+        @Override
+        protected String performAction(ActionType action, By locator, Object data) {
+            this.action = action;
+            this.locator = locator;
+            this.data = data;
+            return returnValue;
+        }
+    }
+}

@@ -1,0 +1,882 @@
+package com.shaft.intellij.ui;
+
+import com.shaft.intellij.mcp.ShaftMcpInvocation;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class AssistantCommandTest {
+    @Test
+    void normalPromptBuildsLocalAgentRequestWithoutMutationByDefault() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Plan a resilient login test",
+                "CODEX",
+                "AGENT",
+                "C:/work/project",
+                "",
+                false);
+
+        assertFalse(invocation.isLocal());
+        assertEquals("autobot_local_agent_run", invocation.toolName());
+        assertEquals("CODEX", invocation.arguments().get("client").getAsString());
+        assertEquals("AGENT", invocation.arguments().get("mode").getAsString());
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Plan a resilient login test"));
+        assertTrue(invocation.arguments().get("prompt").getAsString()
+                .contains("Source edits are not enabled for this session"));
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void agentMutationRequiresAgentModeAndApproval() {
+        AssistantCommand.Invocation askInvocation = AssistantCommand.fromPrompt(
+                "Can I edit?",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation agentInvocation = AssistantCommand.fromPrompt(
+                "Edit this",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertFalse(askInvocation.arguments().get("allowSourceMutation").getAsBoolean());
+        assertTrue(agentInvocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void localAgentPromptsIncludeGenericShaftMcpUsageHint() {
+        AssistantCommand.Invocation wikipedia = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation alreadyExplicit = AssistantCommand.fromPrompt(
+                "use shaft-mcp to open mobile app",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation plain = AssistantCommand.fromPrompt(
+                "Explain the current test failure",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String wikipediaPrompt = wikipedia.arguments().get("prompt").getAsString();
+        String alreadyExplicitPrompt = alreadyExplicit.arguments().get("prompt").getAsString();
+        String plainPrompt = plain.arguments().get("prompt").getAsString();
+
+        assertAll(
+                // Verify Wikipedia-based example is present
+                () -> assertTrue(wikipediaPrompt.contains("Wikipedia"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("searchInput"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("mw-search-result-heading"), wikipediaPrompt),
+                // Verify stale DuckDuckGo/data-testid references are gone
+                () -> assertFalse(wikipediaPrompt.toLowerCase().contains("duckduckgo"), wikipediaPrompt),
+                () -> assertFalse(wikipediaPrompt.contains("data-testid='result'"), wikipediaPrompt),
+                // Verify the core hint is present
+                () -> assertTrue(wikipediaPrompt.contains("If this request requires interacting with a browser"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("open wikipedia and search for SHAFT Engine"), wikipediaPrompt),
+                () -> assertTrue(wikipediaPrompt.contains("Source edits are approved for this session"), wikipediaPrompt),
+                // The user already mentioning shaft-mcp themselves skips the redundant "use shaft-mcp
+                // for browser tasks" boilerplate, but must NOT also drop the unrelated shaft-options
+                // hint -- that silently lost every clarifying-question chip UI for any turn that
+                // happened to mention shaft-mcp (a real user report: agent questions never rendered
+                // as clickable options).
+                () -> assertFalse(alreadyExplicitPrompt.contains("If this request requires interacting with a browser"),
+                        alreadyExplicitPrompt),
+                () -> assertTrue(alreadyExplicitPrompt.contains("tagged shaft-options"), alreadyExplicitPrompt),
+                () -> assertFalse(alreadyExplicitPrompt.toLowerCase().contains("duckduckgo"), alreadyExplicitPrompt),
+                () -> assertFalse(alreadyExplicitPrompt.contains("data-testid='result'"), alreadyExplicitPrompt),
+                // plain must not have duckduckgo reference
+                () -> assertFalse(plainPrompt.toLowerCase().contains("duckduckgo"), plainPrompt),
+                () -> assertFalse(plainPrompt.contains("data-testid='result'"), plainPrompt),
+                () -> assertTrue(plainPrompt.contains("Wikipedia"), plainPrompt),
+                // Structured question/options protocol (#3719): the hint now prefers the single
+                // trailing JSON line and keeps the fence as documented fallback -- in every prompt
+                // variant, including the shaft-mcp-mentioning one that keeps the hint after the
+                // boilerplate-omission fix.
+                () -> assertTrue(wikipediaPrompt.contains("\"shaft-question\""), wikipediaPrompt),
+                () -> assertTrue(alreadyExplicitPrompt.contains("\"shaft-question\""), alreadyExplicitPrompt),
+                () -> assertTrue(plainPrompt.contains("\"shaft-question\""), plainPrompt));
+    }
+
+    @Test
+    void localAndCloudPromptsIncludeConversationContextWhenProvided() {
+        String context = "User: Previous target URL was https://duckduckgo.com";
+        AssistantCommand.Invocation local = AssistantCommand.fromPrompt(
+                "continue with the first result assertion",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                "C:/work/project",
+                "",
+                true,
+                AssistantCommand.OpenFileContext.empty(),
+                context);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "summarize next step",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                "C:/work/project",
+                "",
+                false,
+                AssistantCommand.OpenFileContext.empty(),
+                context);
+
+        assertAll(
+                () -> assertTrue(local.arguments().get("prompt").getAsString().contains("Conversation context:")),
+                () -> assertTrue(local.arguments().get("prompt").getAsString().contains(context)),
+                () -> assertTrue(local.arguments().get("prompt").getAsString()
+                        .contains("Current request:\nIf this request requires interacting")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("Conversation context:")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains(context)),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString()
+                        .contains("Current request:\nIf you need to ask the user a genuine clarifying question")),
+                () -> assertTrue(cloud.arguments().get("prompt").getAsString().contains("summarize next step")));
+    }
+
+    @Test
+    void cloudSelectionDefaultsBlankProviderToGemini() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Summarize this test",
+                AssistantCommand.Selection.cloud("", ""),
+                "ASK",
+                ".",
+                "",
+                true);
+
+        assertEquals("autobot_provider_chat", invocation.toolName());
+        assertEquals("gemini", invocation.arguments().get("provider").getAsString());
+        assertEquals("", invocation.arguments().get("model").getAsString());
+        assertEquals("ASK", invocation.arguments().get("mode").getAsString());
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    @Test
+    void askOrPlanMcpNaturalLanguagePromptsRequireAgentModeButSlashCommandsDoNot() {
+        AssistantCommand.Invocation natural = AssistantCommand.fromPrompt(
+                "open duckduckgo and search for SHAFT Engine",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "PLAN",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/guide locators",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "PLAN",
+                ".",
+                "",
+                false);
+
+        assertAll(
+                () -> assertTrue(AssistantCommand.requiresAgentModeForMcp(
+                        "open duckduckgo and search for SHAFT Engine", "PLAN", natural)),
+                () -> assertFalse(AssistantCommand.requiresAgentModeForMcp("/guide locators", "PLAN", slash)),
+                () -> assertFalse(AssistantCommand.requiresAgentModeForMcp(
+                        "open duckduckgo and search for SHAFT Engine", "AGENT", natural)));
+    }
+
+    @Test
+    void localAgentCodeGenerationPromptsNameShaftMcpPracticeToolsBeforeGeneration() {
+        AssistantCommand.Invocation generatedTest = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation explicitMcp = AssistantCommand.fromPrompt(
+                "use shaft-mcp to generate Java code for this login flow",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String generatedPrompt = generatedTest.arguments().get("prompt").getAsString();
+        String explicitPrompt = explicitMcp.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(generatedPrompt.contains("This is a code-generation request. Before returning Java:"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call shaft_guide_search"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call test_automation_scenarios"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("call shaft_coding_partner_plan"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Reuse existing tests, page objects"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("MUST follow the Page Object Model"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains(
+                        "do not put driver.element()/locator calls directly in a @Test method body"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("fluent design and action chaining"), generatedPrompt),
+                // Issue #4239 P2.2: the capture-ordering ("start a fresh session with capture_start
+                // ... capture_generate_replay") and locator-policy ("Never generate
+                // SHAFT.GUI.Locator.xpath") sentences are now delivered to local-agent CLI runs via
+                // the P2.1 MCP `instructions` channel (McpServerInstructionsTest), not restated here.
+                () -> assertFalse(generatedPrompt.contains("start a fresh session with capture_start"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("ask the user to confirm the exact target URL"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not infer canonical URLs"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Never substitute a different URL, domain, or example page"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("do not call live browser tools"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not publish locators as verified"), generatedPrompt),
+                () -> assertFalse(generatedPrompt.contains("Live browser verification was explicitly requested"),
+                        generatedPrompt),
+                () -> assertFalse(generatedPrompt.contains("Never generate SHAFT.GUI.Locator.xpath"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Call test_code_guardrails_check"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Do not print full repository files"), generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Put every code snippet in fenced code blocks"),
+                        generatedPrompt),
+                () -> assertTrue(generatedPrompt.contains("Return only SHAFT-syntax Java"), generatedPrompt),
+                () -> assertTrue(explicitPrompt.contains("Call shaft_guide_search"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("ask the user to confirm the exact target URL"),
+                        explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("do not call live browser tools"), explicitPrompt),
+                () -> assertFalse(explicitPrompt.contains("browser_open_intent"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Call test_code_guardrails_check"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Do not print full repository files"), explicitPrompt),
+                () -> assertTrue(explicitPrompt.contains("Put every code snippet in fenced code blocks"),
+                        explicitPrompt));
+    }
+
+    @Test
+    void slashCodegenScenarioRoutesToAutobotWithFullWorkflowContract() {
+        String scenario = "navigate to https://duckduckgo.com, search for shaft_engine, "
+                + "open the first result and assert that the url is correct.";
+
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen " + scenario,
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertEquals("AGENT", invocation.arguments().get("mode").getAsString()),
+                () -> assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean()),
+                () -> assertFalse(invocation.arguments().has("targetUrl"),
+                        "the plugin must not own browser orchestration"),
+                () -> assertFalse(invocation.isSequence()),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString().contains(scenario)),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("capture_start, browser actions, capture_stop/save")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("exactly one URL question")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("explicit approval before any source edit or replay")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("one heal retry")),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("allure-report/AllureReport.html")));
+    }
+
+    @Test
+    void multilineSlashCodegenScenarioRoutesToAutobot() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen\nnavigate to https://example.com and click login",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(invocation.arguments().get("prompt").getAsString()
+                        .contains("navigate to https://example.com and click login")));
+    }
+
+    @Test
+    void slashCodegenScenarioFailsClosedForCloudRoute() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "/codegen navigate to https://example.com and click login",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        assertAll(
+                () -> assertTrue(invocation.isLocal()),
+                () -> assertTrue(invocation.localResponse().contains("Local / CLI route")));
+    }
+
+    @Test
+    void naturalCodeOnlyRequestRoutesToReviewOnlyAgentCodegenPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate SHAFT Java code for this browser flow: navigate to https://duckduckgo.com, "
+                        + "search for shaft_engine, open the first result and assert that the url is correct.",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().has("prompt")
+                ? invocation.arguments().get("prompt").getAsString()
+                : "";
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertTrue(prompt.contains("This is a code-generation request. Before returning Java:"), prompt),
+                // Issue #4239 P2.2: the record -> confirm-replay -> generate -> verify ordering (and
+                // the "capture_generate_replay over capture_code_blocks" preference it protected) is
+                // now delivered to local-agent CLI runs via the P2.1 MCP `instructions` channel
+                // instead of being restated in this prompt (see McpServerInstructionsTest).
+                () -> assertFalse(prompt.contains("start a fresh session with capture_start"), prompt),
+                () -> assertFalse(prompt.contains("capture_generate_replay"), prompt),
+                () -> assertFalse(prompt.contains("with capture_code_blocks"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertTrue(prompt.contains("navigate to https://duckduckgo.com"), prompt),
+                () -> assertFalse(prompt.contains("test_automation_scenarios OK")));
+    }
+
+    @Test
+    void codeOnlyBrowserCodegenPromptDoesNotRouteToLiveBrowserSequence() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "write code only for https://duckduckgo.com search Page Object; do not run browser",
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertEquals("autobot_local_agent_run", invocation.toolName()),
+                () -> assertFalse(invocation.isSequence()),
+                () -> assertTrue(prompt.contains("do not call live browser tools"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt));
+    }
+
+    @Test
+    void localAgentCodeRequestsStayScopedToCurrentOpenFileAndMode() {
+        AssistantCommand.OpenFileContext openFile = new AssistantCommand.OpenFileContext(
+                "src/test/java/example/LoginTest.java",
+                """
+                        driver.get("https://example.com/login");
+                        driver.findElement(By.id("username")).sendKeys("standard_user");
+                        """);
+        AssistantCommand.Invocation ask = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                "CODEX",
+                "ASK",
+                ".",
+                "",
+                false,
+                openFile);
+        AssistantCommand.Invocation agent = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true,
+                openFile);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "convert this Selenium code to SHAFT syntax",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "ASK",
+                ".",
+                "",
+                false,
+                openFile);
+
+        String askPrompt = ask.arguments().get("prompt").getAsString();
+        String agentPrompt = agent.arguments().get("prompt").getAsString();
+        String cloudPrompt = cloud.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(askPrompt.contains("Use only the currently open file"), askPrompt),
+                () -> assertTrue(askPrompt.contains("src/test/java/example/LoginTest.java"), askPrompt),
+                () -> assertTrue(askPrompt.contains("driver.findElement(By.id(\"username\"))"), askPrompt),
+                () -> assertTrue(askPrompt.contains("Ask mode: recommend migrated SHAFT-syntax code"), askPrompt),
+                () -> assertFalse(askPrompt.contains("suggest code changes directly inside the IDE"), askPrompt),
+                () -> assertTrue(agentPrompt.contains("Agent mode: suggest code changes directly inside the IDE"),
+                        agentPrompt),
+                () -> assertTrue(agentPrompt.contains("current open class only"), agentPrompt),
+                () -> assertEquals("autobot_provider_chat", cloud.toolName()),
+                () -> assertTrue(cloudPrompt.contains("Use only the currently open file"), cloudPrompt),
+                // Issue #4256: the cloud-chat path has no MCP tool-calling loop at all, so it must
+                // never be told to "call" a capture/replay tool it structurally cannot invoke.
+                () -> assertFalse(cloudPrompt.contains("start a fresh session with capture_start"), cloudPrompt),
+                () -> assertTrue(cloudPrompt.contains("Do not publish locators as verified"), cloudPrompt));
+    }
+
+    @Test
+    void localAgentLoginCodeGenerationRequiresUrlConfirmationBeforeLiveLocatorProof() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to saucedemo",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("generate code to login to saucedemo"), prompt),
+                () -> assertTrue(prompt.contains("ask the user to confirm the exact target URL"), prompt),
+                () -> assertTrue(prompt.contains("Do not infer canonical URLs"), prompt),
+                () -> assertTrue(prompt.contains("Never substitute a different URL, domain, or example page"), prompt),
+                // Issue #4239 P2.2: ordering now lives solely in the P2.1 MCP instructions channel.
+                () -> assertFalse(prompt.contains("start a fresh session with capture_start"), prompt),
+                () -> assertFalse(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertTrue(prompt.contains("Do not publish locators as verified"), prompt),
+                () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
+    }
+
+    @Test
+    void localAgentCodeGenerationCanRequestExplicitLiveBrowserVerification() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to https://example.com and verify locators live",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertTrue(prompt.contains("Open a real browser session"), prompt),
+                () -> assertTrue(prompt.contains("browser_open_intent"), prompt),
+                // "element_type, element_click" (comma-joined) used to also match the ordering
+                // bullet trimmed by issue #4239 P2.2; the real source of this phrase is
+                // SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE_LOCAL_AGENT's "or"-joined wording (issue #4258
+                // split this constant into local-agent/cloud variants), asserted here directly.
+                () -> assertTrue(prompt.contains("element_type or element_click"), prompt),
+                () -> assertTrue(prompt.contains("Return only SHAFT-syntax Java"), prompt));
+    }
+
+    /**
+     * Issue #4258 (adjacent finding filed during #4256): {@code SHAFT_LIVE_CODEGEN_TOOL_GUIDANCE}
+     * used to be shared verbatim between the local-agent and cloud-chat codegen prompts regardless
+     * of the {@code cloud} flag passed to {@code codeGenerationGuidance}, unlike the
+     * {@code SHAFT_MCP_USAGE_HINT_*}/{@code SHAFT_CODEGEN_TOOL_GUIDANCE_*} pair split by issue #4239
+     * P2.2. The cloud-chat path ({@code autobot_provider_chat} /
+     * {@code AutobotService.runProviderChat}) is a plain text-completion call with no tool-calling
+     * loop at all, so it was being told to "call driver_initialize and browser_open_intent" and
+     * verify locators "with shaft-mcp element_type or element_click" -- directives it structurally
+     * cannot act on, the same class of bug as #4256's {@code SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD} fix.
+     */
+    @Test
+    void cloudCodegenPromptWithLiveVerificationRequestDoesNotNameToolsToCall() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "generate code to login to https://example.com and verify locators live",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertTrue(prompt.contains("Live browser verification was explicitly requested"), prompt),
+                () -> assertFalse(prompt.contains("call driver_initialize"), prompt),
+                () -> assertFalse(prompt.contains("browser_open_intent"), prompt),
+                () -> assertFalse(prompt.contains("element_type or element_click"), prompt),
+                () -> assertTrue(prompt.contains("never present a returned locator as live-verified"), prompt));
+    }
+
+    @Test
+    void agentModeWithoutSourceEditsAddsSourceMutationGuardInPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                false);
+
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Source edits are not enabled for this session"));
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Do not apply patches"));
+    }
+
+    @Test
+    void agentModeWithSourceEditsAddsAffirmativeSourceApprovalInPrompt() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Implement this login flow in Java",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+        assertAll(
+                () -> assertTrue(prompt.contains("Source edits are approved for this session"), prompt),
+                () -> assertFalse(prompt.contains("Source edits are not enabled"), prompt));
+    }
+
+    @Test
+    void nonAgentModesOmitSourceMutationConstantsFromPrompt() {
+        AssistantCommand.Invocation askInvocation = AssistantCommand.fromPrompt(
+                "Explain this login flow", "CODEX", "ASK", ".", "", true);
+        AssistantCommand.Invocation planInvocation = AssistantCommand.fromPrompt(
+                "Plan this login flow", "CODEX", "PLAN", ".", "", true);
+
+        assertAll(
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(askInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are not enabled")),
+                () -> assertFalse(planInvocation.arguments().get("prompt").getAsString()
+                        .contains("Source edits are approved")));
+    }
+
+    @Test
+    void directLocalAgentRunnerUsesSelectedCliDefaults() {
+        AssistantCommand.Invocation codexAsk = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation codexAgent = AssistantCommand.fromPrompt(
+                "Implement the fix", "CODEX", "AGENT", ".", "", true);
+        AssistantCommand.Invocation codexAgentNoSource = AssistantCommand.fromPrompt(
+                "Implement the fix", "CODEX", "AGENT", ".", "", false);
+        AssistantCommand.Invocation claudePlan = AssistantCommand.fromPrompt(
+                "Plan the fix", "CLAUDE_CODE", "PLAN", ".", "", false);
+        AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "custom-agent --safe", false);
+
+        // Deliberate flag change (R3-T1): codex exec now always adds the experimental --json flag,
+        // and claude always adds --output-format stream-json --verbose, so the runner receives
+        // incremental NDJSON events instead of a single buffered blob. Custom commands are untouched.
+        assertEquals(List.of("codex", "--ask-for-approval", "never", "exec", "--skip-git-repo-check",
+                        "--sandbox", "read-only", "--json", "-"),
+                AssistantLocalAgentRunner.commandFor(codexAsk.arguments()));
+        assertEquals(List.of(
+                "codex", "--ask-for-approval", "never", "exec",
+                "--skip-git-repo-check",
+                "--sandbox", "workspace-write",
+                "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "--json",
+                "-"),
+                AssistantLocalAgentRunner.commandFor(codexAgent.arguments()));
+        // T2-runner-approval-bridge: the auto-approve config flag is only emitted when the approval
+        // store grants it (allowSourceMutation is false here, so it must be absent) instead of being
+        // hard-coded unconditionally as it was before.
+        assertEquals(List.of(
+                "codex", "--ask-for-approval", "never", "exec",
+                "--skip-git-repo-check",
+                "--sandbox", "read-only",
+                "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                "--json",
+                "-"),
+                AssistantLocalAgentRunner.commandFor(codexAgentNoSource.arguments()));
+        assertEquals(List.of("claude", "--print", "--permission-mode", "plan",
+                        "--output-format", "stream-json", "--verbose"),
+                AssistantLocalAgentRunner.commandFor(claudePlan.arguments()));
+        assertEquals(List.of("custom-agent", "--safe"), AssistantLocalAgentRunner.commandFor(custom.arguments()));
+    }
+
+    @Test
+    void directLocalAgentRunnerAppliesSelectedModelAndEffort() {
+        AssistantCommand.Invocation codex = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("CODEX", "CLI", "gpt-5.2-codex", "HIGH"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation claude = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("CLAUDE", "CLI", "claude-sonnet-5", "LOW"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation copilot = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("COPILOT", "CLI", "gpt-5.2", "DEFAULT"),
+                "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals(List.of(
+                                "codex", "--ask-for-approval", "never", "exec",
+                                "--skip-git-repo-check",
+                                "--model", "gpt-5.2-codex",
+                                "-c", "model_reasoning_effort=\"high\"",
+                                "--sandbox", "read-only", "--json", "-"),
+                        AssistantLocalAgentRunner.commandFor(codex.arguments())),
+                // Codex receives the effort as a CLI config flag, so its prompt stays clean.
+                () -> assertFalse(codex.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")),
+                () -> assertEquals(List.of(
+                                "claude", "--print",
+                                "--model", "claude-sonnet-5",
+                                "--output-format", "stream-json", "--verbose"),
+                        AssistantLocalAgentRunner.commandFor(claude.arguments())),
+                // Claude Code has no effort flag, so the prompt carries the preference instead.
+                () -> assertTrue(claude.arguments().get("prompt").getAsString()
+                        .startsWith("Use low reasoning effort for this request.")),
+                () -> assertEquals(List.of("copilot", "ask", "--model", "gpt-5.2"),
+                        AssistantLocalAgentRunner.commandFor(copilot.arguments())),
+                // Default effort adds neither a flag nor a prompt hint.
+                () -> assertFalse(copilot.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")));
+    }
+
+    @Test
+    void cloudInvocationCarriesSelectedModelAndEffortHint() {
+        AssistantCommand.Invocation withEffort = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("gemini", "gemini-3.5-pro", "MEDIUM"),
+                "ASK", ".", "", false);
+        AssistantCommand.Invocation defaultEffort = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("gemini", "", ""),
+                "ASK", ".", "", false);
+
+        assertAll(
+                () -> assertEquals("autobot_provider_chat", withEffort.toolName()),
+                () -> assertEquals("gemini-3.5-pro", withEffort.arguments().get("model").getAsString()),
+                () -> assertTrue(withEffort.arguments().get("prompt").getAsString()
+                        .startsWith("Use medium reasoning effort for this request.")),
+                () -> assertFalse(defaultEffort.arguments().get("prompt").getAsString()
+                        .contains("reasoning effort")));
+    }
+
+    @Test
+    void directCustomAgentCommandRequiresSourceEditApprovalBecauseItCannotBeSandboxed() throws Exception {
+        AssistantCommand.Invocation custom = AssistantCommand.fromPrompt(
+                "Inspect the browser",
+                "CODEX",
+                "AGENT",
+                ".",
+                "custom-agent --unsafe",
+                false);
+
+        ShaftMcpToolResult result = AssistantLocalAgentRunner.start(custom).future().get(5, TimeUnit.SECONDS);
+
+        assertFalse(result.success());
+        assertTrue(result.output().contains("Custom Agent commands require Allow source edits"));
+    }
+
+    @Test
+    void directLocalAgentRunnerOnlyHandlesNormalLocalCliPrompts() {
+        AssistantCommand.Invocation normal = AssistantCommand.fromPrompt(
+                "Explain this failure", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation slash = AssistantCommand.fromPrompt(
+                "/guide locators", "CODEX", "ASK", ".", "", false);
+        AssistantCommand.Invocation cloud = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.cloud("openai", "gpt-4.1"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation pluginRuntime = AssistantCommand.fromPrompt(
+                "Explain this failure",
+                AssistantCommand.Selection.local("COPILOT", "IDE_PLUGIN"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        assertTrue(AssistantLocalAgentRunner.supports(normal));
+        assertFalse(AssistantLocalAgentRunner.supports(slash));
+        assertFalse(AssistantLocalAgentRunner.supports(cloud));
+        assertFalse(AssistantLocalAgentRunner.supports(pluginRuntime));
+    }
+
+    @Test
+    void directLocalAgentOutputPrefersStdoutOnSuccessAndIncludesStderrOnFailure() {
+        assertEquals("## Done", AssistantLocalAgentRunner.agentOutput(true, "## Done\n", "progress", ""));
+        assertEquals("warning", AssistantLocalAgentRunner.agentOutput(true, "", "warning\n", ""));
+        assertEquals("partial\n\nerror", AssistantLocalAgentRunner.agentOutput(false, "partial", "error", ""));
+        assertEquals("Timed out", AssistantLocalAgentRunner.agentOutput(false, "", "", "Timed out"));
+    }
+
+    @Test
+    void cloudPromptBuildsProviderChatRequestWithoutMutation() {
+        AssistantCommand.Invocation invocation = AssistantCommand.fromPrompt(
+                "Review the checkout test plan",
+                AssistantCommand.Selection.cloud("github", "openai/gpt-4.1"),
+                "PLAN",
+                "C:/work/project",
+                "",
+                true);
+
+        assertFalse(invocation.isLocal());
+        assertEquals("autobot_provider_chat", invocation.toolName());
+        assertEquals("github", invocation.arguments().get("provider").getAsString());
+        assertEquals("openai/gpt-4.1", invocation.arguments().get("model").getAsString());
+        assertEquals("PLAN", invocation.arguments().get("mode").getAsString());
+        assertTrue(invocation.arguments().get("prompt").getAsString().contains("Review the checkout test plan"));
+        assertEquals("C:/work/project", invocation.arguments().get("workingDirectory").getAsString());
+        assertFalse(invocation.arguments().get("allowSourceMutation").getAsBoolean());
+    }
+
+    /**
+     * Issue #4239 (Phase 0, item P0.1 / finding F1): SHAFT's own lint
+     * ({@code TestAutomationService.NO_SMART_LOCATOR}) rates Smart Locator usage in generated code
+     * as ERROR, but the prompts delivered to the LLM used to actively recommend "smart locators" as
+     * a preferred or fallback strategy in both {@code SHAFT_MCP_USAGE_HINT} and
+     * {@code SHAFT_CODEGEN_TOOL_GUIDANCE}. P0.1/#4240 first fixed the wording to state the real
+     * policy (SHAFT locator builder ARIA-role strategy {@code SHAFT.GUI.Locator.hasRole(...)} first,
+     * native {@code By.xpath(...)} only when the element exposes no ARIA role).
+     *
+     * <p>Issue #4239 P2.2: that policy sentence is now owned by the P2.1 MCP {@code instructions}
+     * channel (delivered to every MCP client, verified live in
+     * {@code shaft-mcp/.../McpServerInstructionsTest}), and no longer restated in the local-agent
+     * variant of these constants -- the local CLI (Claude Code/Codex) is itself an MCP client of
+     * shaft-mcp and receives it there. This is a structural guard against F1 recurring: there is
+     * only one place left to get the wording wrong.
+     */
+    @Test
+    void localAgentPromptsNoLongerRestateLocatorPolicyOwnedByP21McpInstructions() {
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                "CODEX",
+                "AGENT",
+                ".",
+                "",
+                true);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
+                        nonCodegenPrompt),
+                () -> assertFalse(nonCodegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), nonCodegenPrompt),
+                () -> assertFalse(nonCodegenPrompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), nonCodegenPrompt),
+                () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), codegenPrompt));
+    }
+
+    /**
+     * Issue #4239 P2.2 counterpart to the test above: {@code autobot_provider_chat}'s cloud-chat
+     * path ({@code AutobotService.runProviderChat}) is a plain text-completion call with no MCP
+     * handshake at all -- it can never receive the P2.1 {@code instructions} field through any
+     * channel, unlike the local-agent CLI path. So the cloud variant of these constants must keep
+     * stating the locator policy in full, or cloud users silently lose it. Do not trim this back to
+     * match the local-agent variant.
+     *
+     * <p>Issue #4256 (adjacent finding filed during P2.2): that same cloud path has no tool-calling
+     * loop at all -- {@code AutobotService.runProviderChat} sends a plain prompt string and parses a
+     * JSON completion, it never constructs an MCP client. {@code SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD}
+     * used to tell the model to "Call shaft_guide_search", "call shaft_coding_partner_plan", "start a
+     * fresh session with capture_start ... call capture_stop ... capture_generate_replay", "record
+     * with capture_api_start ... capture_api_generate", "call healer_run_failed_test", and "Call
+     * test_code_guardrails_check" -- directives the model structurally cannot act on. Those are now
+     * removed (or rewritten as plain-text output expectations, e.g. never presenting an unverified
+     * locator as replay-proven) while the locator policy and output-formatting rules -- this cloud
+     * path's only copy, per the class comment above -- stay in full.
+     */
+    @Test
+    void cloudCodegenPromptDropsUnactionableToolCallDirectivesButKeepsLocatorPolicy() {
+        AssistantCommand.Invocation nonCodegen = AssistantCommand.fromPrompt(
+                "open wikipedia and search for SHAFT Engine",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+        AssistantCommand.Invocation codegen = AssistantCommand.fromPrompt(
+                "generate a Java login test with a page object",
+                AssistantCommand.Selection.cloud("openai", "gpt-5"),
+                "ASK",
+                ".",
+                "",
+                false);
+
+        String nonCodegenPrompt = nonCodegen.arguments().get("prompt").getAsString();
+        String codegenPrompt = codegen.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(nonCodegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"),
+                        nonCodegenPrompt),
+                () -> assertFalse(codegenPrompt.toLowerCase(Locale.ROOT).contains("smart locator"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasAnyTagName().hasId("), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("SHAFT.GUI.Locator.hasRole("), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains(
+                        "By.xpath(...) only when the element has neither"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("Call shaft_guide_search"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("Call test_automation_scenarios"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("call shaft_coding_partner_plan"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("start a fresh session with capture_start"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_generate_replay"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_api_start"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("capture_api_generate"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("healer_run_failed_test"), codegenPrompt),
+                () -> assertFalse(codegenPrompt.contains("Call test_code_guardrails_check"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("MUST follow the Page Object Model"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("Return only SHAFT-syntax Java"), codegenPrompt),
+                // Issue #4258: SHAFT_MCP_USAGE_HINT_CLOUD's own "call driver_initialize before
+                // browser_* tools" directive has the same unactionable-tool-call problem as the
+                // SHAFT_CODEGEN_TOOL_GUIDANCE_CLOUD directives above; the WebDriver-vs-Playwright
+                // engine preference it conveys stays, restated without naming a tool to call.
+                () -> assertFalse(codegenPrompt.contains("call driver_initialize"), codegenPrompt),
+                () -> assertTrue(codegenPrompt.contains("do not use Playwright unless requested"), codegenPrompt));
+    }
+
+    /**
+     * Issue #4239 (Phase 0, item P0.1b): two more occurrences of the same "smart locators" fallback
+     * recommendation fixed by P0.1/#4240 were flagged out of that PR's scope -- one of them is the
+     * post-approval file-creation prompt built by {@code captureIntegrationPrompt} and dispatched
+     * through {@code approvedCaptureIntegration}, which is local-agent-CLI-only (it rejects cloud
+     * selections). Issue #4239 P2.2: since that CLI session is itself an MCP client of shaft-mcp and
+     * receives the P2.1 {@code instructions} locator policy already, the duplicate sentence is
+     * removed here rather than just re-fixed a third time.
+     */
+    @Test
+    void captureIntegrationPromptNoLongerRestatesLocatorPolicyOwnedByP21McpInstructions() {
+        AssistantCommand.Invocation invocation = AssistantCommand.approvedCaptureIntegration(
+                AssistantCommand.Selection.local("CODEX", "CLI"),
+                "C:/work/project",
+                "",
+                "Reviewed capture markdown",
+                "{}");
+
+        String prompt = invocation.arguments().get("prompt").getAsString();
+
+        assertAll(
+                () -> assertFalse(prompt.toLowerCase(Locale.ROOT).contains("smart locator"), prompt),
+                () -> assertFalse(prompt.contains("SHAFT.GUI.Locator.hasRole("), prompt),
+                () -> assertFalse(prompt.contains(
+                        "By.xpath(...) only when the element exposes no ARIA role"), prompt),
+                () -> assertTrue(prompt.contains("Preserve project build descriptors"), prompt));
+    }
+}

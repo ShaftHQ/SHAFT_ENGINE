@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/constraints/maven-central-version-immutability.md",
+  "content_hash": "sha256:ab21a93ded9c7b6d0a6ac3105d326a1669ea378a271831ef4137b7003bf7bf7a",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/mavenCentral_cd.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/verify_maven_central_release.py",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.maven-central-version-immutability",
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "release",
+    "maven-central",
+    "versioning"
+  ],
+  "title": "Maven Central coordinates are immutable",
+  "type": "gotcha",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

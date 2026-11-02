@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Delayed In-Viewport Hydration Fixture</title>
+</head>
+<body>
+<div id="immediately-present">Immediately present content</div>
+<!-- DOM-only hydration: no XHR/fetch. Delay must exceed network idle (500ms quiet after
+     navigation resource timing / BiDi) so a wait with both DOM windows at 0 can return first. -->
+<div id="delayed-hero-section" class="lazy-section" data-hydrate-delay-ms="1500">Hero placeholder</div>
+<script>
+(function () {
+    'use strict';
+    document.querySelectorAll('.lazy-section').forEach(function (section) {
+        var hydrateDelayMs = Number(section.getAttribute('data-hydrate-delay-ms') || '0');
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+                observer.unobserve(entry.target);
+                setTimeout(function () {
+                    var content = document.createElement('div');
+                    content.id = entry.target.id + '-content';
+                    entry.target.appendChild(content);
+                }, hydrateDelayMs);
+            });
+        }, {threshold: 0.1});
+        observer.observe(section);
+    });
+})();
+</script>
+</body>
+</html>

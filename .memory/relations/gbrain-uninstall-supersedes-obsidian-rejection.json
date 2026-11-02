@@ -1,0 +1,17 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:63f7f2e3d92c995630c0e373bc3f0dfa2c60d1bc9596a888fbdc42da2296d688",
+  "created_at": "2026-08-10T15:17:08+03:00",
+  "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    }
+  ],
+  "from": "decision.gbrain-fully-uninstalled-2026-07-18-supersedes-same-day-keep-as-accelerator-decision",
+  "id": "rel.gbrain-uninstall-supersedes-obsidian-rejection",
+  "predicate": "supersedes",
+  "status": "active",
+  "to": "decision.obsidian-migration-rejected-memory-already-meets-local-source-controllable-gbrain-accelerator-recovered",
+  "updated_at": "2026-08-10T15:17:08+03:00"
+}

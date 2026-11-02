@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/installer-commit-needs-full-sha.md",
+  "content_hash": "sha256:7737f4d909ff4fc1484f1cda462d854f435c17bdc89763e8ab3d6849a8f28ad4",
+  "created_at": "2026-10-16T21:20:00+03:00",
+  "evidence": [],
+  "id": "gotcha.installer-commit-needs-full-sha",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7088-#7091"
+  },
+  "status": "active",
+  "tags": [
+    "installer",
+    "harness"
+  ],
+  "title": "`install --commit` needs the full 40-hex sha",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T21:20:00+03:00"
+}

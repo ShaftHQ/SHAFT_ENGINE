@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/facts/shaft-doctor-transitively-depends-on-shaft-engine-compile-scope-via-shaft-pilot-core.md",
+  "content_hash": "sha256:8fd5f8b9baa099c7fd02537350fa04e954b6847a8944e0e0e74e25419e83ff9d",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "b6967b6c839a14b7d566fbf5c6ae118a3d125702",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-doctor-transitively-depends-on-shaft-engine-compile-scope-via-shaft-pilot-core",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-doctor",
+    "shaft-engine",
+    "modules",
+    "dependencies"
+  ],
+  "title": "shaft-doctor transitively depends on shaft-engine (compile scope via shaft-pilot-core)",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

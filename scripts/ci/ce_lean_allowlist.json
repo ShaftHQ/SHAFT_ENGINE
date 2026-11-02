@@ -1,0 +1,21 @@
+{
+  "issueTags": {
+    "chaos-engine/INSTALL.md": 22,
+    "chaos-engine/README.md": 4,
+    "chaos-engine/STANDALONE.md": 1,
+    "chaos-engine/decision-quality-baseline.md": 12,
+    "chaos-engine/decision-quality-calibration.md": 3,
+    "chaos-engine/decision-quality-report.md": 27,
+    "chaos-engine/decision-quality-rubric.md": 11,
+    "chaos-engine/guides/freetoken-5867-closeout-proof.md": 14,
+    "chaos-engine/guides/local-agency.md": 12,
+    "chaos-engine/plugin-adapters/INDEX.md": 1,
+    "chaos-engine/plugin-adapters/caveman/SKILL.md": 1,
+    "chaos-engine/plugin-adapters/icm-architect/SKILL.md": 1
+  },
+  "leaks": {},
+  "nearDuplicates": {},
+  "ecosystemTerms": {
+    "chaos-engine/bootstrap.py": 8
+  }
+}

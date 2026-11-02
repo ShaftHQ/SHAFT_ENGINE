@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/gotchas/recurring-git-loose-object-corruption-on-this-machine-repair-recipe.md",
+  "content_hash": "sha256:1b46586f277ce812ae87554d54b75e34e47a0c3178c7f96d15047216f7466788",
+  "created_at": "2026-07-19T03:16:57+03:00",
+  "evidence": [],
+  "id": "gotcha.recurring-git-loose-object-corruption-on-this-machine-repair-recipe",
+  "source": {
+    "kind": "agent",
+    "task": "git repo corruption repair during work-github session"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "corruption",
+    "repair",
+    "windows",
+    "bsod"
+  ],
+  "title": "Recurring git loose-object corruption on this machine: repair recipe",
+  "type": "gotcha",
+  "updated_at": "2026-07-19T03:16:57+03:00"
+}

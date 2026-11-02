@@ -1,0 +1,1 @@
+{"affected": false, "broadCampaign": false, "focused": true}

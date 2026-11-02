@@ -1,0 +1,337 @@
+package com.shaft.tools.io.internal;
+
+import com.google.gson.GsonBuilder;
+import com.shaft.tools.internal.support.HTMLHelper;
+import com.shaft.tools.internal.support.ReportHtmlTheme;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Aggregates validation checkpoints and attaches a summarized HTML report to Allure.
+ *
+ * <p>Each call to {@link #increment(CheckpointType, String, CheckpointStatus)} stores one checkpoint
+ * entry and updates pass/fail counters. Call {@link #attach()} once at the end of execution to
+ * publish the generated report attachment.
+ */
+public class CheckpointCounter {
+    private static final List<CheckpointEntry> checkpoints = new CopyOnWriteArrayList<>();
+    private static final AtomicInteger passedCheckpoints = new AtomicInteger(0);
+    private static final AtomicInteger failedCheckpoints = new AtomicInteger(0);
+    /**
+     * Monotonic, process-wide checkpoint id source. Unlike the former per-attach ordinal (which
+     * regenerated 1..N on every {@link #attach()}), an id assigned here is stable for the life of
+     * the JVM, so Doctor / MCP and the report checkpoint-browser can correlate a checkpoint to a
+     * test across attaches and re-generations (issues #3532 D / #3534 P3).
+     */
+    private static final AtomicInteger checkpointSequence = new AtomicInteger(0);
+
+    /**
+     * One recorded checkpoint. Carries a {@code stable} id assigned at capture time plus the
+     * owning test's identity (as resolved from the current report context), so downstream
+     * consumers can attribute and deep-link a checkpoint to its test.
+     *
+     * @param id stable, process-wide checkpoint id
+     * @param type checkpoint type string ({@code ASSERTION}/{@code VERIFICATION})
+     * @param message the checkpoint message
+     * @param status checkpoint status string ({@code PASS}/{@code FAIL})
+     * @param testClass owning test class name, or {@code ""} when unknown
+     * @param testMethod owning test method name, or {@code ""} when unknown
+     */
+    record CheckpointEntry(int id, String type, String message, String status, String testClass,
+                           String testMethod) {
+        /**
+         * Builds a stable {@code class#method} test identifier, or {@code ""} when no identity was
+         * captured. Used by MCP / the report checkpoint-browser to correlate and "jump to test".
+         *
+         * @return the {@code class#method} test id, or an empty string
+         */
+        String testId() {
+            if (testClass.isEmpty() && testMethod.isEmpty()) {
+                return "";
+            }
+            return testClass + "#" + testMethod;
+        }
+    }
+
+    /**
+     * Creates a new checkpoint counter instance.
+     */
+    public CheckpointCounter() {
+        super();
+    }
+
+    /**
+     * Creates a new checkpoint entry and updates the pass/fail counters. The entry is stamped with
+     * a stable, process-wide id and the current test's identity (class/method), so it can be
+     * attributed and deep-linked to its owning test even though the checkpoint list is cumulative.
+     *
+     * @param type the checkpoint type (assertion or verification)
+     * @param message the checkpoint message
+     * @param status the final status of the checkpoint
+     */
+    public static void increment(CheckpointType type, String message, CheckpointStatus status) {
+        checkpoints.add(new CheckpointEntry(checkpointSequence.incrementAndGet(), type.toString(),
+                message, status.toString(), currentTestClass(), currentTestMethod()));
+
+        if (status == CheckpointStatus.PASS) {
+            passedCheckpoints.incrementAndGet();
+        } else {
+            failedCheckpoints.incrementAndGet();
+        }
+    }
+
+    /**
+     * Testing-support hook only &mdash; <strong>not for production use</strong>. Resets the
+     * process-wide, static checkpoint accumulation back to its initial empty/zero state: it clears
+     * the {@link #checkpoints} list, zeroes the {@link #passedCheckpoints}/{@link #failedCheckpoints}
+     * counters, and resets the monotonic {@link #checkpointSequence} id source so the next captured
+     * checkpoint restarts at id {@code 1}.
+     *
+     * <p>Because this static state is shared by every test in the same forked JVM (any SHAFT
+     * Validation/Verification records a checkpoint via {@code ValidationsHelper}), tests that must
+     * isolate themselves from checkpoints left behind by earlier-run tests call this between methods.
+     * It exists as a single, {@code public} entry point so those tests no longer each reflect into
+     * these private fields to clear them (issue #3846); it is {@code public} rather than
+     * package-private because consumer tests live outside this package.
+     */
+    public static void resetForTesting() {
+        checkpoints.clear();
+        passedCheckpoints.set(0);
+        failedCheckpoints.set(0);
+        checkpointSequence.set(0);
+    }
+
+    /**
+     * Resolves the current test class from the per-thread report context, best-effort. Identity
+     * lookup must never prevent a checkpoint from being recorded, so any failure yields {@code ""}.
+     *
+     * @return the current test class name, or {@code ""} when unavailable
+     */
+    private static String currentTestClass() {
+        try {
+            return ReportContext.getTestClassName();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /**
+     * Resolves the current test method from the per-thread report context, best-effort.
+     *
+     * @return the current test method name, or {@code ""} when unavailable
+     */
+    private static String currentTestMethod() {
+        try {
+            return ReportContext.getTestMethodName();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /**
+     * Attaches the accumulated checkpoint summary HTML report to the current report context.
+     *
+     * <p>If no checkpoints were recorded, this method does nothing.
+     */
+    public static void attach() {
+        String overviewHtml = overviewReportHtml();
+        if (overviewHtml.isEmpty()) {
+            return;
+        }
+        ReportManagerHelper.attach("HTML", "SHAFT Overview", overviewHtml);
+        attachCheckpointsJson();
+    }
+
+    /**
+     * Builds the full standalone "SHAFT Overview" HTML document from the accumulated checkpoints
+     * (summary metrics, per-type breakdown, and the filterable checkpoint-details table), or an
+     * empty string when no checkpoints were recorded.
+     *
+     * <p>Shared by the Allure HTML attachment ({@link #attach()}) and the embedded overview panel
+     * that {@code AllureManager} patches into the generated Allure report (issue #3534 P2), so both
+     * surfaces render from the exact same data instead of drifting apart.
+     *
+     * @return the built HTML document, or {@code ""} when {@link #checkpoints} is empty
+     */
+    static String overviewReportHtml() {
+        if (checkpoints.isEmpty()) {
+            return "";
+        }
+        String checkpointsDetails = checkpointDetailsHtml();
+
+        long assertionsPassed = typeStatusCount(ASSERTION, PASS);
+        long assertionsFailed = typeStatusCount(ASSERTION, FAIL);
+        long verificationsPassed = typeStatusCount(VERIFICATION, PASS);
+        long verificationsFailed = typeStatusCount(VERIFICATION, FAIL);
+
+        return HTMLHelper.CHECKPOINT_COUNTER.getValue()
+                .replace("${CHECKPOINTS_PASSED_PERCENTAGE_LABEL}", String.valueOf(Math.round(passedCheckpoints.get() * 100d / checkpoints.size())))
+                .replace("${CHECKPOINTS_PASSED_DEGREES}", String.valueOf(passedCheckpoints.get() * 360d / checkpoints.size()))
+                .replace("${CHECKPOINTS_TOTAL}", String.valueOf(checkpoints.size()))
+                .replace("${CHECKPOINTS_PASSED}", String.valueOf(passedCheckpoints.get()))
+                .replace("${CHECKPOINTS_FAILED}", String.valueOf(failedCheckpoints.get()))
+                .replace("${TRACES_CAPTURED}", String.valueOf(capturedTraceCount()))
+                .replace("${ASSERTIONS_PASSED}", String.valueOf(assertionsPassed))
+                .replace("${ASSERTIONS_FAILED}", String.valueOf(assertionsFailed))
+                .replace("${ASSERTIONS_TOTAL}", String.valueOf(assertionsPassed + assertionsFailed))
+                .replace("${VERIFICATIONS_PASSED}", String.valueOf(verificationsPassed))
+                .replace("${VERIFICATIONS_FAILED}", String.valueOf(verificationsFailed))
+                .replace("${VERIFICATIONS_TOTAL}", String.valueOf(verificationsPassed + verificationsFailed))
+                .replace("${CHECKPOINTS_TEST_OPTIONS}", checkpointTestFilterOptions())
+                .replace("${CHECKPOINTS_DETAILS}", checkpointsDetails);
+    }
+
+    /**
+     * Builds the {@code <tr>} rows for the checkpoint-browser details table, one per checkpoint.
+     * Each row carries its stable id and the owning test's {@code class#method} identity (a
+     * {@code data-test} attribute plus a visible "Test" cell), so the report attributes every
+     * checkpoint to its test and can later filter or "jump to test" by it; a checkpoint with no
+     * captured identity (suite-level) shows "(suite)". Package-visible so it can be unit-tested
+     * without publishing an Allure attachment (issue #3534 checkpoint browser).
+     *
+     * @return the concatenated table-row HTML
+     */
+    static String checkpointDetailsHtml() {
+        StringBuilder detailsBuilder = new StringBuilder();
+        for (CheckpointEntry entry : checkpoints) {
+            String testId = entry.testId();
+            detailsBuilder.append(String.format(
+                    HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(),
+                    entry.status(),
+                    ReportHtmlTheme.escapeHtml(testId),
+                    entry.id(),
+                    testCellHtml(testId),
+                    ReportHtmlTheme.escapeHtml(entry.type()),
+                    ReportHtmlTheme.escapeHtml(entry.message()),
+                    ReportHtmlTheme.statusClass(entry.status()),
+                    entry.status()));
+        }
+        return detailsBuilder.toString();
+    }
+
+    /**
+     * Builds the inner HTML for a checkpoint row's "Test" cell. A checkpoint with an owning test
+     * renders a "jump to test" control: a link-styled button that, on click, focuses the details
+     * table on that test (it reads the row's {@code data-test} in the browser, so no identifier is
+     * embedded in JavaScript and nothing needs script-escaping). A suite-level checkpoint (no
+     * captured identity) renders plain "(suite)" text (issue #3534 checkpoint browser).
+     *
+     * @param testId the owning test's {@code class#method} id, or {@code ""} for suite-level
+     * @return the escaped inner HTML for the Test cell
+     */
+    private static String testCellHtml(String testId) {
+        if (testId.isEmpty()) {
+            return "(suite)";
+        }
+        return "<button type=\"button\" class=\"checkpoint-test-link\" onclick=\"shaftFocusTestFromCell(this)\">"
+                + ReportHtmlTheme.escapeHtml(testId) + "</button>";
+    }
+
+    /**
+     * Builds the {@code <option>} list for the checkpoint-browser "filter by test" control: one
+     * option per distinct owning test id, in first-seen order, so a reader can narrow the details
+     * table to a single test. Suite-level checkpoints (no captured identity) have no option and are
+     * shown only under "All tests". Package-visible for unit testing (issue #3534 checkpoint browser).
+     *
+     * @return the concatenated {@code <option>} HTML (empty when no checkpoint carries a test id)
+     */
+    static String checkpointTestFilterOptions() {
+        java.util.LinkedHashSet<String> testIds = new java.util.LinkedHashSet<>();
+        for (CheckpointEntry entry : checkpoints) {
+            String testId = entry.testId();
+            if (!testId.isEmpty()) {
+                testIds.add(testId);
+            }
+        }
+        StringBuilder options = new StringBuilder();
+        for (String testId : testIds) {
+            String escaped = ReportHtmlTheme.escapeHtml(testId);
+            options.append("<option value=\"").append(escaped).append("\">").append(escaped).append("</option>");
+        }
+        return options.toString();
+    }
+
+    private static final String ASSERTION = CheckpointType.ASSERTION.toString();
+    private static final String VERIFICATION = CheckpointType.VERIFICATION.toString();
+    private static final String PASS = CheckpointStatus.PASS.toString();
+    private static final String FAIL = CheckpointStatus.FAIL.toString();
+
+    /**
+     * Counts checkpoints of a given type ({@code ASSERTION}/{@code VERIFICATION}) with a given
+     * status ({@code PASS}/{@code FAIL}) from the accumulated list, for the per-type breakdown.
+     *
+     * @param type the checkpoint type string
+     * @param status the checkpoint status string
+     * @return the number of matching checkpoints
+     */
+    static long typeStatusCount(String type, String status) {
+        return checkpoints.stream()
+                .filter(entry -> entry.type().equals(type) && entry.status().equals(status))
+                .count();
+    }
+
+    /**
+     * Attaches a machine-readable JSON view of the accumulated checkpoints alongside the HTML
+     * overview, so Doctor / MCP and the #3504 plugin widgets can consume structured checkpoint
+     * fields (id, type, message, status) instead of scraping the HTML report (issue #3516 D).
+     */
+    static void attachCheckpointsJson() {
+        ReportManagerHelper.attach("json", "Checkpoints", checkpointsJson());
+    }
+
+    /**
+     * Builds the machine-readable checkpoint payload (totals plus one row per checkpoint with a
+     * stable id, owning test identity, type, message, and status). The stable id and {@code testId}
+     * let Doctor / MCP and the report checkpoint-browser correlate and deep-link a checkpoint to its
+     * test across attaches (issues #3532 D / #3534 P3).
+     *
+     * @return the pretty-printed JSON payload
+     */
+    static String checkpointsJson() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (CheckpointEntry entry : checkpoints) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", entry.id());
+            row.put("testId", entry.testId());
+            row.put("testClass", entry.testClass());
+            row.put("testMethod", entry.testMethod());
+            row.put("type", entry.type());
+            row.put("message", entry.message());
+            row.put("status", entry.status());
+            rows.add(row);
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("total", checkpoints.size());
+        payload.put("passed", passedCheckpoints.get());
+        payload.put("failed", failedCheckpoints.get());
+        payload.put("byType", Map.of(
+                "assertion", Map.of("passed", typeStatusCount(ASSERTION, PASS), "failed", typeStatusCount(ASSERTION, FAIL)),
+                "verification", Map.of("passed", typeStatusCount(VERIFICATION, PASS), "failed", typeStatusCount(VERIFICATION, FAIL))));
+        payload.put("checkpoints", rows);
+        return new GsonBuilder().setPrettyPrinting().create().toJson(payload);
+    }
+
+    /**
+     * Counts persisted SHAFT trace directories (issue #3504 overview KPI, wired to the retry-aware
+     * traces from #3503) so the report answers "how many failing attempts left a timeline?" at a
+     * glance. Best-effort: any IO issue reports zero rather than failing report generation.
+     *
+     * @return number of per-test trace directories under {@code target/shaft-traces}
+     */
+    private static long capturedTraceCount() {
+        java.nio.file.Path tracesRoot = java.nio.file.Path.of("target", "shaft-traces");
+        if (!java.nio.file.Files.isDirectory(tracesRoot)) {
+            return 0;
+        }
+        try (var entries = java.nio.file.Files.list(tracesRoot)) {
+            return entries.filter(java.nio.file.Files::isDirectory).count();
+        } catch (java.io.IOException | RuntimeException e) {
+            return 0;
+        }
+    }
+}

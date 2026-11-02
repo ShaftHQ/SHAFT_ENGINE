@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Change Verification"
+  short_description: "Guardrail and verify SHAFT changes"
+  default_prompt: "Use $shaft-change-verification to preview, check, apply, and verify this SHAFT change."

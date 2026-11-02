@@ -1,0 +1,1 @@
+MemPalace 3.7.0 treats --palace and --backend as global flags that must precede status/search. assertIn on those tokens stays green if the flags move after the subcommand and operators hit the default palace. #5075 / #5074 pin order by tokenizing the executed fake argv. No production change was required; run_mempalace already places flags first.

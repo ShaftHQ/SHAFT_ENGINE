@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/babysit-must-detect-merged-state.md",
+  "content_hash": "sha256:30dfbad01182c38d8c15f5359b9be2ba0ac96b306268c936bddad82c2fe7c801",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.babysit-must-detect-merged-state",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "merge-queue",
+    "babysit"
+  ],
+  "title": "PR babysitters must read the PR state and exit 0 on MERGED",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T19:25:20+03:00"
+}

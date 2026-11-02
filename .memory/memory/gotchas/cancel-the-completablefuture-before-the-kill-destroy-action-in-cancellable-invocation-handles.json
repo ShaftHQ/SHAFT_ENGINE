@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/cancel-the-completablefuture-before-the-kill-destroy-action-in-cancellable-invocation-handles.md",
+  "content_hash": "sha256:52a722439bb5e19d98efb6a968809af4bac9a25b63aa5ba6b02eeecf3f1e7a59",
+  "created_at": "2026-07-19T11:59:34+03:00",
+  "evidence": [
+    {
+      "id": "31c69fa32bd360e67e7474f9f075ee5d35f2dee0",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.cancel-the-completablefuture-before-the-kill-destroy-action-in-cancellable-invocation-handles",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ streaming perf (#3751 part 2) + docs revamp phase 1 (#822)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "concurrency",
+    "completablefuture",
+    "flaky-test"
+  ],
+  "title": "Cancel the CompletableFuture BEFORE the kill/destroy action in cancellable invocation handles",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

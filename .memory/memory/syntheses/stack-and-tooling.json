@@ -1,0 +1,43 @@
+{
+  "body_path": "memory/syntheses/stack-and-tooling.md",
+  "content_hash": "sha256:38daf4064d9ebb8bdaaad7e753efee44699711291b845bf13142be385db6761d",
+  "created_at": "2026-07-29T16:42:05+03:00",
+  "evidence": [
+    {
+      "id": "pom.xml",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/build.gradle.kts",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/gradle/wrapper/gradle-wrapper.properties",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_agent_setup.py",
+      "kind": "file"
+    },
+    {
+      "id": "source.agents",
+      "kind": "source"
+    }
+  ],
+  "id": "feature.stack-and-tooling",
+  "source": {
+    "kind": "agent",
+    "task": "Fill Repository Map and Stack / Tooling role-coverage gaps from current repo state (#4358)"
+  },
+  "status": "active",
+  "tags": [
+    "synthesis",
+    "stack",
+    "tooling",
+    "maven",
+    "java"
+  ],
+  "title": "Stack and tooling",
+  "type": "feature",
+  "updated_at": "2026-08-01T21:02:32+03:00"
+}

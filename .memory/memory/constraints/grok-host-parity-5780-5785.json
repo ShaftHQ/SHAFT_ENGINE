@@ -1,0 +1,56 @@
+{
+  "body_path": "memory/constraints/grok-host-parity-5780-5785.md",
+  "content_hash": "sha256:d09191cfbe063583944fdb1b18651992c04fdfc557167f96db0572a453c87dd9",
+  "created_at": "2026-09-14T20:42:45+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5780",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5781",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5782",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5783",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5784",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5785",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5779",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5786",
+      "kind": "source"
+    }
+  ],
+  "id": "gotcha.grok-host-parity-5780-5785",
+  "source": {
+    "kind": "agent",
+    "task": "Grok host parity CLI-over-MCP portable maven learn_traces"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "host-parity",
+    "cli-over-mcp",
+    "grok",
+    "maven-tools",
+    "permanent"
+  ],
+  "title": "Grok host parity and CLI-over-MCP (#5780\u2013#5785)",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T20:42:45+03:00"
+}

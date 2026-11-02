@@ -1,0 +1,1 @@
+Add it to a harness_pr_gate.py Check, to pr-gate.yml paths and to agent-plugin-acceptance.yml modules; parity json check must be 'file.py::test_method' (no class segment).

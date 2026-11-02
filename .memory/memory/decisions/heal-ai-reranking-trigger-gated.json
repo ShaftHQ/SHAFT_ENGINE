@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/decisions/heal-ai-reranking-trigger-gated.md",
+  "content_hash": "sha256:b6ee9a0938cea0567917bdea9b516ebb8247a73b6224fa0fab35425f386ec539",
+  "created_at": "2026-06-18T13:59:56+03:00",
+  "evidence": [
+    {
+      "id": "shaft-heal/src/main/java/com/shaft/heal/internal/ShaftHealingProvider.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/main/resources/properties/default/custom.properties",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.heal-ai-reranking-trigger-gated",
+  "source": {
+    "kind": "agent",
+    "task": "Implement deterministic-first AI enhancement artifacts for SHAFT test lifecycle"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Heal AI reranking is trigger-gated",
+  "type": "decision",
+  "updated_at": "2026-06-18T13:59:56+03:00"
+}

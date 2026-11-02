@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "fixture": "browserstack-sdk",
+  "rootCoordinate": "io.github.shafthq:shaft-browserstack:10.2.20260605",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "artifactCount": 310,
+  "artifactBytes": 208151248,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 236426335,
+  "repositoryGrowthBytes": 235613827,
+  "elapsedSeconds": 63.801,
+  "artifactsRef": "artifacts-browserstack-sdk.json"
+}

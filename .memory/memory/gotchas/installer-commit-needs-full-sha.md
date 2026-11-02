@@ -1,0 +1,1 @@
+`chaos-engine/install.py install --commit HEAD` used to fail with the misleading "ChaosEngine source record is invalid". Pass `--commit $(git rev-parse HEAD)`. Since #7089 a non-sha `--commit` is refused up front with that hint (`validate_install_options`, test `test_chaos_engine_install_commit_ref.py`).

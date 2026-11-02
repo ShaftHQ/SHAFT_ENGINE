@@ -1,0 +1,1 @@
+Issue #3204 final pass removes visible text from SHAFT-owned IntelliJ plugin JButtons, including the command-help control. Combo boxes, labels, and checkboxes keep visible text. Icon-only controls must retain nonblank tooltips and accessible names; shared tests in ShaftPanelSetupTest and ShaftSettingsConfigurableTest enforce this.

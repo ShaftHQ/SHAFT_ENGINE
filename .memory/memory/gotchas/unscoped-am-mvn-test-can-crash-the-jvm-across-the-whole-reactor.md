@@ -1,0 +1,1 @@
+Running `mvn -pl <modules> -am test` without `-Dtest=` executes the test phase for upstream reactor modules and has crashed the JVM. Compile with `-am` if needed, but scope test execution with `-Dtest=<SpecificClass>` or use `-pl <module>` without `-am`; browser-capable tests stay headless. `scripts/agents/guard.py` enforces this through R1 for every configured host.

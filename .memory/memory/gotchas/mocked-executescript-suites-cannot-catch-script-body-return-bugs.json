@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/mocked-executescript-suites-cannot-catch-script-body-return-bugs.md",
+  "content_hash": "sha256:1a225e76135192683ce67b0a9478d9051587bd7fef4c811435d8fdd59c1033b1",
+  "created_at": "2026-07-19T16:03:11+03:00",
+  "evidence": [
+    {
+      "id": "88f85f864859ff59a10edcc0784f5c41328db576",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.mocked-executescript-suites-cannot-catch-script-body-return-bugs",
+  "source": {
+    "kind": "agent",
+    "task": "3749 increment D integration"
+  },
+  "status": "active",
+  "tags": [
+    "selenium",
+    "execute-script",
+    "readiness",
+    "unit-test-blind-spot",
+    "javascript-helper"
+  ],
+  "title": "Mocked executeScript suites cannot catch script-body return bugs",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:55:58+03:00"
+}

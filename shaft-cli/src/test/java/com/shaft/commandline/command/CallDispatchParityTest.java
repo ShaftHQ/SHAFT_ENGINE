@@ -1,0 +1,186 @@
+package com.shaft.commandline.command;
+
+import com.shaft.commandline.runtime.McpConnector;
+import com.shaft.commandline.testsupport.FakeMcpServer;
+import com.shaft.commandline.testsupport.InProcessMcp;
+import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Parity contract: the generic {@code call} command dispatches to any tool name advertised by
+ * {@code tools/list}, including names the CLI never hard-coded. Exercises the real picocli command
+ * wiring end-to-end against the in-process fake server.
+ */
+class CallDispatchParityTest {
+
+    private final McpConnector connector = InProcessMcp.connector();
+
+    @Test
+    void toolsListsArbitraryToolName() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new ToolsCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute();
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains(FakeMcpServer.ARBITRARY_TOOL),
+                "tools output should list the arbitrary tool name");
+    }
+
+    @Test
+    void callDispatchesArbitraryToolName() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new CallCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute(FakeMcpServer.ARBITRARY_TOOL, "key=value");
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called " + FakeMcpServer.ARBITRARY_TOOL),
+                "generic call should dispatch an arbitrary tool name");
+        assertTrue(out.toString().contains("value"), "arguments should reach the tool");
+    }
+
+    @Test
+    void callReturnsNonZeroOnToolError() {
+        int exit = new CommandLine(new CallCommand(connector))
+                .setOut(new PrintWriter(new StringWriter(), true))
+                .setErr(new PrintWriter(new StringWriter(), true))
+                .execute(FakeMcpServer.FAILING_TOOL);
+        assertEquals(1, exit);
+    }
+
+    @Test
+    void callRendersRawJsonWhenRequested() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new CallCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute(FakeMcpServer.ECHO_TOOL, "--json", "value=hi");
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("\"content\""), "raw output should include the JSON result");
+    }
+
+    @Test
+    void doctorLocalAiStatusAliasDispatchesTheReadOnlyStatusTool() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DoctorCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("local-ai-status");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called doctor_managed_local_ai_status"));
+    }
+
+    @Test
+    void designIngestAliasDispatchesDesignIngest() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("ingest", "text=As a shopper I want to check out");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_ingest"));
+    }
+
+    @Test
+    void designAnalyzeAliasDispatchesDesignAnalyze() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("analyze", "text=Test everything at https://example.com");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_analyze"));
+    }
+
+    @Test
+    void designGherkinAliasDispatchesDesignGherkinDraft() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("gherkin", "text=As a shopper I want to check out");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_gherkin_draft"));
+    }
+
+    @Test
+    void designExamplesAliasDispatchesDesignExamples() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("examples", "text=As a shopper I want a discount");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_examples"));
+    }
+
+    @Test
+    void designLexiconAliasDispatchesDesignLexicon() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("lexicon", "action=suggest", "query=log in");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_lexicon"));
+    }
+
+    @Test
+    void designCoverageAliasDispatchesDesignCoverage() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("coverage", "text=As a shopper I want to check out");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_coverage"));
+    }
+
+    @Test
+    void designLintAliasDispatchesDesignLint() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("lint", "gherkin=Feature: x");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_lint"));
+    }
+
+    @Test
+    void designGapMapAliasDispatchesDesignGapMap() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("gap-map", "gherkin=Feature: x\n  Scenario: s\n    Then total should equal 1");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_gap_map"));
+    }
+    @Test
+    void designReadinessAliasDispatchesDesignReadiness() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("readiness", "text=As a shopper\nI want x\nso that y\n- Then done", "accept=false");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_readiness"));
+    }
+
+    @Test
+    void designHandoffAliasDispatchesDesignHandoff() {
+        StringWriter out = new StringWriter();
+        int exit = new CommandLine(new DesignCommand(connector))
+                .setOut(new PrintWriter(out, true))
+                .execute("handoff", "text=As a shopper\nI want x\nso that y\n- Then done", "accept=false");
+
+        assertEquals(0, exit);
+        assertTrue(out.toString().contains("called design_handoff"));
+    }
+
+}

@@ -1,0 +1,83 @@
+name: Publish IntelliJ Plugin
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-intellij-plugin
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    # Room for the one retry the verification half of intellij-verify now takes
+    # when the JetBrains host refuses a connect (issue #4494). Publish is a
+    # separate job so this budget cannot cancel Marketplace upload.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate release metadata
+        run: python3 scripts/ci/validate_shaft_pilot_release.py
+      - name: Verify IntelliJ plugin
+        uses: ./.github/actions/intellij-verify
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: publish-intellij-plugin
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    # Own budget for sign and Marketplace upload. Never wrap that upload in
+    # the verify retry helper: a Marketplace version number is single-use.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Publish to JetBrains Marketplace
+        uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+          verify: 'false'
+          marketplace-token: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
+          private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
+          private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+      # #7044: additive provenance after the single-use Marketplace upload.
+      - name: Attest plugin provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: shaft-intellij/build/distributions/*.zip
+
+  notify-missed-publish:
+    name: Fail closed on missed Marketplace publish
+    needs: [verify, publish]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File a dedicated miss issue when a release does not publish
+        uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          verify-result: ${{ needs.verify.result }}
+          publish-result: ${{ needs.publish.result }}
+          manage-tracker: 'false'
+          label: intellij-marketplace-publish-miss

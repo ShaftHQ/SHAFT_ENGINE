@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null.md",
+  "content_hash": "sha256:76ce20f92443d8c553c991ad338817d499922c4e4c8e9cc0c380131510e946a8",
+  "created_at": "2026-08-20T04:40:49+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5263",
+      "kind": "task"
+    },
+    {
+      "id": "cff59f8a51417dd1347743413db7c76cd621d926",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.unselected-intellij-combo-selecteditem-is-null-string-valueof-paints-literal-null",
+  "source": {
+    "kind": "agent",
+    "task": "Record #5263 unselected JComboBox display gotcha after implementing Select an option wording"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "combo",
+    "unselected-agent"
+  ],
+  "title": "Unselected IntelliJ combo selectedItem is null; String.valueOf paints literal null",
+  "type": "gotcha",
+  "updated_at": "2026-08-20T04:40:49+03:00"
+}

@@ -1,0 +1,2686 @@
+{
+  "tools" : [ {
+    "name" : "trace_latest",
+    "description" : "returns recent persisted SHAFT trace indexes from target/shaft-traces",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "maxResults" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxResults" ]
+    }
+  }, {
+    "name" : "capture_target_candidates",
+    "description" : "suggests existing Java Page Object or test targets for Capture record-at-target insertion",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryPath" : {
+          "type" : "string"
+        },
+        "maxResults" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "repositoryPath", "maxResults" ]
+    }
+  }, {
+    "name" : "mobile_get_contexts",
+    "description" : "gets Appium contexts plus current native XML or web DOM source",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "maxCharacters" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxCharacters" ]
+    }
+  }, {
+    "name" : "doctor_propose_healed_locator",
+    "description" : "maps a verified SHAFT Heal report to one reviewable locator patch without editing source or publishing",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "healingReportPath" : {
+          "type" : "string"
+        },
+        "sourcePath" : {
+          "type" : "string"
+        },
+        "sourcePatchConsent" : {
+          "type" : "boolean"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "repositoryRoot", "healingReportPath", "sourcePath", "sourcePatchConsent", "outputDirectory" ]
+    }
+  }, {
+    "name" : "mobile_type",
+    "description" : "types a value into a mobile element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "mobile_swipe_text_into_view",
+    "description" : "swipes to text using SHAFT Android UiScrollable support",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetText" : {
+          "type" : "string"
+        },
+        "movement" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "targetText", "movement" ]
+    }
+  }, {
+    "name" : "playwright_initialize",
+    "description" : "launches a SHAFT Playwright browser",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "browser" : {
+          "type" : "string"
+        },
+        "headless" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "browser", "headless" ]
+    }
+  }, {
+    "name" : "mobile_swipe_coordinates",
+    "description" : "fallback-only: swipes viewport coordinates only after locator-based mobile_swipe_by_offset cannot be used",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "startX" : {
+          "type" : "integer"
+        },
+        "startY" : {
+          "type" : "integer"
+        },
+        "endX" : {
+          "type" : "integer"
+        },
+        "endY" : {
+          "type" : "integer"
+        },
+        "durationMillis" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "startX", "startY", "endX", "endY", "durationMillis" ]
+    }
+  }, {
+    "name" : "playwright_doctor_suggest_fix",
+    "description" : "returns SHAFT Playwright remediation code blocks from an existing Doctor report",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "jsonReportPath" : {
+          "type" : "string"
+        },
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "jsonReportPath", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_inspector_record_prepare",
+    "description" : "prepares a wrapped Appium Inspector mobile recording plan with device and dependency details",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "platformName" : {
+          "type" : "string"
+        },
+        "outputPath" : {
+          "type" : "string"
+        },
+        "includeSensitiveValues" : {
+          "type" : "boolean"
+        },
+        "app" : {
+          "type" : "string"
+        },
+        "appPackage" : {
+          "type" : "string"
+        },
+        "appActivity" : {
+          "type" : "string"
+        },
+        "bundleId" : {
+          "type" : "string"
+        },
+        "udid" : {
+          "type" : "string"
+        },
+        "deviceName" : {
+          "type" : "string"
+        },
+        "platformVersion" : {
+          "type" : "string"
+        },
+        "selectedAndroidAvdName" : {
+          "type" : "string"
+        },
+        "androidApiLevel" : {
+          "type" : "integer"
+        },
+        "androidDeviceProfile" : {
+          "type" : "string"
+        },
+        "androidImageTag" : {
+          "type" : "string"
+        },
+        "androidAbi" : {
+          "type" : "string"
+        },
+        "androidRamMb" : {
+          "type" : "integer"
+        },
+        "androidCores" : {
+          "type" : "integer"
+        },
+        "provisionAndroidEmulator" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "platformName", "outputPath", "includeSensitiveValues", "app", "appPackage", "appActivity", "bundleId", "udid", "deviceName", "platformVersion", "selectedAndroidAvdName", "androidApiLevel", "androidDeviceProfile", "androidImageTag", "androidAbi", "androidRamMb", "androidCores", "provisionAndroidEmulator" ]
+    }
+  }, {
+    "name" : "element_is_selected",
+    "description" : "checks if an element is selected",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "browser_set_window_size",
+    "description" : "sets the browser window to a specific size",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "width" : {
+          "type" : "integer"
+        },
+        "height" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "width", "height" ]
+    }
+  }, {
+    "name" : "playwright_element_clear",
+    "description" : "clears an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_browser_refresh",
+    "description" : "refreshes the SHAFT Playwright page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "autobot_provider_status",
+    "description" : "reports the configured SHAFT cloud provider, model, API-key presence (never the value), and structured-output support for the IntelliJ readiness view",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "provider" : {
+          "type" : "string"
+        },
+        "model" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "provider", "model" ]
+    }
+  }, {
+    "name" : "playwright_browser_get_page_dom",
+    "description" : "gets the current SHAFT Playwright page DOM for browser automation inspection",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "maxCharacters" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxCharacters" ]
+    }
+  }, {
+    "name" : "browser_fullscreen_window",
+    "description" : "sets the browser window to fullscreen mode",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "element_drop_file_to_upload",
+    "description" : "drops file to an element to upload",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "filePath" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "filePath" ]
+    }
+  }, {
+    "name" : "mobile_tap",
+    "description" : "taps a mobile element using SHAFT touch actions",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_healer_run_failed_test",
+    "description" : "reruns a failing SHAFT Playwright test, analyzes fresh Allure evidence, and returns review-only fixes plus agent replay guidance",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "testCommand" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "maxAttempts" : {
+          "type" : "integer"
+        },
+        "includeScreenshots" : {
+          "type" : "boolean"
+        },
+        "includePageSnapshots" : {
+          "type" : "boolean"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "networkValidationApproved" : {
+          "type" : "boolean"
+        },
+        "useConfiguredAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "repositoryRoot", "testCommand", "outputDirectory", "maxAttempts", "includeScreenshots", "includePageSnapshots", "allowedSourcePaths", "networkValidationApproved", "useConfiguredAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "playwright_doctor_analyze_failed_allure",
+    "description" : "analyzes failed Allure results and returns SHAFT Playwright remediation code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "allureResultPaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "historicalBundlePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "includeScreenshots" : {
+          "type" : "boolean"
+        },
+        "includePageSnapshots" : {
+          "type" : "boolean"
+        },
+        "minimumAllureResults" : {
+          "type" : "integer"
+        },
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "allureResultPaths", "historicalBundlePaths", "outputDirectory", "includeScreenshots", "includePageSnapshots", "minimumAllureResults", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "playwright_element_type_semantic",
+    "description" : "types value into an element by human-readable name using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "elementName" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "elementName", "textValue" ]
+    }
+  }, {
+    "name" : "element_click_and_hold",
+    "description" : "clicks and holds an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_element_upload_file",
+    "description" : "uploads a file through an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "filePath" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "filePath" ]
+    }
+  }, {
+    "name" : "playwright_record_status",
+    "description" : "returns the active MCP Playwright recording status",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "driver_initialize",
+    "description" : "launches browser",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetBrowser" : {
+          "type" : "string",
+          "enum" : [ "CHROME", "FIREFOX", "SAFARI", "EDGE" ]
+        }
+      },
+      "required" : [ "targetBrowser" ]
+    }
+  }, {
+    "name" : "mobile_initialize_native",
+    "description" : "starts a real Android or iOS native Appium session using SHAFT driver setup",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "platformName" : {
+          "type" : "string"
+        },
+        "deviceName" : {
+          "type" : "string"
+        },
+        "appiumServerUrl" : {
+          "type" : "string"
+        },
+        "automationName" : {
+          "type" : "string"
+        },
+        "platformVersion" : {
+          "type" : "string"
+        },
+        "udid" : {
+          "type" : "string"
+        },
+        "app" : {
+          "type" : "string"
+        },
+        "appPackage" : {
+          "type" : "string"
+        },
+        "appActivity" : {
+          "type" : "string"
+        },
+        "bundleId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "platformName", "deviceName", "appiumServerUrl", "automationName", "platformVersion", "udid", "app", "appPackage", "appActivity", "bundleId" ]
+    }
+  }, {
+    "name" : "playwright_recording_code_blocks",
+    "description" : "generates reusable copy-paste SHAFT Playwright replay code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "recordingPath" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "recordingPath", "driverVariableName" ]
+    }
+  }, {
+    "name" : "capture_start_codegen",
+    "description" : "starts SHAFT Capture with Playwright-codegen-compatible options and live browser controls",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "request" : {
+          "type" : "object",
+          "properties" : {
+            "blockServiceWorkers" : {
+              "type" : "boolean"
+            },
+            "browser" : {
+              "type" : "string"
+            },
+            "channel" : {
+              "type" : "string"
+            },
+            "colorScheme" : {
+              "type" : "string"
+            },
+            "deviceName" : {
+              "type" : "string"
+            },
+            "geolocation" : {
+              "type" : "string"
+            },
+            "headless" : {
+              "type" : "boolean"
+            },
+            "ignoreHttpsErrors" : {
+              "type" : "boolean"
+            },
+            "language" : {
+              "type" : "string"
+            },
+            "loadStoragePath" : {
+              "type" : "string"
+            },
+            "outputPath" : {
+              "type" : "string"
+            },
+            "proxyBypass" : {
+              "type" : "string"
+            },
+            "proxyServer" : {
+              "type" : "string"
+            },
+            "saveHarGlob" : {
+              "type" : "string"
+            },
+            "saveHarPath" : {
+              "type" : "string"
+            },
+            "saveStoragePath" : {
+              "type" : "string"
+            },
+            "sessionGoal" : {
+              "type" : "string"
+            },
+            "targetLanguage" : {
+              "type" : "string"
+            },
+            "targetUrl" : {
+              "type" : "string"
+            },
+            "testIdAttribute" : {
+              "type" : "string"
+            },
+            "timeoutMillis" : {
+              "type" : "integer",
+              "format" : "int64"
+            },
+            "timezone" : {
+              "type" : "string"
+            },
+            "userAgent" : {
+              "type" : "string"
+            },
+            "userDataDirectory" : {
+              "type" : "string"
+            },
+            "viewportSize" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "blockServiceWorkers", "browser", "channel", "colorScheme", "deviceName", "geolocation", "headless", "ignoreHttpsErrors", "language", "loadStoragePath", "outputPath", "proxyBypass", "proxyServer", "saveHarGlob", "saveHarPath", "saveStoragePath", "sessionGoal", "targetLanguage", "targetUrl", "testIdAttribute", "timeoutMillis", "timezone", "userAgent", "userDataDirectory", "viewportSize" ],
+          "additionalProperties" : false
+        }
+      },
+      "required" : [ "request" ]
+    }
+  }, {
+    "name" : "playwright_browser_get_current_url",
+    "description" : "gets current SHAFT Playwright page URL",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "playwright_element_click",
+    "description" : "clicks an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "element_click_js",
+    "description" : "clicks an element using JavaScript",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "browser_get_page_dom",
+    "description" : "returns bounded current-page DOM for locator inspection before element_* or natural_act",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "maxCharacters" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxCharacters" ]
+    }
+  }, {
+    "name" : "browser_navigate_forward",
+    "description" : "navigates forward to the next page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "autobot_provider_chat",
+    "description" : "routes Ask or Plan requests to configured SHAFT cloud providers without source mutation",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "provider" : {
+          "type" : "string"
+        },
+        "model" : {
+          "type" : "string"
+        },
+        "mode" : {
+          "type" : "string"
+        },
+        "prompt" : {
+          "type" : "string"
+        },
+        "workingDirectory" : {
+          "type" : "string"
+        },
+        "timeoutSeconds" : {
+          "type" : "integer"
+        },
+        "allowSourceMutation" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "provider", "model", "mode", "prompt", "workingDirectory", "timeoutSeconds", "allowSourceMutation" ]
+    }
+  }, {
+    "name" : "element_set_value_js",
+    "description" : "sets value to an element using JavaScript",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "doctor_suggest_fix",
+    "description" : "returns copy-paste remediation code blocks from an existing SHAFT Doctor report",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "jsonReportPath" : {
+          "type" : "string"
+        },
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "jsonReportPath", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "element_is_displayed",
+    "description" : "checks if an element is displayed",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "capture_codegen_features",
+    "description" : "returns Playwright codegen features and how SHAFT Capture/MCP maps each feature",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "element_type",
+    "description" : "types value to an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "test_automation_scenarios",
+    "description" : "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails, and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "area" : {
+          "type" : "string"
+        },
+        "intent" : {
+          "type" : "string"
+        },
+        "maxResults" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "area", "intent", "maxResults" ]
+    }
+  }, {
+    "name" : "shaft_coding_partner_diff",
+    "description" : "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target at a chosen method or textual anchor; never writes files",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryPath" : {
+          "type" : "string"
+        },
+        "targetSourcePath" : {
+          "type" : "string"
+        },
+        "codeBlocks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "insertionAnchor" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "repositoryPath", "targetSourcePath", "codeBlocks", "insertionAnchor" ]
+    }
+  }, {
+    "name" : "shaft_coding_partner_plan",
+    "description" : "plans a repository-aware SHAFT IntelliJ coding-partner workflow using current source, selected text, existing page objects/tests, capture evidence, and verification guidance",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryPath" : {
+          "type" : "string"
+        },
+        "intent" : {
+          "type" : "string"
+        },
+        "backend" : {
+          "type" : "string"
+        },
+        "currentSourcePath" : {
+          "type" : "string"
+        },
+        "selectedText" : {
+          "type" : "string"
+        },
+        "artifactPaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "maxResults" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "repositoryPath", "intent", "backend", "currentSourcePath", "selectedText", "artifactPaths", "maxResults" ]
+    }
+  }, {
+    "name" : "playwright_quit",
+    "description" : "closes the active SHAFT Playwright browser",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "natural_act",
+    "description" : "performs a trust-gated natural-language browser, element, or touch action on the active page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "intent" : {
+          "type" : "string"
+        },
+        "arguments" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "minimumTrustPercentage" : {
+          "type" : "integer"
+        },
+        "planner" : {
+          "type" : "string"
+        },
+        "aiFallbackEnabled" : {
+          "type" : "boolean"
+        },
+        "allowedActions" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "intent", "arguments", "minimumTrustPercentage", "planner", "aiFallbackEnabled", "allowedActions" ]
+    }
+  }, {
+    "name" : "browser_refresh",
+    "description" : "refreshes the current page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "doctor_analyze_failed_allure",
+    "description" : "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "allureResultPaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "historicalBundlePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "includeScreenshots" : {
+          "type" : "boolean"
+        },
+        "includePageSnapshots" : {
+          "type" : "boolean"
+        },
+        "minimumAllureResults" : {
+          "type" : "integer"
+        },
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "allureResultPaths", "historicalBundlePaths", "outputDirectory", "includeScreenshots", "includePageSnapshots", "minimumAllureResults", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_inspector_record_start",
+    "description" : "starts a confirmed wrapped Appium Inspector recording session",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "confirmationToken" : {
+          "type" : "string"
+        },
+        "selectedAndroidAvdName" : {
+          "type" : "string"
+        },
+        "openInspector" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "confirmationToken", "selectedAndroidAvdName", "openInspector" ]
+    }
+  }, {
+    "name" : "mobile_keyboard_key",
+    "description" : "sends a native keyboard action such as DONE, SEARCH, GO, NEXT, or SEND",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "key" ]
+    }
+  }, {
+    "name" : "browser_take_screenshot",
+    "description" : "takes a PNG screenshot of the current browser viewport",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputPath" : {
+          "type" : "string"
+        },
+        "includeBase64" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputPath", "includeBase64" ]
+    }
+  }, {
+    "name" : "playwright_capture_generate_replay",
+    "description" : "generates, compiles, optionally replays, and returns copy-paste SHAFT Playwright code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "replay" : {
+          "type" : "boolean"
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "replay", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "browser_navigate_back",
+    "description" : "navigates back to the previous page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "mobile_record_stop",
+    "description" : "stops MCP mobile recording and optionally discards the JSON file",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "discard" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "discard" ]
+    }
+  }, {
+    "name" : "playwright_browser_navigate_forward",
+    "description" : "navigates the SHAFT Playwright page forward",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "autobot_local_agent_clients",
+    "description" : "lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "playwright_element_append_text",
+    "description" : "appends text to an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "mobile_switch_context",
+    "description" : "switches Appium context, for example NATIVE_APP or WEBVIEW_*",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "contextName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "contextName" ]
+    }
+  }, {
+    "name" : "verify_run_focused",
+    "description" : "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify, package) headlessly inside the MCP workspace and returns a bounded pass/fail summary; release and deploy goals are rejected",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "command" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "networkValidationApproved" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "repositoryRoot", "command", "networkValidationApproved" ]
+    }
+  }, {
+    "name" : "playwright_replay_recording",
+    "description" : "replays an MCP Playwright recording against the active SHAFT Playwright driver",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "recordingPath" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "recordingPath", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_toolchain_status",
+    "description" : "checks local Appium, Inspector, adb, emulator, and SDK tooling status with repair diagnostics",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "platformName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "platformName" ]
+    }
+  }, {
+    "name" : "element_drag_and_drop",
+    "description" : "drags and drops an element from source to target",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sourceLocatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "sourceLocatorValue" : {
+          "type" : "string"
+        },
+        "targetLocatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "targetLocatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sourceLocatorStrategy", "sourceLocatorValue", "targetLocatorStrategy", "targetLocatorValue" ]
+    }
+  }, {
+    "name" : "capture_start",
+    "description" : "starts a privacy-safe SHAFT managed-browser recording with live browser controls",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        },
+        "browser" : {
+          "type" : "string"
+        },
+        "outputPath" : {
+          "type" : "string"
+        },
+        "headless" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "targetUrl", "browser", "outputPath", "headless" ]
+    }
+  }, {
+    "name" : "browser_open_intent",
+    "description" : "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the user intent",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        },
+        "userIntent" : {
+          "type" : "string"
+        },
+        "maxCharacters" : {
+          "type" : "integer"
+        },
+        "maxElements" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "targetUrl", "userIntent", "maxCharacters", "maxElements" ]
+    }
+  }, {
+    "name" : "mobile_activate_app",
+    "description" : "activates an installed app by Android package or iOS bundle id",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "appId" ]
+    }
+  }, {
+    "name" : "playwright_record_stop",
+    "description" : "stops MCP Playwright recording and optionally discards the JSON file",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "discard" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "discard" ]
+    }
+  }, {
+    "name" : "capture_code_blocks",
+    "description" : "generates a Java full-class snippet plus agent guidance for repo-aware insertion",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "driverVariableName" ]
+    }
+  }, {
+    "name" : "element_hover",
+    "description" : "hovers over an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "capture_generate_replay",
+    "description" : "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "replay" : {
+          "type" : "boolean"
+        },
+        "useAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "replay", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "playwright_browser_take_screenshot",
+    "description" : "takes a PNG screenshot of the current SHAFT Playwright page",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputPath" : {
+          "type" : "string"
+        },
+        "includeBase64" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputPath", "includeBase64" ]
+    }
+  }, {
+    "name" : "element_click",
+    "description" : "clicks an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_element_is_enabled",
+    "description" : "checks whether a SHAFT Playwright element is enabled",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "browser_get_title",
+    "description" : "gets current page title",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "mobile_inspector_record_stop",
+    "description" : "stops a wrapped Appium Inspector recording and returns generated replay code",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "discard" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "discard" ]
+    }
+  }, {
+    "name" : "shaft_guide_search",
+    "description" : "searches the live official SHAFT user guide before writing SHAFT tests, page objects, locators, API, GUI, CLI, mobile, troubleshooting, or best-practice code",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "query" : {
+          "type" : "string"
+        },
+        "maxResults" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "query", "maxResults" ]
+    }
+  }, {
+    "name" : "shaft_project_create",
+    "description" : "creates a new SHAFT Maven project from the same examples and rules used by the guide generator",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "runner" : {
+          "type" : "string"
+        },
+        "platform" : {
+          "type" : "string"
+        },
+        "groupId" : {
+          "type" : "string"
+        },
+        "artifactId" : {
+          "type" : "string"
+        },
+        "version" : {
+          "type" : "string"
+        },
+        "shaftVersion" : {
+          "type" : "string"
+        },
+        "optionalModules" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "includeGithubActions" : {
+          "type" : "boolean"
+        },
+        "includeDependabot" : {
+          "type" : "boolean"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputDirectory", "runner", "platform", "groupId", "artifactId", "version", "shaftVersion", "optionalModules", "includeGithubActions", "includeDependabot", "overwrite" ]
+    }
+  }, {
+    "name" : "element_double_click",
+    "description" : "double clicks an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "mobile_long_tap",
+    "description" : "long taps a mobile element using SHAFT touch actions",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "browser_maximize_window",
+    "description" : "maximizes the browser window",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "playwright_browser_get_title",
+    "description" : "gets current SHAFT Playwright page title",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "capture_checkpoint",
+    "description" : "records a USER_MARKER, ASSERTION, PAGE_TRANSITION, RECOVERY, FLOW_START, or FLOW_END checkpoint",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "description" : {
+          "type" : "string"
+        },
+        "kind" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "description", "kind" ]
+    }
+  }, {
+    "name" : "healer_run_failed_test",
+    "description" : "reruns a failing SHAFT/Selenium test, analyzes fresh Allure evidence, and returns review-only fixes plus agent replay guidance",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "repositoryRoot" : {
+          "type" : "string"
+        },
+        "testCommand" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "maxAttempts" : {
+          "type" : "integer"
+        },
+        "includeScreenshots" : {
+          "type" : "boolean"
+        },
+        "includePageSnapshots" : {
+          "type" : "boolean"
+        },
+        "allowedSourcePaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "networkValidationApproved" : {
+          "type" : "boolean"
+        },
+        "useConfiguredAi" : {
+          "type" : "boolean"
+        },
+        "allowLocalAi" : {
+          "type" : "boolean"
+        },
+        "allowRemoteAi" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "repositoryRoot", "testCommand", "outputDirectory", "maxAttempts", "includeScreenshots", "includePageSnapshots", "allowedSourcePaths", "networkValidationApproved", "useConfiguredAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ]
+    }
+  }, {
+    "name" : "element_is_enabled",
+    "description" : "checks if an element is enabled",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "mobile_take_screenshot",
+    "description" : "takes a PNG screenshot of the current mobile device viewport",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputPath" : {
+          "type" : "string"
+        },
+        "includeBase64" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputPath", "includeBase64" ]
+    }
+  }, {
+    "name" : "playwright_record_start",
+    "description" : "starts recording MCP Playwright actions to a workspace JSON file",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputPath" : {
+          "type" : "string"
+        },
+        "mode" : {
+          "type" : "string"
+        },
+        "includeSensitiveValues" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputPath", "mode", "includeSensitiveValues" ]
+    }
+  }, {
+    "name" : "mobile_natural_act",
+    "description" : "performs a trust-gated natural-language touch action by resolving the intent against the mobile accessibility tree",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "intent" : {
+          "type" : "string"
+        },
+        "accessibleName" : {
+          "type" : "string"
+        },
+        "aiFallbackEnabled" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "intent", "accessibleName", "aiFallbackEnabled" ]
+    }
+  }, {
+    "name" : "playwright_element_hover",
+    "description" : "hovers over an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "mobile_replay_recording",
+    "description" : "replays an MCP mobile recording against the active SHAFT mobile driver",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "recordingPath" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "recordingPath", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_inspector_record_control",
+    "description" : "pauses, resumes, checkpoints, stops, or discards a wrapped Appium Inspector recording",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "action" : {
+          "type" : "string"
+        },
+        "checkpointName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "action", "checkpointName" ]
+    }
+  }, {
+    "name" : "mobile_swipe_element_into_view",
+    "description" : "swipes the mobile screen until the target element is visible",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "direction" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "direction" ]
+    }
+  }, {
+    "name" : "driver_quit",
+    "description" : "closes browser",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "element_clear",
+    "description" : "clears text from an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "mobile_swipe_by_offset",
+    "description" : "swipes a mobile element by x/y offset",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "xOffset" : {
+          "type" : "integer"
+        },
+        "yOffset" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "xOffset", "yOffset" ]
+    }
+  }, {
+    "name" : "trace_read",
+    "description" : "returns redacted SHAFT trace JSON from a trace path with explicit output bounds",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "tracePath" : {
+          "type" : "string"
+        },
+        "maxCharacters" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "tracePath", "maxCharacters" ]
+    }
+  }, {
+    "name" : "mobile_recording_code_blocks",
+    "description" : "generates reusable copy-paste SHAFT mobile replay code blocks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "recordingPath" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "recordingPath", "driverVariableName" ]
+    }
+  }, {
+    "name" : "browser_navigate",
+    "description" : "opens a URL in the active SHAFT WebDriver browser session",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "targetUrl" ]
+    }
+  }, {
+    "name" : "element_drag_and_drop_by_offset",
+    "description" : "drags and drops an element by offset",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "xOffset" : {
+          "type" : "integer"
+        },
+        "yOffset" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "xOffset", "yOffset" ]
+    }
+  }, {
+    "name" : "test_code_guardrails_check",
+    "description" : "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators, raw driver calls, headed setup, direct system properties, and obvious secrets",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "language" : {
+          "type" : "string"
+        },
+        "code" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "language", "code" ]
+    }
+  }, {
+    "name" : "capture_record_at_target_code_blocks",
+    "description" : "generates focused Capture snippets for insertion at an existing Java source anchor",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "targetSourcePath" : {
+          "type" : "string"
+        },
+        "insertAfter" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "targetSourcePath", "insertAfter", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_double_tap",
+    "description" : "double taps a mobile element using SHAFT touch actions",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_element_type",
+    "description" : "types value into an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "browser_get_current_url",
+    "description" : "gets current URL",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "playwright_browser_navigate_back",
+    "description" : "navigates the SHAFT Playwright page back",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "element_append_text",
+    "description" : "appends text to an element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "mobile_tap_coordinates",
+    "description" : "fallback-only: taps viewport coordinates only after locator-based mobile_tap cannot be used",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "x" : {
+          "type" : "integer"
+        },
+        "y" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "x", "y" ]
+    }
+  }, {
+    "name" : "browser_delete_cookie",
+    "description" : "deletes a specific cookie by name",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "cookieName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "cookieName" ]
+    }
+  }, {
+    "name" : "mobile_background_app",
+    "description" : "sends the active mobile app to the background",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "seconds" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "seconds" ]
+    }
+  }, {
+    "name" : "mobile_record_status",
+    "description" : "returns the active MCP mobile recording status",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "mobile_record_at_target_code_blocks",
+    "description" : "generates focused mobile recording snippets for insertion at an existing Java source anchor",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "recordingPath" : {
+          "type" : "string"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        },
+        "targetSourcePath" : {
+          "type" : "string"
+        },
+        "insertAfter" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "recordingPath", "driverVariableName", "targetSourcePath", "insertAfter" ]
+    }
+  }, {
+    "name" : "playwright_element_drag_and_drop",
+    "description" : "drags and drops an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sourceLocatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "sourceLocatorValue" : {
+          "type" : "string"
+        },
+        "targetLocatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "targetLocatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sourceLocatorStrategy", "sourceLocatorValue", "targetLocatorStrategy", "targetLocatorValue" ]
+    }
+  }, {
+    "name" : "playwright_element_set_value_js",
+    "description" : "sets an element value using JavaScript in SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        },
+        "textValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue", "textValue" ]
+    }
+  }, {
+    "name" : "playwright_element_is_displayed",
+    "description" : "checks whether a SHAFT Playwright element is visible",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "mobile_clear",
+    "description" : "clears a mobile element",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "playwright_element_double_click",
+    "description" : "double-clicks an element using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "capture_stop",
+    "description" : "stops SHAFT Capture; after COMPLETED, show outputPath and tell IntelliJ users to run /codegen <outputPath>",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "discard" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "discard" ]
+    }
+  }, {
+    "name" : "playwright_browser_new_window",
+    "description" : "opens a new SHAFT Playwright tab or window",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        },
+        "windowType" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "targetUrl", "windowType" ]
+    }
+  }, {
+    "name" : "mobile_rotate",
+    "description" : "rotates the mobile device to PORTRAIT or LANDSCAPE",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "orientation" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "orientation" ]
+    }
+  }, {
+    "name" : "playwright_capture_code_blocks",
+    "description" : "generates a Java full-class snippet plus agent guidance for SHAFT Playwright insertion",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "driverVariableName" ]
+    }
+  }, {
+    "name" : "browser_delete_all_cookies",
+    "description" : "deletes all cookies",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "capture_status",
+    "description" : "returns SHAFT Capture session, browser, URL, event count, warnings, and output status",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "playwright_browser_set_window_size",
+    "description" : "sets the SHAFT Playwright viewport size",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "width" : {
+          "type" : "integer"
+        },
+        "height" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "width", "height" ]
+    }
+  }, {
+    "name" : "mobile_get_accessibility_tree",
+    "description" : "gets the current Appium native accessibility XML tree or mobile web source",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "maxCharacters" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "maxCharacters" ]
+    }
+  }, {
+    "name" : "generate_test_report",
+    "description" : "generates a test report for the current session",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "mobile_record_start",
+    "description" : "starts recording MCP mobile actions to a workspace JSON file",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "outputPath" : {
+          "type" : "string"
+        },
+        "mode" : {
+          "type" : "string"
+        },
+        "includeSensitiveValues" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "outputPath", "mode", "includeSensitiveValues" ]
+    }
+  }, {
+    "name" : "playwright_element_click_semantic",
+    "description" : "clicks an element by human-readable name using SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "elementName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "elementName" ]
+    }
+  }, {
+    "name" : "mobile_inspector_record_status",
+    "description" : "returns the wrapped Appium Inspector recording status",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "mobile_hide_keyboard",
+    "description" : "hides the native mobile keyboard",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : { },
+      "required" : [ ]
+    }
+  }, {
+    "name" : "capture_evidence_pack",
+    "description" : "returns a local manifest of Capture source, report, review UI, screenshots, and checks",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sourcePath" : {
+          "type" : "string"
+        },
+        "reportPath" : {
+          "type" : "string"
+        },
+        "reviewPath" : {
+          "type" : "string"
+        },
+        "screenshotPaths" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "sourcePath", "reportPath", "reviewPath", "screenshotPaths" ]
+    }
+  }, {
+    "name" : "capture_backend_comparison",
+    "description" : "compares WebDriver and Playwright Capture code-block outputs without editing source",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "sessionPath" : {
+          "type" : "string"
+        },
+        "outputDirectory" : {
+          "type" : "string"
+        },
+        "packageName" : {
+          "type" : "string"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "overwrite" : {
+          "type" : "boolean"
+        },
+        "driverVariableName" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "driverVariableName" ]
+    }
+  }, {
+    "name" : "mobile_initialize_web_emulation",
+    "description" : "starts Chrome or Edge mobile web emulation using SHAFT browser setup",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        },
+        "browser" : {
+          "type" : "string"
+        },
+        "deviceName" : {
+          "type" : "string"
+        },
+        "width" : {
+          "type" : "integer"
+        },
+        "height" : {
+          "type" : "integer"
+        },
+        "pixelRatio" : {
+          "type" : "number"
+        },
+        "userAgent" : {
+          "type" : "string"
+        },
+        "headless" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "targetUrl", "browser", "deviceName", "width", "height", "pixelRatio", "userAgent", "headless" ]
+    }
+  }, {
+    "name" : "trace_summarize",
+    "description" : "returns a deterministic summary of a persisted SHAFT trace without AI",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "tracePath" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "tracePath" ]
+    }
+  }, {
+    "name" : "autobot_local_agent_run",
+    "description" : "routes Ask, Plan, or approved Agent requests to Codex, Claude Code, or Copilot CLI",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "client" : {
+          "type" : "string"
+        },
+        "mode" : {
+          "type" : "string"
+        },
+        "prompt" : {
+          "type" : "string"
+        },
+        "workingDirectory" : {
+          "type" : "string"
+        },
+        "command" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "environment" : {
+          "type" : "object"
+        },
+        "timeoutSeconds" : {
+          "type" : "integer"
+        },
+        "allowSourceMutation" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "client", "mode", "prompt", "workingDirectory", "command", "environment", "timeoutSeconds", "allowSourceMutation" ]
+    }
+  }, {
+    "name" : "shaft_project_upgrade",
+    "description" : "runs the existing SHAFT modular project upgrader script against the current Java project",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "projectRoot" : {
+          "type" : "string"
+        },
+        "upgradeType" : {
+          "type" : "string"
+        },
+        "dryRun" : {
+          "type" : "boolean"
+        },
+        "approve" : {
+          "type" : "boolean"
+        },
+        "shaftVersion" : {
+          "type" : "string"
+        },
+        "compileCommand" : {
+          "type" : "string"
+        },
+        "compileTimeout" : {
+          "type" : "integer"
+        },
+        "skipBaselineCompile" : {
+          "type" : "boolean"
+        },
+        "allowAiRepair" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "projectRoot", "upgradeType", "dryRun", "approve", "shaftVersion", "compileCommand", "compileTimeout", "skipBaselineCompile", "allowAiRepair" ]
+    }
+  }, {
+    "name" : "playwright_browser_navigate",
+    "description" : "navigates the SHAFT Playwright page to a URL",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "targetUrl" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "targetUrl" ]
+    }
+  }, {
+    "name" : "playwright_element_click_js",
+    "description" : "clicks an element using JavaScript in SHAFT Playwright",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "locatorStrategy" : {
+          "type" : "string",
+          "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN" ]
+        },
+        "locatorValue" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "locatorStrategy", "locatorValue" ]
+    }
+  }, {
+    "name" : "doctor_analyze_trace",
+    "description" : "analyzes a persisted SHAFT trace and returns deterministic Doctor remediation guidance",
+    "inputSchema" : {
+      "additionalProperties" : false,
+      "type" : "object",
+      "properties" : {
+        "tracePath" : {
+          "type" : "string"
+        },
+        "backend" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "tracePath", "backend" ]
+    }
+  } ]
+}

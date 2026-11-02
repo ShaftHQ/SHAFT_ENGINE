@@ -1,0 +1,1070 @@
+#!/usr/bin/env python3
+"""Validate agent guidance budgets, routing, and cost guardrails."""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import json
+import math
+import re
+
+import sys
+from collections import defaultdict
+from pathlib import Path
+from urllib.parse import unquote
+
+ROOT = Path(__file__).resolve().parents[2]
+
+def issue(code: str, path: str, message: str) -> dict[str, str]:
+    """Create a stable validation issue."""
+    return {"code": code, "path": path, "message": message}
+
+
+def load_budget(path: Path) -> dict:
+    """Load the JSON guidance budget."""
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def relative(root: Path, path: Path) -> str:
+    """Return a repository-relative POSIX path."""
+    return path.resolve().relative_to(root.resolve()).as_posix()
+
+
+def expand_globs(root: Path, patterns: list[str]) -> list[Path]:
+    """Expand configured repository-relative files and globs."""
+    paths: set[Path] = set()
+    for pattern in patterns:
+        if any(character in pattern for character in "*?["):
+            paths.update(path for path in root.glob(pattern) if path.is_file())
+        else:
+            path = root / pattern
+            if path.is_file():
+                paths.add(path)
+    return sorted(paths)
+
+
+def expand_reported_globs(
+    root: Path, patterns: list[str], config_key: str
+) -> tuple[list[Path], list[dict[str, str]]]:
+    """
+    Expand a list-valued guidance glob, reporting any pattern matching nothing.
+
+    ``expand_globs`` merges every pattern's matches into one set, so a pattern
+    that resolves to zero files -- the references directory moved or was
+    renamed, a typo -- leaves no trace in the result: the merged set just
+    ends up a little smaller, and a check that iterates it for
+    ``all(...)``-shaped assertions keeps passing having verified nothing for
+    that pattern (#4481). ``validate_file_budgets`` already closes this for
+    its own glob keys with a ``missing-file`` issue; every other list-valued
+    glob key the budget defines -- ``active_guidance_globs``,
+    ``total_guidance_globs``, ``reference_scan_globs``, and each host's list
+    under ``host_skill_metadata_globs`` -- routes through here instead of
+    ``expand_globs`` directly so the same ``empty-glob`` issue fires no
+    matter which list it is missing from.
+
+    This guards patterns *within* an already-present list; it cannot detect
+    the list itself being absent or empty, because the loop below then runs
+    zero times. ``require_glob_list`` closes that one level up, for the three
+    budget keys that must always be present.
+    """
+    errors: list[dict[str, str]] = []
+    paths: set[Path] = set()
+    for pattern in patterns:
+        matched = expand_globs(root, [pattern])
+        if not matched:
+            errors.append(issue("empty-glob", pattern, f"{config_key} pattern matched no files"))
+            continue
+        paths.update(matched)
+    return sorted(paths), errors
+
+
+def require_glob_list(budget: dict, config_key: str) -> tuple[list[str], list[dict[str, str]]]:
+    """
+    Return a required list-valued glob key, or report why it cannot be scanned.
+
+    ``expand_reported_globs`` only iterates the patterns it is given: if the
+    configured key is missing, renamed, or present but set to ``[]``, that
+    loop runs zero times, no ``empty-glob`` issue fires, and every check
+    downstream scans zero files while reporting nothing wrong -- the same
+    fail-open shape (#4481) one level up, at the list rather than the
+    pattern. The set of required keys is declared here, in the code that
+    consumes the budget, rather than inferred from whatever keys the JSON
+    happens to contain -- inference cannot notice a key that used to be
+    there and is not anymore.
+    """
+    value = budget.get(config_key)
+    if not isinstance(value, list) or not value:
+        return [], [issue("empty-glob-list", config_key, "required guidance glob list is missing or empty")]
+    return value, []
+
+
+def validate_file_budgets(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Validate byte, character, and line budgets.
+
+    A key may be a literal path or a glob. A glob binds each matched file on
+    its own and never their sum, which bounds the worst single file on a
+    surface rather than a session total. Summing was the retired global pool
+    (#3745): it charged every file for its neighbours, so the only way to fund
+    one file's growth was deleting unrelated prose that no session had loaded
+    anyway. The claim is incentive locality -- the file that grew is the file
+    that pays -- and nothing more; splitting a file relocates load rather than
+    removing it, because a split half is usually reached from the other.
+    Either form reports ``missing-file`` when it resolves to nothing,
+    so a cap on a surface that moved away cannot silently stop enforcing
+    anything.
+    """
+    errors: list[dict[str, str]] = []
+    for configured_path, limits in budget.get("file_budgets", {}).items():
+        # relative() resolves before it subtracts the root, so anything outside
+        # the root raises there rather than reporting a budget. Both branches
+        # keep a key that escapes the root out of relative()'s way: the literal
+        # one reports the configured string verbatim, and the glob one drops
+        # the match, leaving `missing-file` below to report a pattern that
+        # resolved to nothing usable.
+        if any(character in configured_path for character in "*?["):
+            matches = []
+            for path in expand_globs(root, [configured_path]):
+                try:
+                    matches.append((relative(root, path), path))
+                except ValueError:
+                    continue
+        else:
+            candidate = root / configured_path
+            matches = [(configured_path, candidate)] if candidate.is_file() else []
+        if not matches:
+            errors.append(issue("missing-file", configured_path, "required guidance file is missing"))
+            continue
+        for reported, path in matches:
+            content = path.read_text(encoding="utf-8")
+            checks = (
+                ("max_bytes", len(content.encode("utf-8")), "size-budget", "bytes"),
+                ("max_chars", len(content), "character-budget", "characters"),
+                ("max_lines", len(content.splitlines()), "line-budget", "lines"),
+            )
+            for key, actual, code, unit in checks:
+                maximum = limits.get(key)
+                if maximum is not None and actual > maximum:
+                    errors.append(
+                        issue(code, reported, f"{actual} {unit} exceeds configured maximum {maximum}")
+                    )
+    return errors
+
+
+def always_loaded_body_chars(root: Path, configured_paths: list[str]) -> tuple[int, list[str]]:
+    """Count LF-normalized UTF-8 bytes a host loads before it sees the task."""
+    characters = 0
+    missing: list[str] = []
+    for configured_path in configured_paths:
+        path = root / configured_path
+        if path.is_file():
+            characters += len(path.read_text(encoding="utf-8").encode("utf-8"))
+        else:
+            missing.append(configured_path)
+    return characters, missing
+
+
+def skill_listing_chars(root: Path, patterns: list[str]) -> int:
+    """Count the discovery metadata a host keeps resident for every skill."""
+    characters = 0
+    for path in expand_globs(root, patterns):
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8")) or {}
+        characters += len(frontmatter.get("name", ""))
+        characters += len(frontmatter.get("description", ""))
+    return characters
+
+
+def validate_host_contexts(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Check the two surfaces a host pays for, against documented host limits.
+
+    Always-loaded body and skill-listing metadata hit different caps and are
+    budgeted separately -- see ``limit_sources`` in the budget file. Both are
+    measured in the unit each host documents.
+    """
+    errors: list[dict[str, str]] = []
+    body_maximum = budget.get("max_always_loaded_body_chars")
+    listing_maximum = budget.get("max_skill_listing_chars")
+    for host, configured_paths in budget.get("host_contexts", {}).items():
+        characters, missing = always_loaded_body_chars(root, configured_paths)
+        if missing:
+            errors.append(
+                issue("host-context-missing", host, f"missing context files: {', '.join(missing)}")
+            )
+            continue
+        if body_maximum is not None and characters > body_maximum:
+            errors.append(
+                issue(
+                    "host-body-budget",
+                    host,
+                    f"{characters} always-loaded UTF-8 bytes exceeds configured maximum {body_maximum}",
+                )
+            )
+    if listing_maximum is None:
+        return errors
+    for host, patterns in budget.get("host_skill_metadata_globs", {}).items():
+        _, pattern_errors = expand_reported_globs(
+            root, patterns, f"host_skill_metadata_globs.{host}"
+        )
+        errors.extend(pattern_errors)
+        characters = skill_listing_chars(root, patterns)
+        if characters > listing_maximum:
+            errors.append(
+                issue(
+                    "host-listing-budget",
+                    host,
+                    f"{characters} skill-listing characters exceeds configured maximum {listing_maximum}",
+                )
+            )
+    return errors
+
+
+# A backticked kebab identifier with no slash and no dot is how the routing
+# table names a skill to hand off to. Paths (`src/main/java`), commands (`rg`)
+# and filenames (`AGENTS.md`) are excluded by construction.
+ROUTED_SKILL_NAME = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)+)`")
+
+
+def routed_skill_names(content: str) -> list[str]:
+    """Return every skill name the routing table hands off to."""
+    return sorted(set(ROUTED_SKILL_NAME.findall(content)))
+
+
+def validate_routing_bridges(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Prove every skill the router names resolves to a real SKILL.md.
+
+    A router that points at a skill nobody ships fails silently at run time:
+    the agent reads the row, cannot find the file, and improvises. This parses
+    the routing table itself rather than a hand-maintained allowlist, so a new
+    row naming a skill that does not exist fails without anyone remembering to
+    register it. ``required_names`` additionally catches the reverse drift --
+    a handoff silently dropped from the table.
+    """
+    configured = budget.get("routing_bridges")
+    if not configured:
+        return []
+    source_relative = configured.get("source", "")
+    source = root / source_relative
+    if not source.is_file():
+        return [issue("routing-bridge-source", source_relative, "routing source is missing")]
+    content = source.read_text(encoding="utf-8")
+    roots = configured.get("skill_roots", [])
+    errors: list[dict[str, str]] = []
+
+    def resolves(name: str) -> bool:
+        return any((root / skills_root / name / "SKILL.md").is_file() for skills_root in roots)
+
+    for name in routed_skill_names(content):
+        if not resolves(name):
+            errors.append(
+                issue(
+                    "routing-bridge-missing",
+                    source_relative,
+                    f"routed skill has no SKILL.md under {', '.join(roots)}: {name}",
+                )
+            )
+    for name in configured.get("required_names", []):
+        if name not in content:
+            errors.append(
+                issue(
+                    "routing-bridge-unrouted",
+                    source_relative,
+                    f"required handoff is not routed: {name}",
+                )
+            )
+    return errors
+
+
+def validate_total_reduction(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Keep the consolidated guidance below the approved baseline reduction."""
+    baseline = budget.get("reduction_baseline_bytes")
+    minimum_reduction = budget.get("minimum_reduction_percent")
+    if baseline is None or minimum_reduction is None:
+        return []
+    patterns, errors = require_glob_list(budget, "total_guidance_globs")
+    if errors:
+        return errors
+    paths, glob_errors = expand_reported_globs(root, patterns, "total_guidance_globs")
+    errors.extend(glob_errors)
+    # Count LF-normalized bytes (read_text collapses CRLF) so the metric matches
+    # the per-file byte check and the LF blobs CI checks out, not the CRLF a
+    # Windows working tree carries.
+    current = sum(len(path.read_text(encoding="utf-8").encode("utf-8")) for path in paths)
+    maximum = math.floor(baseline * (1 - minimum_reduction / 100))
+    if current > maximum:
+        errors.append(
+            issue(
+                "total-reduction",
+                "agent-guidance",
+                f"{current} bytes exceeds {maximum}; minimum reduction is {minimum_reduction}%",
+            )
+        )
+    return errors
+
+
+_BLOCK_SCALAR_HEADER = re.compile(r"^[|>][+-]?\d*$")
+
+
+def parse_frontmatter(content: str) -> dict[str, str] | None:
+    """Parse simple top-level YAML frontmatter without external dependencies.
+
+    Handles single-line scalars and multi-line block scalars (`>`, `>-`,
+    `|`, `|-`) -- several skill descriptions use folded style, and a value
+    of just the block-scalar marker (e.g. `description: >-`) is not the
+    real content. This stays a small proxy parser for flat frontmatter, not
+    a full YAML implementation: no nested mappings or sequences.
+    """
+    if not content.startswith("---\n"):
+        return None
+    marker = content.find("\n---\n", 4)
+    if marker < 0:
+        return None
+    lines = content[4:marker].splitlines()
+    values: dict[str, str] = {}
+    index = 0
+    while index < len(lines):
+        raw_line = lines[index]
+        index += 1
+        if ":" not in raw_line or raw_line[:1].isspace():
+            continue
+        key, value = raw_line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if _BLOCK_SCALAR_HEADER.match(value):
+            folded = value.startswith(">")
+            block_lines: list[str] = []
+            while index < len(lines) and (lines[index][:1].isspace() or not lines[index].strip()):
+                block_lines.append(lines[index].strip())
+                index += 1
+            if folded:
+                paragraphs: list[str] = []
+                current: list[str] = []
+                for block_line in block_lines:
+                    if block_line:
+                        current.append(block_line)
+                    elif current:
+                        paragraphs.append(" ".join(current))
+                        current = []
+                if current:
+                    paragraphs.append(" ".join(current))
+                values[key] = "\n\n".join(paragraphs)
+            else:
+                values[key] = "\n".join(block_lines).strip()
+        else:
+            values[key] = value.strip("\"'")
+    return values
+
+
+def markdown_body(content: str) -> str:
+    """Return Markdown after optional frontmatter."""
+    if not content.startswith("---\n"):
+        return content.strip()
+    marker = content.find("\n---\n", 4)
+    return content[marker + 5 :].strip() if marker >= 0 else content.strip()
+
+
+def quoted_yaml_value(content: str, key: str) -> str | None:
+    """Read one quoted scalar from the small agents/openai.yaml interface."""
+    match = re.search(rf'(?m)^\s*{re.escape(key)}:\s*"([^"]*)"\s*$', content)
+    return match.group(1) if match else None
+
+
+def validate_skill_interface(
+    root: Path, directory: Path, skill_name: str
+) -> list[dict[str, str]]:
+    """Validate concise Codex UI metadata for a discoverable skill."""
+    metadata_path = directory / "agents/openai.yaml"
+    metadata_relative = relative(root, metadata_path)
+    if not metadata_path.is_file():
+        return [issue("skill-metadata", metadata_relative, "agents/openai.yaml is required")]
+
+    content = metadata_path.read_text(encoding="utf-8")
+    display_name = quoted_yaml_value(content, "display_name")
+    short_description = quoted_yaml_value(content, "short_description")
+    default_prompt = quoted_yaml_value(content, "default_prompt")
+    errors: list[dict[str, str]] = []
+    if not display_name:
+        errors.append(issue("skill-metadata", metadata_relative, "display_name is required"))
+    if not short_description or not 25 <= len(short_description) <= 64:
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                "short_description must be 25 to 64 characters",
+            )
+        )
+    if not default_prompt or f"${skill_name}" not in default_prompt:
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                f"default_prompt must mention ${skill_name}",
+            )
+        )
+    if not re.search(r"(?m)^\s*allow_implicit_invocation:\s*true\s*$", content):
+        errors.append(
+            issue(
+                "skill-metadata",
+                metadata_relative,
+                "allow_implicit_invocation must be true",
+            )
+        )
+    return errors
+
+
+def validate_skills(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Validate discoverable skill directories and required frontmatter."""
+    errors: list[dict[str, str]] = []
+    configured_roots = budget.get("skills_roots")
+    if configured_roots is None:
+        configured_roots = [budget.get("skills_root", ".github/skills")]
+    for configured_root in configured_roots:
+        skills_root = root / configured_root
+        if not skills_root.is_dir():
+            errors.append(
+                issue("skill-root-missing", configured_root, "skills root is missing")
+            )
+            continue
+        directories = sorted(path for path in skills_root.iterdir() if path.is_dir())
+        actual_names = {
+            directory.name
+            for directory in directories
+            if any(path.is_file() for path in directory.rglob("*"))
+        }
+        expected_names = set(budget.get("expected_skill_names", {}).get(configured_root, []))
+        if expected_names:
+            for missing in sorted(expected_names - actual_names):
+                errors.append(
+                    issue("skill-set", configured_root, f"expected skill is missing: {missing}")
+                )
+            for unexpected in sorted(actual_names - expected_names):
+                errors.append(
+                    issue("skill-set", configured_root, f"unexpected skill is present: {unexpected}")
+                )
+        limits = budget.get("skill_budgets", {}).get(configured_root, {})
+        for directory in directories:
+            if not any(path.is_file() for path in directory.rglob("*")):
+                continue
+            skill_path = directory / "SKILL.md"
+            skill_relative = relative(root, skill_path)
+            if not skill_path.is_file():
+                errors.append(
+                    issue("skill-missing", skill_relative, "skill directory must contain SKILL.md")
+                )
+                continue
+            content = skill_path.read_text(encoding="utf-8")
+            frontmatter = parse_frontmatter(content)
+            if frontmatter is None:
+                errors.append(
+                    issue("skill-frontmatter", skill_relative, "valid YAML frontmatter is required")
+                )
+                continue
+            if frontmatter.get("name") != directory.name:
+                errors.append(
+                    issue(
+                        "skill-name",
+                        skill_relative,
+                        "frontmatter name must match the skill directory",
+                    )
+                )
+            if not frontmatter.get("description"):
+                errors.append(
+                    issue("skill-description", skill_relative, "frontmatter description is required")
+                )
+            maximum_description = limits.get("max_description_chars")
+            if (
+                maximum_description is not None
+                and len(frontmatter.get("description", "")) > maximum_description
+            ):
+                errors.append(
+                    issue(
+                        "skill-description-budget",
+                        skill_relative,
+                        f"description exceeds {maximum_description} characters",
+                    )
+                )
+            maximum_body = limits.get("max_body_chars")
+            if maximum_body is not None and len(markdown_body(content)) > maximum_body:
+                errors.append(
+                    issue(
+                        "skill-body-budget",
+                        skill_relative,
+                        f"body exceeds {maximum_body} characters",
+                    )
+                )
+            maximum_lines = limits.get("max_skill_md_lines")
+            if maximum_lines is not None:
+                actual_lines = len(markdown_body(content).splitlines())
+                if actual_lines > maximum_lines:
+                    errors.append(
+                        issue(
+                            "skill-line-budget",
+                            skill_relative,
+                            f"{actual_lines} body lines exceeds configured maximum {maximum_lines}",
+                        )
+                    )
+            maximum_skill_bytes = limits.get("max_skill_md_bytes")
+            if maximum_skill_bytes is not None:
+                # LF-normalized bytes: content came from read_text(), which
+                # already collapses CRLF, matching the per-file byte-budget
+                # precedent in validate_file_budgets.
+                actual_skill_bytes = len(content.encode("utf-8"))
+                if actual_skill_bytes > maximum_skill_bytes:
+                    errors.append(
+                        issue(
+                            "skill-md-byte-budget",
+                            skill_relative,
+                            f"{actual_skill_bytes} bytes exceeds configured maximum {maximum_skill_bytes}",
+                        )
+                    )
+            if limits.get("require_openai_yaml"):
+                errors.extend(validate_skill_interface(root, directory, directory.name))
+    return errors
+
+
+def _origin_generated_overlay_target(root: Path, resolved: Path) -> bool:
+    """True when a marker points at generated overlay that origin sources as chaos-engine/."""
+    try:
+        relative_path = resolved.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return False
+    prefix = ".chaos-engine/"
+    if not relative_path.startswith(prefix):
+        return False
+    source = root / "chaos-engine" / relative_path[len(prefix) :]
+    return source.exists()
+
+
+def local_link_targets(path: Path, content: str) -> list[str]:
+    """Extract relative Markdown links and Claude-style imports."""
+    targets = re.findall(r"\[[^\]]*\]\(([^)]+)\)", content)
+    targets.extend(re.findall(r"(?m)^@([^\s]+)\s*$", content))
+    return targets
+
+
+def validate_local_references(root: Path, files: list[Path]) -> list[dict[str, str]]:
+    """Validate local Markdown links and imported files."""
+    errors: list[dict[str, str]] = []
+    for path in files:
+        content = path.read_text(encoding="utf-8")
+        for raw_target in local_link_targets(path, content):
+            target = unquote(raw_target.strip().strip("<>"))
+            if not target or target.startswith(("#", "http://", "https://", "mailto:", "app://")):
+                continue
+            target = target.split("#", 1)[0]
+            resolved = (path.parent / target).resolve()
+            try:
+                resolved.relative_to(root.resolve())
+            except ValueError:
+                errors.append(
+                    issue(
+                        "reference-outside-root",
+                        relative(root, path),
+                        f"local reference leaves the repository: {raw_target}",
+                    )
+                )
+                continue
+            if not resolved.exists() and not _origin_generated_overlay_target(root, resolved):
+                errors.append(
+                    issue(
+                        "broken-reference",
+                        relative(root, path),
+                        f"local reference does not exist: {raw_target}",
+                    )
+                )
+    return errors
+
+
+def validate_scopes(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Ensure every path-scoped instruction matches repository files."""
+    errors: list[dict[str, str]] = []
+    for configured_path in budget.get("scope_files", []):
+        path = root / configured_path
+        if not path.is_file():
+            continue
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
+        pattern = frontmatter.get("applyTo") if frontmatter else None
+        if not pattern:
+            errors.append(issue("scope-frontmatter", configured_path, "applyTo frontmatter is required"))
+        elif not any(candidate.is_file() for candidate in root.glob(pattern)):
+            errors.append(issue("unmatched-scope", configured_path, f"applyTo matches no files: {pattern}"))
+    return errors
+
+
+def validate_forbidden_patterns(
+    root: Path, files: list[Path], budget: dict
+) -> list[dict[str, str]]:
+    """Reject costly mandates from active guidance."""
+    errors: list[dict[str, str]] = []
+    compiled = [
+        (re.compile(entry["pattern"]), entry["message"])
+        for entry in budget.get("forbidden_patterns", [])
+    ]
+    for path in files:
+        content = path.read_text(encoding="utf-8")
+        for pattern, message in compiled:
+            if pattern.search(content):
+                errors.append(issue("forbidden-mandate", relative(root, path), message))
+    return errors
+
+
+def validate_stale_references(
+    root: Path, files: list[Path], budget: dict
+) -> list[dict[str, str]]:
+    """Reject references to retired active guidance surfaces."""
+    errors: list[dict[str, str]] = []
+    stale_references = budget.get("stale_references", [])
+    for path in files:
+        content = path.read_text(encoding="utf-8")
+        for stale_reference in stale_references:
+            if stale_reference in content:
+                errors.append(
+                    issue(
+                        "stale-reference",
+                        relative(root, path),
+                        f"references retired path: {stale_reference}",
+                    )
+                )
+    return errors
+
+
+def normalized_paragraphs(content: str, minimum: int) -> list[str]:
+    """Return normalized long prose paragraphs for duplicate detection."""
+    paragraphs: list[str] = []
+    for paragraph in re.split(r"\n\s*\n", content):
+        normalized = re.sub(r"\s+", " ", paragraph).strip().lower()
+        if len(normalized) >= minimum and not normalized.startswith("```"):
+            paragraphs.append(normalized)
+    return paragraphs
+
+
+def validate_duplicate_paragraphs(
+    root: Path, files: list[Path], budget: dict
+) -> list[dict[str, str]]:
+    """Reject exact long-paragraph duplication across active guidance."""
+    minimum = budget.get("duplicate_paragraph_min_chars", 180)
+    locations: dict[str, list[str]] = defaultdict(list)
+    for path in files:
+        for paragraph in normalized_paragraphs(path.read_text(encoding="utf-8"), minimum):
+            locations[paragraph].append(relative(root, path))
+    errors: list[dict[str, str]] = []
+    for paths in locations.values():
+        if len(paths) > 1:
+            errors.append(
+                issue(
+                    "duplicate-paragraph",
+                    paths[0],
+                    f"long paragraph is duplicated in: {', '.join(paths)}",
+                )
+            )
+    return errors
+
+
+
+
+EXECUTABLE_SPEC_SCHEMA = (
+    (
+        "Resolved caller matrix",
+        ("Site", "Effective cwd/path", "Runtime/version/platform", "Permissions/trust", "Configuration precedence", "Input existence"),
+    ),
+    (
+        "State/failure matrix",
+        ("State", "Immutable ownership", "Preflight", "Mutation order", "Mixed state", "Atomicity", "Concurrency", "Idempotency", "Recovery", "Fail-closed"),
+    ),
+    (
+        "Acceptance-to-proof map",
+        ("Criterion or invariant", "Positive proof", "Negative or mutation proof", "Command"),
+    ),
+)
+EXECUTABLE_SPEC_CONSULT_CLAUSES = (
+    "For cross-cutting or hard-to-reverse work, the three matrices below are mandatory.",
+    "Every required cell must be resolved. Blank cells, TODO, TBD, placeholders, and guesses are invalid, even when qualified by explanatory text.",
+    "Any unresolved cell blocks RED/GREEN.",
+    "Every acceptance criterion and invariant must map to positive and negative proof.",
+    "At least one sibling/caller omission mutation must fail.",
+    "Record the completed matrices on the target GitHub issue comment before the first implementing commit.",
+    "Add one resolved data row for every caller/site, every state/transition/failure mode, and every acceptance criterion/invariant.",
+)
+EXECUTABLE_SPEC_PLANNING_CLAUSE = (
+    "Record the completed executable-specification matrices on the target GitHub issue comment before the first implementing commit."
+)
+EXECUTABLE_SPEC_REGRESSION_INTRO = (
+    "Treat these as mandatory regression prompts when relevant. Cover each applicable scenario:"
+)
+EXECUTABLE_SPEC_REGRESSION_SCENARIOS = (
+    "- Effective working-directory/path resolution.",
+    "- Interpreter/version/conditional dependency marker.",
+    "- Mixed owned+unknown preflight.",
+    "- Immutable ownership.",
+    "- Atomic backup/concurrent replacement.",
+    "- Post-migration adapter/link resolution.",
+)
+
+
+def split_markdown_table_row(line: str) -> tuple[str, ...]:
+    """Split one Markdown row while treating an escaped pipe as cell text."""
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return ()
+    cells: list[str] = []
+    current: list[str] = []
+    index = 1
+    end = len(stripped) - 1
+    while index < end:
+        character = stripped[index]
+        if character == "|":
+            slash_count = 0
+            while slash_count < len(current) and current[-1 - slash_count] == "\\":
+                slash_count += 1
+            if slash_count:
+                del current[-slash_count:]
+                current.extend("\\" for _unused in range(slash_count // 2))
+            if slash_count % 2:
+                current.append("|")
+                index += 1
+                continue
+            cells.append("".join(current).strip())
+            current = []
+        else:
+            current.append(character)
+        index += 1
+    cells.append("".join(current).strip())
+    return tuple(cells)
+
+
+def _without_fenced_markdown(text: str) -> str:
+    """Remove fenced code samples before interpreting operative guidance."""
+    visible: list[str] = []
+    fence_character: str | None = None
+    fence_length = 0
+    for line in text.splitlines(keepends=True):
+        if fence_character is None:
+            opener = re.match(r"^\s*(`{3,}|~{3,})", line)
+            if opener:
+                marker = opener.group(1)
+                fence_character = marker[0]
+                fence_length = len(marker)
+                continue
+            visible.append(line)
+            continue
+        closer = re.fullmatch(r"\s*(`{3,}|~{3,})\s*(?:\r?\n)?", line)
+        if (
+            closer
+            and closer.group(1)[0] == fence_character
+            and len(closer.group(1)) >= fence_length
+        ):
+            fence_character = None
+            fence_length = 0
+            continue
+    return "".join(visible)
+
+
+def executable_spec_cell_is_unresolved(cell: str) -> bool:
+    """True when a cell leaves an executable-specification value unresolved."""
+    value = cell.strip()
+    if not value or value == "?" or value in {"—", "–"}:
+        return True
+    searchable = re.sub(r"https?://\S+|\b(?:query\s+)?\?\S+|\bglob\s+\S+", "", value, flags=re.IGNORECASE)
+    negative_proof = re.fullmatch(
+        r"negative\s+proof\s+(?:rejects?|blocks?|forbids?|fails?)\s+(.*)",
+        searchable,
+        re.IGNORECASE,
+    )
+    if negative_proof:
+        marker_list = re.sub(
+            r"\b(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|n\s*/\s*a|"
+            r"guess\s+placeholders?|placeholders?)\b",
+            "",
+            negative_proof.group(1),
+            flags=re.IGNORECASE,
+        )
+        if not re.sub(r"\b(?:and|or)\b|[\s,;/]+", "", marker_list, flags=re.IGNORECASE):
+            return False
+    searchable = re.sub(
+        r"^unknown(?=\s+target\s+is\s+(?:rejected|verified)\s+by\b)",
+        "",
+        searchable,
+        flags=re.IGNORECASE,
+    )
+    searchable = re.sub(
+        r"^assumption(?=\s+is\s+(?:rejected|verified)\s+by\b)",
+        "",
+        searchable,
+        flags=re.IGNORECASE,
+    )
+    return bool(
+        re.search(
+            r"\b(?:todo|tbd|tba|tbc|to\s+be\s+confirmed|pending|placeholder|n\s*/\s*a|"
+            r"guess(?:es|ed|ing)?|probably|maybe|likely|unknown|"
+            r"assum(?:e|ed|ing|ption))\b",
+            searchable,
+            re.IGNORECASE,
+        )
+        or re.search(r"(?:<[^>]+>|\[[^\]]+\])", searchable)
+    )
+
+
+def _executable_spec_section(text: str) -> str | None:
+    matches = list(
+        re.finditer(
+            r"(?m)^## Executable specification for consequential work\s*$",
+            text,
+        )
+    )
+    if len(matches) != 1:
+        return None
+    tail = text[matches[0].end() :]
+    next_section = re.search(r"(?m)^## (?!#)", tail)
+    return tail[: next_section.start()] if next_section else tail
+
+
+def _validate_executable_spec_tables(section: str, path: str) -> list[dict[str, str]]:
+    errors: list[dict[str, str]] = []
+    headings = re.findall(r"(?m)^### ([^\r\n]+?)\s*$", section)
+    expected_names = [name for name, _columns in EXECUTABLE_SPEC_SCHEMA]
+    if headings != expected_names:
+        return [
+            issue(
+                "executable-spec-structure",
+                path,
+                f"matrix headings must be exactly {expected_names}",
+            )
+        ]
+    for name, columns in EXECUTABLE_SPEC_SCHEMA:
+        marker = f"### {name}"
+        start = section.index(marker) + len(marker)
+        end = section.find("\n### ", start)
+        block = section[start : end if end >= 0 else len(section)]
+        table_groups: list[list[str]] = []
+        current_group: list[str] = []
+        for line in block.splitlines():
+            if line.strip().startswith("|"):
+                current_group.append(line)
+            elif current_group:
+                table_groups.append(current_group)
+                current_group = []
+        if current_group:
+            table_groups.append(current_group)
+        if len(table_groups) != 1:
+            errors.append(
+                issue(
+                    "executable-spec-structure",
+                    path,
+                    f"{name} must contain exactly one table",
+                )
+            )
+            continue
+        table_lines = table_groups[0]
+        if len(table_lines) < 2:
+            errors.append(issue("executable-spec-structure", path, f"{name} table is missing"))
+            continue
+        header = split_markdown_table_row(table_lines[0])
+        if header != columns:
+            errors.append(
+                issue(
+                    "executable-spec-structure",
+                    path,
+                    f"{name} columns must be exactly {columns}",
+                )
+            )
+            continue
+        separator = split_markdown_table_row(table_lines[1])
+        if len(separator) != len(columns) or any(
+            not re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            errors.append(issue("executable-spec-structure", path, f"{name} separator is invalid"))
+            continue
+        for row_number, line in enumerate(table_lines[2:], 1):
+            cells = split_markdown_table_row(line)
+            repeated_separator = len(cells) == len(columns) and all(
+                re.fullmatch(r":?-{3,}:?", cell) for cell in cells
+            )
+            if cells == columns or repeated_separator:
+                errors.append(
+                    issue(
+                        "executable-spec-structure",
+                        path,
+                        f"{name} contains a second table",
+                    )
+                )
+                continue
+            if len(cells) != len(columns):
+                errors.append(
+                    issue(
+                        "executable-spec-structure",
+                        path,
+                        f"{name} row {row_number} has {len(cells)} cells; expected {len(columns)}",
+                    )
+                )
+                continue
+            for column, cell in zip(columns, cells):
+                if executable_spec_cell_is_unresolved(cell):
+                    errors.append(
+                        issue(
+                            "executable-spec-unresolved",
+                            path,
+                            f"{name} row {row_number} column {column} is blank or unresolved",
+                        )
+                    )
+    return errors
+
+
+def validate_executable_spec_guidance(root: Path) -> list[dict[str, str]]:
+    """Validate #4656's source-controlled structural planning contract."""
+    consult_relative = "chaos-engine/references/consult-first.md"
+    planning_relative = "chaos-engine/references/work-github-planning.md"
+    consult_path = root / consult_relative
+    planning_path = root / planning_relative
+    if not consult_path.exists():
+        return []  # Minimal validator fixtures do not carry the canonical router.
+    try:
+        consult = _without_fenced_markdown(consult_path.read_text(encoding="utf-8"))
+        planning = _without_fenced_markdown(planning_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        return [issue("executable-spec-guidance", consult_relative, f"guidance could not be read: {error}")]
+    errors: list[dict[str, str]] = []
+    compact_planning = " ".join(planning.split())
+    if " ".join(EXECUTABLE_SPEC_PLANNING_CLAUSE.split()) not in compact_planning:
+        errors.append(
+            issue(
+                "executable-spec-policy",
+                planning_relative,
+                f"mandatory clause changed or is missing: {EXECUTABLE_SPEC_PLANNING_CLAUSE}",
+            )
+        )
+    section = _executable_spec_section(consult)
+    if section is None:
+        errors.append(
+            issue(
+                "executable-spec-structure",
+                consult_relative,
+                "exactly one executable-specification section is required",
+            )
+        )
+    else:
+        preamble = section.split("###", 1)[0]
+        compact_preamble = " ".join(preamble.split())
+        for clause in EXECUTABLE_SPEC_CONSULT_CLAUSES:
+            if " ".join(clause.split()) not in compact_preamble:
+                errors.append(
+                    issue(
+                        "executable-spec-policy",
+                        consult_relative,
+                        f"mandatory clause changed or is missing before the matrices: {clause}",
+                    )
+                )
+        normalized_lines = {" ".join(line.split()) for line in section.splitlines() if line.strip()}
+        for clause in (EXECUTABLE_SPEC_REGRESSION_INTRO, *EXECUTABLE_SPEC_REGRESSION_SCENARIOS):
+            if " ".join(clause.split()) not in normalized_lines:
+                errors.append(
+                    issue(
+                        "executable-spec-policy",
+                        consult_relative,
+                        f"mandatory regression prompt changed or is missing: {clause}",
+                    )
+                )
+        errors.extend(_validate_executable_spec_tables(section, consult_relative))
+    return errors
+
+
+def mandated_chain_bytes(root: Path, budget: dict, host: str) -> int:
+    """Bytes a host must load before any task: pointer + core + identity + profile + SessionStart."""
+    chain = budget.get("mandated_chain", {})
+    files = [*chain.get("hosts", {}).get(host, []), *chain.get("common", [])]
+    total = 0
+    for name in dict.fromkeys(files):
+        path = root / name
+        if path.is_file():
+            total += len(path.read_text(encoding="utf-8").encode("utf-8"))
+    if host in chain.get("session_start_hosts", []):
+        total += int(chain.get("session_start_bytes", 0))
+    return total
+
+
+def mandated_chain_errors(root: Path, budget: dict) -> list[dict[str, str]]:
+    """#6176: the whole mandated chain, not only host_contexts, fits one budget per host."""
+    chain = budget.get("mandated_chain")
+    if not isinstance(chain, dict):
+        return []
+    maximum = chain.get("max_bytes")
+    if not isinstance(maximum, int) or maximum <= 0:
+        return [issue("mandated-chain-config", "scripts/ci/agent_guidance_budget.json", "mandated_chain.max_bytes must be a positive integer")]
+    errors: list[dict[str, str]] = []
+    for host in chain.get("hosts", {}):
+        size = mandated_chain_bytes(root, budget, host)
+        if size > maximum:
+            errors.append(
+                issue(
+                    "mandated-chain-budget",
+                    "scripts/ci/agent_guidance_budget.json",
+                    f"{host} mandated chain is {size} bytes; budget is {maximum}",
+                )
+            )
+    return errors
+
+
+def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> list[dict[str, str]]:
+    """Run every guidance validation and return sorted issues."""
+    selected_budget = budget_path or root / "scripts/ci/agent_guidance_budget.json"
+    budget = load_budget(selected_budget)
+    active_patterns, active_key_errors = require_glob_list(budget, "active_guidance_globs")
+    reference_patterns, reference_key_errors = require_glob_list(budget, "reference_scan_globs")
+    active_files, active_glob_errors = expand_reported_globs(
+        root, active_patterns, "active_guidance_globs"
+    )
+    reference_files, reference_glob_errors = expand_reported_globs(
+        root, reference_patterns, "reference_scan_globs"
+    )
+    errors = [
+        *validate_file_budgets(root, budget),
+        *validate_host_contexts(root, budget),
+        *mandated_chain_errors(root, budget),
+        *validate_total_reduction(root, budget),
+        *validate_skills(root, budget),
+        *validate_routing_bridges(root, budget),
+        *validate_local_references(root, reference_files),
+        *validate_scopes(root, budget),
+        *validate_forbidden_patterns(root, active_files, budget),
+        *validate_stale_references(root, reference_files, budget),
+        *validate_duplicate_paragraphs(root, active_files, budget),
+        *validate_executable_spec_guidance(root),
+        *active_key_errors,
+        *reference_key_errors,
+        *active_glob_errors,
+        *reference_glob_errors,
+    ]
+    return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line parser."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=ROOT, help="Repository root to validate.")
+    parser.add_argument(
+        "--budget",
+        type=Path,
+        help="Budget JSON path. Defaults to scripts/ci/agent_guidance_budget.json under --root.",
+    )
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    return parser
+
+
+
+
+def main() -> int:
+    """Run the CLI."""
+    args = build_parser().parse_args()
+    root = args.root.resolve()
+    budget_path = args.budget.resolve() if args.budget else None
+    errors = validate_repository(root, budget_path)
+    if args.format == "json":
+        print(json.dumps({"valid": not errors, "errors": errors}, indent=2))
+    elif errors:
+        for error in errors:
+            print(f"{error['code']}: {error['path']}: {error['message']}", file=sys.stderr)
+    else:
+        print("Agent guidance budgets, routing, references, and refresh gates are valid.")
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

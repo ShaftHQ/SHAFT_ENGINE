@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shafthq.github.io/schema/shaft-heal-locator-proposal-1.0.schema.json",
+  "title": "SHAFT Doctor Healing Locator Proposal",
+  "type": "object",
+  "required": [
+    "schemaVersion", "proposalId", "healingAttemptId", "sourcePath",
+    "sourceLine", "originalExpression", "proposedExpression", "confidence",
+    "evidence", "sourceSha256", "proposedSourceSha256", "patch",
+    "approvalToken", "manifestPath"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "proposalId": {"type": "string", "minLength": 1},
+    "healingAttemptId": {"type": "string", "minLength": 1},
+    "sourcePath": {"type": "string", "minLength": 1},
+    "sourceLine": {"type": "integer", "minimum": 1},
+    "originalExpression": {"type": "string", "minLength": 1},
+    "proposedExpression": {"type": "string", "minLength": 1},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence": {"type": "array"},
+    "sourceSha256": {"type": "string", "minLength": 1},
+    "proposedSourceSha256": {"type": "string", "minLength": 1},
+    "patch": {"type": "object"},
+    "approvalToken": {"type": "string", "minLength": 1},
+    "manifestPath": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps.md",
+  "content_hash": "sha256:7bac3c4d833d843bdf42f7db1a6b1aaccaca8f3db75f4c493d58baee2e2f975f",
+  "created_at": "2026-07-10T15:08:06+03:00",
+  "evidence": [
+    {
+      "id": "b74aad833dafe5e7a94bde12026424068af73989",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.clientactionid-is-the-authoritative-dedup-identity-for-recorder-steps",
+  "source": {
+    "kind": "agent",
+    "task": "Fix issue #3409: recorder stop orphaning the browser, duplicated steps, and codegen replay"
+  },
+  "status": "active",
+  "tags": [
+    "capture",
+    "recorder",
+    "dedup"
+  ],
+  "title": "clientActionId is the authoritative dedup identity for recorder steps",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:55:58+03:00"
+}

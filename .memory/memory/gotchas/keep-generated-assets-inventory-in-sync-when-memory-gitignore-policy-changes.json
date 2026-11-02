@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/keep-generated-assets-inventory-in-sync-when-memory-gitignore-policy-changes.md",
+  "content_hash": "sha256:697ee0d2e59bd0e0797e46a20e8749f4c010c12e634b65cfa47ae4484c774d92",
+  "created_at": "2026-09-14T15:51:45+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5776",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.keep-generated-assets-inventory-in-sync-when-memory-gitignore-policy-changes",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver #5776 generated-assets inventory sync"
+  },
+  "status": "active",
+  "tags": [
+    "memory",
+    "gitignore",
+    "inventory",
+    "readme",
+    "gotcha"
+  ],
+  "title": "Keep generated-assets inventory in sync when Memory gitignore policy changes",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T15:51:45+03:00"
+}

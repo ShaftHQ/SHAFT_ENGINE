@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/gotchas/run-harness-gate-before-workflow-wide-edits.md",
+  "content_hash": "sha256:ccee18ef096dfd28f42b2473cb7f8bedb8fef7b1abc1f83d6c8f2ad1e5179a4f",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.run-harness-gate-before-workflow-wide-edits",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "ci",
+    "complexity"
+  ],
+  "title": "Run the harness gate and pre-push locally before pushing workflow-wide or harness edits",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T18:17:15+03:00"
+}

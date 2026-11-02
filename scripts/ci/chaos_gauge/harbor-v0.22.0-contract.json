@@ -1,0 +1,8 @@
+{
+  "commit": "4407eb5227a2ff4f0d3f16b2eb48849382fdf276",
+  "jobFields": ["agents", "datasets", "environment", "job_name", "jobs_dir", "n_attempts", "n_concurrent_trials", "quiet", "retry", "timeout_multiplier"],
+  "deprecatedJobFields": ["orchestrator", "plugins"],
+  "agentIdentityFields": ["import_path", "model_name", "name", "override_setup_timeout_sec"],
+  "taskSchemaVersion": "1.4",
+  "datasetSchemaVersion": "1.0"
+}

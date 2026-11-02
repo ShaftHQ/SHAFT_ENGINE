@@ -1,0 +1,1 @@
+A module-level load of `hooks/lifecycle.py` in `tool.py` broke `test_chaos_engine_missing_core_recovery`: a partial core must still print its heal path (#7097). Load shared modules lazily inside the function that needs them.

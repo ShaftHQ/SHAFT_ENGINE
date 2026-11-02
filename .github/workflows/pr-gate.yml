@@ -1,0 +1,1826 @@
+name: PR Gate
+
+# The single path-conditioned gate for this repository (issue #3814). Phase 1
+# introduced it as the "PR Gate Summary" required status check; Phase 3 folded
+# the per-area workflows it replicates (docs-boundary-gate.yml,
+# intellij-plugin.yml, shaft-capture-e2e.yml, shaft-cli.yml,
+# template-coupling.yml) into this file and deleted them, so this workflow is
+# now the ONLY trigger source for those legs -- keep its path filters in sync
+# with what those files used to list (see the deletion checklist in
+# .github/workflows/README.md). `merge_group:` (#6990 phase 4) runs the PR tier
+# against the queued merge commit (base = merge_group.base_sha), so the merge
+# queue can require "PR Gate Summary" without running post-merge legs. When
+# that merge commit has two parents and its tree equals the second parent, the
+# pull request was already green and up to date with main: every leg except
+# changes and summary is skipped, and summary still accepts skipped. push to
+# main leaves same_tree unset, so the full gate still runs there. On
+# merge_group, dorny/paths-filter (no `base`) diffs the queue head against the
+# default branch, i.e. exactly the queued pull requests.
+#
+# Deliberately pull_request + push(main) only, no workflow_dispatch:
+# dorny/paths-filter cannot resolve a diff base outside push/pull_request
+# events, so a workflow_dispatch run would either always fail the changes job
+# or (if gated) skip every leg and pass vacuously. The push trigger covers the
+# main-branch coverage the folded workflows used to provide. With `base`
+# omitted, dorny/paths-filter defaults it to the repository default branch; on
+# a `push` to main that base is the triggering branch, so the action diffs the
+# event's `before` commit against the pushed head (its documented "long-lived
+# branch" behavior). On pull requests the action's non-empty default token
+# selects the PR-files API, which owns the base comparison. The `changes` job
+# carries no `if:`, so it always runs on both event types, and the
+# `dependency-review` job's own conditional makes it report `skipped` (not a
+# failure) on pushes and pull requests with no dependency-bearing diff, which
+# the summary job's success|skipped leg check already accepts.
+
+# Label events are deliberately absent (issue #6190): release-note
+# classification runs in release-note-governance.yml, so adding or removing a
+# label no longer restarts every leg below.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+# Superseding pushes cancel an in-flight PR run, but a post-merge `main` run is
+# never cancelled by the next merge (issue #6185): legs that run only after
+# merge (e.g. the macOS fresh installer) need every merge commit to finish.
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      intellij: ${{ steps.filter.outputs.intellij }}
+      cli: ${{ steps.filter.outputs.cli }}
+      capture: ${{ steps.filter.outputs.capture }}
+      templates: ${{ steps.filter.outputs.templates }}
+      javacore: ${{ steps.filter.outputs.javacore }}
+      dependencies: ${{ steps.filter.outputs.dependencies }}
+      module_boundary: ${{ steps.filter.outputs.module_boundary }}
+      javadoc: ${{ steps.filter.outputs.javadoc }}
+      pr_gate: ${{ steps.filter.outputs.pr_gate }}
+      infra: ${{ steps.filter.outputs.infra }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+      # #6990: every main commit uploads every Codecov flag, so PR carryforward
+      # always has a full base report (path-filtered main runs left flags missing).
+      coverage_all: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
+      chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
+      chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
+      installer_os: ${{ steps.installer-tier.outputs.installer_os }}
+      installer_contracts_os: ${{ steps.installer-tier.outputs.installer_contracts_os }}
+      # #6990 phase 3: heavy legs are post-merge unless the PR opts in by label.
+      cli_os: ${{ steps.installer-tier.outputs.cli_os }}
+      run_capture_browser: ${{ steps.installer-tier.outputs.run_capture_browser }}
+      run_intellij_verify: ${{ steps.installer-tier.outputs.run_intellij_verify }}
+      # Empty on pull_request and push. true only for an already-green merge-queue tree.
+      same_tree: ${{ steps.same-tree.outputs.same_tree }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Depth 2 keeps both parents of a merge-queue commit. Fetching the
+          # raw SHA is not a branch tip and would fail the whole gate.
+          fetch-depth: 2
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            chaos_installer:
+              - 'chaos-engine/bootstrap.py'
+              - 'chaos-engine/install.py'
+              - 'chaos-engine/install.sh'
+              - 'chaos-engine/install.ps1'
+              - 'chaos-engine/hosts.py'
+              - 'chaos-engine/dependencies.py'
+              - 'chaos-engine/dependencies.json'
+              - 'chaos-engine/packs/**'
+              - 'chaos-engine/distributions.json'
+              - 'chaos-engine/profiles/*/profile.json'
+              - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_bootstrap.py'
+              - 'tests/scripts/test_chaos_engine_dependencies.py'
+              - 'tests/scripts/test_chaos_engine_generation_runtime.py'
+              - 'tests/scripts/test_chaos_engine_installer.py'
+              - 'tests/scripts/test_chaos_engine_install_wrappers.py'
+              - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
+              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
+              - 'chaos-engine/consumer_mode.py'
+              - 'chaos-engine/prerequisites.py'
+              - 'tests/scripts/test_chaos_engine_prerequisites_7220.py'
+              - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
+              - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
+              - 'tests/scripts/test_chaos_engine_install_resilience_7314.py'
+              - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
+              - 'tests/scripts/test_mempalace_background_index.py'
+            docs:
+              - "**/*.md"
+              - "**/*.mdx"
+              - "scripts/ci/validate_documentation_boundaries.py"
+            chaos_gauge:
+              - 'scripts/ci/chaos_gauge/**'
+              - 'tests/scripts/test_chaos_gauge_*.py'
+              - '.github/workflows/chaos-gauge-public-canary.yml'
+            # Agent guidance had no CI gate at all: validate_agent_setup.py and
+            # the harness suites were local-only, so drift only surfaced when
+            # someone ran them by hand.
+            agent_guidance:
+              - '.grok/**'
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - '.agents/**'
+              - '.claude/**'
+              - '.codex/**'
+              - '.mcp.json'
+              - 'mempalace.yaml'
+              - '.github/skills/**'
+              - '.github/instructions/**'
+              - '.github/copilot-instructions.md'
+              - '.github/workflows/agent-plugin-acceptance.yml'
+              - '.github/workflows/README.md'
+              - '.github/workflows/mavenCentral_cd.yml'
+              - 'agent-plugins/**'
+              - 'chaos-engine/**'
+              - 'shaft-skills/**'
+              - '.claude-plugin/marketplace.json'
+              - '.memory/**'
+              - 'scripts/agents/**'
+              - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/unittest_shard.py'
+              - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
+              - 'scripts/ci/chaos_engine_promotion.py'
+              - 'scripts/ci/validate_chaos_engine_readme.py'
+              - 'scripts/ci/validate_agent_setup.py'
+              - 'scripts/ci/validate_agent_ownership.py'
+              - 'scripts/ci/agent_ownership.json'
+              - 'scripts/ci/validate_agent_guidance.py'
+              - 'scripts/ci/agent_plugin_release.py'
+              - 'scripts/ci/validate_agent_plugins.py'
+              - 'scripts/ci/assemble_chaos_engine_plugin.py'
+              - 'scripts/ci/assemble_shaft_skills_plugin.py'
+              - 'scripts/ci/agent_plugin_client_smoke.py'
+              - 'scripts/ci/shaft_skill_quality.py'
+              - 'scripts/ci/shaft_skill_routing_eval.py'
+              - 'scripts/ci/shaft_skill_candidate_intake.py'
+              - 'scripts/ci/agnix_conformance.py'
+              - 'scripts/ci/agnix_conformance.json'
+              - 'scripts/ci/external_guardrail_corpus.py'
+              - 'scripts/ci/external_guardrail_corpus.json'
+              - 'scripts/ci/validate_skills.py'
+              - 'scripts/ci/worktree_hygiene.py'
+              - 'tools/repository-map/README.md'
+              - 'tools/repository-map/resolve_graph_out.py'
+              - 'tools/repository-map/resolve_mempalace.py'
+              - 'tools/repository-map/graphify_maintenance.py'
+              - 'scripts/ci/watch_upstream_pins.py'
+              - 'tests/scripts/test_watch_upstream_pins.py'
+              - '.github/workflows/upstream-watch.yml'
+              - 'tools/agent-infra/graphify-refresh.cmd'
+              - 'tools/agent-infra/install-agent-tasks.ps1'
+              - 'tools/agent-infra/shaft_knowledge_refresh.py'
+              # Reachability elements: the harness check fails when either
+              # moves, so a change to them has to run this gate.
+              - 'scripts/ci/watch_pr_checks.py'
+              - 'scripts/ci/local_gate.py'
+              - 'scripts/ci/accessibility_quality_gates.py'
+              - 'tests/fixtures/accessibility_quality_gates_sample.json'
+              - 'tests/scripts/test_accessibility_quality_gates.py'
+              - 'scripts/ci/agent_guidance_budget.json'
+              - 'scripts/ci/agent_harness_parity.json'
+              - 'tests/scripts/test_agent_router_contract.py'
+              - 'tests/scripts/test_architect_skill_parity.py'
+              - 'tests/scripts/test_technical_presentations_skill_parity.py'
+              - 'tests/scripts/test_pre_done_review.py'
+              - 'tests/scripts/test_agent_plugin_release.py'
+              - 'tests/scripts/test_agent_harness_portability.py'
+              - 'tests/scripts/test_agent_harness_reachability.py'
+              # #6222: formerly weekly-only modules now gated on their inputs.
+              - 'tests/scripts/test_chaos_engine_portable_core.py'
+              - 'tests/scripts/test_chaos_engine_research.py'
+              # #6240: previously unselected suites that drifted red on main.
+              - 'tests/scripts/test_intellij_plugin_development_skill.py'
+              - 'tests/scripts/test_chaos_engine_s3_self_improve.py'
+              - 'tests/scripts/test_chaos_engine_one_source_overlay_5713.py'
+              - 'tests/scripts/test_omniroute.py'
+              - 'tests/scripts/test_omniroute_workflow_contract.py'
+              - 'tests/scripts/test_omniroute_orchestrator_docs.py'
+              - 'tests/scripts/test_omniroute_tdd_pdca.py'
+              - 'tests/scripts/test_omniroute_portability.py'
+              - 'tests/scripts/test_guard_nul_corruption.py'
+              - 'tests/scripts/test_guard_memory_worktree.py'
+              - 'tests/scripts/test_guard_lifecycle.py'
+              - 'tests/scripts/test_guard*.py'
+              - 'tests/scripts/test_validate_agent_guidance.py'
+              - 'tests/scripts/test_validate_agent_ownership.py'
+              - 'tests/scripts/test_validate_agent_plugins.py'
+              - 'tests/scripts/test_assemble_chaos_engine_plugin.py'
+              - 'tests/scripts/test_repository_context.py'
+              - 'tests/scripts/test_watch_pr_checks.py'
+              - 'tests/scripts/test_chaos_engine_runtime.py'
+              - 'tests/scripts/test_assemble_shaft_skills_plugin.py'
+              - 'tests/scripts/test_validate_agent_setup.py'
+              - 'tests/scripts/test_intellij_recording_powershell.py'
+              - 'tools/intellij-plugin-recording/**'
+              - 'tests/scripts/test_worktree_hygiene.py'
+              - 'tests/scripts/test_session_worktree.py'
+              - 'tests/scripts/test_resolve_graph_out.py'
+              - 'tests/scripts/test_resolve_mempalace.py'
+              - 'tests/scripts/test_knowledge_stores.py'
+              - 'tests/scripts/test_graphify_maintenance.py'
+              - 'tests/scripts/test_shaft_knowledge_refresh.py'
+              - 'tests/scripts/test_validate_skills.py'
+              - 'tests/scripts/test_sync_user_harness.py'
+              - 'tests/scripts/test_shaft_skills_content.py'
+              - 'tests/scripts/test_shaft_skill_cli_examples.py'
+              - 'tests/scripts/test_shaft_skill_quality.py'
+              - 'tests/scripts/test_execution_class_skills.py'
+              - 'tests/scripts/test_rerun_failures_skill_script.py'
+              - 'tests/scripts/test_shaft_skill_routing_eval.py'
+              - 'tests/scripts/test_shaft_skill_candidate_intake.py'
+              - 'tests/scripts/test_agnix_conformance.py'
+              - 'tests/scripts/test_agent_plugin_client_smoke.py'
+              - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_unittest_shard.py'
+              - 'tests/scripts/test_chaos_engine_bootstrap.py'
+              - 'tests/scripts/test_chaos_engine_dependencies.py'
+              - 'tests/scripts/test_chaos_engine_generation_runtime.py'
+              - 'tests/scripts/test_chaos_engine_installer.py'
+              - 'tests/scripts/test_chaos_engine_install_wrappers.py'
+              - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
+              - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              # Issue #6186: every chaos_installer path must also run this
+              # gate, whose installer surface replaced the ubuntu UX step.
+              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
+              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
+              - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
+              - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
+              - 'tests/scripts/test_chaos_engine_install_resilience_7314.py'
+              - 'tests/scripts/test_chaos_engine_prerequisites_7220.py'
+              - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
+              - 'tests/scripts/test_mempalace_background_index.py'
+              # #6239: repo-state guard for the script suites.
+              - 'tests/scripts/conftest.py'
+              - 'tests/scripts/repo_state_guard.py'
+              - 'tests/scripts/test_repo_state_guard.py'
+              - 'tests/scripts/test_chaos_engine_promotion.py'
+              - 'tests/scripts/test_validate_chaos_engine_readme.py'
+              # Not agent guidance, but this is the only gate that runs the
+              # script suites on both a Linux and a Windows runner, which is
+              # what build_retry.sh needs (issue #4445).
+              - 'scripts/ci/build_retry.sh'
+              - 'tests/scripts/test_build_retry.py'
+              # Absorbed into the element set by name (#4531): the
+              # allure-extent-report-operator playbook tells an agent to run
+              # the extractor, which makes both harness elements, and the
+              # module is now in this job's run list. Filter and run list move
+              # together or the gate asserts on a file it never re-runs for.
+              - 'scripts/ci/extract_allure_failures.py'
+              - 'tests/scripts/test_extract_allure_failures.py'
+              # #7530: Flutter emulator PATH contracts (GITHUB_PATH pin) live in
+              # visual-ocr-workflow; without these paths Agent Guidance Gate
+              # skips and the riskiest-assumption tests never run on the PR.
+              - 'scripts/ci/flutter_emulator_preflight.sh'
+              - 'scripts/ci/run_ubuntu_flutter_emulator_e2e.sh'
+              - 'tests/scripts/test_visual_ocr_workflow.py'
+            intellij:
+              - 'shaft-intellij/**'
+              # Issue #6438: the shaft-mcp contract validator ran only nightly, so a
+              # Dockerfile it rejects merged unseen. Its inputs gate this job too.
+              - 'shaft-mcp/Dockerfile*'
+              - 'scripts/ci/validate_shaft_mcp_configuration.py'
+              - 'tests/scripts/test_validate_shaft_mcp_configuration.py'
+              - '.github/workflows/publish-intellij-plugin.yml'
+              - 'scripts/mcp/**'
+              - 'tests/scripts/test_install_shaft_mcp.py'
+              - 'scripts/ci/verify_shaft_mcp_installer_release.py'
+              - 'scripts/ci/validate_installer_contract.py'
+              - 'tests/scripts/test_validate_installer_contract.py'
+              - 'shaft-mcp/src/main/java/com/shaft/mcp/**'
+              - 'shaft-capture/**'
+              - 'shaft-skills/**'
+              - 'tests/scripts/test_generate_shaft_skills_tool_catalog.py'
+              - 'tests/scripts/test_mcp_tool_catalog_sync.py'
+              - 'shaft-mcp/src/test/resources/fixtures/mcp-tool-manifest.json'
+              - 'shaft-mcp/src/main/resources/META-INF/shaft-mcp/**'
+              - 'tests/scripts/test_generate_tool_index.py'
+              - 'tests/scripts/test_validate_tool_index_examples.py'
+              - 'shaft-cli/src/main/java/com/shaft/commandline/command/**'
+            cli:
+              - 'shaft-cli/**'
+              - 'shaft-infrastructure/**'
+              - 'pom.xml'
+            capture:
+              - 'shaft-capture/**'
+            templates:
+              - 'shaft-engine/src/main/resources/examples/**'
+              - 'shaft-skills/**'
+              - 'shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java'
+              - 'shaft-mcp/src/test/java/com/shaft/mcp/ShaftProjectServiceTest.java'
+            # Dependency Review only needs a diff that can change the resolved
+            # dependency graph or its review policy. Keeping it path-scoped
+            # prevents unrelated release/version PRs from waiting on an
+            # external action with nothing relevant to inspect (#4602).
+            dependencies:
+              - '**/pom.xml'
+              - '**/build.gradle.kts'
+              - '**/gradle.properties'
+              - 'requirements-ci.txt'
+              # #7451: managed Appium locks / manifests feed the advisory check
+              # that runs under workflow-timeouts (dependencies==true leg).
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
+              - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'tests/scripts/test_validate_npm_lock_advisories.py'
+              - 'scripts/ci/repair_bundled_shell_quote.js'
+              - 'tests/fixtures/npm_lock_advisories/**'
+              - '.github/dependabot.yml'
+              - '.github/dependency-review-config.yml'
+              - '.github/workflows/agent-plugin-acceptance.yml'
+              - '.github/workflows/mavenCentral_cd.yml'
+              - '.github/workflows/pr-gate.yml'
+              - '.github/workflows/publish-shaft-mcp.yml'
+              - 'scripts/ci/dependency_review_changes.py'
+              - 'tests/scripts/test_ci_python_dependencies.py'
+              - 'tests/scripts/test_dependency_review_changes.py'
+            # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
+            # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
+            # dedicated legs above and are intentionally not repeated here. shaft-capture
+            # is deliberately NOT listed here even though it has its own unit-test matrix
+            # entry below (issue #4280) -- it already has a dedicated `capture` filter
+            # above (used by capture-e2e), and the unit-tests job's `if` condition also
+            # checks that filter directly rather than duplicating its paths into javacore.
+            javacore:
+              - 'shaft-infrastructure/**'
+              - 'shaft-engine/**'
+              - 'shaft-pilot-core/**'
+              - 'shaft-doctor/**'
+              - 'shaft-ai/**'
+              - 'shaft-heal/**'
+              - 'shaft-mcp/**'
+              - 'shaft-ocr/**'
+              - 'pom.xml'
+            # Issue #4506: tests/scripts/test_pilot_module_boundary.py pins the
+            # shaft-engine -> shaft-pilot-core -> shaft-capture/shaft-ai
+            # dependency direction and the AiProvider ServiceLoader
+            # registration, and it was run by no workflow at all -- so it sat
+            # red on main indefinitely. Its inputs span four filters that
+            # already exist and two paths that belong to none of them
+            # (shaft-bom, the consumer fixture), so it gets its own leg naming
+            # exactly what it reads rather than being bolted onto the closest
+            # one.
+            # #6375: every customer-facing public member keeps a Javadoc.
+            javadoc:
+              - '*/src/main/java/**'
+              - 'scripts/ci/validate_javadoc_coverage.py'
+              - 'scripts/ci/javadoc_coverage_baseline.json'
+              - 'tests/scripts/test_validate_javadoc_coverage.py'
+              - '*/src/test/java/**'
+              - 'scripts/ci/validate_test_reference_coverage.py'
+              - 'scripts/ci/test_reference_baseline.json'
+              - 'tests/scripts/test_validate_test_reference_coverage.py'
+            module_boundary:
+              - 'shaft-engine/pom.xml'
+              - 'shaft-pilot-core/pom.xml'
+              - 'shaft-capture/pom.xml'
+              - 'shaft-ai/**'
+              - 'shaft-bom/pom.xml'
+              - 'tools/modularization/consumer-fixtures/pilot-core/pom.xml'
+              - '.github/workflows/shaft-mcp.yml'
+              - 'tests/scripts/test_pilot_module_boundary.py'
+              - 'shaft-infrastructure/**'
+              - 'shaft-ocr/**'
+              - 'shaft-cli/pom.xml'
+              - '.github/workflows/e2eTests.yml'
+              - '.github/workflows/e2eLocalTests.yml'
+              - 'tests/scripts/test_ocr_infrastructure_boundary.py'
+              - 'tests/scripts/test_lighthouse_infrastructure_boundary.py'
+              - 'tests/scripts/test_android_infrastructure_boundary.py'
+            # A definition-only edit must validate this workflow without
+            # fanning out product builds. Shared actions remain `infra`
+            # because their steps execute inside every product job below.
+            pr_gate:
+              - '.github/workflows/pr-gate.yml'
+            infra:
+              # Composite actions this gate's jobs call (issue #4440 added
+              # cache-maven-repo): editing one changes what every Java job here
+              # actually runs, so it has to re-run them.
+              - '.github/actions/**'
+            # Issue #4081's regression guard (scripts/ci/validate_workflow_timeouts.py):
+            # any workflow file change must re-check that every job still declares
+            # timeout-minutes, not only edits to this file (already covered by infra).
+            # Issue #4071's regression guard (scripts/ci/validate_orphaned_suite_files.py)
+            # needs the same treatment: an edit to the guard or its test must re-run the
+            # job even when no workflow file itself changed.
+            workflows:
+              - '.github/workflows/**'
+              - 'scripts/ci/validate_orphaned_suite_files.py'
+              - 'tests/scripts/test_validate_orphaned_suite_files.py'
+              # Issue #4494's guard asserts a property of every workflow that
+              # calls the intellij-verify action -- that it allows the retried
+              # build a second attempt -- so it belongs to the same filter that
+              # re-runs on any workflow edit, not to the agent-guidance one.
+              - 'tests/scripts/test_intellij_verify_retry.py'
+              # Issue #5221: a 20-minute verify+publish job cancelled before
+              # Marketplace. These pins live next to the timeout guard so a
+              # workflow edit cannot drop the split, receipt, or miss tracker.
+              - 'scripts/ci/assert_intellij_marketplace_receipt.py'
+              - 'tests/scripts/test_assert_intellij_marketplace_receipt.py'
+              - 'scripts/ci/validate_shaft_pilot_release.py'
+              - 'tests/scripts/test_validate_shaft_pilot_release.py'
+              # Issue #4529: the timeout guard's own implementation and test
+              # were in no filter, so a timeout could not be lowered unnoticed
+              # but the check preventing it could be gutted green. A guard
+              # blind to edits of itself is the unbound-check shape one level
+              # up. Their neighbour above was already listed, which is what
+              # makes the omission an oversight rather than a decision.
+              - 'scripts/ci/validate_workflow_timeouts.py'
+              - 'tests/scripts/test_validate_workflow_timeouts.py'
+              - 'scripts/ci/validate_workflow_test_gating.py'
+              - 'tests/scripts/test_validate_workflow_test_gating.py'
+              - 'scripts/ci/epic_autoclose.py'
+              - 'tests/scripts/test_epic_autoclose.py'
+              # Issue #6187/#6184: installer OS tier and time-to-merge pins.
+              - 'scripts/ci/chaos_installer_tier.py'
+              - 'tests/scripts/test_pr_gate_time_to_merge.py'
+              - 'scripts/ci/merge_group_same_tree.py'
+              - 'tests/scripts/test_merge_group_same_tree.py'
+              - 'scripts/ci/pr_time_to_merge.py'
+              - 'tests/scripts/test_pr_time_to_merge_report.py'
+              - 'scripts/ci/quality_trend.py'
+              - 'tests/scripts/test_quality_layers_6990.py'
+              - 'tests/scripts/test_dangerous_workflow_7035.py'
+              - 'tests/scripts/test_release_provenance.py'
+              - 'scripts/ci/attach_release_provenance.py'
+              - 'tests/scripts/test_attach_release_provenance.py'
+              - 'scripts/ci/api_compat_gate.py'
+              - 'tests/scripts/test_api_compat_gate.py'
+              - 'scripts/ci/errorprone_ratchet.py'
+              - 'tests/scripts/test_errorprone_ratchet.py'
+              - 'scripts/ci/spotbugs_trend.py'
+              - 'tests/scripts/test_spotbugs_trend.py'
+              - '.github/errorprone-baseline.json'
+              - 'scripts/ci/workflow_security_gate.py'
+              - 'tests/scripts/test_workflow_security_gate.py'
+              - '.github/zizmor-baseline.json'
+              - 'scripts/ci/codecov_status_gate.py'
+              - 'tests/scripts/test_codecov_status_gate.py'
+              - 'tests/scripts/test_branch_uptodate_removed.py'
+              - 'codecov.yml'
+              - 'scripts/ci/validate_codecov_yml.py'
+              - 'tests/scripts/test_validate_codecov_yml.py'
+              # #7451: npm lock advisory check must re-run on its own inputs
+              # (#4529 shape — a guard blind to edits of itself / its locks
+              # is unbound). Lock-only or validator-only edits must not skip it.
+              - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'tests/scripts/test_validate_npm_lock_advisories.py'
+              - 'scripts/ci/repair_bundled_shell_quote.js'
+              - 'tests/fixtures/npm_lock_advisories/**'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
+              - '.github/workflows/pr-time-to-merge.yml'
+              - 'scripts/ci/shard_test_selector.py'
+              - 'tests/scripts/test_shard_test_selector.py'
+              # Issue #6206: the quality-configuration validator ran nowhere in
+              # CI, so cd_intellij_verify lost its coverage upload unnoticed.
+              - 'scripts/ci/validate_quality_configuration.py'
+              - 'tests/scripts/test_validate_quality_configuration.py'
+              # #6222: a pom version bump must come with the plugin CHANGELOG entry.
+              - 'scripts/ci/check_plugin_changelog_version.py'
+              - 'tests/scripts/test_check_plugin_changelog_version.py'
+              - 'agent-plugins/chaos-engine/CHANGELOG.md'
+              - 'agent-plugins/chaos-engine/COMPATIBILITY.md'
+              # Issue #6208: macOS opt-in label rerun helper.
+              - 'scripts/ci/rerun_pr_gate_on_label.py'
+              - 'tests/scripts/test_rerun_pr_gate_on_label.py'
+              # Issue #6185: the post-merge main-red reaction and its pins.
+              - 'scripts/ci/main_red_reaction.py'
+              - 'tests/scripts/test_main_red_reaction.py'
+      # Issue #6187: macOS fresh installer runs post-merge on main, nightly, and
+      # on PRs labelled ci:installer-macos. Labels are read live so re-running
+      # this workflow after adding the label picks macOS up (label events no
+      # longer trigger PR Gate, #6190).
+      - name: Resolve ChaosEngine installer OS tier
+        id: installer-tier
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          labels="$EVENT_LABELS"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '[.[].name]') || labels="$EVENT_LABELS"
+          fi
+          python3 scripts/ci/chaos_installer_tier.py --event-name "$GITHUB_EVENT_NAME" --labels "$labels" >> "$GITHUB_OUTPUT"
+      # Missing parents make the script print false and exit 0, so this step
+      # cannot fail the changes job or stall the merge queue.
+      - name: Detect already-green merge-queue tree
+        id: same-tree
+        if: github.event_name == 'merge_group'
+        run: echo "same_tree=$(python3 scripts/ci/merge_group_same_tree.py)" >> "$GITHUB_OUTPUT"
+
+  docs-boundary:
+    name: Documentation Boundary Gate
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate documentation boundaries
+        run: python3 scripts/ci/validate_documentation_boundaries.py
+
+  chaos-gauge:
+    name: ChaosGauge Recovery Gate
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.chaos_gauge == 'true' || needs.changes.outputs.pr_gate == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install managed CI Python dependencies
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Run ChaosGauge contracts
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_chaos_gauge_canary
+          tests.scripts.test_chaos_gauge_public_canary_workflow
+          tests.scripts.test_chaos_gauge_contracts
+          tests.scripts.test_chaos_gauge_campaign
+          tests.scripts.test_chaos_gauge_corpus
+          tests.scripts.test_chaos_gauge_runtime
+          tests.scripts.test_chaos_gauge_recovery
+          tests.scripts.test_chaos_gauge_scoring
+          -v
+
+  # Fast harness gate. The repository-owned classifier selects changed-surface
+  # tests, protected invariants, and a safe fallback for unknown harness files.
+  # Selected checks run concurrently (issue #6191); the longest protected
+  # modules run as deterministic shards (#6207). `--jobs 6` oversubscribes the
+  # 4 vCPUs because the suites are subprocess/IO bound; `--jobs 1` is the
+  # sequential rollback.
+  # Full cross-platform, native-client, and exhaustive suites run in
+  # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
+  agent-guidance:
+    name: Agent Guidance Gate
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install managed CI Python dependencies
+        run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Fetch immutable pull-request review records
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            query='query($owner:String!,$name:String!,$number:Int!,$endCursor:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviews(first:100,after:$endCursor){nodes{databaseId author{login} body state submittedAt lastEditedAt commit{oid}}pageInfo{hasNextPage endCursor}}}}}'
+            gh api graphql --paginate \
+              -f query="$query" \
+              -F owner="${GITHUB_REPOSITORY%%/*}" \
+              -F name="${GITHUB_REPOSITORY#*/}" \
+              -F number="${{ github.event.pull_request.number }}" \
+              --jq '.data.repository.pullRequest.reviews.nodes[] | {id:.databaseId,user:{login:.author.login},body,state,submitted_at:.submittedAt,last_edited_at:.lastEditedAt,commit_id:.commit.oid}' \
+              | jq -s '.' > "$REVIEWS_PATH"
+          else
+            printf '[]\n' > "$REVIEWS_PATH"
+          fi
+      - name: Run bounded changed-surface harness gate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
+          # #6755: gated suites resolve stable releases from api.github.com;
+          # unauthenticated runners share a 60/hour quota and hit 403.
+          GITHUB_TOKEN: ${{ github.token }}
+          # #6411: `decision-quality-override` lets an intended score drop pass.
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: >-
+          python scripts/ci/harness_pr_gate.py
+          --base "$BASE_SHA"
+          --head "$HEAD_SHA"
+          --reviews "$REVIEWS_PATH"
+          --budget-seconds 1200
+          --jobs 6
+          --output harness-pr-gate.json
+      - name: Upload harness gate receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: harness-pr-gate
+          path: harness-pr-gate.json
+          if-no-files-found: error
+
+  # intellij-plugin.yml runs two independent PR jobs today (installer
+  # verification across three OSes, and the Gradle plugin build); both are
+  # replicated faithfully here rather than folded into one job.
+  installer-verify:
+    name: Installer verification (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Run unittest for installer script
+        run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync tests.scripts.test_generate_tool_index tests.scripts.test_validate_tool_index_examples tests.scripts.test_validate_shaft_mcp_configuration -v
+      - name: Validate shaft-mcp configuration contract
+        run: python scripts/ci/validate_shaft_mcp_configuration.py
+      - name: Validate installer contract
+        run: python scripts/ci/validate_installer_contract.py
+      - name: Verify installer release
+        run: python scripts/ci/verify_shaft_mcp_installer_release.py
+
+  intellij-build:
+    name: Build IntelliJ plugin
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
+    runs-on: ubuntu-22.04
+    # A clean build takes ~5m and a connect timeout at :verifyPlugin dependency
+    # resolution takes ~2m40s to surface, so the second attempt issue #4494 buys
+    # does not fit under ten minutes: the retry would only trade a red check for
+    # a timed-out one.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build IntelliJ plugin
+        uses: ./.github/actions/intellij-verify
+        with:
+          verify: build
+      - name: Upload IntelliJ coverage to Codecov
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: pr-gate-intellij-build
+          flags: shaft-intellij
+      - name: Upload plugin distribution
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: shaft-intellij-plugin
+          path: shaft-intellij/build/distributions/*.zip
+          if-no-files-found: error
+
+  # Issue #6189: :verifyPlugin (~2.6-2.9 min of the 6.5 min build) runs as its
+  # own parallel job. The verifier IDEs resolve through Gradle artifact
+  # transforms that setup-gradle already restores from the Gradle User Home
+  # cache, so no second multi-GB cache is added. The two jobs together run
+  # exactly `check buildPlugin verifyPlugin`; release workflows still run the
+  # single combined, retried build.
+  intellij-verify-plugin:
+    name: Verify IntelliJ plugin (Plugin Verifier)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_intellij_verify == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run IntelliJ Plugin Verifier
+        uses: ./.github/actions/intellij-verify
+        with:
+          verify: plugin
+
+  cli:
+    name: shaft-cli (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # #6990: PR runs ubuntu only; windows-2025 post-merge or ci:cli-windows / ci:full.
+        os: ${{ fromJSON(needs.changes.outputs.cli_os) }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      # `install` packages the CLI JAR as well as installing its reactor
+      # dependencies. Reuse that artifact after tests instead of running a
+      # second package lifecycle in this 10-minute Windows job (#4606).
+      - name: Install shaft-cli reactor dependencies and package binary
+        run: mvn --batch-mode -pl shaft-cli -am -DskipTests install -q '-DheadlessExecution=true' '-Dgpg.skip' '-Dcyclonedx.skip'
+      # -Dshaft.intellij.liveToolE2E=true with no liveMcpCommand set (issue #3932a):
+      # exercises ShaftCliLiveE2ETest's 3 offline methods (tools --cached, codegen,
+      # session status) for real on every PR; its 3 live-server methods still
+      # self-skip via Assumptions.assumeTrue (ShaftCliLiveE2ETest.java:144-160) --
+      # the live-server trio only runs in live-tools-nightly.yml.
+      - name: Test shaft-cli
+        run: mvn --batch-mode -pl shaft-cli test '-DheadlessExecution=true' '-Dshaft.intellij.liveToolE2E=true'
+      - name: Upload shaft-cli coverage to Codecov
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-cli/target/jacoco/jacoco.xml
+          source-id: pr-gate-cli-${{ matrix.os }}
+          flags: shaft-cli
+      - name: Run packaged shaft-cli binary
+        shell: bash
+        run: |
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar --version
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup --help
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup catalog --json
+          android_plan="$RUNNER_TEMP/shaft-android-plan.json"
+          java -jar shaft-cli/target/shaft-cli-*[0-9].jar setup plan --profile MOBILE_ANDROID \
+            --mode MANAGED --offline --output "$android_plan"
+          python3 -c "import json,sys; p=json.load(open(sys.argv[1])); assert len(p['actions']) == 6; assert 'android-sdk-license' in p['actions'][4]['requiredLicenses']" "$android_plan"
+
+  capture-e2e:
+    name: SHAFT Capture Browser E2E
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true') && needs.changes.outputs.run_capture_browser == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.5
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      # pr-gate has no earlier install step for this module set, unlike the
+      # standalone shaft-capture-e2e.yml which is the only workflow to build
+      # this leg, so the install step is carried over verbatim here.
+      - name: Install SHAFT Capture prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture
+          -am install -DskipTests -Dgpg.skip
+      - name: Run headless SHAFT Capture browser E2E tests
+        uses: ./.github/actions/capture-browser-e2e
+      - name: Upload SHAFT Capture coverage to Codecov
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-capture/target/jacoco/jacoco.xml
+          source-id: pr-gate-capture-e2e
+          flags: shaft-capture-e2e
+
+  # Path-conditioned unit-test leg (issue #3849): shaft-engine and the Java
+  # modules downstream of it reached main with zero PR-time test execution --
+  # their tests only ran in the nightly E2E/Pilot-release workflows. Runs one
+  # matrix job per module rather than N copy-pasted legs. Every module here
+  # gets its dependencies installed first (mirrors capture-e2e's install-step
+  # pattern above) because pr-gate has no earlier install step for this set.
+  #
+  # shaft-pilot-core/shaft-doctor/shaft-ai/shaft-heal/shaft-mcp/shaft-capture run
+  # their full `mvn test` suite unfiltered -- the same invocation
+  # shaft-pilot-release.yml already runs on every release-relevant PR and calls
+  # "deterministic" (no live browser/grid/device). shaft-capture's own opt-in
+  # browser suite stays excluded by default (its pom's `excludedGroups`
+  # setting) and is gated separately behind -DincludeCaptureBrowserE2E in the
+  # capture-e2e job above -- not part of this set (issue #4280).
+  #
+  # shaft-engine cannot reuse that unfiltered pattern: outside its own
+  # `com.shaft.test.unittests` package it also has nightly-only live-browser
+  # suites (e.g. CoverageTests) that need a real driver session. This leg
+  # scopes to that package, minus RestValidationsBuilderUnitTest, which calls
+  # the public jsonplaceholder.typicode.com API and is a third-party-uptime
+  # flake risk unrelated to this repo's own correctness, plus the explicit
+  # com.shaft.**.internal unit-test classes moved here from e2eTests.yml's
+  # browser-matrix jobs (issue #3935): these are Mockito-mocked and need no
+  # real driver/grid, but previously rode along in the Firefox/Chrome/Edge
+  # grid jobs because those jobs' test scope was an unfiltered "everything
+  # except a short blocklist" selector. Verified individually (no real
+  # WebDriver construction, no Docker/BrowserStack/network touchpoints)
+  # before moving; e2eTests.yml now excludes them from GLOBAL_TESTING_SCOPE.
+  # Also named individually here: the sole remaining class from an orphaned
+  # TestNG suite XML found by #4071 (that file is deleted in the same change
+  # that added this line) -- pure file-read plus JSONCompare, no driver, no
+  # network, verified green with a scoped local run before being added.
+  # testPackage.mockedTests.MultipleElementsFailureTest (issue #4336, follow-up
+  # to #4321/#4326), .TouchMultipleElementsFailureTest (issue #4339 follow-up
+  # audit, covering #4332/PR #4340) and .LazyLoadingFixtureLiveTest (issue
+  # #4339 follow-up audit, covering #3749/#3775) are the exceptions to "no
+  # live-browser suites here": each DOES construct a real SHAFT.GUI.WebDriver()
+  # session, but -- unlike the nightly-only CoverageTests/E2ECoverageTests/
+  # AccessibilityTest-style suites (which either need a remote Selenium Grid
+  # for cross-browser matrix coverage, or hit a real third-party site such as
+  # authenticationtest.com/bing.com, a flake risk unrelated to this repo's own
+  # correctness) -- needs no remote Grid and no network beyond localhost. Their
+  # driver defaults (properties/default/custom.properties: executionAddress=
+  # local, targetBrowserName=chrome) launch a local headless Chrome session,
+  # the same shape the capture-e2e job above already runs successfully on
+  # this same ubuntu-22.04 runner with zero extra browser-setup steps. Each
+  # only talks to TestPageServer, an in-JVM HttpServer serving local HTML
+  # fixtures -- no Docker, no network. Verified with a scoped local run
+  # (`-Dtest=MultipleElementsFailureTest,TouchMultipleElementsFailureTest,
+  # LazyLoadingFixtureLiveTest -DheadlessExecution=true`) before being added;
+  # previously only ran via e2eTests.yml's nightly/broad GLOBAL_TESTING_SCOPE
+  # selector (MultipleElementsFailureTest, TouchMultipleElementsFailureTest) or
+  # e2eLocalTests.yml's nightly local-Chrome jobs (LazyLoadingFixtureLiveTest,
+  # excluded from GLOBAL_TESTING_SCOPE by name -- it is not Grid-safe), so a
+  # regression here could merge before the broader E2E suite caught it. The
+  # rest of testPackage.mockedTests (GuiVerificationTests, WaitActionsTest,
+  # PageScreenshotTest, NoSuchElementFailureTest, MultipleTypeCyclesTest,
+  # ThreadSafeGuiWizardTests, JDK21VirtualThreadsAndAsyncActionsTests,
+  # TouchActionsTests, SelectMethodTests, SelectedValueTests, HoverTests,
+  # ValidationTests) are technically local-headless-only too, but are broader
+  # multi-method coverage suites (up to ~30 driver launches per class) rather
+  # than narrow regression tests -- wiring all of them in here would
+  # meaningfully change this job's runtime/character. Left out deliberately;
+  # tracked as a follow-up decision in issue #4339's audit rather than done
+  # unilaterally.
+  #
+  # Issue #6188: shaft-engine was the Java critical path (9.7 min, test step
+  # 8.3). It runs as three parallel shards of the SAME selector below:
+  # scripts/ci/shard_test_selector.py puts the package glob in shard 1 and
+  # deals the named classes across shards 2 and 3; their union is exactly the
+  # selector (pinned by tests/scripts/test_shard_test_selector.py). Each shard
+  # verifies its own testng-results.xml and uploads its own coverage.
+  unit-tests:
+    name: Unit Tests (${{ matrix.leg || matrix.module }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
+      || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [ shaft-infrastructure, shaft-pilot-core, shaft-doctor, shaft-ai, shaft-heal, shaft-mcp, shaft-capture, shaft-ocr ]
+        include:
+          - module: shaft-engine
+            shard: 1
+            leg: shaft-engine-shard-1
+          - module: shaft-engine
+            shard: 2
+            leg: shaft-engine-shard-2
+          - module: shaft-engine
+            shard: 3
+            leg: shaft-engine-shard-3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Install ${{ matrix.module }} prerequisites without tests
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode
+          -pl ${{ matrix.module }}
+          -am install -DskipTests '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Run shaft-engine unit tests
+        if: matrix.module == 'shaft-engine'
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine test
+          "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 3 --selector
+          '-Dtest=com/shaft/test/unittests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, AutomaticRunLabelsUnitTest, TestNgTagLabelsUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, PropertyContractCoverageUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, MatchesReferenceImageNotFoundUnitTest, ArchitectureRulesUnitTest, ParserFuzzSeedsUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, HealingActionsIntegrationTest, ClickTypeMicrobenchTest, DesktopInteractionStrategiesTest, ElementClassifierTest, InteractionStrategiesActionsTest, MobileInteractionStrategiesTest, MobileGestureActionsTest, HttpContractRecorderTest, FileActionsCoverageUnitTest, MobileEvidenceActionsTest, PlaywrightTraceArchiveLoaderTest, PlaywrightTraceImporterTest, GuiValidationContractTest, TraceArchiveWriterTest, ApiValidationDslTest, AllureListenerCoverageUnitTest, AllureReportRebuildTest, SecretScreenMaskTest, MobilePreflightUnitTest, AndroidTransientOverlayTest, MobilePreflightPropertiesUnitTest, RunningLocaleCheckUnitTest, InfraFailureGuardUnitTest, KeyboardCoverGuardUnitTest, SecretScreenMaskWrappedTextUnitTest, ApiPropertyRawValueUnitTest, BrowserStackSdkPassThroughUnitTest, BrowserStackHelperUnitTest, IosAccessibilityFocusUnitTest, PlaywrightSecretScreenMaskTest, AllureSecretLeakTest, ReportSecretsTest, FailureDiagnosticsReporterTest, FailureBriefReporterTest, MobileEvidenceBundleTest, RestActionsCoverageUnitTest, AccessibilityHelperCoverageUnitTest, SshShellSessionUnitTest, PlaywrightBrowserActionsUnitTest, PlaywrightElementActionsUnitTest, PlaywrightInteractionStrategiesUnitTest, DatabaseActionsMockedTests, ApiActionsMockedTests, ElementActionsMockedTests, PlaywrightBrowserValidationTest, PlaywrightElementValidationTargetTest, PlaywrightElementVisualValidationTest, SemanticMatchInspectorUnitTest, VisualTargetTouchActionsTest, TouchActionsDisplayedExactTextTest, PlaywrightConsoleBridgeTest, PlaywrightDownloadBridgeTest, PlaywrightSessionSensitiveTraceTest, TraceSchemaSerializerTest, BrowserEmulationNamespaceTest, RestActionsComprehensiveTests, WebDriverBrowserValidationTest, BrowserDownloadsNamespaceTest, BrowserObservabilityRecorderSessionTest, RequestBuilderTests, TraceArtifactManifestTest, AllureActionStepReportingTest, BrowserStateNamespaceTest, ApiStatusCodeFlagFamilyUnitTest, BrowserPermissionsNamespaceTest, CheckpointCounterJsonUnitTest, PdfFileManagerDocumentContractTest, AuthUnitTest, PlaywrightNetworkInterceptorTest, BrowserAuthenticationNamespaceTest, SecurityMockedTests, OcrTargetResolverTest, LocatorMockedTests, CucumberMockedTests, ElementTargetTest, BrowserStorageStateManagerTest, PlaywrightStorageStateManagerTest, JavaScriptWaitManagerUnitTest, BrowserEmulationNamespaceTraceTest, BrowserStateNamespaceTraceTest, BrowserAuthenticationNamespaceTraceTest, BrowserScriptNamespaceTraceTest, BrowserDownloadsNamespaceTraceTest, BrowserStorageNamespaceTraceTest, NetworkNamespaceTraceTest, YAMLFileManagerTests, LocatorBuilderTest, OcrGuiActionContractTest, IOActionsMockedTests, ValidationsMockedTests, WebDriverMobileValidationTest, MobileNamespaceTest, MobileRecordingActionsTest, MobileLogActionsTest, MobileEvidenceCollectorTest, MobilePerformanceActionsTest, MobileSessionStateManagerTest, MobileFileNamespaceTraceTest, MobilePerformanceNamespaceTraceTest, IosNonHittableTapTest, LiveSessionSupportUnitTest, IosElementReadTest, BrowserStorageNamespaceTest, OpenApiCoverageReporterUnitTest, NaturalActionPlannerRegistryTest, SemanticLocatorResolverUnitTest, GoogleTinkApiCoverageUnitTest, NewValidationHelperTests, ActionsCoverageTests, AllureSuiteIdentityPathTest, AllureSuiteWidgetReaderTest, ApiPerformanceExecutionReportUnitTest, CdpWebSocketTraceSourceTest, CustomReportMessageFailurePathTest, ElementStepsCoverageUnitTest, FailureTraceReporterTest, NaturalActionExecutorTest, NightlyEvidencePathHardeningUnitTest, OcrProcessingProviderRegistryTest, PlatformThreadsTest, PlaywrightDeviceDescriptorTest, PlaywrightTraceArchiveLoaderTest, PlaywrightTraceImporterTest, ReportPublishGuardTest, RestActionsBytecodeCompatibilityTest, ScrollSweepPlannerUnitTest, ShaftLocatorSemanticUnitTest, TraceArchiveReaderTest, TraceScreenshotDownscalerTest, PlaywrightBrowserValidationTest, PlaywrightElementValidationTargetTest, PlaywrightElementVisualValidationTest, AsyncElementActionsCoverageUnitTest, BidiConsoleLogSourceTest, BrowserConsoleErrorGateTest, BrowserConsoleNamespaceTest, BrowserConsoleNamespaceTraceTest, BrowserScriptNamespaceTest, CSVFileManagerTest, CdpWorkersTest, ChecksumTests, CreateFileRaceConditionTests, DesktopVideoRecordingProviderRegistryTest, FileActionsTests, HealeniumTests, HealingStrategyTest, HealingTests, ImageCoordinateMapperTest, ImagePublicContractTest, InternalTests, JSONFileManagerTests, JiraTests, JsonCompareWithSpecialCharactersTests, LocalShellTests, Log4jTests, ManagedLocalAiPropertiesTest, MobileEvidenceNamespaceTraceTest, MobilePerformanceSampleTest, MobileRecordingOptionsTest, MobileTests, NaturalActionsTests, OcrAssertionContractTest, OcrCoordinateMapperTest, OcrPublicContractTest, PDFTests, PathParamTest, PathsTests, PatternTests, PerformanceTests, PlatformTests, PlaywrightManagedRuntimeTest, ReportThemeConsistencyTest, ReportingAccessibleNameTest, Rfc8259SiblingEscapeJsonTest, SwaggerContractTest, TestNGTests, TimeoutsTests, TinkeyTests, TraceSessionTest, VisualProcessingProviderRegistryTest, VisualStabilityWaitUnitTest, VisualsTests, WebTests, WizardTestDataTests, BidiNetworkActivitySourceUnitTest, BrowserPermissionsNamespaceTraceTest, CdpPassiveNetworkObserverTest, DeterministicNaturalActionPlannerTest, ElementActionabilityDiagnosticsTest, FailureEvidenceTest, HarReplayRulesTest, HealingFingerprintSeedingTest, HttpContractBrowserReplayTest, PlaywrightTraceParityAcceptanceTest, BidiNetworkTraceSourceTest, BrowserNetworkInterceptorTest, CloudAppBinaryTest, ImageProcessingActionsPlaywrightVisualTest, NativeSessionBrowserCommandGuardTest, OcrPropertiesContractTest, PlaywrightTraceViewerAssetsTest, ShaftSkillsEfficiencyContractTest, TraceViewerParityMatrixTest, TraceViewerScriptTest, SourceCodeContextTest, TraceViewerHtmlLineEndingTest, CLIWizardTests, FlagsTests, InfrastructurePropertiesTests, ReportingTests, ScrollMotionBoxPathTest, SkipDueToIssueTests, TestDataTests, ThreadLocalGuiTeardownGuardTest, UnknownPropertyKeysTest, PlaywrightTraceOfflineRenderTest, ImageProcessingActionsOfflineCoverageTest, PlaywrightTraceOfflineBudgetTest, PlaywrightTraceOfflineRenderLimitTest, AttachmentTypeGuardTest, CdpFetchRuleInterceptorUnitTest, AssertionFailureFormatterUnitTest, JiraHelperCoverageUnitTest, NetworkActionsCoverageUnitTest, PlaywrightSessionFactoryCoverageUnitTest, TypeStrategiesCoverageUnitTest, SHAFTFacadeCoverageUnitTest, PlaywrightSessionCoverageUnitTest, PlaywrightElementValidationsBuilderCoverageUnitTest, MobileBiometricActionsTest, !RestValidationsBuilderUnitTest'
+          )"
+          -Dsurefire.failIfNoSpecifiedTests=false
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Verify shaft-engine unit test results
+        # shaft-engine's testng Surefire profile sets testFailureIgnore=true
+        # (so JaCoCo can still report after a failure) -- `mvn test` therefore
+        # exits 0 even when tests genuinely fail. Every other module in this
+        # matrix has no such override, so only shaft-engine needs this check.
+        if: matrix.module == 'shaft-engine'
+        run: |
+          python3 -c "
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse('shaft-engine/target/surefire-reports/testng-results.xml').getroot()
+          failed = int(root.get('failed', '0'))
+          total = int(root.get('total', '0'))
+          print(f'shaft-engine unit tests (${{ matrix.leg }}): total={total} failed={failed}')
+          sys.exit(1 if failed or total == 0 else 0)
+          "
+      - name: Run ${{ matrix.module }} tests
+        if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode
+          -pl ${{ matrix.module }} test
+          -Dsurefire.rerunFailingTestsCount=1
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      # #7005: a test that passed only on the retry above is flagged, not green-silent.
+      - name: Report flaky ${{ matrix.module }} tests
+        if: always() && matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
+        env:
+          MODULE: ${{ matrix.module }}
+        run: python3 scripts/ci/flaky_report.py "$MODULE" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Run deterministic shaft-ocr unit tests
+        if: matrix.module == 'shaft-ocr'
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode
+          -pl shaft-ocr test
+          '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest,OcrImagePreprocessorTest,JavaCppTesseractBackendTest'
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Upload module coverage to Codecov
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
+          source-id: pr-gate-unit-${{ matrix.leg || matrix.module }}
+          flags: ${{ matrix.leg || matrix.module }}
+
+  template-coupling:
+    name: Template Coupling Gate
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Run template-coupled shaft-mcp tests
+        run: >-
+          mvn --batch-mode -pl shaft-mcp -am test
+          -Dtest="ShaftProjectServiceTest"
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -DheadlessExecution=true
+          -Dgpg.skip
+      - name: Upload template-coupling coverage to Codecov
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: ./shaft-mcp/target/jacoco/jacoco.xml
+          source-id: pr-gate-template-coupling
+          flags: templates
+
+  # Issue #4081: MacOSX_Safari_Local hung after a heap OOM and burned the full
+  # 6-hour default job ceiling on a macos-latest runner (10x billing
+  # multiplier) because nothing bounded it. This job is the CI-side
+  # regression guard for scripts/ci/validate_workflow_timeouts.py, which
+  # fails whenever any .github/workflows/*.yml job has no timeout-minutes.
+  # #7000: actionlint must be clean; zizmor high findings ratchet against
+  # .github/zizmor-baseline.json (new ones block). Seconds; workflow PRs only.
+  workflow-security:
+    name: Workflow Security (actionlint + zizmor)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install actionlint and zizmor (pinned)
+        run: |
+          curl -sSfL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/al.tgz" | sha256sum -c -
+          tar -xzf /tmp/al.tgz -C /tmp actionlint
+          python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Gate
+        run: python3 scripts/ci/workflow_security_gate.py --actionlint /tmp/actionlint
+      - name: zizmor SARIF
+        if: always()
+        run: zizmor --offline --min-severity high --format sarif .github/workflows > zizmor.sarif || true
+      - name: Upload SARIF to code scanning
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: zizmor.sarif
+          category: zizmor
+
+  # #6999: Error Prone + NullAway on the PR's changed Java modules, ratcheted
+  # per module::check against .github/errorprone-baseline.json. Runs in
+  # parallel with unit tests, so it adds no wall time to the gate.
+  bug-analysis:
+    name: Bug Analysis (Error Prone + NullAway)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name != 'push' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed Java modules
+        id: mods
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          # Only Maven reactor modules: benchmarks/jmh (standalone) and shaft-intellij (Gradle) are not in the reactor.
+          mods=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u \
+            | while read -r m; do grep -q "<module>$m</module>" pom.xml && echo "$m"; done | paste -sd, - || true)
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+          echo "Changed Java modules: ${mods:-none}"
+      - name: Compile changed modules with Error Prone
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          set -o pipefail
+          mvn --batch-mode --no-transfer-progress -Perrorprone -pl "$MODULES" -am \
+            install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip 2>&1 | tee errorprone.log
+      - name: Ratchet against baseline
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: python3 scripts/ci/errorprone_ratchet.py errorprone.log --modules "$MODULES"
+
+  # #7002: binary compatibility of changed published modules against the
+  # latest Maven Central release. A break blocks unless the PR carries the
+  # `breaking-change` label (release-note governance requires the note).
+  # pull_request only: labels were already judged before the queue.
+  api-compat:
+    name: API Compatibility (japicmp)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed published modules and release baselines
+        id: mods
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u \
+            | while read -r m; do grep -q "<module>$m</module>" pom.xml && echo "$m"; done || true)
+          mkdir -p "$RUNNER_TEMP/japicmp"
+          mods=""
+          for m in $changed; do
+            meta="https://repo1.maven.org/maven2/io/github/shafthq/$m/maven-metadata.xml"
+            v=$(curl -sfL "$meta" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' | head -1) || true
+            [ -n "$v" ] || { echo "$m: not on Maven Central, skipped"; continue; }
+            curl -sfL -o "$RUNNER_TEMP/japicmp/$m.jar" "https://repo1.maven.org/maven2/io/github/shafthq/$m/$v/$m-$v.jar" || continue
+            echo "$m: baseline $v"
+            mods="${mods:+$mods,}$m"
+          done
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+      - name: Build and compare
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip
+          mvn --batch-mode --no-transfer-progress -Pjapicmp -pl "$MODULES" \
+            com.github.siom79.japicmp:japicmp-maven-plugin:0.26.3:cmp "-Djapicmp.baselineDir=$RUNNER_TEMP/japicmp"
+      - name: Judge
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -o pipefail
+          python3 scripts/ci/api_compat_gate.py --modules "$MODULES" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # #7004: diff-scoped mutation testing (PIT), report-only. Changed main classes
+  # of at most 2 modules, hard-capped at 5 minutes; the score lands in the step
+  # summary and never blocks (no threshold until a baseline exists).
+  mutation-testing:
+    name: Mutation Testing (PIT, report-only)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.changes.outputs.javacore == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed classes
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=AM "$BASE_SHA" HEAD -- '*.java' | python3 scripts/ci/pit_diff_scope.py scope > "$RUNNER_TEMP/pit-scope.tsv"
+          cat "$RUNNER_TEMP/pit-scope.tsv"
+          echo "modules=$(cut -f1 "$RUNNER_TEMP/pit-scope.tsv" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+      - name: Mutate changed classes (5-minute cap)
+        if: steps.scope.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.scope.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
+          while IFS=$'\t' read -r module classes; do
+            timeout 300 mvn --batch-mode --no-transfer-progress -Ppitest -pl "$module" \
+              org.pitest:pitest-maven:mutationCoverage "-Dpitest.targetClasses=$classes" || echo "::warning::PIT on $module did not finish (report-only)"
+          done < "$RUNNER_TEMP/pit-scope.tsv"
+      - name: Mutation summary
+        if: always() && steps.scope.outputs.modules != ''
+        run: python3 scripts/ci/pit_diff_scope.py summary . | tee -a "$GITHUB_STEP_SUMMARY"
+
+  workflow-timeouts:
+    name: Workflow Timeout Guard
+    needs: changes
+    # #6206: pom edits also re-run the quality-configuration validator.
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.dependencies == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install managed CI Python dependencies
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      # #6990 lesson: Codecov silently ignores an invalid codecov.yml.
+      - name: Validate codecov.yml with Codecov
+        run: python3 scripts/ci/validate_codecov_yml.py
+      - name: Run workflow timeout guard unit tests
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_validate_workflow_timeouts
+          tests.scripts.test_validate_workflow_test_gating
+          tests.scripts.test_epic_autoclose
+          tests.scripts.test_intellij_verify_retry
+          tests.scripts.test_pit_diff_scope
+          tests.scripts.test_flaky_report
+          tests.scripts.test_consumer_transitive_pins
+          tests.scripts.test_validate_npm_lock_advisories
+          tests.scripts.test_pr_title_lint
+          tests.scripts.test_jmh_compare
+          tests.scripts.test_assert_intellij_marketplace_receipt
+          tests.scripts.test_validate_shaft_pilot_release
+          tests.scripts.test_codecov_status_gate
+          tests.scripts.test_branch_uptodate_removed
+          tests.scripts.test_main_red_reaction
+          tests.scripts.test_dangerous_workflow_7035
+          tests.scripts.test_release_provenance
+          tests.scripts.test_attach_release_provenance
+          tests.scripts.test_validate_codecov_yml
+          tests.scripts.test_api_compat_gate
+          tests.scripts.test_errorprone_ratchet
+          tests.scripts.test_spotbugs_trend
+          tests.scripts.test_workflow_security_gate
+          tests.scripts.test_pr_gate_time_to_merge
+          tests.scripts.test_merge_group_same_tree
+          tests.scripts.test_pr_time_to_merge_report
+          tests.scripts.test_quality_layers_6990
+          tests.scripts.test_shard_test_selector
+          tests.scripts.test_validate_quality_configuration
+          tests.scripts.test_rerun_pr_gate_on_label
+          tests.scripts.test_check_plugin_changelog_version
+          -v
+      - name: Validate bundled npm locks have no vulnerable shell-quote (#7451)
+        run: python3 scripts/ci/validate_npm_lock_advisories.py
+      - name: Validate every workflow job declares timeout-minutes
+        run: python3 scripts/ci/validate_workflow_timeouts.py
+      - name: Validate test steps cannot stay green on failures (#6870)
+        run: python3 scripts/ci/validate_workflow_test_gating.py
+      - name: Validate coverage, CodeQL and quality configuration
+        run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Validate the plugin CHANGELOG covers the engine version
+        run: python3 scripts/ci/check_plugin_changelog_version.py
+
+  # Issue #4506: this module's other five tests pin a real architectural
+  # boundary -- shaft-engine carries no Pilot or provider dependency, and the
+  # direction runs engine -> pilot-core -> capture/ai and never back -- and it
+  # was unguarded the whole time it lived in the same directory as modules the
+  # agent-guidance leg runs. An enforcement module CI never runs is a rule
+  # nobody enforces, which is the same reason
+  # test_agent_harness_reachability.py exists for the harness surface.
+  # #6375: shrink-only ratchet; a new undocumented public member fails the gate.
+  javadoc-coverage:
+    name: Javadoc Coverage Ratchet
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javadoc == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run Javadoc coverage unit tests
+        run: python3 -m unittest tests.scripts.test_validate_javadoc_coverage tests.scripts.test_validate_test_reference_coverage -v
+      - name: Enforce the Javadoc coverage baseline
+        run: python3 scripts/ci/validate_javadoc_coverage.py
+      - name: Enforce the test reference baseline
+        run: python3 scripts/ci/validate_test_reference_coverage.py
+
+  module-boundary:
+    name: Pilot Module Boundary Gate
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.module_boundary == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run pilot module boundary tests
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_pilot_module_boundary
+          tests.scripts.test_ocr_infrastructure_boundary
+          tests.scripts.test_lighthouse_infrastructure_boundary
+          tests.scripts.test_android_infrastructure_boundary -v
+
+  # Issue #4071: a TestNG suite XML file that no pom, workflow, or script
+  # references is invisible -- unlike a failing test, nothing reports it, so
+  # it can sit unused indefinitely looking like coverage (this is exactly how
+  # #4018's unitTestSuite.xml went unnoticed, and how this issue's own two
+  # siblings went unnoticed). This job is the CI-side regression guard for
+  # scripts/ci/validate_orphaned_suite_files.py: it fails the build whenever
+  # any TestNG suite XML file's own name never appears in a pom.xml, a
+  # workflow, or a script. Both files #4071 found are now resolved (one
+  # deleted as redundant, the other had its sole remaining class rehomed into
+  # the shaft-engine unit-tests leg above and was then deleted too), so there
+  # is no known-orphan set left to tolerate -- the raw validator step is
+  # blocking, same as the unit test step.
+  # #6990 quality layer: blocking, diff-scoped in-repo static analysis (Python
+  # complexity/empty-except/lambda/F541/weak-assert, Java NPath) mirroring the
+  # classes Codacy flags. Codacy stays as a non-blocking PR reporter; quality
+  # layers are only rearranged or added, never removed.
+  static-analysis:
+    name: Static Analysis (diff-scoped)
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name != 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run diff-scoped static analysis
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: python3 scripts/ci/code_quality_preflight.py --base "$BASE_SHA"
+
+  orphaned-suite-files:
+    name: Orphaned Suite XML Guard
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run orphaned suite file guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_orphaned_suite_files -v
+      - name: Validate no TestNG suite XML file is orphaned
+        run: python3 scripts/ci/validate_orphaned_suite_files.py
+
+  # Issue #4142: GitHub's closing-keyword scanner has no negation awareness --
+  # it auto-closed #3930 from PR #4009's "Does not fix #3930's original macOS
+  # OOM", overriding a human's manual reopen 7 minutes earlier. Runs
+  # unconditionally on every pull_request (like dependency-review below, it
+  # concerns PR body/commit text, not changed files, so no `changes` path leg
+  # gates it) and reads the live PR body via `github.event.pull_request.body`,
+  # which only exists on the pull_request event.
+  #
+  # Issue #4146/#4237: GitHub's scanner also reads individual commit messages
+  # pushed to the default branch, not just the final PR body -- confirmed via
+  # #3930's timeline, whose second auto-close carried a squash-merge commit
+  # SHA with a clean PR body. #4157 wired this once, then reverted the whole
+  # file for an unrelated reason (its `edited`-trigger concurrency hazard),
+  # leaving this job body-only until now. Commits come from the REST API, not
+  # `git log` (this job's checkout is unauthenticated for an arbitrary
+  # base..head range and shallow by default), with `--paginate` from the
+  # start: issue #4159 found the prior attempt capped at the default 100-item
+  # page with no `--paginate`, silently dropping the rest of a >100-commit PR.
+  # The jq filter deliberately does NOT wrap each page in `[...]`: verified
+  # empirically that `gh api --paginate` applies `--jq` per page and
+  # concatenates each page's raw output, so an array-per-page filter emits
+  # back-to-back JSON arrays that are not one valid document. Emitting a bare
+  # object per commit and slurping the whole stream with a separate
+  # `jq -s -c '.'` merges every page into the single JSON array
+  # `parse_commits_json` expects, regardless of page count.
+  pr-body-autoclose-guard:
+    name: PR Body & Commit Autoclose Guard
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Fetch PR commit messages
+        id: pr-commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          commits_json=$(gh api -X GET "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits" \
+            --paginate -f per_page=100 --jq '.[] | {sha: .sha, message: .commit.message}' | jq -s -c '.')
+          echo "commits_json=${commits_json}" >> "$GITHUB_OUTPUT"
+      - name: Run PR body autoclose guard unit tests
+        run: python3 -m unittest tests.scripts.test_validate_pr_closing_keywords -v
+      - name: Validate PR body and commit messages have no negated closing-keyword references
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
+        run: python3 scripts/ci/validate_pr_closing_keywords.py
+
+  # Moved from security.yml's dependency-review job. It stays required for a
+  # dependency-bearing PR, but an unrelated diff has no graph or policy for
+  # the external action to inspect (#4602).
+  dependency-review:
+    name: Dependency Review
+    needs: [changes, dependency-changes]
+    if: >-
+      needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.dependency-changes.outputs.review == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Dependency Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5
+        with:
+          config-file: './.github/dependency-review-config.yml'
+
+  dependency-changes:
+    name: Detect dependency changes
+    needs: changes
+    if: >-
+      needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      review: ${{ steps.diff.outputs.review }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Test dependency diff classifier
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_ci_python_dependencies
+          tests.scripts.test_dependency_review_changes
+          -v
+      - name: Detect dependency-bearing diff
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
+
+  # Issue #6186: the fresh-installer matrix starts right after `changes`, in
+  # parallel with Agent Guidance Gate, instead of waiting ~14 minutes for it.
+  # A superseding push still cancels both, and the summary still requires both.
+  chaos-installer-acceptance:
+    name: ChaosEngine fresh installer (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # PR: ubuntu-22.04 + windows-2025; push to main / ci:installer-macos
+        # label: + macos-15 (scripts/ci/chaos_installer_tier.py, #6187).
+        os: ${{ fromJSON(needs.changes.outputs.installer_os) }}
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run fresh-install acceptance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/ci/chaos_engine_live_installer_acceptance.py
+          --candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}
+          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
+          --output chaos-engine-live-installer-evidence.json
+      - name: Upload fresh-install evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chaos-engine-live-installer-${{ matrix.os }}
+          path: chaos-engine-live-installer-evidence.json
+          if-no-files-found: error
+
+  # Issue #6186: the installer UX contracts used to run first inside every
+  # fresh-installer job (3.5-5.5 min each). They now run as their own parallel
+  # job on the non-Linux runners; on Linux the Agent Guidance Gate `installer`
+  # surface already runs the same modules (installer-ux-contract +
+  # protected-installer-acceptance), and every `chaos_installer` path selects
+  # that surface (pinned by tests/scripts/test_harness_pr_gate.py).
+  chaos-installer-contracts:
+    name: ChaosEngine installer contracts (${{ matrix.os }})
+    needs: changes
+    # #6990: off the PR critical path unless labelled ci:installer-windows or
+    # ci:installer-macos; an empty tier skips the job (summary accepts skipped).
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        # PR: none (Linux via Agent Guidance); ci:installer-windows: windows-2025;
+        # ci:installer-macos: + macos-15; push to main: windows-2025, macos-15.
+        os: ${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}
+    steps:
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run installer UX contracts
+        run: >-
+          python -m unittest
+          tests.scripts.test_chaos_engine_installer_ux
+          tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
+          tests.scripts.test_chaos_engine_bootstrap
+          tests.scripts.test_chaos_engine_install_wrappers -v
+      # Issue #6632: Copilot CLI runs `.claude/settings.json` hook commands
+      # with PowerShell on Windows. Drive the generated launcher through real
+      # PowerShell 7 and Windows PowerShell 5.1 (read allowed, guard block,
+      # no Python, installer-pointer Python) plus the `.github/hooks` Copilot
+      # launcher (MCP passthrough, destructive deny, repo-root cwd).
+      - name: Run Windows PowerShell hook launcher
+        if: runner.os == 'Windows'
+        run: >-
+          python -m unittest
+          tests.scripts.test_copilot_cli_hook.PowerShellLauncherTest
+          tests.scripts.test_copilot_cli_hook.CopilotRepositoryHookTest -v
+
+
+  # #7184 / #6990: Codecov poll runs in parallel with the heavy legs so it is
+  # not stuck on the summary critical-path tail. Still pull_request only
+  # (Codecov does not report on merge_group). Summary requires success|skipped.
+  # #7184 Coach: wait for coverage-producing legs so uploads land before the
+  # poll; success|skipped keeps path-filtered skips from blocking without
+  # weakening the gate (failures skip the poll; summary still fails the leg).
+  codecov-gate:
+    name: Codecov patch/project
+    needs:
+      - changes
+      - unit-tests
+      - intellij-build
+      - cli
+      - capture-e2e
+      - template-coupling
+    if: >
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.same_tree != 'true' &&
+      github.event_name == 'pull_request' &&
+      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped') &&
+      (needs.intellij-build.result == 'success' || needs.intellij-build.result == 'skipped') &&
+      (needs.cli.result == 'success' || needs.cli.result == 'skipped') &&
+      (needs.capture-e2e.result == 'success' || needs.capture-e2e.result == 'skipped') &&
+      (needs.template-coupling.result == 'success' || needs.template-coupling.result == 'skipped')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      statuses: read
+      pull-requests: read
+    steps:
+      - name: Checkout coverage gate script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci/codecov_status_gate.py
+          sparse-checkout-cone-mode: false
+      - name: Enforce Codecov patch/project
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/ci/codecov_status_gate.py --sha "$HEAD_SHA" --pr "$PR_NUMBER" --timeout 360
+
+  summary:
+    name: PR Gate Summary
+    needs:
+      - changes
+      - docs-boundary
+      - chaos-gauge
+      - agent-guidance
+      - installer-verify
+      - intellij-build
+      - intellij-verify-plugin
+      - cli
+      - capture-e2e
+      - unit-tests
+      - template-coupling
+      - workflow-timeouts
+      - api-compat
+      - bug-analysis
+      - workflow-security
+      - module-boundary
+      - javadoc-coverage
+      - orphaned-suite-files
+      - static-analysis
+      - pr-body-autoclose-guard
+      - dependency-changes
+      - dependency-review
+      - chaos-installer-acceptance
+      - chaos-installer-contracts
+      - codecov-gate
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      statuses: read
+    steps:
+      - name: Evaluate leg results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_RESULT: ${{ needs.docs-boundary.result }}
+          CHAOS_GAUGE_RESULT: ${{ needs.chaos-gauge.result }}
+          AGENT_GUIDANCE_RESULT: ${{ needs.agent-guidance.result }}
+          INTELLIJ_VERIFY_RESULT: ${{ needs.installer-verify.result }}
+          INTELLIJ_BUILD_RESULT: ${{ needs.intellij-build.result }}
+          INTELLIJ_VERIFY_PLUGIN_RESULT: ${{ needs.intellij-verify-plugin.result }}
+          CLI_RESULT: ${{ needs.cli.result }}
+          CAPTURE_RESULT: ${{ needs.capture-e2e.result }}
+          UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
+          TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
+          WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          API_COMPAT_RESULT: ${{ needs.api-compat.result }}
+          BUG_ANALYSIS_RESULT: ${{ needs.bug-analysis.result }}
+          WORKFLOW_SECURITY_RESULT: ${{ needs.workflow-security.result }}
+          MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
+          JAVADOC_COVERAGE_RESULT: ${{ needs.javadoc-coverage.result }}
+          ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
+          STATIC_ANALYSIS_RESULT: ${{ needs.static-analysis.result }}
+          PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
+          DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
+          DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
+          CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
+          CHAOS_INSTALLER_CONTRACTS_RESULT: ${{ needs.chaos-installer-contracts.result }}
+          CODECOV_GATE_RESULT: ${{ needs.codecov-gate.result }}
+        run: |
+          set -uo pipefail
+
+          {
+            echo "| Leg | Result |"
+            echo "| --- | --- |"
+            echo "| changes | ${CHANGES_RESULT} |"
+            echo "| docs-boundary | ${DOCS_RESULT} |"
+            echo "| chaos-gauge | ${CHAOS_GAUGE_RESULT} |"
+            echo "| agent-guidance | ${AGENT_GUIDANCE_RESULT} |"
+            echo "| installer-verify | ${INTELLIJ_VERIFY_RESULT} |"
+            echo "| intellij-build | ${INTELLIJ_BUILD_RESULT} |"
+            echo "| intellij-verify-plugin | ${INTELLIJ_VERIFY_PLUGIN_RESULT} |"
+            echo "| cli | ${CLI_RESULT} |"
+            echo "| capture-e2e | ${CAPTURE_RESULT} |"
+            echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
+            echo "| template-coupling | ${TEMPLATES_RESULT} |"
+            echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| api-compat | ${API_COMPAT_RESULT} |"
+            echo "| bug-analysis | ${BUG_ANALYSIS_RESULT} |"
+            echo "| workflow-security | ${WORKFLOW_SECURITY_RESULT} |"
+            echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
+            echo "| javadoc-coverage | ${JAVADOC_COVERAGE_RESULT} |"
+            echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
+            echo "| static-analysis | ${STATIC_ANALYSIS_RESULT} |"
+            echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
+            echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
+            echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
+            echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
+            echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
+            echo "| codecov-gate | ${CODECOV_GATE_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${CHANGES_RESULT}" != "success" ]; then
+            echo "::error::changes job did not succeed (${CHANGES_RESULT})"
+            exit 1
+          fi
+
+          status=0
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}" "${CODECOV_GATE_RESULT}"; do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "::error::a required leg did not pass (result: ${result})"
+                status=1
+                ;;
+            esac
+          done
+
+          exit "$status"
+
+  # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
+  # files or updates one rolling `ci-main-red` issue per failing leg (assigned
+  # to the owner) and closes it once its leg passes again on `main`. It never
+  # opens a revert: main rolls forward (#6990). It runs on every `main` push so a
+  # recovery can close the issue; it is not a leg of the summary.
+  main-red-reaction:
+    name: Main red reaction
+    needs: summary
+    if: >-
+      always() && github.event_name == 'push'
+      && (needs.summary.result == 'failure' || needs.summary.result == 'success')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: File, update, or close ci-main-red issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 scripts/ci/main_red_reaction.py
+          --repo "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID"
+          --run-attempt "$GITHUB_RUN_ATTEMPT"
+          --sha "$GITHUB_SHA"
+          --server-url "$GITHUB_SERVER_URL"

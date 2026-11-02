@@ -1,0 +1,99 @@
+name: 'Notify Code Coverage Failure'
+description: >-
+  Collects non-fatal JaCoCo/Codecov failure evidence from one completed workflow
+  run and creates or updates the repository's single coverage tracking issue.
+inputs:
+  run-id:
+    description: 'Workflow run whose coverage failure artifacts should be inspected'
+    required: true
+  workflow-name:
+    description: 'Human-readable source workflow name'
+    required: true
+  label:
+    description: 'Global label used to deduplicate the coverage issue'
+    required: false
+    default: 'code-coverage-failure'
+  github-token:
+    description: 'Token with actions:read and issues:write'
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: 'composite'
+  steps:
+    - name: File or update the code coverage tracking issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        SOURCE_RUN_ID: ${{ inputs.run-id }}
+        WF_NAME: ${{ inputs.workflow-name }}
+        LABEL: ${{ inputs.label }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t artifacts < <(
+          gh api --paginate "repos/$REPO/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            --jq '.artifacts[].name | select(startswith("codecoverage-failure-"))'
+        )
+        if [ "${#artifacts[@]}" -eq 0 ]; then
+          echo "No code coverage failures were recorded for $WF_NAME run $SOURCE_RUN_ID."
+          exit 0
+        fi
+
+        evidence_dir="${RUNNER_TEMP:-/tmp}/codecoverage-failures-$SOURCE_RUN_ID"
+        mkdir -p "$evidence_dir"
+        for artifact in "${artifacts[@]}"; do
+          gh run download "$SOURCE_RUN_ID" --repo "$REPO" --name "$artifact" --dir "$evidence_dir/$artifact"
+        done
+
+        run_url="${GITHUB_SERVER_URL}/${REPO}/actions/runs/${SOURCE_RUN_ID}"
+        marker="<!-- codecoverage-run:${SOURCE_RUN_ID} -->"
+        details=$(find "$evidence_dir" -type f -name '*.txt' -print0 | sort -z |
+          xargs -0 -r awk '
+            BEGIN { print "| Job | Source | Failed phase(s) | Reports |"; print "| --- | --- | --- | --- |" }
+            /^job=/ { job=substr($0,5) }
+            /^source=/ { source=substr($0,8) }
+            /^phases=/ { phases=substr($0,8) }
+            /^reports=/ { reports=substr($0,9) }
+            /^run=/ { printf "| `%s` | `%s` | `%s` | `%s` |\n", job, source, phases, reports }
+          '
+        )
+        if [ -z "$details" ]; then
+          details="Coverage failure artifacts existed but contained no readable records."
+        fi
+
+        gh label create "$LABEL" --repo "$REPO" --color B60205 \
+          --description "Auto-filed tracking issue for JaCoCo or Codecov reporting failures" \
+          --force >/dev/null 2>&1 || true
+        existing=$(gh issue list --repo "$REPO" --state open --label "$LABEL" \
+          --json number --jq '.[0].number // empty')
+
+        body=$(printf '%s\n' \
+          "$marker" \
+          "Coverage reporting failed in **$WF_NAME**." \
+          "" \
+          "- Run: $run_url" \
+          "" \
+          "$details" \
+          "" \
+          "This issue is intentionally kept open for manual investigation and closure.")
+
+        if [ -n "$existing" ]; then
+          recorded_markers=$(
+            gh issue view "$existing" --repo "$REPO" --json body --jq '.body'
+            gh api --paginate "repos/$REPO/issues/$existing/comments?per_page=100" \
+              --jq '.[].body'
+          )
+          if [[ "$recorded_markers" == *"$marker"* ]]; then
+            echo "Coverage failure run $SOURCE_RUN_ID is already recorded in issue #$existing."
+            exit 0
+          fi
+          gh issue comment "$existing" --repo "$REPO" --body "$body"
+          echo "Updated code coverage tracking issue #$existing."
+        else
+          url=$(gh issue create --repo "$REPO" \
+            --title "Code coverage reporting failures" \
+            --label "$LABEL" \
+            --body "$body")
+          echo "Filed code coverage tracking issue: $url"
+        fi

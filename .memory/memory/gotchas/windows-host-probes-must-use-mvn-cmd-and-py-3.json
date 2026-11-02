@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/windows-host-probes-must-use-mvn-cmd-and-py-3.md",
+  "content_hash": "sha256:a8dc2cd5b5e62c8d6e648229ecc421da1e5d2e2debdefda30cc71076ecf4fede",
+  "created_at": "2026-08-17T18:50:52+03:00",
+  "evidence": [
+    {
+      "id": "shaft-infrastructure/src/main/java/io/github/shafthq/infrastructure/setup/AgentToolsSetupProvider.java",
+      "kind": "file"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5052",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.windows-host-probes-must-use-mvn-cmd-and-py-3",
+  "source": {
+    "kind": "agent",
+    "task": "Record AGENT_TOOLS increment gotchas from #5052 / #5051 babysit"
+  },
+  "status": "active",
+  "tags": [
+    "windows",
+    "setup",
+    "agent-tools"
+  ],
+  "title": "Windows host probes must use mvn.cmd and py -3, not mvn.exe or python.exe",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T18:50:52+03:00"
+}

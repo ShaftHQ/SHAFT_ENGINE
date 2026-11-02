@@ -1,0 +1,119 @@
+package com.shaft.gui.internal.image;
+
+import com.shaft.gui.image.ImageMatch;
+import com.shaft.gui.image.ImageMatchingAlgorithm;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageTarget;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+
+import java.util.List;
+
+/**
+ * SHAFT-owned contract for optional visual-processing implementations.
+ *
+ * <p>Implementations may use optional computer-vision libraries, while engine callers interact only with
+ * SHAFT and JDK types. Providers are discovered through {@link java.util.ServiceLoader}.</p>
+ */
+public interface VisualProcessingProvider {
+    /**
+     * Finds a reference image within a page screenshot.
+     *
+     * @param referenceImagePath path to the reference image
+     * @param currentPageScreenshot encoded current-page screenshot
+     * @return the matched x/y coordinates, or an empty list when no match is found
+     */
+    List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot);
+
+    /**
+     * Finds all confident, non-overlapping occurrences of a typed image target.
+     *
+     * <p>The compatibility implementation delegates path-backed targets to the legacy coordinate contract.
+     * Providers should override this method to supply true bounds, confidence, scale, and diagnostics.</p>
+     */
+    default List<ImageMatch> findImageMatches(ImageTarget target, byte[] currentPageScreenshot) {
+        if (target.minimumConfidence().isPresent() || target.searchRegion().isPresent()
+                || target.matchingMode() != com.shaft.gui.image.ImageMatchingMode.AUTO) {
+            throw new UnsupportedOperationException("The configured visual provider does not support typed image constraints.");
+        }
+        return target.sourcePath()
+                .map(path -> findImageWithinCurrentPage(path.toString(), currentPageScreenshot))
+                .filter(coordinates -> coordinates.size() >= 2)
+                .map(coordinates -> List.of(new ImageMatch(
+                        new ImageRectangle(coordinates.get(0), coordinates.get(1), 1, 1),
+                        1.0, 1.0, ImageMatchingAlgorithm.TEMPLATE_COLOR,
+                        java.util.Map.of("provider", getClass().getName(), "compatibility", "legacy-center"))))
+                .orElseGet(List::of);
+    }
+
+    /**
+     * Compares an element screenshot against its visual baseline using the requested optional engine.
+     *
+     * @param driver active WebDriver instance
+     * @param elementLocator locator of the element being compared
+     * @param elementScreenshot encoded screenshot of the element
+     * @param visualValidationEngine requested visual validation engine
+     * @param referenceImagePath path to the saved reference image
+     * @param differencesImagePath path prefix for a generated differences image
+     * @return {@code true} when the comparison passes or creates a new baseline
+     */
+    Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot,
+                                   ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                   String referenceImagePath, String differencesImagePath);
+
+    /**
+     * Compares screenshot bytes against a visual baseline without requiring a Selenium {@link WebDriver}.
+     *
+     * <p>This path is used by non-WebDriver backends such as Playwright. Providers that cannot compare raw
+     * screenshots may keep the default implementation, preserving compatibility with existing implementations.</p>
+     *
+     * @param elementLocatorName stable element locator description used for diagnostics
+     * @param elementScreenshot encoded screenshot of the element or page
+     * @param visualValidationEngine requested visual validation engine
+     * @param referenceImagePath path to the saved reference image
+     * @param differencesImagePath path prefix for a generated differences image
+     * @return {@code true} when the comparison passes or creates a new baseline
+     * @throws UnsupportedOperationException when the provider does not support raw screenshot comparison
+     */
+    default Boolean compareAgainstBaseline(String elementLocatorName, byte[] elementScreenshot,
+                                           ImageProcessingActions.VisualValidationEngine visualValidationEngine,
+                                           String referenceImagePath, String differencesImagePath) {
+        throw new UnsupportedOperationException("The configured visual processing provider does not support byte-based baseline comparison.");
+    }
+
+    /**
+     * Loads any native libraries required by this provider.
+     */
+    void load();
+
+    /**
+     * Result of a pixel-level screenshot comparison against a baseline image.
+     *
+     * @param matched   {@code true} when the observed pixel difference is within the configured budget
+     * @param diffImage encoded PNG highlighting the differing pixels, or an empty array when {@code matched} is {@code true}
+     * @param diffPixels number of pixels that differ after masking
+     * @param diffRatio  {@code diffPixels} divided by the total pixel count of the compared images
+     */
+    record ScreenshotComparisonResult(boolean matched, byte[] diffImage, long diffPixels, double diffRatio) {
+    }
+
+    /**
+     * Compares raw screenshot bytes against a baseline image using a pixel-level diff, honoring optional
+     * mask rectangles and diff budgets. Used by the {@code matchesScreenshot()} visual-regression assertion.
+     *
+     * <p>Providers that cannot perform a pixel diff may keep the default implementation.</p>
+     *
+     * @param baselineImage      encoded baseline (reference) image bytes
+     * @param actualImage        encoded actual (current) screenshot bytes
+     * @param maskRects          pixel-space {@code [x, y, width, height]} regions to exclude from comparison, or {@code null}
+     * @param maxDiffPixels      maximum allowed differing pixel count, or {@code null} to ignore this budget
+     * @param maxDiffPixelRatio  maximum allowed differing pixel ratio (0.0-1.0), or {@code null} to ignore this budget
+     * @return the comparison result
+     * @throws UnsupportedOperationException when the provider does not support pixel-diff screenshot comparison
+     */
+    default ScreenshotComparisonResult compareScreenshotAgainstBaseline(byte[] baselineImage, byte[] actualImage,
+                                                                         List<int[]> maskRects, Integer maxDiffPixels,
+                                                                         Double maxDiffPixelRatio) {
+        throw new UnsupportedOperationException("The configured visual processing provider does not support pixel-diff screenshot comparison.");
+    }
+}

@@ -1,0 +1,41 @@
+FROM maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c AS builder
+
+# allure-cucumber8-jvm stages its adapter with python3. The Maven base image does not ship it.
+# The contract is that python3 exists before Maven. An apt revision pin would fail the
+# image when that revision leaves the base archive, which is not a missing interpreter.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY . .
+RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am install -DskipTests -Dgpg.skip -Dcyclonedx.skip \
+    && mvn --batch-mode --no-transfer-progress -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=/build/shaft-mcp-lib -DskipTests -Dgpg.skip \
+    && find shaft-mcp/target -maxdepth 1 -name 'shaft-mcp-*.jar' \
+        ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+        -exec cp {} /build/shaft-mcp.jar \; -quit
+
+FROM eclipse-temurin:25-jre@sha256:78f1f183913482ef390c2722f46c3f0ce76ada341d69590e7c482ec943ee72d5
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates gnupg wget \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
+        | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp" \
+      org.opencontainers.image.source="https://github.com/ShaftHQ/SHAFT_ENGINE" \
+      org.opencontainers.image.description="shaft-mcp server for browser and test automation" \
+      org.opencontainers.image.licenses="MIT"
+
+WORKDIR /app
+COPY --from=builder /build/shaft-mcp.jar /app/shaft-mcp.jar
+COPY --from=builder /build/shaft-mcp-lib /app/lib
+
+ENV REMOTE_DRIVER_ADDRESS=""
+
+CMD ["java", "-DheadlessExecution=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]

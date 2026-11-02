@@ -1,0 +1,341 @@
+package com.shaft.capture.runtime;
+
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * Playwright-codegen-shaped options accepted by SHAFT Capture.
+ *
+ * @param targetLanguage requested generation target
+ * @param testIdAttribute preferred test id attribute
+ * @param channel Chromium channel hint
+ * @param deviceName device emulation hint
+ * @param viewportSize viewport size as {@code width,height}
+ * @param colorScheme preferred color scheme hint
+ * @param geolocation geolocation as {@code latitude,longitude}
+ * @param ignoreHttpsErrors whether HTTPS certificate errors are ignored
+ * @param blockServiceWorkers whether service workers should be blocked
+ * @param loadStoragePath storage-state input path
+ * @param saveStoragePath storage-state output path
+ * @param language locale/language hint
+ * @param timezone timezone hint
+ * @param proxyServer proxy server URL
+ * @param proxyBypass comma-separated proxy bypass list
+ * @param saveHarPath HAR output path
+ * @param saveHarGlob HAR URL glob filter
+ * @param timeout maximum browser timeout
+ * @param userAgent user-agent override
+ * @param userDataDirectory persistent browser profile directory
+ * @param sessionGoal human-readable recording goal
+ * @param apiCapture whether API network recording is enabled for this session
+ * @param networkOptions network capture filtering options; ignored unless {@code apiCapture} is set
+ * @param saveHarContent HAR body-content emission mode: blank or {@code none} (the default) keeps
+ *                        today's truncated network-trace preview bodies; {@code full} emits complete
+ *                        request/response bodies from API-capture's full-body store (redacted headers,
+ *                        text or base64 body encoding by content type) for every network transaction
+ *                        recorded during the session, falling back to preview bodies with a warning
+ *                        when no such transactions were recorded (for example when {@code apiCapture}
+ *                        was not enabled). Full bodies are opt-in because, unlike headers, they are not
+ *                        scrubbed for secrets/PII.
+ */
+public record CaptureStartOptions(
+        String targetLanguage,
+        String testIdAttribute,
+        String channel,
+        String deviceName,
+        String viewportSize,
+        String colorScheme,
+        String geolocation,
+        boolean ignoreHttpsErrors,
+        boolean blockServiceWorkers,
+        String loadStoragePath,
+        String saveStoragePath,
+        String language,
+        String timezone,
+        String proxyServer,
+        String proxyBypass,
+        String saveHarPath,
+        String saveHarGlob,
+        Duration timeout,
+        String userAgent,
+        Path userDataDirectory,
+        String sessionGoal,
+        boolean apiCapture,
+        NetworkCaptureOptions networkOptions,
+        String saveHarContent) {
+    private static final List<String> DEFAULT_TEST_ID_ATTRIBUTES = List.of("data-testid", "data-test", "data-qa");
+
+    /**
+     * Creates normalized capture options.
+     */
+    public CaptureStartOptions {
+        targetLanguage = text(targetLanguage);
+        testIdAttribute = text(testIdAttribute).toLowerCase(Locale.ROOT);
+        if (!testIdAttribute.isBlank() && !testIdAttribute.matches("[A-Za-z_][A-Za-z0-9_.-]*")) {
+            throw new IllegalArgumentException(
+                    "Capture test id attribute must be a namespace-free HTML attribute name.");
+        }
+        channel = text(channel);
+        deviceName = text(deviceName);
+        viewportSize = text(viewportSize);
+        colorScheme = text(colorScheme);
+        geolocation = text(geolocation);
+        loadStoragePath = text(loadStoragePath);
+        saveStoragePath = text(saveStoragePath);
+        language = text(language);
+        timezone = text(timezone);
+        proxyServer = text(proxyServer);
+        proxyBypass = text(proxyBypass);
+        saveHarPath = text(saveHarPath);
+        saveHarGlob = text(saveHarGlob);
+        userAgent = text(userAgent);
+        sessionGoal = text(sessionGoal);
+        saveHarContent = text(saveHarContent);
+        timeout = timeout == null ? Duration.ZERO : timeout;
+        if (timeout.isNegative()) {
+            throw new IllegalArgumentException("Capture timeout cannot be negative.");
+        }
+        userDataDirectory = userDataDirectory == null ? null : userDataDirectory.toAbsolutePath().normalize();
+        viewport(viewportSize);
+        networkOptions = networkOptions == null ? new NetworkCaptureOptions() : networkOptions;
+    }
+
+    /**
+     * Creates normalized capture options with a session goal and API capture settings, using the
+     * default ({@code none}) HAR body-content mode. Kept for source compatibility with callers built
+     * before {@code saveHarContent} was added (this was the canonical all-arguments constructor then).
+     *
+     * @param targetLanguage requested generation target
+     * @param testIdAttribute preferred test id attribute
+     * @param channel Chromium channel hint
+     * @param deviceName device emulation hint
+     * @param viewportSize viewport size as {@code width,height}
+     * @param colorScheme preferred color scheme hint
+     * @param geolocation geolocation as {@code latitude,longitude}
+     * @param ignoreHttpsErrors whether HTTPS certificate errors are ignored
+     * @param blockServiceWorkers whether service workers should be blocked
+     * @param loadStoragePath storage-state input path
+     * @param saveStoragePath storage-state output path
+     * @param language locale/language hint
+     * @param timezone timezone hint
+     * @param proxyServer proxy server URL
+     * @param proxyBypass comma-separated proxy bypass list
+     * @param saveHarPath HAR output path
+     * @param saveHarGlob HAR URL glob filter
+     * @param timeout maximum browser timeout
+     * @param userAgent user-agent override
+     * @param userDataDirectory persistent browser profile directory
+     * @param sessionGoal human-readable recording goal
+     * @param apiCapture whether API network recording is enabled for this session
+     * @param networkOptions network capture filtering options; ignored unless {@code apiCapture} is set
+     */
+    public CaptureStartOptions(
+            String targetLanguage,
+            String testIdAttribute,
+            String channel,
+            String deviceName,
+            String viewportSize,
+            String colorScheme,
+            String geolocation,
+            boolean ignoreHttpsErrors,
+            boolean blockServiceWorkers,
+            String loadStoragePath,
+            String saveStoragePath,
+            String language,
+            String timezone,
+            String proxyServer,
+            String proxyBypass,
+            String saveHarPath,
+            String saveHarGlob,
+            Duration timeout,
+            String userAgent,
+            Path userDataDirectory,
+            String sessionGoal,
+            boolean apiCapture,
+            NetworkCaptureOptions networkOptions) {
+        this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
+                ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory,
+                sessionGoal, apiCapture, networkOptions, "");
+    }
+
+    /**
+     * Creates normalized capture options without a session goal or API capture settings.
+     */
+    public CaptureStartOptions(
+            String targetLanguage,
+            String testIdAttribute,
+            String channel,
+            String deviceName,
+            String viewportSize,
+            String colorScheme,
+            String geolocation,
+            boolean ignoreHttpsErrors,
+            boolean blockServiceWorkers,
+            String loadStoragePath,
+            String saveStoragePath,
+            String language,
+            String timezone,
+            String proxyServer,
+            String proxyBypass,
+            String saveHarPath,
+            String saveHarGlob,
+            Duration timeout,
+            String userAgent,
+            Path userDataDirectory) {
+        this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
+                ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory, "",
+                false, null);
+    }
+
+    /**
+     * Creates normalized capture options with a session goal but without API capture settings.
+     *
+     * @param targetLanguage requested generation target
+     * @param testIdAttribute preferred test id attribute
+     * @param channel Chromium channel hint
+     * @param deviceName device emulation hint
+     * @param viewportSize viewport size as {@code width,height}
+     * @param colorScheme preferred color scheme hint
+     * @param geolocation geolocation as {@code latitude,longitude}
+     * @param ignoreHttpsErrors whether HTTPS certificate errors are ignored
+     * @param blockServiceWorkers whether service workers should be blocked
+     * @param loadStoragePath storage-state input path
+     * @param saveStoragePath storage-state output path
+     * @param language locale/language hint
+     * @param timezone timezone hint
+     * @param proxyServer proxy server URL
+     * @param proxyBypass comma-separated proxy bypass list
+     * @param saveHarPath HAR output path
+     * @param saveHarGlob HAR URL glob filter
+     * @param timeout maximum browser timeout
+     * @param userAgent user-agent override
+     * @param userDataDirectory persistent browser profile directory
+     * @param sessionGoal human-readable recording goal
+     */
+    public CaptureStartOptions(
+            String targetLanguage,
+            String testIdAttribute,
+            String channel,
+            String deviceName,
+            String viewportSize,
+            String colorScheme,
+            String geolocation,
+            boolean ignoreHttpsErrors,
+            boolean blockServiceWorkers,
+            String loadStoragePath,
+            String saveStoragePath,
+            String language,
+            String timezone,
+            String proxyServer,
+            String proxyBypass,
+            String saveHarPath,
+            String saveHarGlob,
+            Duration timeout,
+            String userAgent,
+            Path userDataDirectory,
+            String sessionGoal) {
+        this(targetLanguage, testIdAttribute, channel, deviceName, viewportSize, colorScheme, geolocation,
+                ignoreHttpsErrors, blockServiceWorkers, loadStoragePath, saveStoragePath, language, timezone,
+                proxyServer, proxyBypass, saveHarPath, saveHarGlob, timeout, userAgent, userDataDirectory,
+                sessionGoal, false, null);
+    }
+
+    /**
+     * Returns default options.
+     *
+     * @return default options
+     */
+    public static CaptureStartOptions defaults() {
+        return new CaptureStartOptions("", "", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", "", "", Duration.ZERO, "", null, "", false, null);
+    }
+
+    /**
+     * Returns preferred test id attributes in locator-priority order.
+     *
+     * @return test id attributes
+     */
+    public List<String> testIdAttributes() {
+        LinkedHashSet<String> attributes = new LinkedHashSet<>();
+        if (!testIdAttribute.isBlank()) {
+            attributes.add(testIdAttribute);
+        }
+        attributes.addAll(DEFAULT_TEST_ID_ATTRIBUTES);
+        return List.copyOf(attributes);
+    }
+
+    /**
+     * Parses the requested viewport.
+     *
+     * @return parsed viewport or {@code null}
+     */
+    public Viewport viewport() {
+        return viewport(viewportSize);
+    }
+
+    /**
+     * Returns safe warnings for accepted-but-not-native Playwright codegen options.
+     *
+     * @return warning list
+     */
+    public List<String> warnings() {
+        List<String> warnings = new ArrayList<>();
+        if (!targetLanguage.isBlank() && !Set.of("java", "java-testng", "shaft-java").contains(normalize(targetLanguage))) {
+            warnings.add("Codegen target " + targetLanguage
+                    + " is accepted for compatibility; SHAFT emits fluent Java only"
+                    + " (no Python/TypeScript/C# exporters).");
+        }
+        addIfSet(warnings, channel, "Chromium channel selection is mapped through SHAFT browser selection.");
+        return List.copyOf(warnings);
+    }
+
+    private static void addIfSet(List<String> warnings, String value, String warning) {
+        if (value != null && !value.isBlank()) {
+            warnings.add(warning);
+        }
+    }
+
+    private static Viewport viewport(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String[] parts = value.trim().split("\\s*,\\s*");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Capture viewport size must be width,height.");
+        }
+        try {
+            int width = Integer.parseInt(parts[0]);
+            int height = Integer.parseInt(parts[1]);
+            if (width <= 0 || height <= 0) {
+                throw new NumberFormatException();
+            }
+            return new Viewport(width, height);
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Capture viewport size must contain positive integers.", exception);
+        }
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String text(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    /**
+     * Browser viewport dimensions.
+     *
+     * @param width viewport width
+     * @param height viewport height
+     */
+    public record Viewport(int width, int height) {
+    }
+}

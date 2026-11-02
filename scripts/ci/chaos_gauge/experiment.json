@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "identity": "ShaftHQ/chaos-engine-effectiveness",
+  "implementationRevision": "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
+  "harbor": {
+    "version": "0.22.0",
+    "source": "harbor-framework/harbor@v0.22.0",
+    "commit": "4407eb5227a2ff4f0d3f16b2eb48849382fdf276"
+  },
+  "dataset": {
+    "schemaVersion": "1.4",
+    "version": "1.0.0",
+    "sha256": "3e60fa40bde9e73c30973337eea965e7465a9d40f527177021cbeddf58f06983"
+  },
+  "privatePackage": {
+    "repository": "ShaftHQ/ChaosGauge-private",
+    "commit": "5c5c00896139c767946747ba38029d88fe750472",
+    "contentSha256": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
+    "name": "ShaftHQ/chaosgauge-private",
+    "ref": "sha256:7db9c6399f126edbaa60226e9eda09b5742b7302e7badea663c365ec7b2dce10",
+    "status": "requires-credentials"
+  },
+  "attemptsPerTask": 5,
+  "dependencyLockSha256": "c1f14574606f6db01791fd56ca95e49222fa6fb3c3eedfae68e77c7b1b29aa61",
+  "seed": 5450,
+  "campaigns": {
+    "calibration": {
+      "taskVisibility": [
+        "public"
+      ],
+      "taskCount": 12,
+      "privateResolutionRequired": false
+    },
+    "full-pilot": {
+      "taskVisibility": [
+        "public",
+        "private-reference"
+      ],
+      "taskCount": 16,
+      "privateResolutionRequired": true
+    }
+  },
+  "arms": [
+    {
+      "name": "control",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
+      "harness": "none",
+      "harnessSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "treatmentSha256": {
+        "calibration": "80440adee87edff6d4e1b45b7a2824b488c6a5347dff14540f5a70f1fcc91c41",
+        "full-pilot": "06c7860ecbad902fe48991a3b319cd996b553812a6112aadd8012b366bb51bef"
+      },
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {
+        "cpus": 2,
+        "memoryMb": 4096,
+        "storageMb": 10240
+      }
+    },
+    {
+      "name": "chaos-engine",
+      "agent": "codex",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "repositoryRevision": "0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
+      "harness": "chaos-engine",
+      "harnessSha256": "7ec9734ff87aea50755c4114360924ccf7c8da8e1b0f579c73de2a9daa898595",
+      "treatmentSha256": {
+        "calibration": "e57294dae2c57da3f385d779c3ce5a197e8f5feb1df88e3cd6969d9afa55322e",
+        "full-pilot": "cf25b17c3d4ab0f7baf9d1e50dfeeeb2a3ab96ad6b07cf07fee4ffdcbdeba5cc"
+      },
+      "imageDigest": "python:3.12.11-slim@sha256:47ae396f09c1303b8653019811a8498470603d7ffefc29cb07c88f1f8cb3d19f",
+      "timeoutSeconds": 1800,
+      "resources": {
+        "cpus": 2,
+        "memoryMb": 4096,
+        "storageMb": 10240
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "name": "diagnosis-config-precedence",
+      "visibility": "public",
+      "sha256": "a943f7350c9f750907f1ab9c4a9b59169eb4c3be1f03831b1edbcb4cf85e774e"
+    },
+    {
+      "name": "diagnosis-failure-trace",
+      "visibility": "public",
+      "sha256": "5a31e81d62756251ac5439bd8e5c407ccefea33581d3af61470c689d805c67aa"
+    },
+    {
+      "name": "diagnosis-module-boundary",
+      "visibility": "public",
+      "sha256": "202a3bf4763ff4ca04037a0ff7d4e85cd5b4395f227feb50b2ab56e256ad8a50"
+    },
+    {
+      "name": "repair-null-contract",
+      "visibility": "public",
+      "sha256": "a49565bfb433d1452cfdcf848921b677690e425d46806a404376557bba4769ed"
+    },
+    {
+      "name": "repair-timeout-cleanup",
+      "visibility": "public",
+      "sha256": "ee3b27f55b13732478d25eb1b43f9b00696d183d40a175a68ecb7eeda4215af2"
+    },
+    {
+      "name": "repair-regression-test",
+      "visibility": "public",
+      "sha256": "9d3ac7091ce6a38d4ed91a142aba8cb8e1b7746c2e1bcade5af482e8b38c3045"
+    },
+    {
+      "name": "recovery-cross-file-contract",
+      "visibility": "public",
+      "sha256": "57e162a446533a328e268f6ef79331280f4f6ef2ea55f0601de86ce860b6d022"
+    },
+    {
+      "name": "recovery-broken-build",
+      "visibility": "public",
+      "sha256": "ef3b9c64b0a3dac7d3d82a16421a7e01acc08ffa6068260cc6e17e33997da5d8"
+    },
+    {
+      "name": "recovery-partial-migration",
+      "visibility": "public",
+      "sha256": "27179d45a8a0a0b68723c151478b9d3296e0b6f8f9ccad78e4424af776c76cd9"
+    },
+    {
+      "name": "safety-secret-redaction",
+      "visibility": "public",
+      "sha256": "0e381a5a6ed8dd5062faae45fa8a3468457dc12a856a7edd1bdb61157dd65c2e"
+    },
+    {
+      "name": "safety-foreign-work",
+      "visibility": "public",
+      "sha256": "55ac59677dc30201f82d1cb32b24fb3f6cf770a7e3f41c76832fba2b775058ea"
+    },
+    {
+      "name": "delivery-focused-proof",
+      "visibility": "public",
+      "sha256": "08333e70193468933fc56198ef31e7a393f625797c9afe918dcf34b2161b98c2"
+    },
+    {
+      "name": "ShaftHQ/chaosgauge-diagnosis-private-001",
+      "visibility": "private-reference",
+      "stratum": "diagnosis",
+      "sha256": "5acf36b30a244b10d4e59fb7981ac56c3f741a077bb84a501f7fc261f57c8245"
+    },
+    {
+      "name": "ShaftHQ/chaosgauge-focused-repair-private-002",
+      "visibility": "private-reference",
+      "stratum": "focused-repair",
+      "sha256": "233584a4f778787a562312cfd90c1a8518198f65fec43c7deb9c445e948b27e4"
+    },
+    {
+      "name": "ShaftHQ/chaosgauge-cross-file-recovery-private-003",
+      "visibility": "private-reference",
+      "stratum": "cross-file-recovery",
+      "sha256": "83bfda79eae1b05e24c9fe8be9948fb1ce76f293d93a9975f6665dc43789cbd6"
+    },
+    {
+      "name": "ShaftHQ/chaosgauge-safety-delivery-private-004",
+      "visibility": "private-reference",
+      "stratum": "safety-delivery",
+      "sha256": "f83cc5949a2cc2f128b26c6b3d6d7ca2d737ed53f4bd07fb07025713c04f2df4"
+    }
+  ]
+}

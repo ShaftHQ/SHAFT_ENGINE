@@ -1,0 +1,769 @@
+name: Local E2E Tests
+
+concurrency:
+  # #6775 bisects: parallel dispatches with different jobs/tests inputs, and dispatches vs the nightly, must not cancel each other.
+  group: e2e-local-tests-${{ github.ref }}-${{ github.event_name }}-${{ inputs.jobs }}-${{ inputs.tests }}
+  cancel-in-progress: true
+
+on:
+  schedule:
+    - cron: '00 1 * * *'
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: >-
+          Comma-separated job names to run, no spaces (e.g. "Windows_Chrome_Local" or
+          "Windows_Chrome_Local,MacOSX_Safari_Local"). Defaults to every job -- today's
+          behaviour -- and is always every job on the scheduled nightly run.
+        required: false
+        default: 'all'
+      tests:
+        description: >-
+          Maven -Dtest= selector, threaded into every selected job's Run
+          tests step. Leave empty to keep each selected job's own default
+          selector unchanged. "pkg.*" matches only classes directly in pkg;
+          use "pkg/**/*Test*" for subpackages.
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  # Environment-independent unit tests belong to pr-gate.yml's unit-tests job, not to each
+  # local browser/OS job. Keep this trailer aligned with e2eTests.yml; grid-only Playwright
+  # and LazyLoadingFixtureLiveTest exclusions deliberately remain absent here because those
+  # tests require local browser coverage.
+  GLOBAL_TESTING_SCOPE: "!%regex[.*DatabaseActions.*], !%regex[.*CLI.*], !%regex[.*DB.*], !%regex[.*Db.*], !%regex[.*db.*], !%regex[.*API.*], !%regex[.*Api.*], !%regex[.*api.*], !%regex[.*uestBuilder.*], !%regex[.*Rest.*], !%regex[.*Json.*], !%regex[.*JSON.*], !%regex[.*json.*], !%regex[.*ndroid.*], !%regex[.*IOS.*], !%regex[.*MobileWeb.*], !%regex[.*appium.Mobile.*], !%regex[.*properties.Mobile.*], !%regex[.*CucumberTests.*], !%regex[.*LT.*], !%regex[.*Flutter.*], !%regex[.*MoonTests.*], !%regex[.*com.shaft.test.unittests.*], !%regex[.*DriverFactoryHelperAugmentationUnitTest.*], !%regex[.*DriverFactoryHelperCoverageUnitTest.*], !%regex[.*DriverFactoryHelperStorageStateUnitTest.*], !%regex[.*OptionsManagerCoverageUnitTest.*], !%regex[.*RemoteGridPreflightUnitTest.*], !%regex[.*ActionsCoverageUnitTest.*], !%regex[.*ActionsExceptionDetailsUnitTest.*], !%regex[.*ElementInformationCoverageUnitTest.*], !%regex[.*ElementsHelperCoverageUnitTest.*], !%regex[.*AriaSnapshotHelperUnitTest.*], !%regex[.*MobileAccessibilityTreeConverterUnitTest.*], !%regex[.*AnimatedGifManagerCoverageUnitTest.*], !%regex[.*ImageProcessingActionsReportingUnitTest.*], !%regex[.*ImageProcessingActionsScreenshotBaselineUnitTest.*], !%regex[.*ScreenshotHelperCoverageUnitTest.*], !%regex[.*ScreenshotManagerCoverageUnitTest.*], !%regex[.*LocatorHealthReporterUnitTest.*], !%regex[.*RecordManagerCoverageUnitTest.*], !%regex[.*PlaywrightSessionFactoryStorageStateUnitTest.*], !%regex[.*PlaywrightNaturalActionExecutorTest.*], !%regex[.*ShardPartitionerUnitTest.*], !%regex[.*AutomaticRunLabelsUnitTest.*], !%regex[.*TestNgTagLabelsUnitTest.*], !%regex[.*UpdateCheckerUnitTest.*], !%regex[.*LightHouseGenerateReportCoverageUnitTest.*], !%regex[.*PropertiesHelperDownloadRetryUnitTest.*], !%regex[.*PropertyFileManagerInternalUnitTest.*], !%regex[.*PropertyContractCoverageUnitTest.*], !%regex[.*AllureManagerCoverageUnitTest.*], !%regex[.*BrowserPerformanceExecutionReportUnitTest.*], !%regex[.*FlakeProfilerUnitTest.*], !%regex[.*ProgressBarLoggerCoverageUnitTest.*], !%regex[.*ValidationsHelperCoverageUnitTest.*], !%regex[.*ValidationsHelperNewPatternCoverageUnitTest.*], !%regex[.*VisualValidationsBuilderUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderAriaSnapshotUnitTest.*], !%regex[.*WebDriverElementValidationsBuilderCoverageUnitTest.*], !%regex[.*AssertionEvidenceReporterTest.*], !%regex[.*FailureTraceReporterTest.*], !%regex[.*HealingActionsIntegrationTest.*], !%regex[.*HttpContractRecorderTest.*], !%regex[.*FileActionsCoverageUnitTest.*], !%regex[.*MobileEvidenceActionsTest.*], !%regex[.*PlaywrightTraceArchiveLoaderTest.*], !%regex[.*PlaywrightTraceImporterTest.*], !%regex[.*GuiValidationContractTest.*], !%regex[.*TraceArchiveWriterTest.*], !%regex[.*ApiValidationDslTest.*], !%regex[.*AllureListenerCoverageUnitTest.*], !%regex[.*AllureReportRebuildTest.*], !%regex[.*SecretScreenMaskTest.*], !%regex[.*MobilePreflightUnitTest.*], !%regex[.*MobilePreflightPropertiesUnitTest.*], !%regex[.*RunningLocaleCheckUnitTest.*], !%regex[.*InfraFailureGuardUnitTest.*], !%regex[.*KeyboardCoverGuardUnitTest.*], !%regex[.*SecretScreenMaskWrappedTextUnitTest.*], !%regex[.*ApiPropertyRawValueUnitTest.*], !%regex[.*BrowserStackSdkPassThroughUnitTest.*], !%regex[.*IosAccessibilityFocusUnitTest.*], !%regex[.*AllureSecretLeakTest.*], !%regex[.*ReportSecretsTest.*], !%regex[.*FailureDiagnosticsReporterTest.*], !%regex[.*FailureBriefReporterTest.*], !%regex[.*MobileEvidenceBundleTest.*], !%regex[.*RestActionsCoverageUnitTest.*], !%regex[.*AccessibilityHelperCoverageUnitTest.*], !%regex[.*SshShellSessionUnitTest.*], !%regex[.*PlaywrightBrowserActionsUnitTest.*], !%regex[.*PlaywrightElementActionsUnitTest.*], !%regex[.*PlaywrightInteractionStrategiesUnitTest.*], !%regex[.*DatabaseActionsMockedTests.*], !%regex[.*ApiActionsMockedTests.*], !%regex[.*ElementActionsMockedTests.*], !%regex[.*PlaywrightBrowserValidationTest.*], !%regex[.*PlaywrightElementValidationTargetTest.*], !%regex[.*PlaywrightElementVisualValidationTest.*], !%regex[.*SemanticMatchInspectorUnitTest.*], !%regex[.*VisualTargetTouchActionsTest.*], !%regex[.*TouchActionsDisplayedExactTextTest.*], !%regex[.*PlaywrightConsoleBridgeTest.*], !%regex[.*PlaywrightDownloadBridgeTest.*], !%regex[.*PlaywrightSessionSensitiveTraceTest.*], !%regex[.*TraceSchemaSerializerTest.*], !%regex[.*BrowserEmulationNamespaceTest.*], !%regex[.*RestActionsComprehensiveTests.*], !%regex[.*WebDriverBrowserValidationTest.*], !%regex[.*BrowserDownloadsNamespaceTest.*], !%regex[.*BrowserObservabilityRecorderSessionTest.*], !%regex[.*RequestBuilderTests.*], !%regex[.*TraceArtifactManifestTest.*], !%regex[.*AllureActionStepReportingTest.*], !%regex[.*BrowserStateNamespaceTest.*], !%regex[.*ApiStatusCodeFlagFamilyUnitTest.*], !%regex[.*BrowserPermissionsNamespaceTest.*], !%regex[.*CheckpointCounterJsonUnitTest.*], !%regex[.*PdfFileManagerDocumentContractTest.*], !%regex[.*AuthUnitTest.*], !%regex[.*PlaywrightNetworkInterceptorTest.*], !%regex[.*BrowserAuthenticationNamespaceTest.*], !%regex[.*SecurityMockedTests.*], !%regex[.*OcrTargetResolverTest.*], !%regex[.*LocatorMockedTests.*], !%regex[.*CucumberMockedTests.*], !%regex[.*ElementTargetTest.*], !%regex[.*BrowserStorageStateManagerTest.*], !%regex[.*PlaywrightStorageStateManagerTest.*], !%regex[.*JavaScriptWaitManagerUnitTest.*], !%regex[.*BrowserEmulationNamespaceTraceTest.*], !%regex[.*BrowserStateNamespaceTraceTest.*], !%regex[.*BrowserAuthenticationNamespaceTraceTest.*], !%regex[.*BrowserScriptNamespaceTraceTest.*], !%regex[.*BrowserDownloadsNamespaceTraceTest.*], !%regex[.*BrowserStorageNamespaceTraceTest.*], !%regex[.*NetworkNamespaceTraceTest.*], !%regex[.*YAMLFileManagerTests.*], !%regex[.*LocatorBuilderTest.*], !%regex[.*OcrGuiActionContractTest.*], !%regex[.*IOActionsMockedTests.*], !%regex[.*ValidationsMockedTests.*], !%regex[.*WebDriverMobileValidationTest.*], !%regex[.*MobileNamespaceTest.*], !%regex[.*MobileRecordingActionsTest.*], !%regex[.*MobileLogActionsTest.*], !%regex[.*MobileEvidenceCollectorTest.*], !%regex[.*MobilePerformanceActionsTest.*], !%regex[.*MobileSessionStateManagerTest.*], !%regex[.*MobileFileNamespaceTraceTest.*], !%regex[.*MobilePerformanceNamespaceTraceTest.*], !%regex[.*IosNonHittableTapTest.*], !%regex[.*LiveSessionSupportUnitTest.*], !%regex[.*BrowserStorageNamespaceTest.*], !%regex[.*OpenApiCoverageReporterUnitTest.*], !%regex[.*NaturalActionPlannerRegistryTest.*], !%regex[.*SemanticLocatorResolverUnitTest.*], !%regex[.*GoogleTinkApiCoverageUnitTest.*], !%regex[.*NewValidationHelperTests.*], !%regex[.*ActionsCoverageTests.*], !%regex[.*AllureSuiteIdentityPathTest.*], !%regex[.*AllureSuiteWidgetReaderTest.*], !%regex[.*ApiPerformanceExecutionReportUnitTest.*], !%regex[.*CdpWebSocketTraceSourceTest.*], !%regex[.*CustomReportMessageFailurePathTest.*], !%regex[.*ElementStepsCoverageUnitTest.*], !%regex[.*FailureTraceReporterTest.*], !%regex[.*NaturalActionExecutorTest.*], !%regex[.*NightlyEvidencePathHardeningUnitTest.*], !%regex[.*OcrProcessingProviderRegistryTest.*], !%regex[.*PlatformThreadsTest.*], !%regex[.*PlaywrightDeviceDescriptorTest.*], !%regex[.*PlaywrightTraceArchiveLoaderTest.*], !%regex[.*PlaywrightTraceImporterTest.*], !%regex[.*ReportPublishGuardTest.*], !%regex[.*AttachmentTypeGuardTest.*], !%regex[.*RestActionsBytecodeCompatibilityTest.*], !%regex[.*ScrollSweepPlannerUnitTest.*], !%regex[.*ShaftLocatorSemanticUnitTest.*], !%regex[.*TraceArchiveReaderTest.*], !%regex[.*TraceScreenshotDownscalerTest.*], !%regex[.*PlaywrightBrowserValidationTest.*], !%regex[.*PlaywrightElementValidationTargetTest.*], !%regex[.*PlaywrightElementVisualValidationTest.*], !%regex[.*AsyncElementActionsCoverageUnitTest.*], !%regex[.*BidiConsoleLogSourceTest.*], !%regex[.*BrowserConsoleErrorGateTest.*], !%regex[.*BrowserConsoleNamespaceTest.*], !%regex[.*BrowserConsoleNamespaceTraceTest.*], !%regex[.*BrowserScriptNamespaceTest.*], !%regex[.*CSVFileManagerTest.*], !%regex[.*CdpWorkersTest.*], !%regex[.*ChecksumTests.*], !%regex[.*CreateFileRaceConditionTests.*], !%regex[.*DesktopVideoRecordingProviderRegistryTest.*], !%regex[.*FileActionsTests.*], !%regex[.*HealeniumTests.*], !%regex[.*HealingStrategyTest.*], !%regex[.*HealingTests.*], !%regex[.*ImageCoordinateMapperTest.*], !%regex[.*ImagePublicContractTest.*], !%regex[.*InternalTests.*], !%regex[.*JSONFileManagerTests.*], !%regex[.*JiraTests.*], !%regex[.*JsonCompareWithSpecialCharactersTests.*], !%regex[.*LocalShellTests.*], !%regex[.*Log4jTests.*], !%regex[.*ManagedLocalAiPropertiesTest.*], !%regex[.*MobileEvidenceNamespaceTraceTest.*], !%regex[.*MobilePerformanceSampleTest.*], !%regex[.*MobileRecordingOptionsTest.*], !%regex[.*MobileTests.*], !%regex[.*NaturalActionsTests.*], !%regex[.*OcrAssertionContractTest.*], !%regex[.*OcrCoordinateMapperTest.*], !%regex[.*OcrPublicContractTest.*], !%regex[.*PDFTests.*], !%regex[.*PathParamTest.*], !%regex[.*PathsTests.*], !%regex[.*PatternTests.*], !%regex[.*PerformanceTests.*], !%regex[.*PlatformTests.*], !%regex[.*PlaywrightManagedRuntimeTest.*], !%regex[.*ReportThemeConsistencyTest.*], !%regex[.*ReportingAccessibleNameTest.*], !%regex[.*Rfc8259SiblingEscapeJsonTest.*], !%regex[.*SwaggerContractTest.*], !%regex[.*TestNGTests.*], !%regex[.*TimeoutsTests.*], !%regex[.*TinkeyTests.*], !%regex[.*TraceSessionTest.*], !%regex[.*VisualProcessingProviderRegistryTest.*], !%regex[.*VisualStabilityWaitUnitTest.*], !%regex[.*VisualsTests.*], !%regex[.*WebTests.*], !%regex[.*WizardTestDataTests.*], !%regex[.*BidiNetworkActivitySourceUnitTest.*], !%regex[.*BrowserPermissionsNamespaceTraceTest.*], !%regex[.*CdpPassiveNetworkObserverTest.*], !%regex[.*CdpFetchRuleInterceptorUnitTest.*], !%regex[.*AssertionFailureFormatterUnitTest.*], !%regex[.*JiraHelperCoverageUnitTest.*], !%regex[.*NetworkActionsCoverageUnitTest.*], !%regex[.*PlaywrightSessionFactoryCoverageUnitTest.*], !%regex[.*TypeStrategiesCoverageUnitTest.*], !%regex[.*SHAFTFacadeCoverageUnitTest.*], !%regex[.*PlaywrightSessionCoverageUnitTest.*], !%regex[.*PlaywrightElementValidationsBuilderCoverageUnitTest.*], !%regex[.*MobileBiometricActionsTest.*], !%regex[.*DeterministicNaturalActionPlannerTest.*], !%regex[.*ElementActionabilityDiagnosticsTest.*], !%regex[.*FailureEvidenceTest.*], !%regex[.*HarReplayRulesTest.*], !%regex[.*HealingFingerprintSeedingTest.*], !%regex[.*HttpContractBrowserReplayTest.*], !%regex[.*PlaywrightTraceParityAcceptanceTest.*], !%regex[.*BidiNetworkTraceSourceTest.*], !%regex[.*BrowserNetworkInterceptorTest.*], !%regex[.*CloudAppBinaryTest.*], !%regex[.*ImageProcessingActionsPlaywrightVisualTest.*], !%regex[.*NativeSessionBrowserCommandGuardTest.*], !%regex[.*OcrPropertiesContractTest.*], !%regex[.*PlaywrightTraceViewerAssetsTest.*], !%regex[.*ShaftSkillsEfficiencyContractTest.*], !%regex[.*TraceViewerParityMatrixTest.*], !%regex[.*TraceViewerScriptTest.*], !%regex[.*SourceCodeContextTest.*], !%regex[.*TraceViewerHtmlLineEndingTest.*], !%regex[.*CLIWizardTests.*], !%regex[.*FlagsTests.*], !%regex[.*InfrastructurePropertiesTests.*], !%regex[.*ReportingTests.*], !%regex[.*ScrollMotionBoxPathTest.*], !%regex[.*SkipDueToIssueTests.*], !%regex[.*TestDataTests.*], !%regex[.*ThreadLocalGuiTeardownGuardTest.*], !%regex[.*UnknownPropertyKeysTest.*], !%regex[.*PlaywrightTraceOfflineRenderTest.*], !%regex[.*ImageProcessingActionsOfflineCoverageTest.*], !%regex[.*PlaywrightTraceOfflineBudgetTest.*], !%regex[.*PlaywrightTraceOfflineRenderLimitTest.*]"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  Workflow_Summary:
+    if: always()
+    needs:
+      - Windows_Edge_Local
+      - MacOSX_Safari_Local_1
+      - MacOSX_Safari_Local_2
+      - Windows_Chrome_Local
+      - Windows_Managed_Lighthouse
+      - Ubuntu_Managed_Android
+      - Windows_SikuliX_Local
+      - Windows_Appium_Desktop_Local
+      - MacOSX_Chrome_Local
+      - Windows_Edge_Cucumber_Local
+      - Ubuntu_Flutter_Emulator_Local
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Consolidate Test Results
+        uses: ./.github/actions/consolidate-test-results
+        with:
+          needs-json: ${{ toJSON(needs) }}
+
+  Windows_Edge_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Edge_Local,')
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
+      - name: Install optional visual test runtime
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Print Edge version
+        continue-on-error: true
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
+      - name: Run tests
+        continue-on-error: true
+        # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
+        shell: bash
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*ChromePlaywrightActionsE2ETest.*], !%regex[.*FirefoxPlaywrightActionsE2ETest.*], !%regex[.*WebKitPlaywrightActionsE2ETest.*], !%regex[.*GalaxyS26UltraPlaywrightActionsE2ETest.*], !%regex[.*IPhone17ProMaxPlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Edge_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  MacOSX_Safari_Local_1:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Local,')
+    runs-on: macos-latest
+    timeout-minutes: 120
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
+      - name: Install optional visual test runtime
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
+        shell: bash
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=${{ github.event.inputs.tests != '' && '1/1' || '1/2' }}" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: MacOSX_Safari_Local_1_of_${{ github.event.inputs.tests != '' && '1' || '2' }}
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  MacOSX_Safari_Local_2:
+    if: (github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Safari_Local,')) && (github.event_name != 'workflow_dispatch' || github.event.inputs.tests == '')
+    runs-on: macos-latest
+    timeout-minutes: 120
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
+      - name: Install optional visual test runtime
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
+        shell: bash
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=2/2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: MacOSX_Safari_Local_2_of_2
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_Chrome_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Chrome_Local,')
+    runs-on: windows-latest
+    timeout-minutes: 75
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
+      - name: Install optional visual test runtime
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
+        shell: bash
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Issue #4884: opt-in real acceptance for the release-pinned managed Node/Lighthouse
+  # toolchain. This stays manual because it downloads a full npm dependency tree and
+  # audits a live local Chrome session; PR/unit gates cover the deterministic seams.
+  Windows_Managed_Lighthouse:
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Managed_Lighthouse,'))
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '24'
+      - name: Package the setup CLI
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip=true"
+      - name: Plan, approve, install, and verify managed Lighthouse
+        shell: pwsh
+        run: |
+          $cli = Get-ChildItem -Path shaft-cli/target -Filter 'shaft-cli-*.jar' |
+            Where-Object { $_.Name -match '^shaft-cli-[0-9][0-9.]*\.jar$' } |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $cli) { throw 'Packaged shaft-cli executable JAR was not found.' }
+          $cacheRoot = Join-Path $env:RUNNER_TEMP 'shaft-lighthouse-cache'
+          $dataRoot = Join-Path $cacheRoot 'data'
+          $plan = Join-Path $env:RUNNER_TEMP 'lighthouse-plan.json'
+          $planOutput = & java -jar $cli setup plan --profile LIGHTHOUSE --mode MANAGED --output $plan --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw "Lighthouse planning failed: $planOutput" }
+          $digest = (($planOutput | Select-String '^Digest: ').Line -replace '^Digest:\s*', '')
+          if (-not $digest) { throw 'Lighthouse plan did not emit an approval digest.' }
+          & java -jar $cli setup install --plan $plan --approve $digest --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse installation failed.' }
+          & java -jar $cli setup verify --profile LIGHTHOUSE --mode MANAGED --cache-root $cacheRoot --data-root $dataRoot
+          if ($LASTEXITCODE -ne 0) { throw 'Managed Lighthouse verification failed.' }
+      - name: Run real local-Chrome Lighthouse report
+        continue-on-error: true
+        run: >-
+          mvn --batch-mode -pl shaft-engine -am test
+          "-Dtest=testPackage.ManagedLighthouseE2ETest"
+          "-DrunManagedLighthouseE2E=true"
+          "-Dinfrastructure.mode=MANAGED"
+          "-Dinfrastructure.profile=LIGHTHOUSE"
+          "-Dinfrastructure.cacheDirectory=${{ runner.temp }}\shaft-lighthouse-cache"
+          "-DlightHouseExecution=true"
+          "-DopenLighthouseReportWhileExecution=false"
+          "-DexecutionAddress=local"
+          "-DtargetBrowserName=chrome"
+          "-DheadlessExecution=true"
+          "-Dallure.automaticallyOpen=false"
+          "-Dgpg.skip=true"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Managed_Lighthouse
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_SikuliX_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_SikuliX_Local,')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      - name: Run SikuliX Windows desktop flow
+        continue-on-error: true
+        run: mvn -pl shaft-sikulix -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'SikuliWindowsDesktopE2ETest' }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_SikuliX_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          module-directory: shaft-sikulix
+
+  Windows_Appium_Desktop_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Appium_Desktop_Local,')
+    runs-on: windows-latest
+    timeout-minutes: 15
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '24'
+      - name: Resolve Windows Appium test dependencies
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e test
+          "-DskipTests" "-Dallure.automaticallyOpen=false" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Install Appium Windows driver and pinned WinAppDriver
+        shell: powershell
+        run: |
+          npm install -g appium@3.5.2
+          appium driver install windows
+          # Do not use Appium's windows driver release lookup helper: it lists
+          # api.github.com/repos/microsoft/winappdriver/releases unauthenticated and
+          # 403s on Actions rate limits (#5697). Pin the MSI asset instead.
+          & "$env:GITHUB_WORKSPACE/scripts/ci/install_winappdriver.ps1" -Version "1.2.1"
+      - name: Start Appium server and run Windows desktop flow
+        continue-on-error: true
+        shell: powershell
+        run: |
+          # The Appium server and the test MUST run in the same step. When the
+          # server was started via Start-Job in a *separate* step, that job's
+          # child process was torn down as soon as the start step's pwsh exited,
+          # so nothing was listening on 4723 by the time the test step ran: every
+          # POST /session failed instantly with java.nio.channels.ClosedChannelException
+          # and SHAFT retried until the 300s remote-session timeout. The server
+          # --log confirmed it -- it stopped right after the in-step /status probe
+          # with no POST /session ever logged server-side (run 29717278042, #3806).
+          # (That same cross-step death, not stream buffering, is why an earlier
+          # Receive-Job at cleanup surfaced zero server output.) Co-locating start
+          # + test keeps the server alive for the whole session-creation window;
+          # the --log file still feeds the diagnostics artifact.
+          $appiumLog = Join-Path $env:RUNNER_TEMP 'appium-server.log'
+          Start-Job -Name shaft-appium -ScriptBlock {
+            param($logPath)
+            appium --address 127.0.0.1 --port 4723 --log-level info --log $logPath
+          } -ArgumentList $appiumLog | Out-Null
+          $ready = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            try {
+              Invoke-RestMethod -Uri "http://127.0.0.1:4723/status" -TimeoutSec 2 | Out-Null
+              $ready = $true
+              break
+            } catch {
+              Start-Sleep -Seconds 1
+            }
+          }
+          if (-not $ready) {
+            Receive-Job -Name shaft-appium -Keep
+            if (Test-Path $appiumLog) {
+              Get-Content $appiumLog
+            }
+            throw "Appium server did not become ready."
+          }
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:/Windows/System32/notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}"
+      - name: Dump Appium server log
+        if: always()
+        shell: powershell
+        run: |
+          # The server ran inside the previous step's shell, so its Start-Job is
+          # already gone here -- only the on-disk --log file survives to inspect.
+          $appiumLog = Join-Path $env:RUNNER_TEMP 'appium-server.log'
+          Write-Output "=== Appium server log ($appiumLog) ==="
+          if (Test-Path $appiumLog) {
+            Get-Content $appiumLog
+          } else {
+            Write-Output "(log file was not created)"
+          }
+      - name: Upload Appium server log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Windows_Appium_Desktop_Local_server_log
+          path: ${{ runner.temp }}\appium-server.log
+          if-no-files-found: ignore
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Appium_Desktop_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  MacOSX_Chrome_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',MacOSX_Chrome_Local,')
+    runs-on: macos-latest
+    timeout-minutes: 90
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: '20'
+      # See the note in e2eTests.yml: a Central refusal in this step, which has
+      # no continue-on-error, cascades into a missing Allure summary (#4445).
+      # `shell: bash` is explicit because these jobs run on Windows and macOS.
+      - name: Install optional visual test runtime
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
+      - name: Run tests
+        continue-on-error: true
+        # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
+        shell: bash
+        run: mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DforceBrowserDownload=true" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: MacOSX_Chrome_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Windows_Edge_Cucumber_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Windows_Edge_Cucumber_Local,')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          node-version: 'lts/*'
+      - name: Print Edge version
+        continue-on-error: true
+        run: (Get-Item (Get-Command msedge).Source).VersionInfo.ProductVersion
+      - name: Run tests
+        continue-on-error: true
+        run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      # The %regex[.*CucumberTests.*] selector also matches unrelated unit tests (e.g.
+      # CucumberTestsHelperCoverageUnitTest, testPackage.properties.CucumberTests). Their
+      # passing runs previously kept the aggregate Allure total above zero even during
+      # #4079's original defect, when the real Cucumber runner found zero scenarios and
+      # every job on this selector reported false-green. #4078 fixed the underlying
+      # auto-wiring (verified: cucumberTestRunner.CucumberTests now finds and runs all 4
+      # scenarios both locally and in CI), but this check remains as the regression guard --
+      # a future break in that auto-wiring must fail loudly and can never hide behind the
+      # unrelated classes' passing counts. Checked via the runner's own Surefire report so
+      # this can't be fooled by that padding the way the aggregate Allure total can.
+      #
+      # Path note: when more than one class matches -Dtest (as here), Surefire's TestNG
+      # provider writes each class's JUnit-style report under surefire-reports/junitreports/,
+      # not a top-level surefire-reports/TEST-<Class>.xml (that top-level path is only
+      # produced when a single class is selected directly, e.g. -Dtest=<FQCN> with no other
+      # matches -- confirmed empirically both ways).
+      - name: Verify Cucumber scenarios actually executed
+        run: >-
+          python3 scripts/ci/assert_tests_executed.py
+          shaft-engine/target/surefire-reports/junitreports/TEST-cucumberTestRunner.CucumberTests.xml
+          --min-executed 1
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Windows_Edge_Cucumber_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Opt-in real acceptance for #4898. The packaged CLI performs the only installation
+  # mutation; a packaged CLI process starts the receipt-bound AVD/Appium lease, the engine
+  # reuses it for a real UiAutomator2 session, and a later CLI process owns final shutdown.
+  Ubuntu_Managed_Android:
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Managed_Android,'))
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          mobile-apps: 'true'
+          node-version: '24'
+      - name: Provision the Android emulator host runtime
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+          sudo apt-get update
+          sudo apt-get install --yes libpulse0
+      - name: Package the setup CLI
+        shell: bash
+        run: >-
+          bash scripts/ci/build_retry.sh 2 60
+          mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Install the reviewed managed Android plan
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          test -n "$cli_jar"
+          cache_root="$RUNNER_TEMP/shaft-android-cache"
+          data_root="$cache_root/data"
+          plan="$RUNNER_TEMP/shaft-android-plan.json"
+          java -jar "$cli_jar" setup plan --profile MOBILE_ANDROID --mode MANAGED \
+            --output "$plan" --cache-root "$cache_root" --data-root "$data_root" \
+            --startup-timeout PT8M --shutdown-timeout PT1M
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
+          if ! java -jar "$cli_jar" setup install --plan "$plan" --approve "$digest" \
+            --accept-license android-sdk-license --cache-root "$cache_root" --data-root "$data_root" \
+            --startup-timeout PT8M --shutdown-timeout PT1M; then
+            install_log="$data_root/state/logs/mobile-android-install.log"
+            test ! -f "$install_log" || cat "$install_log"
+            exit 1
+          fi
+      - name: Start the owned runtime from the packaged CLI
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          cache_root="$RUNNER_TEMP/shaft-android-cache"
+          data_root="$cache_root/data"
+          plan="$RUNNER_TEMP/shaft-android-plan.json"
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
+          java -jar "$cli_jar" setup start --plan "$plan" --approve "$digest" \
+            --accept-license android-sdk-license --cache-root "$cache_root" --data-root "$data_root" \
+            --startup-timeout PT8M --shutdown-timeout PT1M
+          test -s "$data_root/state/mobile-android-runtime.json"
+      - name: Run real emulator, UiAutomator2, and aapt2 acceptance
+        continue-on-error: true
+        run: >-
+          mvn --batch-mode -pl shaft-engine -am test
+          '-Dtest=testPackage.ManagedAndroidE2ETest'
+          -DrunManagedAndroidE2E=true
+          -Dinfrastructure.mode=MANAGED
+          -Dinfrastructure.profile=MOBILE_ANDROID
+          -Dinfrastructure.cacheDirectory=${{ runner.temp }}/shaft-android-cache
+          -Dinfrastructure.startupTimeout=PT8M
+          -Dinfrastructure.shutdownTimeout=PT1M
+          -Dallure.automaticallyOpen=false
+          -Dgpg.skip=true
+      - name: Stop the owned runtime from a later packaged CLI process
+        if: always()
+        shell: bash
+        run: |
+          cli_jar="$(find shaft-cli/target -maxdepth 1 -name 'shaft-cli-*[0-9].jar' -print -quit)"
+          cache_root="$RUNNER_TEMP/shaft-android-cache"
+          data_root="$cache_root/data"
+          plan="$RUNNER_TEMP/shaft-android-plan.json"
+          digest="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['digest'])" "$plan")"
+          test -s "$data_root/state/mobile-android-runtime.json"
+          java -jar "$cli_jar" setup stop --plan "$plan" --approve "$digest" \
+            --accept-license android-sdk-license \
+            --cache-root "$cache_root" --data-root "$data_root" \
+            --startup-timeout PT8M --shutdown-timeout PT1M
+          test ! -e "$data_root/state/mobile-android-runtime.json"
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Managed_Android
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  Ubuntu_Flutter_Emulator_Local:
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Flutter_Emulator_Local,')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      job: ${{ steps.post_test_report.outputs.job }}
+      total: ${{ steps.post_test_report.outputs.total }}
+      passed: ${{ steps.post_test_report.outputs.passed }}
+      failed: ${{ steps.post_test_report.outputs.failed }}
+      broken: ${{ steps.post_test_report.outputs.broken }}
+      skipped: ${{ steps.post_test_report.outputs.skipped }}
+      duration: ${{ steps.post_test_report.outputs.duration }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          mobile-apps: 'true'
+          java-version: '17'
+          node-version: '20'
+      - name: Setup Flutter 3.22.1
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.22.1
+          channel: stable
+      - name: Setup Android SDK
+        # Default packages include deprecated `tools`, which Google stopped
+        # serving (android-actions/setup-android#537). Request only what we need.
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools
+      - name: Flutter emulator preflight
+        run: bash scripts/ci/flutter_emulator_preflight.sh
+      - name: Checkout pinned appium-flutter-server demo-app
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AppiumTestDistribution/appium-flutter-server
+          ref: 78ba97a6146091b944335d0db3330f74416f3ac7
+          path: appium-flutter-server
+          sparse-checkout: |
+            demo-app
+            server
+      - name: Build demo-app debug APK wired for the Appium Flutter Integration Server
+        run: |
+          set -euo pipefail
+          cd appium-flutter-server/demo-app
+          dart pub global activate rps --version 0.8.0
+          bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 flutter build apk --debug
+          cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
+      - name: Copy freshly-built APK into FlutterTest path
+        run: |
+          set -euo pipefail
+          APK_PATH="$GITHUB_WORKSPACE/appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk"
+          ls -l "$APK_PATH"
+          cp "$APK_PATH" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
+      - name: Set up JDK 25 for Maven
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+      - name: Install engine dependencies for FlutterTest
+        run: >
+          bash scripts/ci/build_retry.sh 2 60
+          mvn -pl shaft-engine -am -e install "-DskipTests" "-Dgpg.skip" "-Dcyclonedx.skip"
+      - name: Boot emulator, open Flutter session, run FlutterTest tap/type/text
+        id: flutter_e2e
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          FLUTTER_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'testPackage.appium.FlutterTest' }}
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          working-directory: ${{ github.workspace }}
+          # One line: emulator-runner executes each YAML line as a separate sh -c.
+          script: bash "$GITHUB_WORKSPACE/scripts/ci/run_ubuntu_flutter_emulator_e2e.sh"
+      - name: Upload Appium server log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Ubuntu_Flutter_Emulator_Local_appium_log
+          path: ${{ runner.temp }}/appium-server.log
+          if-no-files-found: ignore
+      - name: Post-Test Report and Check
+        id: post_test_report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Ubuntu_Flutter_Emulator_Local
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+
+  notify_local_e2e_tests_failure:
+    name: Notify on nightly failure
+    needs: [ Windows_Edge_Local, MacOSX_Safari_Local_1, MacOSX_Safari_Local_2, Windows_Chrome_Local, Windows_Managed_Lighthouse, Ubuntu_Managed_Android, Windows_SikuliX_Local, Windows_Appium_Desktop_Local, MacOSX_Chrome_Local, Windows_Edge_Cucumber_Local, Ubuntu_Flutter_Emulator_Local ]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          # A targeted dispatch (github.event.inputs.jobs set to something other than
+          # '' / 'all') only runs a subset of jobs on purpose (#4115) -- most needs.*.result
+          # entries are 'skipped', not real passes, so this must never be read as a
+          # full-suite recovery/failure signal. Only a schedule run or a full ('all'/empty)
+          # dispatch feeds the real outcome into the tracking-issue logic below.
+          outcome: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.jobs != '' && github.event.inputs.jobs != 'all') && 'skip' || (contains(needs.*.result, 'failure') && 'failure') || (contains(needs.*.result, 'cancelled') && 'skip') || 'success' }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:local-e2e-tests'

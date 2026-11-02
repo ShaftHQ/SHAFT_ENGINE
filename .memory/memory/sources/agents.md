@@ -1,0 +1,3 @@
+# Source: AGENTS.md
+
+Canonical repository instructions for ChaosEngine work. Current signals: SHAFT_ENGINE is a Maven Java automation framework; configuration and live files win; every task routes through act-as-mohab; implementation starts with ordered research and planning; session work uses fresh ChaosEngine/* branches from origin/main; behavior changes use RED-GREEN-REFACTOR, independent review, PR delivery, and exact validation; durable knowledge is routed once among native Memory, MemPalace, Graphify, guidance, or issues.

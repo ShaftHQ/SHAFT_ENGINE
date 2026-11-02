@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Requirements Analysis"
+  short_description: "Find testability and coverage gaps"
+  default_prompt: "Use $shaft-requirements-analysis to turn these requirements into testable, traceable acceptance criteria."

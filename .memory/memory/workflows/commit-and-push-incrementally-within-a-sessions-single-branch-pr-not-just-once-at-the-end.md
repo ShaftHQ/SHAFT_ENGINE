@@ -1,0 +1,1 @@
+Commit and push each logically complete, independently-compiling and independently-testing increment as it finishes, rather than batching work at session end. The branch and PR shape is not decided here; see `.agents/skills/act-as-mohab/references/work-github-planning.md` Sec. 3b. This object only governs cadence inside that shape.
