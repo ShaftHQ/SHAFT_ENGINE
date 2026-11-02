@@ -121,3 +121,8 @@ On demand: [catalog](../../references/catalog.md),
 [context economy](../../references/context-economy.md),
 [retrieve-first](../../references/retrieve-first.md),
 [script first](../../references/script-first.md).
+
+## Entry coverage
+
+Rules, hooks, skills, and tools stay reachable from this entry, [bot-entry](../../references/bot-entry.md), and [.agents/skills/README.md](../../../.agents/skills/README.md). Gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory: [shaft-skills/INVENTORY.md](../../../shaft-skills/INVENTORY.md).
+
