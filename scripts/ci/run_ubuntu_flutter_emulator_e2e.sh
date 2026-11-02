@@ -57,13 +57,16 @@ start_appium() {
 }
 
 open_flutter_session() {
-  SESSION_PAYLOAD=$(jq -n --arg app "$APK_PATH" '{capabilities: {alwaysMatch: {platformName: "Android", "appium:automationName": "FlutterIntegration", "appium:app": $app, "appium:noReset": true}}}')
-  RESPONSE=$(curl --max-time 120 -fsS -X POST -H "Content-Type: application/json" -d "$SESSION_PAYLOAD" http://127.0.0.1:4723/session)
+  SESSION_PAYLOAD=$(jq -n --arg app "$APK_PATH" '{capabilities: {alwaysMatch: {platformName: "Android", "appium:automationName": "FlutterIntegration", "appium:app": $app, "appium:noReset": true, "appium:flutterServerLaunchTimeout": 180000}}}')
+  # #7730: a cold emulator can take >60s to start the Flutter integration server on first launch.
+  RESPONSE=$(curl --max-time 300 -sS -X POST -H "Content-Type: application/json" -d "$SESSION_PAYLOAD" http://127.0.0.1:4723/session || true)
   echo "$RESPONSE"
   SESSION_ID=$(echo "$RESPONSE" | jq -r '.value.sessionId // empty')
   if [ -z "$SESSION_ID" ]; then
     echo "::error::Appium session did not open -- no sessionId in response."
     cat "$appiumLog" || true
+    # #7730: mark a preflight session failure so the caller grants the one authorized retry.
+    : > "${FLUTTER_PREFLIGHT_FAIL_MARKER:-/tmp/flutter-preflight-failed}"
     exit 1
   fi
   echo "Appium Flutter session opened: $SESSION_ID"
@@ -107,6 +110,7 @@ DEVICE_CAP_S="${CHAOS_ENGINE_DEVICE_CAP_S:-900}"
 export CHAOS_ENGINE_DEVICE_CAP_S="$DEVICE_CAP_S"
 export -f start_appium open_flutter_session run_flutter_maven attempt_flutter_test
 
+rm -f "${FLUTTER_PREFLIGHT_FAIL_MARKER:-/tmp/flutter-preflight-failed}"
 set +e
 # GNU timeout: exit 124 when the primary exceeds DEVICE_CAP_S.
 timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" bash -c 'attempt_flutter_test'
@@ -115,7 +119,8 @@ set -e
 
 if [ "$primary_rc" -eq 0 ]; then
   :
-elif [ "$primary_rc" -eq 124 ] || { [ -f "$mavenLog" ] && grep -q "socket hang up" "$mavenLog"; }; then
+elif [ "$primary_rc" -eq 124 ] || [ -f "${FLUTTER_PREFLIGHT_FAIL_MARKER:-/tmp/flutter-preflight-failed}" ] || { [ -f "$mavenLog" ] && grep -q "socket hang up" "$mavenLog"; }; then
+  rm -f "${FLUTTER_PREFLIGHT_FAIL_MARKER:-/tmp/flutter-preflight-failed}"
   echo "::warning::Flutter primary hit DEVICE_CAP_S=${DEVICE_CAP_S}s or Appium socket hang up. One authorized device fallback (Appium restart + retry under the same cap)."
   # Authorized fallback = real retry under the same wall-clock DEVICE_CAP_S (library time-cap covered by unit tests).
   set +e
