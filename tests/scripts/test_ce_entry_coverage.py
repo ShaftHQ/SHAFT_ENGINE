@@ -116,25 +116,20 @@ class EntryCoverageTest(unittest.TestCase):
         self.assertEqual(missing, [])
 
     def test_required_hook_events_wired_on_each_platform(self) -> None:
+        # Host hook configs under .claude/.codex/.grok are gitignored install
+        # artifacts; assert the generated lifecycle documents instead.
         required = set(hosts.REQUIRED_HOOK_EVENTS)
         problems: list[str] = []
-        for relative, host in HOOK_CAPABLE_CONFIGS:
-            path = ROOT / relative
-            self.assertTrue(path.is_file(), relative)
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            hooks = doc.get("hooks") or {}
-            present = set(hooks)
-            # Claude ships PreCompact in addition to REQUIRED_HOOK_EVENTS.
+        for host in ("claude", "codex", "grok"):
+            blob = hosts.lifecycle_hooks_document(host).decode("utf-8")
+            doc = json.loads(blob)
+            present = set(doc.get("hooks") or {})
             expect = set(hosts.CLAUDE_HOOK_EVENTS) if host == "claude" else required
             missing = sorted(expect - present)
             if missing:
-                problems.append(f"{relative} missing {missing}")
-            # Every wired event must invoke launch.py for this host.
-            blob = path.read_text(encoding="utf-8")
-            if f"hooks/launch.py {host}" not in blob and f"hooks/launch.py','{host}" not in blob:
-                # Grok/Windows variants and matcher lines still contain launch.py + host.
-                if f"launch.py {host}" not in blob and f"launch.py','{host}" not in blob:
-                    problems.append(f"{relative} does not invoke hooks/launch.py for {host}")
+                problems.append(f"{host} lifecycle missing {missing}")
+            if f"launch.py {host}" not in blob and f"launch.py','{host}" not in blob:
+                problems.append(f"{host} lifecycle does not invoke hooks/launch.py")
         self.assertEqual(problems, [])
 
 
