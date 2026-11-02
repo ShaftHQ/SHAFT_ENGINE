@@ -228,7 +228,3 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `wake_pack.py`: Owner-curated L0/L1 wake pack — MemPalace may draft only.
 - `workflow_induce.py`: Induce reusable workflows from successful trajectories; AWM 2409.07…
 - `worktree_overlay.py`: Keep ChaosEngine loaded in every checkout a host can start in.
-
-## Entry coverage gate
-
-Orphans under the deployable root and specialist packs are rejected by `tests/scripts/test_ce_entry_coverage.py` (see also [bot-entry](bot-entry.md) and `../../.agents/skills/README.md`).

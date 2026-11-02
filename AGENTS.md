@@ -29,10 +29,10 @@ Duty ownership: [agent_ownership.json](scripts/ci/agent_ownership.json).
 - Validate harness changes with
   `py -3 scripts/ci/validate_agent_setup.py --skip-external` and the smallest
   directly affected tests. Inspect result artifacts rather than banners alone.
+
+## Entry coverage
+
+Reachability gate: `tests/scripts/test_ce_entry_coverage.py` (see `.agents/skills/README.md`, `shaft-skills/INVENTORY.md`).
 <!-- CHAOSENGINE:START -->
 Before every task, follow the canonical [ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md). Load project identity from [.chaos-engine/identity.md](.chaos-engine/identity.md). Use `.chaos-engine/tool.py` for the project-local Memory, MemPalace, and Graphify tools. Prefer gh for GitHub when gh exists and is configured. CLI over MCP when both exist. Default MCP catalog never includes GitHub MCP.
 <!-- CHAOSENGINE:END -->
-
-## Entry coverage (rules, hooks, skills, tools)
-
-Every ChaosEngine rule/hook/skill and every `shaft-skills/*/SKILL.md` must stay reachable from `.agents/skills/README.md` (and the ChaosEngine bot-entry / harness map). Gate: `tests/scripts/test_ce_entry_coverage.py` (registered in `harness_pr_gate`). Specialist inventory: [`shaft-skills/INVENTORY.md`](shaft-skills/INVENTORY.md).
