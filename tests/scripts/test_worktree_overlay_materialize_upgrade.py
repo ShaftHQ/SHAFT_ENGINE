@@ -91,7 +91,7 @@ class MaterializeUpgradeTest(unittest.TestCase):
 
             def skip_version(src, dest, **kwargs):
                 if Path(dest).name == "VERSION":
-                    return
+                    return None
                 return real_sync(src, dest, **kwargs)
 
             overlay._sync_file = skip_version  # type: ignore[method-assign]
