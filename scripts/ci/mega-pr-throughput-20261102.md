@@ -22,6 +22,7 @@ new reference cards. This lesson ships beside the optimized CI scripts.
 | `validate_pr_closing_keywords.py --body` (39 Closes) | ~67 s | 39 serial `gh issue view` (~1.5 s each) | ~1.6 s GraphQL batch; skip network when no closing keyword; REST fallback parallel + 10 s timeout |
 | `overlay_pre_push.py` | ~70–80 s | SkillSpector ~64 s serial; then cheap_ci ~3 s; repeated `gh pr view` | Collectors parallel; SkillSpector fingerprint cache (~5.5 s repeat); one cached `gh pr view` (20 s timeout); `--all-failures` prints every failure + timings |
 | `code_quality_preflight.py` | ~0.3 s (41 files) | already cheap; serial per-file | per-file thread pool when ≥4 files |
+| `protected-installer-acceptance` Download source | 80–139 s × many bootstrap installs (CI); 37.7 s local | test opener re-read ~666 `chaos-engine/` files on **every** blob URL (O(n²) disk) | cache `source_payload`/`pack_payload`/tree once per opener; local install_latest 37.7 s → 0.4 s; full bootstrap module 58 tests / 12.7 s |
 | Full `unittest discover -s tests/scripts` | ~38–40 min | >35 min session cap; often two discovers at once | single-instance `full_scripts_unittest_lock`; checkpoint/resume before 35 min |
 
 ### Worker interruptions (11:2x–12:57 Cairo window and earlier today)
