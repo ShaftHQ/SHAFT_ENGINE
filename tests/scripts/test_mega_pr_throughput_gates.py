@@ -7,8 +7,8 @@ import os
 import tempfile
 import threading
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 import sys
 
@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ValidateClosingKeywordsThroughputTest(unittest.TestCase):
     def test_empty_closing_numbers_skips_network(self):
-        with mock.patch.object(validate, "_fetch_issue_labels_graphql") as graph, mock.patch.object(
+        with unittest.mock.patch.object(validate, "_fetch_issue_labels_graphql") as graph, unittest.mock.patch.object(
             validate, "_fetch_issue_labels_parallel"
         ) as parallel:
             self.assertEqual(validate.fetch_issue_labels([]), {})
@@ -32,30 +32,30 @@ class ValidateClosingKeywordsThroughputTest(unittest.TestCase):
         parallel.assert_not_called()
 
     def test_main_skips_label_fetch_when_body_has_no_closing_keyword(self):
-        with mock.patch.object(validate, "fetch_issue_labels") as fetch, mock.patch.dict(
+        with unittest.mock.patch.object(validate, "fetch_issue_labels") as fetch, unittest.mock.patch.dict(
             os.environ,
             {
                 "PR_BODY": "Related to #12\n\n## Riskiest assumption\n\nN/A\n",
                 "PR_COMMITS_JSON": "[]",
             },
             clear=False,
-        ), mock.patch.object(sys, "argv", ["validate_pr_closing_keywords.py"]):
+        ), unittest.mock.patch.object(sys, "argv", ["validate_pr_closing_keywords.py"]):
             # Human body without ## Plan may still pass mindset when not agentic.
             validate.main()
         fetch.assert_not_called()
 
     def test_graphql_batch_preferred_over_parallel_rest(self):
-        with mock.patch.object(
+        with unittest.mock.patch.object(
             validate, "_fetch_issue_labels_graphql", return_value={"1": ["bug"]}
-        ) as graph, mock.patch.object(validate, "_fetch_issue_labels_parallel") as parallel:
+        ) as graph, unittest.mock.patch.object(validate, "_fetch_issue_labels_parallel") as parallel:
             self.assertEqual(validate.fetch_issue_labels(["1", "2"]), {"1": ["bug"]})
         graph.assert_called_once_with(["1", "2"])
         parallel.assert_not_called()
 
     def test_parallel_rest_used_when_graphql_unavailable(self):
-        with mock.patch.object(
+        with unittest.mock.patch.object(
             validate, "_fetch_issue_labels_graphql", return_value=None
-        ), mock.patch.object(
+        ), unittest.mock.patch.object(
             validate, "_fetch_issue_labels_parallel", return_value={"9": ["ready"]}
         ) as parallel:
             self.assertEqual(validate.fetch_issue_labels(["9"]), {"9": ["ready"]})
@@ -69,11 +69,6 @@ class OverlayPrePushThroughputTest(unittest.TestCase):
 
         def fake_run(cmd, **kwargs):
             calls["n"] += 1
-            class Result:
-                returncode = 0
-                stdout = '{"number":1,"labels":[],"author":{"login":"x"},"isDraft":false,"body":"b","title":"t"}'
-                if cmd[:2] == [mock.ANY, "rev-parse"] or (len(cmd) >= 2 and cmd[1] == "rev-parse"):
-                    stdout = "feature\n"
             # Distinguish git vs gh
             out = type("R", (), {})()
             if len(cmd) >= 2 and cmd[1] == "rev-parse":
@@ -86,7 +81,7 @@ class OverlayPrePushThroughputTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            with mock.patch.object(opp.shutil, "which", side_effect=lambda name: f"/bin/{name}"), mock.patch.object(
+            with unittest.mock.patch.object(opp.shutil, "which", side_effect=lambda name: f"/bin/{name}"), unittest.mock.patch.object(
                 opp.subprocess, "run", side_effect=fake_run
             ):
                 first = opp._gh_open_pr_for_head(root)
@@ -158,7 +153,7 @@ class GraphqlOwnerNameVariablesTest(unittest.TestCase):
             out.stderr = ""
             return out
 
-        with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "ShaftHQ/SHAFT_ENGINE"}, clear=False), mock.patch.object(
+        with unittest.mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "ShaftHQ/SHAFT_ENGINE"}, clear=False), unittest.mock.patch.object(
             validate.subprocess, "run", side_effect=fake_run
         ):
             labels = validate._fetch_issue_labels_graphql(["1"])
@@ -184,7 +179,7 @@ class SkillspectorFingerprintContentHashTest(unittest.TestCase):
             baseline.mkdir(parents=True)
             (baseline / ".skillspector-baseline.yaml").write_text("version: 2\n", encoding="utf-8")
             rel = "chaos-engine/skills/demo-skill"
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.skillspector_gate.skill_dirs_from_paths", return_value=[Path(rel)]
             ):
                 first = opp._skillspector_fingerprint(root, [f"{rel}/SKILL.md"])

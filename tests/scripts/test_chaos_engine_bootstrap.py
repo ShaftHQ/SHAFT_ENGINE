@@ -64,14 +64,15 @@ def blob_tree_entry(path: str, content: bytes, *, mode: str = "100644") -> dict:
 # because the acceptance opener rebuilt this tree on every blob URL (~666
 # files × ~666 opens). Materialize once per marker; bytes stay identical.
 _SOURCE_PAYLOAD_CACHE: dict[str, dict[str, bytes]] = {}
-_PACK_PAYLOAD_CACHE: dict[str, bytes] | None = None
+# Single-key dict (same shape as _SOURCE_PAYLOAD_CACHE) so we mutate in place
+# and never rebind the name — avoids the "unused global" false positive on assign.
+_PACK_PAYLOAD_CACHE: dict[str, dict[str, bytes]] = {}
 
 
 def clear_fixture_caches() -> None:
     """Test helper: drop cached source/pack payloads between isolation cases."""
-    global _PACK_PAYLOAD_CACHE
     _SOURCE_PAYLOAD_CACHE.clear()
-    _PACK_PAYLOAD_CACHE = None
+    _PACK_PAYLOAD_CACHE.clear()
 
 
 def source_payload(marker: str) -> dict[str, bytes]:
@@ -91,15 +92,15 @@ def source_payload(marker: str) -> dict[str, bytes]:
 
 def pack_payload() -> dict[str, bytes]:
     """Project pack files the bootstrap downloads beside the core (CE-10)."""
-    global _PACK_PAYLOAD_CACHE
-    if _PACK_PAYLOAD_CACHE is not None:
-        return _PACK_PAYLOAD_CACHE
+    cached = _PACK_PAYLOAD_CACHE.get("")
+    if cached is not None:
+        return cached
     payload = {
         path.relative_to(ROOT).as_posix(): path.read_bytes()
         for path in ROOT.glob("*/ce-pack/**/*")
         if path.is_file() and "__pycache__" not in path.parts
     }
-    _PACK_PAYLOAD_CACHE = payload
+    _PACK_PAYLOAD_CACHE[""] = payload
     return payload
 
 
