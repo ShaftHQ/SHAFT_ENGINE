@@ -81,7 +81,7 @@ SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-
 
 ## Entry coverage (rules, skills, tools)
 
-Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [ChaosEngine skill](../skills/chaos-engine/SKILL.md), [harness map](harness-map.md), [README](../README.md). Host specialist + tool routes: [.agents/skills/README.md](../../.agents/skills/README.md).
+Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [ChaosEngine skill](../skills/chaos-engine/SKILL.md), [harness map](harness-map.md), [README](../README.md). Host specialist + tool routes live in the harness entrypoint `.agents/skills/README.md` (markdown links, not tokens-only).
 
 ## Token economy
 
