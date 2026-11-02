@@ -295,7 +295,7 @@ def _skillspector_fingerprint(root: Path, paths: list[str]) -> str:
         try:
             digest.update(hashlib.sha256(baseline.read_bytes()).digest())
         except OSError:
-            pass
+            pass  # baseline vanished mid-read; fingerprint still covers skill contents
     return digest.hexdigest()
 
 
