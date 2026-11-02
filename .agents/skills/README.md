@@ -527,5 +527,9 @@ Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage
 [flutter_emulator_preflight.sh](../../scripts/ci/flutter_emulator_preflight.sh),
 [run_ubuntu_flutter_emulator_e2e.sh](../../scripts/ci/run_ubuntu_flutter_emulator_e2e.sh),
 [lessons_2026_11_02.py](../../chaos-engine/rules/lessons_2026_11_02.py),
+[lessons_repeat_failure_pdca.py](../../chaos-engine/rules/lessons_repeat_failure_pdca.py),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/references/ce-repeat-failure-pdca-SPEC.md),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/guides/ce-repeat-failure-pdca-SPEC.md),
+[repeat-failure-pdca.md](../../chaos-engine/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
 [ce-lessons-2026-11-02-SPEC.md](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md).
 

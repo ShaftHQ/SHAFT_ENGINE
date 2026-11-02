@@ -1,6 +1,6 @@
 # Harness map
 
-By [harness_map.py](../harness_map.py); `--check`.
+By [harness_map.py](../harness_map.py).
 
 ## Core
 
@@ -40,6 +40,7 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/bot-entry.md`: Bot entry
 - `references/catalog.md`: Catalog
 - `references/ce-lessons-2026-11-02-SPEC.md`: CE lessons 2026-11-02
+- `references/ce-repeat-failure-pdca-SPEC.md`: ×2 PDCA
 - `references/ce-retro-2026-10-31-6-SPEC.md`: CE .31.6
 - `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11
 - `references/ce-rules-2026-10-31-12-SPEC.md`: CE .31.12

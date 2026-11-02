@@ -98,7 +98,9 @@ class EntryCoverageTest(unittest.TestCase):
 
     PR_ADDED_PATHS = (
         "chaos-engine/rules/lessons_2026_11_02.py",
+        "chaos-engine/rules/lessons_repeat_failure_pdca.py",
         "chaos-engine/references/ce-lessons-2026-11-02-SPEC.md",
+        "chaos-engine/references/ce-repeat-failure-pdca-SPEC.md",
         "shaft-skills/INVENTORY.md",
         "shaft-skills/shaft-mobile-env/SKILL.md",
         "shaft-skills/shaft-browserstack-native/SKILL.md",
