@@ -31,6 +31,11 @@ Every consumer README must document a table:
 
 Never automate against a release flavor that strips content-descriptions / accessibility ids. Request the debug/automation flavor instead.
 
+## Valid examples
+
+- Local x86_64 emulator: pass both universal and arm64-v8a APKs to `android_apk_select.py --abi x86_64` and install the universal (or x86_64) artifact, never the arm64-only split.
+- BrowserStack Android arm64 device: prefer the arm64-v8a split for a smaller upload; fall back to universal only when the ABI install fails.
+
 ## Boundary
 
 - No client hostnames in this skill; use "non-prod" / "prod" classes only.

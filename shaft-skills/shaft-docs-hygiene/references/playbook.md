@@ -47,6 +47,11 @@ Rules:
 
 Some repos refuse path deletes until the branch exists **upstream**. Push an empty or docs-start branch first, then delete in a follow-up commit. That forced second push is not a "push once" violation when the guard requires it.
 
+## Valid examples
+
+- Rewrite a journey plan table that uses `Blocked` / `Done (with comments)` so every row uses only `Done`, `In progress`, or `Not started`, and move the notes into a Comments column.
+- After marking three journeys Done, set Completed hours equal to Planned hours on those rows and regenerate Summary totals so workbook % matches the plan prose.
+
 ## Boundary
 
 - English-only; no client names or secrets in public docs or this skill.

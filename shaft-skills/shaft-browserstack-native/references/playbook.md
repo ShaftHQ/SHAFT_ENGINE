@@ -42,6 +42,11 @@ Rules:
 - Document any unpin / session-id debug flags the app must expose; do not invent them.
 - Map / confirm taps that stay green with no UI change: consumer triage in `shaft-mobile-retest-hygiene`; engine observability in SHAFT #7706.
 
+## Valid examples
+
+- Upload a debug Android APK and start an App Automate session with the project's non-prod capabilities, never a release build that strips content-descriptions.
+- After a failed iOS cloud run, download the App Automate session video and device logs before retrying so the next attempt can cite evidence instead of guessing.
+
 ## Boundary
 
 - Gate IPA / APK artifacts before upload via the companion skills.

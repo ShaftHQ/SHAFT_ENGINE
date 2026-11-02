@@ -148,21 +148,12 @@ public final class IosNonHittableTap {
         return pageChanged(pageSourceBeforeClick, readPageSource(driver));
     }
 
-    private static boolean isReportedNonHittable(WebElement element) {
-        return "false".equalsIgnoreCase(readHittable(element));
-    }
-
     private static boolean blankHittableGuardEnabled() {
         try {
             return SHAFT.Properties.flags.iosObserveBlankHittableTapEffect();
         } catch (RuntimeException ignored) {
             return false;
         }
-    }
-
-    private static void recoverOrFail(WebDriver driver, WebElement element,
-                                      @Nullable String pageSourceBeforeClick) {
-        recoverOrFail(driver, element, pageSourceBeforeClick, false);
     }
 
     private static void recoverOrFail(WebDriver driver, WebElement element,

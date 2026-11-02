@@ -26,6 +26,11 @@ Manual interim: unzip the IPA, locate `Payload/*.app/Info.plist`, convert with `
 
 iOS SwiftUI swipe may need a tallest `XCUIElementTypeScrollView` + `mobile: dragFromToForDuration` fallback until the weekly release that ships #7680 / PR #7681 is on the pom; then drop the fallback. See `shaft-mobile-retest-hygiene`.
 
+## Valid examples
+
+- Refuse upload of an unsigned or expired-provisioning IPA and print the gate reason before any BrowserStack App Automate call.
+- Accept a debug IPA that passes the embedded.mobileprovision expiry and bundle-id checks, then hand the path to the BrowserStack upload step.
+
 ## Boundary
 
 - English-only public text; no IPA contents or client identifiers required to follow this skill.

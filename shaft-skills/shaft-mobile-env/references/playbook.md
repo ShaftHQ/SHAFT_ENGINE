@@ -39,6 +39,11 @@ Source lessons from a client mobile project (abstracted). No secrets or hostname
 4. One smoke method with retry 0 on the owned session.
 5. Stop the Appium this agent started when the suite ends.
 
+## Valid examples
+
+- On a fresh Linux host, install JDK + Android SDK + Appium and confirm `adb devices` lists an emulator before starting a SHAFT mobile suite.
+- Repair a wedged local Android emulator by recycling the managed Appium/emulator lease once, then re-running the suite without starting a second Appium beside a live one.
+
 ## Boundary
 
 - BrowserStack cloud setup → `shaft-browserstack-native`.

@@ -57,7 +57,7 @@ of duplicating their guidance.
 | Configure BrowserStack App Automate native runs | [`shaft-browserstack-native`](../../shaft-browserstack-native/SKILL.md) |
 | Gate an iOS IPA before cloud upload | [`shaft-ios-ipa-acceptance`](../../shaft-ios-ipa-acceptance/SKILL.md) |
 | Choose universal vs ABI-split Android APK | [`shaft-android-apk-select`](../../shaft-android-apk-select/SKILL.md) |
-| Keep plan/journey/issue docs vocabulary and hours consistent | [`docs-hygiene`](../../docs-hygiene/SKILL.md) |
+| Keep plan/journey/issue docs vocabulary and hours consistent | [`shaft-docs-hygiene`](../../shaft-docs-hygiene/SKILL.md) |
 | Triage mobile retest map/picker/bytecode/journal failures | [`shaft-mobile-retest-hygiene`](../../shaft-mobile-retest-hygiene/SKILL.md) |
 | Implement SHAFT API tests | [`shaft-api-testing`](../../shaft-api-testing/SKILL.md) |
 | Implement SHAFT database tests | [`shaft-database-testing`](../../shaft-database-testing/SKILL.md) |

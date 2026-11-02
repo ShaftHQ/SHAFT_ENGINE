@@ -45,6 +45,11 @@ On resume: re-read the journal and live branch/PR state before redo.
 
 `swipeElementIntoView` may not move a SwiftUI vertical list. Workaround: tallest `XCUIElementTypeScrollView` + `mobile: dragFromToForDuration`. Tracked/closed as #7680; fix in PR #7681. Keep the consumer drag fallback until that release is on the pom; then drop it.
 
+## Valid examples
+
+- When a retest map points at a stale journey id, rebuild the map from the live journey SoT before picking the next case, instead of hand-editing the picker.
+- After a bytecode/journal mismatch on retest, clear the journal entry for that journey and re-record evidence instead of forcing the old pin.
+
 ## Boundary
 
 - English-only; say "a client mobile project"; no secrets.

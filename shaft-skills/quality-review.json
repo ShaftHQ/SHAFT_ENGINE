@@ -186,7 +186,7 @@
       "confusion_with": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"],
       "notes": "ABI vs universal APK choice for emulator versus arm64 cloud is a crisp artifact decision."
     },
-    "docs-hygiene": {
+    "shaft-docs-hygiene": {
       "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 3, "context_cost": 4},
       "confusion_with": ["shaft-test-completion", "shaft-stakeholder-reporting"],
       "notes": "SoT trio, three-status vocabulary, and hours math are docs process, not cycle closure reports."
