@@ -70,6 +70,7 @@ public class IosNonHittableTapTest {
     private String platform;
     private String browserName;
     private double identificationTimeout;
+    private boolean iosObserveBlankHittableTapEffect;
     private IOSDriver driver;
     private DriverFactoryHelper helper;
 
@@ -78,6 +79,7 @@ public class IosNonHittableTapTest {
         platform = SHAFT.Properties.platform.targetPlatform();
         browserName = SHAFT.Properties.mobile.browserName();
         identificationTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        iosObserveBlankHittableTapEffect = SHAFT.Properties.flags.iosObserveBlankHittableTapEffect();
         SHAFT.Properties.platform.set().targetPlatform("iOS");
         SHAFT.Properties.mobile.set().browserName("");
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
@@ -96,6 +98,7 @@ public class IosNonHittableTapTest {
         SHAFT.Properties.platform.set().targetPlatform(platform);
         SHAFT.Properties.mobile.set().browserName(browserName);
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(identificationTimeout);
+        SHAFT.Properties.flags.set().iosObserveBlankHittableTapEffect(iosObserveBlankHittableTapEffect);
     }
 
     @Test
@@ -450,4 +453,45 @@ public class IosNonHittableTapTest {
         assertFalse(IosNonHittableTap.elementAnchoredTap(ios, element));
         verify(ios, never()).executeScript(eq("mobile: tap"), any());
     }
+
+    @Test
+    public void blankHittableUnchangedPageFailsWhenOptInGuardEnabled() {
+        SHAFT.Properties.flags.set().iosObserveBlankHittableTapEffect(true);
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("map_select_address_button");
+        when(localElement.getSize()).thenReturn(new Dimension(120, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(10, 20, 44, 120));
+        // Blank/absent hittable — the #7706 gap (not explicit false).
+        when(localElement.getDomAttribute(anyString())).thenReturn("");
+        when(localElement.getAttribute(anyString())).thenReturn(null);
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(
+                () -> IosNonHittableTap.afterReportedClick(localDriver, localElement, UNCHANGED_SOURCE));
+        assertTrue(hasType(failure, IosTapHadNoEffectException.class), String.valueOf(failure));
+        String flat = String.valueOf(failure.getMessage()).toLowerCase();
+        assertTrue(flat.contains("blank") || flat.contains("absent"), flat);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+    }
+
+    @Test
+    public void blankHittableUnchangedPageIsIgnoredWhenOptInGuardDisabled() {
+        SHAFT.Properties.flags.set().iosObserveBlankHittableTapEffect(false);
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getDomAttribute(anyString())).thenReturn("");
+        when(localElement.getAttribute(anyString())).thenReturn("");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+
+        IosNonHittableTap.afterReportedClick(localDriver, localElement, UNCHANGED_SOURCE);
+
+        verify(localDriver, never()).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, never()).perform(anyCollection());
+        verify(localDriver, never()).getPageSource();
+    }
+
+
 }

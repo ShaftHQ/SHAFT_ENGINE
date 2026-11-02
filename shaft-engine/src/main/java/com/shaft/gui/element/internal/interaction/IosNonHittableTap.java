@@ -1,5 +1,8 @@
 package com.shaft.gui.element.internal.interaction;
 
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.ReportManager;
+
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.AppiumWebElement;
@@ -45,12 +48,18 @@ import javax.annotation.Nullable;
  * after {@code mobile: tap} fails closed with no further tap. When neither recovery
  * changes the page source, the action fails instead of returning success.
  *
+ * <p>Blank/absent {@code hittable} is ignored unless
+ * {@code iosObserveBlankHittableTapEffect} is enabled (#7706).
+ *
  * <p>Element id resolution prefers {@link AppiumWebElement#getId()} (Appium java-client
  * 11) and falls back to {@link RemoteWebElement#getId()}.
  */
 public final class IosNonHittableTap {
 
     static final String NO_EFFECT_MESSAGE = "element is not hittable; the tap had no effect";
+
+    static final String BLANK_HITTABLE_NO_EFFECT_MESSAGE =
+            "element hittable attribute is blank/absent; the tap had no effect";
 
     private static final Duration TOUCH_PAUSE = Duration.ofMillis(100);
 
@@ -96,13 +105,22 @@ public final class IosNonHittableTap {
         }
         // Hittable check first: avoid a post-click page-source read when the control is still
         // hittable (N1). Pre-click snapshot is still required for #7571 when non-hittable.
-        if (!isReportedNonHittable(element)) {
+        // Explicit hittable=false always guards (#6908). Blank/absent hittable is opt-in (#7706).
+        String hittable = readHittable(element);
+        boolean explicitFalse = "false".equalsIgnoreCase(hittable);
+        boolean blankUnknown = hittable.isBlank();
+        if (!explicitFalse && !(blankUnknown && blankHittableGuardEnabled())) {
             return;
+        }
+        if (blankUnknown) {
+            ReportManager.logDiscrete(
+                    "iOS blank/absent hittable after click; running opt-in effect guard "
+                            + "(iosObserveBlankHittableTapEffect=true) (#7706)");
         }
         if (clickAlreadyHadEffect(driver, pageSourceBeforeClick)) {
             return;
         }
-        recoverOrFail(driver, element, pageSourceBeforeClick);
+        recoverOrFail(driver, element, pageSourceBeforeClick, blankUnknown);
     }
 
     /**
@@ -134,8 +152,23 @@ public final class IosNonHittableTap {
         return "false".equalsIgnoreCase(readHittable(element));
     }
 
+    private static boolean blankHittableGuardEnabled() {
+        try {
+            return SHAFT.Properties.flags.iosObserveBlankHittableTapEffect();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
     private static void recoverOrFail(WebDriver driver, WebElement element,
                                       @Nullable String pageSourceBeforeClick) {
+        recoverOrFail(driver, element, pageSourceBeforeClick, false);
+    }
+
+    private static void recoverOrFail(WebDriver driver, WebElement element,
+                                      @Nullable String pageSourceBeforeClick,
+                                      boolean blankHittable) {
+        String noEffectMessage = blankHittable ? BLANK_HITTABLE_NO_EFFECT_MESSAGE : NO_EFFECT_MESSAGE;
         String afterClick = readPageSource(driver);
         String before = pageSourceBeforeClick != null ? pageSourceBeforeClick : afterClick;
         boolean anchored = elementAnchoredTap(driver, element);
@@ -146,14 +179,14 @@ public final class IosNonHittableTap {
         // Fail closed when page source is unreadable — same contract as #6913; do not W3C-tap
         // stale centre coords on a possibly already-navigated screen.
         if (before == null || afterMobile == null) {
-            throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
+            throw new IosTapHadNoEffectException(noEffectMessage);
         }
         boolean w3c = w3cElementCenterTap(driver, element);
         String afterW3c = readPageSource(driver);
         if (w3c && pageChanged(afterMobile, afterW3c)) {
             return;
         }
-        throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
+        throw new IosTapHadNoEffectException(noEffectMessage);
     }
 
     /**

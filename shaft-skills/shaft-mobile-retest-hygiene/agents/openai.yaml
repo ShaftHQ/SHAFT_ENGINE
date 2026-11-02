@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Mobile Retest Hygiene"
+  short_description: "Map triage, pickers, bytecode, journals"
+  default_prompt: "Use $shaft-mobile-retest-hygiene to triage this mobile retest failure."

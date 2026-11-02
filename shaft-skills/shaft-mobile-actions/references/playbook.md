@@ -26,6 +26,16 @@
 
 - Do not open emulators, Inspector, devices, or visible sessions without approval; route recording to `shaft-test-recording` and locator ranking to `shaft-locator-design`.
 
+
+## Blank hittable observability (#7706)
+
+- Explicit `hittable=false` still fails loud via `IosNonHittableTap` (#6908).
+- When `hittable` is blank/absent and the page is unchanged, enable
+  `SHAFT.Properties.flags.set().iosObserveBlankHittableTapEffect(true)` for the
+  opt-in effect check / recovery / loud failure (default off).
+- Consumer map/confirm triage stays in `shaft-mobile-retest-hygiene`; do not
+  treat an app-side inert control as a locator bug after dual evidence.
+
 ## Hittable taps (#6909)
 
 - Tap with `driver.touch().tap(locator)`.

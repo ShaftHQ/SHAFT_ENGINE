@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docs Hygiene"
+  short_description: "SoT trio, status vocabulary, hours math"
+  default_prompt: "Use $docs-hygiene to keep this project's documentation consistent and reviewable."
