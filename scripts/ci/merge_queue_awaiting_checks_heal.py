@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 REQUIRED_MERGE_GROUP_WORKFLOWS = frozenset({
@@ -75,10 +76,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "predict":
-        entry = json.loads(open(args.entry_json, encoding="utf-8").read())
+        entry = json.loads(Path(args.entry_json).read_text(encoding="utf-8"))
         runs: list[dict[str, Any]] = []
         if args.runs_json:
-            runs = json.loads(open(args.runs_json, encoding="utf-8").read())
+            runs = json.loads(Path(args.runs_json).read_text(encoding="utf-8"))
         stalled = is_stalled_awaiting_checks(entry, runs)
         print("stalled" if stalled else "healthy")
         return 0 if stalled else 1
