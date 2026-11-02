@@ -27,8 +27,8 @@ public class SHAFTFacadeCoverageUnitTest {
         ShaftLocator name = SHAFT.GUI.Locator.accessibleName("Email");
         Assert.assertNotNull(role);
         Assert.assertNotNull(name);
-        Assert.assertTrue(role.toString().length() > 0);
-        Assert.assertTrue(name.toString().length() > 0);
+        Assert.assertFalse(role.toString().isEmpty());
+        Assert.assertFalse(name.toString().isEmpty());
     }
 
 
