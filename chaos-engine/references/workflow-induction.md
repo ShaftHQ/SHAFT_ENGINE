@@ -1,4 +1,4 @@
-# Workflow induction (repeated successful steps)
+# Workflow induction
 
 Phase-2 harness learning (issue 6518; Agent Workflow Memory, AWM 2409.07429).
 The module records privacy-safe trajectories and induces a workflow only when

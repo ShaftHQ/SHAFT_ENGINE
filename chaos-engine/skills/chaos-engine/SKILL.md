@@ -72,8 +72,8 @@ references > skills; deeper file wins on scope.
   impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
-- One blocking CI wait per push (one background babysit loop to merged);
-  retry at most once. Stop and report.
+- One blocking CI wait per push; retry at most once. Stop and report.
+  Repeat-fail PDCA (bot-entry).
 - Status reports are always a Markdown table: deltas, at most 15 lines.
   `tool.py usage`.
 - Learning Session after every final delivery. Never local queues.

@@ -781,8 +781,30 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
             "      - name: Upload structured compatibility evidence", 1
         )[1].split("\n      - name:", 1)[0]
         self.assertIn("retention-days: 4", agent_evidence_upload)
+        # Pin source of truth is scripts/ci/npm-pins/native-clients-<ver>/
+        # (workflow runs `npm ci --prefix` there). Assert that contract, not a raw
+        # `@scope/name@ver` string embedded in the YAML (#7733).
+        self.assertIn("npm ci --prefix scripts/ci/npm-pins/native-clients-", live)
+        pin_name = None
+        for token in live.replace("\n", " ").split():
+            if "scripts/ci/npm-pins/native-clients-" in token:
+                pin_name = token.strip().strip('"').rstrip("/")
+                break
+        self.assertIsNotNone(pin_name)
+        pin_path = root / pin_name
+        self.assertTrue(pin_path.is_dir(), pin_name)
+        deps = json.loads((pin_path / "package.json").read_text(encoding="utf-8")).get(
+            "dependencies"
+        ) or {}
         for client in CLIENTS.values():
-            self.assertIn(client["npm_package"], live)
+            package = client["npm_package"]  # @scope/name@ver OR name@ver
+            name, sep, version = package.rpartition("@")
+            self.assertEqual(sep, "@")
+            self.assertEqual(version, client["version"])
+            self.assertIn(name, deps)
+            self.assertEqual(str(deps[name]), version)
+        # Directory stamp tracks the Claude pin; Codex version lives in package.json.
+        self.assertIn(CLIENTS["claude"]["version"], pin_name)
 
 
 class FakeClock:

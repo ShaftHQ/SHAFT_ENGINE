@@ -240,6 +240,111 @@ def parse_folds(items: list[str]) -> list[tuple[str, str]]:
     return pairs
 
 
+def char_error_rate(reference: str, hypothesis: str) -> float:
+    """Arabic-friendly CER (Levenshtein over characters, spaces kept)."""
+    ref = list(reference)
+    hyp = list(hypothesis)
+    if not ref:
+        return 0.0 if not hyp else 1.0
+    # classic DP
+    prev = list(range(len(hyp) + 1))
+    for i, rc in enumerate(ref, 1):
+        cur = [i]
+        for j, hc in enumerate(hyp, 1):
+            ins = cur[j - 1] + 1
+            delete = prev[j] + 1
+            sub = prev[j - 1] + (rc != hc)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1] / len(ref)
+
+
+def tokenizer_unk_rate(tokens: list[str], *, unk_token: str = "<unk>") -> float:
+    if not tokens:
+        return 0.0
+    return sum(1 for t in tokens if t == unk_token or t.lower() == "unk") / len(tokens)
+
+
+
+# Common English sentence-starters / greetings — not proper nouns (L96 / Carl L4).
+_SENTENCE_START_DENYLIST = frozenset(
+    {
+        "a", "an", "the", "this", "that", "these", "those",
+        "i", "we", "you", "he", "she", "it", "they",
+        "my", "our", "your", "his", "her", "its", "their",
+        "in", "on", "at", "to", "for", "of", "from", "with", "by", "as",
+        "and", "but", "or", "so", "yet", "nor",
+        "if", "when", "while", "where", "what", "who", "whom", "whose",
+        "which", "why", "how",
+        "is", "are", "was", "were", "be", "been", "being", "am",
+        "do", "does", "did", "have", "has", "had",
+        "can", "could", "will", "would", "shall", "should", "may", "might", "must",
+        "not", "no", "yes", "here", "there", "now", "then",
+        "today", "tomorrow", "yesterday",
+        "hello", "hi", "hey", "please", "thanks", "thank", "welcome", "dear",
+        "after", "before", "during", "until", "unless", "although", "though",
+        "because", "since",
+        "also", "just", "only", "even", "still", "already", "always", "never",
+        "often", "first", "second", "next", "last", "once", "again",
+        "let", "lets", "ok", "okay",
+    }
+)
+
+
+def extract_proper_nouns(script: str) -> list[str]:
+    """
+    Auto-extract TitleCase / CamelCase proper nouns from *script* (L96 fail-closed).
+
+    Sentence-initial Capitalized tokens are kept unless they match the common
+    English starter denylist (Carl L4: leading TitleCase names).
+    Explicit ``--proper-noun`` values are merged by the caller.
+    """
+    found: list[str] = []
+    # Multi-word Title Case (e.g. "New York")
+    for m in re.finditer(r"\b([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)+)\b", script):
+        found.append(m.group(1))
+    # CamelCase / brand tokens (Automatest, iPhone-like with leading capital)
+    for m in re.finditer(r"\b([A-Z][a-z0-9]*[A-Z][A-Za-z0-9]*)\b", script):
+        found.append(m.group(1))
+    # Mid-sentence Capitalized tokens (not after .!? or start)
+    for m in re.finditer(
+        r"(?<!^)(?<![.!?\n]\s)\b([A-Z][a-zA-Z0-9]{1,})\b",
+        script,
+        re.M,
+    ):
+        found.append(m.group(1))
+    # Sentence-initial Capitalized tokens (L96): keep names, skip common starters.
+    for m in re.finditer(r"(?:^|[.!?\n]\s+)([A-Z][a-zA-Z0-9]{1,})\b", script, re.M):
+        token = m.group(1)
+        if token.lower() in _SENTENCE_START_DENYLIST:
+            continue
+        found.append(token)
+    # Dedupe preserving order
+    out: list[str] = []
+    seen: set[str] = set()
+    for noun in found:
+        key = noun.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(noun)
+    return out
+
+
+def proper_noun_misses(script: str, transcript: str, nouns: list[str]) -> list[str]:
+    """Return proper nouns from *nouns* present in script but missing in transcript."""
+    missing: list[str] = []
+    script_l = script.lower()
+    transcript_l = transcript.lower()
+    for noun in nouns:
+        n = noun.strip()
+        if not n:
+            continue
+        if n.lower() in script_l and n.lower() not in transcript_l:
+            missing.append(n)
+    return missing
+
+
 def fold(text: str, folds: list[tuple[str, str]]) -> str:
     folded = text.lower()
     for heard, meant in folds:
@@ -248,21 +353,69 @@ def fold(text: str, folds: list[tuple[str, str]]) -> str:
 
 
 def cmd_tts(args: argparse.Namespace) -> int:
-    """Gate on WER after folding known mishearings; raw WER is advisory."""
+    """Gate on WER/CER + L93/L96 ASR intelligibility (speaker alone is not enough)."""
     script = Path(args.script).read_text(encoding="utf-8")
     transcript = Path(args.transcript).read_text(encoding="utf-8")
     folds = parse_folds(args.fold)
     reference = words(script)
     raw = word_error_rate(reference, words(transcript))
     wer = word_error_rate(words(fold(script, folds)), words(fold(transcript, folds)))
+    # L93: default ceiling 15% EN WER; keep --max-wer override for stricter runs.
     problems = [] if wer <= args.max_wer else [f"WER {wer:.2%} above {args.max_wer:.0%}"]
+    cer = None
+    if getattr(args, "lang", "en") == "ar" or getattr(args, "cer", False):
+        cer = char_error_rate(fold(script, folds), fold(transcript, folds))
+        max_cer = getattr(args, "max_cer", 0.15)
+        if cer > max_cer:
+            problems.append(f"CER {cer:.2%} above {max_cer:.0%}")
+    # L93 fail-closed: tokenizer unk-rate is mandatory on the default voice path.
+    unk = None
+    tokens_path = getattr(args, "tokens", None)
+    if not tokens_path:
+        problems.append("tokenizer tokens required (L93)")
+    else:
+        token_list = Path(tokens_path).read_text(encoding="utf-8").split()
+        if not token_list:
+            problems.append("tokenizer tokens empty (L93)")
+        else:
+            unk = tokenizer_unk_rate(token_list)
+            max_unk = getattr(args, "max_unk", 0.05)
+            if unk > max_unk:
+                problems.append(f"tokenizer unk {unk:.2%} above {max_unk:.0%}")
+    # L93 fail-closed: language_id is mandatory; default expect = --lang.
+    lang_id = getattr(args, "language_id", None)
+    expect_lang = getattr(args, "expect_language", None) or getattr(args, "lang", "en")
+    if not lang_id:
+        problems.append("language_id required (L93)")
+    elif lang_id.lower() != str(expect_lang).lower():
+        problems.append(f"language_id {lang_id!r} != expected {expect_lang!r}")
+    # L96 fail-closed: auto-extract script proper nouns; --proper-noun merges in.
+    nouns = list(dict.fromkeys(
+        extract_proper_nouns(script) + list(getattr(args, "proper_noun", None) or [])
+    ))
+    if nouns:
+        # Honour --fold aliases (ASR heard→meant) the same way WER does.
+        missing = proper_noun_misses(fold(script, folds), fold(transcript, folds), nouns)
+        if missing:
+            problems.append("proper-noun misses: " + ", ".join(missing))
     wpm = None
     if args.duration:
         wpm = round(len(reference) / (args.duration / 60), 1)
         if not args.min_wpm <= wpm <= args.max_wpm:
             problems.append(f"pace {wpm} wpm outside {args.min_wpm}-{args.max_wpm}")
-    return report("tts", FAIL if problems else PASS, wer=round(wer, 4), raw_wer=round(raw, 4), wpm=wpm,
-                  folds=len(folds), problems=problems)
+    return report(
+        "tts",
+        FAIL if problems else PASS,
+        wer=round(wer, 4),
+        raw_wer=round(raw, 4),
+        cer=None if cer is None else round(cer, 4),
+        unk=None if unk is None else round(unk, 4),
+        language_id=lang_id,
+        proper_nouns=nouns,
+        wpm=wpm,
+        folds=len(folds),
+        problems=problems,
+    )
 
 
 # ---------------------------------------------------------------- narration text
@@ -2547,11 +2700,19 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-cps", type=float, default=20.0)
     p.add_argument("--min-duration", type=float, default=0.833)
     p.add_argument("--max-duration", type=float, default=7.0)
-    p = add("tts", cmd_tts, "script vs transcript WER and pace")
+    p = add("tts", cmd_tts, "script vs transcript WER/CER + L93/L96 ASR intelligibility")
     p.add_argument("script")
     p.add_argument("transcript")
     p.add_argument("--duration", type=float)
-    p.add_argument("--max-wer", type=float, default=0.05)
+    p.add_argument("--max-wer", type=float, default=0.15, help="L93 EN WER ceiling (default 15%)")
+    p.add_argument("--max-cer", type=float, default=0.15, help="L93 AR CER ceiling (default 15%)")
+    p.add_argument("--cer", action="store_true", help="force CER even when --lang is not ar")
+    p.add_argument("--lang", choices=("en", "ar"), default="en")
+    p.add_argument("--tokens", required=False, help="tokenizer output file; L93 mandatory unk<=5%")
+    p.add_argument("--max-unk", type=float, default=0.05)
+    p.add_argument("--language-id", dest="language_id", help="observed ASR language_id (L93 mandatory)")
+    p.add_argument("--expect-language", help="required language_id (L93; defaults to --lang)")
+    p.add_argument("--proper-noun", action="append", default=[], help="extra L96 proper noun; script nouns auto-extracted")
     p.add_argument("--min-wpm", type=float, default=140)
     p.add_argument("--max-wpm", type=float, default=160)
     p.add_argument("--fold", action="append", default=[], help="heard=meant (known ASR mishearing)")

@@ -76,6 +76,16 @@ def _seed_overlay(root: Path, version: str, *, extra_agents: bool = True) -> Non
             path.write_text(body + ("\n" if not body.endswith("\n") else ""), encoding="utf-8")
 
 
+
+def _ce_key(value: str):
+    import importlib.util as _u
+    from pathlib import Path as _P
+
+    spec = _u.spec_from_file_location("ce_version", _P(__file__).resolve().parents[2] / "scripts/ci/ce_version.py")
+    mod = _u.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.version_key(value)
+
 class HuskFalsePositiveTest(unittest.TestCase):
     def test_empty_repo_pass_real_husk_warn_normal_pass(self) -> None:
         install = load("ce_husk_313", CE / "install.py")
@@ -313,9 +323,9 @@ class UpgradeMatrixTest(unittest.TestCase):
 class VersionPinTest(unittest.TestCase):
     def test_version_file(self) -> None:
         value = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        self.assertRegex(value, r"^20\d{2}\.\d{2}\.\d{2}\.\d+$")
-        floor = tuple(int(p) for p in "2026.10.31.5".split("."))
-        self.assertGreaterEqual(tuple(int(p) for p in value.split(".")), floor)
+        self.assertRegex(value, r"^\d+\.[1-4]\.\d{8}\.[1-9]\d*$")
+        floor = _ce_key("2026.10.31.5")
+        self.assertGreaterEqual(_ce_key(value), floor)
 
 
 if __name__ == "__main__":

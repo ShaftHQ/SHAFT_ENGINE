@@ -60,7 +60,25 @@ def blob_tree_entry(path: str, content: bytes, *, mode: str = "100644") -> dict:
     }
 
 
+# Fixture cache: CI run 41452086871 showed each Download source at 80–139s
+# because the acceptance opener rebuilt this tree on every blob URL (~666
+# files × ~666 opens). Materialize once per marker; bytes stay identical.
+_SOURCE_PAYLOAD_CACHE: dict[str, dict[str, bytes]] = {}
+# Single-key dict (same shape as _SOURCE_PAYLOAD_CACHE) so we mutate in place
+# and never rebind the name — avoids the "unused global" false positive on assign.
+_PACK_PAYLOAD_CACHE: dict[str, dict[str, bytes]] = {}
+
+
+def clear_fixture_caches() -> None:
+    """Test helper: drop cached source/pack payloads between isolation cases."""
+    _SOURCE_PAYLOAD_CACHE.clear()
+    _PACK_PAYLOAD_CACHE.clear()
+
+
 def source_payload(marker: str) -> dict[str, bytes]:
+    cached = _SOURCE_PAYLOAD_CACHE.get(marker)
+    if cached is not None:
+        return cached
     payload = {
         path.relative_to(ROOT / "chaos-engine").as_posix(): path.read_bytes()
         for path in (ROOT / "chaos-engine").rglob("*")
@@ -68,16 +86,22 @@ def source_payload(marker: str) -> dict[str, bytes]:
     }
     if marker:
         payload["bootstrap-marker.txt"] = marker.encode()
+    _SOURCE_PAYLOAD_CACHE[marker] = payload
     return payload
 
 
 def pack_payload() -> dict[str, bytes]:
     """Project pack files the bootstrap downloads beside the core (CE-10)."""
-    return {
+    cached = _PACK_PAYLOAD_CACHE.get("")
+    if cached is not None:
+        return cached
+    payload = {
         path.relative_to(ROOT).as_posix(): path.read_bytes()
         for path in ROOT.glob("*/ce-pack/**/*")
         if path.is_file() and "__pycache__" not in path.parts
     }
+    _PACK_PAYLOAD_CACHE[""] = payload
+    return payload
 
 
 class Response(io.BytesIO):
@@ -777,33 +801,75 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
 
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
+        # Materialize once per opener: Download source issues 1 tree + N blob
+        # opens; rebuilding the full chaos-engine fixture each time dominated
+        # protected-installer-acceptance wall time (PDCA 2026-11-02).
+        commit, marker = commits[0]
+        payload = source_payload(marker)
+        packs = pack_payload()
+        tree_body = json.dumps(
+            {
+                "tree": [
+                    blob_tree_entry(f"chaos-engine/{relative}", content)
+                    for relative, content in payload.items()
+                ]
+                + [blob_tree_entry(path, content) for path, content in packs.items()],
+                "truncated": False,
+            }
+        ).encode()
+        commit_body = json.dumps({"sha": commit}).encode()
 
         def open_url(request, timeout=0):
             del timeout
             url = request.full_url if hasattr(request, "full_url") else str(request)
             calls.append(url)
-            commit, marker = commits[0]
             if "/commits/" in url:
-                return Response(json.dumps({"sha": commit}).encode())
-            payload = source_payload(marker)
+                return Response(commit_body)
             if "/git/trees/" in url:
-                tree = [
-                    blob_tree_entry(f"chaos-engine/{relative}", content)
-                    for relative, content in payload.items()
-                ] + [
-                    blob_tree_entry(path, content)
-                    for path, content in pack_payload().items()
-                ]
-                return Response(json.dumps({"tree": tree, "truncated": False}).encode())
+                return Response(tree_body)
             self.assertEqual("raw.githubusercontent.com", urlparse(url).netloc)
             encoded_path = unquote(urlparse(url).path.split(f"/{commit}/", 1)[1])
             if not encoded_path.startswith("chaos-engine/"):
-                return Response(pack_payload()[encoded_path])
+                return Response(packs[encoded_path])
             return Response(payload[encoded_path.removeprefix("chaos-engine/")])
 
         return open_url, calls
 
+    def test_opener_materializes_source_payload_once_per_download(self):
+        """Acceptance opener must not re-walk chaos-engine on every blob URL."""
+        clear_fixture_caches()
+        builds: list[str] = []
+        real = source_payload
+
+        def counting(marker: str):
+            builds.append(marker)
+            return real(marker)
+
+        with mock.patch(
+            "tests.scripts.test_chaos_engine_bootstrap.source_payload",
+            side_effect=counting,
+        ):
+            open_url, _calls = self.opener([(COMMIT_ONE, "full")])
+            tree_req = SimpleNamespace(
+                full_url=(
+                    f"https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/git/trees/"
+                    f"{COMMIT_ONE}?recursive=1"
+                )
+            )
+            open_url(tree_req)
+            for _ in range(20):
+                blob_req = SimpleNamespace(
+                    full_url=(
+                        f"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/"
+                        f"{COMMIT_ONE}/chaos-engine/bootstrap-marker.txt"
+                    )
+                )
+                body = open_url(blob_req)
+                self.assertEqual(b"full", body.getvalue())
+        self.assertEqual(["full"], builds)
+
     def test_clean_install_update_and_offline_failure_preserve_last_known_good(self):
+
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "project"

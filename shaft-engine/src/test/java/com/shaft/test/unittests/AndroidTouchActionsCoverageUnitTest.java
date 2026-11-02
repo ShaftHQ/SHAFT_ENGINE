@@ -5,6 +5,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.IosScrollView;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
 import com.shaft.gui.image.ImageTarget;
@@ -1276,19 +1277,184 @@ public class AndroidTouchActionsCoverageUnitTest {
         return capturedGestureMaps(driver, "mobile: scrollGesture").getFirst();
     }
 
+
+    @Test
+    public void iosSwipeElementIntoViewUsesDragOnTallestScrollView() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(390, 844));
+        when(driver.getPageSource()).thenReturn("before", "after-drag", "after-drag");
+
+        RemoteWebElement toolbar = mock(RemoteWebElement.class);
+        when(toolbar.isDisplayed()).thenReturn(true);
+        when(toolbar.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 0, 60, 390));
+
+        RemoteWebElement list = mock(RemoteWebElement.class);
+        when(list.isDisplayed()).thenReturn(true);
+        when(list.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 80, 700, 390));
+
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        when(hidden.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 900, 40, 100));
+
+        WebElement visible = onScreenElement();
+        AtomicInteger drags = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of(toolbar, list);
+            }
+            return drags.get() >= 1 ? List.of(visible) : List.of(hidden);
+        });
+        doAnswer(invocation -> {
+            drags.incrementAndGet();
+            return null;
+        }).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        TouchActions returned = touchActions.swipeElementIntoView(By.id("serviceRow"), TouchActions.SwipeDirection.DOWN);
+
+        Assert.assertSame(returned, touchActions);
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+        verify(driver, never()).executeScript(eq("mobile: scroll"), anyMap());
+        Assert.assertEquals(capturedGestureMaps(driver, "mobile: dragFromToForDuration").getFirst(),
+                IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, list.getRect()));
+    }
+
+    @Test
+    public void iosSwipeElementIntoViewDragsUpToRevealUpperRows() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(390, 844));
+        when(driver.getPageSource()).thenReturn("a", "b");
+
+        RemoteWebElement list = mock(RemoteWebElement.class);
+        when(list.isDisplayed()).thenReturn(true);
+        when(list.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 80, 700, 390));
+
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        when(hidden.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, -40, 40, 100));
+        WebElement visible = onScreenElement();
+        AtomicInteger drags = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of(list);
+            }
+            return drags.get() >= 1 ? List.of(visible) : List.of(hidden);
+        });
+        doAnswer(invocation -> {
+            drags.incrementAndGet();
+            return null;
+        }).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        touchActionsWithScreenshots(driver)
+                .swipeElementIntoView(By.id("headerRow"), TouchActions.SwipeDirection.UP);
+
+        Map<Object, Object> drag = capturedGestureMaps(driver, "mobile: dragFromToForDuration").getFirst();
+        Map<String, Object> expected = IosScrollView.dragParameters(
+                TouchActions.SwipeDirection.UP, list.getRect());
+        Assert.assertEquals(drag.get("fromY"), expected.get("fromY"));
+        Assert.assertEquals(drag.get("toY"), expected.get("toY"));
+        Assert.assertTrue(((Number) drag.get("fromY")).intValue() < ((Number) drag.get("toY")).intValue());
+    }
+
+    @Test
+    public void iosSwipeElementIntoViewFallsBackToMobileScrollWhenNoScrollView() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(390, 844));
+        when(driver.getPageSource()).thenReturn("same");
+
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        when(hidden.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 900, 40, 100));
+        WebElement visible = onScreenElement();
+        AtomicInteger scrolls = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of();
+            }
+            return scrolls.get() >= 1 ? List.of(visible) : List.of(hidden);
+        });
+        doAnswer(invocation -> {
+            scrolls.incrementAndGet();
+            return Boolean.TRUE;
+        }).when(driver).executeScript(eq("mobile: scroll"), anyMap());
+
+        touchActionsWithScreenshots(driver)
+                .swipeElementIntoView(By.id("row"), TouchActions.SwipeDirection.DOWN);
+
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: scroll"), anyMap());
+        verify(driver, never()).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+    }
+
+    @Test
+    public void iosSwipeElementIntoViewUsesCallerScrollableForDrag() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(390, 844));
+        when(driver.getPageSource()).thenReturn("1", "2");
+
+        RemoteWebElement container = mock(RemoteWebElement.class);
+        when(container.getId()).thenReturn("services-scroll");
+        when(container.isDisplayed()).thenReturn(true);
+        when(container.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 120, 600, 390));
+
+        WebElement hidden = mock(WebElement.class);
+        when(hidden.isDisplayed()).thenReturn(false);
+        when(hidden.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 900, 40, 100));
+        WebElement visible = onScreenElement();
+        AtomicInteger drags = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation ->
+                drags.get() >= 1 ? List.of(visible) : List.of(hidden));
+        doAnswer(invocation -> {
+            drags.incrementAndGet();
+            return null;
+        }).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        ElementActionsHelper helper = screenshotHelper();
+        when(helper.identifyUniqueElement(any(), eq(AppiumBy.accessibilityId("dashboard_services_scroll"))))
+                .thenReturn(List.of("dashboard_services_scroll", container));
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+
+        touchActions.swipeElementIntoView(AppiumBy.accessibilityId("dashboard_services_scroll"),
+                By.id("row"), TouchActions.SwipeDirection.DOWN);
+
+        Assert.assertEquals(capturedGestureMaps(driver, "mobile: dragFromToForDuration").getFirst(),
+                IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, container.getRect()));
+    }
+
     private void assertIosScrollMapsStayDirectionOnly() throws Exception {
+        // Null-container with no XCUIElementTypeScrollView keeps the mobile: scroll fallback (#7680).
         IOSDriver driver = createMockIOSDriver();
         WebElement visible = onScreenElement();
-        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(visible));
-        doReturn(Boolean.TRUE).when(driver).executeScript(eq("mobile: scroll"), anyMap());
+        AtomicInteger scrolls = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of();
+            }
+            return scrolls.get() >= 1 ? List.of(visible) : List.of();
+        });
+        doAnswer(invocation -> {
+            scrolls.incrementAndGet();
+            return Boolean.TRUE;
+        }).when(driver).executeScript(eq("mobile: scroll"), anyMap());
         TouchActions touchActions = touchActionsWithScreenshots(driver);
         touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.UP);
         Assert.assertEquals(capturedGestureMaps(driver, "mobile: scroll").getFirst(), Map.of("direction", "up"));
 
+        // Explicit iOS container scrolls via dragFromToForDuration on its rect (#7680).
         IOSDriver contained = createMockIOSDriver();
         WebElement containedVisible = onScreenElement();
-        when(contained.findElements(any(By.class))).thenReturn(List.of(), List.of(containedVisible));
-        doReturn(Boolean.TRUE).when(contained).executeScript(eq("mobile: scroll"), anyMap());
+        AtomicInteger drags = new AtomicInteger();
+        when(contained.findElements(any(By.class))).thenAnswer(invocation ->
+                drags.get() >= 1 ? List.of(containedVisible) : List.of());
+        when(contained.getPageSource()).thenReturn("before", "after");
+        doAnswer(invocation -> {
+            drags.incrementAndGet();
+            return null;
+        }).when(contained).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
         TouchActions containedActions = new TouchActions(contained);
         ElementActionsHelper helper = screenshotHelper();
         RemoteWebElement container = mock(RemoteWebElement.class);
@@ -1297,8 +1463,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         when(helper.identifyUniqueElement(any(), eq(By.id("tray")))).thenReturn(List.of("tray", container));
         injectElementActionsHelper(containedActions, helper);
         containedActions.swipeElementIntoView(By.id("tray"), By.id("target"), TouchActions.SwipeDirection.LEFT);
-        Assert.assertEquals(capturedGestureMaps(contained, "mobile: scroll").getFirst(),
-                Map.of("direction", "left", "elementId", "ios-container-id"));
+        Assert.assertEquals(capturedGestureMaps(contained, "mobile: dragFromToForDuration").getFirst(),
+                IosScrollView.dragParameters(TouchActions.SwipeDirection.LEFT, container.getRect()));
     }
 
     private List<String> failedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {

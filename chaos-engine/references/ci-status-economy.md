@@ -1,4 +1,4 @@
-# CI status economy (babysit, digest, one channel)
+# CI status economy
 
 Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
 
@@ -199,7 +199,7 @@ run to finish (or `gh run cancel <run-id>`), then rerun.
 | `inventory-drift` | `source-derived inventory drift: <section>` | Refresh README inventory in the same tip ([tip-churn preflight](tip-churn-preflight.md)) |
 | `bandit-b607` | partial executable path | Resolve with `shutil.which`; see [tip-churn preflight](tip-churn-preflight.md) |
 | `memory-content-hash` | stale Memory `content_hash` | `tip_preflight.py --rehash` in the same tip |
-| `unresolved-review-threads` | all checks green but merge state `BLOCKED` by unresolved review threads; the watch goes RED | Fix or reply, then resolve each thread; see [Static-analysis gate](static-analysis-gate.md) |
+| `unresolved-review-threads` | all checks green but merge state `BLOCKED` by unresolved review threads; the watch goes RED | Fix or reply, then resolve each thread before enqueue; see [Static-analysis gate](static-analysis-gate.md) (`scripts/ci/mega-pr-throughput-20261102b.md`) |
 | `static-analysis-action-required` | static-analysis ≥medium finding | Blocking; see [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md) |
 | `codecov-patch-partial` | `codecov/patch` FAILURE while another check is still pending | Not RED. The same check often updates after a later shard uploads. A FAILURE after every other check has completed stays RED. |
 

@@ -30,7 +30,7 @@ def load(name: str, path: Path):
 class VersionTest(unittest.TestCase):
     def test_version_bumped(self) -> None:
         value = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        self.assertRegex(value, r"^20\d{2}\.\d{2}\.\d{2}\.\d+$")
+        self.assertRegex(value, r"^\d+\.[1-4]\.\d{8}\.[1-9]\d*$")
 
 
 class StagedVersionAdoptTest(unittest.TestCase):

@@ -307,6 +307,20 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("false")
     boolean validateSwipeToElement();
 
+
+    /**
+     * When true on iOS XCUITest, treat a blank/absent {@code hittable} attribute the same as
+     * explicit {@code hittable=false}: run the post-click effect check / recovery and fail loud
+     * when the page is unchanged (#7706). Default off until false-positive rate is measured.
+     *
+     * <p>Default: {@code false}. Possible values: true, false.
+     *
+     * @return the configured value of {@code iosObserveBlankHittableTapEffect}
+     */
+    @Key("iosObserveBlankHittableTapEffect")
+    @DefaultValue("false")
+    boolean iosObserveBlankHittableTapEffect();
+
     /**
      * Disable SSL certificate validation.
      *
@@ -654,6 +668,19 @@ public interface Flags extends EngineProperties<Flags> {
          */
         public SetProperty validateSwipeToElement(boolean value) {
             setProperty("validateSwipeToElement", String.valueOf(value));
+            return this;
+        }
+
+
+        /**
+         * Overrides the {@code iosObserveBlankHittableTapEffect} property at runtime. When true on
+         * iOS XCUITest, blank/absent {@code hittable} triggers the post-click effect guard (#7706).
+         *
+         * @param value the new value of {@code iosObserveBlankHittableTapEffect}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty iosObserveBlankHittableTapEffect(boolean value) {
+            setProperty("iosObserveBlankHittableTapEffect", String.valueOf(value));
             return this;
         }
 

@@ -600,6 +600,41 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
         self.assertNotIn(".grok/skills/", companions)
 
+    def test_tracked_grok_rules_match_grok_model_load_publish(self):
+        """SessionStart refresh must be a no-op on a clean checkout (#6239).
+
+        `.grok/rules/entrypoint.md` is a retargeted copy of
+        `chaos-engine/skills/chaos-engine/SKILL.md`. Editing the skill without
+        regenerating the tracked rule dirties porcelain when hook tests call
+        publish_from(ROOT).
+        """
+        path = ROOT / "chaos-engine/grok_model_load.py"
+        spec = importlib.util.spec_from_file_location(
+            "grok_model_load_tracked_sync", path
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        rules = ROOT / ".grok/rules"
+        cases = (
+            (ROOT / "chaos-engine/identity.md", rules / "identity.md"),
+            (
+                ROOT / "chaos-engine/skills/chaos-engine/SKILL.md",
+                rules / "entrypoint.md",
+            ),
+        )
+        for source, destination in cases:
+            with self.subTest(destination=destination.relative_to(ROOT).as_posix()):
+                self.assertTrue(source.is_file(), source)
+                self.assertTrue(destination.is_file(), destination)
+                self.assertEqual(
+                    destination.read_bytes(),
+                    module._linked_bytes(source, destination),
+                )
+        self.assertEqual(
+            (rules / "companions.md").read_bytes(),
+            module.COMPANIONS.encode("utf-8"),
+        )
+
     def test_grok_model_load_copies_identity_and_entrypoint_not_skills(self):
         path = ROOT / "chaos-engine/grok_model_load.py"
         spec = importlib.util.spec_from_file_location("grok_model_load_portability", path)

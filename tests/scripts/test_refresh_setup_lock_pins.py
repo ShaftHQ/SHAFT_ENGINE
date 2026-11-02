@@ -112,6 +112,11 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
         self.assertIn("core.hooksPath /dev/null", push)
         self.assertIn("refresh_setup_lock_pins.py --root . --check", push)
 
+    def test_check_job_skips_dependabot_prs(self) -> None:
+        text = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")
+        self.assertIn("dependabot[bot]", text)
+        self.assertIn("github.event.pull_request.user.login != 'dependabot[bot]'", text)
+
 
 TARBALL = b"fixture tarball bytes"
 TARBALL_SHA256 = hashlib.sha256(TARBALL).hexdigest()

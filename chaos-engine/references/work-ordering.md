@@ -31,3 +31,11 @@ lesson PRs are not filed separately when a CE PR is already open.
 
 [sequential WIP](sequential-wip.md), [worker keep-alive](worker-keep-alive.md),
 [cleanup at close](cleanup-at-close.md).
+
+## L97 MEGA-PR (fewest PRs)
+
+Group related work into the fewest pull requests: one PR per epic, one PR for
+all ChaosEngine issues/lessons in a batch, one PR for related product
+issues. Never open one PR per sibling ticket when they share an epic or rules
+batch. Gate-only lessons still fold into an already-open CE PR (exception
+above). Rule card: [mega-pr](details/ce-rules-2026-10-31-12/mega-pr.md).

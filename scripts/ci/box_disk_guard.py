@@ -434,6 +434,8 @@ def blocked_infra_reasons(
     total: int | None = None,
     swap_kib: int | None = None,
     apt_mirror_ok: bool | None = None,
+    apt_mirror_5xx: bool | None = None,
+    apt_lists_unsigned: bool | None = None,
 ) -> list[str]:
     """
     Return BLOCKED-INFRA reasons (disk, swap, optional apt mirror).
@@ -460,6 +462,10 @@ def blocked_infra_reasons(
         reasons.append("swap-missing")
     if apt_mirror_ok is False:
         reasons.append("apt-mirror-unreachable")
+    if apt_mirror_5xx is True:
+        reasons.append("apt-mirror-5xx")
+    if apt_lists_unsigned is True:
+        reasons.append("apt-lists-unsigned")
     return reasons
 
 

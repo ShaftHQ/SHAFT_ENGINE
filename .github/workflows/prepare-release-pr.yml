@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_date:
-        description: "Release date in YYYY-MM-DD; version becomes {major}.{quarter}.{YYYYMMDD}"
+        description: "Release date YYYY-MM-DD, never after today in Africa/Cairo. Version {major}.{quarter}.{YYYYMMDD}; a same-day re-cut becomes a .N hotfix. Plan weekly; at most one dated cut per day (#7700)."
         required: true
         type: string
 

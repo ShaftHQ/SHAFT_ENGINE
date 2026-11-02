@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Mobile Environment"
+  short_description: "Local JDK, Appium, SDK, emulator doctor"
+  default_prompt: "Use $shaft-mobile-env to set up or repair this local SHAFT mobile environment."

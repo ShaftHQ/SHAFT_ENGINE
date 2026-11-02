@@ -81,16 +81,19 @@
         <jackson.legacy.version>2.22.4</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.4</tools.jackson.core.version>
-        <selenium.version>4.51.0</selenium.version>
+        <selenium.version>4.52.0</selenium.version>
         <!-- Selenium 4.51.0 resolves org.jetbrains:annotations 26.1.0. Kotlin stdlib
              (ReportPortal -> OkHttp) still requests 13.0. One managed version keeps
              dependencyConvergence on. -->
+        <!-- Selenium 4.52.0 wants byte-buddy 1.18.15; Appium java-client 11.0.0
+             still pulls 1.18.14. Manage the higher version for dependencyConvergence. -->
+        <byte.buddy.version>1.18.15</byte.buddy.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <playwright.version>1.64.0</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
         <grpc.version>1.85.1</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
-        <google.auth.library.version>1.54.0</google.auth.library.version>
+        <google.auth.library.version>1.55.0</google.auth.library.version>
         <kotlin.version>2.4.21</kotlin.version>
         <netty.version>4.2.19.Final</netty.version>
         <!-- Dependency Versions -->
@@ -135,8 +138,8 @@
         <javassist.version>3.33.0-GA</javassist.version>
         <google.api.client.version>2.9.2</google.api.client.version>
         <google.http.client.version>2.2.0</google.http.client.version>
-        <proto.google.common.protos.version>2.78.0</proto.google.common.protos.version>
-        <proto.google.cloud.kms.v1.version>2.102.0</proto.google.cloud.kms.v1.version>
+        <proto.google.common.protos.version>2.79.0</proto.google.common.protos.version>
+        <proto.google.cloud.kms.v1.version>2.103.0</proto.google.cloud.kms.v1.version>
         <error.prone.annotations.version>2.51.0</error.prone.annotations.version>
         <checker.qual.version>4.3.1</checker.qual.version>
         <jspecify.version>1.0.1</jspecify.version>
@@ -146,13 +149,13 @@
         <picocli.version>4.7.7</picocli.version>
         <jsoup.version>1.23.2</jsoup.version>
         <json.version>20260814</json.version>
-        <rhino.version>1.9.1</rhino.version>
+        <rhino.version>1.9.2</rhino.version>
         <tink.version>1.24.0</tink.version>
         <brotli.dec.version>0.1.2</brotli.dec.version>
         <commons.logging.version>1.4.0</commons.logging.version>
         <jsr305.version>3.0.2</jsr305.version>
         <javax.annotation.api.version>1.3.2</javax.annotation.api.version>
-        <google.api.common.version>2.70.0</google.api.common.version>
+        <google.api.common.version>2.71.0</google.api.common.version>
         <j2objc.annotations.version>3.1</j2objc.annotations.version>
         <failureaccess.version>1.0.3</failureaccess.version>
         <auto.value.annotations.version>1.11.1</auto.value.annotations.version>
@@ -572,6 +575,16 @@
                 <groupId>com.google.api</groupId>
                 <artifactId>api-common</artifactId>
                 <version>${google.api.common.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte.buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte.buddy.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.j2objc</groupId>
@@ -1105,6 +1118,9 @@
                                 <param>playwright-trace-acceptance</param>
                                 <param>quarantine</param>
                             </excludedGroups>
+                            <!-- PIT must not inherit Surefire/JaCoCo @{argLine}; unresolved
+                                 {argLine} becomes NoSuchFileException (weekly mutation 2026-11-01). -->
+                            <argLine>--enable-native-access=ALL-UNNAMED -Dfile.encoding=UTF-8</argLine>
                             <jvmArgs>
                                 <value>--enable-native-access=ALL-UNNAMED</value>
                                 <value>-Dfile.encoding=UTF-8</value>
