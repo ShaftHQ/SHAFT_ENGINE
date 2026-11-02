@@ -3,13 +3,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+import time
 
 import importlib.util
 import os
 import shutil
 import subprocess  # nosec B404 - fixed git invocations, list args only.
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from pathlib import Path
 
 # #6195: running this file directly must not need PYTHONPATH=. -- the repo
@@ -156,11 +160,29 @@ RELEASE_NOTE_LABELS = frozenset(
 )
 
 
+_GH_PR_CACHE: dict[str, dict | None] = {}
+GH_PR_VIEW_TIMEOUT_SECONDS = 20
+FULL_SUITE_LOCK_NAME = "full-scripts-unittest.lock"
+
+
+def clear_gh_pr_cache() -> None:
+    """Drop the cached open-PR payload (tests call this between fixtures)."""
+    _GH_PR_CACHE.clear()
+
+
 def _gh_open_pr_for_head(root: Path) -> dict | None:
-    """Return gh JSON for the open PR on HEAD, or None when unavailable."""
+    """Return gh JSON for the open PR on HEAD, or None when unavailable.
+
+    Caches one result per root so release-note / PR-body / scope / version-bump
+    collectors share a single ``gh pr view`` (was 4 serial network calls).
+    """
+    key = str(root.resolve())
+    if key in _GH_PR_CACHE:
+        return _GH_PR_CACHE[key]
     git = shutil.which("git")
     gh = shutil.which("gh")
     if git is None or gh is None:
+        _GH_PR_CACHE[key] = None
         return None
     try:
         branch = subprocess.run(  # nosec B603 - absolute git, fixed argv.
@@ -169,13 +191,17 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
             capture_output=True,
             text=True,
             check=False,
+            timeout=GH_PR_VIEW_TIMEOUT_SECONDS,
         )
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
+        _GH_PR_CACHE[key] = None
         return None
     if branch.returncode != 0:
+        _GH_PR_CACHE[key] = None
         return None
     name = (branch.stdout or "").strip()
     if not name or name == "HEAD" or name in {"main", "master"}:
+        _GH_PR_CACHE[key] = None
         return None
     try:
         completed = subprocess.run(  # nosec B603 - absolute gh, fixed argv.
@@ -192,18 +218,114 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
             capture_output=True,
             text=True,
             check=False,
+            timeout=GH_PR_VIEW_TIMEOUT_SECONDS,
         )
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
+        _GH_PR_CACHE[key] = None
         return None
     if completed.returncode != 0 or not (completed.stdout or "").strip():
+        _GH_PR_CACHE[key] = None
         return None
     try:
         import json
 
         payload = json.loads(completed.stdout)
     except (ValueError, TypeError):
+        _GH_PR_CACHE[key] = None
         return None
-    return payload if isinstance(payload, dict) else None
+    result = payload if isinstance(payload, dict) else None
+    _GH_PR_CACHE[key] = result
+    return result
+
+
+@contextmanager
+def full_scripts_unittest_lock(root: Path, *, blocking: bool = True):
+    """Exclusive lock so two ``unittest discover -s tests/scripts`` cannot overlap.
+
+    Parallel full suites on this box overlapped for ~30 minutes (mega-A + mega-C,
+    then mega-C + mega-cleanup), each ~40 minutes — past the 35-minute session
+    cap — and drove swap to near-full. Callers hold this lock around the suite.
+    Non-blocking mode raises ``BlockingIOError`` when another suite holds it.
+    """
+    import fcntl
+
+    lock_dir = root / ".chaos-engine-state"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / FULL_SUITE_LOCK_NAME
+    handle = lock_path.open("a+", encoding="utf-8")
+    flags = fcntl.LOCK_EX if blocking else (fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        fcntl.flock(handle.fileno(), flags)
+        handle.seek(0)
+        handle.truncate()
+        handle.write(f"pid={os.getpid()}\n")
+        handle.flush()
+        yield lock_path
+    finally:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+
+def _skillspector_fingerprint(root: Path, paths: list[str]) -> str:
+    """Hash skill dirs + baseline mtimes so repeat pre-push can skip a 60s scan."""
+    from scripts.ci.skillspector_gate import skill_dirs_from_paths
+
+    digest = hashlib.sha256()
+    for rel in skill_dirs_from_paths(paths):
+        skill = root / rel
+        digest.update(rel.as_posix().encode())
+        if not skill.is_dir():
+            continue
+        for path in sorted(skill.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            digest.update(path.relative_to(skill).as_posix().encode())
+            try:
+                digest.update(str(path.stat().st_mtime_ns).encode())
+            except OSError:
+                continue
+    baseline = root / "scripts/ci/skillspector/.skillspector-baseline.yaml"
+    if baseline.is_file():
+        digest.update(str(baseline.stat().st_mtime_ns).encode())
+    return digest.hexdigest()
+
+
+def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
+    """Run the static SkillSpector gate when first-party skill paths change.
+
+    Caches the last result under ``.chaos-engine-state/`` keyed by skill+baseline
+    fingerprint so iterative mega-PR pushes do not pay the ~60s scan twice.
+    """
+    from scripts.ci.skillspector_gate import gate_failures, skill_dirs_from_paths
+
+    if not skill_dirs_from_paths(paths):
+        return []
+    fingerprint = _skillspector_fingerprint(root, paths)
+    cache_dir = root / ".chaos-engine-state"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / "skillspector-prepush-cache.json"
+    try:
+        import json
+
+        cached = json.loads(cache_path.read_text(encoding="utf-8"))
+        if cached.get("fingerprint") == fingerprint and isinstance(cached.get("failures"), list):
+            return [f"skillspector: {item}" if not str(item).startswith("skillspector") else str(item)
+                    for item in cached["failures"]]
+    except (OSError, ValueError, TypeError):
+        pass  # missing or corrupt cache: fall through to a fresh scan
+    raw = list(gate_failures(root, paths=paths))
+    try:
+        import json
+
+        cache_path.write_text(
+            json.dumps({"fingerprint": fingerprint, "failures": raw}, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        pass  # cache is best-effort; a full scan already succeeded
+    return [f"skillspector: {item}" if not item.startswith("skillspector") else item for item in raw]
 
 
 def pr_body_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
@@ -642,17 +764,6 @@ def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
     ]
 
 
-def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
-    """Run the static SkillSpector gate when first-party skill paths change."""
-    from scripts.ci.skillspector_gate import gate_failures, skill_dirs_from_paths
-
-    if not skill_dirs_from_paths(paths):
-        return []
-    return [f"skillspector: {item}" if not item.startswith("skillspector") else item
-            for item in gate_failures(root, paths=paths)]
-
-
-
 def remote_credential_failures(root: Path) -> list[str]:
     """L77: refuse push when git remotes embed credentials (never print values)."""
     helper = root / "chaos-engine" / "rules" / "remote_credential_guard.py"
@@ -675,42 +786,11 @@ def remote_credential_failures(root: Path) -> list[str]:
     return list(module.pre_push_failures(root))
 
 
-def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
-    """Return contract failures for one overlay diff. Empty means the push may proceed."""
-    changed = list(paths) if paths is not None else changed_overlay_paths(root)
-    failures: list[str] = tip_preflight_failures(root, changed)
-    failures.extend(skillspector_gate_failures(root, changed))
-    failures.extend(ce_version_bump_failures(root, changed))
-    failures.extend(remote_credential_failures(root))
-    if paths is None:
-        failures.extend(tracked_mobile_binary_failures(root))
-        failures.extend(no_push_guard_failures(root))
-        failures.extend(evidence_pin_failures(root))
-        failures.extend(client_name_scrub_failures(root))
-        failures.extend(code_quality_failures(root))
-        failures.extend(release_note_label_failures(root))
-        failures.extend(pr_body_failures(root))
-        failures.extend(pr_scope_failures(root, changed))
-    if any(path.replace("\\", "/").removeprefix("./").startswith("chaos-engine/") for path in changed):
-        failures.extend(portable_core_path_failures(root))
-    if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
-        failures.extend(ungated_script_module_failures(root))
-    failures.extend(shipped_validator_import_failures(root, changed))
-    failures.extend(unselected_unit_test_failures(root, changed))
-    failures.extend(cheap_ci_contract_failures(root, changed))
-    failures.extend(coverage_ratchet_failures(root, changed))
-    failures.extend(codecov_yml_failures(root, changed))
-    if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
-        # #6849: Installer verification is CI-only and path-filtered; it runs this ~30 s end-to-end check.
-        print("overlay pre-push: warning: installer changed; run "
-              "`python3 scripts/ci/verify_shaft_mcp_installer_release.py` before pushing", file=sys.stderr)
-    if any(touches_workflows(path) for path in changed):
-        failures.extend(
-            f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
-            for item in stale_template_actions(root)
-        )
+def _overlay_markdown_failures(root: Path, changed: list[str]) -> list[str]:
+    """Playbook budget, agent-guidance budgets, skill budgets, harness reachability."""
     if not any(touches_overlay_contract(path) for path in changed):
-        return failures
+        return []
+    failures: list[str] = []
     playbook = root / PLAYBOOK
     if playbook.is_file():
         failures.extend(playbook_contract_failures(playbook.read_text(encoding="utf-8")))
@@ -735,13 +815,122 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     return failures
 
 
+def _run_named_collectors(
+    collectors: list[tuple[str, callable]],
+    *,
+    parallel: bool,
+    timings: list[tuple[str, float]] | None,
+) -> list[str]:
+    """Run named collectors; optionally in parallel. Always gather every failure."""
+    failures: list[str] = []
+
+    def _invoke(name: str, fn):
+        started = time.perf_counter()
+        try:
+            result = list(fn())
+        except Exception as error:  # nosec B110 - one collector must not abort the rest
+            result = [f"{name}: collector crashed ({type(error).__name__}: {error})"]
+        if timings is not None:
+            timings.append((name, time.perf_counter() - started))
+        return result
+
+    if not parallel or len(collectors) <= 1:
+        for name, fn in collectors:
+            failures.extend(_invoke(name, fn))
+        return failures
+    with ThreadPoolExecutor(max_workers=min(8, len(collectors))) as pool:
+        future_map = {pool.submit(_invoke, name, fn): name for name, fn in collectors}
+        for future in as_completed(future_map):
+            failures.extend(future.result())
+    return failures
+
+
+def overlay_pre_push_failures(
+    root: Path,
+    paths: list[str] | None = None,
+    *,
+    parallel: bool = True,
+    timings: list[tuple[str, float]] | None = None,
+) -> list[str]:
+    """Return contract failures for one overlay diff. Empty means the push may proceed.
+
+    Collects every failure in one pass (no fail-fast). Independent collectors run
+    in parallel by default so a 60s SkillSpector scan overlaps cheap local gates.
+    """
+    changed = list(paths) if paths is not None else changed_overlay_paths(root)
+    collectors: list[tuple[str, callable]] = [
+        ("tip_preflight", lambda: tip_preflight_failures(root, changed)),
+        ("skillspector", lambda: skillspector_gate_failures(root, changed)),
+        ("ce_version_bump", lambda: ce_version_bump_failures(root, changed)),
+        ("remote_credential", lambda: remote_credential_failures(root)),
+    ]
+    if paths is None:
+        collectors.extend(
+            [
+                ("tracked_mobile", lambda: tracked_mobile_binary_failures(root)),
+                ("no_push_guard", lambda: no_push_guard_failures(root)),
+                ("evidence_pin", lambda: evidence_pin_failures(root)),
+                ("client_scrub", lambda: client_name_scrub_failures(root)),
+                ("code_quality", lambda: code_quality_failures(root)),
+                ("release_note", lambda: release_note_label_failures(root)),
+                ("pr_body", lambda: pr_body_failures(root)),
+                ("pr_scope", lambda: pr_scope_failures(root, changed)),
+            ]
+        )
+    if any(path.replace("\\", "/").removeprefix("./").startswith("chaos-engine/") for path in changed):
+        collectors.append(("portable_core", lambda: portable_core_path_failures(root)))
+    if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
+        collectors.append(("ungated", lambda: ungated_script_module_failures(root)))
+    collectors.extend(
+        [
+            ("shipped_validator", lambda: shipped_validator_import_failures(root, changed)),
+            ("unselected_ut", lambda: unselected_unit_test_failures(root, changed)),
+            ("cheap_ci", lambda: cheap_ci_contract_failures(root, changed)),
+            ("coverage", lambda: coverage_ratchet_failures(root, changed)),
+            ("codecov", lambda: codecov_yml_failures(root, changed)),
+            ("overlay_markdown", lambda: _overlay_markdown_failures(root, changed)),
+        ]
+    )
+    failures = _run_named_collectors(collectors, parallel=parallel, timings=timings)
+    if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
+        print(
+            "overlay pre-push: warning: installer changed; run "
+            "`python3 scripts/ci/verify_shaft_mcp_installer_release.py` before pushing",
+            file=sys.stderr,
+        )
+    if any(touches_workflows(path) for path in changed):
+        failures.extend(
+            f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
+            for item in stale_template_actions(root)
+        )
+    return failures
+
+
 def main(argv: list[str] | None = None) -> int:
     """Exit 1 when the overlay pre-push contract fails."""
-    root = Path(argv[1]).resolve() if argv and len(argv) > 1 else Path.cwd()
-    failures = overlay_pre_push_failures(root)
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", default=".", help="repository root (default: cwd)")
+    parser.add_argument(
+        "--all-failures",
+        action="store_true",
+        help="print every failure and per-gate timings in one pass (default behavior; flag is explicit)",
+    )
+    parser.add_argument("--no-parallel", action="store_true", help="run collectors serially (debug)")
+    args = parser.parse_args(argv[1:] if argv is not None else None)
+    root = Path(args.root).resolve()
+    timings: list[tuple[str, float]] = []
+    failures = overlay_pre_push_failures(
+        root, parallel=not args.no_parallel, timings=timings if args.all_failures else None
+    )
+    if args.all_failures and timings:
+        for name, seconds in sorted(timings, key=lambda item: item[1], reverse=True):
+            print(f"overlay pre-push: timing {name}={seconds:.3f}s", file=sys.stderr)
     if not failures:
         print("overlay pre-push: pass")
         return 0
+    print(f"overlay pre-push: {len(failures)} failure(s)", file=sys.stderr)
     for failure in failures:
         print(f"overlay pre-push: {failure}", file=sys.stderr)
     return 1
