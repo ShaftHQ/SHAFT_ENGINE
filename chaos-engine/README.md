@@ -828,6 +828,8 @@ reports, caches, runtime indexes, or `graphify-out/`.
 - [Eval / parity fixtures](references/eval-parity-fixtures.md) — cross-host CE policy fixture suite + failure ratchet.
 - [Harness eval suite](references/harness-eval-suite.md) — capability + regression pass@k gate for harness PRs.
 
+- [CE lessons 2026-11-02 SPEC](references/ce-lessons-2026-11-02-SPEC.md) — orchestrator/media/harness gates #7692–#7721.
+
 
 - [Install or upgrade ChaosEngine](INSTALL.md)
 - [Canonical ChaosEngine entrypoint](skills/chaos-engine/SKILL.md)

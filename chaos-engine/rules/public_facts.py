@@ -12,6 +12,37 @@ TRAINEE_COUNT_PUBLIC = "600+ trainees"
 TRAINEE_COUNT_AR = "أكتر من 600 متدرب"
 SUPERSEDED_TRAINEE_COUNTS = frozenset({"484", "484 trainees", "٤٨٤"})
 
+# Public founding year (portable). Wrong years in asserted copy FAIL; superseded denylist.
+FOUNDED_YEAR_PUBLIC = 2016
+SUPERSEDED_FOUNDED_YEARS = frozenset({"2015", "2014", "2017", "2018"})
+
+_LEGACY_FOUNDED = re.compile(
+    r"(?<!\d)(2014|2015|2017|2018)(?!\d)",
+)
+
+
+def founded_year_hits(text: str) -> list[str]:
+    """Return hits when copy asserts a superseded founding year as current."""
+    hits: list[str] = []
+    if not text:
+        return hits
+    lowered = text.casefold()
+    for m in _LEGACY_FOUNDED.finditer(text):
+        year = m.group(1)
+        # allow historical notes
+        window = text[max(0, m.start() - 40) : m.end() + 40].casefold()
+        if "supersed" in window or "historical" in window or "was " + year in window:
+            continue
+        if "found" in window or "establish" in window or "since" in window:
+            hits.append(f"copy-claims-superseded-founded-year:{year}")
+    # explicit wrong constant when asserting founded year in prose as FOUNDED_YEAR_PUBLIC peer
+    if str(FOUNDED_YEAR_PUBLIC) not in text and "founded" in lowered and any(
+        y in text for y in SUPERSEDED_FOUNDED_YEARS
+    ):
+        pass  # already covered by loop
+    return hits
+
+
 _LEGACY_484 = re.compile(
     r"(?<!\d)484(\s*\+?\s*trainees?)?(?!\d)",
     re.IGNORECASE,
@@ -40,10 +71,32 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
     if obs.get("assert_public_trainee_figure") is True:
         if figure not in {TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR}:
             hits.append("public-trainee-figure-not-600-plus")
+    year = obs.get("founded_year") or obs.get("founding_year")
+    if year is not None:
+        ys = str(year).strip()
+        if ys in SUPERSEDED_FOUNDED_YEARS:
+            hits.append("superseded-founded-year")
+        elif obs.get("assert_founded_year") is True and ys != str(FOUNDED_YEAR_PUBLIC):
+            hits.append("founded-year-mismatch")
+    if text:
+        hits.extend(founded_year_hits(text))
+    if obs.get("assert_identity_pack") is True:
+        if obs.get("assert_public_trainee_figure") is not True:
+            # identity pack implies trainee + founded checks
+            if figure not in {TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR}:
+                if "public-trainee-figure-not-600-plus" not in hits:
+                    hits.append("public-trainee-figure-not-600-plus")
+        if year is None and obs.get("assert_founded_year") is not False:
+            hits.append("identity-pack-missing-founded-year")
+        elif year is not None and str(year).strip() != str(FOUNDED_YEAR_PUBLIC):
+            if "founded-year-mismatch" not in hits and "superseded-founded-year" not in hits:
+                hits.append("founded-year-mismatch")
+
     return {
         "ok": not hits,
         "hits": hits,
         "error": None if not hits else "public facts gate failed",
         "trainee_count_public": TRAINEE_COUNT_PUBLIC,
         "trainee_count_ar": TRAINEE_COUNT_AR,
+        "founded_year_public": FOUNDED_YEAR_PUBLIC,
     }

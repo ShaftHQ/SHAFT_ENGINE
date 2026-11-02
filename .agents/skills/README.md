@@ -497,3 +497,4 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
 
 <!-- HARNESS-INDEX:END -->
+- [CE lessons 2026-11-02 SPEC](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer

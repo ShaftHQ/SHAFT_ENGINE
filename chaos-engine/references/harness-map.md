@@ -43,6 +43,7 @@ By [harness_map.py](../harness_map.py); `--check`.
 - `references/ce-rules-2026-10-31-11-SPEC.md`: CE .31.11
 - `references/ce-rules-2026-10-31-12-SPEC.md`: CE .31.12
 - `references/ce-rules-2026-10-31-13-SPEC.md`: CE .31.13
+- `references/ce-lessons-2026-11-02-SPEC.md`: CE lessons 2026-11-02
 - `references/ce-rules-2026-10-31-7-SPEC.md`: CE .31.7
 - `references/ce-rules-2026-10-31-8-SPEC.md`: CE .31.8
 - `references/ce-upgrade-on-release.md`: ChaosEngine upgrade on release
