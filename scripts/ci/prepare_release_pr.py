@@ -95,14 +95,34 @@ def resolve_release_date(release_date: str, current_version: str, *, after_curre
     return dry_run_release_date(current_version, release_date) if after_current else release_date
 
 
-def _version_key(version: str) -> tuple[int, int, int, int]:
+def _quarter_from_yyyymmdd(date_int: int) -> int:
+    """Calendar quarter 1-4 derived from a YYYYMMDD stamp."""
+    month = (date_int // 100) % 100
+    if not 1 <= month <= 12:
+        raise ValueError(f"invalid month in date stamp {date_int}")
+    return (month - 1) // 3 + 1
+
+
+def _version_key(version: str) -> tuple[int, int, int]:
+    """Comparable key (major, date, hotfix); quarter derived from the date.
+
+    Ordering by date (not the quarter field) keeps 10.4 → 10.1 year rollover
+    correct: ``10.4.20261231`` < ``10.1.20270101``.
+    """
     match = RELEASE_VERSION.fullmatch(version)
     if not match:
         raise ValueError(f"version is not a dated SHAFT release: {version!r}")
+    date_int = int(match.group("date"))
+    declared = int(match.group("quarter"))
+    derived = _quarter_from_yyyymmdd(date_int)
+    if declared != derived:
+        raise ValueError(
+            f"SHAFT version {version!r} quarter {declared} does not match date "
+            f"(expected {derived})"
+        )
     return (
         int(match.group("major")),
-        int(match.group("quarter")),
-        int(match.group("date")),
+        date_int,
         int(match.group("hotfix") or 0),
     )
 

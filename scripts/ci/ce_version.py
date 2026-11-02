@@ -19,16 +19,36 @@ LEGACY_VERSION_RE = re.compile(r"^(?P<y>\d{4})\.(?P<m>\d{2})\.(?P<d>\d{2})(?:\.(
 VERSION_RE = re.compile(r"^(?:\d+\.[1-4]\.\d{8}\.[1-9]\d*|\d{4}\.\d{2}\.\d{2}(?:\.\d+)?)$")
 
 
-def version_key(value: str) -> tuple[int, int, int, int]:
-    """Comparable key for new and legacy CE versions; legacy maps onto major 0 (#7702)."""
+def _quarter_from_yyyymmdd(date_int: int) -> int:
+    """Calendar quarter 1-4 derived from a YYYYMMDD stamp (Cairo calendar day)."""
+    month = (date_int // 100) % 100
+    if not 1 <= month <= 12:
+        raise ValueError(f"invalid month in date stamp {date_int}")
+    return (month - 1) // 3 + 1
+
+
+def version_key(value: str) -> tuple[int, int, int]:
+    """Comparable key (major, date, n); quarter is derived from the date (#7702).
+
+    Ordering by date (not the quarter field) keeps Q4→Q1 year rollover correct:
+    ``0.4.20261231.1`` < ``0.1.20270101.1``.
+    """
     text = str(value).strip()
     new = NEW_VERSION_RE.fullmatch(text)
     if new:
-        return int(new["major"]), int(new["quarter"]), int(new["date"]), int(new["n"])
+        date_int = int(new["date"])
+        declared = int(new["quarter"])
+        derived = _quarter_from_yyyymmdd(date_int)
+        if declared != derived:
+            raise ValueError(
+                f"CE version {text!r} quarter {declared} does not match date "
+                f"(expected {derived})"
+            )
+        return int(new["major"]), date_int, int(new["n"])
     old = LEGACY_VERSION_RE.fullmatch(text)
     if old:
-        month = int(old["m"])
-        return 0, (month - 1) // 3 + 1, int(old["y"] + old["m"] + old["d"]), int(old["ln"] or 0)
+        date_int = int(old["y"] + old["m"] + old["d"])
+        return 0, date_int, int(old["ln"] or 0)
     raise ValueError(f"invalid CE version {text!r}")
 
 
@@ -38,7 +58,7 @@ def next_version(current: str, merge_day: str) -> str:
 
     day = dt.date.fromisoformat(merge_day)
     quarter = (day.month - 1) // 3 + 1
-    major, cur_q, cur_date, cur_n = version_key(current)
+    major, cur_date, cur_n = version_key(current)
     stamp = int(f"{day:%Y%m%d}")
     if stamp < cur_date:
         raise ValueError("merge day is before the current CE version date")

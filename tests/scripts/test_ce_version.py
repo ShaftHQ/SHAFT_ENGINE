@@ -39,6 +39,20 @@ class CeVersionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.mod.next_version("0.4.20261102.1", "2026-11-01")
 
+
+    def test_quarter_rollover_orders_by_date(self) -> None:
+        """Q4→Q1 and Q1→Q2 compare by date, not by the quarter digit."""
+        key = self.mod.version_key
+        # Dec 31 Q4 precedes Jan 1 Q1 of the next calendar year
+        self.assertLess(key("0.4.20261231.1"), key("0.1.20270101.1"))
+        self.assertLess(key("0.4.20261231.9"), key("0.1.20270101.1"))
+        # Mar 31 Q1 precedes Apr 1 Q2 of the same year
+        self.assertLess(key("0.1.20260331.1"), key("0.2.20260401.1"))
+        self.assertEqual("0.1.20270101.1", self.mod.next_version("0.4.20261231.3", "2027-01-01"))
+        self.assertEqual("0.2.20260401.1", self.mod.next_version("0.1.20260331.2", "2026-04-01"))
+        with self.assertRaises(ValueError):
+            key("0.1.20261231.1")  # declared Q1 but December is Q4
+
     def test_invalid_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "VERSION"

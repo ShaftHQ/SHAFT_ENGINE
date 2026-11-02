@@ -300,5 +300,19 @@ class ReleaseCadenceTest(unittest.TestCase):
         self.assertGreater(MODULE._version_key(MODULE.target_version(current, "2026-11-02")), MODULE._version_key(current))
 
 
+    def test_q4_to_q1_rollover_orders_by_date(self):
+        """10.4.YYYYMMDD must sort before 10.1 of the next year (#7700)."""
+        self.assertLess(MODULE._version_key("10.4.20261231"), MODULE._version_key("10.1.20270101"))
+        self.assertLess(MODULE._version_key("10.4.20261231.9"), MODULE._version_key("10.1.20270101"))
+        self.assertEqual(MODULE.target_version("10.4.20261231.2", "2027-01-01"), "10.1.20270101")
+
+    def test_q1_to_q2_rollover_orders_by_date(self):
+        self.assertLess(MODULE._version_key("10.1.20260331"), MODULE._version_key("10.2.20260401"))
+        self.assertEqual(MODULE.target_version("10.1.20260331.1", "2026-04-01"), "10.2.20260401")
+        with self.assertRaises(ValueError):
+            MODULE._version_key("10.1.20261231")  # declared Q1 but December is Q4
+
+
+
 if __name__ == "__main__":
     unittest.main()
