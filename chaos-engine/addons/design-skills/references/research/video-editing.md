@@ -13,7 +13,7 @@ transferable techniques. Ideas are re-expressed; no media is copied.
 8. [StudioBinder blog](https://www.studiobinder.com/blog/): film-language glossary. Techniques: cut types with examples.
 9. [No Film School](https://nofilmschool.com/): filmmaking craft coverage. Techniques: editor interviews.
 10. [DaVinci Resolve training](https://www.blackmagicdesign.com/products/davinciresolve/training): free official editing curriculum. Techniques: edit page, trim modes.
-11. [ffmpeg documentation](https://ffmpeg.org/ffmpeg-filters.html): the open editing engine. Techniques: trim, concat, xfade, loudnorm.
+11. [ffmpeg documentation](https://github.com/FFmpeg/FFmpeg/blob/master/doc/filters.texi): the open editing engine. Techniques: trim, concat, xfade, loudnorm.
 12. [Kdenlive](https://kdenlive.org/): open-source NLE. Techniques: proxy editing.
 13. [Shotcut](https://shotcut.org/): open-source NLE. Techniques: keyframed filters.
 14. [Thomas Flight](https://www.youtube.com/@ThomasFlight): essays on film craft. Techniques: pacing analysis.

@@ -20,6 +20,6 @@ transferable techniques. Ideas are re-expressed; no media is copied.
 15. [web.dev](https://web.dev/): performance and UX metrics. Techniques: Core Web Vitals: LCP <2.5 s, INP <200 ms, CLS <0.1.
 16. [Material Design 3](https://m3.material.io/): documented system of tokens and motion. Techniques: type scale tokens; emphasized easing curves.
 17. [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/): platform design guidance. Techniques: clarity, deference, depth; 44pt targets.
-18. [Godly](https://godly.website/): curated gallery of motion-rich sites. Techniques: study hero interactions frame by frame.
+18. [Recent (Godly)](https://recent.design/): curated gallery of motion-rich sites. Techniques: study hero interactions frame by frame.
 19. [One Page Love](https://onepagelove.com/): curated single-page sites. Techniques: one scroll, one story.
 20. [Lapa Ninja](https://www.lapa.ninja/): landing page gallery. Techniques: compare hero/CTA patterns per category.
