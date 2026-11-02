@@ -59,6 +59,8 @@ class EntryCoverageTest(unittest.TestCase):
         pct = 100.0 * (len(elements) - len(orphans)) / max(len(elements), 1)
         self.assertEqual(len(orphans), 0)
         self.assertGreaterEqual(pct, 100.0)
+        # Floor: refuse silent inventory shrink (917 observed on #7731 tip; margin 17).
+        self.assertGreaterEqual(len(elements), 900, len(elements))
 
     def test_every_chaos_engine_rule_is_reachable(self) -> None:
         rules = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "chaos-engine/rules").glob("*.py"))
@@ -94,26 +96,42 @@ class EntryCoverageTest(unittest.TestCase):
         missing = [p for p in skills if p not in self.covered]
         self.assertEqual(missing, [])
 
+    PR_ADDED_PATHS = (
+        "chaos-engine/rules/lessons_2026_11_02.py",
+        "chaos-engine/references/ce-lessons-2026-11-02-SPEC.md",
+        "shaft-skills/INVENTORY.md",
+        "shaft-skills/shaft-mobile-env/SKILL.md",
+        "shaft-skills/shaft-browserstack-native/SKILL.md",
+        "shaft-skills/shaft-ios-ipa-acceptance/SKILL.md",
+        "shaft-skills/shaft-android-apk-select/SKILL.md",
+        "shaft-skills/shaft-docs-hygiene/SKILL.md",
+        "shaft-skills/shaft-mobile-retest-hygiene/SKILL.md",
+        "scripts/mobile/android_apk_select.py",
+        "scripts/mobile/ios_ipa_acceptance.py",
+        "scripts/ci/merge_queue_awaiting_checks_heal.py",
+        "scripts/ci/ce_version.py",
+        "scripts/ci/flutter_emulator_preflight.sh",
+        "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
+    )
+
     def test_new_pr_tools_are_reachable(self) -> None:
-        required = [
-            "chaos-engine/rules/lessons_2026_11_02.py",
-            "chaos-engine/references/ce-lessons-2026-11-02-SPEC.md",
-            "shaft-skills/INVENTORY.md",
-            "shaft-skills/shaft-mobile-env/SKILL.md",
-            "shaft-skills/shaft-browserstack-native/SKILL.md",
-            "shaft-skills/shaft-ios-ipa-acceptance/SKILL.md",
-            "shaft-skills/shaft-android-apk-select/SKILL.md",
-            "shaft-skills/shaft-docs-hygiene/SKILL.md",
-            "shaft-skills/shaft-mobile-retest-hygiene/SKILL.md",
-            "scripts/mobile/android_apk_select.py",
-            "scripts/mobile/ios_ipa_acceptance.py",
-            "scripts/ci/merge_queue_awaiting_checks_heal.py",
-            "scripts/ci/ce_version.py",
-            "scripts/ci/flutter_emulator_preflight.sh",
-            "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
-        ]
-        missing = [p for p in required if p not in self.covered]
+        missing = [p for p in self.PR_ADDED_PATHS if p not in self.covered]
         self.assertEqual(missing, [])
+
+    def test_pr_paths_have_route_or_playbook_link(self) -> None:
+        """PR-added paths must not be covered only via exact-token inventory."""
+        by_link = set(self.report["by_link"]) | set(self.report["reached"])
+        by_tok = set(self.report["by_exact_token"])
+        token_only = [
+            p for p in self.PR_ADDED_PATHS
+            if p in by_tok and p not in by_link
+        ]
+        self.assertEqual(
+            token_only,
+            [],
+            "add a bot-entry/ChaosEngine route or playbook markdown link; "
+            f"token-only paths: {token_only}",
+        )
 
     def test_required_hook_events_wired_on_each_platform(self) -> None:
         # Host hook configs under .claude/.codex/.grok are gitignored install

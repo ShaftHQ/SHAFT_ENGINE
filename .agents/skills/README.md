@@ -509,23 +509,23 @@ Reachability gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory:
 [`shaft-skills/INVENTORY.md`](../../shaft-skills/INVENTORY.md).
 
 New mobile / hygiene specialists (also listed in the inventory):
-`shaft-skills/shaft-mobile-env/SKILL.md`,
-`shaft-skills/shaft-browserstack-native/SKILL.md`,
-`shaft-skills/shaft-ios-ipa-acceptance/SKILL.md`,
-`shaft-skills/shaft-android-apk-select/SKILL.md`,
-`shaft-skills/shaft-docs-hygiene/SKILL.md`,
-`shaft-skills/shaft-mobile-retest-hygiene/SKILL.md`.
+[shaft-mobile-env](../../shaft-skills/shaft-mobile-env/SKILL.md),
+[shaft-browserstack-native](../../shaft-skills/shaft-browserstack-native/SKILL.md),
+[shaft-ios-ipa-acceptance](../../shaft-skills/shaft-ios-ipa-acceptance/SKILL.md),
+[shaft-android-apk-select](../../shaft-skills/shaft-android-apk-select/SKILL.md),
+[shaft-docs-hygiene](../../shaft-skills/shaft-docs-hygiene/SKILL.md),
+[shaft-mobile-retest-hygiene](../../shaft-skills/shaft-mobile-retest-hygiene/SKILL.md).
 
-## Tool path tokens (entry coverage)
+## Tool path routes (entry coverage)
 
-Exact tokens for the reachability gate (`tests/scripts/test_ce_entry_coverage.py`):
-`scripts/mobile/android_apk_select.py`,
-`scripts/mobile/ios_ipa_acceptance.py`,
-`scripts/mobile/__init__.py`,
-`scripts/ci/merge_queue_awaiting_checks_heal.py`,
-`scripts/ci/ce_version.py`,
-`scripts/ci/flutter_emulator_preflight.sh`,
-`scripts/ci/run_ubuntu_flutter_emulator_e2e.sh`,
-`chaos-engine/rules/lessons_2026_11_02.py`,
-`chaos-engine/references/ce-lessons-2026-11-02-SPEC.md`.
+Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage.py`):
+[android_apk_select.py](../../scripts/mobile/android_apk_select.py),
+[ios_ipa_acceptance.py](../../scripts/mobile/ios_ipa_acceptance.py),
+[scripts/mobile/__init__.py](../../scripts/mobile/__init__.py),
+[merge_queue_awaiting_checks_heal.py](../../scripts/ci/merge_queue_awaiting_checks_heal.py),
+[ce_version.py](../../scripts/ci/ce_version.py),
+[flutter_emulator_preflight.sh](../../scripts/ci/flutter_emulator_preflight.sh),
+[run_ubuntu_flutter_emulator_e2e.sh](../../scripts/ci/run_ubuntu_flutter_emulator_e2e.sh),
+[lessons_2026_11_02.py](../../chaos-engine/rules/lessons_2026_11_02.py),
+[ce-lessons-2026-11-02-SPEC.md](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md).
 
