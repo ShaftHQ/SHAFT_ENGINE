@@ -346,6 +346,7 @@ CHECKS = {
             "tests.scripts.test_publish_shaft_mcp_release_guard",
             "tests.scripts.test_validation_manifest_imports",
             "tests.scripts.test_code_quality_preflight",
+            "tests.scripts.test_mega_pr_throughput_gates",
             "tests.scripts.test_branded_installer_ce_standard",
         ),
     ),
@@ -974,6 +975,9 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_workflow_template_sync.py",
         "tests/scripts/test_validation_manifest_imports.py",
         "tests/scripts/test_code_quality_preflight.py",
+        "tests/scripts/test_mega_pr_throughput_gates.py",
+        "scripts/ci/validate_pr_closing_keywords.py",
+        "scripts/ci/mega-pr-throughput-20261102.md",
         "tests/scripts/test_branded_installer_ce_standard.py",
     ),
     "token-economy": (
