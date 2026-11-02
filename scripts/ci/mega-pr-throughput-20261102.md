@@ -58,7 +58,12 @@ journal evidence on this box image).
    uncommitted work; WIP commits on the mega branch lose nothing.
 4. **Run local gates in parallel** (default in overlay pre-push). Do **not**
    run two full `unittest discover -s tests/scripts` at once.
-5. **Full-suite lock + checkpoint.** Hold
+5. **Never run the full suite in the foreground.** Full
+   `unittest discover -s tests/scripts` takes ~38–40 min; a worker session is
+   capped at 35 min. Prefer targeted modules plus `harness_pr_gate`'s selection.
+   If a full discover is required, start it detached (`nohup`/`setsid`, log to a
+   file) and check the log on resume — never block a turn on the whole suite.
+6. **Full-suite lock + checkpoint.** Hold
    `full_scripts_unittest_lock(root)` around a full discover. Before minute 35,
    `tool.py checkpoint … --next` and end the turn; resume with `tool.py resume`.
 

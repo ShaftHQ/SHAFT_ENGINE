@@ -152,6 +152,8 @@ class LessonsCardPresentTest(unittest.TestCase):
         self.assertIn("--all-failures", text)
         self.assertIn("unproven", text.lower())
         self.assertIn("GraphQL", text)
+        self.assertIn("Never run the full suite in the foreground", text)
+        self.assertIn("nohup", text.casefold())
 
 
 if __name__ == "__main__":
