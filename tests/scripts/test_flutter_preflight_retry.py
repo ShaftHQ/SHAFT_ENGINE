@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -71,8 +72,10 @@ class FlutterPreflightRetryTest(unittest.TestCase):
             )
             runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
 
-            completed = subprocess.run(  # nosec B603 - fixed local bash + generated fixture script
-                ["bash", str(runner)],
+            bash = shutil.which("bash")
+            self.assertIsNotNone(bash, "bash required for open_flutter_session fixture")
+            completed = subprocess.run(  # nosec B603 - resolved bash + generated fixture script
+                [bash, str(runner)],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
