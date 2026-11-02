@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B314 - parses trusted in-repo pom.xml only
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,7 +12,7 @@ NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 
 class PitestArgLineGuardTest(unittest.TestCase):
     def test_pitest_profile_sets_explicit_argline(self) -> None:
-        root = ET.parse(ROOT / "pom.xml").getroot()
+        root = ET.parse(ROOT / "pom.xml").getroot()  # nosec B314 - trusted local pom.xml
         profiles = root.find("m:profiles", NS)
         self.assertIsNotNone(profiles)
         pitest = None
