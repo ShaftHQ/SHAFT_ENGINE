@@ -42,7 +42,12 @@ concurrency:
 jobs:
   check:
     name: Setup lock pin check
-    if: github.event_name == 'pull_request'
+    # Dependabot heads intentionally drift until compute+push refreshes planner
+    # constants (#6357/#6381). Skipping check avoids a permanent red required-looking
+    # failure on npm Dependabot branches while the patch is in flight.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:

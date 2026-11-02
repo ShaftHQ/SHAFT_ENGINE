@@ -107,3 +107,46 @@ jobs:
             echo "::warning::Could not arm $warned Dependabot PR(s); schedule soft-fail (exit 0)."
           fi
           exit 0
+
+      - name: Heal merge-queue AWAITING_CHECKS stalls (#7704)
+        if: github.event_name != 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          # Dependabot entries stuck in AWAITING_CHECKS with no merge_group runs
+          # block the queue (#7704). Dequeue once and re-arm auto-merge so a
+          # fresh enqueue schedules PR Gate / Release-note governance.
+          mapfile -t rows < <(
+            gh api graphql -f query='
+              query($owner:String!,$name:String!) {
+                repository(owner:$owner,name:$name) {
+                  mergeQueue(branch:"main") {
+                    entries(first:20) {
+                      nodes {
+                        state
+                        pullRequest { id number url author { login } }
+                      }
+                    }
+                  }
+                }
+              }' -f owner="${repo%/*}" -f name="${repo#*/}"               --jq '.data.repository.mergeQueue.entries.nodes[]?
+                | select(.state=="AWAITING_CHECKS")
+                | select(.pullRequest.author.login=="dependabot[bot]")
+                | [.pullRequest.id, .pullRequest.number, .pullRequest.url]
+                | @tsv' 2>/dev/null || true
+          )
+          if [ "${#rows[@]}" -eq 0 ]; then
+            echo "No Dependabot AWAITING_CHECKS merge-queue entries."
+            exit 0
+          fi
+          for row in "${rows[@]}"; do
+            pr_id="$(printf '%s' "$row" | cut -f1)"
+            number="$(printf '%s' "$row" | cut -f2)"
+            url="$(printf '%s' "$row" | cut -f3)"
+            echo "Healing Dependabot #$number ($url): dequeue + re-arm"
+            gh api graphql -f query='mutation($id:ID!){dequeuePullRequest(input:{id:$id}){clientMutationId}}'               -f id="$pr_id" >/dev/null || echo "::warning::dequeue failed for #$number"
+            gh pr merge --auto -R "$repo" "$url" || echo "::warning::re-arm after heal failed for $url"
+          done

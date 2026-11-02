@@ -53,6 +53,12 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("GITHUB_REPOSITORY", text)
         self.assertIn("empty list", text.lower())
 
+    def test_schedule_heals_awaiting_checks_stalls_7704(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("Heal merge-queue AWAITING_CHECKS stalls (#7704)", text)
+        self.assertIn("dequeuePullRequest", text)
+        self.assertIn('dependabot[bot]', text)
+
 
 class ChaosEngineVersionFloorTest(unittest.TestCase):
     def test_version_at_least_2026_10_31_12(self) -> None:
@@ -62,7 +68,6 @@ class ChaosEngineVersionFloorTest(unittest.TestCase):
         mod = u.module_from_spec(spec)
         spec.loader.exec_module(mod)
         self.assertGreaterEqual(mod.version_key(version), mod.version_key("2026.10.31.12"))
-
 
 if __name__ == "__main__":
     unittest.main()
