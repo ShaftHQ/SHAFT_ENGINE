@@ -1,4 +1,4 @@
-#7696 LIVE-CHANGE-DIFF
+L7696 LIVE-CHANGE-DIFF
 
 Before-value + after-value + diff required for every live/external mutation receipt.
 

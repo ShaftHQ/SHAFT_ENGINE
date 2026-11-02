@@ -1,4 +1,4 @@
-#7692 STATUS-BOARD
+L7692 STATUS-BOARD
 
 Fresh-poll + schema + claim provenance before owner-facing board publish.
 

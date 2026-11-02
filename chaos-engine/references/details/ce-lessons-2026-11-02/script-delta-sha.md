@@ -1,4 +1,4 @@
-#7714 SCRIPT-DELTA-SHA
+L7714 SCRIPT-DELTA-SHA
 
 script_sha ≠ signed sha voids prior SIGN until script-delta note + re-ack.
 

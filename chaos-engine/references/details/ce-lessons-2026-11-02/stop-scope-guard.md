@@ -1,4 +1,4 @@
-#7718 STOP-SCOPE-GUARD
+L7718 STOP-SCOPE-GUARD
 
 Default targeted stop; broadcast needs reason + warning + peer ack; claimed-done needs live verify verdict.
 

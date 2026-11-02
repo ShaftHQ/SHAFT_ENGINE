@@ -1,4 +1,4 @@
-#7709 ADVERSARIAL-PASS-SHA
+L7709 ADVERSARIAL-PASS-SHA
 
 Adversarial PASS is SHA-bound; post-review commits require re-ack before merge/enqueue.
 

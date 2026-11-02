@@ -1,4 +1,4 @@
-#7694 OWNER-MEDIA-GATE
+L7694 OWNER-MEDIA-GATE
 
 Fail closed on silence/garbage, dialect mismatch, missing human-likeness; silent language/stack pivots need an owner options brief.
 

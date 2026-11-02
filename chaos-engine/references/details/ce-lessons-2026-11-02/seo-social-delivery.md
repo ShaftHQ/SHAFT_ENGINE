@@ -1,4 +1,4 @@
-#7721 SEO-SOCIAL-DELIVERY
+L7721 SEO-SOCIAL-DELIVERY
 
 Omit foundingDate on marketing≠registry year without owner decision; numeric org admin URL; scheduler TZ proof via UTC.
 

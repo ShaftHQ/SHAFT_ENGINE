@@ -1,4 +1,4 @@
-#7695 PLATFORM-SCHEDULER
+L7695 PLATFORM-SCHEDULER
 
 Picker IANA zone is source of truth (convert via UTC); plain-text hashtags; composer identity readback before post.
 

@@ -1,4 +1,4 @@
-#7719 PUBLISH-METADATA
+L7719 PUBLISH-METADATA
 
 E3 yt chapters/title/tags/facts plus unconfirmed deep links → site root + TODO.
 

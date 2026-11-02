@@ -1,4 +1,4 @@
-#7697 FULL-HALT
+L7697 FULL-HALT
 
 When FULL HALT armed: answer/status only; finish in-progress if ordered; start nothing new; only the owner clears.
 

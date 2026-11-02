@@ -30,40 +30,51 @@ def _load_sibling(name: str):
 
 
 # ----- #7692 status board: fresh poll, schema, claim provenance -----
-def evaluate_status_board(board: dict[str, Any]) -> dict[str, Any]:
+def _status_board_receipt_hits(board: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    if not isinstance(board, dict):
-        return _result(["board"], "#7692 status-board gate failed")
     if board.get("owner_status_requested") and not board.get("fresh_poll_complete"):
         hits.append("missing-fresh-poll")
     agents = board.get("agent_receipts") or []
     registered = board.get("registered_agents") or []
-    if board.get("owner_status_requested") and registered:
-        got = {r.get("agent_id") for r in agents if isinstance(r, dict)}
-        for aid in registered:
-            if aid not in got:
-                hits.append(f"missing-receipt:{aid}")
-            else:
-                row = next(r for r in agents if isinstance(r, dict) and r.get("agent_id") == aid)
-                if row.get("same_turn") is not True and row.get("status") != "unknown":
-                    hits.append(f"stale-receipt:{aid}")
-    for item in board.get("items") or []:
-        if not isinstance(item, dict):
+    if not (board.get("owner_status_requested") and registered):
+        return hits
+    got = {r.get("agent_id") for r in agents if isinstance(r, dict)}
+    for aid in registered:
+        if aid not in got:
+            hits.append(f"missing-receipt:{aid}")
             continue
-        if not item.get("owner"):
-            hits.append(f"missing-owner:{item.get('id') or item.get('title')}")
-        if not item.get("link"):
-            hits.append(f"missing-link:{item.get('id') or item.get('title')}")
-        if item.get("section") == "open" and item.get("status") in {"done", "delivered", "closed"}:
-            hits.append(f"closed-in-open:{item.get('id')}")
-        if item.get("blocker_expired") or item.get("superseded"):
-            if item.get("listed_as_blocker"):
-                hits.append(f"stale-blocker:{item.get('id')}")
-        claim = item.get("external_claim")
-        if claim and item.get("claim_status") not in {"unverified", "confirmed"}:
-            hits.append(f"claim-unlabeled:{item.get('id')}")
-        if claim and item.get("claim_status") == "confirmed" and not item.get("confirming_receipt"):
-            hits.append(f"confirmed-without-receipt:{item.get('id')}")
+        row = next(r for r in agents if isinstance(r, dict) and r.get("agent_id") == aid)
+        if row.get("same_turn") is not True and row.get("status") != "unknown":
+            hits.append(f"stale-receipt:{aid}")
+    return hits
+
+
+def _status_board_item_hits(item: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    label = item.get("id") or item.get("title")
+    if not item.get("owner"):
+        hits.append(f"missing-owner:{label}")
+    if not item.get("link"):
+        hits.append(f"missing-link:{label}")
+    if item.get("section") == "open" and item.get("status") in {"done", "delivered", "closed"}:
+        hits.append(f"closed-in-open:{item.get('id')}")
+    if (item.get("blocker_expired") or item.get("superseded")) and item.get("listed_as_blocker"):
+        hits.append(f"stale-blocker:{item.get('id')}")
+    claim = item.get("external_claim")
+    if claim and item.get("claim_status") not in {"unverified", "confirmed"}:
+        hits.append(f"claim-unlabeled:{item.get('id')}")
+    if claim and item.get("claim_status") == "confirmed" and not item.get("confirming_receipt"):
+        hits.append(f"confirmed-without-receipt:{item.get('id')}")
+    return hits
+
+
+def evaluate_status_board(board: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(board, dict):
+        return _result(["board"], "#7692 status-board gate failed")
+    hits = _status_board_receipt_hits(board)
+    for item in board.get("items") or []:
+        if isinstance(item, dict):
+            hits.extend(_status_board_item_hits(item))
     return _result(hits, "#7692 status-board gate failed")
 
 
@@ -113,27 +124,27 @@ def evaluate_owner_media_gate(record: dict[str, Any]) -> dict[str, Any]:
 
 
 # ----- #7695 platform scheduler / hashtag / composer identity -----
-def evaluate_platform_scheduler(record: dict[str, Any]) -> dict[str, Any]:
+def _scheduler_receipt_hits(record: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    if not isinstance(record, dict):
-        return _result(["record"], "#7695 platform-scheduler gate failed")
-    if record.get("scheduled"):
-        if not record.get("picker_iana_zone"):
-            hits.append("missing-picker-iana")
-        if record.get("used_studio_chrome_offset"):
-            hits.append("used-studio-chrome-offset")
-        if not record.get("converted_via_utc"):
-            hits.append("missing-utc-conversion")
-        for key in ("picker_zone", "intended_local", "utc_instant"):
-            # accept either flat or nested receipt keys
-            if key == "picker_zone" and not (
-                record.get("picker_zone") or record.get("picker_iana_zone")
-            ):
-                hits.append("receipt-missing-picker-zone")
-            if key == "intended_local" and not record.get("intended_local"):
-                hits.append("receipt-missing-intended-local")
-            if key == "utc_instant" and not record.get("utc_instant"):
-                hits.append("receipt-missing-utc-instant")
+    if not record.get("scheduled"):
+        return hits
+    if not record.get("picker_iana_zone"):
+        hits.append("missing-picker-iana")
+    if record.get("used_studio_chrome_offset"):
+        hits.append("used-studio-chrome-offset")
+    if not record.get("converted_via_utc"):
+        hits.append("missing-utc-conversion")
+    if not (record.get("picker_zone") or record.get("picker_iana_zone")):
+        hits.append("receipt-missing-picker-zone")
+    if not record.get("intended_local"):
+        hits.append("receipt-missing-intended-local")
+    if not record.get("utc_instant"):
+        hits.append("receipt-missing-utc-instant")
+    return hits
+
+
+def _scheduler_identity_hits(record: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
     if record.get("used_hashtag_dropdown"):
         hits.append("hashtag-dropdown-used")
     if record.get("description_sha256_required"):
@@ -141,13 +152,22 @@ def evaluate_platform_scheduler(record: dict[str, Any]) -> dict[str, Any]:
             hits.append("missing-description-sha")
         elif record.get("description_sha256") != record.get("brief_description_sha256"):
             hits.append("description-sha-mismatch")
-    if record.get("posted_or_scheduled"):
-        acting = record.get("acting_identity")
-        brief = record.get("brief_identity")
-        if acting and brief and acting != brief:
-            hits.append("composer-identity-mismatch")
-        if not acting:
-            hits.append("missing-acting-identity-readback")
+    if not record.get("posted_or_scheduled"):
+        return hits
+    acting = record.get("acting_identity")
+    brief = record.get("brief_identity")
+    if acting and brief and acting != brief:
+        hits.append("composer-identity-mismatch")
+    if not acting:
+        hits.append("missing-acting-identity-readback")
+    return hits
+
+
+def evaluate_platform_scheduler(record: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        return _result(["record"], "#7695 platform-scheduler gate failed")
+    hits = _scheduler_receipt_hits(record)
+    hits.extend(_scheduler_identity_hits(record))
     return _result(hits, "#7695 platform-scheduler gate failed")
 
 

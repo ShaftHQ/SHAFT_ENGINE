@@ -1,4 +1,4 @@
-#7710 CLEAN-START
+L7710 CLEAN-START
 
 Leading audio must be clean speech matching script first words; FAIL silence→garbage / onset skew.
 

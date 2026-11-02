@@ -1,4 +1,4 @@
-#7711 TARGET-DIALECT
+L7711 TARGET-DIALECT
 
 METHOD names target dialect/register; FAIL clear register mismatch.
 

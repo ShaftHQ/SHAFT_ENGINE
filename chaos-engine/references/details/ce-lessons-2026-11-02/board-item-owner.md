@@ -1,4 +1,4 @@
-#7698 BOARD-ITEM-OWNER
+L7698 BOARD-ITEM-OWNER
 
 Verifier must own the board item (or borrowed_by); drop-verify receipt before redo.
 

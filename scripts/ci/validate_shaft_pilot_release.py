@@ -134,12 +134,10 @@ def validate_toml_bytes(content: bytes) -> None:
         raise ValueError(str(error)) from error
 
 
-def validate_static(root: Path = ROOT) -> list[str]:
+def _validate_reactor_and_bom(root: Path, version: str) -> list[str]:
     errors: list[str] = []
-    version = reactor_version(root)
     if not re.fullmatch(r"\d+\.[1-4]\.\d{8}(?:\.[1-9]\d*)?", version):
         errors.append(f"reactor version is not a dated SHAFT release: {version!r}")
-
     parent = ET.parse(root / "pom.xml").getroot()
     modules = {
         text(module, ".")
@@ -148,7 +146,6 @@ def validate_static(root: Path = ROOT) -> list[str]:
     missing_modules = set(PILOT_MODULES) - modules
     if missing_modules:
         errors.append(f"reactor is missing Pilot modules: {sorted(missing_modules)}")
-
     bom = ET.parse(root / "shaft-bom/pom.xml").getroot()
     managed = {
         text(dependency, "m:artifactId")
@@ -161,12 +158,15 @@ def validate_static(root: Path = ROOT) -> list[str]:
         errors.append(
             f"shaft-bom is missing Pilot artifacts: {sorted(expected_managed - managed)}"
         )
+    return errors
 
+
+def _validate_internal_defaults(root: Path, version: str) -> list[str]:
+    errors: list[str] = []
     internal = (
         root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java"
     ).read_text(encoding="utf-8")
-    version_match = java_default_value(internal, "shaftEngineVersion")
-    if version_match != version:
+    if java_default_value(internal, "shaftEngineVersion") != version:
         errors.append("Internal.shaftEngineVersion must match the reactor version")
     for method, expected_format in INTERNAL_VERSION_DEFAULTS.items():
         default_value = java_default_value(internal, method)
@@ -177,24 +177,29 @@ def validate_static(root: Path = ROOT) -> list[str]:
             errors.append(f"Internal.{method} has unexpected default format: {default_value!r}")
         if method != "shaftEngineVersion" and UNSTABLE_VERSION.search(default_value):
             errors.append(f"Internal.{method} must use a stable release version: {default_value!r}")
+    return errors
 
+
+def _validate_intellij_static(root: Path, version: str) -> list[str]:
+    errors: list[str] = []
     intellij_properties = read_gradle_properties(root / "shaft-intellij/gradle.properties")
-    expected_plugin_version = version
-    if intellij_properties.get("pluginVersion") != expected_plugin_version:
+    if intellij_properties.get("pluginVersion") != version:
         errors.append("shaft-intellij pluginVersion must match the reactor version")
     for required_property in ("pluginSinceBuild", "platformVersion"):
         if not intellij_properties.get(required_property):
             errors.append(f"shaft-intellij {required_property} is missing")
-
     intellij_build = (root / "shaft-intellij/build.gradle.kts").read_text(encoding="utf-8")
     errors.extend(intellij_marketplace_channel_errors(intellij_build))
-
     intellij_client = (
         root / "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpStdioClient.java"
     ).read_text(encoding="utf-8")
     if re.search(r'clientInfo\.addProperty\("version",\s*"\d+\.\d+\.\d{8}(?:\.[1-9]\d*)?', intellij_client):
         errors.append("shaft-intellij clientInfo version must come from plugin metadata, not a literal")
+    return errors
 
+
+def _validate_pilot_properties(root: Path) -> list[str]:
+    errors: list[str] = []
     pilot_properties = (
         root / "shaft-engine/src/main/java/com/shaft/properties/internal/Pilot.java"
     ).read_text(encoding="utf-8")
@@ -207,7 +212,11 @@ def validate_static(root: Path = ROOT) -> list[str]:
     ):
         if required not in pilot_properties:
             errors.append(f"Pilot safe default is missing: {required.splitlines()[0]}")
+    return errors
 
+
+def _validate_pilot_fixtures(root: Path) -> list[str]:
+    errors: list[str] = []
     examples = root / "shaft-mcp/src/test/resources/fixtures/shaft-pilot"
     for path in sorted(examples.rglob("*")):
         if not path.is_file():
@@ -224,10 +233,12 @@ def validate_static(root: Path = ROOT) -> list[str]:
                 validate_toml_bytes(content)
             except (UnicodeDecodeError, ValueError) as error:
                 errors.append(f"{path.relative_to(root)}: invalid TOML: {error}")
+    return errors
 
-    workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(
-        encoding="utf-8"
-    )
+
+def _validate_release_workflows(root: Path) -> list[str]:
+    errors: list[str] = []
+    workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
     pilot_release_workflow = (root / ".github/workflows/shaft-pilot-release.yml").read_text(
         encoding="utf-8"
     )
@@ -256,7 +267,6 @@ def validate_static(root: Path = ROOT) -> list[str]:
     positions = [workflow.find(step) for step in required_steps]
     if any(position < 0 for position in positions) or positions != sorted(positions):
         errors.append("Maven Central workflow does not enforce the Pilot release gate")
-
     errors.extend(validate_release_candidate_isolation(pilot_release_workflow))
     publish_workflow_path = root / ".github/workflows/publish-intellij-plugin.yml"
     if not publish_workflow_path.is_file():
@@ -273,6 +283,17 @@ def validate_static(root: Path = ROOT) -> list[str]:
                 action_text,
             )
         )
+    return errors
+
+
+def validate_static(root: Path = ROOT) -> list[str]:
+    version = reactor_version(root)
+    errors = _validate_reactor_and_bom(root, version)
+    errors.extend(_validate_internal_defaults(root, version))
+    errors.extend(_validate_intellij_static(root, version))
+    errors.extend(_validate_pilot_properties(root))
+    errors.extend(_validate_pilot_fixtures(root))
+    errors.extend(_validate_release_workflows(root))
     return errors
 
 

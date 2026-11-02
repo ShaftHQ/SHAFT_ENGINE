@@ -1,4 +1,4 @@
-#7701 EGYPTIAN-COLLOQUIAL-VO
+L7701 EGYPTIAN-COLLOQUIAL-VO
 
 When dialect=egyptian_colloquial, FAIL known MSA↔Egyptian closed-class swaps (configurable lexicon).
 

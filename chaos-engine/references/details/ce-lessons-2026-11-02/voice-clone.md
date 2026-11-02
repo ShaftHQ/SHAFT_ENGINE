@@ -1,4 +1,4 @@
-#7708 VOICE-CLONE
+L7708 VOICE-CLONE
 
 Speaker metrics AND ASR (EN WER≤15% / non-EN CER≤15%); unk_frac≤0.05; joint speaker+ASR checkpoint.
 

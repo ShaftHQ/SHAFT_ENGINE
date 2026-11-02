@@ -49,29 +49,28 @@ _LEGACY_484 = re.compile(
 )
 
 
-def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
-    """FAIL when a fixture still presents 484 as the current public trainee figure."""
-    if obs is None or not isinstance(obs, dict):
-        return {"ok": False, "hits": ["missing-input"], "error": "facts receipt required"}
+_PUBLIC_TRAINEE_FORMS = frozenset({TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR, "600+ trainees"})
+_ASSERT_TRAINEE_FORMS = frozenset({TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR})
+
+
+def _trainee_figure_hits(figure: str, text: str, obs: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    text = str(obs.get("text") or obs.get("copy") or obs.get("body") or "")
-    figure = str(obs.get("trainee_count") or obs.get("trainees") or "").strip()
     if figure:
         if figure in SUPERSEDED_TRAINEE_COUNTS or figure == "484":
             hits.append("superseded-trainee-count-484")
-        elif figure not in {TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR, "600+ trainees"}:
-            # allow explicit 600+ forms only when asserting the public figure
-            if "484" in figure:
-                hits.append("superseded-trainee-count-484")
+        elif figure not in _PUBLIC_TRAINEE_FORMS and "484" in figure:
+            hits.append("superseded-trainee-count-484")
     if text and _LEGACY_484.search(text):
-        # allow historical notes that mark 484 as superseded
         lowered = text.casefold()
         if "supersed" not in lowered and "historical" not in lowered and "was 484" not in lowered:
             hits.append("copy-claims-484-trainees")
-    if obs.get("assert_public_trainee_figure") is True:
-        if figure not in {TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR}:
-            hits.append("public-trainee-figure-not-600-plus")
-    year = obs.get("founded_year") or obs.get("founding_year")
+    if obs.get("assert_public_trainee_figure") is True and figure not in _ASSERT_TRAINEE_FORMS:
+        hits.append("public-trainee-figure-not-600-plus")
+    return hits
+
+
+def _founded_year_obs_hits(year: object, text: str, obs: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
     if year is not None:
         ys = str(year).strip()
         if ys in SUPERSEDED_FOUNDED_YEARS:
@@ -80,18 +79,34 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
             hits.append("founded-year-mismatch")
     if text:
         hits.extend(founded_year_hits(text))
-    if obs.get("assert_identity_pack") is True:
-        if obs.get("assert_public_trainee_figure") is not True:
-            # identity pack implies trainee + founded checks
-            if figure not in {TRAINEE_COUNT_PUBLIC, "600+", TRAINEE_COUNT_AR}:
-                if "public-trainee-figure-not-600-plus" not in hits:
-                    hits.append("public-trainee-figure-not-600-plus")
-        if year is None and obs.get("assert_founded_year") is not False:
-            hits.append("identity-pack-missing-founded-year")
-        elif year is not None and str(year).strip() != str(FOUNDED_YEAR_PUBLIC):
-            if "founded-year-mismatch" not in hits and "superseded-founded-year" not in hits:
-                hits.append("founded-year-mismatch")
+    return hits
 
+
+def _identity_pack_hits(figure: str, year: object, obs: dict[str, Any], hits: list[str]) -> list[str]:
+    extra: list[str] = []
+    if obs.get("assert_identity_pack") is not True:
+        return extra
+    if obs.get("assert_public_trainee_figure") is not True:
+        if figure not in _ASSERT_TRAINEE_FORMS and "public-trainee-figure-not-600-plus" not in hits:
+            extra.append("public-trainee-figure-not-600-plus")
+    if year is None and obs.get("assert_founded_year") is not False:
+        extra.append("identity-pack-missing-founded-year")
+    elif year is not None and str(year).strip() != str(FOUNDED_YEAR_PUBLIC):
+        if "founded-year-mismatch" not in hits and "superseded-founded-year" not in hits:
+            extra.append("founded-year-mismatch")
+    return extra
+
+
+def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
+    """FAIL when a fixture still presents 484 as the current public trainee figure."""
+    if obs is None or not isinstance(obs, dict):
+        return {"ok": False, "hits": ["missing-input"], "error": "facts receipt required"}
+    text = str(obs.get("text") or obs.get("copy") or obs.get("body") or "")
+    figure = str(obs.get("trainee_count") or obs.get("trainees") or "").strip()
+    year = obs.get("founded_year") or obs.get("founding_year")
+    hits = _trainee_figure_hits(figure, text, obs)
+    hits.extend(_founded_year_obs_hits(year, text, obs))
+    hits.extend(_identity_pack_hits(figure, year, obs, hits))
     return {
         "ok": not hits,
         "hits": hits,

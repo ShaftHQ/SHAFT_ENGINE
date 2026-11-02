@@ -1,4 +1,4 @@
-#7720 BLOCKED-INFRA-APT
+L7720 BLOCKED-INFRA-APT
 
 apt mirror 5xx / unsigned lists → BLOCKED-INFRA; never force/--allow-unauthenticated.
 

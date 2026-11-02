@@ -1,4 +1,4 @@
-#7712 FOUNDED-YEAR
+L7712 FOUNDED-YEAR
 
 public_facts founded-year constant + superseded denylist; optional assert_identity_pack.
 

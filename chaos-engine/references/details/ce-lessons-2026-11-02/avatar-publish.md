@@ -1,4 +1,4 @@
-#7707 AVATAR-PUBLISH
+L7707 AVATAR-PUBLISH
 
 Coach PASS ≠ publish; require owner_avatar_signoff + artifact sha + L56 blind pass + AI label.
 

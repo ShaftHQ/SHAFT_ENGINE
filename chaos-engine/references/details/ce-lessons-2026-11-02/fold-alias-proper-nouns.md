@@ -1,4 +1,4 @@
-#7703 FOLD-ALIAS-PROPER-NOUNS
+L7703 FOLD-ALIAS-PROPER-NOUNS
 
 Reject ASR fold aliases that rewrite extracted proper nouns (L96 residual).
 

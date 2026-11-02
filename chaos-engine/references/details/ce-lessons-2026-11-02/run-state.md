@@ -1,4 +1,4 @@
-#7693 RUN-STATE
+L7693 RUN-STATE
 
 Persist active|frozen|halted; refuse priority dispatch when not active; FYI non-priority; owner channel = ack + result.
 
