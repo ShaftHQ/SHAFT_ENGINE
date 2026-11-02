@@ -121,3 +121,7 @@ On demand: [catalog](../../chaos-engine/references/catalog.md),
 [context economy](../../chaos-engine/references/context-economy.md),
 [retrieve-first](../../chaos-engine/references/retrieve-first.md),
 [script first](../../chaos-engine/references/script-first.md).
+
+## Entry coverage
+
+Rules, hooks, skills, and tools stay reachable from this entry, [bot-entry](../../chaos-engine/references/bot-entry.md), and [.agents/skills/README.md](../../.agents/skills/README.md). Gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory: [shaft-skills/INVENTORY.md](../../shaft-skills/INVENTORY.md).

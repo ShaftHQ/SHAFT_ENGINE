@@ -840,3 +840,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 - [Identity and brand rules](assets/brand/BRAND.md)
 
 ChaosEngine supports rigorous, evidence-led software delivery. Gambaru.
+
+## Entry coverage
+
+Rules, hooks, skills, and tools must stay linked from [`references/bot-entry.md`](references/bot-entry.md) and `../.agents/skills/README.md`. Unit gate: `../tests/scripts/test_ce_entry_coverage.py`.

@@ -12,6 +12,10 @@ at it directly.
 **If you are an agent:** do not work from this file. It is a map, not the
 territory. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it.
 
+Coverage of rules, hooks, specialist skills, and CI/mobile tools is owned by
+[bot-entry Entry coverage](../../chaos-engine/references/bot-entry.md#entry-coverage-rules-skills-tools)
+and gated by `tests/scripts/test_ce_entry_coverage.py`.
+
 **If you are a contributor:** tell your coding agent to read
 `chaos-engine/skills/chaos-engine/SKILL.md` before it touches anything. Most agents
 find it on their own — see [Importing these skills](#importing-these-skills).
@@ -498,3 +502,17 @@ Generated skill index (`chaos-engine/harness_index.py`):
 
 <!-- HARNESS-INDEX:END -->
 - [CE lessons 2026-11-02 SPEC](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer
+
+## Specialist skill inventory (entry coverage)
+
+Reachability gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory:
+[`shaft-skills/INVENTORY.md`](../../shaft-skills/INVENTORY.md).
+
+New mobile / hygiene specialists (also listed in the inventory):
+`shaft-skills/shaft-mobile-env/SKILL.md`,
+`shaft-skills/shaft-browserstack-native/SKILL.md`,
+`shaft-skills/shaft-ios-ipa-acceptance/SKILL.md`,
+`shaft-skills/shaft-android-apk-select/SKILL.md`,
+`shaft-skills/shaft-docs-hygiene/SKILL.md`,
+`shaft-skills/shaft-mobile-retest-hygiene/SKILL.md`.
+
