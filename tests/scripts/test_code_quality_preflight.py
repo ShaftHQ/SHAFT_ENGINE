@@ -196,5 +196,25 @@ class JavaNpathPreflightTest(unittest.TestCase):
         self.assertEqual(java_findings("class Broken { void f() { if ( }"), [])
 
 
+    def test_java_assert_true_length_gt_zero(self):
+        bad = (
+            "class T {\n"
+            "  void t(String s) {\n"
+            "    Assert.assertTrue(s.length() > 0);\n"
+            "  }\n"
+            "}\n"
+        )
+        found = java_findings(bad)
+        self.assertTrue(any("java-length-gt-zero" in item for item in found), found)
+        good = (
+            "class T {\n"
+            "  void t(String s) {\n"
+            "    Assert.assertFalse(s.isEmpty());\n"
+            "  }\n"
+            "}\n"
+        )
+        self.assertFalse(any("java-length-gt-zero" in item for item in java_findings(good)))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,9 @@ and, on the Java methods a branch changes:
 
 - npath: a method whose PMD NPath exceeds the gate (Codacy NPathComplexity),
   estimated by ``scripts/ci/java_npath.py``
+- java-length-gt-zero: ``Assert.assertTrue(x.length() > 0)`` /
+  ``x.size() > 0`` (GitHub code-quality "Container size compared to zero" /
+  "Useless comparison"); prefer ``assertFalse(x.isEmpty())``
 
 ``chaos-engine/vendor/`` is an upstream copy. It is not checked. Scripts we
 own, including this directory, still are.
@@ -37,6 +40,11 @@ from pathlib import Path
 
 MAX_COMPLEXITY = 15
 MAX_NPATH = 200
+# Codacy / github-code-quality: AssertTrue(expr.length() > 0) on String/Collection.
+_JAVA_LENGTH_GT_ZERO = re.compile(
+    r"assertTrue\s*\(\s*[^;]*?\.(?:length|size)\s*\(\s*\)\s*>\s*0\s*\)",
+    re.IGNORECASE,
+)
 _SOURCES = (".py", ".java")
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 _BRANCHES = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.match_case)
@@ -186,19 +194,30 @@ def java_findings(path: Path, lines: set[int], display: str, baseline: str | Non
 
     With ``baseline`` (the file at the merge base), a method that was already over
     the gate is flagged only when its NPath grew, matching Codacy's new-issue rule.
+    Also flags ``assertTrue(...length()/size() > 0)`` on changed lines (#7736).
     """
     try:
         source = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return []
     before = {name: npath for name, _first, _last, npath in _npaths(baseline or "")}
-    return [
+    findings = [
         f"{display}:{first} npath: `{name}` is {npath} (gate {MAX_NPATH}); "
         "extract helpers so sequential branches stop multiplying before pushing"
         for name, first, last, npath in _npaths(source)
         if npath > max(MAX_NPATH, before.get(name, 0))
         and (0 in lines or any(first <= line <= last for line in lines))
     ]
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        if 0 not in lines and lineno not in lines:
+            continue
+        if _JAVA_LENGTH_GT_ZERO.search(line):
+            findings.append(
+                f"{display}:{lineno} java-length-gt-zero: "
+                "Assert.assertTrue(...length()/size() > 0) trips code-quality; "
+                "use Assert.assertFalse(...isEmpty()) instead"
+            )
+    return findings
 
 
 def file_findings(path: Path, lines: set[int], display: str) -> list[str]:

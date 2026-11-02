@@ -245,5 +245,23 @@ class LessonsCard20261102bTest(unittest.TestCase):
         self.assertNotIn("../../scripts/ci/mega-pr-throughput-20261102b.md", eco)
 
 
+
+class LessonsCard20261102cTest(unittest.TestCase):
+    def test_latency_lesson_card_covers_threads_helper_and_java_length(self):
+        card = ROOT / "scripts/ci/mega-pr-throughput-20261102c.md"
+        text = card.read_text(encoding="utf-8")
+        self.assertIn("7736", text)
+        self.assertIn("unresolved_review_threads.py", text)
+        self.assertIn("java-length-gt-zero", text)
+        self.assertIn("15", text)
+        bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
+        self.assertIn("scripts/ci/mega-pr-throughput-20261102c.md", bot)
+        self.assertIn("unresolved_review_threads.py", bot)
+        eco = (ROOT / "chaos-engine/references/ci-status-economy.md").read_text(encoding="utf-8")
+        self.assertIn("scripts/ci/mega-pr-throughput-20261102c.md", eco)
+        skill = (ROOT / "chaos-engine/skills/ci-cd/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("unresolved_review_threads.py", skill)
+
+
 if __name__ == "__main__":
     unittest.main()

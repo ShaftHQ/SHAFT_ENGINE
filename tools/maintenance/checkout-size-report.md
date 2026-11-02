@@ -51,17 +51,20 @@ This report is measurement-only. **No history rewrite** was performed.
 | Partial clone (`git clone --filter=blob:none`) + shared worktrees | Avoids downloading historical blobs until needed; pack still shared | Low | Low (agents already use blobless + worktrees) | **Default on shared boxes** |
 | Keep `graphify-out/` and runtime indexes outside the checkout / untracked | Stops new graph.json blobs from landing in history | Low | Low if CI already generates on demand | **Default**; already in bot-entry |
 | Externalize large test apps (ipa/apk) behind LFS or download-on-demand | ~100 MiB of the top three blobs | Medium | Medium (tests need fetch step) | Plan next; no rewrite |
-| `git filter-repo` / BFG history rewrite | Pack could drop well below 400 MiB | High | High (force-push, forks, SHAs) | **Blocked** until Mohab signs off |
+| `git filter-repo` / BFG history rewrite | Pack could drop well below 400 MiB | High | High (force-push, forks, SHAs) | See Phase 1 plan (Option L preferred) |
 
 ## Recommended next step
 
 1. Keep measuring after each mega PR (this file).
-2. Do **not** rewrite history in this PR.
-3. When Mohab approves a non-destructive plan that fully satisfies #7547 (or an approved rewrite), close the issue with that plan. Until then leave #7547 open and link this report.
+2. Phase 0 is on `main` (partial clones, worktrees, apk/ipa externalize + gate).
+3. Execute [Phase 1 plan](checkout-size-phase1-plan.md) (**Option L**) **only after**
+   two independent adversarial reviewers Approve that plan (Mohab t612u).
+4. Closing #7547 requires Phase 0 done (yes) and Phase 1 either executed under
+   that dual approval or explicitly deferred by the owner after the plan review.
 
 ## Notes
 
 - Sizes come from `git count-objects -vH` and `git rev-list --objects --all` piped through `git cat-file --batch-check`.
 - This checkout is a linked worktree; pack size is measured on the shared object database, not the per-worktree `.git` private dir.
 - Paths are the name recorded with the blob at some reachable commit; they may no longer exist on `HEAD`.
-- Reducing checkout size further via rewrite remains out of scope until the owner explicitly approves a rewrite plan that preserves contributor attribution.
+- Rewrite execution is gated by dual adversarial approval of [checkout-size-phase1-plan.md](checkout-size-phase1-plan.md).

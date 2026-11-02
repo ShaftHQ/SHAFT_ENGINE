@@ -100,7 +100,10 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
 - Before merge-queue enqueue: resolve every code-quality review thread
   (fix or short false-positive reply). Green checks alone are not enough;
   fingerprint `unresolved-review-threads` in [ci-status-economy](ci-status-economy.md).
-  Throughput notes: `scripts/ci/mega-pr-throughput-20261102b.md` (beside CI scripts; portable package cannot deep-link out).
+  Run `python3 scripts/ci/unresolved_review_threads.py --repo OWNER/NAME --pr N`
+  and fail closed on any open thread (#7736).
+  Throughput notes: `scripts/ci/mega-pr-throughput-20261102b.md`,
+  `scripts/ci/mega-pr-throughput-20261102c.md` (beside CI scripts; portable package cannot deep-link out).
 - Babysit with ONE background loop per PR, not repeated poll calls: it exits on
   merged, on the first `fail` (latest run per check name; a failed required
   check exits 1 at once), or when the PR is green but not queued (then it
@@ -125,7 +128,7 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   cap blocks a new worker, prune **own merged clean** trees via
   `scripts/ci/worktree_hygiene.py` proofs only, then retry.
   Details: [parallel streams](parallel-streams.md);
-  throughput: `scripts/ci/mega-pr-throughput-20261102b.md`.
+  throughput: `scripts/ci/mega-pr-throughput-20261102b.md`, `scripts/ci/mega-pr-throughput-20261102c.md`.
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 - **box-durability** (default entry/worker checklist):
