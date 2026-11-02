@@ -70,6 +70,18 @@ class WaiverReceipt:
     expires_at: datetime
 
 
+# Protected installer acceptance must stay inside the harness budget
+# (CI run 41444465079: 1200s wall / ~5600s sum_check when design modules
+# were duplicated here and in design-skills-contract). Keep this list
+# installer-focused; design cards live under design-skills-contract.
+MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES = 16
+PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED = frozenset(
+    {
+        "tests.scripts.test_ce_design_craft",
+        "tests.scripts.test_ce_design_lessons",
+    }
+)
+
 PROTECTED_IDS = frozenset(
     {
         "protected-security",
@@ -314,8 +326,6 @@ CHECKS = {
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_policy_overlay_repair",
-            "tests.scripts.test_ce_design_craft",
-            "tests.scripts.test_ce_design_lessons",
             "tests.scripts.test_learning_session_readme_7117",
             "tests.scripts.test_chaos_engine_dependencies",
             "tests.scripts.test_chaos_engine_java_pinned_fallback",
