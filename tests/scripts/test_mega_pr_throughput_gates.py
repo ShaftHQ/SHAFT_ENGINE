@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import threading
@@ -143,12 +144,80 @@ class CodeQualityPreflightThroughputTest(unittest.TestCase):
             self.assertEqual(parallel, [])
 
 
+class GraphqlOwnerNameVariablesTest(unittest.TestCase):
+    def test_graphql_passes_owner_and_name_as_variables(self):
+        captured: dict[str, object] = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = list(cmd)
+            out = type("R", (), {})()
+            out.returncode = 0
+            out.stdout = json.dumps(
+                {"data": {"repository": {"i1": {"number": 1, "labels": {"nodes": [{"name": "bug"}]}}}}}
+            )
+            out.stderr = ""
+            return out
+
+        with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "ShaftHQ/SHAFT_ENGINE"}, clear=False), mock.patch.object(
+            validate.subprocess, "run", side_effect=fake_run
+        ):
+            labels = validate._fetch_issue_labels_graphql(["1"])
+        self.assertEqual(labels, {"1": ["bug"]})
+        cmd = captured["cmd"]
+        self.assertIn("query($owner: String!, $name: String!)", " ".join(cmd))
+        self.assertIn("owner=ShaftHQ", cmd)
+        self.assertIn("name=SHAFT_ENGINE", cmd)
+        joined = " ".join(cmd)
+        self.assertNotIn('owner: "ShaftHQ"', joined)
+        self.assertNotIn('name: "SHAFT_ENGINE"', joined)
+
+
+class SkillspectorFingerprintContentHashTest(unittest.TestCase):
+    def test_fingerprint_uses_content_not_mtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill = root / "chaos-engine" / "skills" / "demo-skill"
+            skill.mkdir(parents=True)
+            target = skill / "SKILL.md"
+            target.write_text("# demo\n", encoding="utf-8")
+            baseline = root / "scripts" / "ci" / "skillspector"
+            baseline.mkdir(parents=True)
+            (baseline / ".skillspector-baseline.yaml").write_text("version: 2\n", encoding="utf-8")
+            rel = "chaos-engine/skills/demo-skill"
+            with mock.patch(
+                "scripts.ci.skillspector_gate.skill_dirs_from_paths", return_value=[Path(rel)]
+            ):
+                first = opp._skillspector_fingerprint(root, [f"{rel}/SKILL.md"])
+                os.utime(target, (1_000_000, 1_000_000))
+                second = opp._skillspector_fingerprint(root, [f"{rel}/SKILL.md"])
+                target.write_text("# demo changed\n", encoding="utf-8")
+                third = opp._skillspector_fingerprint(root, [f"{rel}/SKILL.md"])
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, third)
+        self.assertEqual(len(first), 64)
+        int(first, 16)  # valid sha256 hex
+
+
+class FullScriptsUnittestWrapperTest(unittest.TestCase):
+    def test_wrapper_script_documents_lock_and_is_the_sanctioned_path(self):
+        wrapper = ROOT / "scripts/ci/run_full_scripts_unittest.py"
+        text = wrapper.read_text(encoding="utf-8")
+        self.assertTrue(wrapper.is_file())
+        self.assertIn("full_scripts_unittest_lock", text)
+        self.assertIn("Sanctioned entrypoint", text)
+        self.assertIn("os.execvpe", text)
+        self.assertIn("discover", text)
+        self.assertIn("-s", text)
+        self.assertIn("tests/scripts", text)
+
+
 class LessonsCardPresentTest(unittest.TestCase):
     def test_throughput_lesson_card_exists_with_timings_and_interrupt_evidence(self):
         card = ROOT / "scripts/ci/mega-pr-throughput-20261102.md"
         text = card.read_text(encoding="utf-8")
         self.assertIn("Session cap", text)
         self.assertIn("full_scripts_unittest_lock", text)
+        self.assertIn("run_full_scripts_unittest.py", text)
         self.assertIn("--all-failures", text)
         self.assertIn("unproven", text.lower())
         self.assertIn("GraphQL", text)

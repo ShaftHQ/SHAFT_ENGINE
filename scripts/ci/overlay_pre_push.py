@@ -269,7 +269,11 @@ def full_scripts_unittest_lock(root: Path, *, blocking: bool = True):
 
 
 def _skillspector_fingerprint(root: Path, paths: list[str]) -> str:
-    """Hash skill dirs + baseline mtimes so repeat pre-push can skip a 60s scan."""
+    """Hash skill dirs + baseline *contents* so repeat pre-push can skip a 60s scan.
+
+    Content sha256 (not mtime) keeps the cache valid across checkout/touch/copy
+    that preserve bytes but rewrite timestamps.
+    """
     from scripts.ci.skillspector_gate import skill_dirs_from_paths
 
     digest = hashlib.sha256()
@@ -283,12 +287,15 @@ def _skillspector_fingerprint(root: Path, paths: list[str]) -> str:
                 continue
             digest.update(path.relative_to(skill).as_posix().encode())
             try:
-                digest.update(str(path.stat().st_mtime_ns).encode())
+                digest.update(hashlib.sha256(path.read_bytes()).digest())
             except OSError:
                 continue
     baseline = root / "scripts/ci/skillspector/.skillspector-baseline.yaml"
     if baseline.is_file():
-        digest.update(str(baseline.stat().st_mtime_ns).encode())
+        try:
+            digest.update(hashlib.sha256(baseline.read_bytes()).digest())
+        except OSError:
+            pass
     return digest.hexdigest()
 
 

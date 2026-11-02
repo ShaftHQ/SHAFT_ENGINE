@@ -63,9 +63,13 @@ journal evidence on this box image).
    capped at 35 min. Prefer targeted modules plus `harness_pr_gate`'s selection.
    If a full discover is required, start it detached (`nohup`/`setsid`, log to a
    file) and check the log on resume — never block a turn on the whole suite.
-6. **Full-suite lock + checkpoint.** Hold
-   `full_scripts_unittest_lock(root)` around a full discover. Before minute 35,
-   `tool.py checkpoint … --next` and end the turn; resume with `tool.py resume`.
+6. **Only sanctioned full-discover path.** Use
+   `python3 scripts/ci/run_full_scripts_unittest.py` (optionally with extra
+   unittest args). It is the only sanctioned way to run the full
+   `tests/scripts` discover: it acquires `full_scripts_unittest_lock` so a
+   second suite cannot overlap. Do not call `python3 -m unittest discover -s
+   tests/scripts` directly. Before minute 35, `tool.py checkpoint … --next`
+   and end the turn; resume with `tool.py resume`.
 
 ## Verify
 
@@ -74,6 +78,9 @@ journal evidence on this box image).
 - [ ] Second pre-push with unchanged skill dirs skips SkillSpector scan (cache hit).
 - [ ] Second `full_scripts_unittest_lock(..., blocking=False)` raises `BlockingIOError` while the first is held.
 - [ ] No second full discover starts while another holds the lock.
+- [ ] Full discover goes only through `scripts/ci/run_full_scripts_unittest.py` (lock + documented entrypoint).
+- [ ] SkillSpector pre-push cache fingerprint is content sha256 (not mtime).
+- [ ] `validate_pr_closing_keywords` GraphQL passes owner/name as variables.
 
 ## Sources
 

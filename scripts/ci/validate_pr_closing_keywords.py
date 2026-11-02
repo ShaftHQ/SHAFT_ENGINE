@@ -266,13 +266,25 @@ def _fetch_issue_labels_graphql(numbers: list[str]) -> dict[str, list[str]] | No
             f"i{number}: issue(number: {number}) "
             "{ number labels(first: 20) { nodes { name } } }"
         )
+    # owner/name are GraphQL variables (not string-interpolated) so special
+    # characters in a fork name cannot break or inject into the query document.
     query = (
-        f'query {{ repository(owner: "{owner}", name: "{name}") '
-        f'{{ {" ".join(fields)} }} }}'
+        "query($owner: String!, $name: String!) { "
+        f"repository(owner: $owner, name: $name) {{ {' '.join(fields)} }} }}"
     )
     try:
         completed = subprocess.run(  # nosec B603 B607
-            ["gh", "api", "graphql", "-f", f"query={query}"],
+            [
+                "gh",
+                "api",
+                "graphql",
+                "-f",
+                f"query={query}",
+                "-F",
+                f"owner={owner}",
+                "-F",
+                f"name={name}",
+            ],
             capture_output=True,
             text=True,
             encoding="utf-8",
