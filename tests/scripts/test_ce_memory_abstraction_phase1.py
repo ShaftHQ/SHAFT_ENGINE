@@ -78,7 +78,7 @@ class ProcessCardsTest(unittest.TestCase):
 
     def test_version_file_broadcastable(self) -> None:
         raw = (CE / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
-        self.assertRegex(raw, r"^\d{4}\.\d{2}\.\d{2}(\.\d+)?$")
+        self.assertRegex(raw, r"^\d+\.[1-4]\.\d{8}\.[1-9]\d*$")
 
     def test_parallel_streams_brief_marker(self) -> None:
         ps = (CE / "references/parallel-streams.md").read_text(encoding="utf-8")

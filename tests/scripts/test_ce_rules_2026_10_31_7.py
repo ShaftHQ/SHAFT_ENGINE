@@ -22,12 +22,22 @@ def _load(name: str, path: Path):
     return mod
 
 
+
+def _ce_key(value: str):
+    import importlib.util as _u
+    from pathlib import Path as _P
+
+    spec = _u.spec_from_file_location("ce_version", _P(__file__).resolve().parents[2] / "scripts/ci/ce_version.py")
+    mod = _u.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.version_key(value)
+
 class VersionBumpTest(unittest.TestCase):
     def test_version_is_at_least_31_7(self) -> None:
         # Soft floor: later CE rules PRs bump VERSION; keep .7 artifacts present.
         version = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        floor = tuple(int(p) for p in "2026.10.31.7".split("."))
-        self.assertGreaterEqual(tuple(int(p) for p in version.split(".")), floor)
+        floor = _ce_key("2026.10.31.7")
+        self.assertGreaterEqual(_ce_key(version), floor)
 
 
 class FileClaimLockTest(unittest.TestCase):
@@ -407,7 +417,7 @@ class VersionPinFloorTest(unittest.TestCase):
     """Soft floor: prior bugfix/retro pins accept >= 2026.10.31.5 still."""
 
     def test_floor_still_soft(self) -> None:
-        floor = tuple(int(p) for p in "2026.10.31.5".split("."))
+        floor = _ce_key("2026.10.31.5")
         current = tuple(
             int(p)
             for p in (CE / "VERSION").read_text(encoding="utf-8").strip().split(".")

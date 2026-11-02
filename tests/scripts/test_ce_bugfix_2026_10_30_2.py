@@ -27,7 +27,7 @@ class VersionTest(unittest.TestCase):
     def test_version_file_present(self) -> None:
         # Exact tip VERSION is owned by the newest bugfix batch; keep shape only.
         text = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        self.assertRegex(text, r"^2026\.\d{2}\.\d{2}\.\d+$")
+        self.assertRegex(text, r"^\d+\.[1-4]\.\d{8}\.[1-9]\d*$")
 
 
 class InstallSourceDefaultsTest(unittest.TestCase):
