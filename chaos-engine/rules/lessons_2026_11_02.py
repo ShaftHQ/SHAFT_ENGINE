@@ -11,7 +11,6 @@ Each evaluate_* returns {"ok": bool, "hits": list, "error": str|None}.
 from __future__ import annotations
 
 import importlib.util
-import re
 from pathlib import Path
 from typing import Any
 
@@ -329,19 +328,13 @@ def evaluate_avatar_publish(record: dict[str, Any]) -> dict[str, Any]:
 
 
 # ----- #7708 voice clone gate -----
-def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
+def _voice_asr_hits(record: dict[str, Any], lang: str) -> list[str]:
     hits: list[str] = []
-    if not isinstance(record, dict):
-        return _result(["record"], "#7708 voice-clone gate failed")
-    if record.get("speaker_pass") is not True:
-        hits.append("speaker-fail")
     wer = record.get("wer")
     cer = record.get("char_error")
-    lang = str(record.get("language") or "en").lower()
     try:
-        if wer is None or float(wer) > (0.15 if lang.startswith("en") else 1.0):
-            if lang.startswith("en") and (wer is None or float(wer) > 0.15):
-                hits.append("asr-wer-over-15")
+        if lang.startswith("en") and (wer is None or float(wer) > 0.15):
+            hits.append("asr-wer-over-15")
     except (TypeError, ValueError):
         hits.append("bad-wer")
     if not lang.startswith("en"):
@@ -356,6 +349,17 @@ def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
             hits.append("unk-frac-over-5pct")
     except (TypeError, ValueError):
         hits.append("bad-unk-frac")
+    return hits
+
+
+def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
+    hits: list[str] = []
+    if not isinstance(record, dict):
+        return _result(["record"], "#7708 voice-clone gate failed")
+    if record.get("speaker_pass") is not True:
+        hits.append("speaker-fail")
+    lang = str(record.get("language") or "en").lower()
+    hits.extend(_voice_asr_hits(record, lang))
     if record.get("joint_speaker_asr_ckpt") is not True:
         hits.append("missing-joint-ckpt")
     if record.get("language_id_required") and not record.get("language_id"):

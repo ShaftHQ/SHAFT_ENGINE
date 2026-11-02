@@ -46,7 +46,6 @@ def evaluate_platform(plist_data: dict) -> tuple[bool, str]:
     platform_s = str(platform).strip()
     if platform_s != REQUIRED_PLATFORM:
         return False, f"DTPlatformName={platform_s!r}; refuse upload (need {REQUIRED_PLATFORM})"
-    archs = plist_data.get("UIRequiredDeviceCapabilities") or plist_data.get("DTPlatformVersion")
     return True, f"DTPlatformName={REQUIRED_PLATFORM}; acceptance gate passed"
 
 
