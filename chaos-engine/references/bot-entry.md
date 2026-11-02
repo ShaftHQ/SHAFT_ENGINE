@@ -97,6 +97,10 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
   Never print a whole job log or assertion dump. Keep a known-failures list
   instead of re-running the base commit to compare.
+- Before merge-queue enqueue: resolve every code-quality review thread
+  (fix or short false-positive reply). Green checks alone are not enough;
+  fingerprint `unresolved-review-threads` in [ci-status-economy](ci-status-economy.md).
+  Throughput notes: [mega-pr-throughput-20261102b](../../scripts/ci/mega-pr-throughput-20261102b.md).
 - Babysit with ONE background loop per PR, not repeated poll calls: it exits on
   merged, on the first `fail` (latest run per check name; a failed required
   check exits 1 at once), or when the PR is green but not queued (then it
@@ -117,8 +121,11 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   worktree on the same host when one shared index already exists.
 - Disk gate before a new worktree or clone: warn under 15 GiB free, block
   under 10 GiB or at the linked-worktree cap (`box_disk_guard`); never add a
-  full clone when a blobless primary already exists.
-  Details: [parallel streams](parallel-streams.md).
+  full clone when a blobless primary already exists. When the linked-worktree
+  cap blocks a new worker, prune **own merged clean** trees via
+  `scripts/ci/worktree_hygiene.py` proofs only, then retry.
+  Details: [parallel streams](parallel-streams.md),
+  [mega-pr-throughput-20261102b](../../scripts/ci/mega-pr-throughput-20261102b.md).
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 - **box-durability** (default entry/worker checklist):

@@ -220,5 +220,26 @@ class LessonsCardPresentTest(unittest.TestCase):
         self.assertIn("nohup", text.casefold())
 
 
+
+class LessonsCard20261102bTest(unittest.TestCase):
+    def test_followup_lesson_card_covers_cq_threads_worktree_cap_and_heal(self):
+        card = ROOT / "scripts/ci/mega-pr-throughput-20261102b.md"
+        text = card.read_text(encoding="utf-8")
+        self.assertIn("unresolved", text.casefold())
+        self.assertIn("code-quality", text.casefold())
+        self.assertIn("linked-worktree", text.casefold())
+        self.assertIn("refuse_new_worker", text)
+        self.assertIn("heal-route", text)
+        self.assertIn("uninstall", text.casefold())
+        self.assertIn("session overlay", text.casefold())
+        heal = (ROOT / "chaos-engine/references/heal-route.md").read_text(encoding="utf-8")
+        self.assertIn("Distribution id mismatch", heal)
+        self.assertIn("Session overlay vs primary doctor", heal)
+        bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
+        self.assertIn("mega-pr-throughput-20261102b", bot)
+        self.assertIn("code-quality review thread", bot)
+        self.assertIn("unresolved-review-threads", bot)
+
+
 if __name__ == "__main__":
     unittest.main()

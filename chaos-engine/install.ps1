@@ -35,28 +35,66 @@ function ConvertTo-ChaosEngineAddOnFlags([string[]]$tokens) {
 }
 
 
+function Get-ChaosEngineManagedJdkHome {
+    # Prefer an already-provisioned managed JDK when ambient JAVA_HOME is a stub
+    # (Oracle javapath) or otherwise missing bin\javac.exe (#7734).
+    # Never assign $home / $HOME: PowerShell StrictMode treats $HOME as read-only.
+    $roots = @()
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $roots += (Join-Path $env:USERPROFILE ".local\share\chaos-engine\java")
+    }
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $roots += (Join-Path $env:LOCALAPPDATA "ChaosEngine\tools\temurin")
+    }
+    foreach ($root in $roots) {
+        if (-not (Test-Path -LiteralPath $root -PathType Container)) { continue }
+        $dirs = @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)
+        foreach ($dir in $dirs) {
+            $homes = @($dir.FullName)
+            $homes += @(Get-ChildItem -LiteralPath $dir.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+            foreach ($candidate in $homes) {
+                $java = Join-Path $candidate "bin\java.exe"
+                $javac = Join-Path $candidate "bin\javac.exe"
+                if ((Test-Path -LiteralPath $java -PathType Leaf) -and (Test-Path -LiteralPath $javac -PathType Leaf)) {
+                    return $candidate
+                }
+            }
+        }
+    }
+    return $null
+}
+
 function Assert-ChaosEngineMavenToolsJdkPreflight {
-    # Fail closed before bootstrap when the tools pack was explicitly requested and
-    # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
-    # ecosystem terms here). Managed Temurin can still heal unset JAVA_HOME.
+    # When JAVA_HOME is set but not a real JDK (Oracle javapath stub, JRE-only),
+    # heal to a managed JDK for this process or fail closed with a clear message.
+    # Runs whenever JAVA_HOME is set — including tools auto-detected later in
+    # Python (#7734). Unset JAVA_HOME still defers to Python provisioning.
     # Never assign $home / $HOME: PowerShell StrictMode treats $HOME as read-only.
     param(
         [switch]$WithMavenTools,
         [string]$MavenToolsMode = "native"
     )
     if ($MavenToolsMode -eq "docker") { return }
-    if (-not $WithMavenTools) { return }
     $jdkHome = [string]$env:JAVA_HOME
     if ([string]::IsNullOrWhiteSpace($jdkHome)) {
-        # Unset is OK: Python may provision managed Temurin. Hint only.
-        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package.")
+        if ($WithMavenTools) {
+            [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package.")
+        }
         return
     }
     $java = Join-Path $jdkHome "bin\java.exe"
     $javac = Join-Path $jdkHome "bin\javac.exe"
-    if (-not (Test-Path -LiteralPath $java -PathType Leaf) -or -not (Test-Path -LiteralPath $javac -PathType Leaf)) {
-        throw "CE-INSTALL-FAILED: JAVA_HOME='$jdkHome' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: `$jdk='<Adoptium-JDK-25-home>'; [Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); `$env:JAVA_HOME=$jdk; `$p=[Environment]::GetEnvironmentVariable('Path','User'); if (`$p -notlike ('*'+$jdk+'\bin*')) { [Environment]::SetEnvironmentVariable('Path', (`$p.TrimEnd(';')+';'+$jdk+'\bin'),'User') }; open a new PowerShell; verify echo `$env:JAVA_HOME; java -version; javac -version; rerun install."
+    if ((Test-Path -LiteralPath $java -PathType Leaf) -and (Test-Path -LiteralPath $javac -PathType Leaf)) {
+        return
     }
+    $managed = Get-ChaosEngineManagedJdkHome
+    if (-not [string]::IsNullOrWhiteSpace($managed)) {
+        $env:JAVA_HOME = $managed
+        $env:Path = (Join-Path $managed "bin") + ";" + $env:Path
+        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME='$jdkHome' is not a JDK (no bin\javac.exe); using managed JDK at $managed for this install.")
+        return
+    }
+    throw "CE-INSTALL-FAILED: JAVA_HOME='$jdkHome' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: `$jdk='<Adoptium-JDK-25-home>'; [Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); `$env:JAVA_HOME=$jdk; `$p=[Environment]::GetEnvironmentVariable('Path','User'); if (`$p -notlike ('*'+$jdk+'\bin*')) { [Environment]::SetEnvironmentVariable('Path', (`$p.TrimEnd(';')+';'+$jdk+'\bin'),'User') }; open a new PowerShell; verify echo `$env:JAVA_HOME; java -version; javac -version; rerun install."
 }
 
 function Get-ChaosEnginePython {
