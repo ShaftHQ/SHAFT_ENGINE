@@ -194,7 +194,7 @@ String allure3Version();
             )
 
             with self.assertRaises(ValueError):
-                MODULE.prepare_release(root, "2026-07-02")
+                MODULE.prepare_release(root, "2026-07-01")
 
     def test_resolves_latest_internal_versions_without_prereleases(self):
         class Response:
@@ -248,22 +248,57 @@ String allure3Version();
 
 
 class DryRunReleaseDateTest(unittest.TestCase):
-    """The dry run must pick a date newer than the current version (#7210)."""
+    """Dry runs never invent a future date; same-day re-cuts become .N hotfixes (#7700)."""
 
-    def test_tomorrow_when_newer_than_current(self):
+    def test_candidate_date_is_kept(self):
         self.assertEqual(MODULE.dry_run_release_date("10.4.20261013", "2026-10-20"), "2026-10-20")
 
-    def test_day_after_current_when_release_pr_already_sets_tomorrow(self):
-        self.assertEqual(MODULE.dry_run_release_date("10.4.20261020", "2026-10-20"), "2026-10-21")
+    def test_same_day_does_not_move_to_tomorrow(self):
+        self.assertEqual(MODULE.dry_run_release_date("10.4.20261020", "2026-10-20"), "2026-10-20")
 
-    def test_after_current_flag_resolves_the_dry_run_date(self):
-        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=True), "2026-10-21")
+    def test_after_current_flag_never_moves_date_forward(self):
+        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=True), "2026-10-20")
         self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=False), "2026-10-20")
 
-    def test_dry_run_workflow_uses_after_current(self):
+    def test_dry_run_workflow_uses_cairo_today_not_tomorrow(self):
         workflow = (ROOT / ".github/workflows/shaft-pilot-release.yml").read_text(encoding="utf-8")
         line = next(l for l in workflow.splitlines() if "prepare_release_pr.py --release-date" in l)
-        self.assertIn("--after-current", line)
+        self.assertIn("TZ=Africa/Cairo", line)
+        self.assertNotIn("tomorrow", line)
+
+
+class ReleaseCadenceTest(unittest.TestCase):
+    """#7700: never future-dated; same-day hotfix suffix .N."""
+
+    def test_same_day_second_cut_is_hotfix_1(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102", "2026-11-02"), "10.4.20261102.1")
+
+    def test_same_day_third_cut_is_hotfix_2(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102.1", "2026-11-02"), "10.4.20261102.2")
+
+    def test_next_day_drops_hotfix_suffix(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102.2", "2026-11-09"), "10.4.20261109")
+
+    def test_hotfix_sorts_newer_than_base(self):
+        self.assertGreater(MODULE._version_key("10.4.20261102.1"), MODULE._version_key("10.4.20261102"))
+
+    def test_future_date_is_refused(self):
+        import datetime as dt
+
+        with self.assertRaises(ValueError):
+            MODULE.guard_not_future("2026-11-03", today=dt.date(2026, 11, 2))
+        self.assertEqual(MODULE.guard_not_future("2026-11-02", today=dt.date(2026, 11, 2)), "2026-11-02")
+
+    def test_cairo_today_differs_from_utc_near_midnight(self):
+        import datetime as dt
+
+        moment = dt.datetime(2026, 11, 1, 23, 30, tzinfo=dt.timezone.utc)
+        self.assertEqual(MODULE.today_in_release_timezone(moment), dt.date(2026, 11, 2))
+
+    def test_same_day_target_is_newer_so_prepare_accepts_it(self):
+        current = "10.4.20261102"
+        self.assertGreater(MODULE._version_key(MODULE.target_version(current, "2026-11-02")), MODULE._version_key(current))
+
 
 if __name__ == "__main__":
     unittest.main()

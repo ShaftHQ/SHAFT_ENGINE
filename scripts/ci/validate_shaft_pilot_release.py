@@ -55,7 +55,7 @@ CREDENTIAL_PATTERNS = (
     re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
 )
 INTERNAL_VERSION_DEFAULTS = {
-    "shaftEngineVersion": r"\d+\.[1-4]\.\d{8}",
+    "shaftEngineVersion": r"\d+\.[1-4]\.\d{8}(?:\.[1-9]\d*)?",
     "allure3Version": r"\d+\.\d+\.\d+",
     "nodeLtsVersion": r"\d+\.\d+\.\d+",
     "appiumServerVersion": r"\d+\.\d+\.\d+",
@@ -137,7 +137,7 @@ def validate_toml_bytes(content: bytes) -> None:
 def validate_static(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     version = reactor_version(root)
-    if not re.fullmatch(r"\d+\.[1-4]\.\d{8}", version):
+    if not re.fullmatch(r"\d+\.[1-4]\.\d{8}(?:\.[1-9]\d*)?", version):
         errors.append(f"reactor version is not a dated SHAFT release: {version!r}")
 
     parent = ET.parse(root / "pom.xml").getroot()
@@ -192,7 +192,7 @@ def validate_static(root: Path = ROOT) -> list[str]:
     intellij_client = (
         root / "shaft-intellij/src/main/java/com/shaft/intellij/mcp/ShaftMcpStdioClient.java"
     ).read_text(encoding="utf-8")
-    if re.search(r'clientInfo\.addProperty\("version",\s*"\d+\.\d+\.\d{8}', intellij_client):
+    if re.search(r'clientInfo\.addProperty\("version",\s*"\d+\.\d+\.\d{8}(?:\.[1-9]\d*)?', intellij_client):
         errors.append("shaft-intellij clientInfo version must come from plugin metadata, not a literal")
 
     pilot_properties = (
