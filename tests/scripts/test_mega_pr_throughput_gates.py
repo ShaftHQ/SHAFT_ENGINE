@@ -236,9 +236,13 @@ class LessonsCard20261102bTest(unittest.TestCase):
         self.assertIn("Distribution id mismatch", heal)
         self.assertIn("Session overlay vs primary doctor", heal)
         bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
-        self.assertIn("mega-pr-throughput-20261102b", bot)
+        self.assertIn("scripts/ci/mega-pr-throughput-20261102b.md", bot)
         self.assertIn("code-quality review thread", bot)
         self.assertIn("unresolved-review-threads", bot)
+        self.assertNotIn("../../scripts/ci/mega-pr-throughput-20261102b.md", bot)
+        eco = (ROOT / "chaos-engine/references/ci-status-economy.md").read_text(encoding="utf-8")
+        self.assertIn("scripts/ci/mega-pr-throughput-20261102b.md", eco)
+        self.assertNotIn("../../scripts/ci/mega-pr-throughput-20261102b.md", eco)
 
 
 if __name__ == "__main__":
