@@ -124,5 +124,5 @@ On demand: [catalog](../../references/catalog.md),
 
 ## Entry coverage
 
-Rules, hooks, skills, and tools stay reachable from this entry and [bot-entry](../../references/bot-entry.md). Host specialist + tool routes live in the harness entrypoint `.agents/skills/README.md` (markdown links, not tokens-only). Gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory: `shaft-skills/INVENTORY.md`.
+Rules, hooks, skills, and tools stay reachable from this entry and [bot-entry](../../references/bot-entry.md). Host specialist + tool routes live in the harness skills README (markdown links, not tokens-only). Gate: `tests/scripts/test_ce_entry_coverage.py`.
 
