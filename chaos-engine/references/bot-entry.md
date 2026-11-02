@@ -99,9 +99,9 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   instead of re-running the base commit to compare.
 - Before merge-queue enqueue: resolve every code-quality review thread
   (fix or short false-positive reply). Green checks alone are not enough;
-  fingerprint `unresolved-review-threads` in [ci-status-economy](ci-status-economy.md)
-  (helper + lesson cards are repo-only under `scripts/ci/`).
-  Throughput notes: `scripts/ci/mega-pr-throughput-20261102b.md` (beside CI scripts; portable package cannot deep-link out).
+  see [ci-status-economy](ci-status-economy.md) fingerprint `unresolved-review-threads`
+  + `scripts/ci/unresolved_review_threads.py` (repo-only).
+  Notes: `scripts/ci/mega-pr-throughput-20261102b.md`, `scripts/ci/mega-pr-throughput-20261102c.md`.
 - Babysit with ONE background loop per PR, not repeated poll calls: it exits on
   merged, on the first `fail` (latest run per check name; a failed required
   check exits 1 at once), or when the PR is green but not queued (then it
