@@ -183,7 +183,7 @@ sends you there; the rest by
 - [CE rules 2026.10.31.8 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
 - [CE rules 2026.10.31.11 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
 - [CE rules 2026.10.31.12 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
-- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.<quarter>.<YYYYMMDD>.n, #7702)](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
+- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.quarter.YYYYMMDD.n, #7702)](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
@@ -515,4 +515,17 @@ New mobile / hygiene specialists (also listed in the inventory):
 `shaft-skills/shaft-android-apk-select/SKILL.md`,
 `shaft-skills/shaft-docs-hygiene/SKILL.md`,
 `shaft-skills/shaft-mobile-retest-hygiene/SKILL.md`.
+
+## Tool path tokens (entry coverage)
+
+Exact tokens for the reachability gate (`tests/scripts/test_ce_entry_coverage.py`):
+`scripts/mobile/android_apk_select.py`,
+`scripts/mobile/ios_ipa_acceptance.py`,
+`scripts/mobile/__init__.py`,
+`scripts/ci/merge_queue_awaiting_checks_heal.py`,
+`scripts/ci/ce_version.py`,
+`scripts/ci/flutter_emulator_preflight.sh`,
+`scripts/ci/run_ubuntu_flutter_emulator_e2e.sh`,
+`chaos-engine/rules/lessons_2026_11_02.py`,
+`chaos-engine/references/ce-lessons-2026-11-02-SPEC.md`.
 

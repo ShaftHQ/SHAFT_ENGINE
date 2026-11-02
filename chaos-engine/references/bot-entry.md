@@ -81,17 +81,7 @@ SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-
 
 ## Entry coverage (rules, skills, tools)
 
-Every rule, hook, skill, and tool must stay reachable from this card, the
-[ChaosEngine skill](../skills/chaos-engine/SKILL.md), [harness map](harness-map.md),
-and [README](../README.md). Host entry surfaces (`AGENTS.md`, `CLAUDE.md`,
-`.agents/skills/README.md`, `.grok/rules/entrypoint.md`) mirror the same index.
-Gate: `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Specialist
-skill packs are indexed from `.agents/skills/README.md` (not linked here).
-
-- Lessons: [`lessons_2026_11_02.py`](../rules/lessons_2026_11_02.py), [SPEC](ce-lessons-2026-11-02-SPEC.md), `details/ce-lessons-2026-11-02/`.
-- Mobile CLIs: `scripts/mobile/android_apk_select.py`, `scripts/mobile/ios_ipa_acceptance.py`, `scripts/mobile/__init__.py`.
-- CI: `scripts/ci/merge_queue_awaiting_checks_heal.py`, `scripts/ci/ce_version.py`, `scripts/ci/flutter_emulator_preflight.sh`, `scripts/ci/run_ubuntu_flutter_emulator_e2e.sh`.
-- Hooks (via `hooks/launch.py`): `chaos-engine/hooks/guard.py`, `chaos-engine/hooks/lifecycle.py`, `chaos-engine/hooks/kernel.py`, `chaos-engine/hooks/matchers.json`, `chaos-engine/hooks/reflection.py`.
+Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [ChaosEngine skill](../skills/chaos-engine/SKILL.md), [harness map](harness-map.md), [README](../README.md). Host path tokens: `.agents/skills/README.md`.
 
 ## Token economy
 
