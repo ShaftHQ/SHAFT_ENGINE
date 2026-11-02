@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/decisions/pin-the-intellij-plugin-verifier-and-omit-artifact-transforms-from-actions-cache.md",
+  "content_hash": "sha256:3c982f5d2ec20a43a83d0bab551a1dd6499affa04b18c14b368447bf5bbecd69",
+  "created_at": "2026-08-09T11:12:10+03:00",
+  "evidence": [],
+  "id": "decision.pin-the-intellij-plugin-verifier-and-omit-artifact-transforms-from-actions-cache",
+  "source": {
+    "kind": "agent",
+    "task": "Make IntelliJ CI verification deterministic within the shared Actions cache budget"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "github-actions",
+    "cache",
+    "plugin-verifier"
+  ],
+  "title": "Pin the IntelliJ Plugin Verifier and omit artifact transforms from Actions cache",
+  "type": "decision",
+  "updated_at": "2026-08-09T11:12:10+03:00"
+}

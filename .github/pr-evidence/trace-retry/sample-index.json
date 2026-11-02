@@ -1,0 +1,19 @@
+{
+  "testId": "evidence.LoginTest.retriedLogin",
+  "generatedAt": "2026-07-13T13:58:11.891223900Z",
+  "archive": "target/shaft-traces/evidence.LoginTest.retriedLogin/shaft-trace.zip",
+  "attempt": "2",
+  "status": "passed",
+  "retried": "true",
+  "traceMode": "retry",
+  "omittedEntries": [],
+  "attempts": [
+    {"attempt": 1, "status": "failed", "archive": "shaft-trace-attempt-1.zip", "generatedAt": "2026-07-13T13:58:11.879712800Z"},
+    {"attempt": 2, "status": "passed", "archive": "shaft-trace.zip", "generatedAt": "2026-07-13T13:58:11.891223900Z"}
+  ],
+  "entries": {
+    "html": "SHAFT Trace Report.html",
+    "json": "shaft-trace.json",
+    "network": "shaft-network.har"
+  }
+}

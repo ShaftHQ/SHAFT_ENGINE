@@ -1,0 +1,823 @@
+package com.shaft.mcp;
+
+import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.model.BrowserMetadata;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.ElementSnapshot;
+import com.shaft.capture.model.EventContext;
+import com.shaft.capture.model.LocatorCandidate;
+import com.shaft.capture.model.PageContext;
+import com.shaft.capture.model.RedactionSummary;
+import com.shaft.capture.runtime.CaptureManager;
+import com.shaft.capture.runtime.CaptureStatus;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class CaptureServiceTest {
+    @TempDir
+    Path temp;
+
+    // capture_status/capture_stop dispatch on EngineService's static ActiveEngine (design doc
+    // amendment A3); reset it after every test so a leftover engine from another test class never
+    // diverts these WEB-focused tests to the Playwright/mobile branch.
+    @AfterEach
+    void resetActiveEngine() {
+        EngineService.setActiveEngine(null);
+    }
+
+    @Test
+    void codeBlocksToolGeneratesReusableReplaySnippetsInsideWorkspace() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated").toString(),
+                    "generated.capture",
+                    "GoldenSessionTest",
+                    false,
+                    "browser", null);
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(Files.isRegularFile(result.reviewUiPath()));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class GoldenSessionTest")));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
+                        && block.placement().contains("browser")));
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
+        assertTrue(Files.readString(result.reviewUiPath()).contains("Playwright Codegen Feature Map"));
+    }
+
+    @Test
+    void recordAtTargetCodeBlocksReturnFocusedInsertionBlocksInsideWorkspace() throws Exception {
+        Path session = temp.resolve("capture.json");
+        new CaptureJsonCodec().write(session, reviewWarningSession());
+        Path target = temp.resolve("CheckoutTest.java");
+        Files.writeString(target, """
+                package tests;
+
+                import com.shaft.driver.SHAFT;
+
+                public class CheckoutTest {
+                    private SHAFT.GUI.WebDriver browser;
+
+                    public void replayCheckout() {
+                        browser.browser().navigateToURL("https://example.test");
+                    }
+                }
+                """);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.recordAtTargetCodeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-target").toString(),
+                    "generated.capture",
+                    "GoldenSessionTest",
+                    false,
+                    target.toString(),
+                    "replayCheckout",
+                    "browser", null);
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-target-action-snippet")
+                        && block.placement().contains("after replayCheckout")));
+        McpCodeBlock preview = block(result.codeBlocks(), "capture-target-patch-preview");
+        assertEquals("PATCH_PREVIEW", preview.kind().name());
+        assertTrue(preview.code().contains("CheckoutTest.java"));
+        assertTrue(preview.code().contains("replayCheckout"));
+        assertTrue(preview.code().contains("import org.openqa.selenium.By;"));
+        assertTrue(preview.code().contains("private final By"));
+        assertTrue(preview.code().contains("browser.element().click"));
+    }
+
+    @Test
+    void playwrightCodeBlocksToolGeneratesPlaywrightPomGuidanceInsideWorkspace() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-playwright").toString(),
+                    "generated.capture",
+                    "PlaywrightGoldenSessionTest",
+                    false,
+                    "page",
+                    "playwright");
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(Files.readString(result.sourcePath()).contains("SHAFT.GUI.Playwright"));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.id().equals("capture-test-method")
+                        && block.placement().contains("SHAFT.GUI.Playwright")
+                        && block.placement().contains("page")));
+        assertFalse(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.PROVIDER_ADVISORY));
+    }
+
+    @Test
+    void codeBlocksToolReturnsDeterministicReviewWarnings() throws Exception {
+        Path session = temp.resolve("capture-review.json");
+        new CaptureJsonCodec().write(session, reviewWarningSession());
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-review").toString(),
+                    "generated.capture",
+                    "ReviewWarningTest",
+                    false,
+                    "driver", null);
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/LOCATOR")),
+                result.warnings().toString());
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("review/ASSERTION")),
+                result.warnings().toString());
+    }
+
+    @Test
+    void targetCandidatesToolFindsExistingSuiteAnchorsInsideWorkspace() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/LoginPage.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                import com.shaft.driver.SHAFT;
+
+                public class LoginPage {
+                    private final SHAFT.GUI.WebDriver browser;
+
+                    public LoginPage(SHAFT.GUI.WebDriver browser) {
+                        this.browser = browser;
+                    }
+
+                    public LoginPage open() {
+                        return this;
+                    }
+                }
+                """);
+        Path test = temp.resolve("src/test/java/tests/CheckoutTest.java");
+        Files.createDirectories(test.getParent());
+        Files.writeString(test, """
+                package tests;
+
+                import com.shaft.driver.SHAFT;
+
+                public class CheckoutTest {
+                    private SHAFT.GUI.WebDriver driver;
+
+                    public void replayCheckout() {
+                    }
+                }
+                """);
+
+        CaptureService service = service();
+        try {
+            var candidates = service.targetCandidates(temp.toString(), 10);
+
+            assertTrue(candidates.stream().anyMatch(candidate -> candidate.className().equals("LoginPage")
+                    && candidate.packageName().equals("pages")
+                    && candidate.driverVariableName().equals("browser")
+                    && candidate.insertionAnchors().contains("open")));
+            assertTrue(candidates.stream().anyMatch(candidate -> candidate.className().equals("CheckoutTest")
+                    && candidate.insertionAnchors().contains("replayCheckout")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void backendComparisonToolComposesExistingWebDriverAndPlaywrightBlocks() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        try {
+            var comparison = service.compareCodeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-comparison").toString(),
+                    "generated.capture",
+                    "ComparedSessionTest",
+                    false,
+                    "driver");
+
+            assertEquals(List.of("WEBDRIVER", "PLAYWRIGHT"),
+                    comparison.backends().stream().map(CaptureService.CaptureBackendBlocks::backend).toList());
+            assertTrue(comparison.backends().stream()
+                    .allMatch(backend -> backend.blockIds().contains("capture-full-class")));
+            assertTrue(comparison.backends().stream()
+                    .anyMatch(backend -> backend.backend().equals("PLAYWRIGHT")
+                            && backend.sourcePath().toString().contains("PlaywrightComparedSessionTest")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void evidencePackToolReturnsReviewManifestWithoutUploadingArtifacts() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+        CaptureService service = service();
+        McpCaptureReplayResult generated;
+        try {
+            generated = service.codeBlocks(
+                    session.toString(),
+                    temp.resolve("generated-evidence").toString(),
+                    "generated.capture",
+                    "EvidenceSessionTest",
+                    false,
+                    "driver", null);
+            Path screenshot = temp.resolve("screenshots/capture.png");
+            Files.createDirectories(screenshot.getParent());
+            Files.writeString(screenshot, "png");
+
+            McpEvidencePack pack = service.evidencePack(
+                    generated.sourcePath().toString(),
+                    generated.reportPath().toString(),
+                    generated.reviewUiPath().toString(),
+                    List.of(screenshot.toString()));
+
+            assertEquals("1.0", pack.schemaVersion());
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("EvidenceSessionTest.java")));
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("generation-report.json")));
+            assertTrue(pack.artifactPaths().stream().anyMatch(path -> path.endsWith("capture.png")));
+            assertTrue(pack.validationCommands().stream().anyMatch(command -> command.contains("mvn -pl")));
+            assertTrue(pack.warnings().stream().noneMatch(warning -> warning.toLowerCase().contains("upload")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void checkpointToolRequiresActiveCaptureSession() {
+        CaptureService service = service();
+        IllegalStateException failure;
+        try {
+            failure = assertThrows(IllegalStateException.class,
+                    () -> service.checkpoint("review this state", "USER_MARKER"));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("Capture"));
+    }
+
+    @Test
+    void statusAndStopReturnIdleCaptureStateWhenNoSessionIsActive() {
+        CaptureService service = service();
+        try {
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.status().webStatus().state());
+            assertEquals(CaptureStatus.State.NOT_RUNNING, service.stop(false).webStatus().state());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void codeBlocksRejectSessionOutsideWorkspace() throws Exception {
+        Path outside = Files.createTempFile("outside-capture", ".json");
+        Files.writeString(outside, "{}");
+
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.codeBlocks(
+                            outside.toString(),
+                            temp.resolve("generated").toString(),
+                            "generated.capture",
+                            "OutsideTest",
+                            false,
+                            "driver", null));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void startRejectsOutputPathOutsideWorkspaceBeforeLaunchingBrowser() throws Exception {
+        Path outside = Files.createTempFile("outside-capture-output", ".json");
+
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.start("https://example.test", "chrome", outside.toString(), true, ""));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void startWithOptionsRejectsUserDataDirectoryOutsideWorkspaceBeforeLaunchingBrowser() throws Exception {
+        Path outside = Files.createTempDirectory("outside-capture-profile");
+
+        CaptureService service = service();
+        CaptureService.CaptureCodegenStartRequest request = new CaptureService.CaptureCodegenStartRequest();
+        request.targetUrl = "https://example.test";
+        request.browser = "chromium";
+        request.outputPath = temp.resolve("capture.json").toString();
+        request.headless = true;
+        request.targetLanguage = "java";
+        request.testIdAttribute = "data-pw";
+        request.viewportSize = "800,600";
+        request.ignoreHttpsErrors = true;
+        request.language = "en-US";
+        request.timeoutMillis = 1000;
+        request.userAgent = "agent";
+        request.userDataDirectory = outside.toString();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.startWithOptions(request));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void codegenFeaturesExposePlaywrightInventory() {
+        CaptureService service = service();
+        try {
+            assertTrue(service.codegenFeatures().stream()
+                    .anyMatch(feature -> feature.playwrightControl().equals("--test-id-attribute")
+                            && feature.shaftSupport().equals("SUPPORTED")));
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
+    void replayGenerationRejectsSessionOutsideWorkspaceBeforeRunningGenerator() throws Exception {
+        Path outside = Files.createTempFile("outside-capture-session", ".json");
+        Files.writeString(outside, "{}");
+
+        CaptureService service = service();
+        IllegalArgumentException replayFailure;
+        IllegalArgumentException generateFailure;
+        try {
+            replayFailure = assertThrows(IllegalArgumentException.class,
+                    () -> service.generateReplay(
+                            outside.toString(),
+                            temp.resolve("generated-replay").toString(),
+                            "generated.capture",
+                            "ReplayTest",
+                            false,
+                            false,
+                            false,
+                            false,
+                            false,
+                            "driver"));
+            generateFailure = assertThrows(IllegalArgumentException.class,
+                    () -> service.generate(
+                            outside.toString(),
+                            temp.resolve("generated").toString(),
+                            "generated.capture",
+                            "GeneratedTest",
+                            false,
+                            false,
+                            false,
+                            "",
+                            false,
+                            false,
+                            false,
+                            false));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(replayFailure.getMessage().contains("workspace"));
+        assertTrue(generateFailure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void statusWithoutASessionPointsAtRecentRecordingsInsteadOfDeadEnding() throws Exception {
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Path recording = recordings.resolve("intellij-capture-123.json");
+        Files.writeString(recording, "{}");
+
+        CaptureService service = service();
+        CaptureStatus status;
+        try {
+            status = service.status().webStatus();
+        } finally {
+            service.close();
+        }
+
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        assertTrue(status.warnings().stream().anyMatch(warning ->
+                warning.contains("none is needed to generate code")
+                        && warning.contains(recording.toString())));
+    }
+
+    @Test
+    void statusWithoutASessionOrRecordingsExplainsTheScenarioDrivenPath() {
+        CaptureService service = service();
+        CaptureStatus status;
+        try {
+            status = service.status().webStatus();
+        } finally {
+            service.close();
+        }
+
+        assertEquals(CaptureStatus.State.NOT_RUNNING, status.state());
+        assertTrue(status.warnings().stream().anyMatch(warning ->
+                warning.contains("capture_start")
+                        && warning.contains("perform the described actions")));
+    }
+
+    @Test
+    void startAcceptsNullHeadlessAndResolvesItBeforeAnyWorkspaceOrBrowserWork() throws Exception {
+        // Issue #3692: capture_start's headless parameter was the last field still marked required
+        // in the tool's JSON schema after sessionGoal/targetUrl/browser/outputPath were fixed (a
+        // client omitting it hits the same "required property ... not found" failure class the user
+        // reported). Boxing it to Boolean and resolving through the existing resolveHeadless helper
+        // (already used by apiStart) must not NPE when the caller omits it; the workspace-boundary
+        // check below still fires afterward, proving start(...) got past the null-to-boolean
+        // resolution safely before ever touching a real browser.
+        Path outside = Files.createTempFile("outside-capture-output-null-headless", ".json");
+
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.start("https://example.test", "chrome", outside.toString(), null, ""));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("workspace"));
+    }
+
+    @Test
+    void codeBlocksToolDefaultsToLatestRecordingWhenSessionPathIsBlank() throws Exception {
+        // Issue #3692 item 2: capture_code_blocks previously required an explicit sessionPath; a
+        // blank value must now resolve to the most recently modified recording under recordings/,
+        // reusing the same lookup status() already uses for its idle guidance.
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Files.copy(repositoryRoot().resolve(
+                        "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"),
+                recordings.resolve("capture-latest.json"));
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.codeBlocks(
+                    "",
+                    temp.resolve("generated-default-session").toString(),
+                    "generated.capture",
+                    "DefaultSessionTest",
+                    false,
+                    "browser", null);
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class DefaultSessionTest")));
+    }
+
+    @Test
+    void generateReplayRunsEndToEndWithZeroArgsAfterACaptureStartStopChain() throws Exception {
+        // Design doc Decision 3's param-defaults acceptance bar: the codegen chain must run with
+        // zero args end-to-end (capture_start -> capture_stop -> capture_generate_replay). This
+        // simulates the capture_start/capture_stop half by placing a persisted recording exactly
+        // where a real WEB CDP session would have written it, then proves capture_generate_replay
+        // needs neither an explicit sessionPath nor an explicit backend: sessionPath resolves to the
+        // most recently modified recording under recordings/ (the same lookup capture_code_blocks
+        // and status() use), and backend resolves to WEB from the (default, unset) active engine.
+        Path recordings = Files.createDirectories(temp.resolve("recordings"));
+        Files.copy(repositoryRoot().resolve(
+                        "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"),
+                recordings.resolve("capture-latest.json"));
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.generateReplay(
+                    null, null, null, null, false, false, false, false, false, null, null, null, null);
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+    }
+
+    /**
+     * Issue #4029: {@code capture_generate_replay} is named and documented as the "replay-proven"
+     * tool (as opposed to its sibling {@code capture_code_blocks}'s "faster, unproven draft") --
+     * a caller-supplied {@code replay=false} on THIS tool must resolve to {@code UNCONFIRMED}, not
+     * silent {@code successful=true}, closing the "no server-side floor" gap the issue named.
+     */
+    @Test
+    void generateReplayToolWithReplayFalseReportsUnconfirmedNotSuccess() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = service.generateReplay(
+                    session.toString(),
+                    temp.resolve("generated-replay-false").toString(),
+                    "generated.capture",
+                    "GoldenSessionTest",
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    "driver");
+        } finally {
+            service.close();
+        }
+
+        assertFalse(result.successful(),
+                "capture_generate_replay must never report successful=true when replay=false: "
+                        + result.report());
+        assertGeneratedUnconfirmed(result);
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.SKIPPED,
+                result.report().replay().status());
+        assertTrue(Files.isRegularFile(result.sourcePath()),
+                "compiled-but-unconfirmed generation must still return a usable source file");
+    }
+
+    @Test
+    void replayFailureWithNoPromotedSourceReturnsTheStructuredFailure() throws Exception {
+        Path missingSource = temp.resolve("generated/RecordedFlowTest.java");
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "failed-replay-session",
+                CaptureGenerationReport.Status.FAILED,
+                "generated/RecordedFlowTest.java",
+                "",
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of("Replay failed before the generated source could be promoted."),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED,
+                        List.of(),
+                        0),
+                new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("NoSuchElementException: recorded assertion target was not found"),
+                        0),
+                CaptureGenerationReport.Enrichment.notRequested());
+        CaptureGenerationResult generation = new CaptureGenerationResult(
+                missingSource,
+                temp.resolve("generated/recorded-flow-test.json"),
+                temp.resolve("generated/capture-generation-report.json"),
+                null,
+                report);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            result = assertDoesNotThrow(
+                    () -> service.replayResult(generation, "driver"),
+                    "A failed replay must return its structured result instead of throwing while reading an absent source");
+        } finally {
+            service.close();
+        }
+
+        assertFalse(result.successful());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                result.report().replay().status());
+        assertTrue(result.codeBlocks().isEmpty(),
+                "An absent final source cannot be exposed as generated code blocks");
+        assertTrue(result.report().replay().diagnostics().stream()
+                .anyMatch(message -> message.contains("NoSuchElementException")),
+                "The original replay diagnostic must survive the MCP result boundary");
+    }
+
+    @Test
+    void codeBlocksToolStillRaisesAClearErrorWhenSessionPathIsBlankAndNoRecordingsExist() {
+        // The fallback must not silently swallow the "nothing to generate from" case: with no
+        // recordings/ directory at all, McpWorkspacePolicy's existing "is required" error still
+        // surfaces, unchanged.
+        CaptureService service = service();
+        IllegalArgumentException failure;
+        try {
+            failure = assertThrows(IllegalArgumentException.class,
+                    () -> service.codeBlocks("", temp.resolve("generated-none").toString(),
+                            "generated.capture", "NoRecordingTest", false, "browser", null));
+        } finally {
+            service.close();
+        }
+
+        assertTrue(failure.getMessage().contains("required"));
+    }
+
+    @Test
+    void codeBlocksToolDefaultsOptionalParametersWhenCalledWithNullOrBlank() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            // Call with null/blank for optional parameters: outputDirectory, packageName, className, driverVariableName
+            result = service.codeBlocks(
+                    session.toString(),
+                    null,           // outputDirectory - should default to generated-tests
+                    null,           // packageName - should default to tests.generated
+                    null,           // className - should default to RecordedFlowTest
+                    null,
+                    null, null);          // driverVariableName - should default to driver
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class RecordedFlowTest")
+                        && block.code().contains("package tests.generated")),
+                "Generated code should contain default class RecordedFlowTest and package tests.generated");
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.TEST_METHOD
+                        && block.placement().contains("driver")),
+                "TEST_METHOD placement should contain default driver variable name");
+    }
+
+    @Test
+    void codeBlocksToolDefaultsOptionalParametersWhenCalledWithBlankStrings() throws Exception {
+        Path session = temp.resolve("capture.json");
+        Files.copy(repositoryRoot().resolve(
+                "shaft-capture/src/test/resources/fixtures/golden-session-1.0.json"), session);
+
+        CaptureService service = service();
+        McpCaptureReplayResult result;
+        try {
+            // Call with blank strings for optional parameters
+            result = service.codeBlocks(
+                    session.toString(),
+                    "   ",          // outputDirectory - blank should default to generated-tests
+                    "",             // packageName - blank should default to tests.generated
+                    "  ",           // className - blank should default to RecordedFlowTest
+                    null,
+                    "", null);            // driverVariableName - blank should default to driver
+        } finally {
+            service.close();
+        }
+
+        assertGeneratedUnconfirmed(result);
+        assertTrue(Files.isRegularFile(result.sourcePath()));
+        assertTrue(result.codeBlocks().stream()
+                .anyMatch(block -> block.kind() == McpCodeBlock.Kind.FULL_CLASS
+                        && block.code().contains("class RecordedFlowTest")
+                        && block.code().contains("package tests.generated")),
+                "Generated code should contain default class RecordedFlowTest and package tests.generated when blank strings provided");
+    }
+
+    /**
+     * Issue #4029: {@code capture_code_blocks} never replays by design (it is the deliberately
+     * fast, unproven-draft sibling of {@code capture_generate_replay}), so its result must report
+     * {@code UNCONFIRMED}, never bare {@code SUCCESS}.
+     */
+    private static void assertGeneratedUnconfirmed(McpCaptureReplayResult result) {
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status(),
+                result.report() == null ? "no report" : result.report().unsupportedEvents().toString());
+    }
+
+    private CaptureService service() {
+        return new CaptureService(
+                new CaptureManager(),
+                McpWorkspacePolicy.of(temp),
+                new McpCaptureCodeBlockService());
+    }
+
+    private static Path repositoryRoot() {
+        Path current = Path.of("").toAbsolutePath().normalize();
+        while (current != null) {
+            if (Files.isRegularFile(current.resolve("pom.xml"))
+                    && Files.isDirectory(current.resolve("shaft-mcp"))
+                    && Files.isDirectory(current.resolve("shaft-capture"))) {
+                return current;
+            }
+            current = current.getParent();
+        }
+        throw new IllegalStateException("Repository root could not be resolved.");
+    }
+
+    private static CaptureSession reviewWarningSession() {
+        Instant started = Instant.parse("2026-01-02T03:04:05Z");
+        BrowserMetadata browser = new BrowserMetadata("chrome", "137", "Windows 11", "browser-1", Map.of());
+        PageContext page = new PageContext("https://shop.example/checkout", "Checkout", "window-1",
+                List.of(), 1280, 720);
+        ElementSnapshot pay = new ElementSnapshot(
+                "pay-button",
+                "button",
+                "button",
+                "Pay now",
+                "",
+                Map.of("type", "submit"),
+                // Issue #4239 P1.4a ladder (#4252): a plain XPATH candidate with no self-verified
+                // replayXpath is no longer ladder-eligible at all -- generation now hard-fails before
+                // ever reaching the brittle-locator review warning this fixture exists to exercise.
+                // A non-blank replayXpath clears rung 2, but the expression must stay relative
+                // ("//", not "/html/...") since GeneratedCodeGuardrails' ABSOLUTE_XPATH rule is an
+                // unconditional ERROR independent of ladder eligibility. Keeping the "[3]" index still
+                // trips CaptureGenerator's INDEXED_LOCATOR brittleness check, so this candidate remains
+                // exactly as brittle -- for the same reason -- as before, just not literally absolute.
+                List.of(new LocatorCandidate(LocatorCandidate.LocatorStrategy.XPATH,
+                        "//div[3]/form/button[2]", 1, true, false,
+                        Set.of(LocatorCandidate.LocatorSignal.POSITIONAL),
+                        "//div[3]/form/button[2]")),
+                true,
+                true,
+                false);
+        EventContext navigation = new EventContext(1, started.plusSeconds(1), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        EventContext click = new EventContext(2, started.plusSeconds(2), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "mcp-review-session",
+                CaptureSession.SessionStatus.COMPLETED,
+                started,
+                started.plusSeconds(3),
+                browser,
+                List.of(
+                        new CaptureEvent.NavigationEvent(navigation,
+                                CaptureEvent.NavigationAction.OPEN, "https://shop.example/checkout"),
+                        new CaptureEvent.ClickEvent(click, pay, CaptureEvent.MouseButton.PRIMARY, 1)),
+                List.of(),
+                List.of(),
+                RedactionSummary.empty(),
+                Map.of());
+    }
+
+    private static McpCodeBlock block(List<McpCodeBlock> blocks, String id) {
+        return blocks.stream()
+                .filter(block -> block.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing block " + id));
+    }
+
+}

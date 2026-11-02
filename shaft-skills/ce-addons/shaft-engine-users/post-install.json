@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "framework": "SHAFT_ENGINE",
+  "detect": {"manifest": "pom.xml", "groupId": "io.github.shafthq"},
+  "agenticInstall": {
+    "posix": "curl -fsSL \"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.sh\" | sh",
+    "nt": "irm \"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.ps1\" | iex"
+  },
+  "latestReleaseRepository": "ShaftHQ/SHAFT_ENGINE",
+  "upgrader": "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-upgrader/upgrade_to_modular_shaft.py"
+}

@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/decisions/codex-activity-recap-footer-merges-denial-failure-into-one-bucket-labelled-differently-from-claudes.md",
+  "content_hash": "sha256:ff2bc2d6d7ab5a625ef065f4b907c04014af8c05ef81e9f4b1cc1e38ae3fbbd9",
+  "created_at": "2026-07-17T21:49:46+03:00",
+  "evidence": [
+    {
+      "id": "df106926558e09d273209f4ac400e80e9acc51cf",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.codex-activity-recap-footer-merges-denial-failure-into-one-bucket-labelled-differently-from-claudes",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ Assistant issue #3679: wire Codex activity-recap footer parity in AssistantLocalAgentRunner"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "codex-cli",
+    "assistant-local-agent-runner",
+    "issue-3679",
+    "pr-3683"
+  ],
+  "title": "Codex activity-recap footer merges denial+failure into one bucket, labelled differently from Claude's",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

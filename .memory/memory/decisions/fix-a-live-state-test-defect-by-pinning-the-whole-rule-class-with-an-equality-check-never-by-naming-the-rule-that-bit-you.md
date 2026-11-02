@@ -1,0 +1,7 @@
+In one branch the same defect shipped twice. R18 read live git state and made five Stop tests depend on whether a push was pending -- green on a clean checkout and on CI, red whenever work was unpushed. The fix patched `check_r18_unpushed_work` off in setUp, by name. R17 reads `gh` for a reviewed-but-unarmed pull request, was left live, and turned the same five tests red the moment the PR received its own review.
+
+The first fix named the rule instead of the class the rule belonged to, so the next rule walked straight into it. Neither instance is catchable by CI: a fresh checkout has nothing unpushed and no credentials to ask about reviews, so the environment that runs the suite is exactly the one where the bug is invisible.
+
+Rule: isolate EVERY rule of the class, not the subset currently known to reach outside the process -- a rule that needs no isolation loses nothing by being listed -- and pin the list with an equality assertion against what the dispatcher actually calls. Equality in both directions: an unlisted new rule is the defect itself, and a listed rule the dispatcher no longer calls is a patch aimed at nothing, which reads like coverage and is not. That check fails in the commit that adds the rule, which is the only place it can fail early.
+
+Implemented as `ISOLATED_STOP_RULES` plus `StopRuleIsolationIsCompleteTest` in tests/scripts/test_guard_lifecycle.py, mutation-proven both ways.

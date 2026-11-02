@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "fixture": "bom",
+  "rootCoordinate": "io.github.shafthq:shaft-engine:10.2.20260605",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "artifactCount": 334,
+  "artifactBytes": 286750752,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 311020351,
+  "repositoryGrowthBytes": 310207843,
+  "elapsedSeconds": 48.687,
+  "artifactsRef": "artifacts-bom.json"
+}

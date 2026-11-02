@@ -1,0 +1,2157 @@
+package com.shaft.driver;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.shaft.api.RequestBuilder;
+import com.shaft.api.RestActions;
+import com.shaft.cli.FileActions;
+import com.shaft.cli.SshConnectionOptions;
+import com.shaft.cli.TerminalActions;
+import com.shaft.db.DatabaseActions;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.capabilities.AutomationCapabilities;
+import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.driver.BrowserActionsContract;
+import com.shaft.gui.driver.ShaftLocator;
+import com.shaft.gui.element.AlertActions;
+import com.shaft.gui.element.AsyncElementActions;
+import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.mobile.MobileActions;
+import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.natural.NaturalActionExecutor;
+import com.shaft.gui.internal.natural.PlaywrightNaturalActionExecutor;
+import com.shaft.listeners.internal.WebDriverListener;
+import com.shaft.tools.io.*;
+import com.shaft.tools.io.internal.HttpContractRecorder;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.internal.RestValidationsBuilder;
+import io.appium.java_client.AppiumDriver;
+import io.restassured.http.ContentType;
+import io.restassured.response.Response;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.support.events.EventFiringDecorator;
+
+import java.io.File;
+import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.sql.ResultSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+/**
+ * The main entry point for the SHAFT test automation framework.
+ *
+ * <p>SHAFT provides a unified, fluent API for automating Web, Mobile, API, CLI,
+ * and Database interactions. All subsystems are accessed through nested static
+ * classes:
+ * <ul>
+ *   <li>{@link GUI} &ndash; Browser, element, touch, alert, and SikuliX actions.</li>
+ *   <li>{@link API} &ndash; RESTful API interactions via REST Assured.</li>
+ *   <li>{@link Auth} &ndash; Cached-login setup that reuses a saved browser storage state.</li>
+ *   <li>{@link CLI} &ndash; Terminal and file-system operations.</li>
+ *   <li>{@link DB}  &ndash; Database queries and result handling.</li>
+ *   <li>{@link Validations} &ndash; Standalone hard and soft assertions.</li>
+ *   <li>{@link TestData} &ndash; JSON, Excel, CSV, and YAML test-data readers.</li>
+ *   <li>{@link Properties} &ndash; Runtime configuration management.</li>
+ *   <li>{@link Report} &ndash; Custom logging and attachments for Allure reports.</li>
+ * </ul>
+ *
+ * <p><b>Quick-start example:</b>
+ * <pre>{@code
+ * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+ * driver.browser().navigateToURL("https://example.com")
+ *       .and().assertThat().browser().title().contains("Example");
+ * driver.quit();
+ * }</pre>
+ *
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
+ * @see GUI.WebDriver
+ * @see API
+ */
+@SuppressWarnings("unused")
+public class SHAFT {
+
+    /**
+     * Contains GUI-related subsystems for web and mobile test automation.
+     *
+     * @see WebDriver
+     * @see SikuliX
+     * @see Locator
+     */
+    public static class GUI {
+
+        /**
+         * Shared GUI session contract implemented by Selenium/Appium WebDriver and
+         * Playwright sessions.
+         */
+        public interface Driver extends com.shaft.gui.driver.DriverContract {
+            @Override
+            Driver act(String intent, Object... args);
+        }
+
+        /**
+         * Manages a Selenium/Appium WebDriver session and exposes fluent actions
+         * for browser navigation, element interaction, touch gestures, alert
+         * handling, and assertions.
+         *
+         * <p>Create one instance per test method (typically in a {@code @BeforeMethod}),
+         * perform actions via the fluent API, and call {@link #quit()} in
+         * {@code @AfterMethod} to release resources.
+         *
+         * <p><b>Usage example:</b>
+         * <pre>{@code
+         * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+         * driver.browser().navigateToURL("https://example.com");
+         * driver.element().click(By.id("submit"));
+         * driver.assertThat().browser().title().contains("Success");
+         * driver.quit();
+         * }</pre>
+         *
+         * @see <a href="https://shafthq.github.io/">SHAFT User Guide</a>
+         */
+        public static class WebDriver implements Driver {
+            DriverFactoryHelper helper;
+            DriverFactory factory = new DriverFactory();
+
+            /**
+             * Creates a new WebDriver session using the browser type configured in
+             * the execution properties.
+             */
+            public WebDriver() {
+                helper = com.shaft.driver.internal.BrowserSessionReuse.reusable();
+                if (helper == null) {
+                    helper = factory.getHelper();
+                    com.shaft.driver.internal.BrowserSessionReuse.register(helper);
+                } else {
+                    factory.setHelper(helper);
+                }
+            }
+
+            /**
+             * Creates a new WebDriver session with the specified driver type.
+             *
+             * @param driverType the type of driver to create (e.g.,
+             *                   {@link DriverFactory.DriverType#CHROME},
+             *                   {@link DriverFactory.DriverType#FIREFOX})
+             */
+            public WebDriver(DriverFactory.DriverType driverType) {
+                helper = factory.getHelper(driverType);
+            }
+
+            /**
+             * Creates a new WebDriver session with the specified driver type and
+             * custom capabilities.
+             *
+             * @param driverType          the type of driver to create
+             * @param mutableCapabilities custom capabilities to merge into the session
+             */
+            public WebDriver(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
+                helper = factory.getHelper(driverType, mutableCapabilities);
+            }
+
+            /**
+             * Wraps an existing Selenium WebDriver instance for use with SHAFT's
+             * fluent API.
+             *
+             * @param driver an already-initialized Selenium WebDriver instance
+             */
+            public WebDriver(org.openqa.selenium.WebDriver driver) {
+                helper = factory.getHelper(driver);
+            }
+
+            /**
+             * Terminates the current WebDriver session and releases all associated
+             * resources. Should be called in {@code @AfterMethod} (TestNG) or
+             * {@code @AfterEach} (JUnit 5).
+             */
+            @Override
+            public AutomationCapabilities capabilities() {
+                return AutomationCapabilityResolver.forWebDriver(helper == null ? null : helper.getDriver());
+            }
+
+            @Override
+            public void quit() {
+                if (helper != null && !com.shaft.driver.internal.BrowserSessionReuse.resetInsteadOfQuit(helper))
+                    helper.closeDriver();
+                if (factory != null)
+                    factory.setHelper(null);
+                helper = null;
+                factory = null;
+            }
+
+            /**
+             * Returns an element actions object for interacting with web elements
+             * (click, type, select, etc.).
+             *
+             * @return an {@link Actions} instance scoped to this driver session
+             */
+            @Override
+            public Actions element() {
+                return new Actions(helper);
+            }
+
+            /**
+             * Returns a touch actions object for mobile gesture interactions
+             * (swipe, tap, pinch, etc.).
+             *
+             * @return a {@link TouchActions} instance scoped to this driver session
+             */
+            @Override
+            public TouchActions touch() {
+                return new TouchActions(helper);
+            }
+
+            /**
+             * Returns categorized native-mobile application, device, gesture, context, and evidence actions.
+             *
+             * @return mobile actions facade scoped to this driver session
+             */
+            @Override
+            public MobileActions mobile() {
+                return new MobileActions(this);
+            }
+
+            /**
+             * Returns a browser actions object for navigation, window management,
+             * cookies, and screenshots.
+             *
+             * @return a {@link BrowserActions} instance scoped to this driver session
+             */
+            @Override
+            public BrowserActions browser() {
+                return new BrowserActions(helper);
+            }
+
+            /**
+             * Performs an enabled natural-language browser, element, or touch action.
+             *
+             * <p>The intent is first converted into a structured SHAFT action plan,
+             * validated against the configured trust threshold, and then executed
+             * through the normal deterministic SHAFT action APIs. User-supplied
+             * arguments are passed to the plan as data values and are not included in
+             * natural-action report messages.</p>
+             *
+             * <pre>{@code
+             * driver.act("Login with valid credentials", username, password);
+             * }</pre>
+             *
+             * @param intent the natural-language action intent
+             * @param args optional action arguments referenced by the intent
+             * @return this driver instance for fluent chaining
+             */
+            @Override
+            public WebDriver act(String intent, Object... args) {
+                NaturalActionExecutor.perform(helper, intent, args);
+                return this;
+            }
+
+            /**
+             * Returns an alert actions object for interacting with JavaScript alert,
+             * confirm, and prompt dialogs.
+             *
+             * @return an {@link AlertActions} instance scoped to this driver session
+             */
+            @Override
+            public AlertActions alert() {
+                return new AlertActions(helper);
+            }
+
+            /**
+             * Starts building a hard assertion (the test fails immediately on mismatch).
+             *
+             * @return a {@link WizardHelpers.WebDriverAssertions} builder for browser,
+             *         element, and other assertions
+             */
+            @Override
+            public WizardHelpers.WebDriverAssertions assertThat() {
+                return new WizardHelpers.WebDriverAssertions(helper);
+            }
+
+            /**
+             * Starts building a soft verification (failures are collected and reported
+             * at the end of the test).
+             *
+             * @return a {@link WizardHelpers.WebDriverVerifications} builder
+             */
+            @Override
+            public WizardHelpers.WebDriverVerifications verifyThat() {
+                return new WizardHelpers.WebDriverVerifications(helper);
+            }
+
+            /**
+             * Returns the current Selenium WebDriver instance for custom manipulation.
+             *
+             * <p>Note: Event-firing decoration is only applied for non-remote, non-Appium
+             * drivers when {@code enableTrueNativeMode} is disabled. Because most local
+             * Selenium drivers extend {@link RemoteWebDriver}, they will typically be
+             * returned undecorated.</p>
+             *
+             * @return the underlying {@link org.openqa.selenium.WebDriver} instance for
+             *         this session
+             */
+            @Override
+            public org.openqa.selenium.WebDriver getDriver() {
+                /*
+                 * Decorator is not working for appium drivers as per the following issues/articles
+                 * https://github.com/appium/java-client/issues/1694
+                 * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830
+                 * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
+                 */
+                if (helper.getDriver() instanceof AppiumDriver | helper.getDriver() instanceof RemoteWebDriver) {
+                    // remote execution
+                    return helper.getDriver();
+                } else {
+                    // local execution
+                    if (!SHAFT.Properties.flags.enableTrueNativeMode()) {
+                        return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(helper.getDriver());
+                    } else {
+                        return helper.getDriver();
+                    }
+                }
+            }
+
+            /**
+             * Returns an async-actions entry point for performing element interactions
+             * asynchronously.
+             *
+             * @return an {@link Async} instance scoped to this driver session
+             */
+            public Async async() {
+                return new Async();
+            }
+
+            /**
+             * Provides asynchronous element actions that run without blocking the
+             * calling thread.
+             */
+            public class Async {
+                /**
+                 * Returns an asynchronous element actions object.
+                 *
+                 * @return an {@link AsyncElementActions} instance
+                 */
+                public AsyncElementActions element() {
+                    return new AsyncElementActions(helper);
+                }
+
+            }
+        }
+
+        /**
+         * Manages a Microsoft Playwright browser session and exposes SHAFT GUI
+         * browser actions, element actions, alert helpers, and assertions.
+         */
+        public static class Playwright implements Driver {
+            private com.shaft.gui.playwright.internal.PlaywrightSession session;
+
+            /**
+             * Starts a Playwright session using the configured browser.
+             */
+            public Playwright() {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.create();
+            }
+
+            /**
+             * Wraps an existing Playwright page in a SHAFT Playwright session.
+             */
+            public Playwright(com.microsoft.playwright.Page page) {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
+                        null,
+                        page.context().browser(),
+                        page.context(),
+                        page);
+            }
+
+            /**
+             * Wraps an existing Playwright instance, browser, context and page in a SHAFT
+             * Playwright session.
+             */
+            public Playwright(com.microsoft.playwright.Playwright playwright,
+                               com.microsoft.playwright.Browser browser,
+                               com.microsoft.playwright.BrowserContext browserContext,
+                               com.microsoft.playwright.Page page) {
+                session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
+                        playwright,
+                        browser,
+                        browserContext,
+                        page);
+            }
+
+            @Override
+            public AutomationCapabilities capabilities() {
+                return AutomationCapabilityResolver.forPlaywright(session);
+            }
+
+            @Override
+            public void quit() {
+                if (session != null) {
+                    if (com.shaft.gui.playwright.internal.PlaywrightSessionManager.currentSession() == session) {
+                        com.shaft.gui.playwright.internal.PlaywrightSessionManager.clearSession();
+                    } else {
+                        session.close();
+                    }
+                    session = null;
+                }
+            }
+
+            @Override
+            public com.shaft.gui.playwright.element.ElementActions element() {
+                return new com.shaft.gui.playwright.element.ElementActions(session);
+            }
+
+            @Override
+            public TouchActions touch() {
+                throw new UnsupportedOperationException("TouchActions are Appium/WebDriver-specific and are not available through the Playwright backend.");
+            }
+
+            @Override
+            public com.shaft.gui.playwright.browser.BrowserActions browser() {
+                return new com.shaft.gui.playwright.browser.BrowserActions(session);
+            }
+
+            @Override
+            public Playwright act(String intent, Object... args) {
+                PlaywrightNaturalActionExecutor.perform(session, intent, args);
+                return this;
+            }
+
+            @Override
+            public com.shaft.gui.playwright.element.AlertActions alert() {
+                return new com.shaft.gui.playwright.element.AlertActions(session);
+            }
+
+            @Override
+            public com.shaft.gui.playwright.validation.PlaywrightDriverAssertions assertThat() {
+                return new com.shaft.gui.playwright.validation.PlaywrightDriverAssertions(session);
+            }
+
+            @Override
+            public com.shaft.gui.playwright.validation.PlaywrightDriverVerifications verifyThat() {
+                return new com.shaft.gui.playwright.validation.PlaywrightDriverVerifications(session);
+            }
+
+            @Override
+            public com.microsoft.playwright.Page getDriver() {
+                return session.page();
+            }
+
+            @Override
+            public com.microsoft.playwright.Page getNativeDriver() {
+                return session.page();
+            }
+
+            @Override
+            public com.microsoft.playwright.BrowserContext getNativeContext() {
+                return session.browserContext();
+            }
+
+            /**
+             * Returns the underlying Playwright instance.
+             */
+            public com.microsoft.playwright.Playwright getPlaywright() {
+                return session.playwright();
+            }
+        }
+
+        /**
+         * Entry point for optional SikuliX image-based desktop automation.
+         *
+         * <p>Add {@code io.github.shafthq:shaft-sikulix} to the project before
+         * creating this class. Without that optional module SHAFT throws a
+         * dependency-specific error instead of a generic class loading failure.</p>
+         */
+        public static class SikuliX {
+            private static final String DRIVER_CLASS = "com.shaft.sikulix.SikuliDriver";
+            private static final String ACTIONS_CLASS = "com.shaft.gui.element.SikuliActions";
+            private static final String DEPENDENCY = "io.github.shafthq:shaft-sikulix";
+            private final Object driver;
+            private final SikuliActions screenActions;
+
+            /**
+             * Creates SikuliX actions for the current desktop screen.
+             *
+             * @throws IllegalStateException when {@code shaft-sikulix} is missing
+             */
+            public SikuliX() {
+                driver = null;
+                screenActions = new SikuliActions(newInstance(ACTIONS_CLASS));
+            }
+
+            /**
+             * Attaches to an opened desktop application window by name or partial name.
+             *
+             * @param applicationName name or partial name of the target application window
+             * @throws IllegalStateException when {@code shaft-sikulix} is missing
+             */
+            public SikuliX(String applicationName) {
+                driver = newInstance(DRIVER_CLASS, new Class<?>[]{String.class}, applicationName);
+                screenActions = null;
+            }
+
+            /**
+             * Creates a SikuliX driver attached to an opened desktop application window.
+             *
+             * @param applicationName name or partial name of the target application window
+             * @return a SikuliX driver facade
+             */
+            public static SikuliX getInstance(String applicationName) {
+                return new SikuliX(applicationName);
+            }
+
+            /**
+             * Closes the attached desktop application window.
+             */
+            public void quit() {
+                if (driver != null) {
+                    invoke(driver, "quit");
+                }
+            }
+
+            /**
+             * Returns a SikuliX action facade.
+             *
+             * @return SikuliX action facade
+             */
+            public SikuliActions element() {
+                return driver == null ? screenActions : new SikuliActions(invoke(driver, "element"));
+            }
+
+            /**
+             * Returns the native SikuliX app handle, or {@code null} for screen-only actions.
+             *
+             * @return native SikuliX app handle
+             */
+            public Object getDriver() {
+                return driver == null ? null : invoke(driver, "getDriver");
+            }
+
+            /**
+             * Reflection-backed wrapper for optional SikuliX element actions.
+             */
+            public static class SikuliActions {
+                private final Object delegate;
+
+                private SikuliActions(Object delegate) {
+                    this.delegate = delegate;
+                }
+
+                /**
+                 * Clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions click(String pathToTargetElementImage) {
+                    invoke(delegate, "click", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions click(byte[] targetElement) {
+                    invoke(delegate, "click", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Clicks the on-screen text matched by OCR.
+                 */
+                public SikuliActions click(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "click", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
+                    return this;
+                }
+
+                /**
+                 * Types text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions type(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "type", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Types text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions type(byte[] targetElement, String text) {
+                    invoke(delegate, "type", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Appends text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text text to append
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeAppend(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "typeAppend", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Appends text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text text to append
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeAppend(byte[] targetElement, String text) {
+                    invoke(delegate, "typeAppend", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Types sensitive text into the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @param text sensitive text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeSecure(String pathToTargetElementImage, String text) {
+                    invoke(delegate, "typeSecure", new Class<?>[]{String.class, String.class}, pathToTargetElementImage, text);
+                    return this;
+                }
+
+                /**
+                 * Types sensitive text into the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @param text sensitive text to type
+                 * @return self reference for chaining
+                 */
+                public SikuliActions typeSecure(byte[] targetElement, String text) {
+                    invoke(delegate, "typeSecure", new Class<?>[]{byte[].class, String.class}, targetElement, text);
+                    return this;
+                }
+
+                /**
+                 * Reads text from the target image region.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return extracted text
+                 */
+                public String getText(String pathToTargetElementImage) {
+                    return String.valueOf(invoke(delegate, "getText", new Class<?>[]{String.class}, pathToTargetElementImage));
+                }
+
+                /**
+                 * Reads text from the target image region.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return extracted text
+                 */
+                public String getText(byte[] targetElement) {
+                    return String.valueOf(invoke(delegate, "getText", new Class<?>[]{byte[].class}, targetElement));
+                }
+
+                /**
+                 * Moves the mouse over the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions hover(String pathToTargetElementImage) {
+                    invoke(delegate, "hover", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Moves the mouse over the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions hover(byte[] targetElement) {
+                    invoke(delegate, "hover", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Hovers over the on-screen text matched by OCR.
+                 */
+                public SikuliActions hover(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "hover", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
+                    return this;
+                }
+
+                /**
+                 * Double-clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions doubleClick(String pathToTargetElementImage) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Double-clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions doubleClick(byte[] targetElement) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Double-clicks the on-screen text matched by OCR.
+                 */
+                public SikuliActions doubleClick(com.shaft.gui.ocr.OcrTarget target) {
+                    invoke(delegate, "doubleClick", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
+                    return this;
+                }
+
+                /**
+                 * Right-clicks the target image.
+                 *
+                 * @param pathToTargetElementImage path to the target element reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions rightClick(String pathToTargetElementImage) {
+                    invoke(delegate, "rightClick", new Class<?>[]{String.class}, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Right-clicks the target image.
+                 *
+                 * @param targetElement target element reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions rightClick(byte[] targetElement) {
+                    invoke(delegate, "rightClick", new Class<?>[]{byte[].class}, targetElement);
+                    return this;
+                }
+
+                /**
+                 * Drags one target image to another target image.
+                 *
+                 * @param pathToDraggableElementImage path to the source reference image
+                 * @param pathToTargetElementImage path to the target reference image
+                 * @return self reference for chaining
+                 */
+                public SikuliActions dragAndDrop(String pathToDraggableElementImage, String pathToTargetElementImage) {
+                    invoke(delegate, "dragAndDrop", new Class<?>[]{String.class, String.class}, pathToDraggableElementImage, pathToTargetElementImage);
+                    return this;
+                }
+
+                /**
+                 * Drags one target image to another target image.
+                 *
+                 * @param draggableElement source reference image bytes
+                 * @param targetElement target reference image bytes
+                 * @return self reference for chaining
+                 */
+                public SikuliActions dragAndDrop(byte[] draggableElement, byte[] targetElement) {
+                    invoke(delegate, "dragAndDrop", new Class<?>[]{byte[].class, byte[].class}, draggableElement, targetElement);
+                    return this;
+                }
+            }
+
+            private static Object newInstance(String className, Object... args) {
+                return newInstance(className, new Class<?>[]{}, args);
+            }
+
+            private static Object newInstance(String className, Class<?>[] parameterTypes, Object... args) {
+                try {
+                    Constructor<?> constructor = Class.forName(className).getDeclaredConstructor(parameterTypes);
+                    return constructor.newInstance(args);
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
+                    throw missingDependency(e);
+                } catch (InvocationTargetException e) {
+                    throw unwrap(e);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException("Failed to initialize SHAFT.GUI.SikuliX through optional dependency " + DEPENDENCY + ".", e);
+                }
+            }
+
+            private static Object invoke(Object target, String methodName) {
+                return invoke(target, methodName, new Class<?>[]{});
+            }
+
+            private static Object invoke(Object target, String methodName, Class<?>[] parameterTypes, Object... args) {
+                try {
+                    Method method = target.getClass().getMethod(methodName, parameterTypes);
+                    return method.invoke(target, args);
+                } catch (NoClassDefFoundError e) {
+                    throw missingDependency(e);
+                } catch (InvocationTargetException e) {
+                    throw unwrap(e);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException("Failed to call SHAFT.GUI.SikuliX." + methodName + " through optional dependency " + DEPENDENCY + ".", e);
+                }
+            }
+
+            private static IllegalStateException missingDependency(Throwable cause) {
+                return new IllegalStateException("SHAFT.GUI.SikuliX requires the optional dependency " + DEPENDENCY + ". Add shaft-sikulix to your project dependencies or enable the SikuliX optional module in the project generator.", cause);
+            }
+
+            private static RuntimeException unwrap(InvocationTargetException exception) {
+                Throwable cause = exception.getCause();
+                if (cause instanceof NoClassDefFoundError) {
+                    throw missingDependency(cause);
+                }
+                if (cause instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (cause instanceof Error error) {
+                    throw error;
+                }
+                return new IllegalStateException("Failed to execute SHAFT.GUI.SikuliX through optional dependency " + DEPENDENCY + ".", cause);
+            }
+        }
+
+        /**
+         * Entry point for building element locators using SHAFT's fluent
+         * {@link com.shaft.gui.internal.locator.Locator Locator} API.
+         *
+         * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Locators</a>
+         */
+        public static class Locator extends com.shaft.gui.internal.locator.Locator {
+            /**
+             * Portable ROLE locator (native {@link ShaftLocator}, not xpath) for #5821/#5835.
+             *
+             * @param role ARIA role
+             * @param accessibleName accessible name
+             * @return native ROLE {@link ShaftLocator}
+             */
+            public static ShaftLocator role(String role, String accessibleName) {
+                return ShaftLocator.role(role, accessibleName);
+            }
+
+            /**
+             * Portable accessible-name locator (native {@link ShaftLocator}, not xpath) for #5821/#5835.
+             *
+             * @param accessibleName accessible name / label
+             * @return native ACCESSIBLE_NAME {@link ShaftLocator}
+             */
+            public static ShaftLocator accessibleName(String accessibleName) {
+                return ShaftLocator.accessibleName(accessibleName);
+            }
+        }
+    }
+
+    /**
+     * Manages a REST API session and exposes a fluent interface for building
+     * and executing HTTP requests (GET, POST, PUT, PATCH, DELETE).
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
+     * api.get("/posts/1").setTargetStatusCode(200);
+     * api.assertThatResponse().extractedJsonValue("$.title").isNotNull();
+     * }</pre>
+     *
+     * @see RequestBuilder
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
+    @SuppressWarnings("deprecation")
+    public static class API {
+        private final RestActions session;
+        private String serviceURI;
+
+        /**
+         * Creates a new API session pointing at the given base service URI.
+         *
+         * @param serviceURI the base URI of the target web service
+         *                   (e.g., {@code "https://api.example.com"})
+         */
+        public API(String serviceURI) {
+            session = new RestActions(serviceURI, this);
+        }
+
+        /**
+         * Creates a new API session pointing at the given base service URI, seeded
+         * with cookies read from a SHAFT browser storage-state JSON file (the same
+         * file produced by {@code driver.browser().saveStorageState(String)}).
+         *
+         * @param serviceURI       the base URI of the target web service
+         *                         (e.g., {@code "https://api.example.com"})
+         * @param storageStatePath path to a storage-state JSON file previously saved
+         *                         from a browser session
+         */
+        public API(String serviceURI, String storageStatePath) {
+            session = new RestActions(serviceURI, this);
+            session.importCookiesFromStorageState(storageStatePath);
+        }
+
+        /**
+         * Wraps an existing {@link RestActions} session for continued use.
+         *
+         * @param existingSession an already-initialised REST session
+         */
+        public API(RestActions existingSession) {
+            session = existingSession;
+        }
+
+        /**
+         * Factory method equivalent to {@code new API(serviceURI)}.
+         *
+         * @param serviceURI the base URI of the target web service
+         * @return a new {@link API} instance
+         */
+        public static API getInstance(String serviceURI) {
+            return new API(serviceURI);
+        }
+
+        /**
+         * Starts a stub-free gRPC client for unary calls with JSON requests and responses.
+         *
+         * @param target gRPC target, for example {@code "localhost:50051"}
+         * @return a new {@link com.shaft.api.GrpcActions}
+         */
+        public static com.shaft.api.GrpcActions grpc(String target) {
+            return new com.shaft.api.GrpcActions(target);
+        }
+
+        /**
+         * Starts a stub-free gRPC client on a caller-managed channel (TLS, in-process).
+         *
+         * @param channel the channel
+         * @return a new {@link com.shaft.api.GrpcActions}
+         */
+        public static com.shaft.api.GrpcActions grpc(io.grpc.Channel channel) {
+            return new com.shaft.api.GrpcActions(channel);
+        }
+
+        /**
+         * Builds a GET request for the specified service endpoint.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder get(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.GET);
+        }
+
+        /**
+         * Builds a POST request for the specified service endpoint.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder post(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.POST);
+        }
+
+        /**
+         * Builds a PATCH request for the specified service endpoint.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder patch(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.PATCH);
+        }
+
+        /**
+         * Builds a DELETE request for the specified service endpoint.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder delete(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.DELETE);
+        }
+
+        /**
+         * Builds a PUT request for the specified service endpoint.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder put(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.PUT);
+        }
+
+        /**
+         * Builds a HEAD request for the specified service endpoint. HEAD returns
+         * the same headers/status as GET without a response body, so it is useful
+         * for existence, cache, and header assertions.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder head(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.HEAD);
+        }
+
+        /**
+         * Builds an OPTIONS request for the specified service endpoint, typically
+         * used to inspect the allowed methods (CORS/preflight) an endpoint exposes.
+         *
+         * @param serviceName the endpoint path (appended to the base URI)
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder options(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.OPTIONS);
+        }
+
+        /**
+         * Builds a GraphQL POST request with a JSON body containing only the
+         * supplied query.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query) {
+            return sendGraphQlRequest(serviceName, query, null, null);
+        }
+
+        /**
+         * Builds a GraphQL POST request with query and variables.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @param variables   GraphQL variables, commonly a {@link Map} or JSON string
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query, Object variables) {
+            return sendGraphQlRequest(serviceName, query, variables, null);
+        }
+
+        /**
+         * Builds a GraphQL POST request with query, variables, and fragment.
+         *
+         * @param serviceName the GraphQL endpoint path appended to the base URI
+         * @param query       the GraphQL query or mutation
+         * @param variables   GraphQL variables, commonly a {@link Map} or JSON string
+         * @param fragment    reusable GraphQL fragment content
+         * @return a {@link RequestBuilder} for further request configuration
+         */
+        public RequestBuilder sendGraphQlRequest(String serviceName, String query, Object variables, String fragment) {
+            Map<String, Object> requestBody = new LinkedHashMap<>();
+            requestBody.put("query", query);
+            if (variables != null) {
+                requestBody.put("variables", variables);
+            }
+            if (fragment != null) {
+                requestBody.put("fragment", fragment);
+            }
+            return post(serviceName).setContentType(ContentType.JSON).setRequestBody(requestBody);
+        }
+
+        /**
+         * Adds a persistent header that will be sent with every subsequent request
+         * in this session.
+         *
+         * @param key   the header name
+         * @param value the header value
+         */
+        public void addHeader(String key, String value) {
+            session.addHeaderVariable(key, value);
+        }
+
+        /**
+         * Adds a persistent cookie that will be sent with every subsequent request
+         * in this session.
+         *
+         * @param key   the cookie name
+         * @param value the cookie value
+         */
+        public void addCookie(String key, String value) {
+            session.addCookieVariable(key, value);
+        }
+
+        /**
+         * Imports all browser cookies into this API session.
+         *
+         * @param browserActions browser actions facade to read cookies from
+         * @return this API session for fluent chaining
+         */
+        public API importCookiesFrom(BrowserActionsContract browserActions) {
+            return importCookiesFrom(browserActions, null, null);
+        }
+
+        /**
+         * Imports browser cookies that match the optional domain and path filters into this API session.
+         *
+         * @param browserActions browser actions facade to read cookies from
+         * @param domainFilter   optional exact domain filter; pass {@code null} or blank to import every domain
+         * @param pathFilter     optional exact path filter; pass {@code null} or blank to import every path
+         * @return this API session for fluent chaining
+         */
+        public API importCookiesFrom(BrowserActionsContract browserActions, String domainFilter, String pathFilter) {
+            java.util.Objects.requireNonNull(browserActions, "browserActions");
+            session.importCookiesFrom(browserActions.getAllCookies(), domainFilter, pathFilter);
+            return this;
+        }
+
+        /**
+         * Exports all cookies from this API session into the given browser session.
+         *
+         * @param browserActions browser actions facade to write cookies into
+         * @return this API session for fluent chaining
+         */
+        public API exportCookiesTo(BrowserActionsContract browserActions) {
+            return exportCookiesTo(browserActions, null, null);
+        }
+
+        /**
+         * Exports API session cookies that match the optional domain and path filters into the given browser session.
+         *
+         * @param browserActions browser actions facade to write cookies into
+         * @param domainFilter   optional exact domain filter; pass {@code null} or blank to export every domain
+         * @param pathFilter     optional exact path filter; pass {@code null} or blank to export every path
+         * @return this API session for fluent chaining
+         */
+        public API exportCookiesTo(BrowserActionsContract browserActions, String domainFilter, String pathFilter) {
+            java.util.Objects.requireNonNull(browserActions, "browserActions");
+            session.getCookies().values().stream()
+                    .filter(cookie -> matchesExportCookieFilter(cookie, domainFilter, pathFilter))
+                    .forEach(cookie -> browserActions.addCookie(cookie.getName(), cookie.hasValue() ? cookie.getValue() : ""));
+            return this;
+        }
+
+        private static boolean matchesExportCookieFilter(io.restassured.http.Cookie cookie, String domainFilter, String pathFilter) {
+            return matchesExportFilter(cookie.hasDomain() ? cookie.getDomain() : null, domainFilter, true)
+                    && matchesExportFilter(cookie.hasPath() ? cookie.getPath() : null, pathFilter, false);
+        }
+
+        private static boolean matchesExportFilter(String actual, String filter, boolean domain) {
+            if (filter == null || filter.isBlank()) {
+                return true;
+            }
+            if (actual == null || actual.isBlank()) {
+                return false;
+            }
+            String normalizedActual = domain ? normalizeExportDomain(actual) : actual;
+            String normalizedFilter = domain ? normalizeExportDomain(filter) : filter;
+            return normalizedActual.equals(normalizedFilter);
+        }
+
+        private static String normalizeExportDomain(String domain) {
+            String normalized = domain.toLowerCase(java.util.Locale.ROOT);
+            while (normalized.startsWith(".")) {
+                normalized = normalized.substring(1);
+            }
+            return normalized;
+        }
+
+        /**
+         * Returns an immutable snapshot of cookies attached to this API session.
+         *
+         * @return API session cookies keyed by cookie name
+         */
+        public Map<String, io.restassured.http.Cookie> getCookies() {
+            return session.getCookies();
+        }
+
+        /**
+         * Returns an immutable snapshot of headers attached to this API session.
+         *
+         * @return API session headers keyed by header name
+         */
+        public Map<String, String> getHeaders() {
+            return session.getHeaders();
+        }
+
+        /**
+         * Starts building a hard assertion against the last API response.
+         *
+         * @return a {@link RestValidationsBuilder} for response assertions
+         */
+        public RestValidationsBuilder assertThatResponse() {
+            return com.shaft.validation.Validations.assertThat().response(session.getResponse());
+        }
+
+        /**
+         * Starts building a soft verification against the last API response.
+         *
+         * @return a {@link RestValidationsBuilder} for response verifications
+         */
+        public RestValidationsBuilder verifyThatResponse() {
+            return com.shaft.validation.Validations.verifyThat().response(session.getResponse());
+        }
+
+        /**
+         * Returns the raw REST Assured {@link Response} from the most recent request.
+         *
+         * @return the last {@link Response}
+         */
+        public Response getResponse() {
+            return session.getResponse();
+        }
+
+        /**
+         * Returns the response body of the most recent request as a string.
+         *
+         * @return the response body text
+         */
+        public String getResponseBody() {
+            return RestActions.getResponseBody(session.getResponse());
+        }
+
+        /**
+         * Maps the most recent JSON response body to the requested Java type.
+         *
+         * @param responseType the target class, record, or POJO type
+         * @param <T>          the mapped response type
+         * @return the response body mapped to {@code responseType}
+         * @throws NullPointerException  if {@code responseType} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code responseType}
+         */
+        public <T> T getResponseAs(Class<T> responseType) {
+            return RestActions.getResponseAs(session.getResponse(), responseType);
+        }
+
+        /**
+         * Maps the most recent JSON array response body to a list of the requested Java type.
+         *
+         * @param elementType the target class, record, or POJO type for each array item
+         * @param <T>         the mapped list element type
+         * @return the response body mapped to a {@link List}
+         * @throws NullPointerException  if {@code elementType} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code List<elementType>}
+         */
+        public <T> List<T> getResponseAsList(Class<T> elementType) {
+            return RestActions.getResponseAsList(session.getResponse(), elementType);
+        }
+
+        /**
+         * Maps the most recent JSON response body to a generic Java type.
+         *
+         * @param typeReference the target generic type reference
+         * @param <T>           the mapped response type
+         * @return the response body mapped to {@code typeReference}
+         * @throws NullPointerException  if {@code typeReference} is {@code null}
+         * @throws IllegalStateException if the response body is empty or the response is not JSON
+         * @throws IllegalArgumentException if the response body cannot be mapped to {@code typeReference}
+         */
+        public <T> T getResponseAs(TypeReference<T> typeReference) {
+            return RestActions.getResponseAs(session.getResponse(), typeReference);
+        }
+
+        /**
+         * Returns the HTTP status code of the most recent response.
+         *
+         * @return the status code (e.g., 200, 404)
+         */
+        public int getResponseStatusCode() {
+            return RestActions.getResponseStatusCode(session.getResponse());
+        }
+
+        /**
+         * Returns the response time in milliseconds for the most recent request.
+         *
+         * @return the response time in milliseconds
+         */
+        public long getResponseTime() {
+            return RestActions.getResponseTime(session.getResponse());
+        }
+
+        /**
+         * Extracts a value from the most recent JSON response using a JSONPath expression.
+         *
+         * @param jsonPath the JSONPath expression (e.g., {@code "$.data.id"})
+         * @return the extracted value as a string
+         */
+        public String getResponseJSONValue(String jsonPath) {
+            return RestActions.getResponseJSONValue(session.getResponse(), jsonPath);
+        }
+
+        /**
+         * Extracts a list of values from the most recent JSON response using a JSONPath expression.
+         *
+         * @param jsonPath the JSONPath expression
+         * @return the extracted values as a list of objects
+         */
+        public List<Object> getResponseJSONValueAsList(String jsonPath) {
+            return RestActions.getResponseJSONValueAsList(session.getResponse(), jsonPath);
+        }
+
+        /**
+         * Extracts a value from the most recent XML response using an XPath expression.
+         *
+         * @param xmlPath the XPath expression
+         * @return the extracted value as a string
+         */
+        public String getResponseXMLValue(String xmlPath) {
+            return RestActions.getResponseXMLValue(session.getResponse(), xmlPath);
+        }
+
+        /**
+         * Extracts a list of values from the most recent XML response using an XPath expression.
+         *
+         * @param xmlPath the XPath expression
+         * @return the extracted values as a list of objects
+         */
+        public List<Object> getResponseXMLValueAsList(String xmlPath) {
+            return RestActions.getResponseXMLValueAsList(session.getResponse(), xmlPath);
+        }
+    }
+
+    /**
+     * Playwright-style cached-authentication helper: runs a login {@code flow} once per {@code name}
+     * and caches the resulting browser storage state (cookies + {@code localStorage}) to disk so that
+     * subsequent calls &mdash; including from other tests or threads &mdash; can reuse the same
+     * authenticated session instead of repeating the UI login.
+     *
+     * <p>The cache is a JSON file per {@code name}, written in the same schema as
+     * {@link com.shaft.gui.browser.BrowserActions#saveStorageState(String)}, stored under
+     * {@link com.shaft.properties.internal.Paths#authCache()} (default {@code target/auth-cache/}).
+     *
+     * <p><b>Staleness policy:</b> deliberately simple &mdash; the cache is considered valid as long as
+     * the file exists; there is no TTL/max-age check. This keeps the feature minimal while still
+     * solving the common case (run the login once per suite). To force a re-login, delete the file
+     * returned by {@link #stateFile(String)} or call {@code setup} with a different {@code name}.
+     *
+     * <p><b>Thread-safety:</b> test suites frequently run in parallel, so concurrent {@code setup} calls
+     * for the <em>same</em> {@code name} are serialized on a per-name lock &mdash; only the first caller
+     * actually runs {@code flow}; every other concurrent caller blocks until it finishes and then sees
+     * the now-cached file. Calls for different names never block each other.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * // Once per suite (e.g. in a @BeforeSuite), run the login flow and cache its storage state:
+     * SHAFT.Auth.setup("standardUser", driver -> {
+     *     driver.browser().navigateToURL("https://example.com/login");
+     *     driver.element().type(By.id("username"), "standard_user");
+     *     driver.element().type(By.id("password"), "secret_sauce");
+     *     driver.element().click(By.id("login-button"));
+     * });
+     *
+     * // In every test, reuse the cached session instead of logging in again:
+     * SHAFT.Properties.web.set().storageStatePath(SHAFT.Auth.stateFile("standardUser"));
+     * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+     * }</pre>
+     *
+     * @see com.shaft.gui.browser.BrowserActions#saveStorageState(String)
+     * @see com.shaft.properties.internal.Web#storageStatePath()
+     */
+    public static class Auth {
+        // Per-name locks so concurrent setup() calls for the same name serialize instead of both
+        // running the login flow; different names run fully in parallel.
+        private static final Map<String, Object> LOCKS = new ConcurrentHashMap<>();
+
+        // The default runner drives a real cache-miss: create a driver, run the login flow against
+        // it, save its storage state, then quit it. Held in an AtomicReference so unit tests can
+        // stub the driver lifecycle via the package-private flowRunner(...) seam.
+        private static final java.util.concurrent.atomic.AtomicReference<FlowRunner> FLOW_RUNNER =
+                new java.util.concurrent.atomic.AtomicReference<>((flow, path) -> {
+                    GUI.WebDriver driver = new GUI.WebDriver();
+                    try {
+                        flow.accept(driver);
+                        driver.browser().saveStorageState(path);
+                    } finally {
+                        driver.quit();
+                    }
+                });
+
+        /**
+         * Drives a cache-miss: create a driver, run the login {@code flow} against it, save its
+         * storage state to {@code path}, then quit it. Package-private seam so unit tests can stub out
+         * real driver/browser creation and assert the cache-hit/cache-miss/locking decision logic in
+         * {@link #setup(String, Consumer)} in isolation.
+         */
+        @FunctionalInterface
+        interface FlowRunner {
+            void run(Consumer<GUI.WebDriver> flow, String path);
+        }
+
+        static FlowRunner flowRunner() {
+            return FLOW_RUNNER.get();
+        }
+
+        static void flowRunner(FlowRunner runner) {
+            FLOW_RUNNER.set(Objects.requireNonNull(runner, "runner"));
+        }
+
+        private Auth() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Returns the cache file for {@code name}, whether or not it currently exists. Feed the result
+         * to {@link com.shaft.properties.internal.Web.SetProperty#storageStatePath(String)} or
+         * {@link com.shaft.gui.browser.BrowserActions#loadStorageState(String)} to reuse a cached
+         * session.
+         *
+         * @param name the auth-cache name (e.g. a user role such as {@code "adminUser"})
+         * @return the absolute-or-relative path of the JSON cache file for {@code name}
+         */
+        public static String stateFile(String name) {
+            Objects.requireNonNull(name, "name");
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("name must not be blank");
+            }
+            return new File(SHAFT.Properties.paths.authCache(), name + ".json").getPath();
+        }
+
+        /**
+         * Runs {@code flow} once per {@code name} and caches its resulting storage state, or reuses an
+         * already-cached storage state on subsequent calls.
+         *
+         * <p>On a cache miss, this creates a new {@link GUI.WebDriver}, runs {@code flow} against it,
+         * saves its storage state to {@link #stateFile(String)}, and quits the driver &mdash; even if
+         * {@code flow} throws. On a cache hit, {@code flow} is not invoked at all.
+         *
+         * @param name the auth-cache name to set up (e.g. a user role such as {@code "standardUser"})
+         * @param flow the login flow to run against a fresh {@link GUI.WebDriver} on a cache miss
+         * @return the path of the (now guaranteed to exist) storage-state cache file for {@code name};
+         * same value as {@link #stateFile(String)}
+         */
+        public static String setup(String name, Consumer<GUI.WebDriver> flow) {
+            Objects.requireNonNull(flow, "flow");
+            String path = stateFile(name);
+            Object lock = LOCKS.computeIfAbsent(name, key -> new Object());
+            synchronized (lock) {
+                File cacheFile = new File(path);
+                if (cacheFile.exists()) {
+                    ReportManager.logDiscrete("SHAFT.Auth cache hit for \"" + name + "\" at \"" + path + "\".");
+                    return path;
+                }
+                flowRunner().run(flow, path);
+                ReportManager.logDiscrete("SHAFT.Auth cache miss for \"" + name
+                        + "\"; ran the login flow and saved storage state to \"" + path + "\".");
+                return path;
+            }
+        }
+    }
+
+    /**
+     * Controls current-thread HTTP contract recording and validation for browser and API traffic.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.Contracts.startRecording("src/test/resources/contracts/checkout.json", "/api/checkout");
+     * api.post("/api/checkout").setRequestBody(order);
+     * SHAFT.Contracts.stopRecording();
+     *
+     * SHAFT.Contracts.startAssertMode("src/test/resources/contracts/checkout.json");
+     * api.post("/api/checkout").setRequestBody(order);
+     * SHAFT.Contracts.stopValidation();
+     * }</pre>
+     */
+    public static class Contracts {
+        private Contracts() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Starts recording selected browser and SHAFT API HTTP traffic for the current thread.
+         *
+         * @param contractFilePath destination JSON contract path
+         * @param urlContains optional URL fragments used to select recorded traffic
+         */
+        public static void startRecording(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startRecording(contractFilePath, urlContains);
+        }
+
+        /**
+         * Writes the recorded HTTP contract and clears recording mode for the current thread.
+         */
+        public static void stopRecording() {
+            HttpContractRecorder.stopRecording();
+        }
+
+        /**
+         * Starts hard-assert validation against a recorded HTTP contract for the current thread.
+         *
+         * @param contractFilePath source JSON contract path
+         * @param urlContains optional URL fragments used to select validated traffic
+         */
+        public static void startAssertMode(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startAssertMode(contractFilePath, urlContains);
+        }
+
+        /**
+         * Starts soft-verify validation against a recorded HTTP contract for the current thread.
+         *
+         * @param contractFilePath source JSON contract path
+         * @param urlContains optional URL fragments used to select validated traffic
+         */
+        public static void startVerifyMode(String contractFilePath, String... urlContains) {
+            HttpContractRecorder.startVerifyMode(contractFilePath, urlContains);
+        }
+
+        /**
+         * Clears HTTP contract validation mode for the current thread.
+         */
+        public static void stopValidation() {
+            HttpContractRecorder.stopValidation();
+        }
+    }
+
+    /**
+     * Provides access to command-line and file-system operations.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.CLI.terminal().performTerminalCommand("echo hello");
+     * SHAFT.CLI.file().readFile("path/to/file.txt");
+     * }</pre>
+     */
+    public static class CLI {
+        private CLI() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Creates a new terminal actions instance for executing shell commands.
+         *
+         * @return a {@link TerminalActions} instance
+         */
+        public static TerminalActions terminal() {
+            return new TerminalActions();
+        }
+
+        /**
+         * Creates a new remote terminal actions instance that reuses one SSH session
+         * across multiple command executions until {@link TerminalActions#quit()} is called.
+         *
+         * @param sshHostName          the IP address or host name for the remote machine
+         * @param sshPortNumber        the SSH service port on the target machine
+         * @param sshUsername          the username used to access the target machine
+         * @param sshKeyFileFolderName the directory that holds the SSH key file
+         * @param sshKeyFileName       the SSH key file name
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(String sshHostName, int sshPortNumber, String sshUsername,
+                                                     String sshKeyFileFolderName, String sshKeyFileName) {
+            return remoteTerminal(sshHostName, sshPortNumber, sshUsername, sshKeyFileFolderName, sshKeyFileName, false);
+        }
+
+        /**
+         * Creates a reusable remote terminal that optionally streams command output lines
+         * to discrete logs while the remote command is still running.
+         *
+         * @param sshHostName          the IP address or host name for the remote machine
+         * @param sshPortNumber        the SSH service port on the target machine
+         * @param sshUsername          the username used to access the target machine
+         * @param sshKeyFileFolderName the directory that holds the SSH key file
+         * @param sshKeyFileName       the SSH key file name
+         * @param verbose              when {@code true}, each output line is logged as it is read
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(String sshHostName, int sshPortNumber, String sshUsername,
+                                                     String sshKeyFileFolderName, String sshKeyFileName, boolean verbose) {
+            return TerminalActions.getRemoteInstance(sshHostName, sshPortNumber, sshUsername,
+                    sshKeyFileFolderName, sshKeyFileName, verbose);
+        }
+
+        /**
+         * Creates a reusable remote terminal from {@link SshConnectionOptions}.
+         *
+         * @param options validated SSH connection options
+         * @return a reusable remote {@link TerminalActions} instance
+         */
+        public static TerminalActions remoteTerminal(SshConnectionOptions options) {
+            return TerminalActions.getRemoteInstance(options);
+        }
+
+        /**
+         * Creates a new file actions instance for file-system operations.
+         *
+         * @return a {@link FileActions} instance
+         */
+        public static FileActions file() {
+            return new FileActions();
+        }
+    }
+
+    /**
+     * Provides database connectivity and query execution.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.DB db = new SHAFT.DB(DatabaseActions.DatabaseType.MY_SQL,
+     *         "localhost", "3306", "mydb", "user", "pass");
+     * ResultSet rs = db.executeSelectQuery("SELECT * FROM users");
+     * }</pre>
+     *
+     * @see DatabaseActions
+     */
+    public static class DB extends DatabaseActions {
+
+        /**
+         * Creates a new database connection using a custom JDBC connection string.
+         *
+         * @param customConnectionString a full JDBC connection URL
+         */
+        public DB(String customConnectionString) {
+            super(customConnectionString);
+        }
+
+        /**
+         * Creates a new database connection using individual connection parameters.
+         *
+         * @param databaseType the target database type
+         * @param ip           the host address of the database server
+         * @param port         the port number
+         * @param name         the database name
+         * @param username     the authentication username
+         * @param password     the authentication password
+         */
+        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
+            super(databaseType, ip, port, name, username, password);
+        }
+
+        /**
+         * Factory method for creating a database connection.
+         *
+         * @param databaseType the target database type
+         * @param ip           the host address of the database server
+         * @param port         the port number
+         * @param name         the database name
+         * @param username     the authentication username
+         * @param password     the authentication password
+         * @return a new {@link DB} instance
+         */
+        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username, String password) {
+            return new DB(databaseType, ip, port, name, username, password);
+        }
+
+        /**
+         * Factory method for creating a database connection with a custom JDBC URL.
+         *
+         * @param customConnectionString a full JDBC connection URL
+         * @return a new {@link DB} instance
+         */
+        public static DB getInstance(String customConnectionString) {
+            return new DB(customConnectionString);
+        }
+
+        /**
+         * Converts the entire {@link ResultSet} into a string representation.
+         *
+         * @param resultSet the query result set
+         * @return all result data as a string
+         */
+        public static String getResult(ResultSet resultSet) {
+            return DatabaseActions.getResult(resultSet);
+        }
+
+        /**
+         * Extracts the values of a specific column from the result set.
+         *
+         * @param resultSet  the query result set
+         * @param columnName the name of the column to extract
+         * @return the column values as a string
+         */
+        public static String getColumn(ResultSet resultSet, String columnName) {
+            return DatabaseActions.getColumn(resultSet, columnName);
+        }
+
+        /**
+         * Retrieves a row matching the specified column value.
+         *
+         * @param resultSet      the query result set
+         * @param columnName     the column to search in
+         * @param knownCellValue the value to match
+         * @return the matching row data as a string
+         */
+        public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
+            return DatabaseActions.getRow(resultSet, columnName, knownCellValue);
+        }
+
+        /**
+         * Returns the total number of rows in the result set.
+         *
+         * @param resultSet the query result set
+         * @return the row count
+         */
+        public static int getRowCount(ResultSet resultSet) {
+            return DatabaseActions.getRowCount(resultSet);
+        }
+
+    }
+
+    /**
+     * Provides standalone assertion and verification builders for use outside
+     * of a WebDriver context (e.g., API response validation, object comparison).
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.Validations.assertThat().object(actualValue).isEqualTo(expectedValue);
+     * SHAFT.Validations.verifyThat().number(count).isGreaterThan(0);
+     * }</pre>
+     */
+    public static class Validations {
+        private Validations() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Starts building a hard assertion. The test fails immediately if the
+         * assertion does not pass.
+         *
+         * @return a {@link WizardHelpers.StandaloneAssertions} builder
+         */
+        public static WizardHelpers.StandaloneAssertions assertThat() {
+            return new WizardHelpers.StandaloneAssertions();
+        }
+
+        /**
+         * Starts building a soft verification. Failures are collected and reported
+         * at the end of the test without stopping execution.
+         *
+         * @return a {@link WizardHelpers.StandaloneVerifications} builder
+         */
+        public static WizardHelpers.StandaloneVerifications verifyThat() {
+            return new WizardHelpers.StandaloneVerifications();
+        }
+    }
+
+    /**
+     * Provides test data readers for various file formats.
+     *
+     * <p>Test data files are typically stored under
+     * {@code src/test/resources/testDataFiles/}.
+     */
+    public static class TestData {
+        /** Reads test data from JSON files. */
+        public static class JSON extends JSONFileManager {
+            /**
+             * Creates a new instance of the test data json reader using the target json
+             * file path
+             *
+             * @param jsonFilePath target test data json file path
+             */
+            public JSON(String jsonFilePath) {
+                super(jsonFilePath);
+            }
+
+            /**
+             * Factory method for creating a JSON test-data reader.
+             *
+             * @param jsonFilePath target test data JSON file path
+             * @return a new {@link JSONFileManager} instance
+             */
+            public static JSONFileManager getInstance(String jsonFilePath) {
+                return new JSONFileManager(jsonFilePath);
+            }
+        }
+
+        /** Reads test data from Microsoft Excel files. */
+        public static class EXCEL extends ExcelFileManager {
+            /**
+             * Creates a new instance of the test data Excel reader using the target Excel
+             * file path
+             *
+             * @param excelFilePath target test data Excel file path
+             */
+            public EXCEL(String excelFilePath) {
+                super(excelFilePath);
+            }
+
+            /**
+             * Factory method for creating an Excel test-data reader.
+             *
+             * @param excelFilePath target test data Excel file path
+             * @return a new {@link ExcelFileManager} instance
+             */
+            public static ExcelFileManager getInstance(String excelFilePath) {
+                return new ExcelFileManager(excelFilePath);
+            }
+        }
+
+        /** Reads test data from CSV files. */
+        public static class CSV extends CSVFileManager {
+            /**
+             * Creates a new instance of the test data CSV reader using the target CSV
+             * file path
+             *
+             * @param csvFilePath target test data CSV file path
+             */
+            public CSV(String csvFilePath) {
+                super(csvFilePath);
+            }
+
+            /**
+             * Factory method for creating a CSV test-data reader.
+             *
+             * @param csvFilePath target test data CSV file path
+             * @return a new {@link CSVFileManager} instance
+             */
+            public static CSVFileManager getInstance(String csvFilePath) {
+                return new CSVFileManager(csvFilePath);
+            }
+        }
+
+        /** Reads test data from YAML files. */
+        public static class YAML extends YAMLFileManager {
+            /**
+             * Creates a new instance of the test data Excel reader using the target Excel
+             * file path
+             *
+             * @param yamlFilePath target test data yaml file path
+             */
+            public YAML(String yamlFilePath) {
+                super(yamlFilePath);
+            }
+
+            /**
+             * Factory method for creating a YAML test-data reader.
+             *
+             * @param yamlFilePath target test data YAML file path
+             * @return a new {@link YAMLFileManager} instance
+             */
+            public static YAMLFileManager getInstance(String yamlFilePath) {
+                return new YAMLFileManager(yamlFilePath);
+            }
+        }
+    }
+
+    /**
+     * Exposes SHAFT's runtime configuration properties.
+     *
+     * @see com.shaft.properties.internal.Properties
+     */
+    public static class Properties extends com.shaft.properties.internal.Properties {
+    }
+
+    /**
+     * Plans, diagnoses, verifies, and explicitly provisions SHAFT-owned local infrastructure.
+     * Read-only methods use {@link Properties#infrastructure}; mutation always requires an exact
+     * {@link com.shaft.infrastructure.SetupApproval} for the supplied plan.
+     */
+    public static final class Infrastructure {
+        private Infrastructure() { throw new IllegalStateException("Utility class"); }
+
+        /**
+         * Returns the catalog of setup providers SHAFT can manage.
+         */
+        public static com.shaft.infrastructure.SetupCatalog catalog() {
+            return service().catalog();
+        }
+
+        /**
+         * Checks the configured setup and reports problems without changing anything.
+         */
+        public static com.shaft.infrastructure.SetupReport doctor() { return doctor(options()); }
+        /**
+         * Checks the setup for the given options and reports problems without changing anything.
+         */
+        public static com.shaft.infrastructure.SetupReport doctor(com.shaft.infrastructure.SetupOptions options) {
+            return service().doctor(options);
+        }
+
+        /**
+         * Reports the current state of the configured setup.
+         */
+        public static com.shaft.infrastructure.SetupReport status() { return status(options()); }
+        /**
+         * Reports the current state of the setup for the given options.
+         */
+        public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options) {
+            return service().status(options);
+        }
+        /**
+         * Reports the current state of the selected setup components.
+         */
+        public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().status(options, selection);
+        }
+        /**
+         * Reports the current state of the setup needed for the given Android request.
+         */
+        public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.AndroidSetupRequest request) {
+            return service().status(options, request);
+        }
+
+        /**
+         * Plans the changes needed to reach the configured setup without applying them.
+         */
+        public static com.shaft.infrastructure.SetupPlan plan() { return plan(options()); }
+        /**
+         * Plans the changes needed for the given options without applying them.
+         */
+        public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options) {
+            return service().plan(options);
+        }
+        /**
+         * Plans the changes needed for the selected setup components without applying them.
+         */
+        public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().plan(options, selection);
+        }
+        /**
+         * Plans the changes needed for the given Android request without applying them.
+         */
+        public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.AndroidSetupRequest request) {
+            return service().plan(options, request);
+        }
+
+        /**
+         * Verifies that the configured setup is installed and healthy.
+         */
+        public static com.shaft.infrastructure.SetupReport verify() { return verify(options()); }
+        /**
+         * Verifies that the setup for the given options is installed and healthy.
+         */
+        public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options) {
+            return service().verify(options);
+        }
+        /**
+         * Verifies that the selected setup components are installed and healthy.
+         */
+        public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) {
+            return service().verify(options, selection);
+        }
+        /**
+         * Verifies that the setup for the given Android request is installed and healthy.
+         */
+        public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.AndroidSetupRequest request) {
+            return service().verify(options, request);
+        }
+
+        /**
+         * Installs an approved setup plan.
+         *
+         * @return a receipt describing what was installed
+         */
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
+                throws java.io.IOException {
+            return install(plan, approval, options());
+        }
+
+        /**
+         * Installs an approved setup plan, reporting progress as it runs.
+         *
+         * @return a receipt describing what was installed
+         */
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
+            return service().install(plan, approval, options);
+        }
+        /**
+         * Installs an approved setup plan with the given options.
+         *
+         * @return a receipt describing what was installed
+         */
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.SetupSelection selection) throws java.io.IOException {
+            return service().install(plan, approval, options, selection);
+        }
+        /**
+         * Installs an approved setup plan with the given options, reporting progress as it runs.
+         *
+         * @return a receipt describing what was installed
+         */
+        public static com.shaft.infrastructure.SetupReceipt install(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.AndroidSetupRequest request) throws java.io.IOException {
+            return service().install(plan, approval, options, request);
+        }
+
+        /**
+         * Installs an approved setup plan if needed and starts the services it owns.
+         *
+         * @return the managed environment to stop when done
+         */
+        public static com.shaft.infrastructure.ManagedEnvironment start(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
+                throws java.io.IOException {
+            return start(plan, approval, options());
+        }
+
+        /**
+         * Installs an approved setup plan if needed and starts its services, reporting progress.
+         *
+         * @return the managed environment to stop when done
+         */
+        public static com.shaft.infrastructure.ManagedEnvironment start(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
+            return service().start(plan, approval, options);
+        }
+        /**
+         * Installs an approved setup plan if needed and starts its services with the given options.
+         *
+         * @return the managed environment to stop when done
+         */
+        public static com.shaft.infrastructure.ManagedEnvironment start(
+                com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
+                com.shaft.infrastructure.SetupOptions options,
+                com.shaft.infrastructure.AndroidSetupRequest request) throws java.io.IOException {
+            return service().start(plan, approval, options, request);
+        }
+
+        /**
+         * Builds setup options from the current {@code infrastructure.*} properties.
+         */
+        public static com.shaft.infrastructure.SetupOptions options() {
+            com.shaft.properties.internal.Infrastructure configured = Properties.infrastructure;
+            com.shaft.infrastructure.ShaftCachePaths paths = configured.cacheDirectory().isBlank()
+                    ? com.shaft.infrastructure.ShaftCachePaths.current()
+                    : cachePaths(java.nio.file.Path.of(configured.cacheDirectory()));
+            com.shaft.infrastructure.SetupOptions options = com.shaft.infrastructure.SetupOptions
+                    .defaults(configured.profile(), paths)
+                    .withMode(configured.mode()).withOffline(configured.offline())
+                    .withAutoStart(configured.autoStart())
+                    .withPreferSystemTools(configured.preferSystemTools())
+                    .withReuseOwnedProcesses(configured.reuseOwnedProcesses())
+                    .withTimeouts(duration("infrastructure.startupTimeout", configured.startupTimeout()),
+                            duration("infrastructure.shutdownTimeout", configured.shutdownTimeout()));
+            String executionAddress = Properties.platform.executionAddress();
+            if (usesExecutionEndpoint(configured.profile()) && executionAddress != null
+                    && !executionAddress.isBlank() && !executionAddress.equalsIgnoreCase("local")
+                    && !executionAddress.equalsIgnoreCase("dockerized")) {
+                String normalized = executionAddress.matches("(?i)^https?://.*")
+                        ? executionAddress : "http://" + executionAddress;
+                options = options.withRemoteEndpoint(java.net.URI.create(normalized));
+            }
+            return options;
+        }
+
+        private static boolean usesExecutionEndpoint(com.shaft.infrastructure.SetupProfile profile) {
+            return switch (profile) {
+                case WEB_LOCAL, SELENIUM_GRID, MOBILE_ANDROID, MOBILE_IOS, MOBILE_WINDOWS, HEALENIUM -> true;
+                default -> false;
+            };
+        }
+
+        private static java.time.Duration duration(String property, String value) {
+            try {
+                java.time.Duration duration = java.time.Duration.parse(value);
+                if (duration.isZero() || duration.isNegative()) throw new IllegalArgumentException();
+                return duration;
+            } catch (RuntimeException invalid) {
+                throw new IllegalArgumentException(property + " must be a positive ISO-8601 duration.", invalid);
+            }
+        }
+
+        private static com.shaft.infrastructure.ShaftCachePaths cachePaths(java.nio.file.Path configured) {
+            java.nio.file.Path cache = configured.normalize();
+            if (!cache.isAbsolute()) throw new IllegalArgumentException(
+                    "infrastructure.cacheDirectory must be absolute.");
+            java.nio.file.Path data = cache.resolve("data");
+            return new com.shaft.infrastructure.ShaftCachePaths(cache, data, cache.resolve("downloads"),
+                    data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
+        }
+
+        private static com.shaft.infrastructure.InfrastructureSetupService service() {
+            return com.shaft.infrastructure.InfrastructureSetupService.builtIn();
+        }
+    }
+
+    /**
+     * Utility class for emitting log messages and attaching artifacts to
+     * the Allure execution report.
+     *
+     * <p><b>Usage example:</b>
+     * <pre>{@code
+     * SHAFT.Report.report("Step completed successfully");
+     * SHAFT.Report.attach("text/plain", "response.json", responseBody);
+     * }</pre>
+     */
+    public static class Report {
+        private Report() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        /**
+         * Logs a message discretely (visible in the execution log file but not
+         * as a report step).
+         *
+         * @param message the message to log
+         */
+        public static void log(String message) {
+            ReportManager.logDiscrete(message);
+        }
+
+        /**
+         * Logs a message as a visible step in the Allure execution report.
+         *
+         * @param message the message to report
+         */
+        public static void report(String message) {
+            ReportManager.log(message);
+        }
+
+        /**
+         * Logs a message as a visible step in the Allure execution report,
+         * rendered with the exact provided status instead of the current test status.
+         * Failed and broken steps remain visible even while discrete logging is enabled.
+         *
+         * @param message    the message to report
+         * @param stepStatus the exact status to render for this step
+         *                   (e.g., {@link io.qameta.allure.model.Status#PASSED},
+         *                   {@link io.qameta.allure.model.Status#FAILED})
+         */
+        public static void report(String message, io.qameta.allure.model.Status stepStatus) {
+            ReportManager.log(message, stepStatus);
+        }
+
+        /**
+         * Attaches a string artifact to the Allure report.
+         *
+         * @param attachmentType    the MIME type of the attachment (e.g., {@code "text/plain"})
+         * @param attachmentName    a human-readable name for the attachment
+         * @param attachmentContent the content to attach
+         */
+        public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
+            ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
+        }
+
+        /**
+         * Attaches a binary artifact (e.g., an image) to the Allure report.
+         *
+         * @param attachmentType    the MIME type of the attachment (e.g., {@code "image/png"})
+         * @param attachmentName    a human-readable name for the attachment
+         * @param attachmentContent an {@link InputStream} providing the binary content
+         */
+        public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
+            ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
+        }
+
+        /**
+         * Rebuilds SHAFT's Allure report from an existing results directory without running tests, for
+         * example a folder that merges several runs. Uses the managed Allure 3 CLI, the
+         * {@code allure.*} settings (single-file mode, logo, theme) and SHAFT's report patch. Never
+         * cleans the results, never rewrites {@code environment.xml}, and warns about attachment files
+         * the results reference but the directory lacks.
+         *
+         * <pre>{@code
+         * Path report = SHAFT.Report.generateAllureReport(Path.of("target/merged-allure-results"));
+         * }</pre>
+         *
+         * @param resultsDirectory the Allure results directory; the report is written to its parent's {@code allure-report} folder
+         * @return the generated HTML report
+         * @throws IllegalArgumentException when {@code resultsDirectory} is not an existing directory
+         * @throws IllegalStateException    when the Allure CLI could not be resolved or produced no report
+         */
+        public static java.nio.file.Path generateAllureReport(java.nio.file.Path resultsDirectory) {
+            return com.shaft.tools.io.internal.AllureManager.generateReport(resultsDirectory);
+        }
+    }
+}

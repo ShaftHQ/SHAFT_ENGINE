@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/decisions/scheduled-e2e-ci-fixes-pr-3408.md",
+  "content_hash": "sha256:e67bef8e8cb915b04cf2a91c39fb9fa8f73001442a084b15547776fbdac14d73",
+  "created_at": "2026-07-09T07:09:54+03:00",
+  "evidence": [
+    {
+      "id": "639ae8e0cb6891e07e7a16958b29fd929b7d3722",
+      "kind": "commit"
+    },
+    {
+      "id": "a2d32cdde746d7d82f874c0c87795eb010bb4741",
+      "kind": "commit"
+    },
+    {
+      "id": "796a4e0677b592f977c83d95e19d4b743712aeb3",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.scheduled-e2e-ci-fixes-pr-3408",
+  "source": {
+    "kind": "agent",
+    "task": "Fix scheduled E2E CI failures (runs 28916954272, 28917051358)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "shaft-sikulix",
+    "appium",
+    "testng",
+    "allure"
+  ],
+  "title": "Scheduled E2E CI fixes PR #3408",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

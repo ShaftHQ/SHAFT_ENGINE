@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/bare-consumer-pom-shaft-engine-makes-surefire-run-zero-testng-tests-silently.md",
+  "content_hash": "sha256:25b8b6928c3d41fac8d2924b63e34ca1854ade149f38a10252c4c4fe1dbfd9c8",
+  "created_at": "2026-07-11T14:22:14+03:00",
+  "evidence": [
+    {
+      "id": "c19c6975f1634519a9cb64d38fdeb03fddb14619",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.bare-consumer-pom-shaft-engine-makes-surefire-run-zero-testng-tests-silently",
+  "source": {
+    "kind": "agent",
+    "task": "First-time-user trust pass: fix MCP workspace for external projects, remove codegen/doctor dead ends, intent-first IntelliJ plugin, consumer-project E2E"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Bare consumer pom + shaft-engine makes Surefire run zero TestNG tests silently",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/gotchas/githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n.md",
+  "content_hash": "sha256:1013bb4dba20f5c41b8bc5f64b2310cedcffc798cf3a53a7e5e052c58666b12d",
+  "created_at": "2026-07-26T18:46:54+03:00",
+  "evidence": [],
+  "id": "gotcha.githubs-auto-close-keyword-scan-is-negation-blind-does-not-fix-n-still-closes-n",
+  "source": {
+    "kind": "agent",
+    "task": "record two post-PR-4141 gotchas: negation-blind auto-close keyword matching, and PR prose as false merge-state signal"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "auto-close",
+    "issue-tracking",
+    "pr-body",
+    "quote-blind"
+  ],
+  "title": "GitHub's auto-close keyword scan is negation-blind -- \"does not fix #N\" still closes #N",
+  "type": "gotcha",
+  "updated_at": "2026-07-26T19:06:15+03:00"
+}

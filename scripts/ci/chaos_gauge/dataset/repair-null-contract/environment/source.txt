@@ -1,0 +1,5 @@
+import json
+from pathlib import Path
+
+records = json.loads(Path("records.json").read_text())
+print(",".join(record["label"].strip().lower() for record in records))

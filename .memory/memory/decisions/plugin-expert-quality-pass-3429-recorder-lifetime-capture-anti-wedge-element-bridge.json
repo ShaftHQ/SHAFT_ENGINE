@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/decisions/plugin-expert-quality-pass-3429-recorder-lifetime-capture-anti-wedge-element-bridge.md",
+  "content_hash": "sha256:716284aae8eaef29ba2f65e05a4dd2462f5054f179fa33bd82f14fdd65abf80c",
+  "created_at": "2026-07-11T19:41:58+03:00",
+  "evidence": [
+    {
+      "id": "github issue ShaftHQ/SHAFT_ENGINE#3429 and PR #3431",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.plugin-expert-quality-pass-3429-recorder-lifetime-capture-anti-wedge-element-bridge",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ plugin expert quality pass: recorder dies after launch, codegen wedge, assistant UX (issue #3429, PR #3431)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Plugin expert quality pass (issue #3429, PR #3431): recorder lifetime, capture anti-wedge, element bridge",
+  "type": "decision",
+  "updated_at": "2026-07-11T19:41:58+03:00"
+}

@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/workflows/verify-embedded-single-file-html-viewers-trace-report-without-file-preview.md",
+  "content_hash": "sha256:fa33a670c74458f83da57e8d855e802c0e8861980ad37af32d31676b22f8bf52",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [],
+  "id": "feature.verify-embedded-single-file-html-viewers-trace-report-without-file-preview",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "reporting",
+    "trace",
+    "verification",
+    "testing"
+  ],
+  "title": "Verify embedded single-file HTML viewers (trace/report) without file:// preview",
+  "type": "feature",
+  "updated_at": "2026-07-15T10:08:58+03:00"
+}

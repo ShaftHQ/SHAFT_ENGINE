@@ -1,0 +1,34 @@
+{
+  "body_path": "memory/constraints/never-use-or-enforce-a-headroom-style-proxy.md",
+  "content_hash": "sha256:cf2c6e56d76d004fa50d7991f7da5b830627ddd2a159749c88593aee6615847a",
+  "created_at": "2026-09-09T01:13:49+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5693",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5690",
+      "kind": "source"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5689",
+      "kind": "source"
+    }
+  ],
+  "id": "gotcha.never-use-or-enforce-a-headroom-style-proxy",
+  "source": {
+    "kind": "agent",
+    "task": "Never use a traffic proxy like Headroom; never install, pin, wrap, vendor, doctor-require, or include it in the installer ever again"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "headroom",
+    "proxy",
+    "permanent"
+  ],
+  "title": "Never use a traffic proxy like Headroom",
+  "type": "gotcha",
+  "updated_at": "2026-09-09T12:00:00+03:00"
+}

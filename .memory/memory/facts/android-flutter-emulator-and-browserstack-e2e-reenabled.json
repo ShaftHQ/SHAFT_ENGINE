@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/facts/android-flutter-emulator-and-browserstack-e2e-reenabled.md",
+  "content_hash": "sha256:b34f375ce5a64e35887b5944a01135ba05b39c74b90a924bd6a88d4afe34f52a",
+  "created_at": "2026-09-08T00:00:42+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5640",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5647",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.android-flutter-emulator-and-browserstack-e2e-reenabled",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Session catch-up for #5638 / CE self-improve and Flutter deliveries"
+  },
+  "status": "active",
+  "tags": [
+    "flutter",
+    "android",
+    "browserstack",
+    "ci"
+  ],
+  "title": "Android Flutter emulator and BrowserStack E2E re-enabled",
+  "type": "gotcha",
+  "updated_at": "2026-09-08T00:00:42+03:00"
+}

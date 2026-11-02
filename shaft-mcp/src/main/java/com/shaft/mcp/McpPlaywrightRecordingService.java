@@ -1,0 +1,404 @@
+package com.shaft.mcp;
+
+import tools.jackson.databind.ObjectMapper;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.model.CaptureReadiness;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Local MCP recorder for Playwright actions performed through the Playwright tool surface.
+ */
+final class McpPlaywrightRecordingService {
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final McpCaptureCodeBlockService captureCodeBlocks = new McpCaptureCodeBlockService();
+    private final McpPlaywrightCaptureAdapter captureAdapter = new McpPlaywrightCaptureAdapter();
+    private final McpWorkspacePolicy workspacePolicy;
+    private Path outputPath;
+    private McpMobileRecording recording;
+
+    McpPlaywrightRecordingService(McpWorkspacePolicy workspacePolicy) {
+        this.workspacePolicy = workspacePolicy;
+    }
+
+    synchronized McpMobileRecordingStatus start(String outputPath, String mode, boolean includeSensitiveValues) {
+        if (recording != null) {
+            throw new IllegalStateException("A Playwright recording is already active.");
+        }
+        Path output = outputPath == null || outputPath.isBlank()
+                ? workspacePolicy.output("recordings/playwright-" + Instant.now().toString().replace(':', '-') + ".json",
+                "Playwright recording output path")
+                : workspacePolicy.output(outputPath, "Playwright recording output path");
+        this.outputPath = output;
+        this.recording = new McpMobileRecording(
+                McpMobileRecording.CURRENT_SCHEMA_VERSION,
+                mode == null || mode.isBlank() ? "playwright" : mode,
+                Instant.now().toString(),
+                "",
+                includeSensitiveValues,
+                List.of(),
+                List.of(),
+                1L);
+        persist();
+        return status();
+    }
+
+    synchronized McpMobileRecordingStatus status() {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false, List.of(),
+                    CaptureReadiness.State.READY);
+        }
+        return new McpMobileRecordingStatus(
+                true,
+                outputPath,
+                recording.mode(),
+                recording.actions().size(),
+                recording.includeSensitiveValues(),
+                recording.warnings(),
+                readinessFor(recording, false),
+                McpRecordingStepEditor.stepSummaries(recording));
+    }
+
+    synchronized McpMobileRecordingStatus stop(boolean discard) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("No active Playwright recording."), CaptureReadiness.State.BLOCKED);
+        }
+        McpMobileRecording closed = new McpMobileRecording(
+                recording.schemaVersion(),
+                recording.mode(),
+                recording.startedAt(),
+                Instant.now().toString(),
+                recording.includeSensitiveValues(),
+                recording.actions(),
+                recording.warnings(),
+                recording.nextStepId());
+        int count = closed.actions().size();
+        Path finalPath = outputPath;
+        if (!discard) {
+            recording = closed;
+            persist();
+        } else if (outputPath != null) {
+            try {
+                Files.deleteIfExists(outputPath);
+            } catch (IOException exception) {
+                throw new IllegalArgumentException("Playwright recording output could not be discarded.", exception);
+            }
+        }
+        recording = null;
+        outputPath = null;
+        CaptureReadiness.State readiness = discard
+                ? CaptureReadiness.State.READY
+                : readinessFor(closed, true);
+        return new McpMobileRecordingStatus(false, finalPath, closed.mode(), count, closed.includeSensitiveValues(),
+                discard ? List.of("Recording discarded.") : closed.warnings(), readiness,
+                McpRecordingStepEditor.stepSummaries(closed));
+    }
+
+    /**
+     * Deletes a recorded Playwright step by its stable {@code stepId} and renumbers the remaining
+     * steps' {@code sequence} to stay contiguous (1..N), mirroring mobile step surgery (#3528). A
+     * missing recording or an unknown {@code stepId} is a no-op — the agent is expected to re-read
+     * status and retry rather than have the recording silently corrupted or an exception thrown.
+     *
+     * @param stepId stable step id to remove, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus deleteStep(String stepId) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active Playwright recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        McpMobileRecording updated = McpRecordingStepEditor.delete(recording, stepId);
+        if (updated == recording) {
+            return status();
+        }
+        recording = updated;
+        persist();
+        return status();
+    }
+
+    /**
+     * Moves a recorded Playwright step up or down by its stable {@code stepId}, then renumbers
+     * {@code sequence} to stay contiguous (1..N). Moving the first step up, the last step down, an
+     * unknown {@code stepId}, or an unrecognized {@code direction} are all no-ops.
+     *
+     * @param stepId stable step id to move, as surfaced in {@link McpMobileRecordingStatus#steps()}
+     * @param direction "up" or "down" (case-insensitive)
+     * @return updated recorder status
+     */
+    synchronized McpMobileRecordingStatus reorderStep(String stepId, String direction) {
+        if (recording == null) {
+            return new McpMobileRecordingStatus(false, outputPath, "", 0, false,
+                    List.of("Ignored: no active Playwright recording to edit."), CaptureReadiness.State.BLOCKED);
+        }
+        McpMobileRecording updated = McpRecordingStepEditor.reorder(recording, stepId, direction);
+        if (updated == recording) {
+            return status();
+        }
+        recording = updated;
+        persist();
+        return status();
+    }
+
+    /**
+     * Rolls a Playwright recording's step warnings up into the shared Ready/Risky/Blocked verdict,
+     * so the Playwright recorder speaks the same readiness language as the web and mobile recorders
+     * (#3498). A stopped recording with no steps is {@code BLOCKED} (nothing to generate);
+     * coordinate-fallback, redaction, or approximated-action warnings on any step make it
+     * {@code RISKY}; a clean recording is {@code READY}.
+     *
+     * @param recording the live or just-closed recording
+     * @param stopped whether the recording has been stopped
+     * @return the readiness verdict
+     */
+    private static CaptureReadiness.State readinessFor(McpMobileRecording recording, boolean stopped) {
+        if (stopped && recording.actions().isEmpty()) {
+            return CaptureReadiness.State.BLOCKED;
+        }
+        return replayWarnings(recording).isEmpty()
+                ? CaptureReadiness.State.READY
+                : CaptureReadiness.State.RISKY;
+    }
+
+    synchronized McpMobileRecordedAction record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                0, false);
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link PlaywrightService}
+     * computed at the moment it executed (issue #4273): a real count of matching live elements and
+     * a real stable signal, instead of the unverified {@code 0}/{@code false} the 7-arg overload
+     * above still reports for actions with no live locator (navigation, window management, etc.).
+     *
+     * @param uniquenessCount number of live elements the recorded locator matched, or {@code 0} when
+     *         not applicable/unverified
+     * @param stable whether the recorded locator looks human-authored rather than framework-generated
+     * @return the recorded action, or {@code null} when no recording is active
+     */
+    synchronized McpMobileRecordedAction record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            int uniquenessCount,
+            boolean stable) {
+        return record(action, locatorStrategy, locatorValue, parameters, javaCode, redactedJavaCode, sensitive,
+                uniquenessCount, stable, "");
+    }
+
+    /**
+     * Records a Playwright action together with the live-DOM evidence {@link PlaywrightService}
+     * computed at the moment it executed, including a self-verified {@code replayXpath} (issue
+     * #4262): the 9-arg overload above still reports the unverified {@code ""} default for actions
+     * this surface has not taught to compute one yet.
+     *
+     * @param uniquenessCount number of live elements the recorded locator matched, or {@code 0} when
+     *         not applicable/unverified
+     * @param stable whether the recorded locator looks human-authored rather than framework-generated
+     * @param replayXpath a self-verified relative XPath the live driver independently confirmed
+     *         matches exactly one element, or blank when none was computed/confirmed
+     * @return the recorded action, or {@code null} when no recording is active
+     */
+    synchronized McpMobileRecordedAction record(
+            String action,
+            locatorStrategy locatorStrategy,
+            String locatorValue,
+            Map<String, String> parameters,
+            String javaCode,
+            String redactedJavaCode,
+            boolean sensitive,
+            int uniquenessCount,
+            boolean stable,
+            String replayXpath) {
+        if (recording == null) {
+            return null;
+        }
+        Map<String, String> safeParameters = parameters == null ? Map.of() : parameters;
+        List<String> warnings = new ArrayList<>();
+        if (McpAppiumLocatorSuggester.isCoordinateFallback(action, locatorStrategy)) {
+            warnings.add(McpAppiumLocatorSuggester.COORDINATE_FALLBACK_WARNING);
+        }
+        boolean sensitiveStored = !sensitive || recording.includeSensitiveValues();
+        if (sensitive && !recording.includeSensitiveValues()) {
+            safeParameters = Map.of("value", "<redacted>");
+            warnings.add("Sensitive value omitted; replace the placeholder before replay.");
+        }
+        String stepId = "m" + recording.nextStepId();
+        McpMobileRecordedAction recorded = new McpMobileRecordedAction(
+                stepId,
+                recording.actions().size() + 1L,
+                Instant.now().toString(),
+                action,
+                locatorStrategy == null ? "" : locatorStrategy.name(),
+                locatorValue,
+                safeParameters,
+                sensitiveStored ? javaCode : redactedJavaCode,
+                sensitiveStored,
+                warnings,
+                uniquenessCount,
+                stable,
+                replayXpath);
+        List<McpMobileRecordedAction> actions = new ArrayList<>(recording.actions());
+        actions.add(recorded);
+        recording = new McpMobileRecording(
+                recording.schemaVersion(),
+                recording.mode(),
+                recording.startedAt(),
+                recording.stoppedAt(),
+                recording.includeSensitiveValues(),
+                actions,
+                recording.warnings(),
+                recording.nextStepId() + 1);
+        persist();
+        return recorded;
+    }
+
+    McpMobileReplayResult codeBlocks(String recordingPath, String driverVariableName) {
+        return codeBlocks(recordingPath, driverVariableName, null, "");
+    }
+
+    /**
+     * Generates copy-paste replay code plus focused record-at-target snippets from a Playwright
+     * recording (#3528), mirroring the mobile recorder's {@code codeBlocks(recordingPath,
+     * driverVariableName, targetSource, insertAfter)} overload.
+     *
+     * @param recordingPath workspace-contained recording path
+     * @param driverVariableName driver variable name to use in generated snippets
+     * @param targetSource existing Java Page Object source; {@code null} skips target insertion
+     * @param insertAfter method name or textual anchor to insert after
+     * @return replay code blocks plus target insertion snippets
+     */
+    McpMobileReplayResult codeBlocks(
+            String recordingPath,
+            String driverVariableName,
+            Path targetSource,
+            String insertAfter) {
+        Path path = workspacePolicy.existing(recordingPath, "Playwright recording path");
+        McpMobileRecording stored = read(path);
+        McpPlaywrightCaptureAdapter.CaptureAdapterResult capture = captureAdapter.generate(path, stored);
+        CaptureGenerationResult generation = capture.generation();
+        List<McpCodeBlock> blocks = new ArrayList<>();
+        blocks.add(replayBlock(stored, driverVariableName));
+        if (Files.isRegularFile(generation.sourcePath())) {
+            blocks.addAll(captureCodeBlocks.fromGeneratedSource(
+                    generation.sourcePath(), driverVariableName, generation.report(), targetSource, insertAfter));
+        }
+        List<String> warnings = new ArrayList<>(replayWarnings(stored));
+        warnings.addAll(capture.warnings());
+        if (generation.report() != null) {
+            warnings.addAll(generation.report().warnings());
+            // Issue #4262 P1: the #4239 P1.4a locator ladder rejects a target by recording its
+            // rejection reason in unsupportedEvents(), not warnings() -- surface it here too, so a
+            // caller whose codegen call failed the ladder gate sees an honest, actionable reason
+            // instead of a bare successful=false.
+            warnings.addAll(generation.report().unsupportedEvents());
+        }
+        return new McpMobileReplayResult(
+                path,
+                generation.successful(),
+                0,
+                blocks,
+                warnings,
+                capture.captureSessionPath(),
+                generation.sourcePath(),
+                generation.testDataPath(),
+                generation.reportPath(),
+                generation.reviewPath(),
+                generation.report());
+    }
+
+    McpMobileRecording readRecording(String recordingPath) {
+        return read(workspacePolicy.existing(recordingPath, "Playwright recording path"));
+    }
+
+    private McpMobileRecording read(Path path) {
+        try {
+            return McpRecordingStepEditor.normalize(mapper.readValue(path.toFile(), McpMobileRecording.class));
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Playwright recording could not be read.", exception);
+        }
+    }
+
+    private void persist() {
+        try {
+            Path parent = outputPath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            mapper.writerWithDefaultPrettyPrinter().writeValue(outputPath.toFile(), recording);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Playwright recording could not be written.", exception);
+        }
+    }
+
+    private McpCodeBlock replayBlock(McpMobileRecording stored, String driverVariableName) {
+        String driver = javaIdentifierOrDefault(driverVariableName, "driver");
+        StringBuilder code = new StringBuilder();
+        code.append("public void replayPlaywrightJourney(SHAFT.GUI.Playwright ").append(driver).append(") {\n");
+        for (McpMobileRecordedAction action : stored.actions()) {
+            if (!action.warnings().isEmpty()) {
+                code.append("    // ").append(String.join(" ", action.warnings())).append('\n');
+            }
+            for (String line : action.javaCode().replace("driver.", driver + ".").split("\\R")) {
+                code.append("    ").append(line).append('\n');
+            }
+        }
+        code.append("}\n");
+        return new McpCodeBlock(
+                "playwright-replay-method",
+                "Generated Playwright replay method",
+                McpCodeBlock.Kind.TEST_METHOD,
+                "java",
+                List.of("com.shaft.driver.SHAFT"),
+                code.toString(),
+                "Paste into any class and call it with an initialized SHAFT.GUI.Playwright.",
+                replayWarnings(stored).isEmpty(),
+                List.of(),
+                replayWarnings(stored));
+    }
+
+    private static List<String> replayWarnings(McpMobileRecording stored) {
+        LinkedHashSet<String> warnings = new LinkedHashSet<>(stored.warnings());
+        stored.actions().stream()
+                .flatMap(action -> action.warnings().stream())
+                .forEach(warnings::add);
+        boolean redacted = stored.actions().stream().anyMatch(action -> !action.sensitiveValueStored());
+        if (redacted) {
+            warnings.add("One or more sensitive values were redacted; replace placeholders before replay.");
+        }
+        return List.copyOf(warnings);
+    }
+
+    private static String javaIdentifierOrDefault(String value, String fallback) {
+        String candidate = value == null || value.isBlank() ? fallback : value.trim();
+        if (!Character.isJavaIdentifierStart(candidate.charAt(0))) {
+            return fallback;
+        }
+        for (int index = 1; index < candidate.length(); index++) {
+            if (!Character.isJavaIdentifierPart(candidate.charAt(index))) {
+                return fallback;
+            }
+        }
+        return candidate;
+    }
+
+}

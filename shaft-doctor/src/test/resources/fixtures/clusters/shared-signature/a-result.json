@@ -1,0 +1,1 @@
+{"uuid":"cluster-a","historyId":"hist-login","name":"loginTest","fullName":"demo.LoginTest.loginTest","status":"failed","start":100,"stop":200,"statusDetails":{"message":"NoSuchElementException: Unable to locate element: #login-btn","trace":"at demo.LoginTest.loginTest(LoginTest.java:12)"}}

@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/omniroute-verify-live-provider-ids-and-cli-target-matrix-before-long-run.md",
+  "content_hash": "sha256:a1f88a85c79f6228a131ff5ff4f41663f9dc108d762b916586addb1328bf3a44",
+  "created_at": "2026-09-14T14:45:14+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5769",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.omniroute-verify-live-provider-ids-and-cli-target-matrix-before-long-run",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver open ChaosEngine learning tickets #5767-#5770 in one PR"
+  },
+  "status": "active",
+  "tags": [
+    "omniroute",
+    "dispatch",
+    "catalog",
+    "gotcha"
+  ],
+  "title": "OmniRoute: verify live provider ids and CLI target matrix before long run",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T14:45:14+03:00"
+}

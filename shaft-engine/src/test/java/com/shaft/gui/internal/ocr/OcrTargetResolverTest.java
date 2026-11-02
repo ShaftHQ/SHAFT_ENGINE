@@ -1,0 +1,198 @@
+package com.shaft.gui.internal.ocr;
+
+import com.shaft.gui.ocr.OcrBlockLevel;
+import com.shaft.gui.ocr.OcrMatch;
+import com.shaft.gui.ocr.OcrRectangle;
+import com.shaft.gui.ocr.OcrResult;
+import com.shaft.gui.ocr.OcrTarget;
+import com.shaft.gui.ocr.OcrTextBlock;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.util.List;
+
+public class OcrTargetResolverTest {
+    @Test
+    public void resolvesExactTextAfterWhitespaceAndCaseNormalization() {
+        OcrResult result = result(
+                line("  CHECKOUT   NOW ", 10, 20, 140, 24, 0.94),
+                word("CHECKOUT", 10, 20, 90, 24, 0.96),
+                word("NOW", 110, 20, 40, 24, 0.92));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("checkout now"));
+
+        Assert.assertEquals(match.text(), "CHECKOUT NOW");
+        Assert.assertEquals(match.bounds(), new OcrRectangle(10, 20, 140, 24));
+        Assert.assertEquals(match.confidence(), 0.94);
+    }
+
+    @Test
+    public void partialTextUsesSmallestConsecutiveWordUnion() {
+        OcrResult result = result(
+                line("Proceed to checkout now", 5, 10, 230, 30, 0.90),
+                word("Proceed", 5, 10, 60, 30, 0.95),
+                word("to", 70, 10, 18, 30, 0.94),
+                word("checkout", 95, 10, 90, 30, 0.93),
+                word("now", 195, 10, 40, 30, 0.92));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.containing("checkout no"));
+
+        Assert.assertEquals(match.bounds(), new OcrRectangle(95, 10, 140, 30));
+        Assert.assertEquals(match.text(), "checkout now");
+        Assert.assertEquals(match.confidence(), 0.92);
+    }
+
+    @Test
+    public void ambiguityRequiresExplicitOccurrenceInReadingOrder() {
+        OcrResult result = result(
+                line("Save", 200, 100, 50, 20, 0.96),
+                line("Save", 10, 20, 50, 20, 0.97));
+
+        IllegalStateException ambiguity = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Save")));
+        Assert.assertTrue(ambiguity.getMessage().contains("2 OCR matches"));
+
+        OcrMatch second = OcrTargetResolver.resolve(result, OcrTarget.exact("Save").occurrence(1));
+        Assert.assertEquals(second.bounds(), new OcrRectangle(200, 100, 50, 20));
+    }
+
+    @Test
+    public void duplicatePartialTextOnOneLineRequiresExplicitOccurrence() {
+        OcrResult result = result(
+                line("Save Save", 10, 20, 120, 20, 0.96),
+                word("Save", 10, 20, 45, 20, 0.97),
+                word("Save", 80, 20, 45, 20, 0.95));
+
+        IllegalStateException ambiguity = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.containing("Save")));
+        Assert.assertTrue(ambiguity.getMessage().contains("2 OCR matches"));
+        Assert.assertEquals(OcrTargetResolver.resolve(result, OcrTarget.containing("Save").occurrence(1)).bounds(),
+                new OcrRectangle(80, 20, 45, 20));
+    }
+
+    @Test
+    public void exactMatchUsesConsecutiveWordsWhenLineContainsNeighbors() {
+        OcrResult result = result(
+                line("TAB 1 TAB 2 TAB 3", 10, 20, 240, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("1", 55, 20, 16, 24, 0.95),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("2", 135, 20, 16, 24, 0.95),
+                word("TAB", 170, 20, 40, 24, 0.96),
+                word("3", 215, 20, 16, 24, 0.95));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1"));
+
+        Assert.assertEquals(match.text(), "TAB 1");
+        Assert.assertEquals(match.bounds(), new OcrRectangle(10, 20, 61, 24));
+    }
+
+    @Test
+    public void exactTabOneDoesNotMatchTabTen() {
+        OcrResult result = result(
+                line("TAB 10 TAB 11", 10, 20, 200, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("10", 55, 20, 24, 24, 0.95),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("11", 135, 20, 24, 24, 0.95));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
+    public void exactTabOneDoesNotMatchTabTenWhenDigitsAreSplitWords() {
+        OcrResult result = result(
+                line("TAB 10 TAB 11", 10, 20, 200, 24, 0.94),
+                word("TAB", 10, 20, 40, 24, 0.96),
+                word("1", 55, 20, 12, 24, 0.95),
+                word("0", 68, 20, 12, 24, 0.94),
+                word("TAB", 90, 20, 40, 24, 0.96),
+                word("1", 135, 20, 12, 24, 0.95),
+                word("1", 148, 20, 12, 24, 0.94));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
+    public void exactTabOneDoesNotMatchSplitTabTwelveWithDroppedLeadingT() {
+        OcrResult result = result(
+                line("AB 12", 10, 20, 80, 24, 0.90),
+                word("AB", 10, 20, 30, 24, 0.91),
+                word("1", 45, 20, 12, 24, 0.92),
+                word("2", 58, 20, 12, 24, 0.91));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1")));
+        Assert.assertTrue(notFound.getMessage().contains("TAB 1"));
+    }
+
+    @Test
+    public void exactTabOneMatchesDroppedLeadingT() {
+        OcrResult result = result(
+                line("AB 1 TAB 2", 10, 20, 180, 24, 0.90),
+                word("AB", 10, 20, 30, 24, 0.91),
+                word("1", 45, 20, 16, 24, 0.92),
+                word("TAB", 80, 20, 40, 24, 0.94),
+                word("2", 125, 20, 16, 24, 0.93));
+
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("TAB 1"));
+        Assert.assertEquals(match.text(), "AB 1");
+    }
+
+    @Test
+    public void exactNameOneDoesNotMatchDroppedLeadingLetter() {
+        OcrResult result = result(
+                line("ame 1", 10, 20, 80, 24, 0.90),
+                word("ame", 10, 20, 40, 24, 0.91),
+                word("1", 55, 20, 16, 24, 0.92));
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Name 1")));
+        Assert.assertTrue(notFound.getMessage().contains("Name 1"));
+    }
+
+    @Test
+    public void exactMatchAcceptsCompactedWhitespace() {
+        OcrResult result = result(line("TextInput", 10, 20, 80, 24, 0.94));
+        OcrMatch match = OcrTargetResolver.resolve(result, OcrTarget.exact("Text Input"));
+        Assert.assertEquals(match.text(), "TextInput");
+    }
+
+    @Test
+    public void excludesLowConfidenceAndReportsThreshold() {
+        OcrResult result = result(line("Pay now", 10, 20, 80, 20, 0.55));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Pay now").minimumConfidence(0.80)));
+
+        Assert.assertTrue(notFound.getMessage().contains("0.8"));
+        Assert.assertTrue(notFound.getMessage().contains("Pay now"));
+        Assert.assertTrue(notFound.getMessage().contains("Recognized text:"));
+    }
+
+    @Test
+    public void missingMatchExceptionIncludesTruncatedRecognizedText() {
+        String recognized = "x".repeat(220);
+        OcrResult result = new OcrResult(recognized, List.of(line("Other", 10, 20, 80, 20, 0.94)));
+
+        IllegalStateException notFound = Assert.expectThrows(IllegalStateException.class,
+                () -> OcrTargetResolver.resolve(result, OcrTarget.exact("Missing")));
+
+        Assert.assertTrue(notFound.getMessage().contains("Recognized text: '" + "x".repeat(200) + "...'"));
+    }
+
+    private static OcrResult result(OcrTextBlock... blocks) {
+        return new OcrResult("", List.of(blocks));
+    }
+
+    private static OcrTextBlock line(String text, int x, int y, int width, int height, double confidence) {
+        return new OcrTextBlock(text, new OcrRectangle(x, y, width, height), confidence, OcrBlockLevel.LINE);
+    }
+
+    private static OcrTextBlock word(String text, int x, int y, int width, int height, double confidence) {
+        return new OcrTextBlock(text, new OcrRectangle(x, y, width, height), confidence, OcrBlockLevel.WORD);
+    }
+}

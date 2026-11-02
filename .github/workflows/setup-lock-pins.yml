@@ -1,0 +1,105 @@
+name: Setup Lock Pins
+
+# Issue #6357: every Dependabot npm bump to a bundled setup lockfile changes its
+# SHA-256 while the planner constant that pins it (the approved-plan integrity
+# check) stays put, so `Unit Tests (shaft-infrastructure)` fails with
+# fingerprint `setup-lock-pin-drift`. Issue #6381: the planners also pin each
+# planned package's version, registry tarball SHA-256 and size
+# (`setup-package-pin-drift`). The pins are kept; this workflow only refreshes
+# them, and pins a tarball only after it matches the lockfile sha512 integrity.
+#
+# * `check` runs on ordinary pull requests touching the lockfiles, planners, or
+#   this tooling: unit tests plus `refresh_setup_lock_pins.py --check
+#   --verify-artifacts` (downloads the planned tarballs from npm).
+# * `compute` runs on the same `pull_request` event for same-repository
+#   Dependabot pull requests, with no secrets and a read-only token. It runs the
+#   trusted base script against the pull-request tree (it only reads and hashes
+#   files) and uploads the resulting pin patch as the `setup-lock-pins-patch`
+#   artifact.
+# * `setup-lock-pins-push.yml` (workflow_run) validates that patch, applies it
+#   to the Dependabot branch and pushes with `BOT_TOKEN`. It never checks out or
+#   executes pull-request code (#7035, Scorecard Dangerous-Workflow). A PAT push
+#   fires `synchronize`, so PR Gate runs on the new head.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/**/package-lock.json'
+      - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/**/package.json'
+      - 'shaft-infrastructure/src/main/java/com/shaft/infrastructure/*SetupPlanner.java'
+      - 'scripts/ci/refresh_setup_lock_pins.py'
+      - 'tests/scripts/test_refresh_setup_lock_pins.py'
+      - '.github/workflows/setup-lock-pins.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-lock-pins-${{ github.event_name }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Setup lock pin check
+    # Dependabot heads intentionally drift until compute+push refreshes planner
+    # constants (#6357/#6381). Skipping check avoids a permanent red required-looking
+    # failure on npm Dependabot branches while the patch is in flight.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run setup lock pin unit tests
+        run: python3 -m unittest tests.scripts.test_refresh_setup_lock_pins -v
+      - name: Check setup pins match the bundled manifests, lockfiles and tarballs
+        run: python3 scripts/ci/refresh_setup_lock_pins.py --check --verify-artifacts
+
+  compute:
+    name: Compute Dependabot setup lock pins
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - name: Checkout Dependabot head (data only, never executed)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Refresh pins with the base script
+        run: python3 base/scripts/ci/refresh_setup_lock_pins.py --root head --write
+      - name: Write pin patch
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p out
+          git -C head diff --binary > out/pins.patch
+          printf '%s\n%s\n' "${PR_NUMBER}" "${HEAD_SHA}" > out/meta.txt
+          if [ -s out/pins.patch ]; then echo "pins drifted; patch prepared"; else echo "setup lock pins already match"; fi
+      - name: Upload pin patch
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: setup-lock-pins-patch
+          path: out/
+          retention-days: 3

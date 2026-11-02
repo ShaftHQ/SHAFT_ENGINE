@@ -1,0 +1,38 @@
+{
+ "voice": {
+  "engine": "kokoro-onnx",
+  "model": "Kokoro-82M v1.0",
+  "voice": "af_heart",
+  "speed": 0.85,
+  "licence": "Apache-2.0",
+  "synthetic": true
+ },
+ "lines": [
+  {
+   "id": "e01",
+   "text": "Red build. Real bug, or flaky test?"
+  },
+  {
+   "id": "e02",
+   "text": "At Google, almost 16% of tests show some flakiness.",
+   "say": "At Google, almost sixteen percent of tests show some flakiness."
+  },
+  {
+   "id": "e04",
+   "text": "SHAFT is one open-source Java engine for web, mobile, API, database and command-line tests."
+  },
+  {
+   "id": "e07",
+   "text": "Every run produces an Allure report with steps and screenshots that anyone on the team can read."
+  },
+  {
+   "id": "e09",
+   "text": "Adopting it is low risk. The upgrade tool compiles your project first, keeps your existing tests, and restores every file if anything fails."
+  },
+  {
+   "id": "e14",
+   "text": "Start free at shafthq.github.io.",
+   "say": "Start free at shaft H Q dot github dot I O."
+  }
+ ]
+}

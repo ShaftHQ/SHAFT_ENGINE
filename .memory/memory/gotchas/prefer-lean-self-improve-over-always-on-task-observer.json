@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/gotchas/prefer-lean-self-improve-over-always-on-task-observer.md",
+  "content_hash": "sha256:e96353399bc635a31495ec68ae674984b840939ec134439b926fadaa154fc4c4",
+  "created_at": "2026-09-08T00:00:42+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5643",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.prefer-lean-self-improve-over-always-on-task-observer",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Session catch-up for #5638 / CE self-improve and Flutter deliveries"
+  },
+  "status": "active",
+  "tags": [
+    "self-improve",
+    "token-budget",
+    "learning-session"
+  ],
+  "title": "Prefer lean self-improve over always-on Task Observer",
+  "type": "gotcha",
+  "updated_at": "2026-09-08T00:00:42+03:00"
+}

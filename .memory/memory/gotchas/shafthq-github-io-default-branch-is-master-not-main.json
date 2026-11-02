@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/shafthq-github-io-default-branch-is-master-not-main.md",
+  "content_hash": "sha256:e53c2ec8d1ecc22a358a1949113ec6b8c2fe969aed4bfc00c89db8759bd59fa6",
+  "created_at": "2026-08-01T21:46:42+03:00",
+  "evidence": [
+    {
+      "id": "1488f2affa3a7e7f65be38a8f26f198214a81be2",
+      "kind": "commit"
+    },
+    {
+      "id": "https://api.github.com/repos/ShaftHQ/shafthq.github.io",
+      "kind": "source"
+    }
+  ],
+  "id": "gotcha.shafthq-github-io-default-branch-is-master-not-main",
+  "source": {
+    "kind": "agent",
+    "task": "Nightly E2E campaign + CI overhaul session 2026-07-20: durable gotchas from forensics and fixes"
+  },
+  "status": "active",
+  "tags": [
+    "docs-repo",
+    "github",
+    "pr-workflow"
+  ],
+  "title": "shafthq.github.io default branch is master, not main",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:46:42+03:00"
+}

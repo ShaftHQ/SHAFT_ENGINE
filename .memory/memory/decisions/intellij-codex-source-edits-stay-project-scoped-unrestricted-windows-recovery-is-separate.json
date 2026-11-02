@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/decisions/intellij-codex-source-edits-stay-project-scoped-unrestricted-windows-recovery-is-separate.md",
+  "content_hash": "sha256:e16037273a88840f9961226d1343eabd61129afe22986cf77b79e71810cae58f",
+  "created_at": "2026-08-10T21:59:42+03:00",
+  "evidence": [
+    {
+      "id": "e494ac2c297e2317dc4dcb368a950ffcf4dfed0d",
+      "kind": "commit"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4676",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#4677",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.intellij-codex-source-edits-stay-project-scoped-unrestricted-windows-recovery-is-separate",
+  "source": {
+    "kind": "agent",
+    "task": "Record the reviewed IntelliJ Codex permission boundary and Windows recovery decision from issue #4676/#4677."
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "codex",
+    "permissions",
+    "windows",
+    "sandbox"
+  ],
+  "title": "IntelliJ Codex source edits stay project-scoped; unrestricted Windows recovery is separate",
+  "type": "decision",
+  "updated_at": "2026-08-10T21:59:42+03:00"
+}

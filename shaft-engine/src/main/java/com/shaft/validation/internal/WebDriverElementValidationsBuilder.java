@@ -1,0 +1,507 @@
+package com.shaft.validation.internal;
+
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.OutputType;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrOptions;
+
+@SuppressWarnings("unused")
+public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.ElementAssertions {
+    protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final WebDriver driver;
+    protected final By locator;
+    protected final StringBuilder reportMessageBuilder;
+    protected ValidationEnums.ValidationType validationType;
+    protected String validationMethod;
+    protected ValidationEnums.VisualValidationEngine visualValidationEngine;
+    protected String elementAttribute;
+    protected String elementCssProperty;
+    protected String ariaSnapshotFileName;
+
+    @Override
+    public NativeValidationsBuilder elementCount() {
+        return focusedValue("elementCountEquals", "match count ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRectangle() {
+        return focusedValue("elementRectangleEquals", "rectangle ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementAccessibleName() {
+        return focusedValue("elementAccessibleNameEquals", "accessible name ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRole() {
+        return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
+    @Override
+    public NativeValidationsBuilder ocrText(OcrOptions options) {
+        reportMessageBuilder.append("OCR text ");
+        byte[] screenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+        return new ValidationsBuilder(validationCategory)
+                .object(OcrProcessingActions.recognize(screenshot, options).fullText());
+    }
+
+    public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
+        this.validationCategory = validationCategory;
+        this.driver = driver;
+        this.locator = locator;
+
+        this.reportMessageBuilder = reportMessageBuilder;
+    }
+
+    /**
+     * Use this to check that the target element exists
+     *
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor exists() {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationMethod = "elementExists";
+        reportMessageBuilder.append("exists.");
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Use this to check that the target element does not exist
+     *
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor doesNotExist() {
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        this.validationMethod = "elementExists";
+        reportMessageBuilder.append("does not exist.");
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Use this to check that the target element matches a reference image (using the Artificial Intelligence library SHUTTERBUG).
+     * On the first test run this method will take a screenshot of the target element and the test will pass, and on following runs the element will be compared against that reference image.
+     * The reference images are stored under src/test/resources/DynamicObjectRepository for later maintenance
+     *
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor matchesReferenceImage() {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationMethod = "elementMatches";
+        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
+        appendVisualValidationMessage(true);
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Waits until the element looks the same in two consecutive screenshots, then validates that it
+     * matches its stored reference image (#6823). Use it for animated elements (splash, launch,
+     * onboarding backgrounds) whose first frame differs from the settled one. When the element does
+     * not settle within {@code timeout}, the comparison still runs on the latest frame.
+     *
+     * @param timeout maximum time to wait for visual stability
+     * @return a {@link ValidationsExecutor} for the performed comparison
+     */
+    public ValidationsExecutor matchesReferenceImageWhenStable(java.time.Duration timeout) {
+        waitForVisualStability(timeout, STABILITY_POLL_INTERVAL);
+        return matchesReferenceImage();
+    }
+
+    /**
+     * {@link #matchesReferenceImageWhenStable(java.time.Duration)} bounded by the configured element
+     * identification timeout.
+     *
+     * @return a {@link ValidationsExecutor} for the performed comparison
+     */
+    @Override
+    public ValidationsExecutor matchesReferenceImageWhenStable() {
+        return matchesReferenceImageWhenStable(java.time.Duration.ofMillis(
+                (long) (com.shaft.driver.SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000)));
+    }
+
+    static final java.time.Duration STABILITY_POLL_INTERVAL = java.time.Duration.ofMillis(500);
+
+    /** Polls element screenshots until two consecutive ones are byte-identical; returns whether it settled. */
+    boolean waitForVisualStability(java.time.Duration timeout, java.time.Duration interval) {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        byte[] previous = elementScreenshot();
+        while (System.nanoTime() < deadline) {
+            try {
+                Thread.sleep(interval.toMillis());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            byte[] current = elementScreenshot();
+            if (previous != null && java.util.Arrays.equals(previous, current)) {
+                return true;
+            }
+            previous = current;
+        }
+        com.shaft.tools.io.ReportManager.logDiscrete("Element did not become visually stable within "
+                + timeout.toMillis() + " ms; comparing the latest frame.");
+        return false;
+    }
+
+    private byte[] elementScreenshot() {
+        try {
+            return driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException notYetCapturable) {
+            return null;
+        }
+    }
+
+    /**
+     * Use this to check that the target element matches a reference image.
+     *
+     * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationMethod = "elementMatches";
+        this.visualValidationEngine = visualValidationEngine;
+        appendVisualValidationMessage(true);
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Use this to check that the target element does not match a reference image (using the Artificial Intelligence library OpenCV).
+     * On the first test run this method will take a screenshot of the target element and the test will pass, and on following runs the element will be compared against that reference image.
+     * The reference images are stored under src/test/resources/DynamicObjectRepository for later maintenance
+     *
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor doesNotMatchReferenceImage() {
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        this.validationMethod = "elementMatches";
+        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
+        appendVisualValidationMessage(false);
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Use this to check that the target element does not match a reference image.
+     *
+     * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        this.validationMethod = "elementMatches";
+        this.visualValidationEngine = visualValidationEngine;
+        appendVisualValidationMessage(false);
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    /**
+     * Use this to check that the target element matches its visual-regression baseline screenshot
+     * (pixel diff via OpenCV). On the first test run this method takes a screenshot of the target
+     * element and the test passes, saving it as the baseline for subsequent runs. Baselines are stored
+     * alongside the other visual baselines under the configured {@code dynamicObjectRepositoryPath}.
+     * The comparison runs when this terminal assertion is called.
+     *
+     * @return a ValidationsExecutor object to optionally set a custom validation message
+     */
+    @Override
+    public ValidationsExecutor matchesScreenshot() {
+        return matchesScreenshot(null);
+    }
+
+    /**
+     * Same as {@link #matchesScreenshot()}, but with diff-budget/mask options (see
+     * {@link VisualComparisonOptions}). The comparison executes immediately.
+     *
+     * @param options the visual comparison options (diff budgets, masks), or {@code null} for defaults
+     * @return a ValidationsExecutor object to optionally set a custom validation message
+     */
+    @Override
+    public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the visual regression baseline screenshot.");
+        return new VisualValidationsBuilder(validationCategory, driver, locator, false, reportMessageBuilder)
+                .applyOptions(options)
+                .perform();
+    }
+
+    /**
+     * Use this to check that the target element matches its accessible-name-tree ("aria") baseline snapshot,
+     * using partial-subset semantics (see {@link com.shaft.gui.internal.aria.AriaSnapshotHelper}).
+     * On the first test run this method saves the current snapshot as the baseline and the test passes,
+     * under the configured {@code ariaSnapshotFolderPath}.
+     *
+     * @param snapshotFileName the baseline file name (without extension) to compare against or create
+     * @return a ValidationsExecutor object retained for source compatibility
+     */
+    @Override
+    public ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationMethod = "elementAriaSnapshotMatches";
+        this.ariaSnapshotFileName = snapshotFileName;
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
+        var executor = new ValidationsExecutor(this);
+        return executor.finishOrDefer();
+    }
+
+    private void appendVisualValidationMessage(boolean shouldMatch) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append(shouldMatch ? "matches" : "does not match").append(" the reference image.");
+    }
+
+    private void appendShaftElementNameIfAvailable() {
+        var elementName = extractSmartLocatorName();
+        if (!elementName.isBlank()) {
+            reportMessageBuilder.append("\"").append(elementName).append("\" ");
+        }
+    }
+
+    private String extractSmartLocatorName() {
+        if (locator == null) {
+            return "";
+        }
+        var formattedLocator = JavaHelper.formatLocatorToString(locator);
+        var prefix = "Smart Locator: \"";
+        return formattedLocator.startsWith(prefix) && formattedLocator.endsWith("\"")
+                ? formattedLocator.substring(prefix.length(), formattedLocator.length() - 1)
+                : "";
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param attribute the target element attribute that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder attribute(String attribute) {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = attribute;
+        reportMessageBuilder.append("Attribute \"").append(attribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    @Override
+    public NativeValidationsBuilder domAttribute(String domAttribute) {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = domAttribute;
+        reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    @Override
+    public NativeValidationsBuilder domProperty(String domProperty) {
+        this.validationMethod = "elementDomPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param domProperty the target element DOM property that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder property(String domProperty) {
+        this.validationMethod = "elementPropertyEquals";
+        this.elementAttribute = domProperty;
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against the provided elements selected attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isSelected() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "selected";
+        reportMessageBuilder.append("is selected; selected attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements checked attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isChecked() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "checked";
+        reportMessageBuilder.append("is checked; checked attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements hidden attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isVisible() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementDisplayedEquals", "is visible; displayed state ").isTrue();
+        }
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "hidden";
+        reportMessageBuilder.append("is visible; hidden attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements disabled attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isEnabled() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementEnabledEquals", "is enabled; enabled state ").isTrue();
+        }
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "disabled";
+        reportMessageBuilder.append("is enabled; disabled attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements selected attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isNotSelected() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "selected";
+        reportMessageBuilder.append("is not selected; selected attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements checked attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isNotChecked() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "checked";
+        reportMessageBuilder.append("is not checked; checked attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements hidden attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isHidden() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementDisplayedEquals", "is hidden; displayed state ").isFalse();
+        }
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "hidden";
+        reportMessageBuilder.append("is hidden; hidden attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements disabled attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public ValidationsExecutor isDisabled() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementEnabledEquals", "is disabled; enabled state ").isFalse();
+        }
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "disabled";
+        reportMessageBuilder.append("is disabled; disabled attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements text attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder text() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "text";
+        reportMessageBuilder.append("text ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against the provided elements text attribute after it's trimmed (all leading and trailing space removed)
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder textTrimmed() {
+        this.validationMethod = "elementDomAttributeEquals";
+        this.elementAttribute = "textTrimmed";
+        reportMessageBuilder.append("text trimmed ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against a certain element attribute
+     *
+     * @param elementCssProperty the target element css property that will be checked against
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    @Override
+    public NativeValidationsBuilder cssProperty(String elementCssProperty) {
+        this.validationMethod = "elementCssPropertyEquals";
+        this.elementCssProperty = elementCssProperty;
+        reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    private NativeValidationsBuilder focusedValue(String method, String message) {
+        this.validationMethod = method;
+        reportMessageBuilder.append(message);
+        return new NativeValidationsBuilder(this);
+    }
+
+
+
+    /**
+     * Native mobile sessions (UiAutomator2, XCUITest) reject the web-only {@code disabled} and
+     * {@code hidden} DOM attributes (#6821), so enabled and displayed states are read through
+     * {@link org.openqa.selenium.WebElement#isEnabled()} and {@code isDisplayed()}, which every
+     * driver supports.
+     */
+    private NativeValidationsBuilder nativeElementState(String method, String message) {
+        this.validationMethod = method;
+        this.elementAttribute = null;
+        reportMessageBuilder.append(message);
+        return new NativeValidationsBuilder(this);
+    }
+}

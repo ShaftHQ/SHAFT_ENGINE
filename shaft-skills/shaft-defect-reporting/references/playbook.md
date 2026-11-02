@@ -1,0 +1,37 @@
+# Defect-reporting playbook
+
+## Ten practices
+
+1. Confirm the observed behavior conflicts with an approved requirement, oracle, standard, or stakeholder expectation. [`ISTQB-CTFL`, `ISTQB-TM`]
+2. Write a concise title naming the affected feature, condition, and observable failure. [`ISTQB-TM`]
+3. Record build, commit, environment, platform, browser or device, configuration, account role, and data preconditions. [`ISTQB-TM`, `ALLURE-RESULTS`]
+4. Provide the shortest reliable reproduction steps, including frequency and whether clean-state reproduction succeeds. [`ISTQB-TM`]
+5. State expected and actual behavior separately in observable business or user terms. [`ISTQB-TM`]
+6. Attach bounded evidence: result, failed step, logs, trace, screenshot, request or response, and relevant timestamps. [`SHAFT-REPORTING`, `ALLURE-RESULTS`]
+7. Assign severity from impact and keep priority as an explicit product decision; do not conflate them. [`ISTQB-TM`]
+8. Describe affected users, data, platforms, versions, frequency, workaround, regression status, and risk. [`ISTQB-TM`]
+9. Link requirements, test cases, runs, related failures, and existing defects; search for duplicates before filing. [`ISTQB-CTFL`, `ISTQB-TM`]
+10. Redact secrets and personal data, track workflow state and ownership, and record fix verification before closure. [`OWASP-WSTG`, `ISTQB-TM`, `SHAFT-REPORTING`]
+
+## Examples
+
+- Report checkout accepting an expired card with build, browser, seeded user, minimal steps, response evidence, and payment risk.
+- Report an API returning 500 instead of the contracted 400 for one malformed boundary payload.
+- Report a keyboard trap in a modal with the violated WCAG criterion, focus sequence, video or trace, and user impact.
+- Strip `auth_token` and other query credentials from defect evidence before filing.
+- A coordinate tap that works on a device is diagnosis only, not the fix.
+
+## Boundary case
+
+- If evidence identifies a test, data, or environment defect rather than product behavior, file it in the owning engineering workflow and do not mislabel it as a product defect.
+
+## Output
+
+Return title, context, preconditions, minimal steps, expected and actual result,
+evidence, reproducibility, severity rationale, impact, links, and verification.
+
+## Execution class
+
+- Defect ids match whole tokens, not substrings of hostnames, paths, or device names. `SHAFT#6940` is a token. A longer word that merely contains those digits is not. The id has to be on the throwable (#6947).
+- Device logs (logcat) can carry auth headers. Keep only method, path, and status lines; delete raw captures and never attach them. Tokens come from an ignored file or the environment and are never printed (#7086).
+- A report is never committed as defect evidence. Attach it to the ticket or PR. The secret guard hooks block a committed report. A leak that was already pushed needs credential rotation, not only deletion (#7177).

@@ -1,0 +1,49 @@
+{
+  "body_path": "memory/workflows/run-local-e2e-jobs-in-a-dedicated-workflow.md",
+  "content_hash": "sha256:90e97708b16ecd007404211fb28ac3fcd5dbed6fec4dbde8fd17e40968e83557",
+  "created_at": "2026-06-17T21:29:23+03:00",
+  "evidence": [
+    {
+      "id": ".github/workflows/e2eLocalTests.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/e2eTests.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/pr-gate.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_quality_configuration.py",
+      "kind": "file"
+    },
+    {
+      "id": "7302e5dbcf015603c3f78208c599db0f27b562c0",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/27715249474",
+      "kind": "task"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/31454276391",
+      "kind": "task"
+    }
+  ],
+  "id": "feature.run-local-e2e-jobs-in-a-dedicated-workflow",
+  "source": {
+    "kind": "agent",
+    "task": "Split local E2E jobs out of the main E2E workflow"
+  },
+  "status": "active",
+  "tags": [
+    "github-actions",
+    "e2e",
+    "local-tests"
+  ],
+  "title": "Run local E2E jobs in a dedicated workflow",
+  "type": "feature",
+  "updated_at": "2026-08-11T10:51:21+03:00"
+}

@@ -1,0 +1,21 @@
+# Hook trigger map
+
+Each ChaosEngine lifecycle event fires only at its logical point. Must-hold
+rules are PreToolUse deny. PostToolUse stays silent unless the text changes the
+next decision. SessionStart is guide-only context (Grok ignores SessionStart stdout); standing instructions live in the project router, not SessionStart.
+
+| Event | Hosts | Mode | Next-decision effect |
+| --- | --- | --- | --- |
+| `SessionStart` | Claude, Codex, Gemini, Grok, Copilot | guide | Inject compact locators and session identity. Not enforcement. Grok reads `systemMessage`, not bare stdout. |
+| `SubagentStart` | Claude, Codex, Grok | guide | Same locator injection as SessionStart. Grok does not fire SessionStart for a subagent, and a Grok spawn does not emit SubagentStart. Grok's model-visible load is `.grok/rules/entrypoint.md`, `.grok/rules/identity.md`, and `.grok/rules/companions.md`, because SessionStart `systemMessage` is a hook annotation outside the prompt and `AGENTS.md` must not repeat the companion intensity. Skill bodies stay one source under `chaos-engine/skills/`. |
+| `UserPromptSubmit` | Claude, Codex, Gemini, Grok, Copilot | guide | Companion mode tracking. Gemini and Copilot, which have no subagent-start event, inject the same locators once per agent scope when SessionStart has not. Claude and Codex do that only for a scope SubagentStart missed. Grok discards this event's context. |
+| `PreToolUse` | Claude, Codex, Gemini, Grok, Copilot | enforce | Deny catastrophic or out-of-contract tool use; hold work that owes a reflection receipt; deny primary-checkout mutations when a session worktree exists. |
+| `PostToolUse` | Claude, Codex, Gemini, Grok, Copilot | guide | Record mutation/delivery for reflection. Stay silent unless stdout changes the next decision. |
+| `PostToolUseFailure` | Claude, Codex, Grok, Copilot | guide | Record failure and inject a pending reflection checkpoint only when one is owed. |
+| `Stop` | Claude, Codex, Gemini, Grok, Copilot | enforce | Collect incomplete delivery duties; require the root Learning Session after every confirmed delivery (Learning Session after every final delivery). |
+| `SubagentStop` | Claude, Codex, Grok, Copilot | enforce | Delegate-owned completion duties only. Never start the root Learning Session. |
+| `PreCompact` | Claude, Gemini, Copilot | guide | Re-inject compact locators that compaction would drop. |
+| `SessionEnd` | Claude, Codex, Gemini, Grok, Copilot | enforce | Remove this session's worktree after merge is recorded and the tree is clean. |
+
+Hosts without a hook primitive cannot enforce this table; say so in the install
+receipt. Narrow matchers live in `hooks/matchers.json`.

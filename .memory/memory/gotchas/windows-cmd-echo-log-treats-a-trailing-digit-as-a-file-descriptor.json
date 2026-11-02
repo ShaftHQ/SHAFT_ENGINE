@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/windows-cmd-echo-log-treats-a-trailing-digit-as-a-file-descriptor.md",
+  "content_hash": "sha256:15f13f5627cf6b689bfeb16fc25f72ff0b10443ad1a624cf0ed331da133dec6e",
+  "created_at": "2026-08-18T01:09:15+03:00",
+  "evidence": [
+    {
+      "id": "694d1f49ec0a90c37f332d6da6a35a50cac2cc48",
+      "kind": "commit"
+    },
+    {
+      "id": "5084",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.windows-cmd-echo-log-treats-a-trailing-digit-as-a-file-descriptor",
+  "source": {
+    "kind": "agent",
+    "task": "Learning loop after #5084 knowledge_stores --query: Windows cmd fixture redirect gotcha"
+  },
+  "status": "active",
+  "tags": [
+    "knowledge-stores",
+    "windows",
+    "cmd",
+    "5084"
+  ],
+  "title": "Windows cmd echo %*>>log treats a trailing digit as a file descriptor",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T01:09:15+03:00"
+}

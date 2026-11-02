@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker.md",
+  "content_hash": "sha256:e0a46e67b59195e24d796561ace860f8a36befe72fcc0390e0a86d9f36b032a8",
+  "created_at": "2026-07-08T17:00:20+03:00",
+  "evidence": [
+    {
+      "id": "482111a9248d3f7cc59cc154bf1ad1251864dc72",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.installer-wrapper-scripts-must-gate-co-located-file-shortcuts-on-a-repo-checkout-marker",
+  "source": {
+    "kind": "agent",
+    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+  },
+  "status": "active",
+  "tags": [
+    "installer",
+    "mcp",
+    "bootstrap",
+    "staleness"
+  ],
+  "title": "Installer wrapper scripts must gate co-located-file shortcuts on a repo-checkout marker",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

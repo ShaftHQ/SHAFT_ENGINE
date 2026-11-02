@@ -1,0 +1,646 @@
+name: Maven Central Continuous Delivery
+# Executed automatically when a new PR is merged to main.
+# Already-published immutable Maven Central versions skip delivery cleanly (see check_release_needed)
+# instead of failing, since most pushes to main land between releases with nothing new to deliver.
+# Parallel CD gates (#5588): IntelliJ verify + python validators overlap Maven validate;
+# build_release_and_deliver is the deploy gate and still cannot publish after a failed validation.
+# Named checks stay mirrored with shaft-pilot-release.yml's isolated jobs. Keep the
+# named checks in sync; do not re-serialize the PR gate to match this deploy path.
+# Marketplace publish and release announcement run in parallel after delivery and
+# public-installer verification; the standalone plugin workflow is manual recovery only.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'pom.xml'
+      - '*/pom.xml'
+      - 'shaft-engine/**'
+      - 'shaft-infrastructure/**'
+      - 'shaft-pilot-core/**'
+      - 'shaft-capture/**'
+      - 'shaft-doctor/**'
+      - 'shaft-ai/**'
+      - 'shaft-heal/**'
+      - 'shaft-mcp/**'
+      - 'shaft-cli/**'
+      - 'shaft-browserstack/**'
+      - 'shaft-video/**'
+      - 'shaft-visual/**'
+      - 'shaft-ui-match/**'
+      - 'shaft-ocr/**'
+      - 'shaft-sikulix/**'
+      - 'shaft-bom/**'
+      - 'allure-cli/**'
+      - 'legacy-shaft-engine/**'
+      - 'report-aggregate/**'
+      - 'tools/modularization/consumer-fixtures/**'
+      - '.github/RELEASE_BODY_TEMPLATE.md'
+      - 'scripts/ci/render_release_notes.py'
+      - '.github/actions/upload-jacoco-coverage/action.yml'
+      - '.github/actions/reclaim-disk-space/action.yml'
+      - '.github/workflows/mavenCentral_cd.yml'
+      - 'shaft-capture-proxy/**'
+      - 'shaft-intellij/**'
+      - 'agent-plugins/**'
+      - 'scripts/ci/check_maven_release_version.py'
+      - 'scripts/ci/validate_reactor_versions.py'
+      - 'scripts/ci/validate_modular_documentation.py'
+      - 'scripts/ci/validate_documentation_boundaries.py'
+      - 'scripts/ci/validate_shaft_mcp_configuration.py'
+      - 'scripts/ci/validate_shaft_pilot_release.py'
+      - 'scripts/ci/validate_maven_publication.py'
+      - 'scripts/ci/validate_shaft_mcp_transports.py'
+      - 'scripts/ci/verify_maven_central_release.py'
+      - 'scripts/ci/verify_shaft_mcp_installer_release.py'
+      - 'scripts/ci/agent_plugin_release.py'
+      - 'scripts/ci/assemble_chaos_engine_plugin.py'
+      - 'scripts/ci/assemble_shaft_skills_plugin.py'
+      - 'scripts/ci/validate_agent_plugins.py'
+      - 'scripts/mcp/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central-cd
+  cancel-in-progress: false
+
+jobs:
+  check_release_needed:
+    name: Check Maven Central release status
+    # Maven Central + GPG/OSSRH secrets are not available on forked repos; signing would fail with empty key id.
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      already_released: ${{ steps.guard.outputs.already_released }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Reject existing Maven Central release version
+        id: guard
+        run: python3 scripts/ci/check_maven_release_version.py --github-output "$GITHUB_OUTPUT"
+
+  cd_intellij_verify:
+    name: CD — verify IntelliJ plugin
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Verify IntelliJ plugin release candidate
+        id: intellij_verify
+        uses: ./.github/actions/intellij-verify
+      # Issue #6206: the combined release build runs the plugin's JVM tests
+      # (`check`), so its JaCoCo report is uploaded like the PR Gate leg's.
+      - name: Upload IntelliJ release coverage to Codecov
+        if: always() && steps.intellij_verify.outcome != 'skipped'
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: cd-intellij-verify
+
+  cd_python_validators:
+    name: CD — python contract validators
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Validate SHAFT Pilot release contract (no build outputs)
+        run: |
+          python3 scripts/ci/validate_modular_documentation.py
+          python3 scripts/ci/validate_documentation_boundaries.py
+          python3 scripts/ci/validate_shaft_mcp_configuration.py
+          python3 scripts/ci/validate_shaft_pilot_release.py
+
+  cd_maven_validate:
+    name: CD — Maven validate (pre-deploy)
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      release_version: ${{ steps.release_version.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      # cache-maven-repo, not setup-java's `cache: 'maven'` -- one key format
+      # with restore-keys across every call site (issues #4440, #4444).
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Reject divergent SHAFT reactor versions
+        run: python3 scripts/ci/validate_reactor_versions.py
+      # Read the canonical release version from the reactor parent.
+      - name: Set Release Version Number
+        id: release_version
+        run: |
+          echo "RELEASE_VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
+          echo "version=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
+      - name: Install SHAFT Pilot prerequisites without tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-engine,shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
+          -am install -DskipTests -Dgpg.skip
+      - name: Reset Pilot Allure result contents
+        run: |
+          for module in shaft-pilot-core shaft-capture shaft-doctor shaft-ai shaft-heal shaft-mcp; do
+            mkdir -p "${module}/allure-results"
+            find "${module}/allure-results" -mindepth 1 -delete
+          done
+      - name: Run deterministic SHAFT Pilot tests
+        id: pilot_tests
+        run: >-
+          mvn --batch-mode
+          -pl shaft-pilot-core,shaft-capture,shaft-doctor,shaft-ai,shaft-heal,shaft-mcp
+          test -Dgpg.skip
+      - name: Verify populated Pilot Allure results
+        run: python3 scripts/ci/validate_shaft_pilot_release.py --check-test-results
+      - name: Run headless SHAFT Capture release journey
+        uses: ./.github/actions/capture-browser-e2e
+      - name: Upload coverage to Codecov
+        # Skip when the Pilot test step never ran (e.g. an earlier build/verify step
+        # failed first) so a broken build doesn't also report a fabricated coverage failure.
+        if: always() && steps.pilot_tests.outcome != 'skipped'
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          required-files: >-
+            ./shaft-pilot-core/target/jacoco/jacoco.xml,
+            ./shaft-capture/target/jacoco/jacoco.xml,
+            ./shaft-doctor/target/jacoco/jacoco.xml,
+            ./shaft-ai/target/jacoco/jacoco.xml,
+            ./shaft-heal/target/jacoco/jacoco.xml,
+            ./shaft-mcp/target/jacoco/jacoco.xml
+      - name: Build shaft-mcp runtime dependency layout
+        uses: ./.github/actions/mcp-jar-build
+        with:
+          install-args: clean install
+      - name: Validate Maven publication
+        run: |
+          python3 scripts/ci/validate_maven_publication.py
+          python3 scripts/ci/validate_maven_publication.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_pilot_release.py --check-build-outputs
+          python3 scripts/ci/validate_shaft_mcp_transports.py
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/pilot-core/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/combined-modules/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
+          mvn --batch-mode -f tools/modularization/consumer-fixtures/mcp/pom.xml verify \
+            "-Dshaft.version=${RELEASE_VERSION}" -DskipTests
+      - name: Reclaim disk space before container build
+        uses: ./.github/actions/reclaim-disk-space
+        with:
+          prune-build-outputs: 'true'
+      - name: Build and smoke shaft-mcp container
+        uses: ./.github/actions/mcp-container-smoke
+        with:
+          image-tag: shaft-pilot-release:test
+          container-name: shaft-pilot-release-smoke
+          client-name: release-smoke
+      - name: Install Agent Plugin release prerequisites
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Build portable Agent Plugin release assets
+        run: python3 scripts/ci/agent_plugin_release.py agent-plugin-release-assets
+      - name: Upload portable Agent Plugin release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: agent-plugin-release-assets
+          path: agent-plugin-release-assets/*
+          if-no-files-found: error
+
+  # Kept job id `build_release_and_deliver` so downstream needs/outputs stay stable.
+  # This job is now the publish gate: waits for parallel IntelliJ + python + Maven validate, then deploys.
+  # #7002: the release fails on a binary-incompatible API change unless a PR
+  # merged since the previous release carries the `breaking-change` label.
+  # Added as one more pre-deploy gate; nothing is deployed when it fails.
+  cd_api_compat:
+    name: CD — API compatibility vs previous release (japicmp)
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Published modules and previous-release baselines
+        id: mods
+        run: |
+          mkdir -p "$RUNNER_TEMP/japicmp"
+          mods=""
+          for pom in */pom.xml; do
+            m=${pom%/pom.xml}
+            meta="https://repo1.maven.org/maven2/io/github/shafthq/$m/maven-metadata.xml"
+            v=$(curl -sfL "$meta" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' | head -1) || true
+            [ -n "$v" ] || { echo "$m: not on Maven Central, skipped"; continue; }
+            curl -sfL -o "$RUNNER_TEMP/japicmp/$m.jar" "https://repo1.maven.org/maven2/io/github/shafthq/$m/$v/$m-$v.jar" || continue
+            echo "$m: baseline $v"
+            mods="${mods:+$mods,}$m"
+          done
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+      - name: Breaking-change label on PRs since the previous release
+        id: labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          labels=""
+          if [ -n "$tag" ]; then
+            since=$(git log -1 --format=%cI "$tag")
+            n=$(gh pr list -R "$REPO" --state merged --label breaking-change --search "merged:>=${since}" --json number --jq length)
+            [ "${n:-0}" -gt 0 ] && labels="breaking-change"
+            echo "previous release $tag ($since): $n breaking-change PR(s)"
+          fi
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+      - name: Build and compare
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip
+          mvn --batch-mode --no-transfer-progress -Pjapicmp -pl "$MODULES" \
+            com.github.siom79.japicmp:japicmp-maven-plugin:0.26.3:cmp "-Djapicmp.baselineDir=$RUNNER_TEMP/japicmp"
+      - name: Judge
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+          LABELS: ${{ steps.labels.outputs.labels }}
+        run: |
+          set -o pipefail
+          python3 scripts/ci/api_compat_gate.py --modules "$MODULES" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  build_release_and_deliver:
+    name: CD — deploy Maven Central
+    needs: [check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate, cd_api_compat]
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    env:
+      gpg.keyname: ${{ secrets.GPG_KEYNAME }}
+      gpg.passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_VERSION: ${{ needs.cd_maven_validate.outputs.release_version }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # #7003: SLSA build provenance for the released jars and SBOM (additive).
+      id-token: write
+      attestations: write
+    outputs:
+      release_version: ${{ needs.cd_maven_validate.outputs.release_version }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reclaim disk space
+        uses: ./.github/actions/reclaim-disk-space
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Setup Prerequisites
+        run: |
+          git config --global user.signingKey "${{ secrets.GPG_KEYNAME }}"
+          git config --global commit.gpgsign true
+          gpg --version
+          gpgconf --kill gpg-agent
+          gpg -K --keyid-format SHORT
+          export GPG_TTY=$(tty)
+      - name: Deploy to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: mvn --batch-mode deploy "-DskipTests" "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Set up Node.js for allure-cli zip
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+      - name: Deploy standalone allure-cli zip to Maven Central
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          # Standalone module: version tracks Allure 3, not shaftEngineVersion (#5833).
+          # The same coordinate is expected to stay published across SHAFT releases.
+          # Central rejects a second upload ("already exists"); that must not fail
+          # the reactor release or skip Marketplace, shaft-mcp, and the GitHub Release.
+          set +e
+          python3 scripts/ci/verify_maven_central_release.py --allure-cli-only
+          allure_status=$?
+          set -e
+          if [ "${allure_status}" -eq 0 ]; then
+            echo "Standalone allure-cli is already on Maven Central; skipping deploy."
+            exit 0
+          fi
+          if [ "${allure_status}" -ne 2 ]; then
+            echo "Could not check allure-cli on Maven Central (exit ${allure_status})."
+            exit "${allure_status}"
+          fi
+          mvn --batch-mode -f allure-cli/pom.xml deploy "-DskipTests" \
+            "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" \
+            "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
+      - name: Verify published Maven Central coordinates
+        run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
+      # #7003: attest what was just deployed. Runs after Central verification and
+      # never fails the release: the artifacts are already public, and a missing
+      # attestation must not skip Marketplace, shaft-mcp or the GitHub Release.
+      - name: Attest build provenance (jars + SBOM)
+        id: attest
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            */target/*-${{ needs.cd_maven_validate.outputs.release_version }}.jar
+            target/bom.json
+      # #7040: Scorecard Signed-Releases looks for *.intoto.jsonl release assets.
+      - name: Stage provenance bundle for the GitHub Release
+        if: steps.attest.outcome == 'success'
+        continue-on-error: true
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "${BUNDLE_PATH}" "target/SHAFT_ENGINE-${RELEASE_VERSION}.intoto.jsonl"
+      - name: Keep the SBOM for the GitHub Release
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-sbom
+          path: |
+            target/bom.json
+            target/*.intoto.jsonl
+          if-no-files-found: warn
+
+  verify_public_shaft_mcp_installer:
+    name: Verify public shaft-mcp installer (${{ matrix.os }})
+    needs: build_release_and_deliver
+    # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
+    if: needs.build_release_and_deliver.result == 'success'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-2025]
+    steps:
+      # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
+      # without long paths, git checkout itself fails on Windows runners.
+      - name: Enable Windows long paths
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+      - name: Checkout released source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Run the public LATEST installer twice
+        run: python scripts/ci/verify_shaft_mcp_installer_release.py
+
+  publish_intellij_plugin:
+    name: Publish IntelliJ plugin
+    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
+    if: needs.build_release_and_deliver.result == 'success'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    concurrency:
+      group: publish-intellij-plugin
+      cancel-in-progress: false
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Publish to JetBrains Marketplace
+        uses: ./.github/actions/intellij-verify
+        with:
+          publish: 'true'
+          verify: 'false'
+          marketplace-token: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
+          private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
+          private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+
+  notify_intellij_marketplace_publish:
+    name: Fail closed on missed Marketplace publish
+    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer, publish_intellij_plugin]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File, keep, or close the Marketplace publish tracker
+        uses: ./.github/actions/notify-intellij-marketplace-publish
+        with:
+          verify-result: ${{ needs.build_release_and_deliver.result }}
+          publish-result: ${{ needs.publish_intellij_plugin.result }}
+          manage-tracker: 'true'
+          publish-required: ${{ needs.build_release_and_deliver.result == 'success' && needs.verify_public_shaft_mcp_installer.result == 'success' }}
+          plugin-version: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          label: intellij-marketplace-publish-miss
+
+  announce_release:
+    name: Announce verified release
+    needs: [build_release_and_deliver, verify_public_shaft_mcp_installer]
+    # Skip when build_release_and_deliver was skipped (nothing new delivered), not just on failure.
+    if: needs.build_release_and_deliver.result == 'success'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Checkout released source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags: the notes list first-parent PRs since the last release.
+          fetch-depth: 0
+      # Issue #6232: minimal, user-facing notes (summary, install snippet, grouped
+      # sections, collapsed internals). Falls back to GitHub-generated notes when
+      # pull requests cannot be collected, so the release is never blocked.
+      - name: Prepare Release Body
+        id: release_body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
+        run: >-
+          python3 scripts/ci/render_release_notes.py
+          --version "${RELEASE_VERSION}"
+          --output /tmp/release_body.md
+          --github-output "$GITHUB_OUTPUT"
+      - name: Download portable Agent Plugin release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: agent-plugin-release-assets
+          path: /tmp/agent-plugin-release-assets
+      # #7003: attach the attested aggregate SBOM to the GitHub Release.
+      - name: Download release SBOM
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-sbom
+          path: /tmp/agent-plugin-release-assets
+      - name: Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          # A release created with the default GITHUB_TOKEN does not emit a `release`
+          # event (GitHub's anti-recursion rule), so publish-shaft-mcp.yml would never
+          # fire. BOT_TOKEN is a PAT, so its release triggers that workflow.
+          token: ${{ secrets.BOT_TOKEN }}
+          allowUpdates: false
+          generateReleaseNotes: ${{ steps.release_body.outputs.fallback == 'true' }}
+          bodyFile: /tmp/release_body.md
+          name: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          tag: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          artifacts: /tmp/agent-plugin-release-assets/*
+      - name: Notify User Guide Repository
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          repository: ShaftHQ/shafthq.github.io
+          event-type: shaft-engine-release
+          client-payload: '{"tag_name": "${{ needs.build_release_and_deliver.outputs.release_version }}", "version": "${{ needs.build_release_and_deliver.outputs.release_version }}", "release_url": "${{ steps.create_release.outputs.html_url }}"}'
+      - name: Announce Release on Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
+          RELEASE_URL: ${{ steps.create_release.outputs.html_url }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured; skipping Slack release announcement."
+            exit 0
+          fi
+
+          # #6241: the rendered summary line plus a link; one helper shared with
+          # scripts/ci/reconcile_maven_central_release.py.
+          python3 - <<'PY' > /tmp/slack_release_payload.json
+          import json
+          import os
+          from pathlib import Path
+
+          from scripts.ci.render_release_notes import slack_payload
+
+          body = Path("/tmp/release_body.md").read_text(encoding="utf-8")
+          version = os.environ["RELEASE_VERSION"]
+          release_url = os.environ["RELEASE_URL"]
+          print(json.dumps(slack_payload(version, release_url, body)))
+          PY
+          curl --fail --silent --show-error \
+            --request POST \
+            --header 'Content-type: application/json' \
+            --data @/tmp/slack_release_payload.json \
+            "$SLACK_WEBHOOK_URL"
+
+  notify_release_failure:
+    name: Notify on release failure
+    needs: [ check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate, build_release_and_deliver, verify_public_shaft_mcp_installer, announce_release ]
+    # Runs regardless of upstream outcome so a failure anywhere in the pipeline is caught.
+    # Most pushes to main land between releases with nothing new to deliver (see top-of-file
+    # comment): build_release_and_deliver/verify_public_shaft_mcp_installer/announce_release
+    # are then cleanly 'skipped', not failed - the outcome expression below must not alert on that.
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File or recover the release failure tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'skip' || 'success') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'release-failure:maven-central-cd'

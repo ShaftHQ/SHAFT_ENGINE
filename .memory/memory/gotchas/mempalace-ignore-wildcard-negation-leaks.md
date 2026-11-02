@@ -1,0 +1,1 @@
+In MemPalace's gitignore matcher a negated wildcard dir rule re-includes all files below; '*','!*/','!/p' confines git but not MemPalace. Use anchored '/*', '!/d/', '/d/*', '!/p'. Leak was hidden by mtime skips until a box restore reset mtimes and forced an hours-long full re-embed.

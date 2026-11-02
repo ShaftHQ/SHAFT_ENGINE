@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/xmlpackage-getxmlclasses-already-does-a-scoped-package-scan.md",
+  "content_hash": "sha256:5cb74c5ac84480b57d00b810b695c3fe4482d0afd4df9d6c7b0bb8503b9bba57",
+  "created_at": "2026-07-26T18:13:02+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/tools/io/internal/ProjectStructureManager.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.xmlpackage-getxmlclasses-already-does-a-scoped-package-scan",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #4091: Cucumber run-type detection for packages/methods/suite-file"
+  },
+  "status": "active",
+  "tags": [
+    "testng",
+    "cucumber",
+    "suite-parsing",
+    "4091",
+    "4078"
+  ],
+  "title": "XmlPackage.getXmlClasses() already does a scoped package scan",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

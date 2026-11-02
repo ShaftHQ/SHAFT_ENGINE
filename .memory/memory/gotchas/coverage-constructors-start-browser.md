@@ -1,0 +1,1 @@
+Coverage-only unit tests must not call facade or default constructors that route through the driver factory. Use explicit mock-backed constructors and reserve session creation for integration tests.

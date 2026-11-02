@@ -1,0 +1,1 @@
+After every ChaosEngine harness merge, reinstall official CE on the primary desktop checkout and on agent checkouts, then doctor before the next delivery pack. Skipping either half leaves overlay drift, false doctor gaps, and wasted tokens diagnosing install state that a reinstall would have healed.

@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/gotchas/mempalace-ignore-wildcard-negation-leaks.md",
+  "content_hash": "sha256:721bbd9cd8f07b080d5cdd4855a9432684b1c27dc89a4b7593c9e098cac7cf13",
+  "created_at": "2026-10-17T12:31:29+03:00",
+  "evidence": [],
+  "id": "gotcha.mempalace-ignore-wildcard-negation-leaks",
+  "source": {
+    "kind": "agent",
+    "task": "graphify doc src + confined incremental mine"
+  },
+  "status": "active",
+  "tags": [
+    "mempalace",
+    "stores",
+    "incremental"
+  ],
+  "title": "MemPalace treats !*/ as un-ignoring every file",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T12:31:29+03:00"
+}

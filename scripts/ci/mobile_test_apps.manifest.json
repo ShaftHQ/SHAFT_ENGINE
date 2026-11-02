@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "test-fixtures-mobile-apps-v1",
+  "baseUrl": "https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/test-fixtures-mobile-apps-v1",
+  "apps": [
+    {
+      "asset": "Android-NativeDemoApp-0.4.0.apk",
+      "sha256": "feb1746050195ae82ba065f3c1c2b0c3a10e971e7619b523dbd7225c614b1299",
+      "destinations": [
+        "shaft-engine/src/test/resources/testDataFiles/apps/Android-NativeDemoApp-0.4.0.apk",
+        "shaft-engine/src/test/resources/testDataFiles/apps/wdio-demo.apk"
+      ]
+    },
+    {
+      "asset": "ApiDemos-debug.apk",
+      "sha256": "f913cbbf041f6053cd34c13044e8ea4fd7ca03e7584a1d606fe94ca3a5cbc76f",
+      "destinations": [
+        "shaft-engine/src/test/resources/testDataFiles/apps/ApiDemos-debug.apk",
+        "shaft-engine/src/main/resources/examples/TestNG/shaft-testng-mobile/src/test/resources/testDataFiles/apk/ApiDemos-debug.apk",
+        "shaft-engine/src/main/resources/examples/JUnit/shaft-junit-mobile/src/test/resources/testDataFiles/apk/ApiDemos-debug.apk"
+      ]
+    },
+    {
+      "asset": "BStackSampleApp.ipa",
+      "sha256": "a9322c72ec833cb36270c1a14a5294c4af9dfa940d275a8399afca240feef8a1",
+      "destinations": [
+        "shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
+      ],
+      "notes": "BrowserStack iOS E2E jobs overwrite this path with the provider-compatible sample (sha256 76a8bb02…)."
+    },
+    {
+      "asset": "flutter-demo.apk",
+      "sha256": "38749c50050b6573c3dc42b54bf5bdb2a5f4bf3d76905e9ecedb2b8b3b2baaa6",
+      "destinations": [
+        "shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk"
+      ],
+      "notes": "Flutter CI jobs may replace this with a freshly built app-debug.apk."
+    }
+  ]
+}

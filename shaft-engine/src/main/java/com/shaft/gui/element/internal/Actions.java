@@ -1,0 +1,2545 @@
+package com.shaft.gui.element.internal;
+
+import com.google.common.annotations.Beta;
+import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
+import com.shaft.enums.internal.Screenshots;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.interaction.ClickStrategies;
+import com.shaft.gui.element.internal.interaction.ElementClassifier;
+import com.shaft.gui.element.internal.interaction.ElementKind;
+import com.shaft.gui.element.internal.interaction.IosXcuiAttributeNames;
+import com.shaft.gui.element.internal.interaction.TypeStrategies;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
+import com.shaft.gui.internal.healing.HealingManager;
+import com.shaft.gui.internal.healing.HealingResolution;
+import com.shaft.gui.internal.image.AnimatedGifManager;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotHelper;
+import com.shaft.gui.internal.locator.LocatorBuilder;
+import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.gui.internal.locator.SmartLocators;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.FlakeProfiler;
+import com.shaft.tools.io.internal.MobileTraceMetadata;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.tools.io.internal.TraceEventRecorder;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.remote.AppiumWebElement;
+import io.qameta.allure.Allure;
+import com.shaft.tools.io.internal.AllureAttachments;
+import io.qameta.allure.Step;
+import io.qameta.allure.model.Parameter;
+import io.qameta.allure.model.Status;
+import io.qameta.allure.model.StatusDetails;
+import lombok.NonNull;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.*;
+import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.interactions.Locatable;
+import org.openqa.selenium.interactions.Pause;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.support.locators.RelativeLocator;
+import org.openqa.selenium.support.pagefactory.ByAll;
+import org.openqa.selenium.support.ui.Select;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.Function;
+import javax.annotation.Nullable;
+
+/**
+ * Provides a fluent API for performing low-level UI interactions on web and mobile elements.
+ *
+ * <p>This class extends {@link ElementActions} and adds concrete implementations for common
+ * gestures such as clicking, typing, dragging, file uploading, and clipboard operations.
+ * It integrates with SHAFT's reporting pipeline to attach screenshots and structured step
+ * information to Allure reports automatically.
+ *
+ * <p>Actions instances are created internally by {@code SHAFT.GUI.WebDriver} and are not
+ * intended to be constructed directly by test authors. Use the driver-level factory methods
+ * instead:
+ *
+ * <pre>{@code
+ * SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
+ * driver.element().click(By.id("submit"));
+ * }</pre>
+ *
+ * <p><b>Thread safety:</b> Each {@code Actions} instance is tied to a single {@link WebDriver}
+ * session. For parallel test execution, wrap driver instances in a {@link ThreadLocal}.
+ */
+public class Actions extends ElementActions {
+    private static final Duration defaultPauseDuration = Duration.ofMillis(500);
+    private static final DateTimeFormatter SCREENSHOT_ATTACHMENT_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final int TYPED_VALUE_STEP_TEXT_LIMIT = 120;
+    private static final String MASKED_TYPED_VALUE = "********";
+    private static final ThreadLocal<AtomicLong> ACTION_EVIDENCE_NANOS = ThreadLocal.withInitial(AtomicLong::new);
+    private static final ThreadLocal<AtomicInteger> ACTION_STALE_RETRIES = ThreadLocal.withInitial(AtomicInteger::new);
+
+    /**
+     * Creates a new {@code Actions} instance using the driver managed by the current thread's
+     * active {@link com.shaft.driver.internal.DriverFactory.DriverFactoryHelper}.
+     */
+    public Actions() {
+        super();
+    }
+
+    /**
+     * Creates a new {@code Actions} instance wrapping the given {@link WebDriver}.
+     *
+     * @param driver the WebDriver session to use for all element interactions
+     */
+    public Actions(WebDriver driver) {
+        super(driver);
+    }
+
+    /**
+     * Creates a new {@code Actions} instance wrapping the given {@link WebDriver},
+     * with optional suppression of standard reporting output.
+     *
+     * @param driver   the WebDriver session to use for all element interactions
+     * @param isSilent {@code true} to suppress log and report entries for each action;
+     *                 {@code false} for normal reporting
+     */
+    public Actions(WebDriver driver, boolean isSilent) {
+        super(driver, isSilent);
+    }
+
+    /**
+     * Creates a new {@code Actions} instance backed by the given
+     * {@link DriverFactoryHelper}, which provides access to driver configuration,
+     * synchronization settings, and screenshot utilities.
+     *
+     * @param helper the helper that owns the underlying WebDriver session
+     */
+    public Actions(DriverFactoryHelper helper) {
+        super(helper);
+    }
+
+    @Override
+    public Actions and() {
+        return this;
+    }
+
+    @Step("Hover")
+    @Override
+    public Actions hover(@NonNull By locator) {
+        performAction(ActionType.HOVER, locator, null);
+        return this;
+    }
+
+    @Step("Click")
+    @Override
+    public Actions click(@NonNull By locator) {
+        performAction(ActionType.CLICK, locator, null);
+        return this;
+    }
+
+    @Step("Click and hold")
+    @Override
+    public Actions clickAndHold(@NonNull By locator) {
+        performAction(ActionType.CLICK_AND_HOLD, locator, null);
+        return this;
+    }
+
+    @Step("Double click")
+    @Override
+    public Actions doubleClick(@NonNull By locator) {
+        performAction(ActionType.DOUBLE_CLICK, locator, null);
+        return this;
+    }
+
+    @Step("Click using JavaScript")
+    @Override
+    public Actions clickUsingJavascript(@NonNull By locator) {
+        performAction(ActionType.JAVASCRIPT_CLICK, locator, null);
+        return this;
+    }
+
+    @Step("Set value using JavaScript")
+    @Override
+    public Actions setValueUsingJavaScript(@NonNull By locator, @NonNull String value) {
+        performAction(ActionType.JAVASCRIPT_SET_VALUE, locator, value);
+        return this;
+    }
+
+    /**
+     * Clicks a clickable element resolved by its visible label or accessible name.
+     *
+     * <p>This is a {@link Beta} smart-locator overload: SHAFT resolves the element
+     * automatically using {@link SmartLocators#clickableField(String)}, so no explicit
+     * {@link By} locator is required.
+     *
+     * <pre>{@code
+     * driver.element().click("Submit");
+     * }</pre>
+     *
+     * @param elementName the visible text, label, or accessible name of the target element
+     * @return this {@code Actions} instance for fluent chaining
+     */
+    @Beta
+    @Step("Click")
+    public Actions click(@NonNull String elementName) {
+        performAction(ActionType.CLICK, SmartLocators.clickableField(elementName), null);
+        return this;
+    }
+
+    @Step("Type")
+    @Override
+    public Actions type(@NonNull By locator, @NonNull CharSequence... text) {
+        performAction(ActionType.TYPE, locator, text);
+        return this;
+    }
+
+    /**
+     * Types the given text into an input field resolved by its visible label or placeholder.
+     *
+     * <p>This is a {@link Beta} smart-locator overload: SHAFT resolves the element
+     * automatically using {@link SmartLocators#inputField(String)}, so no explicit
+     * {@link By} locator is required. The field is cleared (according to the configured
+     * clear-before-typing mode) before the text is entered.
+     *
+     * <pre>{@code
+     * driver.element().type("Search", "SHAFT Engine");
+     * }</pre>
+     *
+     * @param elementName the visible label or placeholder of the target input field
+     * @param text        the character sequence(s) to type; supports {@link Keys} chords
+     * @return this {@code Actions} instance for fluent chaining
+     */
+    @Beta
+    @Step("Type")
+    public Actions type(@NonNull String elementName, @NonNull CharSequence... text) {
+        performAction(ActionType.TYPE, SmartLocators.inputField(elementName), text);
+        return this;
+    }
+
+    @Step("Type securely")
+    @Override
+    public Actions typeSecure(@NonNull By locator, @NonNull CharSequence... text) {
+        performAction(ActionType.TYPE_SECURELY, locator, text);
+        return this;
+    }
+
+    @Step("Append")
+    @Override
+    public Actions typeAppend(@NonNull By locator, @NonNull CharSequence... text) {
+        performAction(ActionType.TYPE_APPEND, locator, text);
+        return this;
+    }
+
+    @Step("Clear")
+    @Override
+    public Actions clear(@NonNull By locator) {
+        performAction(ActionType.CLEAR, locator, null);
+        return this;
+    }
+
+    /**
+     * Uploads a file by simulating a drag-and-drop gesture onto the target drop zone.
+     *
+     * <p>An invisible {@code <input type="file">} element is injected via JavaScript into the
+     * drop zone. The file path is then sent to that injected input, which triggers the browser's
+     * native file-upload mechanism without requiring the OS file-picker dialog.
+     *
+     * <pre>{@code
+     * driver.element().dropFileToUpload(By.id("dropZone"), "src/test/resources/files/document.pdf");
+     * }</pre>
+     *
+     * @param locator  the locator for the drop-zone element that accepts file drops
+     * @param filePath the path to the local file to upload (relative or absolute)
+     * @return this {@code Actions} instance for fluent chaining
+     */
+    @Step("Drop file to upload")
+    public Actions dropFileToUpload(@NonNull By locator, @NonNull String filePath) {
+        performAction(ActionType.DROP_FILE_TO_UPLOAD, locator, filePath);
+        return this;
+    }
+
+    @Step("Scroll to element")
+    @Override
+    public Actions scrollToElement(By elementLocator) {
+        performAction(ActionType.SCROLL_TO_ELEMENT, elementLocator, null);
+        return this;
+    }
+
+    @Step("Select")
+    @Override
+    public Actions select(By elementLocator, String valueOrVisibleText) {
+        performAction(ActionType.SELECT, elementLocator, valueOrVisibleText);
+        return this;
+    }
+
+    @Step("Submit form using JavaScript")
+    @Override
+    public Actions submitFormUsingJavaScript(By elementLocator) {
+        performAction(ActionType.SUBMIT_FORM_USING_JAVASCRIPT, elementLocator, null);
+        return this;
+    }
+
+    @Step("Switch to iframe")
+    @Override
+    public Actions switchToIframe(By elementLocator) {
+        performAction(ActionType.SWITCH_TO_IFRAME, elementLocator, null);
+        return this;
+    }
+
+    @Step("Type file location for upload")
+    @Override
+    public Actions typeFileLocationForUpload(By elementLocator, String filePath) {
+        String absoluteFilePath = filePath.startsWith("src") ? FileActions.getInstance(true).getAbsolutePath(filePath) : filePath;
+        performAction(ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD, elementLocator, absoluteFilePath.replace("/", File.separator));
+        return this;
+    }
+
+    @Step("Capture screenshot")
+    @Override
+    public Actions captureScreenshot(By elementLocator) {
+        String elementName = JavaHelper.formatLocatorToString(elementLocator);
+        try {
+            byte[] screenshot = new com.shaft.gui.internal.image.ScreenshotManager().takeElementScreenshot(driverFactoryHelper.getDriver(), elementLocator);
+            reportPass(ActionType.CAPTURE_SCREENSHOT.name(), elementName, screenshot);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.CAPTURE_SCREENSHOT.name(), elementName, takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
+    @Step("Drag and drop")
+    @Override
+    public Actions dragAndDrop(@NonNull By sourceElementLocator, @NonNull By destinationElementLocator) {
+        performAction(ActionType.DRAG_AND_DROP, sourceElementLocator, destinationElementLocator);
+        return this;
+    }
+
+    @Step("Drag and drop by offset")
+    @Override
+    public Actions dragAndDropByOffset(@NonNull By sourceElementLocator, int xOffset, int yOffset) {
+        performAction(ActionType.DRAG_AND_DROP_BY_OFFSET, sourceElementLocator, new ArrayList<>(List.of(xOffset, yOffset)));
+        return this;
+    }
+
+    /**
+     * Returns a {@link GetElementInformation} builder that exposes read-only element
+     * property accessors such as text, attributes, CSS values, and visibility state.
+     *
+     * <pre>{@code
+     * String value = driver.element().get().text(By.id("username"));
+     * }</pre>
+     *
+     * @return a new {@link GetElementInformation} instance scoped to this driver session
+     */
+    public GetElementInformation get() {
+        return new GetElementInformation();
+    }
+
+    /**
+     * Returns a {@link ClipboardAction} builder that exposes clipboard operations
+     * (copy, cut, paste, delete) for a target element.
+     *
+     * <pre>{@code
+     * driver.element().clipboard().copyAll(By.id("textField"));
+     * }</pre>
+     *
+     * @return a new {@link ClipboardAction} instance scoped to this driver session
+     */
+    public ClipboardAction clipboard() {
+        return new ClipboardAction(this);
+    }
+
+    /**
+     * Waits until the given condition returns {@code true}, using the framework's default
+     * UI state timeout.
+     *
+     * <p>Delegates to {@link #waitUntil(Function, Duration)} with a timeout derived from
+     * {@code SHAFT.Properties.timeouts.waitForUiStateTimeout()}.
+     *
+     * <pre>{@code
+     * driver.element().waitUntil(ExpectedConditions.titleContains("Dashboard"));
+     * }</pre>
+     *
+     * @param isTrue a WebDriver condition lambda; must return a truthy value when satisfied
+     * @return this {@code Actions} instance for fluent chaining
+     */
+    public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue) {
+        return waitUntil(isTrue, Duration.ofSeconds(SHAFT.Properties.timeouts.waitForUiStateTimeout()));
+    }
+
+    /**
+     * Waits until the given condition returns {@code true} within the specified timeout.
+     *
+     * <p>Uses a fluent wait backed by the current driver session. If the condition is not
+     * satisfied before {@code timeout} elapses, a {@link TimeoutException} is caught and
+     * the step is marked as broken in the Allure report.
+     *
+     * <pre>{@code
+     * driver.element().waitUntil(
+     *     ExpectedConditions.visibilityOfElementLocated(By.id("modal")),
+     *     Duration.ofSeconds(30)
+     * );
+     * }</pre>
+     *
+     * @param isTrue  a WebDriver condition lambda; must return a truthy value when satisfied
+     * @param timeout the maximum time to wait before failing
+     * @return this {@code Actions} instance for fluent chaining
+     */
+    @Step("Wait until")
+    public Actions waitUntil(@NonNull Function<? super WebDriver, ?> isTrue, @NonNull Duration timeout) {
+        String output = "";
+        try {
+            Object waitResult = new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().withTimeout(timeout).until(isTrue);
+            output = String.valueOf(waitResult);
+            if (waitResult == null || Boolean.FALSE.equals(waitResult))
+                throw new TimeoutException("Condition was not met within the timeout period.");
+        } catch (RuntimeException exception) {
+            if (output.isEmpty())
+                output = "custom lambda expression";
+            reportBroken("waitUntil", output, takeFailureScreenshot(null), exception);
+        }
+        //report pass
+        var description = String.valueOf(isTrue);
+        output = description.contains(" ") ? description : "custom lambda expression";
+
+        reportPass("waitUntil", output, null);
+        return this;
+    }
+
+    @Step("Execute native mobile command")
+    @Override
+    public Actions executeNativeMobileCommand(String command, Map<String, String> parameters) {
+        String commandDetails = "Command: " + command + ", Parameters: " + parameters;
+        try {
+            elementActionsHelper.executeNativeMobileCommandUsingJavascript(driverFactoryHelper.getDriver(), command, parameters);
+            reportPass(ActionType.EXECUTE_NATIVE_MOBILE_COMMAND.name(), commandDetails, (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.EXECUTE_NATIVE_MOBILE_COMMAND.name(), commandDetails, takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
+    @Step("Switch to default content")
+    @Override
+    public Actions switchToDefaultContent() {
+        try {
+            driverFactoryHelper.getDriver().switchTo().defaultContent();
+            LocatorBuilder.getIFrameLocator().remove();
+            reportPass(ActionType.SWITCH_TO_DEFAULT_CONTENT.name(), "default content", (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.SWITCH_TO_DEFAULT_CONTENT.name(), "default content", takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
+    /**
+     * Switches focus from the current iframe to its parent frame.
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    @Override
+    public Actions switchToParentFrame() {
+        try {
+            driverFactoryHelper.getDriver().switchTo().parentFrame();
+            LocatorBuilder.getIFrameLocator().remove();
+            reportPass(ActionType.SWITCH_TO_PARENT_FRAME.name(), "parent frame", (byte[]) null);
+        } catch (RuntimeException exception) {
+            reportBroken(ActionType.SWITCH_TO_PARENT_FRAME.name(), "parent frame", takeFailureScreenshot(null), exception);
+        }
+        return this;
+    }
+
+    protected String performAction(ActionType action, By locator, Object data) {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        if (profilerStart != 0L) {
+            ACTION_EVIDENCE_NANOS.get().set(0L);
+            ACTION_STALE_RETRIES.get().set(0);
+        }
+        TraceEventRecorder.Event traceEvent = elementActionsHelper.isSilent()
+                ? null
+                : TraceEventRecorder.start("element", action.name(), locator, driverFactoryHelper.getDriver());
+        AtomicReference<String> output = new AtomicReference<>("");
+        AtomicReference<String> accessibleName = new AtomicReference<>(JavaHelper.formatLocatorToString(locator));
+        AtomicReference<ActionReportContext> reportContext = new AtomicReference<>(ActionReportContext.from(action, locator, data, accessibleName.get()));
+        AtomicReferenceArray<byte[]> screenshot = new AtomicReferenceArray<>(1);
+        AtomicReference<List<WebElement>> foundElements = new AtomicReference<>();
+        FlakeProfileContext flakeProfile = new FlakeProfileContext(action, locator, profilerStart, foundElements);
+        AtomicReference<HealingResolution> healingResolution = new AtomicReference<>();
+        AtomicReference<HealingResolution> secondaryHealingResolution = new AtomicReference<>();
+        AtomicReference<By> secondaryLocator = new AtomicReference<>();
+        // issue #4321 (second-pass review): disambiguation must be a strict LAST RESORT, applied only
+        // once the full identification-timeout retry window below is exhausted -- never during the
+        // loop itself, so a still-settling page always gets its full window before any narrowing is
+        // even considered. False for every poll of the primary fluentWait call; flipped true only for
+        // the single extra attempt made after that call times out with an ambiguous locator.
+        AtomicBoolean lastResortNarrowingAllowed = new AtomicBoolean(false);
+
+        Function<WebDriver, Boolean> attemptElementActionOnce = d -> {
+                flakeProfile.waitLoops.incrementAndGet();
+                flakeProfile.locatorLookups.incrementAndGet();
+                // find all elements matching the target locator
+                long profilerLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                ElementLookup lookup = findAllElements(locator, action.name());
+                if (profilerLocateStart != 0L) {
+                    flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerLocateStart);
+                }
+                foundElements.set(lookup.elements());
+                healingResolution.set(lookup.healingResolution());
+                if (lookup.healingAttempted()) {
+                    flakeProfile.healingAttempted.set(true);
+                }
+
+                // fail fast if no elements were found
+                if (foundElements.get().isEmpty())
+                    throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
+
+                // ensure element locator is unique if applicable
+                if (foundElements.get().size() > 1 && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique() && !(locator instanceof RelativeLocator.RelativeBy) && !(locator instanceof ByAll)) {
+                    // issue #4321: a locator matching several elements is only genuinely ambiguous when
+                    // more than one of them is actually actionable. This ALWAYS throws during the normal
+                    // retry loop (lastResortNarrowingAllowed is false here on every poll), identical to
+                    // pre-#4321 behavior -- a still-settling page keeps its full identification-timeout
+                    // window. Only the single last-resort attempt made after that window is exhausted
+                    // (see the outer try/catch around the fluentWait call below) allows narrowing -- see
+                    // narrowOrHealOrThrowWhenAmbiguous (issue #4327) for what happens when even that
+                    // last-resort attempt cannot narrow to a single actionable match.
+                    narrowOrHealOrThrowWhenAmbiguous(
+                            d, locator, action.name(), foundElements, healingResolution,
+                            lastResortNarrowingAllowed.get(), "");
+                }
+
+                if (healingResolution.get() == null) {
+                    // issue #4327: a last-resort-narrowed single element (via #4321's visibility
+                    // heuristic in narrowOrHealOrThrowWhenAmbiguous) is fed into observe() exactly like
+                    // a naturally-unique match, so it can seed a heal-history fingerprint an ambiguous
+                    // locator could not have earned before #4321. When narrowOrHealOrThrowWhenAmbiguous
+                    // instead resolved the ambiguity via SHAFT Heal, healingResolution is already set
+                    // above, so this branch is skipped -- observe() and resolve() are mutually
+                    // exclusive per lookup, same as the zero-match branch in findAllElements(By, String).
+                    HealingManager.observe(
+                            d,
+                            locator,
+                            foundElements.get(),
+                            action.name(),
+                            LocatorBuilder.getIFrameLocator().get(),
+                            ShadowLocatorBuilder.shadowDomLocator.get(),
+                            ShadowLocatorBuilder.cssSelector.get());
+                }
+
+                // identify run type
+                boolean isMobileNativeExecution = DriverFactoryHelper.isMobileNativeExecution();
+                boolean isWindowsDesktopExecution = DriverFactoryHelper.isWindowsAppiumExecution();
+
+                // get accessible name if needed
+                if (SHAFT.Properties.reporting.captureElementName()) {
+                    String fetchedName;
+                    fetchedName = reportingAccessibleName(foundElements.get().getFirst(), isMobileNativeExecution);
+                    if (fetchedName != null && !fetchedName.isEmpty())
+                        accessibleName.set(fetchedName.trim());
+                }
+                reportContext.set(ActionReportContext.from(action, locator, data, accessibleName.get()));
+
+                if (!isMobileNativeExecution) {
+                    // One synchronous scroll for w3c, javascript, and legacy. Unchanged offsets are
+                    // not movement, and a target that stays outside is not treated as in view.
+                    WebElement scrollTarget = foundElements.get().getFirst();
+                    if (d instanceof JavascriptExecutor) {
+                        WebScroll.scrollIntoView(d, scrollTarget);
+                    } else if (d instanceof Locatable locatable) {
+                        try {
+                            locatable.getCoordinates().inViewPort();
+                        } catch (Throwable ignored) {
+                            // Best-effort pre-action scroll. The action still runs.
+                        }
+                    }
+                }
+
+                // A failed lazy-loading probe must not abort the element action. The wait
+                // already treats browser errors as activity; an unexpected failure (including
+                // a torn-down static test double) is "no activity" so the action still runs.
+                boolean lazyLoadingActivityObserved = false;
+                try {
+                    lazyLoadingActivityObserved = JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(d);
+                } catch (RuntimeException ignored) {
+                    lazyLoadingActivityObserved = false;
+                }
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldRefreshElementAfterLazyLoading(action, locator)) {
+                    flakeProfile.locatorLookups.incrementAndGet();
+                    long profilerRefreshLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                    ElementLookup refreshedLookup = findAllElements(locator, action.name() + "_READY");
+                    if (profilerRefreshLocateStart != 0L) {
+                        flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerRefreshLocateStart);
+                    }
+                    foundElements.set(refreshedLookup.elements());
+                    if (refreshedLookup.healingResolution() != null) {
+                        healingResolution.set(refreshedLookup.healingResolution());
+                    }
+                    if (refreshedLookup.healingAttempted()) {
+                        flakeProfile.healingAttempted.set(true);
+                    }
+                    if (foundElements.get().isEmpty()) {
+                        throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
+                    }
+                    if (foundElements.get().size() > 1
+                            && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
+                            && !(locator instanceof RelativeLocator.RelativeBy)
+                            && !(locator instanceof ByAll)) {
+                        // issue #4321: same last-resort-only narrowing as the initial lookup above --
+                        // only auto-resolve when exactly one refreshed match is actually actionable, and
+                        // only on the single post-timeout attempt (see comment on the initial lookup).
+                        narrowOrHealOrThrowWhenAmbiguous(
+                                d, locator, action.name() + "_READY", foundElements, healingResolution,
+                                lastResortNarrowingAllowed.get(), " after lazy-loading settled");
+                    }
+                }
+                if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldCheckNativeActionability(action, locator)) {
+                    ensureNativeActionTargetIsReady(foundElements.get().getFirst(), action);
+                }
+                // perform action
+                long profilerActionStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                long profilerEvidenceBeforeAction = profilerStart != 0L ? ACTION_EVIDENCE_NANOS.get().get() : 0L;
+                try {
+                    switch (action) {
+                    case HOVER ->
+                            (new org.openqa.selenium.interactions.Actions(d)).pause(defaultPauseDuration).moveToElement(foundElements.get().getFirst()).perform();
+                    case CLICK -> {
+                        WebElement targetElement = isMobileNativeExecution
+                                ? chooseBestEffortDisplayedElement(foundElements.get())
+                                : foundElements.get().getFirst();
+                        KeyboardCoverGuard.hideIfCovering(d, targetElement, isMobileNativeExecution);
+                        screenshot.set(0, takeActionScreenshot(targetElement));
+                        // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
+                        // Wave D: mobile native uses W3C touch tap when WebDriver click flakes (web defaults unchanged).
+                        // Wave E: Windows desktop uses windows: click when WebDriver click flakes (no JS on desktop).
+                        ClickStrategies.click(
+                                d,
+                                targetElement,
+                                ElementClassifier.classify(targetElement),
+                                SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(),
+                                isMobileNativeExecution,
+                                isWindowsDesktopExecution);
+                    }
+                    case JAVASCRIPT_CLICK -> {
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                        ((JavascriptExecutor) d).executeScript("arguments[0].click();", foundElements.get().getFirst());
+                    }
+                    case CLICK_AND_HOLD -> {
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration).clickAndHold(foundElements.get().getFirst()).perform();
+                    }
+                    case DOUBLE_CLICK -> {
+                        var targetElement = foundElements.get().getFirst();
+                        screenshot.set(0, takeActionScreenshot(targetElement));
+
+                        if (d instanceof AppiumDriver appiumDriver) {
+                            PointerInput.Origin VIEW = PointerInput.Origin.viewport();
+                            Rectangle targetElementRectangle = targetElement.getRect();
+                            PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+                            Sequence doubleTap = new Sequence(finger, 0);
+
+                            // move to element
+                            doubleTap.addAction(finger.createPointerMove(defaultPauseDuration, VIEW,
+                                    targetElementRectangle.getWidth() / 2, targetElementRectangle.getHeight() / 2));
+
+                            // first tap
+                            doubleTap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+                            doubleTap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+                            // pause
+                            doubleTap.addAction(new Pause(finger, defaultPauseDuration));
+
+                            // second tap
+                            doubleTap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+                            doubleTap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+                            // perform
+                            appiumDriver.perform(List.of(doubleTap));
+                        } else {
+                            new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                                    .doubleClick(targetElement)
+                                    .perform();
+                        }
+                    }
+                    case TYPE, TYPE_SECURELY -> {
+                        WebElement targetElement = foundElements.get().getFirst();
+                        CharSequence[] text = (CharSequence[]) data;
+                        registerIfSecret(d, targetElement, action, text);
+                        ElementKind kind = ElementClassifier.classify(targetElement);
+                        if (isMobileNativeExecution) {
+                            performMobileNativeType(d, targetElement, kind, text, action);
+                        } else if (isWindowsDesktopExecution) {
+                            performWindowsDesktopType(d, targetElement, kind, text, action);
+                        } else {
+                            TypeStrategies.TypeRoute typeRoute = TypeStrategies.routeFor(kind);
+                            if (typeRoute == TypeStrategies.TypeRoute.REJECT) {
+                                TypeStrategies.rejectUnsupported(kind);
+                            } else if (typeRoute == TypeStrategies.TypeRoute.TOGGLE_CLICK) {
+                                TypeStrategies.toggleInsteadOfTyping(targetElement, kind);
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SELECT_OPTION) {
+                                selectValue(targetElement, locator, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SET_FILES) {
+                                typeFileLocationForUpload(targetElement, locator, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.SET_VALUE_WITH_EVENTS) {
+                                TypeStrategies.setValueWithEvents(d, targetElement, stringifyTypedValue(text));
+                            } else if (typeRoute == TypeStrategies.TypeRoute.CONTENTEDITABLE) {
+                                boolean clearBefore = !"off".equals(SHAFT.Properties.flags.clearBeforeTypingMode());
+                                TypeStrategies.typeContentEditable(d, targetElement, text, clearBefore);
+                            } else {
+                                // TEXT_LIKE / COMBOBOX / UNKNOWN — legacy clear+sendKeys honors existing flags.
+                                String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+                                String typedText = stringifyTypedValue(text);
+                                boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                                String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                                        ? readElementValueForTyping(targetElement) + typedText
+                                        : typedText;
+                                if (SHAFT.Properties.flags.attemptToClickBeforeTyping() && !"native".equals(clearMode)) {
+                                    targetElement.click();
+                                }
+                                executeClearBasedOnClearMode(targetElement, clearMode);
+                                targetElement.sendKeys(text);
+                                validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                            }
+                        }
+                    }
+                    case TYPE_APPEND -> {
+                        WebElement targetElement = foundElements.get().getFirst();
+                        CharSequence[] text = (CharSequence[]) data;
+                        registerIfSecret(d, targetElement, action, text);
+                        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+                        String expectedText = shouldValidateTypedText
+                                ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
+                                : "";
+                        boolean textWasTyped = true;
+                        if (isMobileNativeExecution) {
+                            ClickStrategies.focusTap(d, targetElement);
+                            TypeStrategies.typeMobileText(d, targetElement, text, false);
+                            TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+                        } else if (isWindowsDesktopExecution) {
+                            textWasTyped = performWindowsDesktopTypeAppend(d, targetElement, text);
+                        } else {
+                            targetElement.sendKeys(text);
+                        }
+                        if (textWasTyped) {
+                            validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+                        }
+                    }
+                    case JAVASCRIPT_SET_VALUE -> {
+                        registerIfSecret(d, foundElements.get().getFirst(), action, String.valueOf(data));
+                        ((JavascriptExecutor) d).executeScript("""
+                                    arguments[0].value = arguments[1];
+                                    arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                                    arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                                    """, foundElements.get().getFirst(), data);
+                    }
+                    case CLEAR -> {
+                        executeClearBasedOnClearMode(foundElements.get().getFirst(), "native");
+                        if (!"".equals(safeDomProperty(foundElements.get().getFirst(), "value")))
+                            executeClearBasedOnClearMode(foundElements.get().getFirst(), "backspace");
+                    }
+                    case SCROLL_TO_ELEMENT -> {
+                        if (isMobileNativeExecution) {
+                            performTouchAction().swipeElementIntoView(locator, TouchActions.SwipeDirection.DOWN);
+                        } else {
+                            WebElement scrollTarget = foundElements.get().getFirst();
+                            boolean inView = d instanceof JavascriptExecutor
+                                    ? WebScroll.scrollIntoView(d, scrollTarget)
+                                    : false;
+                            if (!inView) {
+                                throw new IllegalStateException("Element is still outside the viewport after scrolling.");
+                            }
+                        }
+                    }
+                    case SELECT -> selectValue(foundElements.get().getFirst(), locator, String.valueOf(data));
+                    case SUBMIT_FORM_USING_JAVASCRIPT -> {
+                        try {
+                            ((JavascriptExecutor) d).executeScript("arguments[0].submit();", foundElements.get().getFirst());
+                        } catch (JavascriptException javascriptException) {
+                            foundElements.get().getFirst().submit();
+                        }
+                    }
+                    case SWITCH_TO_IFRAME -> {
+                        LocatorBuilder.getIFrameLocator().set(locator);
+                        d.switchTo().frame(foundElements.get().getFirst());
+                    }
+                    case TYPE_FILE_LOCATION_FOR_UPLOAD -> typeFileLocationForUpload(foundElements.get().getFirst(), locator, String.valueOf(data));
+                    case DRAG_AND_DROP -> {
+                        String currentDragAndDropSubstep = "resolve source element";
+                        var sourceElement = chooseDragAndDropElement(foundElements.get(), locator, "source");
+                        try {
+                            logDragAndDropTrace("substep=resolveSourceElement, locator=" + JavaHelper.formatLocatorToString(locator)
+                                    + ", matchedElements=" + foundElements.get().size());
+
+                            currentDragAndDropSubstep = "capture pre-action screenshot";
+                            screenshot.set(0, takeActionScreenshot(sourceElement));
+                            logDragAndDropTrace("substep=capturePreActionScreenshot, screenshotCaptured=" + (screenshot.get(0) != null));
+
+                            By destinationLocator = (By) data;
+                            currentDragAndDropSubstep = "resolve destination element";
+                            flakeProfile.locatorLookups.incrementAndGet();
+                            long profilerDestinationLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
+                            ElementLookup destinationLookup = findAllElements(
+                                    destinationLocator,
+                                    action.name() + "_DESTINATION");
+                            if (profilerDestinationLocateStart != 0L) {
+                                flakeProfile.locateNanos.addAndGet(System.nanoTime() - profilerDestinationLocateStart);
+                            }
+                            List<WebElement> destinationElements = destinationLookup.elements();
+                            secondaryHealingResolution.set(destinationLookup.healingResolution());
+                            if (destinationLookup.healingAttempted()) {
+                                flakeProfile.secondaryHealingAttempted.set(true);
+                            }
+                            secondaryLocator.set(destinationLocator);
+                            if (destinationLookup.healingResolution() == null) {
+                                HealingManager.observe(
+                                        d,
+                                        destinationLocator,
+                                        destinationElements,
+                                        action.name() + "_DESTINATION",
+                                        LocatorBuilder.getIFrameLocator().get(),
+                                        ShadowLocatorBuilder.shadowDomLocator.get(),
+                                        ShadowLocatorBuilder.cssSelector.get());
+                            }
+                            logDragAndDropTrace("substep=resolveDestinationElements, locator=" + JavaHelper.formatLocatorToString(destinationLocator)
+                                    + ", matchedElements=" + destinationElements.size());
+                            WebElement destinationElement = chooseDragAndDropElement(destinationElements, destinationLocator, "destination");
+
+                            if (isMobileNativeExecution && d instanceof AppiumDriver appiumDriver) {
+                                currentDragAndDropSubstep = "execute mobile drag and drop";
+                                logDragAndDropTrace("substep=executeMobileDragAndDrop, sourceRect=" + sourceElement.getRect()
+                                        + ", destinationRect=" + destinationElement.getRect());
+                                executeMobileDragAndDrop(appiumDriver, sourceElement, destinationElement);
+                            } else {
+                                currentDragAndDropSubstep = "execute selenium drag and drop";
+                                if (lazyLoadingActivityObserved) {
+                                    ensureNativeActionTargetIsReady(destinationElement, action);
+                                }
+                                logDragAndDropTrace("substep=executeSeleniumDragAndDrop");
+                                new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                                            .dragAndDrop(sourceElement, destinationElement).perform();
+                            }
+                        } catch (RuntimeException traceException) {
+                            logDragAndDropTrace("substepFailure=" + currentDragAndDropSubstep + ", exception="
+                                    + traceException.getClass().getSimpleName() + ", message=" + traceException.getMessage());
+                            throw traceException;
+                        }
+                    }
+                    case DRAG_AND_DROP_BY_OFFSET -> {
+                        screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                        new org.openqa.selenium.interactions.Actions(d).pause(defaultPauseDuration)
+                                    .dragAndDropBy(foundElements.get().getFirst(),
+                                            (int) ((ArrayList<?>) data).get(0),
+                                            (int) ((ArrayList<?>) data).get(1)).perform();
+                    }
+                    case DROP_FILE_TO_UPLOAD -> {
+                        // Prepare target file to be uploaded
+                        File file = new File((String) data);
+                        if(!file.exists())
+                            throw new RuntimeException("File not found: " + data);
+                        String absoluteFilePath = file.getAbsoluteFile().toString();
+
+                        // Prepare custom script to inject the upload input field with required parameters
+                        double offsetX = 0;
+                        double offsetY = 0;
+
+                        // Inject upload input field
+                        WebElement input;
+                        JavascriptExecutor javascriptExecutor = (JavascriptExecutor) d;
+                        input = (WebElement) javascriptExecutor.executeScript(JavaScriptHelper.INJECT_INPUT_TO_UPLOAD_FILE_VIA_DROP_ACTION.getValue(), foundElements.get().getFirst(), offsetX, offsetY);
+
+                        // Ensure that the upload input field was created successfully
+                        assert input != null;
+
+                        // Use upload input field to send the file location for upload
+                        input.sendKeys(absoluteFilePath);
+                    }
+                    case GET_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
+                            IosXcuiAttributeNames.readAttribute(firstFound(foundElements), String.valueOf(data))));
+                    case GET_DOM_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
+                            IosXcuiAttributeNames.readDomAttribute(firstFound(foundElements), String.valueOf(data))));
+                    case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
+                    case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
+                    case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
+                    case GET_IS_DISPLAYED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isDisplayed())));
+                    case GET_IS_ENABLED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isEnabled())));
+                    case GET_IS_SELECTED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isSelected())));
+                    case GET_TEXT -> {
+                        output.set(foundElements.get().getFirst().getText());
+                        if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                            output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue()));
+                            if (output.get() == null || output.get().isBlank()) {
+                                output.set(foundElements.get().getFirst().getDomProperty(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue()));
+                            }
+                        }
+                        if (output.get() == null) {
+                            output.set("");
+                        }
+                    }
+                    case GET_SELECTED_TEXT -> {
+                        StringBuilder elementSelectedText = new StringBuilder();
+                        new Select(foundElements.get().getFirst()).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                        output.set(elementSelectedText.toString());
+                    }
+                    case CLIPBOARD_COPY ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.chord(Keys.CONTROL, "c"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_CUT ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.chord(Keys.CONTROL, "x"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_PASTE ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "v"), Keys.ARROW_RIGHT);
+                    case CLIPBOARD_DELETE ->
+                            foundElements.get().getFirst().sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.BACK_SPACE, Keys.ARROW_RIGHT);
+                }
+
+                // take screenshot if not already taken before action
+                if (screenshot.get(0) == null)
+                    screenshot.set(0, takeActionScreenshot(foundElements.get().getFirst()));
+                } finally {
+                    if (profilerActionStart != 0L) {
+                        long evidenceDuringAction = ACTION_EVIDENCE_NANOS.get().get() - profilerEvidenceBeforeAction;
+                        flakeProfile.actionNanos.addAndGet(Math.max(0L, System.nanoTime() - profilerActionStart - evidenceDuringAction));
+                    }
+                }
+                HealingManager.recordOutcome(
+                        d,
+                        healingResolution.get(),
+                        locator,
+                        action.name(),
+                        true,
+                        "");
+                HealingManager.recordOutcome(
+                        d,
+                        secondaryHealingResolution.get(),
+                        secondaryLocator.get(),
+                        action.name() + "_DESTINATION",
+                        true,
+                        "");
+                return true;
+        };
+
+        try {
+            try {
+                new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(true).until(attemptElementActionOnce::apply);
+            } catch (RuntimeException timeoutFailure) {
+                if (isCausedByAmbiguousLocator(timeoutFailure)) {
+                    // issue #4321: the full identification-timeout retry window is exhausted and the
+                    // locator is still ambiguous on every unmodified retry. Take exactly one more look,
+                    // this time allowing narrowing to the single actionable match if there is one.
+                    lastResortNarrowingAllowed.set(true);
+                    try {
+                        attemptElementActionOnce.apply(driverFactoryHelper.getDriver());
+                    } catch (RuntimeException lastResortFailure) {
+                        // issue #4334: the last-resort attempt bypasses fluentWait, so its own failure has
+                        // no "tried for N second(s)" wrapper -- suppress the original TimeoutException onto
+                        // it so that diagnostic context (the identification timeout was fully exhausted
+                        // before this was reported ambiguous) is not silently dropped.
+                        lastResortFailure.addSuppressed(timeoutFailure);
+                        throw lastResortFailure;
+                    }
+                } else {
+                    throw timeoutFailure;
+                }
+            }
+        } catch (RuntimeException exception) {
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    healingResolution.get(),
+                    locator,
+                    action.name(),
+                    false,
+                    exception.getClass().getSimpleName());
+            HealingManager.recordOutcome(
+                    driverFactoryHelper.getDriver(),
+                    secondaryHealingResolution.get(),
+                    secondaryLocator.get(),
+                    action.name() + "_DESTINATION",
+                    false,
+                    exception.getClass().getSimpleName());
+            Map<String, Object> actionability = traceEvent != null && traceEvent.enabled()
+                    ? ElementActionabilityDiagnostics.collect(
+                            locator, driverFactoryHelper.getDriver(), foundElements.get(), exception)
+                    : Map.of();
+            // take failure screenshot - a failure here (e.g. the element went stale between the
+            // original failure and this screenshot attempt) must never mask the original exception
+            try {
+                if (foundElements.get() == null || foundElements.get().size() != 1) {
+                    screenshot.set(0, takeFailureScreenshot(null));
+                } else {
+                    screenshot.set(0, takeFailureScreenshot(foundElements.get().getFirst()));
+                }
+            } catch (RuntimeException screenshotException) {
+                // fall back to a viewport-only screenshot instead of failing the screenshot step
+                try {
+                    screenshot.set(0, takeFailureScreenshot(null));
+                } catch (RuntimeException viewportScreenshotException) {
+                    screenshotException.addSuppressed(viewportScreenshotException);
+                    screenshot.set(0, null);
+                }
+                exception.addSuppressed(screenshotException);
+            }
+            FailureEvidence.attach(locator, driverFactoryHelper.getDriver(), foundElements.get(), exception,
+                    actionability, screenshot.get(0) != null);
+            recordFlakeProfile(flakeProfile, false);
+            try {
+                // report broken - always reported against the ORIGINAL exception
+                reportBroken(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0),
+                        exception, actionability);
+            } catch (RuntimeException reportedException) {
+                if (Objects.equals(reportedException.getCause(), exception)) {
+                    // expected: SHAFT's designed wrapper carrying the original exception as its cause
+                    throw reportedException;
+                }
+                // the reporting pipeline itself failed unexpectedly; the original failure must still win
+                exception.addSuppressed(reportedException);
+                throw exception;
+            }
+        }
+        //report pass
+        recordFlakeProfile(flakeProfile, true);
+        reportPass(traceEvent, action.name(), accessibleName.get(), reportContext.get(), screenshot.get(0));
+        return output.get();
+    }
+
+    private static void recordFlakeProfile(FlakeProfileContext profile, boolean successful) {
+        if (profile.startNanos == 0L) {
+            return;
+        }
+        long evidenceNanos = ACTION_EVIDENCE_NANOS.get().get();
+        long waitNanos = Math.max(0L, System.nanoTime() - profile.startNanos
+                - evidenceNanos
+                - profile.locateNanos.get()
+                - profile.actionNanos.get());
+        List<WebElement> elements = profile.foundElements.get();
+        int matchCount = elements == null ? 0 : elements.size();
+        int healingAttempts = (profile.healingAttempted.get() ? 1 : 0)
+                + (profile.secondaryHealingAttempted.get() ? 1 : 0);
+        String target = JavaHelper.formatLocatorToString(profile.locator);
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("locate", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(profile.locateNanos.get()))
+                .locatorLookupCount(profile.locatorLookups.get())
+                .matchCount(matchCount)
+                .staleElementRetries(ACTION_STALE_RETRIES.get().get())
+                .healingAttempts(healingAttempts)
+                .successful(successful));
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("wait", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(waitNanos))
+                .waitLoopCount(profile.waitLoops.get())
+                .successful(successful));
+        FlakeProfiler.recordAction(FlakeProfiler.ActionSample.of("action", profile.action.name())
+                .target(target)
+                .durationMillis(TimeUnit.NANOSECONDS.toMillis(profile.actionNanos.get()))
+                .locatorLookupCount(profile.locatorLookups.get())
+                .matchCount(matchCount)
+                .staleElementRetries(ACTION_STALE_RETRIES.get().get())
+                .healingAttempts(healingAttempts)
+                .waitLoopCount(profile.waitLoops.get())
+                .successful(successful));
+        ACTION_EVIDENCE_NANOS.remove();
+        ACTION_STALE_RETRIES.remove();
+    }
+
+    private static final class FlakeProfileContext {
+        private final ActionType action;
+        private final By locator;
+        private final long startNanos;
+        private final AtomicReference<List<WebElement>> foundElements;
+        private final AtomicInteger waitLoops = new AtomicInteger();
+        private final AtomicInteger locatorLookups = new AtomicInteger();
+        private final AtomicLong locateNanos = new AtomicLong();
+        private final AtomicLong actionNanos = new AtomicLong();
+        private final AtomicBoolean healingAttempted = new AtomicBoolean(false);
+        private final AtomicBoolean secondaryHealingAttempted = new AtomicBoolean(false);
+
+        private FlakeProfileContext(ActionType action, By locator, long startNanos,
+                                    AtomicReference<List<WebElement>> foundElements) {
+            this.action = action;
+            this.locator = locator;
+            this.startNanos = startNanos;
+            this.foundElements = foundElements;
+        }
+    }
+
+    private void selectValue(WebElement targetElement, By locator, String valueOrVisibleText) {
+        // Case-insensitive to match Selenium's own org.openqa.selenium.support.ui.Select
+        // constructor ("select".equalsIgnoreCase(tagName)); a driver returning a differently-cased
+        // tag name (observed from SafariDriver: "SELECT") must still be routed to the native
+        // <select> handling below instead of the custom/non-select dropdown fallback, which can
+        // never find a matching option for a real native dropdown.
+        if (!"select".equalsIgnoreCase(targetElement.getTagName())) {
+            if (!SHAFT.Properties.flags.handleNonSelectDropDown()) {
+                throw new InvalidElementStateException("Tag should be <select>, yet it was found to be <" + targetElement.getTagName() + ">.");
+            }
+            targetElement.click();
+            By optionLocator = SHAFT.GUI.Locator.hasAnyTagName().and().containsText(valueOrVisibleText).byRelation().below(locator);
+            chooseBestEffortDisplayedElement(findAllElements(optionLocator, ActionType.SELECT.name() + "_OPTION").elements()).click();
+            return;
+        }
+
+        Select selectElement = new Select(targetElement);
+        List<WebElement> availableOptions = selectElement.getOptions();
+        for (int index = 0; index < availableOptions.size(); index++) {
+            String visibleText = availableOptions.get(index).getText();
+            String value = availableOptions.get(index).getDomProperty("value");
+            if (visibleText.trim().equals(valueOrVisibleText) || (value != null && value.trim().equals(valueOrVisibleText))) {
+                selectElement.selectByIndex(index);
+                return;
+            }
+        }
+        throw new NoSuchElementException("Cannot locate option with Value or Visible text =" + valueOrVisibleText);
+    }
+
+    private void typeFileLocationForUpload(WebElement targetElement, By locator, String absoluteFilePath) {
+        try {
+            targetElement.sendKeys(absoluteFilePath);
+        } catch (InvalidArgumentException exception) {
+            throw exception;
+        } catch (ElementNotInteractableException | NoSuchElementException firstFailure) {
+            List<WebElement> uploadElements = findAllElements(locator, ActionType.TYPE_FILE_LOCATION_FOR_UPLOAD.name()).elements();
+            if (uploadElements.isEmpty()) {
+                throw new NoSuchElementException("Cannot locate an element using " + JavaHelper.formatLocatorToString(locator));
+            }
+            WebElement visibleElement = uploadElements.getFirst();
+            String originalStyle = visibleElement.getDomProperty("style");
+            try {
+                ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", visibleElement);
+                visibleElement.sendKeys(absoluteFilePath);
+            } catch (WebDriverException secondFailure) {
+                secondFailure.addSuppressed(firstFailure);
+                throw secondFailure;
+            } finally {
+                try {
+                    ((JavascriptExecutor) driverFactoryHelper.getDriver()).executeScript("arguments[0].setAttribute('style', arguments[1]);", visibleElement, originalStyle == null ? "" : originalStyle);
+                } catch (WebDriverException restoreFailure) {
+                    ReportManagerHelper.logDiscrete(restoreFailure);
+                }
+            }
+        }
+    }
+
+    /**
+     * Wave D (#5732): mobile-native type — focus (tap) → clear flags → setValue/sendKeys/{@code mobile: type}
+     * → optional {@code hideKeyboardAfterTyping}. Checkbox/Switch toggle; never blind sendKeys on toggles.
+     */
+    private void performMobileNativeType(WebDriver d, WebElement targetElement, ElementKind kind,
+                                         CharSequence[] text, ActionType action) {
+        TypeStrategies.MobileTypeRoute mobileRoute = TypeStrategies.mobileRouteFor(kind);
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleMobileInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Always focus before typing on mobile native (Compose/Flutter require it; honors research ladder).
+        ClickStrategies.focusTap(d, targetElement);
+        if ("native".equals(clearMode)) {
+            // focusTap already clicked; clear without a second click.
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        // replaceElementValue wipes the field — only when clear mode is not "off" (mobile default is off).
+        boolean replaceAllowed = !"off".equals(clearMode);
+        if (mobileRoute == TypeStrategies.MobileTypeRoute.MOBILE_TEXT
+                || mobileRoute == TypeStrategies.MobileTypeRoute.LEGACY_SEND_KEYS) {
+            TypeStrategies.typeMobileText(d, targetElement, text, replaceAllowed);
+        } else {
+            targetElement.sendKeys(text);
+        }
+        TypeStrategies.hideKeyboardIfConfigured(d, SHAFT.Properties.flags.hideKeyboardAfterTyping());
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E (#5732): Windows desktop / UIA type — ensure foreground (click / {@code windows: click}) →
+     * clear flags → sendKeys / {@code windows: keys}. CheckBox/Radio toggle; ComboBox expand + filter + Enter.
+     * Window/Pane locators only bring the surface to the foreground (no sendKeys into the chrome).
+     */
+    private void performWindowsDesktopType(WebDriver d, WebElement targetElement, ElementKind kind,
+                                           CharSequence[] text, ActionType action) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "type() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return;
+        }
+
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            validateTypedTextIfConfigured(targetElement, action, stringifyTypedValue(text),
+                    shouldValidateTypedText(text));
+            return;
+        }
+
+        String clearMode = SHAFT.Properties.flags.clearBeforeTypingMode();
+        String typedText = stringifyTypedValue(text);
+        boolean shouldValidateTypedText = shouldValidateTypedText(text);
+        String expectedText = shouldValidateTypedText && "off".equals(clearMode)
+                ? readElementValueForTyping(targetElement) + typedText
+                : typedText;
+
+        // Foreground / focus before type (brings hosting Window/Pane forward when practical).
+        ClickStrategies.focusWindows(d, targetElement);
+        if ("native".equals(clearMode)) {
+            try {
+                targetElement.clear();
+            } catch (RuntimeException ignored) {
+                executeClearBasedOnClearMode(targetElement, "backspace");
+            }
+        } else {
+            executeClearBasedOnClearMode(targetElement, clearMode);
+        }
+
+        TypeStrategies.typeDesktopText(d, targetElement, text);
+        validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
+    }
+
+    /**
+     * Wave E append path: same kind routing as {@link #performWindowsDesktopType} without clear.
+     *
+     * @return true when text was typed (caller may validate); false for toggle / focus-surface / reject paths
+     */
+    private boolean performWindowsDesktopTypeAppend(WebDriver d, WebElement targetElement, CharSequence[] text) {
+        if (ElementClassifier.isWindowsFocusSurface(targetElement)) {
+            ClickStrategies.focusWindows(d, targetElement);
+            ReportManager.logDiscrete(
+                    "typeAppend() on UIA Window/Pane ensured foreground focus; sendKeys skipped on focus surface.");
+            return false;
+        }
+        ElementKind kind = ElementClassifier.classify(targetElement);
+        TypeStrategies.DesktopTypeRoute desktopRoute = TypeStrategies.desktopRouteFor(kind);
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.REJECT) {
+            TypeStrategies.rejectUnsupported(kind);
+            return false;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.TOGGLE_CLICK) {
+            TypeStrategies.toggleDesktopInsteadOfTyping(d, targetElement, kind);
+            return false;
+        }
+        if (desktopRoute == TypeStrategies.DesktopTypeRoute.COMBOBOX) {
+            TypeStrategies.typeDesktopCombobox(d, targetElement, text);
+            return true;
+        }
+        ClickStrategies.focusWindows(d, targetElement);
+        TypeStrategies.typeDesktopText(d, targetElement, text);
+        return true;
+    }
+
+    private void executeClearBasedOnClearMode(WebElement elem, String clearMode) {
+        switch (clearMode) {
+            case "native":
+                elem.click();
+                elem.clear();
+                break;
+            case "backspace":
+                String text = parseElementText(elem);
+                if (!text.isEmpty())
+                    elem.sendKeys(String.valueOf(Keys.BACK_SPACE).repeat(text.length()));
+                break;
+            case "off":
+                break;
+        }
+    }
+
+    private String parseElementText(WebElement element) {
+        String text = element.getText();
+        if (!text.isEmpty())
+            return text;
+        text = safeDomProperty(element, "value");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = safeDomProperty(element, "textContent");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = safeDomProperty(element, "innerHTML");
+        if (text != null && !text.isEmpty() && !text.contains("<"))
+            return text;
+        return "";
+    }
+
+    private void validateTypedTextIfConfigured(WebElement element, ActionType action, String expectedText, boolean shouldValidateTypedText) {
+        if (!SHAFT.Properties.flags.forceCheckTextWasTypedCorrectly() || !shouldValidateTypedText) {
+            return;
+        }
+        String actualText = readElementValueForTyping(element);
+        if (!expectedText.equals(actualText)) {
+            boolean secure = ActionType.TYPE_SECURELY.equals(action);
+            throw new IllegalStateException("Expected typed text \""
+                    + (secure ? MASKED_TYPED_VALUE : expectedText)
+                    + "\" but found \""
+                    + (secure ? MASKED_TYPED_VALUE : actualText)
+                    + "\".");
+        }
+    }
+
+    private static boolean shouldValidateTypedText(CharSequence[] text) {
+        return !stringifyTypedValue(text).chars().anyMatch(character -> character >= 0xE000 && character <= 0xF8FF);
+    }
+
+    private static String stringifyTypedValue(CharSequence[] text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder value = new StringBuilder();
+        for (CharSequence sequence : text) {
+            value.append(sequence == null ? "" : sequence);
+        }
+        return value.toString();
+    }
+
+    private String readElementValueForTyping(WebElement element) {
+        String text = safeDomProperty(element, "value");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = safeDomProperty(element, "textContent");
+        if (text != null && !text.isEmpty())
+            return text;
+        text = element.getText();
+        if (text != null && !text.isEmpty())
+            return text;
+        return "";
+    }
+
+    /**
+     * Drops the cached element and rethrows a stale reference so the existing element wait
+     * re-finds by the original locator. XCUITest often reports that state as a plain
+     * {@link WebDriverException} whose text contains {@code previously found element} or {@code fb_uid}.
+     * Other exceptions propagate immediately.
+     */
+    private static WebElement firstFound(AtomicReference<List<WebElement>> foundElements) {
+        WebElement element = Objects.requireNonNull(foundElements.get()).getFirst();
+        return Objects.requireNonNull(element);
+    }
+
+    private static void readOrDropStale(AtomicReference<List<WebElement>> foundElements, Runnable read) {
+        try {
+            read.run();
+        } catch (StaleElementReferenceException stale) {
+            foundElements.set(List.of());
+            throw stale;
+        } catch (RuntimeException exception) {
+            if (!isRetryableStale(exception)) {
+                throw exception;
+            }
+            foundElements.set(List.of());
+            String message = exception.getMessage();
+            throw new StaleElementReferenceException(
+                    message == null || message.isBlank() ? "stale element reference" : message,
+                    exception);
+        }
+    }
+
+    private static boolean isRetryableStale(Throwable exception) {
+        Throwable current = exception;
+        int depth = 0;
+        while (current != null && depth < 5) {
+            if (current instanceof StaleElementReferenceException) {
+                return true;
+            }
+            if (current instanceof WebDriverException
+                    && xcuiStaleText(Objects.requireNonNullElse(current.getMessage(), ""))) {
+                return true;
+            }
+            current = current.getCause();
+            depth++;
+        }
+        return false;
+    }
+
+    private static boolean xcuiStaleText(String message) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        return lower.contains("previously found element") || lower.contains("fb_uid");
+    }
+
+    private String safeDomProperty(WebElement element, String propertyName) {
+        try {
+            return element.getDomProperty(propertyName);
+        } catch (StaleElementReferenceException | NoSuchElementException stillMissing) {
+            throw stillMissing;
+        } catch (WebDriverException unsupportedProperty) {
+            // FlutterIntegration reports getDomProperty as WebDriverException "unknown method"
+            // (NotYetImplementedError), not UnsupportedCommandException.
+            ReportManagerHelper.logDiscrete(unsupportedProperty, Level.DEBUG);
+            return "";
+        }
+    }
+
+    private static boolean shouldRefreshElementAfterLazyLoading(ActionType action, By locator) {
+        return locator != null && !locator.equals(By.tagName("html")) && shouldCheckNativeActionability(action, locator);
+    }
+
+    private static boolean shouldCheckNativeActionability(ActionType action, By locator) {
+        if (isFileInputLocator(locator)) {
+            return false;
+        }
+        return switch (action) {
+            case HOVER, CLICK, CLICK_AND_HOLD, DOUBLE_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, CLEAR, SELECT,
+                 DRAG_AND_DROP, DRAG_AND_DROP_BY_OFFSET, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT,
+                 CLIPBOARD_PASTE -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isFileInputLocator(By locator) {
+        if (locator == null) {
+            return false;
+        }
+        var locatorString = JavaHelper.formatLocatorToString(locator).toLowerCase();
+        return locatorString.contains("type='file'") || locatorString.contains("type=\"file\"");
+    }
+
+    private static void ensureNativeActionTargetIsReady(WebElement targetElement, ActionType action) {
+        if (!targetElement.isDisplayed() || !targetElement.isEnabled()) {
+            throw new ElementNotInteractableException(action.name() + " target is not displayed and enabled yet.");
+        }
+    }
+
+    private List<WebElement> findAllElements(By locator) {
+        return findAllElements(locator, "UNKNOWN").elements();
+    }
+
+    private ElementLookup findAllElements(By locator, String action) {
+        List<WebElement> foundElements;
+
+        By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
+        By cssSelector = ShadowLocatorBuilder.cssSelector.get();
+
+        try {
+            if (shadowDomLocator != null && cssSelector == locator) {
+                //reset to default content
+                driverFactoryHelper.getDriver().switchTo().defaultContent();
+                //switch to shadow root and find elements
+                foundElements = driverFactoryHelper.getDriver().findElement(shadowDomLocator)
+                        .getShadowRoot()
+                        .findElements(cssSelector);
+            } else if (LocatorBuilder.getIFrameLocator().get() != null) {
+                //reset to default content
+                driverFactoryHelper.getDriver().switchTo().defaultContent();
+                //switch to frame and find elements
+                foundElements = driverFactoryHelper.getDriver().switchTo()
+                        .frame(driverFactoryHelper.getDriver().findElement(LocatorBuilder.getIFrameLocator().get()))
+                        .findElements(locator);
+            } else {
+                //normal case, just find the elements
+                foundElements = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), locator);
+            }
+        } catch (StaleElementReferenceException exception) {
+            if (FlakeProfiler.isEnabled()) {
+                ACTION_STALE_RETRIES.get().incrementAndGet();
+            }
+            foundElements = List.of();
+        } catch (NoSuchElementException | NoSuchFrameException exception) {
+            foundElements = List.of();
+        }
+        if (!foundElements.isEmpty()) {
+            return new ElementLookup(foundElements, null, false);
+        }
+        boolean healingAttempted = true;
+        HealingResolution resolution = HealingManager.resolve(
+                        driverFactoryHelper.getDriver(),
+                        locator,
+                        action,
+                        true,
+                        LocatorBuilder.getIFrameLocator().get(),
+                        shadowDomLocator,
+                        cssSelector)
+                .orElse(null);
+        return resolution == null
+                ? new ElementLookup(foundElements, null, healingAttempted)
+                : new ElementLookup(resolution.elements(), resolution, healingAttempted);
+    }
+
+    private record ElementLookup(List<WebElement> elements, HealingResolution healingResolution,
+                                 boolean healingAttempted) {
+    }
+
+    private byte[] takeActionScreenshot(WebElement element) {
+        if ("Always".equalsIgnoreCase(SHAFT.Properties.visuals.screenshotParamsWhenToTakeAScreenshot()))
+            return captureScreenshot(element, true);
+        if (SHAFT.Properties.visuals.createAnimatedGif())
+            captureScreenshot(element, true);
+        return null;
+    }
+
+    private byte[] takeFailureScreenshot(WebElement element) {
+        try {
+            return captureScreenshot(element, false);
+        } catch (RuntimeException failure) {
+            // A mock can rethrow the action failure from getScreenshotAs. A new instance
+            // keeps addSuppressed from seeing that throwable twice. The text stays the
+            // screenshot failure's own message so a different failure is still visible
+            // on the original exception.
+            String message = failure.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Failure screenshot could not be captured.";
+            }
+            throw new ActionExecutionException(message, failure);
+        }
+    }
+
+    private byte[] captureScreenshot(WebElement element, boolean isPass) {
+        long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+        try {
+            // capture screenshot
+            byte[] screenshot;
+            if (element != null && (SHAFT.Properties.visuals.screenshotParamsHighlightElements() || !isPass)) {
+                if ("JavaScript".equals(SHAFT.Properties.visuals.screenshotParamsHighlightMethod())) {
+                    // take screenshot, apply watermark and append it to gif before removing javascript highlighting
+                    screenshot = takeJavaScriptHighlightedScreenshot(element, isPass);
+                } else {
+                    screenshot = takeAIHighlightedScreenshot(element, isPass);
+                    // append screenshot to animated gif
+                    AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
+                }
+            } else {
+                screenshot = takeScreenshot(element);
+                // append screenshot to animated gif
+                AnimatedGifManager.startOrAppendToAnimatedGif(screenshot, SHAFT.Properties.visuals.screenshotParamsWatermark());
+            }
+            return screenshot;
+        } finally {
+            if (profilerStart != 0L) {
+                long evidenceNanos = System.nanoTime() - profilerStart;
+                ACTION_EVIDENCE_NANOS.get().addAndGet(evidenceNanos);
+                FlakeProfiler.recordEvidenceCapture("screenshot", isPass ? "action" : "failure",
+                        TimeUnit.NANOSECONDS.toMillis(evidenceNanos));
+            }
+        }
+    }
+
+    private byte[] appendShaftWatermark(byte[] screenshot) {
+        if (!Boolean.TRUE.equals(SHAFT.Properties.visuals.screenshotParamsWatermark())) {
+            // Watermark disabled: skip expensive decode/encode, return raw bytes
+            return screenshot;
+        }
+        try {
+            // add shaft-engine logo overlay
+            BufferedImage screenshotImage = ImageIO.read(new ByteArrayInputStream(screenshot));
+            ScreenshotHelper.overlayShaftEngineLogo(screenshotImage);
+            ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
+            ImageIO.write(screenshotImage, "png", screenshotOutputStream);
+            return screenshotOutputStream.toByteArray();
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return screenshot;
+        }
+    }
+
+    private static void registerIfSecret(WebDriver driver, WebElement element, ActionType action, CharSequence... text) {
+        if (ActionType.TYPE_SECURELY.equals(action) || com.shaft.gui.internal.image.SecretScreenMask.isSecret(text)) {
+            com.shaft.gui.internal.image.SecretScreenMask.register(driver, element);
+        }
+    }
+
+    private byte[] takeScreenshot(WebElement element) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        byte[] screenshot = Screenshots.getType() == Screenshots.ELEMENT
+                ? com.shaft.gui.internal.image.SecretScreenMask.maskedElement(driver, () -> captureRawScreenshot(element))
+                : com.shaft.gui.internal.image.SecretScreenMask.masked(driver, () -> captureRawScreenshot(element));
+        //append shaft watermark
+        return appendShaftWatermark(screenshot);
+    }
+
+    private byte[] captureRawScreenshot(WebElement element) {
+        byte[] screenshot;
+        switch (Screenshots.getType()) {
+            case FULL -> {
+                try {
+                    if (!SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().isEmpty()) {
+                        // handle elements that should be skipped from screenshot
+                        List<WebElement> skippedElementsList = new ArrayList<>();
+                        String[] skippedElementLocators = SHAFT.Properties.visuals.screenshotParamsSkippedElementsFromScreenshot().split(";");
+                        for (String locator : skippedElementLocators) {
+                            WebElement skippedElement = findUniqueElementIgnoringVisibility(By.xpath(locator));
+                            if (skippedElement != null) {
+                                skippedElementsList.add(skippedElement);
+                            }
+                        }
+                        WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+                        skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driverFactoryHelper.getDriver(), skippedElementsArray);
+                    } else {
+                        // make full page screenshot using BiDi, CDP, or manually based on the target browser
+                        screenshot = ScreenshotHelper.makeFullScreenshot(driverFactoryHelper.getDriver());
+                    }
+                } catch (Throwable throwable) {
+                    // return regular screenshot in case of failure
+                    ReportManagerHelper.logDiscrete(throwable);
+                    screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
+                }
+            }
+            case ELEMENT -> {
+                try {
+                    //get element screenshot
+                    screenshot = element.getScreenshotAs(OutputType.BYTES);
+                } catch (Throwable throwable) {
+                    // return regular screenshot in case of failure
+                    ReportManagerHelper.logDiscrete(throwable);
+                    screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
+                }
+            }
+            default -> screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
+        }
+        return screenshot;
+    }
+
+    private WebElement findUniqueElementIgnoringVisibility(By targetElementLocator) {
+        List<Object> elementInformation = elementActionsHelper.getMatchingElementsInformation(
+                driverFactoryHelper.getDriver(), targetElementLocator, false);
+        if (Integer.parseInt(elementInformation.getFirst().toString()) == 1) {
+            return (WebElement) elementInformation.get(1);
+        }
+        return null;
+    }
+
+    private byte[] takeAIHighlightedScreenshot(WebElement element, boolean isPass) {
+        // getElementLocation
+        Rectangle elementLocation = null;
+        try {
+            elementLocation = element.getRect();
+        } catch (ClassCastException stringRect) {
+            // Flutter getRect can return numeric fields as strings (SHAFT local E2E #6534).
+            ReportManagerHelper.logDiscrete(stringRect);
+        } catch (UnhandledAlertException unhandledAlertException) {
+            // The action being photographed opened a JS dialog (alert/confirm/prompt). A JS
+            // dialog blocks the renderer, so *every* WebDriver command except alert-handling
+            // ones -- including a plain, unhighlighted screenshot -- fails the same way until
+            // the dialog is handled. Evidence capture is best-effort: skip it rather than fail
+            // what was otherwise a successful action (SHAFT_ENGINE#3820).
+            ReportManagerHelper.logDiscrete(unhandledAlertException);
+            return null;
+        }
+
+        //take screenshot
+        byte[] src = takeScreenshot(element);
+
+        //highlightElement using OpenCV
+        Color color;
+        if (isPass) {
+            color = new Color(67, 176, 42); // selenium-green
+        } else {
+            color = new Color(255, 0, 0); // red
+        }
+        try {
+            byte[] highlighted = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+            if (highlighted != null && highlighted.length > 0) {
+                src = highlighted;
+            }
+        } catch (Exception highlightFailure) {
+            ReportManagerHelper.logDiscrete(highlightFailure);
+        }
+        return src;
+    }
+
+    private byte[] takeJavaScriptHighlightedScreenshot(WebElement element, boolean isPass) {
+        //highlightElement
+        JavascriptExecutor js = (JavascriptExecutor) driverFactoryHelper.getDriver();
+        String regularElementStyle = highlightElementAndReturnDefaultStyle(driverFactoryHelper.getDriver(), element, js,
+                setHighlightedElementStyle(isPass));
+
+        //take screenshot
+        byte[] src = takeScreenshot(element);
+
+        //append highlighted element screenshot to GIF
+        AnimatedGifManager.startOrAppendToAnimatedGif(src, SHAFT.Properties.visuals.screenshotParamsWatermark());
+        //resetElementStyle
+        if (SHAFT.Properties.visuals.screenshotParamsHighlightMethod().equals("JavaScript") && js != null) {
+            js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
+        }
+        return src;
+    }
+
+    private String highlightElementAndReturnDefaultStyle(WebDriver driver, WebElement element, JavascriptExecutor js,
+                                                         String highlightedElementStyle) {
+        String regularElementStyle = element.getDomProperty("style");
+        if (regularElementStyle != null && !regularElementStyle.isEmpty()) {
+            js.executeScript("arguments[0].style.cssText = arguments[1];", element,
+                    regularElementStyle + highlightedElementStyle);
+        } else {
+            js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, highlightedElementStyle);
+        }
+
+        JavaScriptWaitManager.waitForLazyLoading(driver);
+        return regularElementStyle;
+    }
+
+    private String setHighlightedElementStyle(boolean isPass) {
+        String background;
+        String backgroundColor;
+
+        if (isPass) {
+            background = "#46aad2";
+            backgroundColor = "#A5D2A5";
+        } else {
+            background = "#FF0000";
+            backgroundColor = "#FF0000";
+        }
+        return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
+                + " !important; background-color:" + backgroundColor
+                + " !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+
+    }
+
+    private void reportPass(String action, String elementName, byte[] screenshot) {
+        report(null, action, elementName, ActionReportContext.empty(), Status.PASSED, screenshot, null);
+    }
+
+    private void reportPass(String action, String elementName, ActionReportContext context, byte[] screenshot) {
+        report(null, action, elementName, context, Status.PASSED, screenshot, null);
+    }
+
+    private void reportPass(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, byte[] screenshot) {
+        report(traceEvent, action, elementName, context, Status.PASSED, screenshot, null);
+    }
+
+    private void reportBroken(String action, String elementName, byte[] screenshot, RuntimeException exception) {
+        report(null, action, elementName, ActionReportContext.empty(), Status.BROKEN, screenshot, exception);
+    }
+
+    private void reportBroken(String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
+        report(null, action, elementName, context, Status.BROKEN, screenshot, exception);
+    }
+
+    private void reportBroken(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, byte[] screenshot, RuntimeException exception) {
+        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception, Map.of());
+    }
+
+    private void reportBroken(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context,
+                              byte[] screenshot, RuntimeException exception, Map<String, Object> actionability) {
+        report(traceEvent, action, elementName, context, Status.BROKEN, screenshot, exception, actionability);
+    }
+
+    private void report(String action, String elementName, Status status, byte[] screenshot, RuntimeException exception) {
+        report(null, action, elementName, ActionReportContext.empty(), status, screenshot, exception);
+    }
+
+    private void report(String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
+        report(null, action, elementName, context, status, screenshot, exception);
+    }
+
+    private void report(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context, Status status, byte[] screenshot, RuntimeException exception) {
+        report(traceEvent, action, elementName, context, status, screenshot, exception, Map.of());
+    }
+
+    private void report(TraceEventRecorder.Event traceEvent, String action, String elementName, ActionReportContext context,
+                        Status status, byte[] screenshot, RuntimeException exception, Map<String, Object> actionability) {
+        TraceEventRecorder.Event event = traceEvent == null && !elementActionsHelper.isSilent()
+                ? TraceEventRecorder.start("element", action, context.locator(), driverFactoryHelper.getDriver())
+                : traceEvent;
+        // update allure step name
+        StringBuilder stepName = new StringBuilder(createStepName(action, elementName, context));
+        String traceMessage = createTraceMessage(action, elementName, context);
+
+        if (!status.equals(Status.PASSED))
+            stepName.append(" is ").append(status.name().toLowerCase());
+
+        if (elementActionsHelper.isSilent()) {
+            ReportManager.logDiscrete(stepName.toString(), Status.PASSED.equals(status) ? Level.DEBUG : Level.ERROR);
+            TraceEventRecorder.finish(event, Status.PASSED.equals(status) ? "passed" : "failed", traceMessage, exception,
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action),
+                    Status.PASSED.equals(status) ? Map.of() : actionability);
+            if (exception != null) {
+                throw new ActionExecutionException(createFailureMessageWithCausedBy(exception), exception);
+            }
+            return;
+        }
+
+        Allure.getLifecycle().updateStep(update -> update.setName(stepName.toString()));
+        if (context.hasLocator()) {
+            updateActionStepMetadata(context);
+        }
+
+        // handle secure typing
+        if (ActionType.TYPE_SECURELY.name().equals(action))
+            Allure.getLifecycle().updateStep(update -> {
+                var params = update.getParameters();
+                params.forEach(parameter -> {
+                    if (parameter.getName().equals("text")) {
+                        parameter.setValue("********");
+                    }
+                });
+                update.setParameters(params);
+            });
+
+        // attach screenshot
+        if (screenshot != null) {
+            long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
+            AllureAttachments.add(SCREENSHOT_ATTACHMENT_FORMATTER.format(ZonedDateTime.now()) + "_" + JavaHelper.convertToSentenceCase(action) + "_" + JavaHelper.removeSpecialCharacters(elementName), "image/png", new ByteArrayInputStream(screenshot), ".png");
+            TraceEventRecorder.recordScreenshot(event, screenshot);
+            if (profilerStart != 0L) {
+                FlakeProfiler.recordEvidenceCapture("report attachment", action,
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - profilerStart));
+            }
+        }
+
+        // handle reporting based on status
+        if (Status.PASSED.equals(status)) {
+            // if the step passed
+            ReportManager.logDiscrete(stepName.toString());
+        } else {
+            RuntimeException reportedException = null;
+            // if the step failed
+            ReportManager.logDiscrete(stepName.toString(), Level.ERROR);
+
+            // update allure step status to broken
+            Allure.getLifecycle().updateStep(update -> update.setStatus(status));
+
+            // update test status to failed
+            Allure.getLifecycle().updateTest(update -> update.setStatus(Status.FAILED));
+
+            if (exception != null) {
+                // update allure stacktrace
+                Allure.getLifecycle().updateStep(update -> {
+                    StatusDetails details = update.getStatusDetails() == null ? new StatusDetails() : update.getStatusDetails();
+                    details.setTrace(mergeStatusTrace(details, exception));
+                    update.setStatusDetails(details);
+                });
+                reportedException = new ActionExecutionException(createFailureMessageWithCausedBy(exception), exception);
+            }
+            TraceEventRecorder.finish(event, "failed", traceMessage, exception,
+                    traceMetadata(elementName, context, status), screenshotSummary(screenshot, action), actionability);
+            if (reportedException != null) {
+                throw reportedException;
+            }
+            return;
+        }
+        TraceEventRecorder.finish(event, "passed", traceMessage, null,
+                traceMetadata(elementName, context, status), screenshotSummary(screenshot, action));
+    }
+
+    private static String createStepName(String action, String elementName, ActionReportContext context) {
+        String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
+        String value = context.stepValue();
+        if (context.hasStepValue() && !value.isBlank()) {
+            String stepName = actionName + " \"" + value + "\"";
+            if (shouldAppendElementNameToTypedStep(action) && context.hasStepTarget()) {
+                stepName += " into \"" + context.elementName() + "\"";
+            }
+            return stepName;
+        }
+        return actionName + " \"" + elementName + "\"";
+    }
+
+    /**
+     * Internal compatibility wrapper used by retained element APIs to preserve the native provider failure.
+     */
+    public static final class ActionExecutionException extends RuntimeException {
+        ActionExecutionException(String message, Throwable originalFailure) {
+            super(message, originalFailure);
+        }
+
+        /** Returns the provider failure that caused the retained action to fail. */
+        public Throwable originalFailure() {
+            return getCause();
+        }
+    }
+
+    private static boolean shouldAppendElementNameToTypedStep(String action) {
+        return ActionType.TYPE.name().equals(action)
+                || ActionType.TYPE_APPEND.name().equals(action)
+                || ActionType.TYPE_SECURELY.name().equals(action)
+                || ActionType.JAVASCRIPT_SET_VALUE.name().equals(action);
+    }
+
+    private static String createTraceMessage(String action, String elementName, ActionReportContext context) {
+        String actionName = JavaHelper.convertToSentenceCase(action).replaceAll("\\s+", " ");
+        if (shouldAppendElementNameToTypedStep(action) && context.hasStepTarget()) {
+            return actionName + " into \"" + context.elementName() + "\"";
+        }
+        if (elementName == null || elementName.isBlank()) {
+            return actionName;
+        }
+        return actionName + " \"" + elementName + "\"";
+    }
+
+    private Map<String, String> traceMetadata(String elementName, ActionReportContext context, Status status) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("allureStatus", status.name().toLowerCase());
+        if (elementName != null && !elementName.isBlank()) {
+            metadata.put("elementName", elementName);
+        }
+        if (context.hasElementName()) {
+            metadata.put("resolvedElementName", context.elementName());
+        }
+        metadata.putAll(MobileTraceMetadata.mobileMetadata(driverFactoryHelper.getDriver(), !Status.PASSED.equals(status)));
+        return metadata;
+    }
+
+    private static List<String> screenshotSummary(byte[] screenshot, String action) {
+        if (screenshot == null) {
+            return List.of();
+        }
+        return List.of("screenshot - " + JavaHelper.convertToSentenceCase(action) + " (" + screenshot.length + " bytes)");
+    }
+
+    private static void updateActionStepMetadata(ActionReportContext context) {
+        Allure.getLifecycle().updateStep(update -> {
+            List<Parameter> parameters = update.getParameters() == null ? new ArrayList<>() : new ArrayList<>(update.getParameters());
+            parameters.removeIf(parameter -> "locator".equals(parameter.getName())
+                    || "elementLocator".equals(parameter.getName())
+                    || "elementName".equals(parameter.getName())
+                    || "txt".equals(parameter.getName())
+                    || "element name".equals(parameter.getName()));
+            parameters.add(new Parameter().setName("locator").setValue(context.locator()));
+            if (context.hasElementName()) {
+                parameters.add(new Parameter().setName("element name").setValue(context.elementName()));
+            }
+            update.setParameters(parameters);
+            update.setDescription("locator: " + context.locator()
+                    + (context.hasElementName() ? System.lineSeparator() + "element name: " + context.elementName() : ""));
+        });
+    }
+
+    private record ActionReportContext(String locator, String stepValue, String elementName, boolean reportsStepValue) {
+        static ActionReportContext empty() {
+            return new ActionReportContext("", "", "", false);
+        }
+
+        static ActionReportContext from(ActionType action, By locator, Object data, String elementName) {
+            String value = shouldUseDataInStepName(action)
+                    ? (ActionType.TYPE_SECURELY.equals(action) ? MASKED_TYPED_VALUE : stringifyActionValue(data))
+                    : "";
+            String singleLineValue = value.replaceAll("\\R+", " ").trim();
+            return new ActionReportContext(
+                    JavaHelper.formatLocatorToString(locator),
+                    abbreviate(singleLineValue, TYPED_VALUE_STEP_TEXT_LIMIT),
+                    elementName == null ? "" : elementName.trim(),
+                    !value.isBlank());
+        }
+
+        boolean hasLocator() {
+            return !locator.isEmpty();
+        }
+
+        boolean hasStepValue() {
+            return reportsStepValue;
+        }
+
+        boolean hasElementName() {
+            return !elementName.isBlank()
+                    && !elementName.equals(locator)
+                    && !locator.equals("Smart Locator: \"" + elementName + "\"");
+        }
+
+        boolean hasStepTarget() {
+            return !elementName.isBlank() && !elementName.equals(locator);
+        }
+
+        private static boolean shouldUseDataInStepName(ActionType action) {
+            return ActionType.TYPE.equals(action)
+                    || ActionType.TYPE_APPEND.equals(action)
+                    || ActionType.TYPE_SECURELY.equals(action)
+                    || ActionType.JAVASCRIPT_SET_VALUE.equals(action)
+                    || ActionType.SELECT.equals(action);
+        }
+
+        private static String stringifyActionValue(Object value) {
+            if (value instanceof CharSequence[] sequences) {
+                StringBuilder text = new StringBuilder();
+                for (CharSequence sequence : sequences) {
+                    text.append(sequence);
+                }
+                return text.toString();
+            }
+            return value == null ? "" : String.valueOf(value);
+        }
+
+        private static String abbreviate(String value, int limit) {
+            if (value.length() <= limit) {
+                return value;
+            }
+            return value.substring(0, limit - 3) + "...";
+        }
+    }
+
+    /**
+     * Reporting-only name. Firefox on Selenium Grid can throw from
+     * {@code getAccessibleName}, and {@code getDomProperty("text")} then hangs the
+     * element action until the remote command times out (#6552). Leave the name
+     * blank instead of issuing that property call.
+     */
+    static String reportingAccessibleName(WebElement element, boolean mobileNative) {
+        if (mobileNative) {
+            String name = element.getAttribute("name");
+            return name == null ? "" : name;
+        }
+        try {
+            String name = element.getAccessibleName();
+            return name == null ? "" : name;
+        } catch (WebDriverException ignored) {
+            return "";
+        }
+    }
+
+    static NoSuchElementException createDragAndDropDestinationNotFoundException(By destinationLocator, NoSuchElementException rootCauseException) {
+        return new NoSuchElementException("Failed to perform drag and drop because the destination element could not be located using "
+                + JavaHelper.formatLocatorToString(destinationLocator) + ".", rootCauseException);
+    }
+
+    static WebElement chooseDragAndDropElement(List<WebElement> elements, By locator, String role) {
+        if (elements == null || elements.isEmpty()) {
+            throw createDragAndDropElementNotFoundException(locator, role,
+                    new NoSuchElementException("No " + role + " element was found."));
+        }
+
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed()) {
+                    return element;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        throw createDragAndDropElementNotFoundException(locator, role,
+                new NoSuchElementException("Found " + elements.size() + " " + role + " element(s), but none are displayed."));
+    }
+
+    /**
+     * Selects the first displayed element from the provided list.
+     *
+     * <p>If no displayed elements are found, this method falls back to returning the first
+     * element in the list to preserve current action behavior.
+     *
+     * @param elements candidate elements matched by the target locator
+     * @return the first displayed element, or the first element in the list if none are displayed
+     * @throws NoSuchElementException if the list is null or empty
+     */
+    static WebElement chooseBestEffortDisplayedElement(List<WebElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            throw new NoSuchElementException("No elements were found.");
+        }
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed()) {
+                    return element;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        return elements.getFirst();
+    }
+
+    static boolean hasDisplayedElement(List<WebElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return false;
+        }
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed()) {
+                    return true;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Finds the single actionable (displayed and enabled) element among {@code elements}, reusing
+     * the same per-element {@code isDisplayed()}/{@code isEnabled()} filtering already applied by
+     * {@link #chooseBestEffortDisplayedElement(List)}. Unlike that best-effort picker, this method
+     * never guesses: it returns a match only when EXACTLY ONE element qualifies, so a locator that
+     * matches several genuinely actionable elements stays ambiguous (issue #4321) -- disambiguation
+     * is intentionally narrow, not a general-purpose "pick one" fallback.
+     *
+     * @param elements candidate elements matched by the target locator
+     * @return the single displayed-and-enabled element, or empty when zero or several qualify
+     */
+    static Optional<WebElement> uniqueDisplayedAndEnabledElement(List<WebElement> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return Optional.empty();
+        }
+        WebElement match = null;
+        for (WebElement element : elements) {
+            try {
+                if (element.isDisplayed() && element.isEnabled()) {
+                    if (match != null) {
+                        return Optional.empty();
+                    }
+                    match = element;
+                }
+            } catch (WebDriverException ignored) {
+                // try next match
+            }
+        }
+        return Optional.ofNullable(match);
+    }
+
+    /**
+     * Resolves a still-ambiguous locator (2+ matches, #4321's visibility-based narrowing already
+     * applied by the caller and found either zero or several actionable candidates) or throws.
+     * Shared by both the initial and the lazy-load-refreshed lookups, which apply this identical
+     * disambiguation sequence: (1) #4321's last-resort visibility narrowing -- handled by the
+     * caller before invoking this method; (2) issue #4327's SHAFT-Heal history-based narrowing,
+     * attempted only as a further last resort, exactly like the existing zero-match branch
+     * ({@link #findAllElements(By, String)}); (3) throw {@link MultipleElementsFoundException}.
+     * {@link HealingManager#resolve} is itself a no-op unless SHAFT Heal is enabled and prior
+     * history exists for this exact locator, so default and no-history behavior is unchanged.
+     *
+     * @param driver active driver
+     * @param locator target locator
+     * @param action action name
+     * @param foundElements current match list, updated in place on narrowing/healing
+     * @param healingResolution healing resolution slot, set when SHAFT Heal resolves the ambiguity
+     * @param lastResortNarrowingAllowed whether this is the single post-timeout last-resort attempt
+     * @param settledSuffix trace-message suffix distinguishing the refreshed lookup from the initial one
+     */
+    private void narrowOrHealOrThrowWhenAmbiguous(
+            WebDriver driver,
+            By locator,
+            String action,
+            AtomicReference<List<WebElement>> foundElements,
+            AtomicReference<HealingResolution> healingResolution,
+            boolean lastResortNarrowingAllowed,
+            String settledSuffix) {
+        int matchCountBeforeNarrowing = foundElements.get().size();
+        Optional<WebElement> uniqueActionable = lastResortNarrowingAllowed
+                ? uniqueDisplayedAndEnabledElement(foundElements.get())
+                : Optional.empty();
+        if (uniqueActionable.isPresent()) {
+            // issue #4321: a real ambiguity was just auto-resolved -- trace it so a user whose
+            // locator matches more than one element notices it, instead of the action silently
+            // looking like an ordinary pass.
+            ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                    + " matched " + matchCountBeforeNarrowing + " elements" + settledSuffix
+                    + "; auto-resolved to the only displayed and enabled one after the"
+                    + " identification timeout was exhausted.");
+            foundElements.set(List.of(uniqueActionable.get()));
+            return;
+        }
+        if (lastResortNarrowingAllowed) {
+            // issue #4327: #4321's visibility-based narrowing could not disambiguate (0, or 2+,
+            // displayed-and-enabled matches). Before giving up, consult SHAFT Heal's fingerprint
+            // history for this exact locator -- the same mechanism the zero-match branch already
+            // uses. A last-resort-narrowed single element also seeds this same history via
+            // HealingManager.observe() (see the call site above), so a fingerprint recorded from
+            // a previously-narrowed ambiguous locator is just as valid a "this is the element the
+            // user meant" signal as any other.
+            Optional<HealingResolution> healed = HealingManager.resolve(
+                    driver,
+                    locator,
+                    action,
+                    true,
+                    LocatorBuilder.getIFrameLocator().get(),
+                    ShadowLocatorBuilder.shadowDomLocator.get(),
+                    ShadowLocatorBuilder.cssSelector.get());
+            if (healed.isPresent()) {
+                ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(locator)
+                        + " matched " + matchCountBeforeNarrowing + " elements" + settledSuffix
+                        + " and could not be narrowed to a single displayed and enabled match;"
+                        + " SHAFT Heal resolved it from prior history instead.");
+                healingResolution.set(healed.get());
+                foundElements.set(healed.get().elements());
+                return;
+            }
+        }
+        throw new MultipleElementsFoundException();
+    }
+
+    /**
+     * Checks whether {@code exception} -- typically the {@link org.openqa.selenium.TimeoutException}
+     * thrown when {@link SynchronizationManager}'s fluentWait exhausts the identification timeout --
+     * was ultimately caused by an ambiguous locator, by walking the full cause chain rather than
+     * assuming a fixed wrapping depth (issue #4321).
+     *
+     * @param exception the caught failure to inspect
+     * @return {@code true} when {@link MultipleElementsFoundException} appears anywhere in the chain
+     */
+    static boolean isCausedByAmbiguousLocator(Throwable exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof MultipleElementsFoundException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static NoSuchElementException createDragAndDropElementNotFoundException(By locator, String role, NoSuchElementException rootCauseException) {
+        return new NoSuchElementException("Failed to perform drag and drop because the " + role + " element could not be located using "
+                + JavaHelper.formatLocatorToString(locator) + ".", rootCauseException);
+    }
+
+    static Sequence buildTouchDragAndDropSequence(Rectangle sourceElementRectangle, Rectangle destinationElementRectangle) {
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        Sequence dragAndDrop = new Sequence(finger, 0);
+        PointerInput.Origin VIEW = PointerInput.Origin.viewport();
+        dragAndDrop.addAction(finger.createPointerMove(Duration.ZERO, VIEW,
+                sourceElementRectangle.getX() + sourceElementRectangle.getWidth() / 2,
+                sourceElementRectangle.getY() + sourceElementRectangle.getHeight() / 2));
+        dragAndDrop.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+        dragAndDrop.addAction(new Pause(finger, defaultPauseDuration));
+        dragAndDrop.addAction(finger.createPointerMove(defaultPauseDuration, VIEW,
+                destinationElementRectangle.getX() + destinationElementRectangle.getWidth() / 2,
+                destinationElementRectangle.getY() + destinationElementRectangle.getHeight() / 2));
+        dragAndDrop.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        return dragAndDrop;
+    }
+
+    private static void executeMobileDragAndDrop(AppiumDriver appiumDriver, WebElement sourceElement, WebElement destinationElement) {
+        try {
+            String sourceElementId = mobileElementId(sourceElement);
+            if (sourceElementId != null) {
+                appiumDriver.executeScript("mobile: dragGesture",
+                        createDragGestureParameters(sourceElementId, destinationElement.getRect()));
+                return;
+            }
+        } catch (WebDriverException ignored) {
+            // fallback to W3C actions sequence
+        }
+        appiumDriver.perform(List.of(buildTouchDragAndDropSequence(sourceElement.getRect(), destinationElement.getRect())));
+    }
+
+    static Map<String, Object> createDragGestureParameters(String sourceElementId, Rectangle destinationElementRectangle) {
+        return Map.of(
+                "elementId", sourceElementId,
+                "endX", destinationElementRectangle.getX() + destinationElementRectangle.getWidth() / 2,
+                "endY", destinationElementRectangle.getY() + destinationElementRectangle.getHeight() / 2
+        );
+    }
+
+    /**
+     * Logs a granular drag-and-drop trace entry to help identify the exact failing substep.
+     *
+     * @param details structured trace details for the current drag-and-drop substep
+     */
+    private static void logDragAndDropTrace(String details) {
+        ReportManager.logDiscrete("[DRAG_AND_DROP_TRACE] " + details);
+    }
+
+    static String mergeStatusTrace(StatusDetails details, RuntimeException exception) {
+        String formattedExceptionTrace = ReportManagerHelper.formatStackTraceToLogEntry(exception).trim();
+        String existingTrace = details.getTrace();
+        if (existingTrace == null || existingTrace.isBlank()) {
+            return formattedExceptionTrace;
+        }
+        return (existingTrace + System.lineSeparator() + formattedExceptionTrace).trim();
+    }
+
+    static String createFailureMessageWithCausedBy(RuntimeException exception) {
+        String rootCause = FailureReporter.getRootCause(exception).trim();
+        Throwable cause = exception.getCause();
+        if (cause == null) {
+            return rootCause;
+        }
+        String causeMessage = cause.getMessage() == null ? "" : cause.getMessage().trim();
+        String causedBySection = "Caused by: " + cause.getClass().getName() + (causeMessage.isEmpty() ? "" : ": " + causeMessage);
+        return (rootCause + System.lineSeparator() + causedBySection).trim();
+    }
+
+    protected enum ActionType {HOVER, CLICK, JAVASCRIPT_CLICK, TYPE, TYPE_SECURELY, TYPE_APPEND, JAVASCRIPT_SET_VALUE, CLEAR, SCROLL_TO_ELEMENT, SELECT, SUBMIT_FORM_USING_JAVASCRIPT, SWITCH_TO_IFRAME, SWITCH_TO_DEFAULT_CONTENT, SWITCH_TO_PARENT_FRAME, TYPE_FILE_LOCATION_FOR_UPLOAD, CAPTURE_SCREENSHOT, EXECUTE_NATIVE_MOBILE_COMMAND, DRAG_AND_DROP, GET_ATTRIBUTE, GET_DOM_ATTRIBUTE, GET_DOM_PROPERTY, GET_NAME, GET_TEXT, GET_CSS_VALUE, GET_IS_DISPLAYED, GET_IS_ENABLED, DRAG_AND_DROP_BY_OFFSET, GET_SELECTED_TEXT, CLICK_AND_HOLD, DOUBLE_CLICK, GET_IS_SELECTED, CLIPBOARD_DELETE, CLIPBOARD_COPY, CLIPBOARD_CUT, CLIPBOARD_PASTE, DROP_FILE_TO_UPLOAD}
+
+    /**
+     * Provides read-only accessors for querying properties, attributes, and state of a
+     * located web element.
+     *
+     * <p>Obtain an instance via {@link Actions#get()}:
+     *
+     * <pre>{@code
+     * String title = driver.element().get().attribute(By.id("header"), "title");
+     * boolean visible = driver.element().get().isDisplayed(By.id("banner"));
+     * }</pre>
+     */
+    public class GetElementInformation {
+        /**
+         * Creates a new {@code GetElementInformation} instance scoped to the enclosing
+         * {@link Actions} session.
+         */
+        protected GetElementInformation() {
+        }
+
+        /**
+         * Returns the value of the named HTML attribute from the located element.
+         *
+         * <pre>{@code
+         * String href = driver.element().get().attribute(By.cssSelector("a.logo"), "href");
+         * }</pre>
+         *
+         * @param locator       the locator for the target element
+         * @param attributeName the name of the HTML attribute to read
+         * @return the attribute value, or {@code null} if the attribute is absent
+         */
+        @Step("Get Attribute")
+        public String attribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_ATTRIBUTE, locator, attributeName);
+        }
+
+        /**
+         * Returns the value of the named DOM attribute from the located element.
+         *
+         * <p>Unlike {@link #attribute(By, String)}, this method reads the live DOM attribute
+         * value rather than the initial HTML attribute value.
+         *
+         * @param locator       the locator for the target element
+         * @param attributeName the name of the DOM attribute to read
+         * @return the DOM attribute value, or {@code null} if the attribute is absent
+         */
+        @Step("Get DOM attribute")
+        public String domAttribute(@NonNull By locator, @NonNull String attributeName) {
+            return performAction(ActionType.GET_DOM_ATTRIBUTE, locator, attributeName);
+        }
+
+        /**
+         * Returns the value of the named DOM property from the located element.
+         *
+         * <p>DOM properties reflect the current JavaScript object state (e.g., {@code value}
+         * for an input) rather than the original HTML attribute.
+         *
+         * @param locator      the locator for the target element
+         * @param propertyName the name of the DOM property to read (e.g., {@code "value"})
+         * @return the property value as a string, or {@code null} if the property is absent
+         */
+        @Step("Get DOM property")
+        public String domProperty(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_DOM_PROPERTY, locator, propertyName);
+        }
+
+        /**
+         * Returns the accessible name of the located element as computed by the browser's
+         * accessibility tree.
+         *
+         * @param locator the locator for the target element
+         * @return the accessible name string, or an empty string if none is defined
+         */
+        @Step("Get name")
+        public String name(@NonNull By locator) {
+            return performAction(ActionType.GET_NAME, locator, null);
+        }
+
+        /**
+         * Returns the visible inner text of the located element.
+         *
+         * <p>Falls back to the {@code textContent} DOM property and then the {@code value}
+         * DOM property if the element's visible text is blank (e.g., for inputs).
+         *
+         * @param locator the locator for the target element
+         * @return the trimmed visible text; never {@code null} (returns an empty string if
+         *         no text is found)
+         */
+        @Step("Get text")
+        public String text(@NonNull By locator) {
+            return performAction(ActionType.GET_TEXT, locator, null);
+        }
+
+        /**
+         * Returns the combined text of all currently selected {@code <option>} elements
+         * inside a {@code <select>} element.
+         *
+         * @param locator the locator for the {@code <select>} element
+         * @return the concatenated text of all selected options
+         */
+        @Step("Get selected text")
+        public String selectedText(@NonNull By locator) {
+            return performAction(ActionType.GET_SELECTED_TEXT, locator, null);
+        }
+
+        /**
+         * Returns the computed CSS value of the named property for the located element.
+         *
+         * <pre>{@code
+         * String color = driver.element().get().cssValue(By.id("title"), "color");
+         * }</pre>
+         *
+         * @param locator      the locator for the target element
+         * @param propertyName the CSS property name (e.g., {@code "background-color"})
+         * @return the computed CSS value as a string
+         */
+        @Step("Get CSS value")
+        public String cssValue(@NonNull By locator, @NonNull String propertyName) {
+            return performAction(ActionType.GET_CSS_VALUE, locator, propertyName);
+        }
+
+        /**
+         * Returns {@code true} if the located element is currently displayed on the page.
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is visible; {@code false} otherwise
+         */
+        @Step("Get is displayed")
+        public boolean isDisplayed(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_DISPLAYED, locator, null));
+        }
+
+        /**
+         * Returns {@code true} if the located element is currently enabled (i.e., interactive).
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is enabled; {@code false} if it is disabled
+         */
+        @Step("Get is enabled")
+        public boolean isEnabled(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_ENABLED, locator, null));
+        }
+
+        /**
+         * Returns {@code true} if the located element (e.g., a checkbox or radio button)
+         * is currently selected.
+         *
+         * @param locator the locator for the target element
+         * @return {@code true} if the element is selected; {@code false} otherwise
+         */
+        @Step("Get is selected")
+        public boolean isSelected(@NonNull By locator) {
+            return Boolean.parseBoolean(performAction(ActionType.GET_IS_SELECTED, locator, null));
+        }
+    }
+
+    /**
+     * Provides keyboard-shortcut-based clipboard operations for a target element.
+     *
+     * <p>Each method selects all text in the element first (Ctrl+A) before performing the
+     * requested clipboard operation, then moves focus away (Arrow Right). Obtain an instance
+     * via {@link Actions#clipboard()}:
+     *
+     * <pre>{@code
+     * driver.element().clipboard().copyAll(By.id("sourceField"))
+     *       .and().clipboard().paste(By.id("destinationField"));
+     * }</pre>
+     */
+    public class ClipboardAction {
+        private final Actions actions;
+
+        private ClipboardAction() {
+            actions = null;
+        }
+
+        /**
+         * Creates a {@code ClipboardAction} associated with the given {@link Actions} instance
+         * so that chained calls can continue on the same {@code Actions} object.
+         *
+         * @param actions the enclosing {@link Actions} instance to return from each operation
+         */
+        protected ClipboardAction(Actions actions) {
+            this.actions = actions;
+        }
+
+        /**
+         * Selects all text inside the located element and deletes it (Ctrl+A, Backspace).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().deleteAll(By.id("notes"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element whose text should be deleted
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
+        @Step("Delete text")
+        public Actions deleteAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_DELETE, locator, null);
+            return this.actions;
+        }
+
+        /**
+         * Selects all text inside the located element and copies it to the system clipboard
+         * (Ctrl+A, Ctrl+C).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().copyAll(By.id("output"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element whose text should be copied
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
+        @Step("Copy text to clipboard")
+        public Actions copyAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_COPY, locator, null);
+            return this.actions;
+        }
+
+        /**
+         * Selects all text inside the located element, cuts it to the system clipboard
+         * (Ctrl+A, Ctrl+X), and leaves the field empty.
+         *
+         * @param locator the locator for the target element whose text should be cut
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
+        @Step("Cut text to clipboard")
+        public Actions cutAll(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_CUT, locator, null);
+            return this.actions;
+        }
+
+        /**
+         * Pastes the current system clipboard contents into the located element (Ctrl+V).
+         *
+         * <pre>{@code
+         * driver.element().clipboard().copyAll(By.id("source"))
+         *       .and().clipboard().paste(By.id("destination"));
+         * }</pre>
+         *
+         * @param locator the locator for the target element that should receive the paste
+         * @return the parent {@link Actions} instance for fluent chaining
+         */
+        @Step("Paste from clipboard")
+        public Actions paste(@NonNull By locator) {
+            performAction(ActionType.CLIPBOARD_PASTE, locator, null);
+            return this.actions;
+        }
+    }
+
+    @Nullable
+    private static String mobileElementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof org.openqa.selenium.remote.RemoteWebElement remote) {
+            return remote.getId();
+        }
+        return null;
+    }
+}

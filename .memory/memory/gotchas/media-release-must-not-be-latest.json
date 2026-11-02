@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/media-release-must-not-be-latest.md",
+  "content_hash": "sha256:007dd02e4bf723c0847293d760b5069427eeef5fcf9518182ef946b7e3f08b9f",
+  "created_at": "2026-10-17T00:45:00+03:00",
+  "evidence": [],
+  "id": "gotcha.media-release-must-not-be-latest",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7100"
+  },
+  "status": "active",
+  "tags": [
+    "release",
+    "github"
+  ],
+  "title": "Publishing a media release can steal the \"latest\" release",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:45:00+03:00"
+}

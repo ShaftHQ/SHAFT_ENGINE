@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/aider-0862-gitpython-cannot-read-git-index-v4.md",
+  "content_hash": "sha256:eaa42995ed7d77d9cdcbdc7fa91b4a5158381d5dcc757f0fb32c35bc702697c8",
+  "created_at": "2026-08-18T00:08:02+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5072",
+      "kind": "task"
+    },
+    {
+      "id": "ccc60fe4d741a31b9c68c912f02e43891ce927ec",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.aider-0862-gitpython-cannot-read-git-index-v4",
+  "source": {
+    "kind": "agent",
+    "task": "Record durable gotchas from #5072 merge and #5071 review"
+  },
+  "status": "active",
+  "tags": [
+    "aider",
+    "gitpython",
+    "index-v4",
+    "issue-5072"
+  ],
+  "title": "Aider 0.86.2 GitPython cannot read git index version 4",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T00:08:02+03:00"
+}

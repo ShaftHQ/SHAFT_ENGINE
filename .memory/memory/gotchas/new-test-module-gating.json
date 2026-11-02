@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/gotchas/new-test-module-gating.md",
+  "content_hash": "sha256:5ccb38dcabfa6cea8b6d43d0e348357eb2c178e45df526eb75d49583f577135c",
+  "created_at": "2026-10-17T10:06:12+03:00",
+  "evidence": [],
+  "id": "gotcha.new-test-module-gating",
+  "source": {
+    "kind": "agent",
+    "task": "architect skill PR"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "tests",
+    "parity"
+  ],
+  "title": "New tests/scripts module needs three registrations",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T10:06:12+03:00"
+}

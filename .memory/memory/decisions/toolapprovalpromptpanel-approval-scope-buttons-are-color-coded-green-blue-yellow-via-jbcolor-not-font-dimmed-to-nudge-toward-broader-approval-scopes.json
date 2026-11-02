@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/decisions/toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes.md",
+  "content_hash": "sha256:0f14b9580be1154d1337d6bc1e4cc88b3c0fd65833e47b77faf4b83e41a7b628",
+  "created_at": "2026-07-17T23:13:57+03:00",
+  "evidence": [
+    {
+      "id": "issue #3696",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.toolapprovalpromptpanel-approval-scope-buttons-are-color-coded-green-blue-yellow-via-jbcolor-not-font-dimmed-to-nudge-toward-broader-approval-scopes",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #3694 (Assistant notices-strip layout gap) and #3696 (approval button dimming) in shaft-intellij"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "jbcolor",
+    "tool-approval",
+    "issue-3696",
+    "ui-design"
+  ],
+  "title": "ToolApprovalPromptPanel approval-scope buttons are color-coded (green/blue/yellow via JBColor), not font-dimmed, to nudge toward broader approval scopes",
+  "type": "decision",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

@@ -1,0 +1,38 @@
+{
+  "body_path": "memory/decisions/release-flow-verifies-intellij-plugin-candidate.md",
+  "content_hash": "sha256:27b68502cdffffb36b6aa4947b4baa380c77ada0507883da4e64fd1776231b12",
+  "created_at": "2026-06-28T19:12:38+03:00",
+  "evidence": [
+    {
+      "id": "7d35d993e1",
+      "kind": "commit"
+    },
+    {
+      "id": ".github/workflows/shaft-pilot-release.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/mavenCentral_cd.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_shaft_pilot_release.py",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.release-flow-verifies-intellij-plugin-candidate",
+  "source": {
+    "commit": "7d35d993e1",
+    "kind": "agent",
+    "task": "Prepare SHAFT Engine release 10.2.20260628"
+  },
+  "status": "active",
+  "tags": [
+    "release",
+    "intellij",
+    "ci"
+  ],
+  "title": "Release flow verifies the IntelliJ IDEA plugin candidate",
+  "type": "decision",
+  "updated_at": "2026-06-28T19:12:38+03:00"
+}

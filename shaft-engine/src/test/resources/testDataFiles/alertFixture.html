@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Alert Fixture</title>
+    <script>
+        function showAlert() {
+            alert('Hello from fixture');
+            document.getElementById('alert-result').textContent = 'accepted';
+        }
+
+        function showConfirm() {
+            document.getElementById('confirm-result').textContent = String(confirm('Continue?'));
+        }
+
+        function showPrompt() {
+            document.getElementById('prompt-result').textContent = prompt('Favorite food?');
+        }
+    </script>
+</head>
+<body>
+<button id="alert-button" onclick="showAlert()">Alert</button>
+<span id="alert-result"></span>
+
+<button id="confirm-button" onclick="showConfirm()">Confirm</button>
+<span id="confirm-result"></span>
+
+<button id="prompt-button" onclick="showPrompt()">Prompt</button>
+<span id="prompt-result"></span>
+</body>
+</html>

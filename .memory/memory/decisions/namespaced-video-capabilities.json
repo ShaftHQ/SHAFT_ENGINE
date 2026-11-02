@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/decisions/namespaced-video-capabilities.md",
+  "content_hash": "sha256:46f39975224a6b9aee2201ce472224a804f32b8caef70aa079e7d98a2282876b",
+  "created_at": "2026-06-15T17:06:51+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/driver/internal/DriverFactory/OptionsManager.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-engine/src/test/java/com/shaft/driver/internal/DriverFactory/OptionsManagerCoverageUnitTest.java",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.namespaced-video-capabilities",
+  "source": {
+    "kind": "agent",
+    "task": "Seed durable SHAFT project memory from the retired high-signal ledger"
+  },
+  "status": "active",
+  "tags": [
+    "webdriver",
+    "capabilities",
+    "grid"
+  ],
+  "title": "Keep remote video capabilities namespaced",
+  "type": "decision",
+  "updated_at": "2026-06-15T17:06:51+03:00"
+}

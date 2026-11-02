@@ -1,0 +1,10 @@
+<!-- Allure Java 3.x no longer ships META-INF/aop.xml on allure-java-commons;
+     allure-testng provides aop-ajc.xml, but load-time weaving for @Step/@Attachment
+     is more reliable with an explicit aop.xml on the application classpath. -->
+<aspectj>
+    <weaver options="-warn:none -Xlint:ignore"/>
+    <aspects>
+        <aspect name="io.qameta.allure.aspects.StepsAspects"/>
+        <aspect name="io.qameta.allure.aspects.AttachmentsAspects"/>
+    </aspects>
+</aspectj>

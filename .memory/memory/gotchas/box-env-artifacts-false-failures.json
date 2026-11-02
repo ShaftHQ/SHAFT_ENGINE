@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/box-env-artifacts-false-failures.md",
+  "content_hash": "sha256:cf7b26344ad0dfb0420197f0f10301ad49bbe3bada64ae3f7e8c757cfff58cc8",
+  "created_at": "2026-10-17T10:06:12+03:00",
+  "evidence": [],
+  "id": "gotcha.box-env-artifacts-false-failures",
+  "source": {
+    "kind": "agent",
+    "task": "architect skill PR"
+  },
+  "status": "active",
+  "tags": [
+    "tests",
+    "debugging"
+  ],
+  "title": "Compare local test failures against a clean origin/main worktree",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T10:06:12+03:00"
+}

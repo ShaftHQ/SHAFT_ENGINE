@@ -1,0 +1,1231 @@
+from __future__ import annotations
+
+import fnmatch
+import json
+import re
+import shutil
+import subprocess  # nosec B404 - fixed test fixture commands only.
+import sys
+import tempfile
+import threading
+import time
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import cast
+from unittest.mock import patch
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
+from scripts.ci.harness_pr_gate import (
+    CHECKS,
+    MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES,
+    PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED,
+    SURFACE_CHECKS,
+    SURFACE_PATTERNS,
+    UNGATED_TEST_ALLOWLIST,
+    UNGATED_TEST_ALLOWLIST_CEILING,
+    Check,
+    GateError,
+    GatePlan,
+    WaiverReceipt,
+    changed_paths,
+    classify_paths,
+    plan_for_changes,
+    event_waiver,
+    parse_waiver,
+    LONG_RUNNING_CHECK_IDS,
+    SHARDED_MODULES,
+    _combine,
+    execution_units,
+    unit_command,
+    PRIORITY_CHECK_IDS,
+    _isolated_environment,
+    render_json,
+    resolve_jobs,
+    run_plan,
+    write_generated_artifacts,
+)
+from scripts.ci.validate_agent_setup import validate_host_parity
+
+
+ROOT = Path(__file__).resolve().parents[2]
+HEAD = "a" * 40
+NOW = datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
+
+
+def waiver_body(**overrides: object) -> str:
+    payload: dict[str, object] = {
+        "schema": 1,
+        "allowed_check_ids": ["guidance-contract"],
+        "expires_at": "2026-08-29T12:00:00Z",
+        "rationale": "Legacy router shape is replaced by the lifecycle kernel contract.",
+        "replacement_proof": "py -3 -m unittest tests.scripts.test_chaos_engine_kernel -v",
+    }
+    payload.update(overrides)
+    return f"PR prose\n\n```chaos-engine-waiver\n{json.dumps(payload)}\n```\n"
+
+
+def review_record(**overrides: object) -> dict[str, object]:
+    review: dict[str, object] = {
+        "id": 42,
+        "user": {"login": "MohabMohie"},
+        "body": waiver_body(),
+        "state": "COMMENTED",
+        "submitted_at": "2026-08-22T11:00:00Z",
+        "last_edited_at": None,
+        "commit_id": HEAD,
+    }
+    review.update(overrides)
+    return review
+
+
+def write_reviews(directory: str, reviews: list[dict[str, object]]) -> Path:
+    path = Path(directory) / "reviews.json"
+    path.write_text(json.dumps(reviews), encoding="utf-8")
+    return path
+
+
+class ClassifierTest(unittest.TestCase):
+    def test_readme_and_promotion_changes_select_only_focused_contracts(self) -> None:
+        documentation = classify_paths(["chaos-engine/README.md"])
+        promotion = classify_paths(["scripts/ci/chaos_engine_promotion.py"])
+        promotion_runner = classify_paths(
+            ["scripts/ci/chaos_engine_promotion_trials.py"]
+        )
+
+        self.assertEqual(
+            (
+                "documentation",
+                "identities",
+                "portable-core",
+                "plugin-assembly",
+                "icm-architect",
+                "harness-eval",
+            ),
+            documentation.surfaces,
+        )
+
+        accessibility = classify_paths(["scripts/ci/accessibility_quality_gates.py"])
+        self.assertIn("accessibility", accessibility.surfaces)
+        self.assertIn(
+            "accessibility-contract",
+            {check.id for check in accessibility.checks},
+        )
+        self.assertEqual(
+            {
+                "documentation-inventory-contract",
+                "identity-contract",
+                "identity-recovery-contract",
+                "portable-core-contract",
+                "plugin-assembly-contract",
+                "icm-architect-contract",
+                "harness-eval-suite-contract",
+                "protected-ownership",
+                "protected-secret-safety",
+            },
+            {check.id for check in documentation.checks},
+        )
+        self.assertEqual(("promotion",), promotion.surfaces)
+        self.assertIn("promotion-contract", {check.id for check in promotion.checks})
+        self.assertEqual(("promotion",), promotion_runner.surfaces)
+
+    def test_javadoc_param_arity_surface_selects_checker_and_catalog_contracts(self) -> None:
+        interaction = classify_paths(
+            [
+                "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction/"
+                "TypeStrategies.java"
+            ]
+        )
+        checker = classify_paths(["scripts/ci/check_javadoc_param_arity.py"])
+        catalog = classify_paths(["chaos-engine/references/zero-llm-catalog.md"])
+
+        self.assertIn("javadoc", interaction.surfaces)
+        self.assertIn("javadoc", checker.surfaces)
+        self.assertIn("javadoc", catalog.surfaces)
+        for plan in (interaction, checker, catalog):
+            check_ids = {check.id for check in plan.checks}
+            self.assertIn("javadoc-param-arity-contract", check_ids)
+            modules = set(plan.test_modules)
+            self.assertIn("tests.scripts.test_check_javadoc_param_arity", modules)
+            self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
+
+    def test_changed_harness_module_runs_weekly_only_tests_that_name_it(self) -> None:
+        plan = plan_for_changes(["chaos-engine/dependencies.py"], ROOT)
+        touched = next(check for check in plan.checks if check.id == "ungated-touched")
+        self.assertFalse(touched.protected)
+        self.assertIn("tests.scripts.test_chaos_engine_install_verify_5699", touched.modules)
+        self.assertLessEqual(set(touched.modules), set(UNGATED_TEST_ALLOWLIST))
+        self.assertNotIn(
+            "ungated-touched", {check.id for check in classify_paths(["chaos-engine/dependencies.py"]).checks}
+        )
+
+    def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
+        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+
+        # #6222: the portable-core scan and the plugin assembly read the whole
+        # chaos-engine tree, so their cheap single-module checks join too.
+        self.assertEqual(
+            ("kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"),
+            plan.surfaces,
+        )
+        self.assertEqual(
+            (
+                "kernel-contract",
+                "identity-contract",
+                "identity-recovery-contract",
+                "portable-core-contract",
+                "plugin-assembly-contract",
+                "harness-eval-suite-contract",
+                "protected-ownership",
+                "protected-secret-safety",
+            ),
+            tuple(check.id for check in plan.checks),
+        )
+        self.assertEqual((), plan.unknown_paths)
+        self.assertNotIn(
+            "tests.scripts.test_agent_plugin_client_smoke",
+            plan.test_modules,
+        )
+
+    def test_copilot_repository_hook_selects_host_contract(self) -> None:
+        plan = classify_paths([".github/hooks/chaos-engine.json"])
+
+        self.assertEqual(("hosts",), plan.surfaces)
+        self.assertEqual(
+            ("host-contract", "protected-ownership", "protected-secret-safety"),
+            tuple(check.id for check in plan.checks),
+        )
+
+    def test_installer_change_keeps_5299_acceptance_and_rollback_protected(self) -> None:
+        plan = classify_paths(["chaos-engine/dependencies.py"])
+
+        self.assertIn("installer", plan.surfaces)
+        protected = {check.id for check in plan.checks if check.protected}
+        self.assertIn("protected-installer-acceptance", protected)
+        self.assertIn("protected-rollback", protected)
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", plan.test_modules)
+        self.assertIn("tests.scripts.test_chaos_engine_dependencies", plan.test_modules)
+
+    def test_protected_installer_acceptance_module_list_is_bounded(self) -> None:
+        """Design craft/lessons belong in design-skills-contract, not the protected suite.
+
+        CI run 41444465079 timed out the protected check (1200s budget, ~5600s
+        sum_check) while those modules were duplicated here.
+        """
+        check = CHECKS["protected-installer-acceptance"]
+        modules = set(check.modules)
+        self.assertLessEqual(
+            len(check.modules),
+            MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES,
+            check.modules,
+        )
+        overlap = modules & PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED
+        self.assertFalse(overlap, overlap)
+        design = CHECKS["design-skills-contract"].modules
+        for excluded in PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED:
+            self.assertIn(excluded, design)
+
+    def test_dependency_manifest_change_closes_readme_and_account_version_proofs(self) -> None:
+        plan = classify_paths(["chaos-engine/dependencies.json"])
+        modules = set(plan.test_modules)
+        account_proofs = {
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses",
+            "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
+            "test_account_install_passes_resolved_tool_versions_to_the_account_plan",
+        }
+
+        self.assertIn("documentation", plan.surfaces)
+        self.assertIn("documentation-inventory-contract", {check.id for check in plan.checks})
+        self.assertTrue(account_proofs.issubset(modules), modules)
+        original = CHECKS["dependency-account-contract"]
+        dropped = account_proofs - {original.modules[0]}
+        mutated = Check(
+            original.id,
+            original.surface,
+            original.modules[:1],
+            original.protected,
+        )
+        with patch.dict(CHECKS, {"dependency-account-contract": mutated}):
+            broken = classify_paths(["chaos-engine/dependencies.json"])
+        self.assertFalse(account_proofs.issubset(set(broken.test_modules)), broken.test_modules)
+        self.assertTrue(dropped.isdisjoint(set(broken.test_modules)), broken.test_modules)
+
+    def test_harness_tree_change_closes_coupled_identity_checks(self) -> None:
+        plan = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        modules = set(plan.test_modules)
+        identity_proofs = {
+            "tests.scripts.test_chaos_gauge_contracts",
+            "tests.scripts.test_chaos_gauge_recovery",
+        }
+
+        self.assertIn("identities", plan.surfaces)
+        self.assertTrue(identity_proofs.issubset(modules), modules)
+        with patch.dict(
+            SURFACE_CHECKS,
+            {"identities": ("identity-contract",)},
+        ):
+            broken = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        self.assertFalse(identity_proofs.issubset(set(broken.test_modules)), broken.test_modules)
+        self.assertNotIn("tests.scripts.test_chaos_gauge_recovery", broken.test_modules)
+
+    def test_every_installer_manifest_uses_protected_installer_checks(self) -> None:
+        manifests = (
+            "chaos-engine/dependencies.json",
+            "chaos-engine/distributions.json",
+            "chaos-engine/profiles/portable/profile.json",
+            "shaft-skills/ce-pack/profile.json",
+            "chaos-engine/vendor/caveman/PIN.json",
+            "chaos-engine/vendor/ponytail/PIN.json",
+            "chaos-engine/vendor/caveman/src/hooks/package.json",
+            "chaos-engine/vendor/ponytail/hooks/claude-codex-hooks.json",
+        )
+        for path in manifests:
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                self.assertIn("installer", plan.surfaces)
+                protected = {check.id for check in plan.checks if check.protected}
+                self.assertIn("protected-installer-acceptance", protected)
+                self.assertIn("protected-rollback", protected)
+
+    def test_installer_ux_and_managed_runtime_tests_stay_on_installer_surface(self) -> None:
+        plan = classify_paths(
+            [
+                "tests/scripts/test_chaos_engine_installer_ux.py",
+                "tests/scripts/test_chaos_engine_managed_runtimes.py",
+            ]
+        )
+        check_ids = {check.id for check in plan.checks}
+        self.assertIn("installer", plan.surfaces)
+        self.assertNotIn("fallback", plan.surfaces)
+        self.assertEqual((), plan.unknown_paths)
+        self.assertIn("installer-ux-contract", check_ids)
+        self.assertIn(
+            "tests.scripts.test_chaos_engine_installer_ux",
+            plan.test_modules,
+        )
+        self.assertIn(
+            "tests.scripts.test_chaos_engine_managed_runtimes",
+            plan.test_modules,
+        )
+
+    def test_guard_owner_change_runs_non_waivable_security_check(self) -> None:
+        plan = classify_paths(["scripts/agents/guard.py"])
+
+        checks = {check.id: check for check in plan.checks}
+        self.assertIn("protected-security", checks)
+        security = checks["protected-security"]
+        self.assertTrue(security.protected)
+        self.assertTrue(
+            all(module.startswith("tests.scripts.test_guard_memory_worktree.") for module in security.modules)
+        )
+        self.assertTrue(
+            any("without_a_target_is_denied" in module for module in security.modules)
+        )
+        self.assertTrue(
+            any(
+                "test_failure_classifications_never_persist_secret_or_user_path" in module
+                for module in checks["protected-secret-safety"].modules
+            )
+        )
+
+    def test_shared_store_paths_use_retrieval_surface(self) -> None:
+        for path in (
+            "chaos-engine/stores.py",
+            "tests/scripts/test_chaos_engine_stores.py",
+            "tools/agent-infra/shaft_knowledge_refresh.py",
+            "tests/scripts/test_shaft_knowledge_refresh.py",
+        ):
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                self.assertIn("retrieval", plan.surfaces)
+                self.assertEqual((), plan.unknown_paths)
+                self.assertNotIn("fallback", plan.surfaces)
+
+    def test_unknown_harness_path_falls_back_instead_of_skipping(self) -> None:
+        plan = classify_paths(["scripts/agents/new_runtime_surface.py"])
+
+        self.assertEqual(("fallback",), plan.surfaces)
+        self.assertEqual(("scripts/agents/new_runtime_surface.py",), plan.unknown_paths)
+        self.assertIn("fallback-contract", {check.id for check in plan.checks})
+        fallback = next(check for check in plan.checks if check.id == "fallback-contract")
+        self.assertEqual(("tests.scripts.test_validate_agent_setup",), fallback.modules)
+
+    def test_every_registered_but_unmapped_harness_path_uses_fallback(self) -> None:
+        for path in (
+            ".github/copilot-instructions.md",
+            "scripts/ci/build_retry.sh",
+            "scripts/ci/extract_allure_failures.py",
+            "tests/scripts/test_repository_context.py",
+            "tests/scripts/test_watch_pr_checks.py",
+            "tests/scripts/test_worktree_hygiene.py",
+            "tools/intellij-plugin-recording/install.ps1",
+        ):
+            with self.subTest(path=path):
+                self.assertIn("fallback", classify_paths([path]).surfaces)
+
+    def test_edited_harness_test_uses_its_mapped_final_batch_contract(self) -> None:
+        plan = classify_paths(["tests/scripts/test_agent_router_contract.py"])
+
+        self.assertEqual(("guidance",), plan.surfaces)
+        self.assertFalse(any(check.surface == "changed-test" for check in plan.checks))
+
+    def test_setup_aggregator_change_selects_its_direct_contract(self) -> None:
+        plan = classify_paths(["scripts/ci/validate_agent_setup.py"])
+
+        self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
+
+    def test_git_diff_includes_deletes_renames_and_type_changes(self) -> None:
+        completed = subprocess.CompletedProcess(
+            [],
+            0,
+            "D\0tests/scripts/test_agent_old.py\0"
+            "R100\0tests/scripts/test_guard_old.py\0tests/scripts/test_guard_new.py\0"
+            "T\0chaos-engine/hooks/kernel.py\0",
+        )
+        with patch("scripts.ci.harness_pr_gate.subprocess.run", return_value=completed) as run:
+            paths = changed_paths(ROOT, "a" * 40, "b" * 40)
+
+        self.assertIn("--diff-filter=ACDMRT", run.call_args.args[0])
+        self.assertIn("--name-status", run.call_args.args[0])
+        self.assertIn("--merge-base", run.call_args.args[0])
+        self.assertEqual(
+            [False, False, True, True],
+            [path.executable for path in paths],
+        )
+        deleted_plan = classify_paths([paths[0]])
+        renamed_plan = classify_paths([paths[2]])
+        self.assertIn("fallback", deleted_plan.surfaces)
+        self.assertIn("lifecycle", renamed_plan.surfaces)
+        self.assertFalse(any(check.surface == "changed-test" for check in renamed_plan.checks))
+
+    def test_git_diff_excludes_changes_unique_to_diverged_base_tip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 - resolved git on a temporary fixture.
+                    [cast(str, git_executable), *args],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Harness Test")
+            git("config", "user.email", "harness@example.invalid")
+            (root / "shared.txt").write_text("shared\n", encoding="utf-8")
+            git("add", "shared.txt")
+            git("commit", "-m", "shared")
+            git("switch", "-c", "candidate")
+            (root / "candidate-only.txt").write_text("candidate\n", encoding="utf-8")
+            git("add", "candidate-only.txt")
+            git("commit", "-m", "candidate")
+            head = git("rev-parse", "HEAD")
+            git("switch", "main")
+            (root / "base-only.txt").write_text("base\n", encoding="utf-8")
+            git("add", "base-only.txt")
+            git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+
+            paths = changed_paths(root, base, head)
+
+        self.assertEqual(["candidate-only.txt"], list(paths))
+
+    def test_force_rewrite_uses_only_the_rewritten_head_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 - resolved git on a temporary fixture.
+                    [cast(str, git_executable), *args],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Harness Test")
+            git("config", "user.email", "harness@example.invalid")
+            (root / "shared.txt").write_text("shared\n", encoding="utf-8")
+            git("add", "shared.txt")
+            git("commit", "-m", "shared")
+            git("switch", "-c", "candidate")
+            old_path = root / "scripts/agents/old_only.py"
+            old_path.parent.mkdir(parents=True)
+            old_path.write_text("old\n", encoding="utf-8")
+            git("add", old_path.relative_to(root).as_posix())
+            git("commit", "-m", "old candidate")
+            old_head = git("rev-parse", "HEAD")
+
+            git("switch", "-C", "candidate", "main")
+            new_path = root / ".github/workflows/pr-gate.yml"
+            new_path.parent.mkdir(parents=True)
+            new_path.write_text("name: rewritten\n", encoding="utf-8")
+            git("add", new_path.relative_to(root).as_posix())
+            git("commit", "-m", "rewritten candidate")
+            rewritten_head = git("rev-parse", "HEAD")
+
+            paths = changed_paths(root, old_head, rewritten_head)
+
+        self.assertEqual([".github/workflows/pr-gate.yml"], list(paths))
+
+    def test_generation_and_live_installer_contracts_never_use_full_fallback(self) -> None:
+        for path in (
+            "tests/scripts/test_chaos_engine_generation_runtime.py",
+            "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
+        ):
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                check_ids = {check.id for check in plan.checks}
+                self.assertEqual(("installer",), plan.surfaces)
+                self.assertNotIn("fallback-contract", check_ids)
+                self.assertIn("protected-installer-acceptance", check_ids)
+                self.assertIn("protected-rollback", check_ids)
+
+    def test_reachability_contract_uses_focused_guidance_surface(self) -> None:
+        plan = classify_paths(["tests/scripts/test_agent_harness_reachability.py"])
+
+        self.assertEqual(("guidance",), plan.surfaces)
+        self.assertNotIn("fallback-contract", {check.id for check in plan.checks})
+        self.assertIn("tests.scripts.test_agent_harness_reachability", plan.test_modules)
+
+    def test_non_harness_path_selects_no_harness_checks(self) -> None:
+        plan = classify_paths(["shaft-engine/src/main/java/example/Thing.java"])
+
+        self.assertEqual((), plan.surfaces)
+        self.assertEqual((), plan.checks)
+
+    def test_dotted_host_adapter_is_not_lost_during_path_normalization(self) -> None:
+        plan = classify_paths([".claude/settings.json"])
+
+        self.assertIn("hosts", plan.surfaces)
+
+    def test_path_traversal_input_fails_closed(self) -> None:
+        with self.assertRaises(GateError):
+            classify_paths(["../chaos-engine/hooks/kernel.py"])
+
+
+class WaiverTest(unittest.TestCase):
+    def test_valid_receipt_is_exact_head_check_specific_and_expiring(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            receipt = event_waiver(
+                write_reviews(directory, [review_record()]), HEAD, now=NOW
+            )
+
+        self.assertIsNotNone(receipt)
+        receipt = cast(WaiverReceipt, receipt)
+        self.assertEqual(("guidance-contract",), receipt.check_ids)
+        self.assertEqual(HEAD, receipt.head_sha)
+
+    def test_stale_malformed_blanket_and_blank_receipts_fail_closed(self) -> None:
+        cases = (
+            waiver_body(allowed_check_ids=["*"]),
+            waiver_body(expires_at="2026-08-21T12:00:00Z"),
+            waiver_body(rationale=" "),
+            waiver_body(replacement_proof=""),
+            "```chaos-engine-waiver\n{broken\n```",
+            waiver_body() + waiver_body(),
+        )
+        for body in cases:
+            with self.subTest(body=body[:80]):
+                with self.assertRaises(GateError):
+                    parse_waiver(body, now=NOW)
+
+    def test_protected_categories_can_never_be_waived(self) -> None:
+        protected = (
+            "protected-security",
+            "protected-ownership",
+            "protected-corruption",
+            "protected-rollback",
+            "protected-secret-safety",
+            "protected-installer-acceptance",
+            "protected-confirmed-correctness",
+        )
+        for check_id in protected:
+            with self.subTest(check_id=check_id):
+                with self.assertRaises(GateError):
+                    parse_waiver(
+                        waiver_body(allowed_check_ids=[check_id]),
+                        now=NOW,
+                    )
+
+    def test_behavioral_kernel_lifecycle_and_host_contracts_cannot_be_waived(self) -> None:
+        for check_id in ("kernel-contract", "lifecycle-contract", "host-contract"):
+            with self.subTest(check_id=check_id):
+                self.assertTrue(
+                    next(
+                        check
+                        for check in classify_paths(
+                            {
+                                "kernel-contract": ["chaos-engine/hooks/kernel.py"],
+                                "lifecycle-contract": ["chaos-engine/hooks/guard.py"],
+                                "host-contract": ["chaos-engine/hosts.py"],
+                            }[check_id]
+                        ).checks
+                        if check.id == check_id
+                    ).protected
+                )
+                with self.assertRaises(GateError):
+                    parse_waiver(
+                        waiver_body(allowed_check_ids=[check_id]),
+                        now=NOW,
+                    )
+
+    def test_only_owner_review_on_exact_head_can_authorize(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            non_owner = review_record(user={"login": "outside-contributor"})
+            stale_owner = review_record(commit_id="b" * 40)
+            path = write_reviews(directory, [non_owner, stale_owner])
+            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+
+    def test_pr_author_or_editor_body_cannot_authorize(self) -> None:
+        forgeable_event = {
+            "pull_request": {
+                "body": waiver_body(),
+                "head": {"sha": HEAD},
+                "user": {"login": "MohabMohie"},
+                "author_association": "OWNER",
+            }
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "event.json"
+            path.write_text(json.dumps(forgeable_event), encoding="utf-8")
+            with self.assertRaises(GateError):
+                event_waiver(path, HEAD, now=NOW)
+
+    def test_owner_review_must_be_submitted_and_unambiguous(self) -> None:
+        invalid = (
+            review_record(state="PENDING", submitted_at=None),
+            review_record(state="DISMISSED"),
+            review_record(
+                body=waiver_body(allowed_check_ids=["host-contract"]),
+                last_edited_at="2026-08-22T11:30:00Z",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = write_reviews(directory, list(invalid))
+            self.assertIsNone(event_waiver(path, HEAD, now=NOW))
+
+            path = write_reviews(directory, [review_record(), review_record(id=43)])
+            with self.assertRaises(GateError):
+                event_waiver(path, HEAD, now=NOW)
+
+
+class OutputAndWorkflowTest(unittest.TestCase):
+    def workflow(self) -> dict[str, object]:
+        return yaml.safe_load(
+            (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        )
+
+    def filters(self) -> dict[str, list[str]]:
+        workflow = self.workflow()
+        steps = workflow["jobs"]["changes"]["steps"]
+        filter_step = next(step for step in steps if step.get("id") == "filter")
+        return yaml.safe_load(filter_step["with"]["filters"])
+
+    def test_every_referenced_changes_output_is_declared_and_filtered(self) -> None:
+        workflow = self.workflow()
+        jobs = workflow["jobs"]
+        outputs = set(jobs["changes"]["outputs"])
+        filters = set(self.filters())
+        referenced = {
+            match.group(1)
+            for job in jobs.values()
+            for match in re.finditer(
+                r"needs\.changes\.outputs\.([a-z_]+)", str(job.get("if", ""))
+            )
+        }
+
+        self.assertEqual(set(), referenced - outputs)
+        # Tier outputs come from the installer-tier step, coverage_all from the
+        # event, and same_tree from the same-tree step, not the path filter (#6990).
+        tier_outputs = {"installer_os", "installer_contracts_os", "cli_os", "run_capture_browser", "run_intellij_verify", "coverage_all", "same_tree"}
+        self.assertEqual(set(), referenced - filters - tier_outputs)
+
+    def test_pr_gate_definition_and_shared_actions_have_distinct_fanout(self) -> None:
+        workflow = self.workflow()
+        jobs = workflow["jobs"]
+        filters = self.filters()
+        product_jobs = (
+            "installer-verify",
+            "intellij-build",
+            "cli",
+            "capture-e2e",
+            "unit-tests",
+            "template-coupling",
+            "module-boundary",
+        )
+
+        self.assertIn("pr_gate", filters)
+        self.assertEqual([".github/workflows/pr-gate.yml"], filters["pr_gate"])
+        self.assertNotIn(".github/workflows/pr-gate.yml", filters["infra"])
+        self.assertIn(".github/actions/**", filters["infra"])
+        self.assertIn("needs.changes.outputs.pr_gate == 'true'", jobs["agent-guidance"]["if"])
+        for name in product_jobs:
+            with self.subTest(job=name):
+                condition = jobs[name]["if"]
+                self.assertNotIn("outputs.pr_gate", condition)
+                self.assertIn("outputs.infra", condition)
+
+    def test_live_installer_job_runs_in_parallel_with_agent_guidance_gate(self) -> None:
+        # Issue #6186: the matrix used to wait ~14 minutes for this gate.
+        jobs = self.workflow()["jobs"]
+        for name in ("chaos-installer-acceptance", "chaos-installer-contracts"):
+            with self.subTest(job=name):
+                self.assertEqual("changes", jobs[name]["needs"])
+                self.assertIn(name, jobs["summary"]["needs"])
+
+    def test_every_chaos_installer_path_selects_the_linux_installer_surface(self) -> None:
+        # Issue #6186: the ubuntu fresh-installer job dropped its UX step
+        # because Agent Guidance's installer surface runs the same modules, so
+        # every chaos_installer path must both trigger that gate and select it.
+        filters = self.filters()
+        installer_patterns = SURFACE_PATTERNS["installer"]
+        for glob in filters["chaos_installer"]:
+            with self.subTest(path=glob):
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in installer_patterns),
+                    f"{glob} does not select the harness installer surface",
+                )
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in filters["agent_guidance"]),
+                    f"{glob} does not trigger Agent Guidance Gate",
+                )
+
+    def test_installer_ux_modules_still_run_on_every_os(self) -> None:
+        legacy = {
+            "tests.scripts.test_chaos_engine_installer_ux",
+            "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+            "tests.scripts.test_chaos_engine_bootstrap",
+            "tests.scripts.test_chaos_engine_install_wrappers",
+        }
+        linux = set(classify_paths(["chaos-engine/install.py"]).test_modules)
+        self.assertLessEqual(legacy, linux)
+        job = self.workflow()["jobs"]["chaos-installer-contracts"]
+        commands = " ".join(step.get("run", "") for step in job["steps"])
+        self.assertLessEqual(legacy, set(commands.split()))
+        self.assertIn("installer_contracts_os", job["strategy"]["matrix"]["os"])
+        acceptance = self.workflow()["jobs"]["chaos-installer-acceptance"]
+        self.assertNotIn(
+            "tests.scripts.test_chaos_engine_installer_ux",
+            " ".join(step.get("run", "") for step in acceptance["steps"]),
+        )
+
+    def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
+        readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
+        self.assertIn("--write-generated", readme)
+        self.assertIn("scripts/ci/harness_pr_gate.py", readme)
+        self.assertTrue(callable(write_generated_artifacts))
+
+    def test_json_plan_is_concise_reproducible_and_contains_no_pr_body(self) -> None:
+        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
+
+        self.assertEqual(1, payload["schema"])
+        self.assertEqual(
+            ["kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"],
+            payload["surfaces"],
+        )
+        self.assertEqual(240, payload["timing"]["budget_seconds"])
+        self.assertEqual(600, payload["timing"]["recorded_baseline_median_seconds"])
+        self.assertEqual(0.6, payload["timing"]["maximum_budget_reduction"])
+        self.assertEqual(
+            ["scheduled-exhaustive", "release-promotion"], payload["deferred_classes"]
+        )
+        self.assertEqual("blocking-protected-invariant", payload["checks"][0]["class"])
+        self.assertIn("-m unittest", payload["checks"][0]["reproduction_command"])
+        self.assertNotIn("pr_body", payload)
+        self.assertNotIn("replacement_proof", payload)
+        self.assertEqual(
+            "git push --force-with-lease origin HEAD",
+            payload["safe_history_update_command"],
+        )
+
+    def test_runner_never_applies_a_waiver_to_a_protected_failed_check(self) -> None:
+        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        receipt = WaiverReceipt(
+            HEAD,
+            ("kernel-contract",),
+            datetime(2026, 8, 29, tzinfo=timezone.utc),
+        )
+
+        def result_for(command: list[str], *_: object, **__: object) -> tuple[str, int | None]:
+            module = command[3]
+            return ("failed", 1) if module.endswith("kernel") else ("passed", 0)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", side_effect=result_for):
+            payload, exit_code = run_plan(
+                ROOT,
+                plan,
+                head_sha=HEAD,
+                budget_seconds=240,
+                waiver=receipt,
+            )
+
+        self.assertEqual(1, exit_code)
+        self.assertEqual("failed", payload["checks"][0]["status"])
+        self.assertEqual([], payload["waiver"]["applied_check_ids"])
+
+    def test_timeout_is_never_waived(self) -> None:
+        plan = GatePlan(("kernel",), (classify_paths(["chaos-engine/hooks/kernel.py"]).checks[0],))
+        receipt = WaiverReceipt(HEAD, ("kernel-contract",), NOW)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("timeout", None)):
+            payload, exit_code = run_plan(
+                ROOT,
+                plan,
+                head_sha=HEAD,
+                budget_seconds=1,
+                waiver=receipt,
+            )
+
+        self.assertEqual(1, exit_code)
+        self.assertEqual("timeout", payload["checks"][0]["status"])
+
+    def test_pr_workflow_is_bounded_and_full_suites_are_scheduled(self) -> None:
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        agent_job = pr_gate.split("  agent-guidance:", 1)[1].split(
+            "  installer-verify:", 1
+        )[0]
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("scripts/ci/harness_pr_gate.py", agent_job)
+        self.assertIn("--budget-seconds 1200", agent_job)
+        self.assertNotIn("npm install --global", agent_job)
+        self.assertNotIn("tests.scripts.test_agent_plugin_client_smoke", agent_job)
+        self.assertNotIn("matrix:", agent_job)
+        self.assertIn("pull-requests: read", agent_job)
+        self.assertIn("set -euo pipefail", agent_job)
+        self.assertIn("gh api graphql", agent_job)
+        self.assertIn("lastEditedAt", agent_job)
+        self.assertIn("--reviews", agent_job)
+        self.assertNotIn("--event", agent_job)
+        self.assertIn("'scripts/ci/harness_pr_gate.py'", pr_gate)
+        self.assertIn("'tests/scripts/test_harness_pr_gate.py'", pr_gate)
+        self.assertIn("schedule:", scheduled)
+        self.assertIn("workflow_dispatch:", scheduled)
+        self.assertIn("deterministic-harness-full:", scheduled)
+        self.assertIn("chaos-engine-cross-platform:", scheduled)
+        self.assertIn("harness-platform-contracts:", scheduled)
+        self.assertIn("tests.scripts.test_build_retry", scheduled)
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", scheduled)
+        self.assertIn("tests.scripts.test_chaos_engine_dependencies", scheduled)
+
+    def test_scheduled_suite_retains_exhaustive_harness_coverage(self) -> None:
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+        deterministic = scheduled.split("  deterministic-harness-full:", 1)[1].split(
+            "  chaos-engine-cross-platform:", 1
+        )[0]
+        self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
+        omniroute_modules = (
+            "tests.scripts.test_omniroute",
+            "tests.scripts.test_omniroute_workflow_contract",
+            "tests.scripts.test_omniroute_orchestrator_docs",
+            "tests.scripts.test_omniroute_tdd_pdca",
+            "tests.scripts.test_omniroute_portability",
+        )
+        for module in omniroute_modules:
+            self.assertIn(module, deterministic)
+
+        platform = scheduled.split("  harness-platform-contracts:", 1)[1].split(
+            "  agnix-conformance:", 1
+        )[0]
+        for module in omniroute_modules:
+            self.assertIn(module, platform)
+        self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
+        self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
+
+    def test_omniroute_portability_is_registered_in_focused_path_gate(self) -> None:
+        plan = classify_paths(["tests/scripts/test_omniroute_portability.py"])
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+
+        self.assertIn("guidance", plan.surfaces)
+        self.assertIn("tests.scripts.test_omniroute_portability", plan.test_modules)
+        self.assertIn("'tests/scripts/test_omniroute_portability.py'", pr_gate)
+
+    def test_every_omniroute_module_and_its_owners_bind_to_behavioral_proof(self) -> None:
+        behavioral = "tests.scripts.test_omniroute"
+        paths = (
+            "chaos-engine/skills/omniroute/SKILL.md",
+            "chaos-engine/skills/omniroute/scripts/runner.py",
+            "tests/scripts/test_omniroute.py",
+            "tests/scripts/test_omniroute_workflow_contract.py",
+            "tests/scripts/test_omniroute_orchestrator_docs.py",
+            "tests/scripts/test_omniroute_tdd_pdca.py",
+            "tests/scripts/test_omniroute_portability.py",
+        )
+
+        for path in paths:
+            with self.subTest(path=path):
+                plan = classify_paths([path])
+                self.assertIn("guidance", plan.surfaces)
+                self.assertIn(behavioral, plan.test_modules)
+
+    def test_pr_filter_self_binds_every_omniroute_test_module(self) -> None:
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+
+        for name in (
+            "test_omniroute.py",
+            "test_omniroute_workflow_contract.py",
+            "test_omniroute_orchestrator_docs.py",
+            "test_omniroute_tdd_pdca.py",
+            "test_omniroute_portability.py",
+        ):
+            self.assertIn(f"'tests/scripts/{name}'", pr_gate)
+
+    def test_flutter_emulator_path_scripts_bind_visual_ocr_and_agent_guidance(self) -> None:
+        # #7530 / #7540 D1+D2: PATH contract scripts must both select the
+        # visual-ocr-workflow harness surface and start Agent Guidance Gate.
+        filters = self.filters()
+        guidance = filters["agent_guidance"]
+        surface = SURFACE_PATTERNS["visual-ocr-workflow"]
+        paths = (
+            "scripts/ci/flutter_emulator_preflight.sh",
+            "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
+            "tests/scripts/test_visual_ocr_workflow.py",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertIn(path, guidance)
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(path, pattern) for pattern in surface),
+                    f"{path} does not select visual-ocr-workflow",
+                )
+                plan = classify_paths([path])
+                self.assertIn("visual-ocr-workflow", plan.surfaces)
+                self.assertIn(
+                    "visual-ocr-workflow-contract",
+                    {check.id for check in plan.checks},
+                )
+
+    def test_scheduled_chaos_gauge_recovery_is_enforced_when_its_workflow_changes(self) -> None:
+        plan = classify_paths([".github/workflows/agent-plugin-acceptance.yml"])
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("ci", plan.surfaces)
+        self.assertIn("tests.scripts.test_harness_pr_gate", plan.test_modules)
+        self.assertIn("tests.scripts.test_chaos_gauge_recovery", scheduled)
+
+    def test_host_parity_evidence_can_live_in_scheduled_exhaustive_suite(self) -> None:
+        errors = validate_host_parity(ROOT)
+
+        self.assertEqual(
+            [],
+            [error for error in errors if error["code"] == "host-parity-ci"],
+        )
+
+
+class ConcurrentRunPlanTest(unittest.TestCase):
+    """#6191: concurrent checks keep the same selection, verdicts, and protections."""
+
+    PATHS = ["chaos-engine/install.py", "chaos-engine/hooks/kernel.py", "scripts/ci/harness_pr_gate.py"]
+
+    @staticmethod
+    def verdict(command: list[str], *_: object, **__: object) -> tuple[str, int | None]:
+        modules = command[3:-1]
+        return ("failed", 1) if any(m.endswith("_kernel") for m in modules) else ("passed", 0)
+
+    def run_with(self, jobs: int, side_effect=None) -> tuple[dict, int, list]:
+        plan = classify_paths(self.PATHS)
+        calls: list[tuple[str, ...]] = []
+        lock = threading.Lock()
+
+        def record(command: list[str], *args: object, **kwargs: object):
+            with lock:
+                calls.append(tuple(command[3:-1]))
+            return (side_effect or self.verdict)(command, *args, **kwargs)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", side_effect=record):
+            payload, exit_code = run_plan(
+                ROOT, plan, head_sha=HEAD, budget_seconds=240, waiver=None, jobs=jobs
+            )
+        return payload, exit_code, calls
+
+    @staticmethod
+    def verdicts(payload: dict) -> list[tuple[str, str]]:
+        return [(check["id"], check["status"]) for check in payload["checks"]]
+
+    def test_sequential_and_concurrent_runs_select_and_judge_identically(self) -> None:
+        sequential, sequential_exit, sequential_calls = self.run_with(1)
+        concurrent, concurrent_exit, concurrent_calls = self.run_with(4)
+        self.assertEqual(self.verdicts(sequential), self.verdicts(concurrent))
+        self.assertEqual((1, 1), (sequential_exit, concurrent_exit))
+        self.assertCountEqual(sequential_calls, concurrent_calls)
+        self.assertEqual(len(set(sequential_calls)), len(sequential_calls), "a tuple ran twice")
+        self.assertEqual(4, concurrent["timing"]["jobs"])
+        self.assertIn("sum_check_seconds", concurrent["timing"])
+
+    def test_protected_always_on_checks_start_first(self) -> None:
+        plan = classify_paths(self.PATHS)
+        priority = [c.modules for pid in PRIORITY_CHECK_IDS for c in plan.checks if c.id == pid]
+        _, _, calls = self.run_with(1)
+        self.assertEqual(priority, calls[: len(priority)])
+
+    def test_longest_suites_start_right_after_protected_checks(self) -> None:
+        plan = classify_paths(self.PATHS)
+        ordered = [
+            unit
+            for pid in (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
+            for c in plan.checks
+            if c.id == pid
+            for unit in execution_units(c.modules)
+        ]
+        self.assertTrue(any(c.id == "protected-rollback" for c in plan.checks))
+        _, _, calls = self.run_with(1)
+        expected = list(dict.fromkeys(ordered))
+        self.assertEqual(expected, calls[: len(expected)])
+
+    def test_sharded_modules_run_every_shard_once_and_fold_into_their_check(self) -> None:
+        payload, _, calls = self.run_with(4)
+        for module, total in SHARDED_MODULES.items():
+            shards = sorted(call for call in calls if call[:1] == (module,))
+            self.assertEqual(
+                [(module, "--shard", f"{index}/{total}") for index in range(1, total + 1)], shards
+            )
+        self.assertNotIn(("tests.scripts.test_chaos_engine_installer",), calls)
+        rollback = next(c for c in payload["checks"] if c["id"] == "protected-rollback")
+        self.assertEqual(["tests.scripts.test_chaos_engine_installer"], rollback["tests"])
+        self.assertIn("python -m unittest tests.scripts.test_chaos_engine_installer", rollback["reproduction_command"])
+        self.assertEqual(len(set(calls)), payload["timing"]["units"])
+
+    def test_one_failing_shard_fails_its_check_and_timeout_wins(self) -> None:
+        def shard_two_fails(command: list[str], *_: object, **__: object):
+            return ("failed", 1) if "2/4" in command else ("passed", 0)
+
+        payload, exit_code, _ = self.run_with(4, side_effect=shard_two_fails)
+        statuses = {c["id"]: c["status"] for c in payload["checks"]}
+        self.assertEqual("failed", statuses["protected-rollback"])
+        self.assertEqual(1, exit_code)
+        self.assertEqual(("timeout", None, 3.0), _combine([("passed", 0, 1.0), ("timeout", None, 2.0)]))
+        self.assertEqual(("failed", 1, 2.0), _combine([("passed", 0, 1.0), ("failed", 1, 1.0)]))
+        self.assertEqual(("passed", 0, 2.0), _combine([("passed", 0, 1.0), ("passed", 0, 1.0)]))
+
+    def test_unit_commands(self) -> None:
+        self.assertEqual(
+            [sys.executable, "-m", "scripts.ci.unittest_shard", "m", "--shard", "1/2", "-v"],
+            unit_command(("m", "--shard", "1/2")),
+        )
+        self.assertEqual([sys.executable, "-m", "unittest", "a", "b", "-v"], unit_command(("a", "b")))
+        self.assertEqual(
+            [("tests.scripts.test_chaos_engine_dependencies",)]
+            + [("tests.scripts.test_chaos_engine_bootstrap", "--shard", f"{i}/2") for i in (1, 2)],
+            execution_units(
+                ("tests.scripts.test_chaos_engine_bootstrap", "tests.scripts.test_chaos_engine_dependencies")
+            ),
+        )
+
+    def test_budget_exhaustion_never_skips_protected_checks(self) -> None:
+        protected_modules = {
+            m for c in classify_paths(self.PATHS).checks if c.id in PRIORITY_CHECK_IDS for m in c.modules
+        }
+
+        def slow_unprotected(command: list[str], *_: object, **__: object):
+            if not set(command[3:-1]) & protected_modules:
+                time.sleep(1.2)
+            return ("passed", 0)
+
+        plan = classify_paths(self.PATHS)
+        with patch("scripts.ci.harness_pr_gate._run_check", side_effect=slow_unprotected):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=1, waiver=None, jobs=1)
+        statuses = {c["id"]: c["status"] for c in payload["checks"]}
+        for pid in PRIORITY_CHECK_IDS:
+            self.assertEqual("passed", statuses[pid])
+        self.assertIn("timeout", statuses.values())
+        self.assertEqual(1, exit_code)
+
+    def test_jobs_resolution_and_temp_isolation(self) -> None:
+        self.assertEqual(3, resolve_jobs(3))
+        self.assertGreaterEqual(resolve_jobs(0), 1)
+        with self.assertRaises(GateError):
+            resolve_jobs(-1)
+        env = _isolated_environment("/isolated")
+        self.assertEqual(("/isolated",) * 3, (env["TMPDIR"], env["TEMP"], env["TMP"]))
+
+    def test_pr_workflow_runs_checks_concurrently_with_a_sequential_escape_hatch(self) -> None:
+        pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        agent_job = pr_gate.split("  agent-guidance:", 1)[1].split("  installer-verify:", 1)[0]
+        self.assertIn("--jobs 6", agent_job)
+        self.assertIn("--jobs 1", pr_gate)
+
+
+class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
+    """#6222: the formerly weekly-only modules run on the PRs that change their inputs."""
+
+    MODULES = {
+        "tests.scripts.test_sync_user_harness": "user-harness-sync-contract",
+        "tests.scripts.test_chaos_engine_portable_core": "portable-core-contract",
+        "tests.scripts.test_agent_router_contract": "router-contract",
+        "tests.scripts.test_agent_harness_portability": "harness-portability-contract",
+        "tests.scripts.test_assemble_chaos_engine_plugin": "plugin-assembly-contract",
+        "tests.scripts.test_chaos_engine_research": "research-matrix-contract",
+        "tests.scripts.test_graphify_maintenance": "graphify-maintenance-contract",
+        "tests.scripts.test_intellij_plugin_development_skill": "intellij-skill-contract",
+        "tests.scripts.test_chaos_engine_s3_self_improve": "self-improve-overlay-contract",
+    }
+
+    def test_each_module_has_a_check_selected_by_its_own_inputs(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
+        filters = yaml.safe_load(
+            next(
+                step["with"]["filters"]
+                for step in workflow["jobs"]["changes"]["steps"]
+                if step.get("id") == "filter"
+            )
+        )
+        guidance_filter = [pattern.replace("**", "*") for pattern in filters["agent_guidance"]]
+        for module, check_id in self.MODULES.items():
+            with self.subTest(module=module):
+                self.assertEqual((module,), CHECKS[check_id].modules)
+                self.assertIn(check_id, SURFACE_CHECKS[CHECKS[check_id].surface])
+                test_file = module.replace(".", "/") + ".py"
+                self.assertIn(check_id, {check.id for check in classify_paths([test_file]).checks})
+                # The harness gate job itself must start for that input.
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(test_file, pattern) for pattern in guidance_filter), test_file
+                )
+
+    def test_representative_inputs_select_the_cheap_check(self) -> None:
+        for path, check_id in (
+            ("scripts/agents/user-harness/settings.json", "user-harness-sync-contract"),
+            ("chaos-engine/tool.py", "portable-core-contract"),
+            (".memory/memory/workflow/x.json", "portable-core-contract"),
+            ("agent-plugins/chaos-engine/CHANGELOG.md", "plugin-assembly-contract"),
+            ("scripts/agents/status_lease.py", "plugin-assembly-contract"),
+            ("chaos-engine/RESEARCH.md", "research-matrix-contract"),
+            ("tools/repository-map/graphify_maintenance.py", "graphify-maintenance-contract"),
+            (".agents/skills/README.md", "router-contract"),
+            # #6240: every input of the two formerly unselected suites.
+            (".agents/skills/README.md", "intellij-skill-contract"),
+            ("scripts/ci/agent_guidance_budget.json", "intellij-skill-contract"),
+            ("shaft-skills/ce-pack/references/routing.md", "intellij-skill-contract"),
+            (
+                "shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md",
+                "intellij-skill-contract",
+            ),
+            ("chaos-engine/skills/chaos-engine/SKILL.md", "self-improve-overlay-contract"),
+            ("chaos-engine/references/router-contract.md", "self-improve-overlay-contract"),
+            ("chaos-engine/references/context-firewall.md", "self-improve-overlay-contract"),
+            ("chaos-engine/skills/self-improve/SKILL.md", "self-improve-overlay-contract"),
+            ("AGENTS.md", "self-improve-overlay-contract"),
+            ("chaos-engine/learning_session.py", "upstream-ticket-contract"),
+            ("tests/scripts/test_upstream_ticket_consent.py", "upstream-ticket-contract"),
+        ):
+            with self.subTest(path=path):
+                self.assertIn(check_id, {check.id for check in classify_paths([path]).checks})
+        self.assertNotIn(
+            "portable-core-contract",
+            {check.id for check in classify_paths(["scripts/ci/accessibility_quality_gates.py"]).checks},
+        )
+
+    def test_known_drift_is_tracked_advisory_and_never_protected(self) -> None:
+        for check in CHECKS.values():
+            if check.known_drift:
+                with self.subTest(check=check.id):
+                    self.assertRegex(check.known_drift, r"^#\d+$")
+                    self.assertFalse(check.protected)
+
+    def test_known_drift_failure_reports_without_blocking_but_timeout_still_blocks(self) -> None:
+        drift = Check("drift-contract", "research", ("tests.scripts.fixture_drift",), known_drift="#1")
+        plan = GatePlan(("research",), (drift,))
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("failed", 1)):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(0, exit_code)
+        self.assertEqual("known-drift", payload["checks"][0]["status"])
+        self.assertEqual("known-drift-advisory", payload["checks"][0]["class"])
+        self.assertEqual("#1", payload["checks"][0]["known_drift"])
+        self.assertFalse(payload["checks"][0]["promote"])
+
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("timeout", None)):
+            _, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(1, exit_code)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("passed", 0)):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(0, exit_code)
+        self.assertTrue(payload["checks"][0]["promote"])
+        from scripts.ci.harness_pr_gate import render_text
+
+        self.assertIn("promote it by clearing known_drift", render_text(payload))
+
+    def test_blocking_checks_still_block(self) -> None:
+        blocking = Check("blocking-contract", "research", ("tests.scripts.fixture_blocking",))
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("failed", 1)):
+            payload, exit_code = run_plan(
+                ROOT, GatePlan(("research",), (blocking,)), head_sha=HEAD, budget_seconds=60, waiver=None
+            )
+        self.assertEqual(1, exit_code)
+        self.assertEqual("failed", payload["checks"][0]["status"])
+
+
+class UngatedScriptModuleGuardTest(unittest.TestCase):
+    """#6244: every tests/scripts/test_*.py is gated, workflow-named, or allowlisted."""
+
+    def test_every_script_test_module_is_selected_or_allowlisted(self) -> None:
+        from scripts.ci.harness_pr_gate import ungated_script_modules
+
+        gated = set()
+        for check in CHECKS.values():
+            for name in check.modules:
+                parts = name.split(".")
+                if len(parts) >= 3 and parts[0] == "tests" and parts[1] == "scripts":
+                    gated.add(".".join(parts[:3]))
+        self.assertEqual([], ungated_script_modules(ROOT))
+        for dotted, reason in UNGATED_TEST_ALLOWLIST.items():
+            self.assertTrue(str(reason).strip(), dotted)
+            self.assertNotIn(dotted, gated, dotted)
+
+
+class UngatedModulesRunInCiTest(unittest.TestCase):
+    """#6362: allowlisted modules run on a schedule and the list only shrinks."""
+
+    def test_allowlist_never_exceeds_the_ceiling(self) -> None:
+        self.assertLessEqual(len(UNGATED_TEST_ALLOWLIST), UNGATED_TEST_ALLOWLIST_CEILING)
+
+    def test_list_ungated_prints_every_allowlisted_module(self) -> None:
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
+            [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py"), "--list-ungated"],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(sorted(UNGATED_TEST_ALLOWLIST), result.stdout.split())
+
+    def test_base_and_head_still_required_without_list_ungated(self) -> None:
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
+            [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py")],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("--base and --head are required", result.stderr)
+
+    def test_full_harness_job_certifies_the_supported_python_range(self) -> None:
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        self.assertIn("python: ['3.11', '3.13', '3.14']", job)
+        self.assertIn("python-version: ${{ matrix.python }}", job)
+
+    def test_full_harness_job_runs_the_ungated_list(self) -> None:
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        self.assertIn("harness_pr_gate.py --list-ungated", job)
+        self.assertIn("failing ungated harness module", job)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,178 @@
+name: Dependabot auto-merge
+
+# Arms Dependabot pull requests for auto-merge once required checks pass.
+# Uses pull_request_target so GITHUB_TOKEN can write (Dependabot pull_request
+# tokens are read-only); never checks out or executes PR code. Release-note
+# governance already exempts dependabot[bot], so no classification label is
+# added here.
+#
+# Merge-queue evictions (checks_timed_out / merge_conflict) clear
+# autoMergeRequest and do not re-fire pull_request_target. schedule +
+# workflow_dispatch re-arm open Dependabot PRs that lost their queue seat.
+# Schedule/dispatch skips drafts and CONFLICTING PRs and soft-fails per PR
+# (::warning, exit 0) so one unarmable PR cannot spam ~72 red runs/day.
+# No checkout of PR heads: every `gh` call passes `-R "$GITHUB_REPOSITORY"`
+# so schedule runners still list/arm PRs (empty-list false success). The
+# schedule/dispatch heal step may check out the *default* branch only to run
+# scripts/ci/merge_queue_awaiting_checks_heal.py (never PR code).
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, reopened, synchronize]
+  schedule:
+    # Every 20 minutes — shorter than the merge-queue check timeout so a kick
+    # is usually re-armed before the next human triage pass.
+    - cron: '*/20 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number || 'rearm' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+
+jobs:
+  enable-auto-merge:
+    name: Enable Dependabot auto-merge
+    if: >-
+      github.event_name != 'pull_request_target'
+      || (
+        github.event.pull_request.user.login == 'dependabot[bot]'
+        && github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Enable auto-merge (this PR)
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        # Merge queue on main: omit --squash/--merge/--rebase so GitHub picks
+        # the queue's required method.
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          gh pr merge --auto -R "$repo" "$PR_URL"
+          state="$(gh pr view -R "$repo" "$PR_URL" --json state,autoMergeRequest,mergeStateStatus)"
+          echo "post-arm: $state"
+          echo "$state" | jq -e '
+            .autoMergeRequest != null
+            or .state != "OPEN"
+            or .mergeStateStatus == "QUEUED"
+          ' >/dev/null
+
+      - name: Re-arm open Dependabot PRs
+        if: github.event_name != 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          mapfile -t urls < <(
+            gh pr list -R "$repo" --author 'app/dependabot' --state open --limit 50 \
+              --json url,autoMergeRequest,isDraft,mergeable \
+              --jq '.[]
+                | select(.autoMergeRequest == null)
+                | select(.isDraft == false)
+                | select(.mergeable != "CONFLICTING")
+                | .url'
+          )
+          if [ "${#urls[@]}" -eq 0 ]; then
+            echo "No open Dependabot PRs need re-arming."
+            exit 0
+          fi
+          warned=0
+          for url in "${urls[@]}"; do
+            echo "Re-arming $url"
+            if ! gh pr merge --auto -R "$repo" "$url"; then
+              echo "::warning::gh pr merge --auto failed for $url (left unarmed)"
+              warned=$((warned + 1))
+              continue
+            fi
+            state="$(gh pr view -R "$repo" "$url" --json state,autoMergeRequest,mergeStateStatus)"
+            echo "post-arm: $state"
+            if ! echo "$state" | jq -e '
+              .autoMergeRequest != null
+              or .state != "OPEN"
+              or .mergeStateStatus == "QUEUED"
+            ' >/dev/null; then
+              echo "::warning::auto-merge not armed for $url"
+              warned=$((warned + 1))
+            fi
+          done
+          if [ "$warned" -gt 0 ]; then
+            echo "::warning::Could not arm $warned Dependabot PR(s); schedule soft-fail (exit 0)."
+          fi
+          exit 0
+
+      - name: Checkout default branch for heal predicate (#7704)
+        if: github.event_name != 'pull_request_target'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Heal merge-queue AWAITING_CHECKS stalls (#7704)
+        if: github.event_name != 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          heal_py="scripts/ci/merge_queue_awaiting_checks_heal.py"
+          # Dependabot entries stuck in AWAITING_CHECKS with no required
+          # merge_group runs block the queue (#7704). Gate dequeue on the
+          # stall predicate before dequeue + re-arm.
+          mapfile -t rows < <(
+            gh api graphql -f query='
+              query($owner:String!,$name:String!) {
+                repository(owner:$owner,name:$name) {
+                  mergeQueue(branch:"main") {
+                    entries(first:20) {
+                      nodes {
+                        state
+                        pullRequest {
+                          id number url author { login }
+                          headRefOid
+                        }
+                      }
+                    }
+                  }
+                }
+              }' -f owner="${repo%/*}" -f name="${repo#*/}"               --jq '.data.repository.mergeQueue.entries.nodes[]?
+                | select(.state=="AWAITING_CHECKS")
+                | select(.pullRequest.author.login=="dependabot[bot]")
+                | [.pullRequest.id, .pullRequest.number, .pullRequest.url, .pullRequest.headRefOid, .state]
+                | @tsv' 2>/dev/null || true
+          )
+          if [ "${#rows[@]}" -eq 0 ]; then
+            echo "No Dependabot AWAITING_CHECKS merge-queue entries."
+            exit 0
+          fi
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          for row in "${rows[@]}"; do
+            pr_id="$(printf '%s' "$row" | cut -f1)"
+            number="$(printf '%s' "$row" | cut -f2)"
+            url="$(printf '%s' "$row" | cut -f3)"
+            head_sha="$(printf '%s' "$row" | cut -f4)"
+            state="$(printf '%s' "$row" | cut -f5)"
+            entry_json="$tmpdir/entry-$number.json"
+            runs_json="$tmpdir/runs-$number.json"
+            python3 -c 'import json,sys; json.dump({"state":sys.argv[1],"number":int(sys.argv[2])}, open(sys.argv[3],"w"), sort_keys=True)'               "$state" "$number" "$entry_json"
+            gh api               "repos/${repo}/actions/runs?event=merge_group&head_sha=${head_sha}&per_page=50"               --jq '[.workflow_runs[]? | {name, event, head_sha, status, conclusion}]'               >"$runs_json" 2>/dev/null || echo '[]' >"$runs_json"
+            if ! python3 "$heal_py" predict --entry-json "$entry_json" --runs-json "$runs_json"; then
+              echo "Skipping #$number: stall predicate false (required merge_group runs present)."
+              continue
+            fi
+            echo "Healing Dependabot #$number ($url): dequeue + re-arm"
+            gh api graphql -f query='mutation($id:ID!){dequeuePullRequest(input:{id:$id}){clientMutationId}}'               -f id="$pr_id" >/dev/null || echo "::warning::dequeue failed for #$number"
+            gh pr merge --auto -R "$repo" "$url" || echo "::warning::re-arm after heal failed for $url"
+          done

@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit.md",
+  "content_hash": "sha256:a9bf6912f6774560087c9e89f0ba86df47200c1c5552d21c9ee04b97cd2afa5a",
+  "created_at": "2026-08-10T15:22:23+03:00",
+  "evidence": [
+    {
+      "id": "354dfdf86a5dd2c7c2731cf63ca9a0ba56b4a4d7",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.rebasing-a-stacked-branch-after-its-shared-history-was-squash-merged-use-onto-with-the-last-shared-commit",
+  "source": {
+    "kind": "agent",
+    "task": "2026-07-21 tool-architecture-sweep session close: persist git/build gotchas discovered while multiple agents delivered PRs #3881/#3882/#3886/#3887"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "rebase",
+    "squash-merge",
+    "workflow",
+    "companion-docs-repo"
+  ],
+  "title": "Rebasing a stacked branch after its shared history was squash-merged: use --onto with the last shared commit",
+  "type": "gotcha",
+  "updated_at": "2026-08-10T15:23:17+03:00"
+}

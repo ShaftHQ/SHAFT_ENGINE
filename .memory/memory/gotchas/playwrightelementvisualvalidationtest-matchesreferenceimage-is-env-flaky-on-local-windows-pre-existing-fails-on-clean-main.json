@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/playwrightelementvisualvalidationtest-matchesreferenceimage-is-env-flaky-on-local-windows-pre-existing-fails-on-clean-main.md",
+  "content_hash": "sha256:536a927ff30561c0163c2d4a8190aa0d86aa43f68953e6cfe39dfdf3bb49fec4",
+  "created_at": "2026-07-13T23:47:30+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/test/java/com/shaft/gui/playwright/validation/PlaywrightElementVisualValidationTest.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.playwrightelementvisualvalidationtest-matchesreferenceimage-is-env-flaky-on-local-windows-pre-existing-fails-on-clean-main",
+  "source": {
+    "kind": "agent",
+    "task": "Implement #3502 Allure assertion evidence card (PR #3515)"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "validation",
+    "playwright",
+    "flaky",
+    "local-env"
+  ],
+  "title": "PlaywrightElementVisualValidationTest.matchesReferenceImage... is env-flaky on local Windows (pre-existing, fails on clean main)",
+  "type": "gotcha",
+  "updated_at": "2026-07-13T23:47:30+03:00"
+}

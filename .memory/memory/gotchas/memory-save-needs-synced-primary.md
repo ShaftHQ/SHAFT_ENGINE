@@ -1,0 +1,1 @@
+Do PR work in a linked worktree and keep the primary checkout on a synced main; then memory save from the worktree.

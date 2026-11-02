@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/intellij-plugin-recording-windows-firewall-prompt.md",
+  "content_hash": "sha256:300613fc13ebe08870a59fdd1c854acc155b39c8b0c36f47d79cc86c1d6a04b9",
+  "created_at": "2026-06-30T09:28:28+03:00",
+  "evidence": [
+    {
+      "id": "tools/intellij-plugin-recording/README.md",
+      "kind": "file"
+    },
+    {
+      "id": "2026-06-30 live IntelliJ recording attempt blocked at Windows Firewall modal",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.intellij-plugin-recording-windows-firewall-prompt",
+  "source": {
+    "kind": "agent",
+    "task": "Document blocker from live SHAFT IntelliJ plugin video recording attempt."
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "recording",
+    "windows",
+    "firewall"
+  ],
+  "title": "Windows Firewall prompt can block IntelliJ plugin recordings",
+  "type": "gotcha",
+  "updated_at": "2026-06-30T09:28:28+03:00"
+}

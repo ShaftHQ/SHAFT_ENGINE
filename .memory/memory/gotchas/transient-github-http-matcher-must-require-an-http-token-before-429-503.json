@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/transient-github-http-matcher-must-require-an-http-token-before-429-503.md",
+  "content_hash": "sha256:dc3f2aaf589aa753b8b84db81d85c113839b57df179bb4b67b046fc6ad49e09b",
+  "created_at": "2026-08-18T20:19:41+03:00",
+  "evidence": [
+    {
+      "id": "2354708d31bee2d5e5d2aa33e1cf956ec736c47a",
+      "kind": "commit"
+    },
+    {
+      "id": "5055",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.transient-github-http-matcher-must-require-an-http-token-before-429-503",
+  "source": {
+    "kind": "agent",
+    "task": "F1 on PR 5169: optional HTTP token in transient 429/503 matcher"
+  },
+  "status": "active",
+  "tags": [
+    "watch-pr-checks",
+    "transient-http",
+    "json",
+    "5055"
+  ],
+  "title": "Transient GitHub HTTP matcher must require an HTTP token before 429/503",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T20:19:41+03:00"
+}

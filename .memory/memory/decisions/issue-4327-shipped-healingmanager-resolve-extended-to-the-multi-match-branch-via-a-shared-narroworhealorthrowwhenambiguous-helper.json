@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/decisions/issue-4327-shipped-healingmanager-resolve-extended-to-the-multi-match-branch-via-a-shared-narroworhealorthrowwhenambiguous-helper.md",
+  "content_hash": "sha256:dd4a9ba1c20a3d485f656ba9d03bac501f1823088800bfe2b9ab8bc66b08580f",
+  "created_at": "2026-07-28T14:47:44+03:00",
+  "evidence": [
+    {
+      "id": "eaea8d5c9865b3fa96db167d88d7d33aa00684ce",
+      "kind": "commit"
+    },
+    {
+      "id": "10ef39ed312217248671eb0f7e51535e7ec874e8",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.issue-4327-shipped-healingmanager-resolve-extended-to-the-multi-match-branch-via-a-shared-narroworhealorthrowwhenambiguous-helper",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #4327: extend HealingManager.resolve() to the multi-match branch"
+  },
+  "status": "active",
+  "tags": [
+    "healing",
+    "shaft-heal",
+    "actions",
+    "issue-4327",
+    "issue-4321",
+    "multipleelementsfoundexception"
+  ],
+  "title": "Issue #4327 shipped: HealingManager.resolve() extended to the multi-match branch via a shared narrowOrHealOrThrowWhenAmbiguous helper",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

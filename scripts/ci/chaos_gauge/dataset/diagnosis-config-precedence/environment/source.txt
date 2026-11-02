@@ -1,0 +1,5 @@
+from configparser import ConfigParser
+
+config = ConfigParser()
+config.read(["override.ini", "default.ini"])
+print(f"retries={config.getint('runner', 'retries')}")

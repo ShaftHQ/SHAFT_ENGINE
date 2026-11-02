@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/workflows/codacy-pr-findings-are-readable-unauthenticated-via-the-public-api.md",
+  "content_hash": "sha256:8bdaeb4c2dd087d4abdfd69757cc98e7a639eb812c395a7155038f256cb6f77f",
+  "created_at": "2026-07-12T19:24:23+03:00",
+  "evidence": [],
+  "id": "feature.codacy-pr-findings-are-readable-unauthenticated-via-the-public-api",
+  "source": {
+    "kind": "agent",
+    "task": "Close out the open-issues loop session"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "codacy",
+    "gh-cli",
+    "pr-gate"
+  ],
+  "title": "Codacy PR findings are readable unauthenticated via the public API",
+  "type": "feature",
+  "updated_at": "2026-08-04T11:12:26+03:00"
+}

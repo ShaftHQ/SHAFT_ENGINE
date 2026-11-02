@@ -1,0 +1,1796 @@
+package com.shaft.api;
+
+import com.shaft.api.internal.ApiSettings;
+import com.shaft.tools.io.internal.CheckpointStatus;
+import com.shaft.api.internal.OpenApiCoverageReporter;
+import tools.jackson.core.JacksonException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
+import com.jayway.jsonpath.spi.json.JsonOrgJsonProvider;
+import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.restassured.builder.MultiPartSpecBuilder;
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.config.EncoderConfig;
+import io.restassured.config.HttpClientConfig;
+import io.restassured.config.RestAssuredConfig;
+import io.restassured.http.ContentType;
+import io.restassured.http.Cookie;
+import io.restassured.http.Header;
+import io.restassured.mapper.ObjectMapperType;
+import io.restassured.path.json.exception.JsonPathException;
+import io.restassured.path.xml.element.Node;
+import io.restassured.path.xml.element.NodeChildren;
+import io.restassured.response.Response;
+import io.restassured.response.ResponseBody;
+import io.restassured.specification.RequestSpecification;
+import lombok.Setter;
+import org.apache.logging.log4j.Level;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompare;
+import org.skyscreamer.jsonassert.JSONCompareMode;
+
+import javax.xml.XMLConstants;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
+import java.io.*;
+import java.net.URI;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+
+import static io.restassured.RestAssured.config;
+import static io.restassured.RestAssured.given;
+
+/**
+ * Core REST API automation engine for SHAFT, built on top of REST Assured.
+ *
+ * <p>This class handles HTTP request construction, execution, response
+ * parsing, and validation for RESTful web services. It supports GET, POST,
+ * PUT, PATCH, and DELETE methods, along with GraphQL queries.
+ *
+ * <p>For new code, prefer using {@link com.shaft.driver.SHAFT.API} which
+ * provides a cleaner, session-scoped fluent interface. This class remains
+ * available for legacy compatibility and for its static utility methods
+ * such as {@link #getResponseJSONValue(Response, String)}.
+ *
+ * <p><b>Usage example (via SHAFT.API):</b>
+ * <pre>{@code
+ * SHAFT.API api = new SHAFT.API("https://jsonplaceholder.typicode.com");
+ * api.get("/posts/1").setTargetStatusCode(200).perform();
+ * String title = api.getResponseJSONValue("$.title");
+ * }</pre>
+ *
+ * @see com.shaft.driver.SHAFT.API
+ * @see RequestBuilder
+ * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+ */
+@SuppressWarnings("unused")
+public class RestActions {
+    private static final ObjectMapper JACKSON_MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
+    private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final String ARGUMENT_SEPARATOR = "?";
+    private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
+    private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
+    private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
+    private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
+    private static final String GRAPHQL_END_POINT = "graphql";
+    static final ShaftRestAssuredFilter allureFilter = new ShaftRestAssuredFilter();
+    private final String serviceURI;
+    private final Map<String, String> sessionHeaders;
+    private final Map<String, Object> sessionCookies;
+    private final Map<String, Cookie> sessionDetailedCookies;
+    private final RestAssuredConfig sessionConfig;
+    private SHAFT.API driver;
+
+    private static String maskSensitiveHeaderValue(String headerKey, String headerValue) {
+        String normalizedHeaderKey = headerKey == null ? "" : headerKey.toLowerCase(Locale.ROOT);
+        if (normalizedHeaderKey.contains("authorization")
+                || normalizedHeaderKey.contains("token")
+                || normalizedHeaderKey.contains("secret")
+                || normalizedHeaderKey.contains("apikey")
+                || normalizedHeaderKey.contains("api-key")) {
+            return "********";
+        }
+        return headerValue;
+    }
+
+    /**
+     * Creates REST actions bound to the given service URI and SHAFT API driver session.
+     */
+    public RestActions(String serviceURI, SHAFT.API driver) {
+        initializeSystemProperties();
+        headerAuthorization = "";
+        this.serviceURI = serviceURI;
+        sessionCookies = new LinkedHashMap<>();
+        sessionDetailedCookies = new LinkedHashMap<>();
+        sessionHeaders = new LinkedHashMap<>();
+        sessionConfig = config();
+        this.driver = driver;
+    }
+    @Setter
+    private Response lastResponse;
+
+    /**
+     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod) {
+        ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
+                + base_URI_forHelperMethod + "graphql, request body: " + requestBody_forHelperMethod + ".");
+        return new SHAFT.API(base_URI_forHelperMethod)
+                .post(GRAPHQL_END_POINT)
+                .setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON)
+                .perform()
+                .getResponse();
+    }
+    private String headerAuthorization;
+
+    /**
+     * Creates a legacy REST session.
+     *
+     * @param serviceURI the base URI of the target web service
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#API(String)} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public RestActions(String serviceURI) {
+        initializeSystemProperties();
+        headerAuthorization = "";
+        this.serviceURI = serviceURI;
+        sessionCookies = new LinkedHashMap<>();
+        sessionDetailedCookies = new LinkedHashMap<>();
+        sessionHeaders = new LinkedHashMap<>();
+        sessionConfig = config();
+    }
+
+    /**
+     * private helper method for sendGraphqlRequest method WITH Header.
+     *
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param requestBody_forHelperMethod the request body.
+     * @param headerKey_forHelperMethod   the name of the header that you want to add.
+     * @param headerValue_forHelperMethod the value that will be put inside the key.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, Map<String, Object> requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod) {
+        ReportManager.logDiscrete("Sending GraphQL request. Service URL: "
+                + base_URI_forHelperMethod + "graphql | Request Body: " + requestBody_forHelperMethod
+                + " | Header: \"" + headerKey_forHelperMethod + "\":\"" + maskSensitiveHeaderValue(headerKey_forHelperMethod, headerValue_forHelperMethod) + "\".");
+        return new SHAFT.API(base_URI_forHelperMethod)
+                .post(GRAPHQL_END_POINT)
+                .setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON)
+                .addHeader(headerKey_forHelperMethod, headerValue_forHelperMethod)
+                .perform()
+                .getResponse();
+    }
+
+    /**
+     * Builds a new API request using a static factory approach.
+     * Prefer using {@link com.shaft.driver.SHAFT.API} and its instance-level
+     * {@link #buildNewRequest(String, RequestType)} for new tests.
+     *
+     * @param serviceURI    the base URI of the service (e.g. {@code "https://api.example.com/"})
+     * @param serviceName   the endpoint path (e.g. {@code "users/1"})
+     * @param requestType   the HTTP method to use (e.g. {@link RequestType#GET})
+     * @return a {@link RequestBuilder} ready for further configuration and execution
+     * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    @SuppressWarnings("deprecation")
+    public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
+        return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
+    }
+
+    private static void passAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
+                                   Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+        reportActionResult(actionName, testData, requestBody, specs, response, isDiscrete, expectedFileBodyAttachment, true);
+    }
+
+    private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
+                                   Throwable... rootCauseException) {
+        String enrichedTestData = testData;
+        if (rootCauseException.length > 0) {
+            enrichedTestData = (testData == null ? "" : testData) + FailureReporter.getRootCause(rootCauseException[0]);
+        }
+        String message = reportActionResult(actionName, enrichedTestData, requestBody, specs, response, false, null, false, rootCauseException);
+        if (rootCauseException.length > 0) {
+            throw new RuntimeException(message, rootCauseException[0]);
+        }
+        throw new RuntimeException(message);
+    }
+
+    protected static void passAction(String testData) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, null, true, null);
+    }
+
+    protected static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, null, true, expectedFileBodyAttachment);
+    }
+
+    static void passAction(String testData, Object requestBody, RequestSpecification specs, Response response) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, requestBody, specs, response, false, null);
+    }
+
+    /**
+     * Parses a REST Assured {@link Response} body into a JSON {@link InputStream}.
+     * Delegates to {@link #parseBodyToJson(Object)} using the response's raw body.
+     *
+     * @param response the API response whose body will be parsed
+     * @return an {@link InputStream} containing the JSON-formatted body
+     */
+    public static InputStream parseBodyToJson(Response response) {
+        return parseBodyToJson(response.getBody());
+    }
+
+    /**
+     * Converts an arbitrary response body object to a JSON {@link InputStream}.
+     * If the object cannot be serialized as JSON, it is serialized using Java object
+     * serialization, or returned as a raw byte stream for REST-Assured response bodies.
+     *
+     * @param body the response body object to convert — may be a REST-Assured
+     *             {@link Response}, a {@link String}, or any serializable Java object
+     * @return an {@link InputStream} representing the body content
+     */
+    public static InputStream parseBodyToJson(Object body) {
+        try {
+            return parseJsonBody(body);
+        } catch (Exception e) {
+            // response is not parsable to JSON
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ObjectOutputStream oos;
+            try {
+                oos = new ObjectOutputStream(byteArrayOutputStream);
+                oos.writeObject(body);
+                oos.flush();
+                oos.close();
+                return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
+            } catch (IOException ioe) {
+                if (body.getClass().getName().toLowerCase().contains("restassured")) {
+                    // if it's a string response body
+                    return ((ResponseBody<?>) body).asInputStream();
+                } else {
+                    return new ByteArrayInputStream((body.toString()).getBytes());
+                }
+            }
+        }
+    }
+
+    /**
+     * Extracts the response body and returns it as a plain string
+     *
+     * @param response the target API response object
+     * @return a string value that represents the response body
+     */
+    public static String getResponseBody(Response response) {
+        return response.getBody().asString();
+    }
+
+    /**
+     * Maps a JSON response body to the requested Java type using SHAFT's Jackson mapper.
+     *
+     * @param response     the REST-Assured response object
+     * @param responseType the target class, record, or POJO type
+     * @param <T>          the mapped response type
+     * @return the response body mapped to {@code responseType}
+     * @throws NullPointerException  if {@code response} or {@code responseType} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code responseType}
+     */
+    public static <T> T getResponseAs(Response response, Class<T> responseType) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(responseType, "responseType");
+
+        String body = getJsonResponseBody(response, responseType.getName());
+        try {
+            return JACKSON_MAPPER.readValue(body, responseType);
+        } catch (JacksonException rootCauseException) {
+            String message = "Failed to map response body to " + responseType.getName() + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
+    }
+
+    /**
+     * Maps a JSON response body to a generic Java type using a Jackson type reference.
+     *
+     * @param response      the REST-Assured response object
+     * @param typeReference the target generic type reference
+     * @param <T>           the mapped response type
+     * @return the response body mapped to {@code typeReference}
+     * @throws NullPointerException  if {@code response} or {@code typeReference} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code typeReference}
+     */
+    public static <T> T getResponseAs(Response response, TypeReference<T> typeReference) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(typeReference, "typeReference");
+
+        String targetType = typeReference.getType().getTypeName();
+        String body = getJsonResponseBody(response, targetType);
+        JavaType javaType = JACKSON_MAPPER.getTypeFactory().constructType(typeReference.getType());
+        try {
+            return JACKSON_MAPPER.readValue(body, javaType);
+        } catch (JacksonException rootCauseException) {
+            String message = "Failed to map response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
+    }
+
+    /**
+     * Maps a JSON array response body to a list of the requested Java type.
+     *
+     * @param response    the REST-Assured response object
+     * @param elementType the target class, record, or POJO type for each array item
+     * @param <T>         the mapped list element type
+     * @return the response body mapped to a {@link List}
+     * @throws NullPointerException  if {@code response} or {@code elementType} is {@code null}
+     * @throws IllegalStateException if the response body is empty or the response is not JSON
+     * @throws IllegalArgumentException if the response body cannot be mapped to {@code List<elementType>}
+     */
+    public static <T> List<T> getResponseAsList(Response response, Class<T> elementType) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(elementType, "elementType");
+
+        String targetType = "java.util.List<" + elementType.getName() + ">";
+        String body = getJsonResponseBody(response, targetType);
+        JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, elementType);
+        try {
+            return JACKSON_MAPPER.readValue(body, listType);
+        } catch (JacksonException rootCauseException) {
+            String message = "Failed to map response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalArgumentException(message, rootCauseException);
+        }
+    }
+
+    /**
+     * Extracts a string value from the response body by parsing the target jsonpath
+     *
+     * @param response the full response object returned by {@link RequestBuilder#perform()}
+     *                 method
+     * @param jsonPath the JSONPath expression that will be evaluated in order to
+     *                 extract the desired value [without the trailing $.], please
+     *                 refer to these urls for examples:
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html</a>
+     *                 <a href="http://jsonpath.com/">http://jsonpath.com/</a>
+     * @return a string value that contains the extracted object
+     */
+    public static String getResponseJSONValue(Response response, String jsonPath) {
+        String searchPool = "";
+        String jsonResponse = response.asPrettyString();
+        try {
+            if (jsonPath.contains("?")) {
+                List<String> jsonValueAsList = JsonPath.read(jsonResponse, jsonPath);
+                searchPool = String.valueOf(jsonValueAsList.getFirst());
+            } else {
+                var jsonValue = JsonPath.read(jsonResponse, jsonPath);
+                searchPool = String.valueOf(jsonValue);
+            }
+            // This implementation is to handle the *PathNotFoundException* that happens when we have json object but inside html or xml tags, so it's not represented as json object
+        } catch (PathNotFoundException e) {
+            String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+            Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+            try {
+                if (jsonPath.contains("?")) {
+                    JSONArray jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                    searchPool = String.valueOf(jsonValue.get(0));
+                } else {
+                    Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                    searchPool = String.valueOf(jsonValue);
+                }
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            } catch (PathNotFoundException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            }
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (JsonPathException | IllegalArgumentException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        }
+        if (searchPool != null) {
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
+            return searchPool;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a string value from an arbitrary response object by evaluating a JSONPath expression.
+     * Supports REST-Assured {@link Response}, {@link String}, {@link org.json.JSONObject},
+     * {@link org.json.JSONArray}, {@link java.util.List}, and {@link java.util.HashMap} inputs.
+     *
+     * @param response the response object to parse — not limited to REST-Assured {@link Response}
+     * @param jsonPath the JSONPath expression (e.g. {@code "$.id"} or {@code "id"})
+     * @return the extracted string value, or {@code null} if not found
+     * @see #getResponseJSONValue(Response, String) for the typed REST-Assured overload
+     */
+    public static String getResponseJSONValue(Object response, String jsonPath) {
+        String searchPool = null;
+        try {
+            if (response instanceof String responseString) {
+                if (jsonPath.contains("?")) {
+                    List<String> jsonValueAsList = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValueAsList.getFirst());
+                } else {
+                    var jsonValue = JsonPath.read(responseString, jsonPath);
+                    searchPool = String.valueOf(jsonValue);
+                }
+            } else if (response instanceof JSONArray jsonArray) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", jsonArray);
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof JSONObject obj) {
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof List<?> objectsList) {
+                JSONObject obj = new JSONObject();
+                obj.put("array", new JSONArray(objectsList));
+                jsonPath = jsonPath.startsWith("$[") ? jsonPath.substring(1) : jsonPath;
+                jsonPath = jsonPath.startsWith("[") ? "array" + jsonPath : "array." + jsonPath;
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof HashMap<?, ?> hashMapResponse) {
+                JSONObject obj = new JSONObject(hashMapResponse);
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof Response responseObject) {
+                String jsonResponse = responseObject.asPrettyString();
+                try {
+                    if (jsonPath.contains("?")) {
+                        List<String> jsonValueAsList = JsonPath.read(jsonResponse, jsonPath);
+                        searchPool = String.valueOf(jsonValueAsList.getFirst());
+                    } else {
+                        var jsonValue = JsonPath.read(jsonResponse, jsonPath);
+                        searchPool = String.valueOf(jsonValue);
+                    }
+                } catch (PathNotFoundException e) {
+                    String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+                    Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+                    try {
+                        if (jsonPath.contains("?")) {
+                            JSONArray jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                            searchPool = String.valueOf(jsonValue.get(0));
+                        } else {
+                            Object jsonValue = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                            searchPool = String.valueOf(jsonValue);
+                        }
+                    } catch (JSONException rootCauseException) {
+                        ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                        failAction(jsonPath, rootCauseException);
+                    }
+                }
+            }
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (JSONException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (JsonPathException | IllegalArgumentException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        }
+        if (searchPool != null) {
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
+            return searchPool;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
+            ReportManager.logDiscrete("Read response JSON value: " + jsonPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a list of values from the response body by evaluating a JSONPath expression.
+     *
+     * @param response the REST-Assured response object
+     * @param jsonPath the JSONPath expression that resolves to an array (e.g. {@code "$.items[*].id"})
+     * @return a {@link List} of matched objects, or {@code null} if none are found
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
+    public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
+        List<Object> searchPool = null;
+        String jsonResponse = response.asPrettyString();
+        try {
+            searchPool = JsonPath.read(jsonResponse, jsonPath);
+        } catch (PathNotFoundException e) {
+            String jsonObject = jsonResponse.substring(jsonResponse.indexOf("{"), jsonResponse.lastIndexOf("}") + 1);
+            Configuration confOrgJsonProvider = Configuration.builder().jsonProvider(new JsonOrgJsonProvider()).build();
+            List<Object> jsonList = null;
+            try {
+                JSONArray jsonArray = JsonPath.compile(jsonPath).read(new JSONObject(jsonObject), confOrgJsonProvider);
+                JavaType listType = JACKSON_MAPPER.getTypeFactory().constructCollectionType(List.class, Object.class);
+                jsonList = JACKSON_MAPPER.readValue(Objects.requireNonNull(jsonArray).toString(), listType);
+            } catch (JSONException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            } catch (JacksonException rootCauseException) {
+                ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+                failAction(jsonPath, rootCauseException);
+            }
+            searchPool = jsonList;
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"", Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        } catch (JsonPathException | IllegalArgumentException rootCauseException) {
+            ReportManager.log(ERROR_FAILED_TO_PARSE_JSON, Level.ERROR);
+            failAction(jsonPath, rootCauseException);
+        }
+
+        if (searchPool != null) {
+            ReportManager.logDiscrete("Read response JSON list value: " + jsonPath + ".", Level.DEBUG);
+            return searchPool;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
+            ReportManager.logDiscrete("Read response JSON list value: " + jsonPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a string value from an object of a list by reference of another attribute inside the same object
+     *
+     * @param response                 The target API response object
+     * @param jsonPathToList           The JSON path to the list of object inside the full response
+     * @param jsonPathToValueNeeded    The JSON path to the attribute value you need to extract inside an object from the list. for example: id
+     * @param jsonPathToValueReference The JSON path that refers to the needed attribute value inside an object from the list. for example: username
+     * @param valueReference           The attribute value of the reference JSON path
+     * @return A string value from the object of the list which represents the first match of the reference attribute value
+     */
+    public static String getResponseJSONValueFromList(Response response, String jsonPathToList, String jsonPathToValueNeeded,
+                                                      String jsonPathToValueReference, String valueReference) {
+        List<Object> list = getResponseJSONValueAsList(response, jsonPathToList);
+        String value = "";
+        for (Object res : Objects.requireNonNull(list)) {
+            if (Objects.equals(getResponseJSONValue(res, jsonPathToValueReference), valueReference)) {
+                value = getResponseJSONValue(res, jsonPathToValueNeeded);
+            }
+            // return the first match
+            if (!Objects.equals(value, "")) {
+                break;
+            }
+        }
+        if (Objects.equals(value, "")) {
+            failAction("Can't find the reference value [" + valueReference + "] in the list with the [" + jsonPathToValueReference + "] JSON Path");
+        } else {
+            ReportManager.logDiscrete("Read response JSON list item: " + value + ".", Level.DEBUG);
+        }
+        return value;
+    }
+
+    /**
+     * Extracts a string value from the XML response body using the given XPath expression.
+     *
+     * @param response the REST-Assured response object with an XML body
+     * @param xmlPath  the XPath expression (e.g. {@code "root.item.name"})
+     * @return the extracted string value, or {@code null} if not found
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
+    public static String getResponseXMLValue(Response response, String xmlPath) {
+        String searchPool = "";
+        try {
+            searchPool = response.xmlPath().getString(xmlPath);
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
+            failAction(xmlPath, rootCauseException);
+
+        }
+        if (searchPool != null) {
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
+            return searchPool;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a string attribute value from an XML {@link org.w3c.dom.Node} object.
+     *
+     * @param response an XML {@link org.w3c.dom.Node} (typically obtained from
+     *                 {@link #getResponseXMLValueAsList(Response, String)})
+     * @param xmlPath  the attribute name to retrieve from the node
+     * @return the attribute value string, or {@code null} if not found
+     */
+    public static String getResponseXMLValue(Object response, String xmlPath) {
+        String output = "";
+        try {
+            output = ((Node) response).getAttribute(xmlPath);
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
+            failAction(xmlPath, rootCauseException);
+
+        }
+        if (output != null) {
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
+            return output;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
+            ReportManager.logDiscrete("Read response XML value: " + xmlPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Extracts a list of XML {@link org.w3c.dom.Node} children matching the given XPath expression.
+     *
+     * @param response the REST-Assured response object with an XML body
+     * @param xmlPath  the XPath expression to the desired node set (e.g. {@code "root.items"})
+     * @return a {@link List} of matched {@link Object} nodes, or {@code null} if not found
+     */
+    public static List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
+        NodeChildren output = null;
+        try {
+            output = response.xmlPath().get(xmlPath);
+        } catch (ClassCastException rootCauseException) {
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"", Level.ERROR);
+            failAction(xmlPath, rootCauseException);
+
+        }
+        List<Node> nodes = null;
+        if (output != null) {
+            nodes = output.list();
+        }
+        List<Object> searchPool = null;
+        if (nodes != null) {
+            searchPool = Arrays.asList(nodes.toArray());
+        }
+        if (searchPool != null) {
+            ReportManager.logDiscrete("Read response XML list value: " + xmlPath + ".", Level.DEBUG);
+            return searchPool;
+        } else {
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
+            ReportManager.logDiscrete("Read response XML list value: " + xmlPath + ".", Level.DEBUG);
+            return null;
+        }
+    }
+
+    /**
+     * Returns the HTTP status code of the given API response and logs it.
+     *
+     * @param response the REST-Assured response object
+     * @return the HTTP status code (e.g. {@code 200}, {@code 404})
+     */
+    public static int getResponseStatusCode(Response response) {
+        int statusCode = response.getStatusCode();
+        ReportManager.logDiscrete("Response status code: " + statusCode + ".", Level.DEBUG);
+        return statusCode;
+    }
+
+    /**
+     * Returns the total elapsed time of the given API response in milliseconds.
+     *
+     * @param response the REST-Assured response object
+     * @return the response time in milliseconds
+     */
+    public static long getResponseTime(Response response) {
+        long time = response.timeIn(TimeUnit.MILLISECONDS);
+        ReportManager.logDiscrete("Response time: " + time + "ms.", Level.DEBUG);
+        return time;
+    }
+
+    /**
+     * Compares the Response object against the content of the referenceJsonFilePath
+     *
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @return a boolean value that is TRUE in case the comparison passed, or FALSE
+     * in case it failed
+     */
+    public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType) {
+        return compareJSON(response, referenceJsonFilePath, comparisonType, "");
+    }
+
+    /**
+     * Compares the Response object against the content of the referenceJsonFilePath
+     *
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS; Note that
+     *                              MATCHES ignores the content ordering inside the
+     *                              JSON
+     * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
+     *                              target JSON Array
+     * @return a boolean value that is TRUE in case the comparison passed, or FALSE
+     * in case it failed
+     */
+    public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType,
+                                      String jsonPathToTargetArray) {
+        referenceJsonFilePath = JavaHelper.appendTestDataToRelativePath(referenceJsonFilePath);
+        if (jsonPathToTargetArray.isEmpty()) {
+            ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
+                    + referenceJsonFilePath + "\", comparison type \"" + comparisonType + "\"");
+        } else {
+            ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
+                    + referenceJsonFilePath + "\", comparison type \"" + comparisonType
+                    + "\", jsonPath to target array \"" + jsonPathToTargetArray + "\".");
+        }
+        boolean comparisonResult;
+        List<Object> expectedJSONAttachment = null;
+
+        try {
+            // parse actual JSON into Object or Array
+            ObjectNode actualJsonObject = null;
+            ArrayNode actualJsonArray = null;
+
+            var actualRoot = JACKSON_MAPPER.readTree(response.asString());
+            if (actualRoot instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) actualRoot;
+            } else if (actualRoot instanceof ArrayNode) {
+                actualJsonArray = (ArrayNode) actualRoot;
+            }
+
+            // parse expected JSON into Object or Array
+            ObjectNode expectedJsonObject = null;
+            ArrayNode expectedJsonArray = null;
+
+            JsonNode expectedRoot;
+            try (FileReader expectedReader = new FileReader(referenceJsonFilePath)) {
+                expectedRoot = JACKSON_MAPPER.readTree(expectedReader);
+            }
+            if (expectedRoot instanceof ObjectNode) {
+                expectedJsonObject = (ObjectNode) expectedRoot;
+            } else if (expectedRoot instanceof ArrayNode) {
+                expectedJsonArray = (ArrayNode) expectedRoot;
+            }
+            expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
+                    PRETTY_GSON.toJson(JsonParser.parseString(expectedRoot.toString())));
+
+            if (!jsonPathToTargetArray.isEmpty() && expectedJsonArray != null
+                    && comparisonType != ComparisonType.CONTAINS) {
+                actualJsonObject = null;
+                actualJsonArray = getActualJsonArrayFromJsonPath(response, jsonPathToTargetArray);
+            }
+
+            boolean scalarRoots = expectedJsonObject == null && expectedJsonArray == null
+                    && actualJsonObject == null && actualJsonArray == null;
+            // handle different combinations of expected and actual (object vs array)
+            comparisonResult = switch (comparisonType) {
+                case EQUALS -> scalarRoots ? Objects.equals(expectedRoot, actualRoot)
+                        : compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject, actualJsonArray);
+                case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
+                        actualJsonObject, actualJsonArray, jsonPathToTargetArray);
+                case EQUALS_IGNORING_ORDER -> scalarRoots ? Objects.equals(expectedRoot, actualRoot)
+                        : compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
+                        actualJsonArray);
+            };
+        } catch (IOException rootCauseException) {
+            failAction("Couldn't find or parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
+            comparisonResult = false;
+        } catch (JSONException rootCauseException) {
+            failAction("Couldn't compare JSON content. \"" + referenceJsonFilePath + "\".", rootCauseException);
+            comparisonResult = false;
+        }
+        passAction(referenceJsonFilePath, expectedJSONAttachment);
+        return comparisonResult;
+    }
+
+    /**
+     * Pretty-prints an XML string by re-formatting it with consistent indentation.
+     *
+     * @param input the raw XML string to format
+     * @return a neatly indented XML string, or the original input if formatting fails
+     */
+    public static String formatXML(String input) {
+        return prettyFormatXML(input);
+    }
+
+    protected static void failAction(String testData, Object requestBody, RequestSpecification specs, Response response,
+                                     Throwable... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(actionName, testData, requestBody, specs, response, rootCauseException);
+    }
+
+    protected static void failAction(String testData, Throwable... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(actionName, testData, null, null, null, rootCauseException);
+    }
+
+    private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
+                                             Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus, Throwable... rootCauseException) {
+        actionName = JavaHelper.convertToSentenceCase(actionName);
+        actionName = actionName.equals("Perform request") ? "Request performed" : actionName;
+        String message;
+        if (Boolean.TRUE.equals(passFailStatus)) {
+            message = actionName;
+        } else {
+            message = actionName + " failed";
+        }
+
+        List<List<Object>> attachments = new ArrayList<>();
+        if (testData != null && testData.length() >= 500) {
+            List<Object> actualValueAttachment = Arrays.asList("API Action Test Data - " + actionName, "Actual Value",
+                    testData);
+            attachments.add(actualValueAttachment);
+        } else if (testData != null && !testData.isEmpty()) {
+            message = message + "; " + testData.trim();
+        }
+        message = message + ".";
+
+        Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
+        attachments.add(expectedFileBodyAttachment);
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("API Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+        }
+
+        if (Boolean.FALSE.equals(initialLoggingState)) {
+            ReportManagerHelper.log(message, attachments,
+                    Boolean.TRUE.equals(passFailStatus) ? CheckpointStatus.PASS : CheckpointStatus.FAIL);
+        } else {
+            ReportManager.logDiscrete(message);
+        }
+        return message;
+    }
+
+    private static InputStream parseJsonBody(Object body) throws IOException {
+        ObjectNode actualJsonObject = null;
+        ArrayNode actualJsonArray = null;
+        if (body.getClass().getName().toLowerCase().contains("restassured")) {
+            String bodyString = ((ResponseBody<?>) body).asString();
+            if (!bodyString.isEmpty()) {
+                var root = JACKSON_MAPPER.readTree(bodyString);
+                if (root instanceof ObjectNode) {
+                    actualJsonObject = (ObjectNode) root;
+                } else {
+                    actualJsonArray = (ArrayNode) root;
+                }
+            }
+        } else if (body instanceof InputStream bodyStream) {
+            var root = JACKSON_MAPPER.readTree(bodyStream);
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else {
+                actualJsonArray = (ArrayNode) root;
+            }
+        } else if (body instanceof ObjectNode) {
+            actualJsonObject = (ObjectNode) body;
+        } else if (body instanceof ArrayNode) {
+            actualJsonArray = (ArrayNode) body;
+        } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
+            var root = JACKSON_MAPPER.readTree(body.toString());
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else if (root instanceof ArrayNode) {
+                actualJsonArray = (ArrayNode) root;
+            } else {
+                actualJsonObject = JACKSON_MAPPER.createObjectNode().set("value", root);
+            }
+        } else if (body instanceof Map<?, ?> bodyMap) {
+            actualJsonObject = JACKSON_MAPPER.valueToTree(bodyMap);
+        } else {
+            var root = JACKSON_MAPPER.readTree(body.toString());
+            if (root instanceof ObjectNode) {
+                actualJsonObject = (ObjectNode) root;
+            } else {
+                actualJsonArray = (ArrayNode) root;
+            }
+        }
+        if (actualJsonObject != null) {
+            return new ByteArrayInputStream((PRETTY_GSON
+                    .toJson(JsonParser.parseString(actualJsonObject.toString()))).getBytes());
+        } else if (actualJsonArray != null) {
+            return new ByteArrayInputStream((PRETTY_GSON
+                    .toJson(JsonParser.parseString(actualJsonArray.toString()))).getBytes());
+        } else {
+            // in case of an empty body
+            return new ByteArrayInputStream(("").getBytes());
+        }
+    }
+
+    private static String getJsonResponseBody(Response response, String targetType) {
+        String body = response.asString();
+        if (body == null || body.isBlank()) {
+            String message = "Cannot map empty response body to " + targetType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalStateException(message);
+        }
+
+        String contentType = response.getContentType();
+        if (!isJsonContentType(contentType)) {
+            String message = "Cannot map response body to " + targetType
+                    + " because response Content-Type is not JSON: " + contentType + ".";
+            ReportManager.log(message, Level.ERROR);
+            throw new IllegalStateException(message);
+        }
+        return body;
+    }
+
+    private static boolean isJsonContentType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+
+        String lowerContentType = contentType.toLowerCase(Locale.ROOT);
+        return lowerContentType.contains("/json") || lowerContentType.contains("+json");
+    }
+
+    private static boolean compareJSONEquals(ObjectNode expectedJsonObject,
+                                             ArrayNode expectedJsonArray, ObjectNode actualJsonObject,
+                                             ArrayNode actualJsonArray) {
+        if (expectedJsonObject != null && actualJsonObject != null) {
+            // if expected is an object and actual is also an object
+            return actualJsonObject.toString().equals(expectedJsonObject.toString());
+        } else if (expectedJsonArray != null && actualJsonArray != null) {
+            return actualJsonArray.toString().equals(expectedJsonArray.toString());
+        }
+        return false;
+    }
+
+    private static boolean compareJSONEqualsIgnoringOrder(ObjectNode expectedJsonObject,
+                                                          ArrayNode expectedJsonArray, ObjectNode actualJsonObject,
+                                                          ArrayNode actualJsonArray) {
+        if (expectedJsonObject != null && actualJsonObject != null) {
+            // if expected is an object and actual is also an object
+            try {
+                JSONAssert.assertEquals(expectedJsonObject.toString(), actualJsonObject.toString(), JSONCompareMode.NON_EXTENSIBLE);
+                return true;
+            } catch (JSONException | AssertionError e) {
+                return false;
+            }
+        } else if (expectedJsonArray != null && actualJsonArray != null) {
+            try {
+                JSONAssert.assertEquals(expectedJsonArray.toString(), actualJsonArray.toString(), JSONCompareMode.NON_EXTENSIBLE);
+                return true;
+            } catch (JSONException | AssertionError e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean compareJSONContains(Response response, ObjectNode expectedJsonObject,
+                                               ArrayNode expectedJsonArray, ObjectNode actualJsonObject, ArrayNode actualJsonArray,
+                                               String jsonPathToTargetArray)
+            throws JSONException, IOException {
+        if ((expectedJsonArray != null && actualJsonArray == null && jsonPathToTargetArray.isEmpty())
+                || (expectedJsonObject != null && actualJsonObject == null)) {
+            return false;
+        }
+        if (!jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
+            // if expected is an array and the user provided the path to extract it from the
+            // response
+            ArrayNode actualJsonArrayFromJsonPath = getActualJsonArrayFromJsonPath(response, jsonPathToTargetArray);
+            // check that all expected elements are present in the actual array.
+            // O(n*m) scan matches the previous json-simple containsAll() semantics because
+            // Jackson JsonNode equality requires structural comparison rather than hash-based lookup.
+            for (JsonNode expectedElement : expectedJsonArray) {
+                boolean found = false;
+                for (JsonNode actualElement : actualJsonArrayFromJsonPath) {
+                    if (expectedElement.equals(actualElement)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+            }
+            return true;
+        } else if (jsonPathToTargetArray.isEmpty() && (expectedJsonArray != null)) {
+            // if expected is an array and the user did not provide the path to extract it
+            // from the response
+            String actual = actualJsonArray == null ? GSON.toJson(actualJsonObject) : actualJsonArray.toString();
+            String expected = GSON.toJson(JACKSON_MAPPER.readTree(expectedJsonArray.toString()));
+            return actual.contains(expected.substring(1));
+        } else if (expectedJsonObject != null) {
+            // if expected is an object and actual is also an object
+            boolean initialComparison = JSONCompare.compareJSON(expectedJsonObject.toString(),
+                    actualJsonObject.toString(), JSONCompareMode.LENIENT).passed();
+            if (Boolean.FALSE.equals(initialComparison)) {
+                // secondary comparison using java contains
+                // not tested
+                return actualJsonObject.toString().contains(expectedJsonObject.toString());
+            } else {
+                return initialComparison;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    private static ArrayNode getActualJsonArrayFromJsonPath(Response response, String jsonPathToTargetArray)
+            throws IOException {
+        return (ArrayNode) JACKSON_MAPPER
+                .readTree(GSON.toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+                        .getAsJsonArray().toString());
+    }
+
+    private static String prettyFormatXML(String input) {
+        Source xmlInput = new StreamSource(new StringReader(input));
+        StringWriter stringWriter = new StringWriter();
+        try {
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            transformer.transform(xmlInput, new StreamResult(stringWriter));
+            return stringWriter.toString().trim();
+        } catch (Exception e) {
+            return input;
+        }
+    }
+
+    private static void initializeSystemProperties() {
+        // API flags and timeouts are read per request through ApiSettings (#6326), so a set() after
+        // session creation applies and per-thread timeouts never leak through shared static state.
+        if (!com.shaft.properties.internal.Properties.isInitialized())
+            DriverFactory.reloadProperties();
+    }
+
+    SHAFT.API getDriver() {
+        return driver;
+    }
+
+    void setDriver(SHAFT.API driver) {
+        this.driver = driver;
+    }
+
+    /**
+     * Perform Graphql Request using Query - WITHOUT Header.
+     *
+     * @param base_URI The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query    graphql query or mutation.
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String)} and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequest(String base_URI, String query) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        return graphQlRequestHelper(base_URI, requestBody);
+    }
+
+    /**
+     * Perform Graphql Request using Query and Variables - WITHOUT Header.
+     *
+     * @param base_URI  The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query     graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object)} and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        return graphQlRequestHelper(base_URI, requestBody);
+    }
+
+    /**
+     * Perform Graphql Request using Query, Variables, and Fragments - WITHOUT Header.
+     *
+     * @param base_URI  The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query     graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @param fragment  graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object, String)} and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables, String fragment) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+        return graphQlRequestHelper(base_URI, requestBody);
+    }
+
+    /**
+     * Returns the response of the last request sent by this instance.
+     */
+    public Response getResponse() {
+        return lastResponse;
+    }
+
+    /**
+     * Perform Graphql Request using Query - WITH Header.
+     *
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query        graphql query or mutation.
+     * @param header_key   the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
+    }
+
+    /**
+     * Perform Graphql Request using Query and Variables - WITH Header.
+     *
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query        graphql query or mutation.
+     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @param header_key   the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
+    }
+
+    /**
+     * Perform Graphql Request using Query, Variables, and Fragments - WITH Header.
+     *
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
+     * @param query        graphql query or mutation.
+     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @param fragment     graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
+     * @param header_key   the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#sendGraphQlRequest(String, String, Object, String)}, {@link RequestBuilder#addHeader(String, String)}, and {@link RequestBuilder#perform()} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
+
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+        return graphQlRequestHelperWithHeader(base_URI, requestBody, header_key, header_value);
+    }
+
+    /**
+     * Builds a new API request within this session, inheriting all session-level
+     * headers, cookies, and configuration.
+     *
+     * @param serviceName the endpoint path relative to this instance's base URI
+     * @param requestType the HTTP method to use (e.g. {@link RequestType#POST})
+     * @return a {@link RequestBuilder} for configuring and executing the request
+     * @deprecated use {@link com.shaft.driver.SHAFT.API} request methods instead.
+     * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; API Testing</a>
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
+        return new RequestBuilder(this, serviceName, requestType);
+    }
+
+    protected String getServiceURI() {
+        return serviceURI;
+    }
+
+    protected Map<String, String> getSessionHeaders() {
+        return sessionHeaders;
+    }
+
+    protected Map<String, Object> getSessionCookies() {
+        return sessionCookies;
+    }
+
+    /**
+     * Returns an immutable snapshot of the cookies currently attached to this API session.
+     *
+     * @return session cookies keyed by cookie name
+     */
+    public Map<String, Cookie> getCookies() {
+        Map<String, Cookie> cookies = new LinkedHashMap<>(sessionDetailedCookies);
+        sessionCookies.forEach((name, value) -> {
+            if (name != null && !cookies.containsKey(name)) {
+                cookies.put(name, new Cookie.Builder(name, value == null ? "" : String.valueOf(value)).build());
+            }
+        });
+        return Collections.unmodifiableMap(cookies);
+    }
+
+    /**
+     * Returns an immutable snapshot of the headers currently attached to this API session.
+     *
+     * @return session headers keyed by header name
+     */
+    public Map<String, String> getHeaders() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(sessionHeaders));
+    }
+
+    /**
+     * Imports browser cookies into this API session.
+     *
+     * @param cookies      browser cookies to import
+     * @param domainFilter optional exact domain filter; pass {@code null} or blank to import every domain
+     * @param pathFilter   optional exact path filter; pass {@code null} or blank to import every path
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions importCookiesFrom(Set<org.openqa.selenium.Cookie> cookies, String domainFilter, String pathFilter) {
+        Objects.requireNonNull(cookies, "cookies");
+        cookies.stream()
+                .filter(cookie -> matchesBrowserCookieFilter(cookie, domainFilter, pathFilter))
+                .map(RestActions::toRestAssuredCookie)
+                .forEach(this::putSessionCookie);
+        return this;
+    }
+
+    /**
+     * Seeds this session's cookies from a SHAFT browser storage-state JSON file
+     * &ndash; the same file format written by
+     * {@code com.shaft.gui.browser.BrowserActions#saveStorageState(String)}.
+     *
+     * @param storageStatePath path to a previously saved storage-state JSON file
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions importCookiesFromStorageState(String storageStatePath) {
+        Objects.requireNonNull(storageStatePath, "storageStatePath");
+        File file = new File(storageStatePath);
+        try {
+            StorageStateCookies storageState = JACKSON_MAPPER.readValue(file, StorageStateCookies.class);
+            List<StorageStateCookieEntry> cookies = storageState.cookies == null ? List.of() : storageState.cookies;
+            for (StorageStateCookieEntry cookie : cookies) {
+                if (cookie.name != null && !cookie.name.isBlank()) {
+                    putSessionCookie(toRestAssuredCookie(cookie));
+                }
+            }
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Could not read browser storage state from `" + file.getAbsolutePath() + "`.", e);
+        }
+        return this;
+    }
+
+    protected RestAssuredConfig getSessionConfig() {
+        return sessionConfig;
+    }
+
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, RestAssuredConfig sessionConfig, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+        RequestSpecBuilder builder = new RequestSpecBuilder();
+
+        builder.addCookies(sessionCookies);
+        builder.addHeaders(sessionHeaders);
+        //Add configs
+        RestAssuredConfig userConfigs = sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
+                        .appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
+                .httpClient(HttpClientConfig.httpClientConfig()
+                        .setParam("http.connection.timeout", ApiSettings.apiConnectionTimeoutSeconds() * 1000)
+                        .setParam("http.socket.timeout", ApiSettings.apiSocketTimeoutSeconds() * 1000)
+                        .setParam("http.connection-manager.timeout", ApiSettings.apiConnectionManagerTimeoutSeconds() * 1000));
+        builder.setConfig(userConfigs);
+        // timeouts documentation
+        /*
+         * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
+         * timeout (SO_TIMEOUT) in milliseconds (which is the timeout for waiting for
+         * data or, put differently, a maximum period inactivity between two consecutive
+         * data packets). A timeout value of zero is interpreted as an infinite timeout.
+         * This parameter expects a value of type java.lang.Integer. If this parameter
+         * is not set, read operations will not time out (infinite timeout).
+         *
+         * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
+         * the timeout in milliseconds until a connection is established. A timeout
+         * value of zero is interpreted as an infinite timeout. This parameter expects a
+         * value of type java.lang.Integer. If this parameter is not set, connect
+         * operations will not time out (infinite timeout).
+         *
+         * the Connection Manager Timeout (http.connection-manager.timeout) – the time
+         * to wait for a connection from the connection manager/pool
+         */
+        return builder;
+    }
+
+    /**
+     * Append a header to the current session to be used in all the
+     * following requests. Note: This feature is commonly used for authentication
+     * tokens.
+     *
+     * @param key   the name of the header that you want to add
+     * @param value the value that will be put inside the key
+     * @return self-reference to be used for chaining actions
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#addHeader(String, String)} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public RestActions addHeaderVariable(String key, String value) {
+        sessionHeaders.put(key, value);
+        return this;
+    }
+
+    /**
+     * Appends a cookie to every subsequent request in this session.
+     *
+     * @param key   the cookie name
+     * @param value the cookie value
+     * @return self-reference to be used for chaining actions
+     * @deprecated use {@link com.shaft.driver.SHAFT.API#addCookie(String, String)} instead.
+     */
+    @Deprecated(since = "10.2.20260620", forRemoval = false)
+    public RestActions addCookieVariable(String key, String value) {
+        sessionCookies.put(key, value);
+        if (key != null && value != null) {
+            sessionDetailedCookies.put(key, new Cookie.Builder(key, value).build());
+        }
+        return this;
+    }
+
+
+    protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
+        if (urlArguments != null && !urlArguments.isEmpty()) {
+            return serviceURI + serviceName + ARGUMENT_SEPARATOR + urlArguments;
+        } else {
+            return serviceURI + serviceName;
+        }
+    }
+
+    protected RequestSpecification prepareRequestSpecs(
+            Map<String, Object> parametersMap,
+            ParametersType parametersType,
+            Object body,
+            ContentType contentType,
+            Map<String, Object> cookies,
+            Map<String, String> headers,
+            RestAssuredConfig config,
+            boolean appendDefaultContentCharsetToContentTypeIfUndefined,
+            boolean urlEncodingEnabled) {
+
+        // Normalize Map -> List
+        List<List<Object>> paramsList = null;
+        if (parametersMap != null && !parametersMap.isEmpty()) {
+            paramsList = new ArrayList<>();
+            for (Map.Entry<String, Object> e : parametersMap.entrySet()) {
+                paramsList.add(Arrays.asList(e.getKey(), e.getValue()));
+            }
+        }
+
+        RequestSpecBuilder builder = initializeBuilder(cookies, headers, config, appendDefaultContentCharsetToContentTypeIfUndefined);
+
+        boolean isSwaggerValidationEnabled = ApiSettings.swaggerValidationEnabled();
+
+        if (isSwaggerValidationEnabled) {
+            String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
+
+            if (swaggerUrl == null || swaggerUrl.isBlank()) {
+                throw new IllegalArgumentException(ApiSettings.missingSpecUrlMessage(ApiSettings.SWAGGER_ENABLED_KEY));
+            }
+            swaggerUrl = swaggerUrl.trim();
+
+            // Ensure URL format is correct (replace Windows-style `\` with `/`)
+            swaggerUrl = swaggerUrl.replace("\\", "/");
+
+            builder.addFilter(OpenApiCoverageReporter.validationFilter(swaggerUrl));
+            ReportManager.log("Swagger Validation enabled using OpenAPI URL: " + swaggerUrl);
+        }
+
+        // Check if contentType is still ANY and use the Content-Type header value directly
+        if (contentType == ContentType.ANY) {
+            String contentTypeHeader = headers.get("Content-Type");
+            if (contentTypeHeader != null) {
+                builder.setContentType(contentTypeHeader);
+            }
+        } else {
+            builder.setContentType(contentType);
+        }
+
+        builder.setUrlEncodingEnabled(urlEncodingEnabled);
+
+        boolean hasParameters = paramsList != null && !paramsList.isEmpty() && !String.valueOf(paramsList.getFirst().getFirst()).isEmpty();
+        if (hasParameters && parametersType == ParametersType.QUERY) {
+            prepareRequestBody(builder, paramsList, parametersType);
+        }
+
+        if (body != null && contentType != null && !body.toString().isEmpty()) {
+            prepareRequestBody(builder, body, contentType);
+        } else if (hasParameters && parametersType != ParametersType.QUERY) {
+            boolean containsFile = paramsList.stream().anyMatch(p -> p.get(1) instanceof File);
+            boolean useMultipart = (parametersType == ParametersType.MULTIPART) || containsFile;
+
+            if (useMultipart) {
+                prepareMultipartBody(builder, paramsList);   // builds UTF-8 text parts + files
+            } else {
+                prepareRequestBody(builder, paramsList, parametersType); // existing form/query path
+            }
+        }
+        return builder.build();
+    }
+
+    private void prepareMultipartBody(RequestSpecBuilder builder, List<List<Object>> parameters) {
+        boolean hasAnyPart = false;
+
+        for (List<Object> param : parameters) {
+            String name  = String.valueOf(param.get(0));
+            Object value = param.get(1);
+
+            if (value instanceof File f) {
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(f)
+                        .controlName(name)
+                        .fileName(f.getName());
+
+                String mimeType = URLConnection.guessContentTypeFromName(f.getName());
+                if (mimeType == null) {
+                    // Files.probeContentType() is platform-dependent and may return null on
+                    // systems without adequate MIME-type mappings. The "application/octet-stream"
+                    // fallback ensures a valid content-type is always sent.
+                    try {
+                        mimeType = Files.probeContentType(f.toPath());
+                    } catch (IOException ignored) {
+                        // fall through to default
+                    }
+                }
+                if (mimeType == null) {
+                    mimeType = "application/octet-stream";
+                }
+                mp.mimeType(mimeType);
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            } else {
+                // send ALL non-file values as text parts with UTF-8
+                MultiPartSpecBuilder mp = new MultiPartSpecBuilder(String.valueOf(value))
+                        .controlName(name)
+                        .mimeType("text/plain")
+                        .charset("UTF-8");
+                builder.addMultiPart(mp.build());
+                hasAnyPart = true;
+            }
+        }
+
+        if (hasAnyPart) {
+            // Let RA set the boundary
+            builder.setContentType("multipart/form-data");
+        }
+    }
+
+    private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
+        if (body instanceof String bodyString && bodyString.contains("\n")) {
+            builder.setBody(bodyString);
+        } else if (body instanceof JSONObject || body instanceof JSONArray) {
+            builder.setBody(body.toString());
+        } else {
+            try {
+                switch (contentType) {
+                    case JSON ->
+                        // Serialize POJOs with SHAFT's Jackson mapper (as on the response side) so Jackson annotations are honored.
+                            builder.setBody(serializeJsonRequestBody(body));
+                    case XML ->
+                        //   "application/xml", "text/xml", "application/xhtml+xml" ->
+                            builder.setBody(body, ObjectMapperType.JAXB);
+                    default -> builder.setBody(body);
+                }
+            } catch (Exception rootCauseException) {
+                failAction("Issue with parsing body content", rootCauseException);
+            }
+        }
+    }
+
+    private static String serializeJsonRequestBody(Object body) throws JacksonException {
+        if (body instanceof String stringBody) {
+            return stringBody;
+        }
+        return JACKSON_MAPPER.writeValueAsString(body);
+    }
+
+    private void prepareRequestBody(RequestSpecBuilder builder, List<List<Object>> parameters,
+                                    ParametersType parametersType) {
+        // File parameters are routed through prepareMultipartBody() in prepareRequestSpecs()
+        // before this helper is invoked.
+        if (parameters.stream().anyMatch(param -> param.get(1) instanceof File)) {
+            throw new IllegalArgumentException("File parameters must be handled via prepareMultipartBody().");
+        }
+        parameters.forEach(param -> {
+            if (parametersType.equals(ParametersType.FORM)) {
+                builder.addFormParam(param.get(0).toString(), param.get(1));
+            } else {
+                builder.addQueryParam(param.get(0).toString(), param.get(1));
+            }
+        });
+    }
+
+    Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
+        switch (requestType) {
+            case POST -> {
+                return given().filter(allureFilter).spec(specs).when().post(request).andReturn();
+            }
+            case PATCH -> {
+                return given().filter(allureFilter).spec(specs).when().patch(request).andReturn();
+            }
+            case PUT -> {
+                return given().filter(allureFilter).spec(specs).when().put(request).andReturn();
+            }
+            case GET -> {
+                return given().filter(allureFilter).spec(specs).when().get(request).andReturn();
+            }
+            case DELETE -> {
+                return given().filter(allureFilter).spec(specs).when().delete(request).andReturn();
+            }
+            case HEAD -> {
+                return given().filter(allureFilter).spec(specs).when().head(request).andReturn();
+            }
+            case OPTIONS -> {
+                return given().filter(allureFilter).spec(specs).when().options(request).andReturn();
+            }
+            default -> {
+            }
+        }
+        return null;
+    }
+
+    private void extractCookiesFromResponse(Response response, String originHost) {
+        if (response.getDetailedCookies().size() > 0) {
+            for (Cookie cookie : response.getDetailedCookies()) {
+                putSessionCookie(withOriginHost(cookie, originHost));
+                if (cookie.getName().equals("XSRF-TOKEN")) {
+                    sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
+                }
+            }
+        }
+    }
+
+    private void extractHeadersFromResponse(Response response) {
+        if (response.getHeaders().size() > 0) {
+            for (Header header : response.getHeaders()) {
+                if (header.getName().equals("X-XSRF-TOKEN") || header.getName().equals("Set-Cookie")) {
+                    sessionHeaders.put(header.getName(), header.getValue());
+                }
+            }
+        }
+
+        try {
+            if (response.jsonPath().getString("type").equalsIgnoreCase("bearer")) {
+                headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
+                sessionHeaders.put("Authorization", headerAuthorization);
+                sessionHeaders.put("Content-Type", "application/json");
+
+            }
+        } catch (JsonPathException | NullPointerException e) {
+            // do nothing if the "type" variable was not found
+            // or if response was not json
+
+            // JsonPathException | NullPointerException
+        }
+    }
+
+    protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+        // Read outside the try: an invalid flag value must surface as its own clear error,
+        // not as a status-code mismatch.
+        boolean assertImplicitSuccess = ApiSettings.automaticallyAssertResponseStatusCode();
+        boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+        try {
+            ReportManagerHelper.setDiscreteLogging(true);
+            var statusCode = response.getStatusCode();
+            ReportManager.logDiscrete("Response status: " + statusCode + " (" + response.getStatusLine() + ").", Level.DEBUG);
+            if (targetStatusCode != 0) {
+                // An explicit target is always asserted; the flag only governs the implicit 2xx check (#6326).
+                if (targetStatusCode == statusCode) {
+                    ReportManager.logDiscrete("Response status matched the expected code " + targetStatusCode + ".", Level.DEBUG);
+                } else {
+                    failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
+                }
+            } else if (assertImplicitSuccess) {
+                if (statusCode >= 200 && statusCode < 300) {
+                    ReportManager.logDiscrete("Response status is successful (2xx).", Level.DEBUG);
+                } else {
+                    failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
+                }
+            } else {
+                ReportManager.logDiscrete("Implicit 2xx status check skipped because "
+                        + ApiSettings.AUTO_ASSERT_KEY + "=false and no target status code was set.", Level.DEBUG);
+            }
+            return true;
+        } catch (AssertionError | RuntimeException rootCauseException) {
+            // failAction reports the failed step and throws an execution exception; returning
+            // false lets the caller surface the status-code mismatch as an AssertionError so
+            // runners classify it as a failed test rather than a broken one.
+            return false;
+        } finally {
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        }
+    }
+
+    String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
+                                String serviceName, ContentType contentType, String urlArguments) {
+        if (response != null) {
+            extractCookiesFromResponse(response, resolveRequestHost(serviceName));
+            extractHeadersFromResponse(response);
+            StringBuilder reportMessage = new StringBuilder();
+            reportMessage.append(requestType);
+            if (0 != targetStatusCode)
+                reportMessage.append(" | Target Status Code: ").append(targetStatusCode);
+            reportMessage.append(" | Response Time: ").append(response.timeIn(TimeUnit.MILLISECONDS)).append("ms");
+            if (urlArguments != null) {
+                reportMessage.append(" | URL Arguments: ").append(urlArguments);
+            }
+            return reportMessage.toString().trim();
+        }
+        return "";
+    }
+
+    private void putSessionCookie(Cookie cookie) {
+        sessionCookies.put(cookie.getName(), cookie.getValue());
+        sessionDetailedCookies.put(cookie.getName(), cookie);
+    }
+
+    private static Cookie withOriginHost(Cookie cookie, String originHost) {
+        if (cookie.hasDomain() || originHost == null || originHost.isBlank()) {
+            return cookie;
+        }
+        Cookie.Builder builder = new Cookie.Builder(cookie.getName(), cookie.hasValue() ? cookie.getValue() : "");
+        builder.setDomain(originHost);
+        if (cookie.hasPath()) {
+            builder.setPath(cookie.getPath());
+        }
+        if (cookie.hasExpiryDate()) {
+            builder.setExpiryDate(cookie.getExpiryDate());
+        }
+        builder.setSecured(cookie.isSecured());
+        builder.setHttpOnly(cookie.isHttpOnly());
+        if (cookie.hasSameSite()) {
+            builder.setSameSite(cookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private String resolveRequestHost(String serviceName) {
+        try {
+            URI baseUri = URI.create(serviceURI);
+            URI requestUri = baseUri.resolve(serviceName == null ? "" : serviceName);
+            return requestUri.getHost();
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private static Cookie toRestAssuredCookie(org.openqa.selenium.Cookie cookie) {
+        Cookie.Builder builder = new Cookie.Builder(cookie.getName(), cookie.getValue());
+        if (cookie.getDomain() != null) {
+            builder.setDomain(cookie.getDomain());
+        }
+        if (cookie.getPath() != null) {
+            builder.setPath(cookie.getPath());
+        }
+        if (cookie.getExpiry() != null) {
+            builder.setExpiryDate(cookie.getExpiry());
+        }
+        builder.setSecured(cookie.isSecure());
+        builder.setHttpOnly(cookie.isHttpOnly());
+        if (cookie.getSameSite() != null) {
+            builder.setSameSite(cookie.getSameSite());
+        }
+        return builder.build();
+    }
+
+    private static Cookie toRestAssuredCookie(StorageStateCookieEntry cookie) {
+        Cookie.Builder builder = new Cookie.Builder(cookie.name, cookie.value == null ? "" : cookie.value);
+        if (cookie.domain != null && !cookie.domain.isBlank()) {
+            builder.setDomain(cookie.domain);
+        }
+        if (cookie.path != null && !cookie.path.isBlank()) {
+            builder.setPath(cookie.path);
+        }
+        if (cookie.expiry != null) {
+            builder.setExpiryDate(new Date(cookie.expiry));
+        }
+        builder.setSecured(cookie.secure);
+        builder.setHttpOnly(cookie.httpOnly);
+        if (cookie.sameSite != null && !cookie.sameSite.isBlank()) {
+            builder.setSameSite(cookie.sameSite);
+        }
+        return builder.build();
+    }
+
+    private static boolean matchesBrowserCookieFilter(org.openqa.selenium.Cookie cookie, String domainFilter, String pathFilter) {
+        return matchesFilter(cookie.getDomain(), domainFilter, true)
+                && matchesFilter(cookie.getPath(), pathFilter, false);
+    }
+
+    private static boolean matchesFilter(String actual, String filter, boolean domain) {
+        if (filter == null || filter.isBlank()) {
+            return true;
+        }
+        if (actual == null || actual.isBlank()) {
+            return false;
+        }
+        String normalizedActual = domain ? normalizeDomain(actual) : actual;
+        String normalizedFilter = domain ? normalizeDomain(filter) : filter;
+        return normalizedActual.equals(normalizedFilter);
+    }
+
+    private static String normalizeDomain(String domain) {
+        String normalized = domain.toLowerCase(Locale.ROOT);
+        while (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+
+    /** Comparison strategy used when validating a response body against a reference JSON file. */
+    public enum ComparisonType {
+        EQUALS, CONTAINS, EQUALS_IGNORING_ORDER
+    }
+
+    /** Defines how request parameters are encoded and transmitted. */
+    public enum ParametersType {
+        FORM, QUERY, MULTIPART
+    }
+
+    /** HTTP methods supported for building API requests. */
+    public enum RequestType {
+        POST, GET, PATCH, DELETE, PUT, HEAD, OPTIONS
+    }
+
+    /**
+     * Mirrors the top-level shape of a SHAFT browser storage-state JSON file
+     * (see {@code com.shaft.gui.browser.internal.BrowserStorageStateManager}).
+     * Only the {@code cookies} entries are consumed here.
+     */
+    @SuppressWarnings("java:S1104")
+    private static class StorageStateCookies {
+        public String schemaVersion;
+        public String origin;
+        public List<StorageStateCookieEntry> cookies = List.of();
+        public List<Object> origins = List.of();
+    }
+
+    /** A single cookie entry within a storage-state JSON file. */
+    @SuppressWarnings("java:S1104")
+    private static class StorageStateCookieEntry {
+        public String name;
+        public String value;
+        public String domain;
+        public String path;
+        public Long expiry;
+        public boolean secure;
+        public boolean httpOnly;
+        public String sameSite;
+    }
+}

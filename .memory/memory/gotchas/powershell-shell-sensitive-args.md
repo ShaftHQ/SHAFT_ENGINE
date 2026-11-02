@@ -1,0 +1,1 @@
+PowerShell parses `@`, braces, semicolons, ampersands, pipes, and Maven-style `-D` values in ways that can split or reinterpret arguments. Quote shell-sensitive arguments up front: Maven properties as `'-Dname=value'`, Git stash refs as `'stash@{0}'`, and any argument containing `{}`, `@`, `;`, `&`, or `|`.

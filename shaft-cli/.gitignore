@@ -1,0 +1,5 @@
+# ShaftCliLiveE2ETest.recordExample() writes real request/response evidence here
+# (shaft-cli/build/live-tool-e2e-examples/*.json) whenever the live-tool-E2E gate
+# is enabled (issue #3932a activates it in pr-gate.yml's cli leg) -- generated,
+# not source, same as shaft-intellij's own /build/ (shaft-intellij/.gitignore).
+/build/

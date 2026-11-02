@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/flutter-demo-app-sparse-checkout-requires-its-server-path-dependency.md",
+  "content_hash": "sha256:4f1172f1e11adb28660ebb0e47040a33178d15bfeb7aea76032116497f86d0e6",
+  "created_at": "2026-08-02T08:33:50+03:00",
+  "evidence": [
+    {
+      "id": "bd5caca794",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.flutter-demo-app-sparse-checkout-requires-its-server-path-dependency",
+  "source": {
+    "kind": "agent",
+    "task": "Resolve #4398 E2E Tests nightly failures"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Flutter demo-app sparse checkout requires its server path dependency",
+  "type": "gotcha",
+  "updated_at": "2026-08-02T08:33:50+03:00"
+}

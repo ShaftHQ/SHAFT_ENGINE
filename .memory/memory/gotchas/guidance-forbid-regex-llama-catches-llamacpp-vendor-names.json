@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/guidance-forbid-regex-llama-catches-llamacpp-vendor-names.md",
+  "content_hash": "sha256:df2f8b47d33fa8ae6dedf3f9dde988ea2b0bbad1ff7ae0a1f8128925aa016f57",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5883",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.guidance-forbid-regex-llama-catches-llamacpp-vendor-names",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 FreeToken/local-openai-compat delivery wave"
+  },
+  "status": "active",
+  "tags": [
+    "guidance",
+    "local-runtimes",
+    "llamacpp",
+    "gotcha"
+  ],
+  "title": "Guidance forbid regex llama catches llamacpp vendor names",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}

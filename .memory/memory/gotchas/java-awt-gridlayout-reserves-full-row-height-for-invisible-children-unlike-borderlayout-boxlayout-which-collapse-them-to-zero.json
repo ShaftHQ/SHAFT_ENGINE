@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero.md",
+  "content_hash": "sha256:6096d4771092a0f0f88e30ca5149d924494844278b6cb2c4e5da6838b498b6d4",
+  "created_at": "2026-07-17T23:13:57+03:00",
+  "evidence": [
+    {
+      "id": "issue #3694",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.java-awt-gridlayout-reserves-full-row-height-for-invisible-children-unlike-borderlayout-boxlayout-which-collapse-them-to-zero",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #3694 (Assistant notices-strip layout gap) and #3696 (approval button dimming) in shaft-intellij"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing-gotcha",
+    "layout-manager",
+    "gridlayout",
+    "issue-3694"
+  ],
+  "title": "java.awt.GridLayout reserves full-row height for invisible children -- unlike BorderLayout/BoxLayout, which collapse them to zero",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

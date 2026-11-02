@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/completablefuture-supplyasync-wraps-cancellationexception-in-completionexception.md",
+  "content_hash": "sha256:ae5599b18cac2dfcbdbbf86c3a1f520b28c367d0af4f31e05b0e6a31a307db85",
+  "created_at": "2026-07-19T04:58:53+03:00",
+  "evidence": [
+    {
+      "id": "issue #3758",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.completablefuture-supplyasync-wraps-cancellationexception-in-completionexception",
+  "source": {
+    "kind": "agent",
+    "task": "Stabilize flaky AssistantLocalAgentRunnerCancellationTest force-cancel race (issue #3758)"
+  },
+  "status": "active",
+  "tags": [
+    "completablefuture",
+    "cancellationexception",
+    "completionexception",
+    "race-condition",
+    "shaft-intellij",
+    "flaky-test",
+    "issue-3758"
+  ],
+  "title": "CompletableFuture.supplyAsync wraps a thrown CancellationException in CompletionException, so isCancelled()/whenComplete's raw error miss it -- only an explicit future.cancel() leaves a bare CancellationException",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

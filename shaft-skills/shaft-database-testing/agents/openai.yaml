@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Database Testing"
+  short_description: "Implement safe SHAFT database tests"
+  default_prompt: "Use $shaft-database-testing to implement these database checks with SHAFT.DB."

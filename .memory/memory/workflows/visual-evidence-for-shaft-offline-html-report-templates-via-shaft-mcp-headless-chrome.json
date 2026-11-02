@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/workflows/visual-evidence-for-shaft-offline-html-report-templates-via-shaft-mcp-headless-chrome.md",
+  "content_hash": "sha256:4ce9b9cb0e65d40677c66dc9f909dea4450285c8a12b3abf250a66e171541f7e",
+  "created_at": "2026-07-12T19:43:07+03:00",
+  "evidence": [],
+  "id": "feature.visual-evidence-for-shaft-offline-html-report-templates-via-shaft-mcp-headless-chrome",
+  "source": {
+    "kind": "agent",
+    "task": "logging/allure reporting accuracy pass (issue #3466, PR #3469)"
+  },
+  "status": "active",
+  "tags": [
+    "evidence",
+    "shaft-mcp",
+    "reporting"
+  ],
+  "title": "Visual evidence for SHAFT offline HTML report templates via shaft-mcp headless Chrome",
+  "type": "feature",
+  "updated_at": "2026-07-12T19:43:07+03:00"
+}

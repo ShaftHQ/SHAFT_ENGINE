@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied.md",
+  "content_hash": "sha256:f867532ff0f258a505629a5cfba7d0a96f52dcad20dae7b25c4bf3e8135547ca",
+  "created_at": "2026-08-12T04:42:39+03:00",
+  "evidence": [
+    {
+      "id": "9a56130f43db4fa0bd6321d4f9b42e6432c0942f",
+      "kind": "commit"
+    },
+    {
+      "id": "#4757",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.backend-owned-trace-events-must-not-resolve-an-active-webdriver-when-no-driver-is-supplied",
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable backend-owned tracing gotcha discovered while implementing mobile evidence capture in #4757."
+  },
+  "status": "active",
+  "tags": [
+    "trace",
+    "mobile-evidence",
+    "provider-boundary",
+    "preflight"
+  ],
+  "title": "Backend-owned trace events must not resolve an active WebDriver when no driver is supplied",
+  "type": "gotcha",
+  "updated_at": "2026-08-12T04:44:20+03:00"
+}

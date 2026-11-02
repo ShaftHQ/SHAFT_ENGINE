@@ -1,0 +1,10 @@
+{
+  "content_hash": "sha256:271bf3fbcc0bc000c24dfd70e34362a523e73465174ef945807b2f4065cb3b15",
+  "created_at": "2026-08-01T22:08:11+03:00",
+  "from": "gotcha.agent-tool-isolation-worktree-worktrees-the-orchestrator-repo-not-a-target-path-in-the-prompt",
+  "id": "rel.agent-isolation-related-to-shared-checkout-head",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.concurrent-agents-in-one-shared-checkout-git-checkout-by-one-agent-silently-moves-head-for-all",
+  "updated_at": "2026-08-01T22:08:11+03:00"
+}

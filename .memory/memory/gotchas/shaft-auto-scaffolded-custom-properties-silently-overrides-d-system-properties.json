@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties.md",
+  "content_hash": "sha256:830e287b6907ad9c4c77754dd8f61f670055b895fdb23b4fc456bf0263cbd168",
+  "created_at": "2026-07-06T23:25:17+03:00",
+  "evidence": [
+    {
+      "id": "shaft-engine/src/main/java/com/shaft/properties/internal/PropertiesHelper.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.shaft-auto-scaffolded-custom-properties-silently-overrides-d-system-properties",
+  "source": {
+    "kind": "agent",
+    "task": "Fix release-candidate CI failures on PR #3344 (release/10.3.20260706)"
+  },
+  "status": "active",
+  "tags": [
+    "properties",
+    "headless",
+    "ci",
+    "shaft-capture",
+    "shaft-engine"
+  ],
+  "title": "SHAFT auto-scaffolded custom.properties silently overrides -D system properties",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T22:00:11+03:00"
+}

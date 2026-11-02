@@ -1,0 +1,296 @@
+package com.shaft.gui.playwright.validation;
+
+import com.microsoft.playwright.Locator;
+import com.shaft.gui.driver.ElementAssertions;
+import com.shaft.gui.driver.ElementTarget;
+import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.gui.internal.ocr.OcrProcessingActions;
+import com.shaft.gui.ocr.OcrOptions;
+import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.VisualComparisonOptions;
+import com.shaft.validation.internal.NativeValidationsBuilder;
+import com.shaft.validation.internal.ValidationsExecutor;
+import com.shaft.validation.internal.ValidationsBuilder;
+
+import java.util.Objects;
+
+public class PlaywrightElementValidationsBuilder implements ElementAssertions {
+    private final ValidationEnums.ValidationCategory validationCategory;
+    private final PlaywrightSession session;
+    private final Locator locator;
+    private final ElementTarget elementTarget;
+    private final String locatorDescription;
+    private final StringBuilder reportMessageBuilder = new StringBuilder("the element ");
+
+    @Override
+    public NativeValidationsBuilder elementCount() {
+        return focusedValue("elementCountEquals", "match count ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRectangle() {
+        return focusedValue("elementRectangleEquals", "rectangle ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementAccessibleName() {
+        return focusedValue("elementAccessibleNameEquals", "accessible name ");
+    }
+
+    @Override
+    public NativeValidationsBuilder elementRole() {
+        return focusedValue("elementRoleEquals", "accessibility role ");
+    }
+
+    @Override
+    public NativeValidationsBuilder ocrText(OcrOptions options) {
+        reportMessageBuilder.append("OCR text ");
+        return new ValidationsBuilder(validationCategory)
+                .object(OcrProcessingActions.recognize(resolvedLocator().screenshot(), options).fullText());
+    }
+
+    /**
+     * Creates element validations of the given category for the Playwright locator.
+     */
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               Locator locator) {
+        this(validationCategory, session, locator, String.valueOf(locator));
+    }
+
+    /**
+     * Creates element validations of the given category for the Playwright locator, reported under
+     * the given name.
+     */
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               Locator locator,
+                                               String locatorDescription) {
+        this.validationCategory = validationCategory;
+        this.session = session;
+        this.locator = locator;
+        this.elementTarget = null;
+        this.locatorDescription = locatorDescription;
+    }
+
+    /**
+     * Creates element validations of the given category for the resolved element target.
+     */
+    public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
+                                               PlaywrightSession session,
+                                               ElementTarget elementTarget) {
+        this.validationCategory = validationCategory;
+        this.session = session;
+        this.locator = null;
+        this.elementTarget = Objects.requireNonNull(elementTarget, "elementTarget");
+        this.locatorDescription = String.valueOf(elementTarget);
+    }
+
+    @Override
+    public ValidationsExecutor exists() {
+        reportMessageBuilder.append("exists.");
+        var executor = executor("elementExists", ValidationEnums.ValidationType.POSITIVE);
+        return executor.finishOrDefer();
+    }
+
+    @Override
+    public ValidationsExecutor doesNotExist() {
+        reportMessageBuilder.append("does not exist.");
+        var executor = executor("elementExists", ValidationEnums.ValidationType.NEGATIVE);
+        return executor.finishOrDefer();
+    }
+
+    @Override
+    public ValidationsExecutor matchesReferenceImage() {
+        return visualValidation(ValidationEnums.ValidationType.POSITIVE, ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+    }
+
+    @Override
+    public ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        return visualValidation(ValidationEnums.ValidationType.POSITIVE, visualValidationEngine);
+    }
+
+    @Override
+    public ValidationsExecutor doesNotMatchReferenceImage() {
+        return visualValidation(ValidationEnums.ValidationType.NEGATIVE, ValidationEnums.VisualValidationEngine.EXACT_OPENCV);
+    }
+
+    @Override
+    public ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        return visualValidation(ValidationEnums.ValidationType.NEGATIVE, visualValidationEngine);
+    }
+
+    @Override
+    public NativeValidationsBuilder attribute(String attribute) {
+        reportMessageBuilder.append("Attribute \"").append(attribute).append("\" ");
+        return builder("elementAttributeEquals", attribute, null);
+    }
+
+    @Override
+    public NativeValidationsBuilder domAttribute(String domAttribute) {
+        reportMessageBuilder.append("DOM attribute \"").append(domAttribute).append("\" ");
+        return builder("elementDomAttributeEquals", domAttribute, null);
+    }
+
+    @Override
+    public NativeValidationsBuilder domProperty(String domProperty) {
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return builder("elementDomPropertyEquals", domProperty, null);
+    }
+
+    @Override
+    public NativeValidationsBuilder property(String domProperty) {
+        reportMessageBuilder.append("DOM property \"").append(domProperty).append("\" ");
+        return builder("elementPropertyEquals", domProperty, null);
+    }
+
+    @Override
+    public ValidationsExecutor isSelected() {
+        reportMessageBuilder.append("is selected; selected property ");
+        return expectedState("elementSelected", ValidationEnums.ValidationType.POSITIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isChecked() {
+        reportMessageBuilder.append("is checked; checked state ");
+        return expectedState("elementChecked", ValidationEnums.ValidationType.POSITIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isVisible() {
+        reportMessageBuilder.append("is visible; visible state ");
+        return expectedState("elementVisible", ValidationEnums.ValidationType.POSITIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isEnabled() {
+        reportMessageBuilder.append("is enabled; enabled state ");
+        return expectedState("elementEnabled", ValidationEnums.ValidationType.POSITIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isNotSelected() {
+        reportMessageBuilder.append("is not selected; selected property ");
+        return expectedState("elementSelected", ValidationEnums.ValidationType.NEGATIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isNotChecked() {
+        reportMessageBuilder.append("is not checked; checked state ");
+        return expectedState("elementChecked", ValidationEnums.ValidationType.NEGATIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isHidden() {
+        reportMessageBuilder.append("is hidden; visible state ");
+        return expectedState("elementVisible", ValidationEnums.ValidationType.NEGATIVE);
+    }
+
+    @Override
+    public ValidationsExecutor isDisabled() {
+        reportMessageBuilder.append("is disabled; enabled state ");
+        return expectedState("elementEnabled", ValidationEnums.ValidationType.NEGATIVE);
+    }
+
+    @Override
+    public NativeValidationsBuilder text() {
+        reportMessageBuilder.append("text ");
+        return builder("elementDomAttributeEquals", "text", null);
+    }
+
+    @Override
+    public NativeValidationsBuilder textTrimmed() {
+        reportMessageBuilder.append("text trimmed ");
+        return builder("elementDomAttributeEquals", "textTrimmed", null);
+    }
+
+    @Override
+    public NativeValidationsBuilder cssProperty(String elementCssProperty) {
+        reportMessageBuilder.append("CSS property \"").append(elementCssProperty).append("\" ");
+        return builder("elementCssPropertyEquals", null, elementCssProperty);
+    }
+
+    @Override
+    public ValidationsExecutor matchesAriaSnapshot(String snapshotFileName) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
+        var executor = builder("elementAriaSnapshotMatches", null, null).createAriaSnapshotExecutor(snapshotFileName);
+        return executor.finishOrDefer();
+    }
+
+    @Override
+    public ValidationsExecutor matchesScreenshot() {
+        return matchesScreenshot(null);
+    }
+
+    @Override
+    public ValidationsExecutor matchesScreenshot(VisualComparisonOptions options) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append("matches the visual regression baseline screenshot.");
+        var builder = new PlaywrightVisualValidationsBuilder(validationCategory, session, resolvedLocator(), locatorDescription, false, reportMessageBuilder);
+        builder.applyOptions(options);
+        if (options instanceof PlaywrightVisualComparisonOptions playwrightOptions) {
+            builder.mask(playwrightOptions.getPlaywrightMaskLocators().toArray(new Locator[0]));
+        }
+        return builder.perform();
+    }
+
+    private PlaywrightNativeValidationsBuilder builder(String validationMethod, String elementAttribute, String elementCssProperty) {
+        return new PlaywrightNativeValidationsBuilder(validationCategory, session, this::resolvedLocator, locatorDescription, validationMethod,
+                elementAttribute, elementCssProperty, null, reportMessageBuilder);
+    }
+
+    private NativeValidationsBuilder focusedValue(String method, String message) {
+        reportMessageBuilder.append(message);
+        return builder(method, null, null);
+    }
+
+    private Locator resolvedLocator() {
+        if (elementTarget == null) {
+            return locator;
+        }
+        var currentPage = Objects.requireNonNull(session.page(), "page");
+        if (currentPage.isClosed()) {
+            throw new IllegalStateException("Playwright page is closed.");
+        }
+        return elementTarget.toPlaywrightLocator(currentPage);
+    }
+
+    private ValidationsExecutor visualValidation(ValidationEnums.ValidationType validationType,
+                                                 ValidationEnums.VisualValidationEngine visualValidationEngine) {
+        appendShaftElementNameIfAvailable();
+        reportMessageBuilder.append(validationType.getValue() ? "matches" : "does not match")
+                .append(" the reference image.");
+        var executor = builder("elementMatches", null, null)
+                .createVisualExecutor(validationType, visualValidationEngine);
+        return executor.finishOrDefer();
+    }
+
+    private void appendShaftElementNameIfAvailable() {
+        var elementName = extractSmartLocatorName();
+        if (!elementName.isBlank()) {
+            reportMessageBuilder.append("\"").append(elementName).append("\" ");
+        }
+    }
+
+    private String extractSmartLocatorName() {
+        if (locatorDescription == null) {
+            return "";
+        }
+        var prefix = "Smart Locator: \"";
+        return locatorDescription.startsWith(prefix) && locatorDescription.endsWith("\"")
+                ? locatorDescription.substring(prefix.length(), locatorDescription.length() - 1)
+                : "";
+    }
+
+    private ValidationsExecutor expectedState(String validationMethod, ValidationEnums.ValidationType validationType) {
+        reportMessageBuilder.append("is ").append(validationType.getValue() ? "TRUE." : "FALSE.");
+        var executor = executor(validationMethod, validationType);
+        return executor.finishOrDefer();
+    }
+
+    private PlaywrightValidationsExecutor executor(String validationMethod, ValidationEnums.ValidationType validationType) {
+        return builder(validationMethod, null, null)
+                .createExecutor(validationType, ValidationEnums.ValidationComparisonType.EQUALS, validationType.getValue());
+    }
+}

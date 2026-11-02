@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field.md",
+  "content_hash": "sha256:041439c629325b9ed5f392a6f53fede8b00b483fb745de36a0aa9cfe1f41f8a8",
+  "created_at": "2026-07-16T12:36:05+03:00",
+  "evidence": [
+    {
+      "id": "3c96c3fb3c",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaftmcpsetuppanel-recommendedagent-text-is-frozen-at-construction-recommendfamily-settings-runs-exactly-once-into-a-final-field",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ plugin #3605: mirror remaining setupStatusLabel/testStatus-style JLabel text into accessible descriptions"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "testing",
+    "swing",
+    "gotcha",
+    "shaftmcpsetuppanel",
+    "issue-3605",
+    "issue-3625",
+    "resolved"
+  ],
+  "title": "RESOLVED: ShaftMcpSetupPanel#recommendedAgent text now tracks live combo selection (was frozen at construction)",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

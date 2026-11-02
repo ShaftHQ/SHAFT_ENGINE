@@ -1,0 +1,1 @@
+Packaged shaft-mcp exposes doctor_propose_healed_locator and doctor_propose_advisory_locator as @Tool methods. Full-file doctor propose-fix and doctor publish-draft-pr run only through DoctorCli via ShaftMcpApplication main args. ShaftMcpApplicationTests asserts doctor_publish_draft_pr is absent from the tool catalog. Docs must not claim MCP equivalents for those CLI commands.

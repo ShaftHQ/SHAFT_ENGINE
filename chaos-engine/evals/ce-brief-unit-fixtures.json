@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "package": "chaos-engine",
+  "thresholds": {"case_pass_rate": 1.0},
+  "fixtures": [
+    {
+      "id": "ce-brief-under-budget-locators",
+      "ratchet": "skills",
+      "expect": {
+        "truncated": false,
+        "must_include": [
+          "chaos-engine/skills/chaos-engine/SKILL.md",
+          "level-1-catalog.md",
+          "zero-llm-catalog.md"
+        ],
+        "must_not_include": ["api_key", "bearer ", "ghp_", "BEGIN PRIVATE"],
+        "max_bytes": 4096
+      }
+    },
+    {
+      "id": "ce-brief-utf8-truncate",
+      "ratchet": "skills",
+      "expect": {"truncated": true, "max_bytes": 32}
+    },
+    {
+      "id": "ce-brief-clamp-absolute-max",
+      "ratchet": "skills",
+      "expect": {"truncated": false, "max_bytes_cap": 6144}
+    }
+  ]
+}

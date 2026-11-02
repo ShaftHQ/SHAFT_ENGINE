@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead.md",
+  "content_hash": "sha256:29caee607acc3efbafdb192230ced90ccce8702c29bd43196f3ac7781521d80e",
+  "created_at": "2026-07-17T22:00:50+03:00",
+  "evidence": [
+    {
+      "id": "b92f6f80dcf969fb9511aa0c55236993b8c49229",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-intellij-platform-allicons-constants-render-blank-in-the-headless-screenshot-renderer-harness-use-shafticons-bundled-svgs-instead",
+  "source": {
+    "kind": "agent",
+    "task": "intellij: per-node Run/Debug for SHAFT Tests tree (issue #3664, PR #3686)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "icons",
+    "screenshot-renderer",
+    "all-icons",
+    "shaft-icons",
+    "headless",
+    "swing"
+  ],
+  "title": "shaft-intellij: platform AllIcons.* constants render blank in the headless screenshot-renderer harness -- use ShaftIcons' bundled SVGs instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

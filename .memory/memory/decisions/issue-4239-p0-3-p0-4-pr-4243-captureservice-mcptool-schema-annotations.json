@@ -1,0 +1,33 @@
+{
+  "body_path": "memory/decisions/issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations.md",
+  "content_hash": "sha256:986447c1069fdd4137d6578bae85d767becb42977074562b435b69ca4f50cb3c",
+  "created_at": "2026-07-27T11:11:04+03:00",
+  "evidence": [
+    {
+      "id": "82325e1710587a4e525eebe127ceb9b4b8409273",
+      "kind": "commit"
+    },
+    {
+      "id": "79b6b970faef0e3f3c825d4cdc06ff4a12f3316a",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.issue-4239-p0-3-p0-4-pr-4243-captureservice-mcptool-schema-annotations",
+  "source": {
+    "kind": "agent",
+    "task": "issue #4239 P0.3/P0.4 CaptureService tool-schema fixes (PR #4243)"
+  },
+  "status": "active",
+  "tags": [
+    "issue-4239",
+    "pr-4243",
+    "capture-service",
+    "mcp-tool-schema",
+    "capture-generate-replay",
+    "capture-start",
+    "mobile"
+  ],
+  "title": "Issue #4239 P0.3+P0.4 shipped in PR #4243: CaptureService.generateReplay had 9 unannotated @McpTool params, not just replay; capture_start mobile fix took the description-only fallback",
+  "type": "decision",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

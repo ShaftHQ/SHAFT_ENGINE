@@ -1,0 +1,227 @@
+package com.shaft.gui.internal.video;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.driver.MobileRecordingOptions;
+import com.shaft.gui.mobile.internal.MobileRecordingState;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
+import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
+import org.apache.commons.io.FileUtils;
+import org.openqa.selenium.WebDriver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Orchestrates SHAFT video recording for desktop browsers and Appium native sessions.
+ *
+ * <p>Desktop recording is delegated through {@link DesktopVideoRecordingProvider}; Android and iOS recording remain
+ * driver-native so mobile users do not need the optional desktop video implementation.</p>
+ */
+public class RecordManager {
+    private static final String MISSING_DESKTOP_PROVIDER_MESSAGE = "Desktop video recording is enabled, but no provider "
+            + "is available. Add io.github.shafthq:shaft-video to the test runtime dependencies.";
+    private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
+    private static final java.util.concurrent.atomic.AtomicBoolean providerVideoNoticeLogged =
+            new java.util.concurrent.atomic.AtomicBoolean();
+    private static final ThreadLocal<Boolean> isRecordingStarted = ThreadLocal.withInitial(() -> false);
+
+    private RecordManager() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * Starts Appium-native recording for mobile execution or falls back to desktop recording for local desktop drivers.
+     *
+     * @param driver the active WebDriver instance, or {@code null} to request desktop recording directly
+     */
+    @SuppressWarnings("SpellCheckingInspection")
+    public static void startVideoRecording(WebDriver driver) {
+        if (SHAFT.Properties.visuals.videoParamsRecordVideo()
+                && !isRecordingStarted.get()
+                && driver != null
+                && DriverFactoryHelper.isMobileNativeExecution()) {
+            if (recordsOnProviderSide(SHAFT.Properties.platform.executionAddress())) {
+                if (!providerVideoNoticeLogged.getAndSet(true)) {
+                    ReportManager.logDiscrete("Skipping Appium screen recording: the cloud provider records the session "
+                            + "video itself; use the provider session video (videoParams_recordVideo is local-Appium only).");
+                }
+                return;
+            }
+            videoDriver.set(driver);
+            try {
+                if (driver instanceof AndroidDriver androidDriver) {
+                    MobileRecordingState.start(androidDriver, MobileRecordingState.Owner.AUTOMATIC,
+                            MobileRecordingOptions.MAX_RESULT_BYTES,
+                            () -> androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions()
+                                    .withVideoSize("540x960").withBitRate(2000000)
+                                    .withTimeLimit(Duration.ofMinutes(30))));
+                } else if (driver instanceof IOSDriver iosDriver) {
+                    MobileRecordingState.start(iosDriver, MobileRecordingState.Owner.AUTOMATIC,
+                            MobileRecordingOptions.MAX_RESULT_BYTES,
+                            () -> iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions()
+                                    .withVideoType("libx264")
+                                    .withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM)
+                                    .withTimeLimit(Duration.ofMinutes(30))));
+                } else {
+                    videoDriver.remove();
+                    return;
+                }
+                ReportManager.logDiscrete("Started device screen recording.");
+                isRecordingStarted.set(true);
+            } catch (RuntimeException exception) {
+                videoDriver.remove();
+                ReportManager.logDiscrete("Could not start device screen recording.");
+            }
+        } else if (driver == null || shouldFallbackToDesktopRecorder(driver)) {
+            startVideoRecording();
+        }
+    }
+
+    /**
+     * Cloud providers (BrowserStack, LambdaTest, Sauce Labs) record every session themselves and reject
+     * Appium's {@code startRecordingScreen} (#6834).
+     */
+    static boolean recordsOnProviderSide(String executionAddress) {
+        String address = executionAddress == null ? "" : executionAddress.toLowerCase(java.util.Locale.ROOT);
+        return address.contains("browserstack") || address.contains("lambdatest") || address.contains("saucelabs");
+    }
+
+    private static boolean shouldFallbackToDesktopRecorder(WebDriver driver) {
+        return driver != null
+                && SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.headlessExecution()
+                && !LiveSessionSupport.isRemoteOrAppiumSession(driver);
+    }
+
+    /**
+     * Starts desktop screen recording when video recording is enabled for local non-headless execution.
+     *
+     * @throws IllegalStateException when desktop recording is requested but no desktop provider is available
+     */
+    public static void startVideoRecording() {
+        if (shouldRecordDesktop()) {
+            DesktopVideoRecordingProvider provider = DesktopVideoRecordingProviderRegistry.findProvider()
+                    .orElseThrow(() -> new IllegalStateException(MISSING_DESKTOP_PROVIDER_MESSAGE));
+            if (!provider.isRecording()) {
+                provider.startRecording();
+            }
+        }
+    }
+
+    private static boolean shouldRecordDesktop() {
+        return SHAFT.Properties.visuals.videoParamsRecordVideo()
+                && SHAFT.Properties.platform.executionAddress().equals("local")
+                && !SHAFT.Properties.web.headlessExecution();
+    }
+
+    /**
+     * Attaches an existing video recording file to the current report.
+     *
+     * @param pathToRecording path to the recording file; {@code null} is ignored
+     */
+    public static void attachVideoRecording(Path pathToRecording) {
+        if (pathToRecording != null) {
+            String testMethodName = ReportManagerHelper.getTestMethodName();
+            try (InputStream in = Files.newInputStream(pathToRecording)) {
+                ReportManagerHelper.attach("Video Recording", testMethodName, in);
+            } catch (IOException e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
+        }
+    }
+
+    /**
+     * Stops the active recording, if any, and attaches it to the current report.
+     */
+    public static void attachVideoRecording() {
+        ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), getVideoRecording());
+    }
+
+    /**
+     * Stops the active recording, writes it to SHAFT's temporary video path, and returns that path.
+     *
+     * @return the temporary file path, or an empty string when no recording can be written
+     */
+    public static String getVideoRecordingFilePath() {
+        try {
+            String tempFilePath = "target/tempVideoFile/";
+            FileUtils.copyInputStreamToFile(getVideoRecording(), new File(tempFilePath));
+            return tempFilePath;
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return "";
+        }
+    }
+
+    /**
+     * Stops the active desktop or Appium-native recording and returns its bytes.
+     *
+     * @return an input stream for the recording, or {@code null} when no recording is active or available
+     */
+    public static InputStream getVideoRecording() {
+        InputStream desktopRecording = getDesktopVideoRecording();
+        if (desktopRecording != null) {
+            return desktopRecording;
+        }
+
+        InputStream inputStream = null;
+        if (SHAFT.Properties.visuals.videoParamsRecordVideo() && videoDriver.get() != null) {
+            WebDriver activeDriver = videoDriver.get();
+            boolean retainAutomaticOwnership = false;
+            try {
+                if (activeDriver instanceof AndroidDriver androidDriver) {
+                    inputStream = new ByteArrayInputStream(MobileRecordingState.stop(androidDriver,
+                            MobileRecordingState.Owner.AUTOMATIC, androidDriver::stopRecordingScreen));
+                } else if (activeDriver instanceof IOSDriver iosDriver) {
+                    inputStream = new ByteArrayInputStream(MobileRecordingState.stop(iosDriver,
+                            MobileRecordingState.Owner.AUTOMATIC, iosDriver::stopRecordingScreen));
+                }
+            } catch (RuntimeException e) {
+                if (activeDriver instanceof AppiumDriver appiumDriver) {
+                    retainAutomaticOwnership = MobileRecordingState.isActive(
+                            appiumDriver, MobileRecordingState.Owner.AUTOMATIC);
+                }
+                ReportManager.logDiscrete("Could not stop device screen recording. The command may not be supported on this device.");
+                ReportManagerHelper.logDiscrete(e);
+            }
+            if (!retainAutomaticOwnership) {
+                videoDriver.remove();
+                isRecordingStarted.remove();
+            }
+        }
+        return inputStream;
+    }
+
+    /** Clears automatic recording handles only when they belong to the driver being torn down. */
+    public static void clearVideoRecordingState(WebDriver driver) {
+        if (videoDriver.get() == driver) {
+            videoDriver.remove();
+            isRecordingStarted.remove();
+        }
+    }
+
+    private static InputStream getDesktopVideoRecording() {
+        if (!SHAFT.Properties.visuals.videoParamsRecordVideo()) {
+            return null;
+        }
+
+        return DesktopVideoRecordingProviderRegistry.findProvider()
+                .filter(DesktopVideoRecordingProvider::isRecording)
+                .map(provider -> provider.stopRecording(
+                        ReportManagerHelper.isCurrentTestPassed(),
+                        System.currentTimeMillis() + "_" + ReportManagerHelper.getTestMethodName()))
+                .orElse(null);
+    }
+}

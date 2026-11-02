@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "fixture": "combined-modules",
+  "rootCoordinate": "io.github.shafthq:shaft-engine:10.2.20260605",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "artifactCount": 345,
+  "artifactBytes": 353844292,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 382185099,
+  "repositoryGrowthBytes": 381372591,
+  "elapsedSeconds": 44.794,
+  "artifactsRef": "artifacts-combined-modules.json"
+}

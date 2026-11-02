@@ -1,0 +1,101 @@
+<idea-plugin require-restart="true">
+    <id>io.github.shafthq.shaft</id>
+    <name>SHAFT</name>
+    <vendor email="Mohab.MohieElDeen@outlook.com" url="https://shafthq.github.io">ShaftHQ</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withJava.xml">com.intellij.java</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withProperties.xml">com.intellij.properties</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withTerminal.xml">org.jetbrains.plugins.terminal</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withJUnit.xml">JUnit</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withTestNG.xml">TestNG-J</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withGradle.xml">com.intellij.gradle</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withKotlin.xml">org.jetbrains.kotlin</depends>
+    <!-- Verifier 1.410 reads K2 mode only from the descriptor that depends on
+         org.jetbrains.kotlin. The optional config-file is loaded later and does not clear
+         UndeclaredKotlinK2CompatibilityMode. sinceBuild 243 is past 2024.2.1, when this EP exists. -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
+
+    <resource-bundle>messages.ShaftBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+                    <toolWindow id="SHAFT"
+                    anchor="right"
+                    icon="/icons/shaftToolWindow.svg"
+                    iconDark="/icons/shaftToolWindow_dark.svg"
+                    factoryClass="com.shaft.intellij.ShaftToolWindowFactory"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftSettingsState"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftCredentialService"/>
+        <applicationService serviceImplementation="com.shaft.intellij.settings.ShaftPluginResetService"/>
+        <applicationService serviceImplementation="com.shaft.intellij.mcp.ShaftPluginExecutor"/>
+        <projectService serviceImplementation="com.shaft.intellij.mcp.ShaftMcpInvocationService"/>
+        <projectService serviceImplementation="com.shaft.intellij.ui.ShaftAssistantChatState"/>
+        <projectService serviceImplementation="com.shaft.intellij.approval.ToolApprovalService"/>
+        <projectService serviceImplementation="com.shaft.intellij.testindex.ShaftTestIndex"/>
+        <projectService serviceImplementation="com.shaft.intellij.testindex.ShaftTestWatchService"/>
+        <applicationConfigurable instance="com.shaft.intellij.settings.ShaftSettingsConfigurable"
+                                 id="shaft.settings"
+                                 displayName="SHAFT"/>
+        <notificationGroup id="SHAFT Notifications" displayType="BALLOON"/>
+        <postStartupActivity implementation="com.shaft.intellij.settings.ShaftPluginUpgradeActivity"/>
+        <postStartupActivity implementation="com.shaft.intellij.settings.ShaftFirstRunNoticeActivity"/>
+        <iconMapper mappingFile="ShaftIconMappings.json"/>
+    </extensions>
+
+    <projectListeners>
+        <listener class="com.shaft.intellij.notifications.FailedRunDoctorNotifier"
+                  topic="com.intellij.execution.ExecutionListener"/>
+        <listener class="com.shaft.intellij.testindex.ShaftTestIndexListener"
+                  topic="com.intellij.execution.ExecutionListener"/>
+        <!-- Replaces CaptureReportAnnotator's old per-finding file-level annotator banners (issue
+             #3705): a single dismissable notification, fired once when the generated test class is
+             actually opened rather than on every continuous highlighting pass. Needs only VirtualFile
+             (no PSI), so it is registered here rather than behind the optional com.intellij.java
+             dependency that the old Annotator-based registration required. -->
+        <listener class="com.shaft.intellij.java.CaptureReadinessNotifier"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+        <!-- Live pass/fail progression for SHAFT test runs (issue #3688): a project-wide
+             subscription to every SM Test Runner-driven test run, mirroring the two listeners
+             above rather than attaching per-process-handler; see ShaftSmTestRunnerBridge's
+             class javadoc for why. -->
+        <listener class="com.shaft.intellij.testindex.ShaftSmTestRunnerBridge"
+                  topic="com.intellij.execution.testframework.sm.runner.SMTRunnerEventsListener"/>
+    </projectListeners>
+
+    <actions>
+        <group id="Shaft.ToolsMenu" text="SHAFT" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <action id="Shaft.OpenToolWindow"
+                    class="com.shaft.intellij.actions.OpenShaftToolWindowAction"
+                    text="Open SHAFT"
+                    description="Open the SHAFT tool window"
+                    icon="/icons/shaftToolWindow.svg"
+                    iconDark="/icons/shaftToolWindow_dark.svg"/>
+            <!-- Additive, opt-in raw-CLI terminal entry points (issue #3959): a real interactive
+                 PTY session running the official agent CLI, alongside the guided Assistant chat,
+                 never a replacement of it. Reuse ShaftTerminalCommands's reflection-based Terminal
+                 plugin detection, so these degrade gracefully (a notification instead of a crash)
+                 when that optional plugin is missing or disabled. -->
+            <action id="Shaft.OpenClaudeCodeTerminal"
+                    class="com.shaft.intellij.actions.OpenClaudeCodeTerminalAction"
+                    text="Open Claude Code Terminal"
+                    description="Open a real interactive terminal running the Claude Code CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
+            <action id="Shaft.OpenCodexTerminal"
+                    class="com.shaft.intellij.actions.OpenCodexTerminalAction"
+                    text="Open Codex Terminal"
+                    description="Open a real interactive terminal running the Codex CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
+            <action id="Shaft.OpenCopilotCliTerminal"
+                    class="com.shaft.intellij.actions.OpenCopilotCliTerminalAction"
+                    text="Open Copilot CLI Terminal"
+                    description="Open a real interactive terminal running the GitHub Copilot CLI (advanced, alongside the guided Assistant chat)"
+                    icon="/icons/actions/view.svg"
+                    iconDark="/icons/actions/view_dark.svg"/>
+        </group>
+    </actions>
+</idea-plugin>

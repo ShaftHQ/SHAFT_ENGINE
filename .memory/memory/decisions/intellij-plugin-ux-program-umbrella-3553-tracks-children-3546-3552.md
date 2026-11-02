@@ -1,0 +1,11 @@
+2026-07-14 ideation session filed a UX-hardening program on GitHub for the shaft-intellij plugin (hardening EXISTING functionality, not new features). Umbrella tracking issue #3553 groups seven child tickets, each fixing a place where the plugin already does the work but the user cannot see, trust, or reach the result:
+
+- #3546 live execution transparency (FOUNDATIONAL): MCP progress streaming. shaft-mcp emits notifications/progress with a progressToken; ShaftMcpStdioClient must advertise the capability and route it; ShaftMcpInvocationService.startTool exposes a per-invocation progress callback. Plus non-verbose local-agent progress. Root cause of 'feels frozen': the stdio client advertises empty capabilities and startTool does one blocking tools/call, so nothing can stream.
+- #3547 failure recovery: on rerun/replay failure quit the browser, auto-run doctor, render a human-readable root cause, and target the ACTUAL failed test (FailedRunDoctorNotifier hardcodes ExampleTest/allure-results). Fix the advancedUiEnabled balloon trap where Diagnose/Heal silently redirect to a text hint.
+- #3548 recorder->editor loop closure: insert/create-class from the specialist recorder (today only PickLocatorAtCaretAction writes to the editor; generateCode only prefills JSON); NetworkCaptureOptions key validation; wire the API Include checkboxes into generation.
+- #3549 recorder fidelity: suppress ENTER-submit consequence navigations (the double 'Navigate to' rows) in shaft-capture; reproduce-first.
+- #3550 Assistant composer: '/' slash-command autocomplete (#3540), kill-state finalization, model-catalog freshness.
+- #3551 onboarding trust: mcpSetupComplete defaults to true (fresh install can show false-ready); Check-now incremental feedback; offline LATEST_UNKNOWN clarity; terminal pre-type fallback signal.
+- #3552 tool-output humanization + advancedUiEnabled silent-no-op audit.
+
+Order: #3546 -> #3552 -> #3547 (shared progress+humanization spine), then #3548/#3550/#3551 in parallel, #3549 standalone in shaft-capture. Distinct from engine issues #3530/#3532/#3534. The Assistant routing-accuracy/caching ask was already satisfied and is NOT in this program.

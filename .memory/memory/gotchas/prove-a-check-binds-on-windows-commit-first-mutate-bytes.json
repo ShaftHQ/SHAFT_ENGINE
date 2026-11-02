@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/gotchas/prove-a-check-binds-on-windows-commit-first-mutate-bytes.md",
+  "content_hash": "sha256:4571c6e97c11d4d16436dad1940e0a8167ecd6c8dc9c7cdfccd583e92ffb616c",
+  "created_at": "2026-08-04T22:41:59+03:00",
+  "evidence": [],
+  "id": "gotcha.prove-a-check-binds-on-windows-commit-first-mutate-bytes",
+  "source": {
+    "kind": "agent",
+    "task": "Record the two Windows traps that cost real time while proving a check binds by mutating a shipped guidance file (PR #4524, issues #4480/#4490)"
+  },
+  "status": "active",
+  "tags": [
+    "agent-guidance",
+    "windows",
+    "verification",
+    "mutation-testing",
+    "crlf"
+  ],
+  "title": "Proving a check binds on Windows: commit first, mutate bytes, never revert with git checkout while the file has uncommitted work",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T22:41:59+03:00"
+}

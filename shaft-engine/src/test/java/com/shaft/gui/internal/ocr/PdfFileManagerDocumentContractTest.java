@@ -1,0 +1,569 @@
+package com.shaft.gui.internal.ocr;
+
+import com.shaft.gui.ocr.OcrBlockLevel;
+import com.shaft.gui.ocr.OcrOptions;
+import com.shaft.gui.ocr.OcrRectangle;
+import com.shaft.gui.ocr.OcrResult;
+import com.shaft.gui.ocr.OcrTextBlock;
+import com.shaft.tools.io.PdfFileManager;
+import com.shaft.tools.io.pdf.PdfBatchItemResult;
+import com.shaft.tools.io.pdf.PdfBatchOptions;
+import com.shaft.tools.io.pdf.PdfDocumentOptions;
+import com.shaft.tools.io.pdf.PdfDocumentRequest;
+import com.shaft.tools.io.pdf.PdfExportFormat;
+import com.shaft.tools.io.pdf.PdfExportRequest;
+import com.shaft.tools.io.pdf.PdfExportResult;
+import com.shaft.tools.io.pdf.PdfPageResult;
+import com.shaft.tools.io.pdf.PdfTable;
+import com.shaft.tools.io.pdf.PdfTableCell;
+import com.shaft.tools.io.pdf.PdfTextSource;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
+import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
+
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+@Test(singleThreaded = true)
+public class PdfFileManagerDocumentContractTest {
+    private final List<Path> temporaryFiles = new ArrayList<>();
+
+    @AfterMethod(alwaysRun = true)
+    public void reset() {
+        Thread.interrupted();
+        OcrProcessingProviderRegistry.clearProviderForTesting();
+        temporaryFiles.forEach(path -> {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException ignored) {
+                // Best-effort test cleanup.
+            }
+        });
+        temporaryFiles.clear();
+    }
+
+    @Test
+    public void nativeScannedAndMixedPagesUseExpectedSourceWithoutDuplicatingText() throws IOException {
+        Path pdf = createMixedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(ocrResult("Native PixelOnly"))));
+
+        var result = new PdfFileManager(pdf.toString()).process(options());
+
+        Assert.assertEquals(result.pages().size(), 2);
+        Assert.assertEquals(result.pages().get(0).source(), PdfTextSource.NATIVE);
+        Assert.assertEquals(result.pages().get(1).source(), PdfTextSource.HYBRID);
+        Assert.assertTrue(result.pages().get(0).recognition().fullText().contains("Native first page content"));
+        Assert.assertEquals(count(result.pages().get(1).recognition().fullText(), "Native"), 1,
+                "Hybrid text must not duplicate a native word recognized from pixels: "
+                        + result.pages().get(1).recognition().blocks());
+        Assert.assertTrue(result.pages().get(1).recognition().fullText().contains("PixelOnly"));
+    }
+
+    @Test
+    public void exportsAreExplicitParseableAndAtomicallyReceipted() throws IOException {
+        Path pdf = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(ocrResult("PixelOnly"))));
+        Path searchable = temporary("searchable", ".pdf");
+        Path hocr = temporary("result", ".hocr");
+        Path tsv = temporary("result", ".tsv");
+        Path json = temporary("result", ".json");
+        Files.deleteIfExists(searchable);
+        Files.deleteIfExists(hocr);
+        Files.deleteIfExists(tsv);
+        Files.deleteIfExists(json);
+
+        var result = new PdfFileManager(pdf.toString()).process(options(),
+                PdfExportRequest.to(PdfExportFormat.SEARCHABLE_PDF, searchable),
+                PdfExportRequest.to(PdfExportFormat.HOCR, hocr),
+                PdfExportRequest.to(PdfExportFormat.TSV, tsv),
+                PdfExportRequest.to(PdfExportFormat.JSON, json));
+
+        Assert.assertEquals(result.exports().size(), 4);
+        Assert.assertTrue(Files.readString(hocr).contains("ocrx_word"));
+        Assert.assertTrue(Files.readString(tsv).startsWith("level\tpage_num"));
+        Assert.assertTrue(Files.readString(json).contains("\"source\""));
+        try (PDDocument document = Loader.loadPDF(searchable.toFile())) {
+            Assert.assertTrue(new PDFTextStripper().getText(document).contains("PixelOnly"));
+        }
+        Assert.assertTrue(result.exports().stream().allMatch(export -> export.sha256().length() == 64));
+    }
+
+    @Test
+    public void alignedWordsProduceTableWhileProseDoesNot() throws IOException {
+        Path pdf = createScannedPdf();
+        OcrResult table = new OcrResult("Name Amount\nTea 10", List.of(
+                word("Name", 10, 10), word("Amount", 180, 10), word("Tea", 10, 60), word("10", 180, 60)));
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(table)));
+
+        var result = new PdfFileManager(pdf.toString()).process(options());
+
+        Assert.assertEquals(result.pages().getFirst().tables().size(), 1);
+        Assert.assertEquals(result.pages().getFirst().tables().getFirst().rows().size(), 2);
+        Assert.assertEquals(result.pages().getFirst().tables().getFirst().rows().getFirst().cells().size(), 2);
+
+        OcrResult prose = new OcrResult("This ordinary sentence\nHas no table", List.of(
+                word("This", 10, 10), word("ordinary", 65, 10), word("sentence", 155, 10),
+                word("Has", 10, 60), word("no", 60, 60), word("table", 95, 60)));
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(prose)));
+
+        Assert.assertTrue(new PdfFileManager(pdf.toString()).process(options()).pages().getFirst().tables().isEmpty());
+    }
+
+    @Test
+    public void batchPreflightRejectsDuplicateOutputsBeforeProcessing() throws IOException {
+        Path first = createNativePdf("First");
+        Path second = createNativePdf("Second");
+        Path output = temporary("duplicate", ".json");
+        Files.deleteIfExists(output);
+        List<PdfDocumentRequest> requests = List.of(
+                new PdfDocumentRequest(first, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, output))),
+                new PdfDocumentRequest(second, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, output))));
+
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> PdfFileManager.processAll(requests, new PdfBatchOptions(2, 32 * 1024 * 1024, false)));
+        Assert.assertFalse(Files.exists(output));
+    }
+
+    @Test
+    public void batchKeepsGoingAfterOneFailureAndFailFastCancelsTheRest() throws IOException {
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(ocrResult("Alpha"))));
+        Path nativePdf = createNativePdf("Alpha");
+        Path missing = temporary("missing", ".pdf");
+        Files.deleteIfExists(missing);
+        var continued = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(nativePdf, options(), List.of()),
+                new PdfDocumentRequest(missing, options(), List.of())
+        ), new PdfBatchOptions(2, 32 * 1024 * 1024, false));
+
+        Assert.assertTrue(continued.items().get(0).successful(), String.valueOf(continued.items().get(0).failure()));
+        Assert.assertTrue(continued.items().get(0).result().pages().getFirst().recognition().fullText().contains("Alpha"),
+                continued.items().get(0).result().pages().getFirst().recognition().fullText());
+        Assert.assertTrue(continued.items().get(1).failure().contains("PDF input does not exist"),
+                continued.items().get(1).failure());
+
+        Path oversized = createMixedPdf();
+        Path later = createNativePdf("Later");
+        var cancelled = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(oversized, options().withResourceLimits(10 * 1024 * 1024, 1, 2_000_000), List.of()),
+                new PdfDocumentRequest(later, options(), List.of())
+        ), new PdfBatchOptions(1, 32 * 1024 * 1024, true));
+
+        Assert.assertTrue(cancelled.items().get(0).failure().contains("exceeds the configured maximum 1"),
+                cancelled.items().get(0).failure());
+        Assert.assertEquals(cancelled.items().get(1).failure(), "Cancelled: an earlier PDF batch item failed.");
+        Assert.assertTrue(new PdfFileManager(later.toString()).process(options()).pages().getFirst()
+                .recognition().fullText().contains("Later"));
+    }
+
+    @Test
+    public void batchRejectsDuplicateInputsAndOversizedFilesBeforeWriting() throws IOException {
+        Path pdf = createNativePdf("Only");
+        Path other = createNativePdf("Other");
+        Path firstOutput = temporary("first", ".json");
+        Path secondOutput = temporary("second", ".json");
+        Files.deleteIfExists(firstOutput);
+        Files.deleteIfExists(secondOutput);
+
+        IllegalArgumentException duplicate = Assert.expectThrows(IllegalArgumentException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, firstOutput))),
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, secondOutput)))
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Assert.assertTrue(duplicate.getMessage().contains("Duplicate PDF batch input"), duplicate.getMessage());
+        Assert.assertFalse(Files.exists(firstOutput));
+
+        IllegalArgumentException collision = Assert.expectThrows(IllegalArgumentException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, other))),
+                        new PdfDocumentRequest(other, options(), List.of())
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Assert.assertTrue(collision.getMessage().contains("PDF batch output collides with an input"), collision.getMessage());
+
+        IllegalArgumentException oversized = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(pdf.toString()).process(options().withResourceLimits(1, 10, 2_000_000)));
+        Assert.assertTrue(oversized.getMessage().contains("exceeds the configured maximum 1"), oversized.getMessage());
+    }
+
+    @Test
+    public void pixelLimitAndOcrFailuresStayOnTheCallingDocument() throws IOException {
+        Path nativePdf = createNativePdf("Limit");
+        IllegalArgumentException pixels = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(nativePdf.toString()).process(
+                        options().withResourceLimits(10 * 1024 * 1024, 10, 100)));
+        Assert.assertTrue(pixels.getMessage().contains("rendered pixels, above the configured maximum 100"),
+                pixels.getMessage());
+
+        Path scanned = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(blockingProvider()));
+        IllegalStateException timedOut = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options().withPageTimeout(Duration.ofMillis(1))));
+        Assert.assertTrue(timedOut.getMessage().contains("OCR timed out for PDF page 1"), timedOut.getMessage());
+        Assert.assertTrue(timedOut.getCause() instanceof java.util.concurrent.TimeoutException, String.valueOf(timedOut.getCause()));
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(interruptingProvider()));
+        IllegalStateException interrupted = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options().withPageTimeout(Duration.ofSeconds(30))));
+        Thread.interrupted();
+        Assert.assertTrue(interrupted.getMessage().contains("PDF OCR was interrupted for page 1"), interrupted.getMessage());
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new IllegalStateException("provider rejected the page"))));
+        IllegalStateException rethrown = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options()));
+        Assert.assertEquals(rethrown.getMessage(), "provider rejected the page");
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new AssertionError("ocr engine failed"))));
+        IllegalStateException wrapped = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options()));
+        Assert.assertTrue(wrapped.getMessage().contains("PDF OCR failed for page 1"), wrapped.getMessage());
+        Assert.assertTrue(wrapped.getCause() instanceof AssertionError, String.valueOf(wrapped.getCause()));
+    }
+
+    @Test
+    public void corruptBlankAndInterruptedBatchStayLocal() throws IOException {
+        Path corrupt = temporary("corrupt", ".pdf");
+        Files.writeString(corrupt, "not a pdf");
+        IllegalStateException unreadable = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(corrupt.toString()).process(options()));
+        Assert.assertTrue(unreadable.getMessage().contains("Could not process PDF document"), unreadable.getMessage());
+
+        Path scanned = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(new OcrResult("   ", List.of()))));
+        var blank = new PdfFileManager(scanned.toString()).process(options().withAllureEvidence(true));
+        Assert.assertEquals(blank.pages().getFirst().source(), PdfTextSource.OCR);
+        Assert.assertEquals(blank.pages().getFirst().confidence(), 0.0, 0.0);
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new IllegalStateException())));
+        var nameless = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(scanned, options(), List.of())
+        ), new PdfBatchOptions(1, 32 * 1024 * 1024, false));
+        Assert.assertEquals(nameless.items().getFirst().failure(), "IllegalStateException");
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(interruptingProvider()));
+        IllegalStateException interrupted = Assert.expectThrows(IllegalStateException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(scanned, options().withPageTimeout(Duration.ofSeconds(30)), List.of())
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Thread.interrupted();
+        Assert.assertTrue(interrupted.getMessage().contains("PDF batch processing was interrupted"),
+                interrupted.getMessage());
+    }
+
+    @Test
+    public void guardsExportsAndRasterBudgetStayLocal() throws IOException {
+        PdfDocumentOptions base = options();
+        Assert.expectThrows(IllegalArgumentException.class, () -> base.withRenderDpi(71));
+        Assert.expectThrows(IllegalArgumentException.class, () -> new PdfDocumentOptions(base.ocrOptions(),
+                base.renderDpi(), base.nativeTextMinimumCharacters(), 2, base.maximumInputBytes(),
+                base.maximumPages(), base.maximumPixelsPerPage(), base.pageTimeout(),
+                base.tableConfidenceThreshold(), base.maximumAllureArtifactBytes(), base.detectOrientation(),
+                base.deskew(), base.attachAllureEvidence()));
+        Assert.expectThrows(IllegalArgumentException.class, () -> new PdfBatchOptions(0, 1, false));
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfTableCell("cell", new OcrRectangle(0, 0, 10, 10), 0, 1, 1));
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfTable(new OcrRectangle(0, 0, 10, 10), List.of(), 2));
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfPageResult(0, ocrResult("Limit"), PdfTextSource.NATIVE, 1, 0, 0, List.of(), List.of(),
+                        List.of()));
+        Path sample = createNativePdf("Native first page content");
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfExportResult(PdfExportFormat.JSON, sample, -1, "abc"));
+        Assert.expectThrows(IllegalArgumentException.class, () -> new PdfBatchItemResult(sample, null, null));
+
+        Path directory = Files.createTempDirectory("shaft-pdf-dir-");
+        temporaryFiles.add(directory);
+        IllegalArgumentException directoryInput = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(directory.toString()).process(options()));
+        Assert.assertTrue(directoryInput.getMessage().contains("not a regular file"), directoryInput.getMessage());
+
+        IllegalArgumentException unordered = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).readPDFContentFromDownloadedPDF(0, 1,
+                        PdfFileManager.DeleteFileAfterValidationStatus.FALSE));
+        Assert.assertTrue(unordered.getMessage().contains("one-based and ordered"), unordered.getMessage());
+        IllegalArgumentException pastEnd = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).readPDFContentFromDownloadedPDF(1, 4,
+                        PdfFileManager.DeleteFileAfterValidationStatus.FALSE));
+        Assert.assertTrue(pastEnd.getMessage().contains("exceeds page count"), pastEnd.getMessage());
+
+        Path overwrite = temporary("overwrite", ".json");
+        Files.deleteIfExists(overwrite);
+        IllegalArgumentException samePath = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).process(options(),
+                        PdfExportRequest.to(PdfExportFormat.JSON, sample)));
+        Assert.assertTrue(samePath.getMessage().contains("must not overwrite its input"), samePath.getMessage());
+        IllegalArgumentException duplicate = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).process(options(),
+                        PdfExportRequest.to(PdfExportFormat.JSON, overwrite),
+                        PdfExportRequest.to(PdfExportFormat.HOCR, overwrite)));
+        Assert.assertTrue(duplicate.getMessage().contains("Duplicate PDF export output"), duplicate.getMessage());
+        Files.writeString(overwrite, "keep");
+        Path blockedParent = temporary("parent", ".bin");
+        IllegalArgumentException parent = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).process(options(),
+                        PdfExportRequest.to(PdfExportFormat.JSON, blockedParent.resolve("child.json"))));
+        Assert.assertTrue(parent.getMessage().contains("not a writable directory"), parent.getMessage());
+        IllegalArgumentException existing = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(sample.toString()).process(options(),
+                        PdfExportRequest.to(PdfExportFormat.JSON, overwrite)));
+        Assert.assertTrue(existing.getMessage().contains("already exists"), existing.getMessage());
+
+        Path encrypted = createEncryptedPdf();
+        IllegalArgumentException locked = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(encrypted.toString()).process(options()));
+        Assert.assertTrue(locked.getMessage().contains("Encrypted PDF documents are not supported"),
+                locked.getMessage());
+
+        Path signed = createSignedPdf();
+        Path signedOut = temporary("signed-out", ".pdf");
+        Files.deleteIfExists(signedOut);
+        IllegalArgumentException signatures = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(signed.toString()).process(options(),
+                        PdfExportRequest.to(PdfExportFormat.SEARCHABLE_PDF, signedOut)));
+        Assert.assertTrue(signatures.getMessage().contains("invalidate existing signatures"), signatures.getMessage());
+        var allowed = new PdfFileManager(signed.toString()).process(options(),
+                PdfExportRequest.to(PdfExportFormat.SEARCHABLE_PDF, signedOut).allowingSignatureInvalidation());
+        Assert.assertEquals(allowed.pages().getFirst().source(), PdfTextSource.NATIVE);
+        Assert.assertEquals(allowed.exports().size(), 1);
+        Assert.assertTrue(Files.size(signedOut) > 0);
+
+        Path searchableNative = temporary("native-searchable", ".pdf");
+        Files.deleteIfExists(searchableNative);
+        var nativeExport = new PdfFileManager(sample.toString()).process(options(),
+                PdfExportRequest.to(PdfExportFormat.SEARCHABLE_PDF, searchableNative));
+        Assert.assertEquals(nativeExport.pages().getFirst().source(), PdfTextSource.NATIVE);
+        Assert.assertTrue(Files.readAllBytes(searchableNative).length > 4);
+
+        Path scanned = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(new OcrResult("A & B A\u0100", List.of(
+                word("A & B", 10, 20), word("A\u0100", 80, 20), word("   ", 140, 20))))));
+        Path hocr = temporary("marked", ".hocr");
+        Path markedPdf = temporary("marked", ".pdf");
+        Files.deleteIfExists(hocr);
+        Files.deleteIfExists(markedPdf);
+        var marked = new PdfFileManager(scanned.toString()).process(evidenceLimited(options(), 1),
+                PdfExportRequest.to(PdfExportFormat.JSON, overwrite).replacingExisting(),
+                PdfExportRequest.to(PdfExportFormat.HOCR, hocr),
+                PdfExportRequest.to(PdfExportFormat.SEARCHABLE_PDF, markedPdf));
+        Assert.assertEquals(marked.exports().size(), 3);
+        String hocrText = Files.readString(hocr);
+        Assert.assertTrue(hocrText.contains("A &amp; B"), hocrText);
+        Assert.assertTrue(hocrText.contains("A\u0100"), hocrText);
+        try (PDDocument document = Loader.loadPDF(markedPdf.toFile())) {
+            String extracted = new PDFTextStripper().getText(document);
+            Assert.assertTrue(extracted.contains("A & B"), extracted);
+            Assert.assertTrue(extracted.contains("A\u0100"), extracted);
+        }
+        var attached = new PdfFileManager(scanned.toString()).process(options().withAllureEvidence(true),
+                PdfExportRequest.to(PdfExportFormat.HOCR, hocr).replacingExisting());
+        Assert.assertEquals(attached.exports().size(), 1);
+
+        var starved = PdfFileManager.processAll(List.of(new PdfDocumentRequest(scanned, options(), List.of())),
+                new PdfBatchOptions(1, 1, false));
+        Assert.assertTrue(starved.items().getFirst().failure().contains("in-flight raster budget"),
+                starved.items().getFirst().failure());
+    }
+
+    private static PdfDocumentOptions evidenceLimited(PdfDocumentOptions base, long artifactBytes) {
+        return new PdfDocumentOptions(base.ocrOptions(), base.renderDpi(), base.nativeTextMinimumCharacters(),
+                base.imageCoverageThreshold(), base.maximumInputBytes(), base.maximumPages(),
+                base.maximumPixelsPerPage(), base.pageTimeout(), base.tableConfidenceThreshold(), artifactBytes,
+                base.detectOrientation(), base.deskew(), true);
+    }
+
+    private Path createEncryptedPdf() throws IOException {
+        Path path = temporary("encrypted", ".pdf");
+        try (PDDocument document = new PDDocument()) {
+            document.addPage(new PDPage(PDRectangle.LETTER));
+            StandardProtectionPolicy policy = new StandardProtectionPolicy("owner-secret", "", new AccessPermission());
+            policy.setEncryptionKeyLength(128);
+            document.protect(policy);
+            document.save(path.toFile());
+        }
+        return path;
+    }
+
+    private Path createSignedPdf() throws IOException {
+        Path path = temporary("signed", ".pdf");
+        try (PDDocument document = new PDDocument()) {
+            addNativePage(document, "Native signed page content");
+            PDSignature signature = new PDSignature();
+            signature.setFilter(PDSignature.FILTER_ADOBE_PPKLITE);
+            signature.setSubFilter(PDSignature.SUBFILTER_ADBE_PKCS7_DETACHED);
+            signature.setName("shaft-test");
+            signature.setSignDate(java.util.Calendar.getInstance());
+            document.addSignature(signature);
+            document.save(path.toFile());
+        }
+        return path;
+    }
+
+    private static OcrProcessingProvider blockingProvider() {
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                return ocrResult("Late");
+            }
+        };
+    }
+
+    private static OcrProcessingProvider interruptingProvider() {
+        Thread caller = Thread.currentThread();
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                Thread interrupter = new Thread(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    caller.interrupt();
+                }, "shaft-test-ocr-interrupt");
+                interrupter.setDaemon(true);
+                interrupter.start();
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                return ocrResult("Late");
+            }
+        };
+    }
+
+    private static OcrProcessingProvider failingProvider(Throwable failure) {
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                if (failure instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (failure instanceof Error error) {
+                    throw error;
+                }
+                throw new IllegalStateException(failure);
+            }
+        };
+    }
+
+    private static OcrProcessingProvider provider(OcrResult result) {
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                return result;
+            }
+        };
+    }
+
+    private static PdfDocumentOptions options() {
+        return PdfDocumentOptions.defaults().withRenderDpi(72).withAllureEvidence(false)
+                .withResourceLimits(10 * 1024 * 1024, 10, 2_000_000);
+    }
+
+    private Path createMixedPdf() throws IOException {
+        Path path = temporary("mixed", ".pdf");
+        try (PDDocument document = new PDDocument()) {
+            addNativePage(document, "Native first page content");
+            PDPage page = addNativePage(document, "Native");
+            addImage(document, page, "PixelOnly");
+            document.save(path.toFile());
+        }
+        return path;
+    }
+
+    private Path createScannedPdf() throws IOException {
+        Path path = temporary("scanned", ".pdf");
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+            addImage(document, page, "PixelOnly");
+            document.save(path.toFile());
+        }
+        return path;
+    }
+
+    private Path createNativePdf(String text) throws IOException {
+        Path path = temporary("native", ".pdf");
+        try (PDDocument document = new PDDocument()) {
+            addNativePage(document, text);
+            document.save(path.toFile());
+        }
+        return path;
+    }
+
+    private static PDPage addNativePage(PDDocument document, String text) throws IOException {
+        PDPage page = new PDPage(PDRectangle.LETTER);
+        document.addPage(page);
+        try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+            content.beginText();
+            content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 18);
+            content.newLineAtOffset(72, 700);
+            content.showText(text);
+            content.endText();
+        }
+        return page;
+    }
+
+    private static void addImage(PDDocument document, PDPage page, String text) throws IOException {
+        BufferedImage image = new BufferedImage(500, 300, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+            graphics.setColor(Color.BLACK);
+            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 42));
+            graphics.drawString(text, 35, 160);
+        } finally {
+            graphics.dispose();
+        }
+        try (PDPageContentStream content = new PDPageContentStream(document, page,
+                PDPageContentStream.AppendMode.APPEND, true, true)) {
+            content.drawImage(LosslessFactory.createFromImage(document, image), 50, 300, 500, 300);
+        }
+    }
+
+    private Path temporary(String prefix, String suffix) throws IOException {
+        Path path = Files.createTempFile("shaft-" + prefix + '-', suffix);
+        temporaryFiles.add(path);
+        return path;
+    }
+
+    private static OcrResult ocrResult(String text) {
+        return new OcrResult(text, List.of(word("Native", 72, 75), word("PixelOnly", 150, 20)));
+    }
+
+    private static OcrTextBlock word(String text, int x, int y) {
+        return new OcrTextBlock(text, new OcrRectangle(x, y, Math.max(20, text.length() * 12), 30),
+                0.95, OcrBlockLevel.WORD);
+    }
+
+    private static int count(String value, String token) {
+        return (value.length() - value.replace(token, "").length()) / token.length();
+    }
+}

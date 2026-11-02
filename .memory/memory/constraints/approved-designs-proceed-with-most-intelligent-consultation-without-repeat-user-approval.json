@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/constraints/approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval.md",
+  "content_hash": "sha256:eb4de670d304de23e31b11d8dd434e537debd449ddaaf3aecc403b4415e03f24",
+  "created_at": "2026-08-09T20:13:10+03:00",
+  "evidence": [
+    {
+      "id": ".agents/skills/act-as-mohab/SKILL.md",
+      "kind": "file"
+    },
+    {
+      "id": ".agents/skills/act-as-mohab/references/consult-first.md",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.approved-designs-proceed-with-most-intelligent-consultation-without-repeat-user-approval",
+  "origin": {
+    "captured_at": "2026-08-09T20:02:00+03:00",
+    "kind": "user",
+    "locator": "conversation:issue-4644:2026-08-09"
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record Mohab's standing approval and consultation preference from issue #4644 session"
+  },
+  "status": "active",
+  "tags": [
+    "user-preference",
+    "consultation",
+    "approval-gate",
+    "delegation"
+  ],
+  "title": "Approved designs proceed without repeated user approval; consultation is delegated at the highest capability",
+  "type": "gotcha",
+  "updated_at": "2026-08-09T23:46:44+03:00"
+}

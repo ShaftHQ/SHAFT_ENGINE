@@ -1,0 +1,11 @@
+{
+  "memory": {
+    "autoIndex": true,
+    "defaultTokenBudget": 600
+  },
+  "project": {
+    "id": "project.shaft-engine",
+    "name": "Shaft Engine"
+  },
+  "version": 5
+}

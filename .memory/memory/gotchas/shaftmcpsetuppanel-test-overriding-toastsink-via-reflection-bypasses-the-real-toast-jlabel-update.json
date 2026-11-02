@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/shaftmcpsetuppanel-test-overriding-toastsink-via-reflection-bypasses-the-real-toast-jlabel-update.md",
+  "content_hash": "sha256:36bce536da09798c2d31db3c2e2eaa0ba41588289b43c59189a0e7d5b625de76",
+  "created_at": "2026-07-16T10:54:12+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java",
+      "kind": "file"
+    },
+    {
+      "id": "shaft-intellij/src/test/java/com/shaft/intellij/ui/ShaftPanelSetupTest.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.shaftmcpsetuppanel-test-overriding-toastsink-via-reflection-bypasses-the-real-toast-jlabel-update",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ plugin a11y sweep: JLabel accessible descriptions must mirror live setText content (issue #3603)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "testing",
+    "swing",
+    "reflection",
+    "gotcha",
+    "shaftmcpsetuppanel"
+  ],
+  "title": "ShaftMcpSetupPanel test: overriding toastSink via reflection bypasses the real toast JLabel update",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T22:00:11+03:00"
+}

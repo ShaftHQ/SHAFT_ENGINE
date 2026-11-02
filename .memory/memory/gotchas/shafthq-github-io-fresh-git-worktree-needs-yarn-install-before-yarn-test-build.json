@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shafthq-github-io-fresh-git-worktree-needs-yarn-install-before-yarn-test-build.md",
+  "content_hash": "sha256:a824acf386da0ab0fb2a7d32067b138f1313a110159d838798e835df1df085b0",
+  "created_at": "2026-07-26T10:25:51+03:00",
+  "evidence": [
+    {
+      "id": "4d2d79c936106071d59b8a95f757eeca2881c4b0",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shafthq-github-io-fresh-git-worktree-needs-yarn-install-before-yarn-test-build",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Loop: record four durable gotchas from today's session (#4040 thread-local Properties, #4048 worktree node_modules, #4044 guardrail single consumer, concurrent-agent .m2 cache races)"
+  },
+  "status": "active",
+  "tags": [
+    "worktree",
+    "node-modules",
+    "yarn",
+    "shafthq-docs",
+    "docs"
+  ],
+  "title": "shafthq.github.io: fresh git worktree needs yarn install before yarn test/build",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

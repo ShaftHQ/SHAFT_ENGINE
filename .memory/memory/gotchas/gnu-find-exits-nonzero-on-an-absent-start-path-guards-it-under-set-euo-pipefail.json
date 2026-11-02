@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/gnu-find-exits-nonzero-on-an-absent-start-path-guards-it-under-set-euo-pipefail.md",
+  "content_hash": "sha256:5d56d4051f0da8bbf8dd966236f14b74a961ffc3bb43158caa786821fade5946",
+  "created_at": "2026-07-26T17:14:32+03:00",
+  "evidence": [
+    {
+      "id": "977e57cfc501f0840d8fbeac205d2f7d71ef9c79",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.gnu-find-exits-nonzero-on-an-absent-start-path-guards-it-under-set-euo-pipefail",
+  "source": {
+    "kind": "agent",
+    "task": "#4086 mid-session Learning Loop: record durable lessons from the day's parallel orchestration run (Augmenter closure bug, Surefire report path shape, GLOBAL_TESTING_SCOPE, find/pipefail, nightly signature progression, Gradle evidence artifacts) before session end risk"
+  },
+  "status": "active",
+  "tags": [
+    "bash",
+    "pipefail",
+    "find",
+    "github-actions",
+    "post-test-report",
+    "issue-4105",
+    "gotcha"
+  ],
+  "title": "GNU find exits nonzero on an absent start path; guards it under set -euo pipefail",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

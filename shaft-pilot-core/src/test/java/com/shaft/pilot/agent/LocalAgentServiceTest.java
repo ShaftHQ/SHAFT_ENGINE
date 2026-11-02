@@ -1,0 +1,228 @@
+package com.shaft.pilot.agent;
+
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class LocalAgentServiceTest {
+    @Test
+    void askModeRoutesPromptToCodexCliThroughStdin() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.ASK,
+                        "How should I test this?")
+                .workingDirectory(Path.of("."))
+                .timeout(Duration.ofSeconds(5))
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"),
+                runner.command.get());
+        assertEquals("How should I test this?", runner.stdin.get());
+        assertEquals("answer", response.stdout());
+        assertFalse(response.requiresCloudApiKey());
+    }
+
+    @Test
+    void planModeUsesClaudePlanPermissionWithoutPluginOwnedProviderLogic() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CLAUDE_CODE, LocalAgentMode.PLAN,
+                        "Plan the fix")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("claude", "--print", "--permission-mode", "plan"), runner.command.get());
+        assertEquals("Plan the fix", runner.stdin.get());
+    }
+
+    @Test
+    void planModeUsesCodexDefaultWithoutGitRepositoryCheck() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.PLAN,
+                        "Plan the fix")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-"),
+                runner.command.get());
+    }
+
+    @Test
+    void agentModeWithoutMutationApprovalUsesNoSourceDefaultCommand() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.AGENT,
+                        "Implement the change")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of(
+                        "codex", "exec",
+                        "--skip-git-repo-check",
+                        "--sandbox", "read-only",
+                        "-c", "mcp_servers.shaft-mcp.default_tools_approval_mode=\"approve\"",
+                        "-c", "mcp_servers.shaft-mcp.tool_timeout_sec=600",
+                        "-"),
+                runner.command.get());
+    }
+
+    @Test
+    void grokAskIsReadOnlyAndNeverUsesYolo() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.ASK,
+                        "Explain this failure")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("grok", "-p", "Explain this failure", "--permission-mode", "default",
+                "--tools", "read_file,grep,list_dir"), runner.command.get());
+        assertFalse(runner.command.get().contains("--yolo"));
+        assertFalse(runner.command.get().contains("--always-approve"));
+        assertFalse(response.toString().contains("secret"));
+    }
+
+    @Test
+    void grokPlanUsesPlanPermissionMode() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.PLAN,
+                        "Plan the fix")
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Plan the fix", "--permission-mode", "plan"), runner.command.get());
+    }
+
+    @Test
+    void grokAgentWithoutMutationStaysReadOnly() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.AGENT,
+                        "Implement the change")
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Implement the change", "--permission-mode", "default",
+                "--tools", "read_file,grep,list_dir"), runner.command.get());
+        assertFalse(runner.command.get().contains("acceptEdits"));
+        assertFalse(runner.command.get().contains("--yolo"));
+    }
+
+    @Test
+    void grokAgentWithMutationUsesAcceptEditsNotYolo() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.GROK, LocalAgentMode.AGENT,
+                        "Implement the change")
+                .allowSourceMutation(true)
+                .build();
+
+        service.execute(request);
+
+        assertEquals(List.of("grok", "-p", "Implement the change", "--permission-mode", "acceptEdits"),
+                runner.command.get());
+        assertFalse(runner.command.get().contains("--yolo"));
+        assertFalse(runner.command.get().contains("--always-approve"));
+    }
+
+    @Test
+    void configuredCommandOverridesDefaultsAndKeepsEnvironmentOutOfResponse() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.COPILOT_CLI, LocalAgentMode.ASK,
+                        "Explain this failure")
+                .command(List.of("custom-agent", "--safe"))
+                .environment(Map.of("OPENAI_API_KEY", "secret-value", "VISIBLE_FLAG", "1"))
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.SUCCESS, response.status());
+        assertEquals(List.of("custom-agent", "--safe"), runner.command.get());
+        assertEquals(Map.of("OPENAI_API_KEY", "secret-value", "VISIBLE_FLAG", "1"), runner.environment.get());
+        assertFalse(response.toString().contains("secret-value"));
+    }
+
+    @Test
+    void customAgentCommandWithoutMutationApprovalIsRejectedBecauseItCannotBeSandboxed() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> true, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.AGENT,
+                        "Inspect the browser")
+                .command(List.of("custom-agent", "--unsafe"))
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.REJECTED, response.status());
+        assertEquals(null, runner.command.get());
+        assertTrue(response.warnings().getFirst().contains("cannot enforce read-only execution"));
+    }
+
+    @Test
+    void unavailableDefaultExecutableDoesNotInvokeRunner() {
+        CapturingRunner runner = new CapturingRunner();
+        LocalAgentService service = new LocalAgentService(client -> false, runner);
+        LocalAgentRequest request = LocalAgentRequest.builder(LocalAgentClient.COPILOT_CLI, LocalAgentMode.ASK,
+                        "Explain this failure")
+                .build();
+
+        LocalAgentResponse response = service.execute(request);
+
+        assertEquals(LocalAgentStatus.UNAVAILABLE, response.status());
+        assertEquals(null, runner.command.get());
+    }
+
+    @Test
+    void requestRejectsBlankPromptAndNonPositiveTimeout() {
+        assertThrows(IllegalArgumentException.class,
+                () -> LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.ASK, " ").build());
+        assertThrows(IllegalArgumentException.class,
+                () -> LocalAgentRequest.builder(LocalAgentClient.CODEX, LocalAgentMode.ASK, "prompt")
+                        .timeout(Duration.ZERO)
+                        .build());
+    }
+
+    private static final class CapturingRunner implements LocalAgentProcessRunner {
+        private final AtomicReference<List<String>> command = new AtomicReference<>();
+        private final AtomicReference<String> stdin = new AtomicReference<>();
+        private final AtomicReference<Map<String, String>> environment = new AtomicReference<>();
+
+        @Override
+        public LocalAgentProcessResult run(
+                List<String> command,
+                Path workingDirectory,
+                Map<String, String> environment,
+                String stdin,
+                Duration timeout) {
+            this.command.set(command);
+            this.stdin.set(stdin);
+            this.environment.set(environment);
+            return new LocalAgentProcessResult(0, "answer", "", false, Duration.ofMillis(10));
+        }
+    }
+}

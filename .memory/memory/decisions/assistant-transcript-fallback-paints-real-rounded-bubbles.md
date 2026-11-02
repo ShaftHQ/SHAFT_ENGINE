@@ -1,0 +1,1 @@
+The IntelliJ Assistant transcript uses the IntelliJ Markdown/JCEF path where available, but its Swing fallback paints role bubbles with a custom rounded JPanel instead of depending on JEditorPane border-radius support. This keeps screenshot evidence and non-JCEF environments visually faithful, including compact right-aligned user prompt bubbles.

@@ -1,0 +1,16 @@
+{
+  "body_path": "memory/gotchas/never-use-os-kill-pid-0-as-a-windows-liveness-probe.md",
+  "content_hash": "sha256:25ca0740db547a0e1191804c1a2d7bfd88f565384493ff5e4ae9f2eeead456e1",
+  "created_at": "2026-08-11T21:26:34+03:00",
+  "evidence": [],
+  "id": "gotcha.never-use-os-kill-pid-0-as-a-windows-liveness-probe",
+  "source": {
+    "kind": "agent",
+    "task": "Record the Windows process-liveness crash root cause discovered while implementing PR #4729"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Never use os.kill(pid, 0) as a Windows liveness probe",
+  "type": "gotcha",
+  "updated_at": "2026-08-11T21:26:34+03:00"
+}

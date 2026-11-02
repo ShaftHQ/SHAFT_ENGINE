@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/gotchas/applicationmanager-setapplication-app-disposable-s-restore-on-dispose-no-ops-when-the-previous-application-was-null.md",
+  "content_hash": "sha256:39ed3af9ed319cff15720094286509abc0a3a104bd453a524c3441c237236510",
+  "created_at": "2026-07-27T11:05:51+03:00",
+  "evidence": [
+    {
+      "id": "6ea5761ef95caa5cf33e31f90570b3130d38c156",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.applicationmanager-setapplication-app-disposable-s-restore-on-dispose-no-ops-when-the-previous-application-was-null",
+  "source": {
+    "kind": "agent",
+    "task": "Fix shaft-intellij full-suite CI regression on PR #4238 (issue #4233 EditorColorsManager NPE fix)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "testng-lifecycle",
+    "ci-forensics",
+    "intellij-plugin",
+    "application-manager",
+    "test-pollution",
+    "issue-4233",
+    "issue-4238",
+    "issue-4239",
+    "issue-4242"
+  ],
+  "title": "ApplicationManager.setApplication(app, disposable)'s restore-on-dispose no-ops when the previous Application was null",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

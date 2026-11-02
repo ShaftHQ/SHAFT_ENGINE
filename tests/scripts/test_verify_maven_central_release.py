@@ -1,0 +1,118 @@
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+import scripts.ci.validate_maven_publication as validate_publication
+import scripts.ci.verify_maven_central_release as verify
+
+FIXTURE_GOALS = verify.FIXTURE_GOALS
+fixture_commands = verify.fixture_commands
+publication_paths = verify.publication_paths
+allure_cli_publication_paths = verify.allure_cli_publication_paths
+write_settings = verify.write_settings
+
+
+class VerifyMavenCentralReleaseTest(unittest.TestCase):
+    def test_maven_executable_prefers_windows_command_shim(self):
+        with mock.patch.object(
+            verify.shutil,
+            "which",
+            side_effect=lambda candidate: "C:/tools/mvn.cmd" if candidate == "mvn.cmd" else None,
+        ):
+            self.assertEqual(verify.maven_executable("Windows"), "C:/tools/mvn.cmd")
+
+    def test_maven_executable_reports_missing_maven(self):
+        with mock.patch.object(verify.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "Maven executable was not found"):
+                verify.maven_executable("Linux")
+
+    def test_publication_paths_cover_every_public_artifact_and_classifier(self):
+        paths = publication_paths("1.2.3")
+
+        self.assertIn("io/github/shafthq/shaft-engine/1.2.3/shaft-engine-1.2.3.jar", paths)
+        self.assertIn(
+            "io/github/shafthq/shaft-infrastructure/1.2.3/shaft-infrastructure-1.2.3.jar",
+            paths,
+        )
+        self.assertIn("io/github/shafthq/shaft-pilot-core/1.2.3/shaft-pilot-core-1.2.3.jar", paths)
+        self.assertIn("io/github/shafthq/shaft-capture/1.2.3/shaft-capture-1.2.3.jar", paths)
+        self.assertIn("io/github/shafthq/shaft-ai/1.2.3/shaft-ai-1.2.3-javadoc.jar.asc", paths)
+        self.assertIn("io/github/shafthq/shaft-visual/1.2.3/shaft-visual-1.2.3-javadoc.jar.asc", paths)
+        self.assertIn("io/github/shafthq/shaft-sikulix/1.2.3/shaft-sikulix-1.2.3-javadoc.jar.asc", paths)
+        self.assertIn("io/github/shafthq/shaft-bom/1.2.3/shaft-bom-1.2.3.pom.asc", paths)
+        self.assertIn("io/github/shafthq/SHAFT_ENGINE/1.2.3/SHAFT_ENGINE-1.2.3.pom", paths)
+
+    def test_fixture_commands_use_isolated_repositories_and_release_version(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            settings = temp / "settings.xml"
+            commands = fixture_commands("1.2.3", temp / "repository", settings)
+
+            self.assertEqual(len(commands), len(FIXTURE_GOALS))
+            self.assertTrue(all("-Dshaft.version=1.2.3" in command for command in commands))
+            self.assertEqual(
+                {Path(command[command.index("-f") + 1]).parent.name for command in commands},
+                set(FIXTURE_GOALS),
+            )
+            repositories = {
+                next(value for value in command if value.startswith("-Dmaven.repo.local="))
+                for command in commands
+            }
+            self.assertEqual(len(repositories), len(FIXTURE_GOALS))
+
+    def test_artifact_lists_match_the_deployed_reactor_publication_map(self):
+        # validate_maven_publication.PUBLIC_ARTIFACTS is the cross-checked, packaging-aware
+        # source of truth for what the reactor actually deploys (it reads each pom's
+        # <packaging>); JAR_ARTIFACTS/POM_ARTIFACTS here must not drift from it, or a
+        # published module (e.g. shaft-cli) silently stops being verified/reconciled.
+        expected_jars = {
+            name for name, (_, packaging) in validate_publication.PUBLIC_ARTIFACTS.items()
+            if packaging == "jar"
+        }
+        expected_poms = {
+            name for name, (_, packaging) in validate_publication.PUBLIC_ARTIFACTS.items()
+            if packaging == "pom"
+        }
+
+        self.assertEqual(set(verify.JAR_ARTIFACTS), expected_jars)
+        self.assertEqual(set(verify.POM_ARTIFACTS), expected_poms)
+
+
+    def test_allure_cli_only_skips_when_every_path_is_published(self):
+        with mock.patch.object(verify.urllib.request, "urlopen", return_value=mock.MagicMock()):
+            self.assertEqual(verify.allure_cli_only_status("https://repo.example.test/maven2"), 0)
+            self.assertEqual(verify.main(["--allure-cli-only"]), 0)
+
+    def test_allure_cli_only_reports_missing_paths(self):
+        with mock.patch.object(
+            verify.urllib.request,
+            "urlopen",
+            side_effect=verify.urllib.error.HTTPError("https://repo.example.test", 404, "missing", hdrs=None, fp=None),
+        ):
+            self.assertEqual(verify.allure_cli_only_status("https://repo.example.test/maven2"), 2)
+            self.assertEqual(verify.main(["--allure-cli-only", "--repository-url", "https://repo.example.test"]), 2)
+
+    def test_publication_paths_include_standalone_allure_cli_zip(self):
+        paths = publication_paths("1.2.3")
+        cli_paths = allure_cli_publication_paths()
+        for path in cli_paths:
+            self.assertIn(path, paths)
+        # allure-cli version is independent of the SHAFT release version argument
+        self.assertTrue(any("/allure-cli/" in p and p.endswith(".zip") for p in paths))
+        self.assertTrue(any(p.endswith(".zip.asc") for p in cli_paths))
+        self.assertTrue(any(p.endswith(".pom.asc") for p in cli_paths))
+
+    def test_settings_force_the_requested_repository(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings = Path(temp_dir) / "settings.xml"
+            write_settings(settings, "https://repo.example.test/maven2")
+
+            contents = settings.read_text(encoding="utf-8")
+            self.assertIn("https://repo.example.test/maven2", contents)
+            self.assertIn("<mirrorOf>*</mirrorOf>", contents)
+
+
+if __name__ == "__main__":
+    unittest.main()

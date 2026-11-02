@@ -1,0 +1,124 @@
+import unittest
+from pathlib import Path
+
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+from scripts.ci.overlay_in_temp import session_overlay
+
+
+ROOT = Path(__file__).resolve().parents[2]
+OVERLAY = session_overlay(ROOT)
+REFERENCE = ROOT / "chaos-engine/references/process-owner-scrum-master.md"
+# The core card no longer restates owner links (#6176). The router contract does.
+OWNERS = (
+    ROOT / "chaos-engine/references/router-contract.md",
+    ROOT / "chaos-engine/references/roles.md",
+    ROOT / "chaos-engine/references/orchestrator-follow-through.md",
+    ROOT / "chaos-engine/references/execution-workflows.md",
+    OVERLAY / ".claude/agents/chaos-engine-orchestrator.md",
+    OVERLAY / ".codex/agents/chaos-engine-orchestrator.toml",
+)
+
+# Long MUST / anti-pattern body that owners must link, not restate.
+OWNER_FORBIDDEN_RESTATEMENTS = (
+    "Silent acceptance of a delegate narrative is forbidden",
+    "Narrative claims of testing do not satisfy the gate",
+    "MUST publish Evidence-backed status using artifacts, exit codes, logs, or",
+    "Online research to optimize orchestrator or Scrum practice is allowed only for",
+    "Silent delegation drop: parent slice marked done from delegate prose alone",
+    "Narrative TDD bypass: Plan→Complete with \"tests should pass\"",
+)
+
+ANTI_PATTERNS = (
+    (
+        "Silent delegation drop",
+        "Re-open the slice; demand artifacts and exit evidence; verify before completion",
+    ),
+    (
+        "Narrative TDD bypass",
+        "Halt completion; require RED/GREEN or automated verifier proof, or record the blocker",
+    ),
+    (
+        "Heartbeat status",
+        "Replace with evidence-backed status or mark blocked",
+    ),
+    (
+        "Impediment theater",
+        "Remove within authority, coach, or escalate owner-only / paid spend immediately",
+    ),
+    (
+        "Research every Learning Session",
+        "Skip unless the failure class has recurred (2+); otherwise capture the single learning and move on",
+    ),
+    (
+        "Orchestrator implements while writers are live",
+        "Stop self-work; restore orchestrated boundaries; re-dispatch or switch mode only after handover",
+    ),
+)
+
+
+class ProcessOwnerScrumMasterTest(unittest.TestCase):
+    def test_reference_exists(self):
+        self.assertTrue(REFERENCE.is_file(), REFERENCE)
+
+    def test_owners_exist_after_overlay(self):
+        missing = [path.as_posix() for path in OWNERS if not path.is_file()]
+        self.assertEqual(missing, [])
+
+    def test_owners_link_the_reference(self):
+        for path in OWNERS:
+            with self.subTest(path=path.as_posix()):
+                self.assertTrue(path.is_file(), path)
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("process-owner-scrum-master.md", text)
+
+    def test_owners_do_not_restate_must_invariants(self):
+        for path in OWNERS:
+            text = path.read_text(encoding="utf-8")
+            compact = " ".join(text.split())
+            for phrase in OWNER_FORBIDDEN_RESTATEMENTS:
+                with self.subTest(path=path.as_posix(), phrase=phrase):
+                    self.assertNotIn(phrase, compact)
+
+    def test_must_invariants_are_present(self):
+        text = REFERENCE.read_text(encoding="utf-8")
+        compact = " ".join(text.split())
+        self.assertIn("Kanban", compact)
+        self.assertIn("process-owner is the role name", compact)
+        self.assertIn("alias only when the user explicitly asks", compact)
+        self.assertNotIn("is the process owner and Scrum-master", compact)
+        required = (
+            ("delegation verification", "verify delegation deliverables before parent-slice completion"),
+            ("TDD/PDCA", "no Plan→Complete without red/green or automated verifier proof"),
+            ("evidence status", "Evidence-backed status"),
+            ("impediment removal", "Impediment removal"),
+            ("consult-on-ambiguity", "consult on ambiguity"),
+            (
+                "recurring-only research threshold",
+                "recurring process-failure / impediment classes (2+)",
+            ),
+            (
+                "adaptive follow-up",
+                "Adaptive follow-up",
+            ),
+            (
+                "unattended default",
+                "Unattended default",
+            ),
+        )
+        for label, phrase in required:
+            with self.subTest(label=label):
+                self.assertIn(phrase, compact)
+
+    def test_must_vs_adaptive_and_anti_patterns_exist(self):
+        text = REFERENCE.read_text(encoding="utf-8")
+        self.assertIn("MUST", text)
+        self.assertRegex(text, r"(?i)adaptive")
+        self.assertIn("## Anti-patterns and self-correction", text)
+        for anti_pattern, correction in ANTI_PATTERNS:
+            with self.subTest(anti_pattern=anti_pattern):
+                self.assertIn(anti_pattern, text)
+                self.assertIn(correction, text)
+
+
+if __name__ == "__main__":
+    unittest.main()

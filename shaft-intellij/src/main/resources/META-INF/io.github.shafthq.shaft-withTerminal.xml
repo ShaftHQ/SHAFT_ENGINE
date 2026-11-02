@@ -1,0 +1,5 @@
+<!-- Optional Terminal-plugin integration: no extensions are registered here. The dependency only
+     makes org.jetbrains.plugins.terminal classes visible to this plugin's classloader so the
+     setup flow can open a terminal tab and pre-type commands (see ShaftTerminalCommands). -->
+<idea-plugin>
+</idea-plugin>

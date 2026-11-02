@@ -1,0 +1,121 @@
+version: 2
+updates:
+
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Maintain Python dependencies installed by CI workflows
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+
+  # Bundled setup npm trees (#6369). Weekly.
+  # The same dependency version is one pull request across these trees.
+  # setup-lock-pins.yml refreshes the planner SHA-256 pins automatically.
+  # Exact Appium/Allure versions stay pinned in package.json.
+  - package-ecosystem: "npm"
+    directories:
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/lighthouse"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/reporting"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+    ignore:
+      # #6382: these releases bundle axios 1.19.0 (high-severity advisories) that
+      # npm overrides cannot reach; later releases are still proposed and gated by
+      # BundledAppiumSecurityOverridesTest.
+      - dependency-name: "appium-uiautomator2-driver"
+        versions: ["8.6.x", "8.7.0"]
+    groups:
+      # Version updates. group-by is ignored on security jobs.
+      setup-npm:
+        patterns:
+          - "*"
+        group-by: dependency-name
+      # Security jobs ship with an empty dependency-groups list unless the
+      # group sets applies-to: security-updates. One dependency, one PR.
+      setup-npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        group-by: dependency-name
+
+  # Maintain dependencies for maven
+  - package-ecosystem: "maven"
+    directories:
+      - "/"
+      - "/shaft-engine"
+      - "/shaft-infrastructure"
+      - "/shaft-pilot-core"
+      - "/shaft-capture"
+      - "/shaft-capture-proxy"
+      - "/shaft-doctor"
+      - "/shaft-ai"
+      - "/shaft-heal"
+      - "/shaft-browserstack"
+      - "/shaft-video"
+      - "/shaft-visual"
+      - "/shaft-ui-match"
+      - "/shaft-ocr"
+      - "/shaft-sikulix"
+      - "/shaft-mcp"
+      - "/shaft-cli"
+      - "/shaft-bom"
+      - "/legacy-shaft-engine"
+      - "/report-aggregate"
+    schedule:
+      interval: "daily"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+    ignore:
+      # Blocked on Atlassian openapi-request-validator Jackson 3 migration:
+      # https://github.com/atlassian/openapi-request-validator/issues/21
+      # https://github.com/atlassian/openapi-request-validator/issues/37
+      # https://github.com/atlassian/openapi-request-validator/pull/24 (unmerged)
+      # REST Assured 6.3.0 and openapi-request-validator-core 3.0.0 still call SchemaRegistry.getSchema(com.fasterxml.jackson.databind.JsonNode).
+      - dependency-name: "com.networknt:json-schema-validator"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Google API / gRPC / protobuf artifacts pin each other's upper bounds, so a
+      # lone bump fails RequireUpperBoundDeps (e.g. kms-v1 needing common-protos).
+      # Listed first: Dependabot assigns each update to the first matching group.
+      google-grpc-protobuf:
+        patterns:
+          - "com.google.api.grpc:*"
+          - "com.google.api:*"
+          - "com.google.api-client:*"
+          - "com.google.cloud:*"
+          - "com.google.protobuf:*"
+          - "io.grpc:*"
+      # Version updates. One pull request per dependency name across directories.
+      aligned-maven-dependencies:
+        group-by: dependency-name
+      # Security updates do not use the version group above. Same dependency
+      # version across modules stays in one pull request.
+      aligned-maven-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        group-by: dependency-name

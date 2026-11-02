@@ -1,0 +1,1 @@
+Ephemeral `OPENCODE_CONFIG` merges with the global OpenCode config, so setting a local `base_url` alone does not isolate the process. Emit an `enabled_providers` allowlist for the READY local provider and document merge semantics in the local-agency guide. Issue #5882.

@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/omniroute-skill-expansions-must-stay-under-skill-md-byte-budget.md",
+  "content_hash": "sha256:084136326ce95ee9294c3f027b0245fd63f62bb6833b35b5bc62d8f1ed5585ab",
+  "created_at": "2026-09-14T14:45:14+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5767",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.omniroute-skill-expansions-must-stay-under-skill-md-byte-budget",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver open ChaosEngine learning tickets #5767-#5770 in one PR"
+  },
+  "status": "active",
+  "tags": [
+    "omniroute",
+    "skill-md",
+    "agent-guidance",
+    "gotcha"
+  ],
+  "title": "OmniRoute skill expansions must stay under skill-md byte budget",
+  "type": "gotcha",
+  "updated_at": "2026-09-14T14:45:14+03:00"
+}

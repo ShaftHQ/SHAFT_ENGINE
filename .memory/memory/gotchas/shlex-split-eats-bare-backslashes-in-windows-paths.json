@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/shlex-split-eats-bare-backslashes-in-windows-paths.md",
+  "content_hash": "sha256:f54abc2e8d1bd451344e61a9c922eef19589c641fdebfd923c04f1a4fcb96dac",
+  "created_at": "2026-07-08T17:00:20+03:00",
+  "evidence": [
+    {
+      "id": "198346c737b9e8aff2e94f59ef21f88ebd2e305b",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shlex-split-eats-bare-backslashes-in-windows-paths",
+  "source": {
+    "kind": "agent",
+    "task": "Portability audit 2026-07-08: migrate durable policy/gotcha content from non-portable global auto-memory into the repo-tracked .memory/ store so it travels across machines"
+  },
+  "status": "active",
+  "tags": [
+    "python",
+    "scripts",
+    "windows",
+    "shlex"
+  ],
+  "title": "shlex.split() eats bare backslashes in Windows paths",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

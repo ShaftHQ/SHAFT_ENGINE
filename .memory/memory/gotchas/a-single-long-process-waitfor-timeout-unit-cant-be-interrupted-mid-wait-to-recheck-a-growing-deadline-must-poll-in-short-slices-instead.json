@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/a-single-long-process-waitfor-timeout-unit-cant-be-interrupted-mid-wait-to-recheck-a-growing-deadline-must-poll-in-short-slices-instead.md",
+  "content_hash": "sha256:bb3ed45ca98e42f87fde5c1806b608a49e0ec2990ce736a32e372bea0bcb213f",
+  "created_at": "2026-07-17T05:25:56+03:00",
+  "evidence": [
+    {
+      "id": "db954fb1136ba2ddb23f221a4ba12763ae7e6d0d",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.a-single-long-process-waitfor-timeout-unit-cant-be-interrupted-mid-wait-to-recheck-a-growing-deadline-must-poll-in-short-slices-instead",
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij issue #3633 approval-deliberation time must not count against local-agent run timeout"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "concurrency",
+    "timeout",
+    "process"
+  ],
+  "title": "A single long process.waitFor(timeout, unit) can't be interrupted mid-wait to recheck a growing deadline -- must poll in short slices instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

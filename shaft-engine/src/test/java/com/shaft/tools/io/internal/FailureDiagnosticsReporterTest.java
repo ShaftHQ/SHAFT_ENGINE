@@ -1,0 +1,280 @@
+package com.shaft.tools.io.internal;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.listeners.internal.TestExecutionInfo;
+import com.shaft.properties.internal.Properties;
+import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
+import io.qameta.allure.Allure;
+import io.qameta.allure.model.Attachment;
+import io.qameta.allure.model.Status;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Field;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+@SuppressWarnings("PMD.AvoidAccessibilityAlteration") // Direct ThreadLocal seeding proves teardown isolation.
+public class FailureDiagnosticsReporterTest {
+
+    @Test(description = "Failed tests should attach one diagnostics zip with sanitized diagnostics JSON")
+    public void failedTestsShouldAttachDiagnosticsZip() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set()
+                    .diagnosticsBundleEnabled(true)
+                    .diagnosticsMaxArtifactMb(1)
+                    .traceEnabled(true)
+                    .traceMode("failure");
+            ReportContext.start(info("failingScenario", failure()));
+            ReportContext.setStatus(Status.FAILED);
+            int before = attachments().size();
+
+            FailureDiagnosticsReporter.attachOnFailure(
+                    info("failingScenario", failure()),
+                    "Authorization: Bearer raw-token\ncookie: session=raw-cookie\npassword=raw-password",
+                    List.of("target/raw-secret-video.mp4"));
+
+            List<Attachment> added = attachments().subList(before, attachments().size());
+            Assert.assertEquals(added.size(), 1);
+            Assert.assertEquals(added.getFirst().getName(), "shaft-diagnostics");
+            Assert.assertEquals(added.getFirst().getType(), "application/zip");
+
+            String json = unzipDiagnostics(FailureDiagnosticsReporter.renderDiagnosticsZip(
+                    FailureDiagnosticsReporter.renderDiagnosticsJson(
+                            info("failingScenario", failure()),
+                            "Authorization: Bearer raw-token\ncookie: session=raw-cookie\npassword=raw-password",
+                            List.of("target/raw-secret-video.mp4"))));
+            Assert.assertTrue(json.contains("\"schemaVersion\": 2"), json);
+            Assert.assertTrue(json.contains("\"className\": \"customer.LoginTest\""), json);
+            Assert.assertTrue(json.contains("\"status\": \"failed\""), json);
+            Assert.assertTrue(json.contains("\"topProjectFrame\": \"customer.LoginTest.failingScenario(LoginTest.java:27)\""), json);
+            Assert.assertTrue(json.contains("\"path\": \"shaft-trace.zip\""), json);
+            Assert.assertFalse(json.contains("\"trace-report\""), json);
+            Assert.assertTrue(json.contains("\"authorization-header\""), json);
+            Assert.assertTrue(json.contains("\"runId\": \"id-failingScenario\""), json);
+            Assert.assertTrue(json.contains("\"adapter\": \"shaft-engine-failure-diagnostics\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"framework\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"browser\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"network\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"console\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"screenshot\""), json);
+            Assert.assertTrue(json.contains("\"id\": \"agent-action\""), json);
+            Assert.assertTrue(json.contains("\"fingerprint\": \""), json);
+            Assert.assertFalse(json.contains("raw-token"), json);
+            Assert.assertFalse(json.contains("raw-cookie"), json);
+            Assert.assertFalse(json.contains("raw-password"), json);
+            String zipJson = unzipDiagnostics(FailureDiagnosticsReporter.renderDiagnosticsZip(json));
+            Assert.assertFalse(zipJson.contains("raw-token"), zipJson);
+            Assert.assertFalse(zipJson.contains("raw-cookie"), zipJson);
+            Assert.assertFalse(zipJson.contains("raw-password"), zipJson);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Cluster fingerprint and bundleId stay stable when generatedAt would differ")
+    public void clusterFingerprintIsStableAcrossRenders() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true).traceEnabled(false);
+            ReportContext.start(info("failingScenario", failure()));
+            ReportContext.setStatus(Status.FAILED);
+            String first = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), "line-1\nline-2", List.of("target/fail.png"));
+            String second = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), "line-1\nline-2", List.of("target/fail.png"));
+            Assert.assertEquals(field(first, "fingerprint"), field(second, "fingerprint"));
+            Assert.assertEquals(field(first, "bundleId"), field(second, "bundleId"));
+            Assert.assertTrue(first.contains("\"status\": \"present\"") && first.contains("\"id\": \"screenshot\""), first);
+            Assert.assertTrue(first.contains("\"reason\": \"partial-capture\""), first);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Omitted log lines are recorded instead of treated as complete")
+    public void omittedLogLinesAreRecorded() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true);
+            ReportContext.start(info("failingScenario", failure()));
+            ReportContext.setStatus(Status.FAILED);
+            StringBuilder log = new StringBuilder();
+            for (int i = 0; i < 201; i++) {
+                log.append("log-line-").append(i).append('\n');
+            }
+            String json = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("failingScenario", failure()), log.toString(), List.of());
+            Assert.assertTrue(json.contains("\"logLinesOmitted\": 1"), json);
+            Assert.assertTrue(json.contains("\"reason\": \"budget\""), json);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Skipped tests with throwables should not attach diagnostics")
+    public void skippedTestsShouldNotAttachDiagnosticsZip() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true);
+            ReportContext.start(info("skippedScenario", failure()));
+            ReportContext.setStatus(Status.SKIPPED);
+            int before = attachments().size();
+
+            FailureDiagnosticsReporter.attachOnFailure(info("skippedScenario", failure()), "skip log", List.of());
+
+            Assert.assertEquals(attachments().size(), before);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Diagnostics reporting properties should have failure-safe defaults and setters")
+    public void diagnosticsReportingPropertiesShouldHaveDefaultsAndSetters() {
+        try {
+            Assert.assertTrue(SHAFT.Properties.reporting.diagnosticsBundleEnabled());
+            Assert.assertEquals(SHAFT.Properties.reporting.diagnosticsMaxArtifactMb(), 50);
+
+            SHAFT.Properties.reporting.set()
+                    .diagnosticsBundleEnabled(false)
+                    .diagnosticsMaxArtifactMb(3);
+
+            Assert.assertFalse(SHAFT.Properties.reporting.diagnosticsBundleEnabled());
+            Assert.assertEquals(SHAFT.Properties.reporting.diagnosticsMaxArtifactMb(), 3);
+        } finally {
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Diagnostics JSON records a source snippet, artifact types, causes, and a broken status")
+    public void sourceSnippetArtifactTypesAndBrokenStatusAreRecorded() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true).traceEnabled(false);
+            ReportContext.start(info("snippetScenario", snippetFailure(13)));
+            ReportContext.setStatus(Status.FAILED);
+
+            Assert.assertFalse(FailureDiagnosticsReporter.shouldAttachDiagnostics(null));
+            Assert.assertFalse(FailureDiagnosticsReporter.shouldAttachDiagnostics(info("snippetScenario", null)));
+
+            String json = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(13)),
+                    null,
+                    List.of("target/evidence.gif", "target/notes.zip", "target/page.html", "target/notes.txt",
+                            "target/api-capture.json"));
+            Assert.assertTrue(json.contains("> 13:"), json);
+            Assert.assertTrue(json.contains("String clearBeforeTypingMode;"), json);
+            Assert.assertTrue(json.contains("\"type\": \"image/gif\""), json);
+            Assert.assertTrue(json.contains("\"type\": \"text/html\""), json);
+            Assert.assertTrue(json.contains("\"type\": \"text/plain\""), json);
+            Assert.assertTrue(json.contains("target/notes.zip"), json);
+            Assert.assertTrue(json.contains("IllegalStateException: locator missing"), json);
+            Assert.assertEquals(field(json, "captureSessionId"), "api-capture.json");
+            Assert.assertTrue(json.contains("\"logs\": []"), json);
+
+            String blankLine = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(0)), " \n", List.of());
+            Assert.assertTrue(blankLine.contains("\"snippet\": \"\""), blankLine);
+            Assert.assertTrue(blankLine.contains("\"logLinesOmitted\": 0"), blankLine);
+
+            ReportContext.setStatus(Status.BROKEN);
+            String broken = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(13)), "one line", null);
+            Assert.assertTrue(broken.contains("\"status\": \"broken\""), broken);
+            Assert.assertTrue(broken.contains("\"captureSessionId\": \"\""), broken);
+
+            String noFailure = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", null), " ", List.of());
+            Assert.assertTrue(noFailure.contains("\"type\": \"\""), noFailure);
+            Assert.assertTrue(noFailure.contains("\"causes\": []"), noFailure);
+
+            SHAFT.Properties.reporting.set().diagnosticsMaxArtifactMb(1);
+            String omitted = unzipDiagnostics(FailureDiagnosticsReporter.renderDiagnosticsZip("x".repeat(1024 * 1024 + 32)));
+            Assert.assertTrue(omitted.contains("Omitted because artifact exceeded shaft.diagnostics.maxArtifactMb=1"), omitted);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "The final failure reporter should release native trace ownership for the worker thread")
+    public void diagnosticsReporterShouldReleaseNativeTraceBeforeTheNextSameThreadTest() throws Exception {
+        Field field = PlaywrightTraceManager.class.getDeclaredField("LAST_TRACE_PATH");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ThreadLocal<Path> lastTrace = (ThreadLocal<Path>) field.get(null);
+        try {
+            lastTrace.set(Path.of("target", "stale-playwright-trace.zip"));
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(false).traceEnabled(true);
+
+            FailureDiagnosticsReporter.attachOnFailure(info("firstScenario", failure()), "failed", List.of());
+
+            Assert.assertNull(PlaywrightTraceManager.getLastTracePath());
+            String nextTrace = FailureTraceReporter.renderTraceJson(info("secondScenario", failure()), "failed",
+                    List.of());
+            Assert.assertFalse(nextTrace.contains("\"id\":\"native-trace\""), nextTrace);
+        } finally {
+            lastTrace.remove();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    private static TestExecutionInfo info(String methodName, Throwable throwable) throws Exception {
+        Method method = FailureDiagnosticsReporterTest.class.getDeclaredMethod("failingScenario");
+        return new TestExecutionInfo("id-" + methodName, "customer.LoginTest", methodName, methodName,
+                "diagnostics test", method, throwable, false);
+    }
+
+    private static RuntimeException snippetFailure(int lineNumber) {
+        RuntimeException throwable = new RuntimeException("navigation failed", new IllegalStateException("locator missing"));
+        throwable.setStackTrace(new StackTraceElement[]{
+                new StackTraceElement("testPackage.properties.FlagsTests$Nested", "checkFlags", "FlagsTests.java", lineNumber)
+        });
+        return throwable;
+    }
+
+    private static RuntimeException failure() {
+        RuntimeException throwable = new RuntimeException("boom password=raw-password");
+        throwable.setStackTrace(new StackTraceElement[]{
+                new StackTraceElement("customer.LoginTest", "failingScenario", "LoginTest.java", 27),
+                new StackTraceElement("com.shaft.listeners.internal.ExecutionLifecycleHelper", "attach", "ExecutionLifecycleHelper.java", 1)
+        });
+        return throwable;
+    }
+
+    @SuppressWarnings("unused")
+    private static void failingScenario() {
+        throw new UnsupportedOperationException("test marker");
+    }
+
+    private static String unzipDiagnostics(byte[] zipBytes) throws Exception {
+        try (ZipInputStream zip = new ZipInputStream(new java.io.ByteArrayInputStream(zipBytes))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("diagnostics.json".equals(entry.getName())) {
+                    return new String(zip.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                }
+            }
+        }
+        throw new AssertionError("diagnostics.json was not present in shaft-diagnostics.zip");
+    }
+
+    private static String field(String json, String key) {
+        String needle = "\"" + key + "\": \"";
+        int start = json.indexOf(needle);
+        Assert.assertTrue(start >= 0, key + " missing in " + json);
+        start += needle.length();
+        int end = json.indexOf('"', start);
+        return json.substring(start, end);
+    }
+
+    private static List<Attachment> attachments() {
+        List<Attachment> attachments = new ArrayList<>();
+        Allure.getLifecycle().updateTest(result -> attachments.addAll(result.getAttachments()));
+        return attachments;
+    }
+}

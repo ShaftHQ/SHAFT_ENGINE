@@ -1,0 +1,41 @@
+{
+  "body_path": "memory/gotchas/portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary.md",
+  "content_hash": "sha256:da1ce358d69bbfc265cdc6a4e7b3a8cb45fc5ff8a9f1af2355b061cdd45a7675",
+  "created_at": "2026-08-15T18:44:59+03:00",
+  "evidence": [
+    {
+      "id": "chaos-engine/hosts.py",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/tool.py",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/INSTALL.md",
+      "kind": "file"
+    },
+    {
+      "id": "chaos-engine/README.md",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.portable-token-scans-and-doctor-probes-do-not-prove-the-real-generated-launch-boundary",
+  "source": {
+    "kind": "agent",
+    "task": "Route the correct independent-review stop from ChaosEngine integration review"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "review",
+    "launch-boundary",
+    "portability",
+    "token-scan",
+    "bytecode-cache",
+    "argument-parsing"
+  ],
+  "title": "Portable scans and helper probes do not prove the generated launch boundary",
+  "type": "gotcha",
+  "updated_at": "2026-08-15T18:49:23+03:00"
+}

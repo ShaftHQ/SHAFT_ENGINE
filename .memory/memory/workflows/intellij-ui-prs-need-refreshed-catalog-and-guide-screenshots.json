@@ -1,0 +1,38 @@
+{
+  "body_path": "memory/workflows/intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots.md",
+  "content_hash": "sha256:56dbe4d99c1fd97769fed8492cad7056630bb3bae752d9b71f6156ab3c95d967",
+  "created_at": "2026-07-02T19:16:30+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#3229",
+      "kind": "source"
+    },
+    {
+      "id": "ShaftHQ/shafthq.github.io#679",
+      "kind": "source"
+    },
+    {
+      "id": "modular-era-feature-catalog.md",
+      "kind": "file"
+    },
+    {
+      "id": "docs/agentic/intellij.md",
+      "kind": "source"
+    }
+  ],
+  "id": "feature.intellij-ui-prs-need-refreshed-catalog-and-guide-screenshots",
+  "source": {
+    "kind": "agent",
+    "task": "Finalize IntelliJ Assistant icon-only controls for issue #3204"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "screenshots",
+    "docs",
+    "user-guide"
+  ],
+  "title": "IntelliJ UI PRs refresh renderer evidence and official guide screenshots",
+  "type": "feature",
+  "updated_at": "2026-08-11T13:45:11+03:00"
+}

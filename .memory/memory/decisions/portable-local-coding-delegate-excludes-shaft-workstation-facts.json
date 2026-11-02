@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/decisions/portable-local-coding-delegate-excludes-shaft-workstation-facts.md",
+  "content_hash": "sha256:bd814d38519809b0f0e7db0694b0a8c9ececa9850aeb1dd9772875d115b1dc77",
+  "created_at": "2026-08-18T00:24:41+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5081",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.portable-local-coding-delegate-excludes-shaft-workstation-facts",
+  "source": {
+    "kind": "agent",
+    "task": "Record the locked #5081 portable-versus-SHAFT local-coding split so later work does not reopen it."
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "portable",
+    "local-coding-delegate",
+    "5081"
+  ],
+  "title": "Portable local-coding-delegate excludes SHAFT workstation facts",
+  "type": "decision",
+  "updated_at": "2026-08-18T00:24:41+03:00"
+}

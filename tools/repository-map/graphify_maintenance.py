@@ -1,0 +1,379 @@
+#!/usr/bin/env python3
+"""Audit or refresh a repository's local Graphify map."""
+
+from __future__ import annotations
+
+import argparse
+from contextlib import contextmanager
+import fnmatch
+import json
+import os
+import shutil
+import subprocess  # nosec B404 - fixed, list-form repository maintenance commands.
+import sys
+from pathlib import Path, PurePosixPath
+
+
+CLASSIFICATIONS = (
+    "covered",
+    "expected_data_only",
+    "missing_optional_parser",
+    "unexpected_parser_gap",
+    "ignored_by_policy",
+    "unclassified_allowlisted",
+    "unclassified_unexpected",
+)
+DEFAULT_GRAPH_OUT = Path("graphify-out")
+UNCLASSIFIED_ALLOWLIST_SUFFIXES = {
+    ".properties",
+    ".toml",
+    ".xml",
+    ".feature",
+    ".cmd",
+    ".bat",
+    ".license",
+    ".config",
+    ".conf",
+    ".ini",
+    ".in",
+    ".lock",
+    ".manifest",
+    ".template",
+}
+UNCLASSIFIED_ALLOWLIST_NAMES = {
+    "gradlew",
+    "mvnw",
+    "start_emu_headless",
+    ".keep",
+}
+GRAPHIFYIGNORE_NAME = ".graphifyignore"
+
+
+def normalized_source(value: str) -> str:
+    """Return a stable repository-relative spelling for a Graphify source path."""
+    normalized = value.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return PurePosixPath(normalized).as_posix()
+
+
+def load_graphifyignore(root: Path) -> list[str]:
+    path = root / GRAPHIFYIGNORE_NAME
+    if not path.is_file():
+        return []
+    patterns: list[str] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        patterns.append(line.replace("\\", "/"))
+    return patterns
+
+
+def matches_graphify_ignore(path: str, patterns: list[str]) -> bool:
+    posix = normalized_source(path)
+    name = PurePosixPath(posix).name
+    for pattern in patterns:
+        candidate = pattern[:-1] if pattern.endswith("/") else pattern
+        if posix == candidate or posix.startswith(f"{candidate}/"):
+            return True
+        if fnmatch.fnmatch(posix, candidate) or fnmatch.fnmatch(name, candidate):
+            return True
+        if candidate.startswith("**/") and fnmatch.fnmatch(posix, candidate[3:]):
+            return True
+    return False
+
+
+def unclassified_allowlisted(path: str) -> bool:
+    posix = normalized_source(path)
+    suffix = PurePosixPath(posix).suffix.lower()
+    name = PurePosixPath(posix).name
+    if suffix in UNCLASSIFIED_ALLOWLIST_SUFFIXES or name in UNCLASSIFIED_ALLOWLIST_NAMES:
+        return True
+    if name.startswith("Dockerfile"):
+        return True
+    return "/META-INF/services/" in f"/{posix}"
+
+
+def git_tracked_files(root: Path) -> list[str] | None:
+    git = shutil.which("git")
+    if git is None:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
+            [git, "ls-files", "-z"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return [
+        normalized_source(item.decode("utf-8", "surrogateescape"))
+        for item in completed.stdout.split(b"\0")
+        if item
+    ]
+
+
+def load_json(path: Path, expected_type: type) -> object:
+    """Read one required Graphify JSON artifact with a useful error."""
+    if not path.is_file():
+        raise ValueError(f"required Graphify artifact is absent: {path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot read Graphify artifact {path}: {error}") from error
+    if not isinstance(value, expected_type):
+        raise ValueError(f"Graphify artifact has unexpected shape: {path}")
+    return value
+
+
+def audit_graph(root: Path, graph_out: Path) -> dict[str, object]:
+    """Classify every manifest path by whether Graphify emitted a node for it."""
+    if not root.is_dir():
+        raise ValueError(f"repository root is absent or not a directory: {root}")
+    output = graph_out if graph_out.is_absolute() else root / graph_out
+    manifest = load_json(output / "manifest.json", dict)
+    graph = load_json(output / "graph.json", dict)
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        raise ValueError(f"Graphify graph has no node list: {output / 'graph.json'}")
+
+    covered_sources = {
+        normalized_source(source)
+        for node in nodes
+        if isinstance(node, dict)
+        and isinstance((source := node.get("source_file")), str)
+        and source
+    }
+    result: dict[str, object] = {name: [] for name in CLASSIFICATIONS}
+    for raw_path in sorted(manifest):
+        if not isinstance(raw_path, str):
+            raise ValueError("Graphify manifest keys must be paths")
+        path = normalized_source(raw_path)
+        if path in covered_sources:
+            classification = "covered"
+        elif Path(path).suffix.lower() == ".json":
+            classification = "expected_data_only"
+        elif Path(path).suffix.lower() == ".sql":
+            classification = "missing_optional_parser"
+        else:
+            classification = "unexpected_parser_gap"
+        result[classification].append(path)  # type: ignore[union-attr]
+    result["total_manifest_paths"] = len(manifest)
+    tracked = git_tracked_files(root)
+    if tracked is None:
+        return result
+    manifest_paths = {normalized_source(str(key)) for key in manifest}
+    patterns = load_graphifyignore(root)
+    for path in tracked:
+        if path in manifest_paths:
+            continue
+        if path == GRAPHIFYIGNORE_NAME or matches_graphify_ignore(path, patterns):
+            result["ignored_by_policy"].append(path)  # type: ignore[union-attr]
+        elif Path(path).suffix.lower() == ".json":
+            result["expected_data_only"].append(path)  # type: ignore[union-attr]
+        elif unclassified_allowlisted(path):
+            result["unclassified_allowlisted"].append(path)  # type: ignore[union-attr]
+        else:
+            result["unclassified_unexpected"].append(path)  # type: ignore[union-attr]
+    return result
+
+
+def run_stage(name: str, command: list[str], root: Path) -> None:
+    """Run one refresh stage and preserve its failure as a named error."""
+    try:
+        subprocess.run(command, cwd=root, check=True)  # nosec B603
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"Graphify {name} stage failed with exit {error.returncode}") from error
+
+
+def run_audit(root: Path, graph_out: Path) -> dict[str, object]:
+    """Run the audit stage and reject actionable extraction gaps."""
+    report = audit_graph(root, graph_out)
+    print(json.dumps(report, indent=2, sort_keys=True))
+    if (
+        report["missing_optional_parser"]
+        or report["unexpected_parser_gap"]
+        or report["unclassified_unexpected"]
+    ):
+        raise RuntimeError("Graphify coverage audit found actionable parser gaps")
+    return report
+
+
+def require_primary_checkout(root: Path) -> Path:
+    """Fail before mutation unless root is the primary checkout of a Git repository."""
+    git = shutil.which("git")
+    if git is None:
+        raise ValueError("git is not on PATH; refresh requires a primary Git checkout")
+    try:
+        completed = subprocess.run(  # nosec B603
+            [git, "rev-parse", "--show-toplevel", "--git-common-dir"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError("refresh root is not a primary Git checkout") from error
+    lines = completed.stdout.splitlines()
+    if len(lines) != 2:
+        raise ValueError("cannot resolve the primary Git checkout")
+    top_level = Path(lines[0])
+    common_dir = Path(lines[1])
+    if not common_dir.is_absolute():
+        common_dir = root / common_dir
+    if root.resolve() != top_level.resolve() or root.resolve() != common_dir.resolve().parent:
+        raise ValueError("refresh root must be the primary Git checkout, not a linked worktree")
+    return common_dir.resolve()
+
+
+def require_head_at_origin_main(root: Path) -> None:
+    """Fail before mutation when HEAD and origin/main are both known and differ (#6762).
+
+    The record stage refuses such a checkout only after a full rebuild and after the
+    existing markers are gone; an unresolvable ref is left to that stage to report.
+    """
+    git = shutil.which("git")
+    if git is None:
+        return
+    revisions = []
+    for ref in ("HEAD", "refs/remotes/origin/main"):
+        try:
+            completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
+                [git, "rev-parse", "--verify", "--quiet", ref],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return
+        if completed.returncode != 0:
+            return
+        revisions.append(completed.stdout.strip())
+    if revisions[0] != revisions[1]:
+        raise ValueError("primary checkout HEAD must equal origin/main before recording")
+
+
+@contextmanager
+def refresh_lock(common_dir: Path):
+    """Hold a nonblocking, crash-released OS lock for the complete refresh."""
+    lock_path = common_dir / "shaft-graphify-refresh.lock"
+    lock_file = lock_path.open("a+b")
+    if lock_file.seek(0, os.SEEK_END) == 0:
+        lock_file.write(b"\0")
+        lock_file.flush()
+    lock_file.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt  # pylint: disable=import-outside-toplevel
+
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl  # pylint: disable=import-outside-toplevel,import-error
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        lock_file.close()
+        raise RuntimeError("Graphify refresh is already running for this repository") from error
+    try:
+        yield
+    finally:
+        lock_file.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
+
+
+def refresh(root: Path, graph_out: Path) -> None:
+    """Build, audit, cluster, then bind the complete cache to the current revision."""
+    if not root.is_dir():
+        raise ValueError(f"repository root is absent or not a directory: {root}")
+    requested_output = graph_out if graph_out.is_absolute() else root / graph_out
+    if requested_output.resolve() != (root / DEFAULT_GRAPH_OUT).resolve():
+        raise ValueError("refresh owns the fixed graphify-out cache; use audit for custom output")
+    if "SHAFT_GRAPHIFY_OUT" in os.environ:
+        configured = os.environ["SHAFT_GRAPHIFY_OUT"].strip()
+        if not configured:
+            raise ValueError("SHAFT_GRAPHIFY_OUT must not be blank")
+        configured_output = Path(configured).expanduser()
+        if not configured_output.is_absolute():
+            raise ValueError("SHAFT_GRAPHIFY_OUT must be absolute")
+        if configured_output.resolve() != requested_output.resolve():
+            raise ValueError(
+                "SHAFT_GRAPHIFY_OUT must match the refresh checkout graphify-out"
+            )
+    resolver = Path(__file__).resolve().with_name("resolve_graph_out.py")
+    if not resolver.is_file():
+        raise ValueError(f"bundled Graphify resolver is absent: {resolver}")
+    common_dir = require_primary_checkout(root)
+    require_head_at_origin_main(root)
+    uv = shutil.which("uv")
+    if uv is None:
+        raise ValueError("uv is not on PATH")
+    graphify = [
+        "uv",
+        "tool",
+        "run",
+        "--with",
+        "tree-sitter-sql",
+        "--from",
+        "graphifyy",
+        "graphify",
+    ]
+    with refresh_lock(common_dir):
+        for marker in (".shaft-source-revision.json", ".chaos-engine-source-revision.json"):
+            (requested_output / marker).unlink(missing_ok=True)
+        run_stage(
+            "build",
+            [uv, *graphify[1:], "extract", ".", "--code-only", "--no-cluster"],
+            root,
+        )
+        run_audit(root, graph_out)
+        run_stage("cluster", [uv, *graphify[1:], "cluster-only", "."], root)
+        run_stage(
+            "record",
+            [sys.executable, str(resolver), "--record-current"],
+            root,
+        )
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    subcommands = result.add_subparsers(dest="command", required=True)
+    audit = subcommands.add_parser("audit")
+    audit.add_argument("--root", type=Path, default=Path("."))
+    audit.add_argument("--graph-out", type=Path, default=DEFAULT_GRAPH_OUT)
+    refresh_command = subcommands.add_parser("refresh")
+    refresh_command.add_argument("--root", type=Path, default=Path("."))
+    return result
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    root = args.root.resolve()
+    try:
+        if args.command == "audit":
+            report = audit_graph(root, args.graph_out)
+            print(json.dumps(report, indent=2, sort_keys=True))
+            return int(
+                bool(
+                    report["missing_optional_parser"]
+                    or report["unexpected_parser_gap"]
+                    or report["unclassified_unexpected"]
+                )
+            )
+        refresh(root, DEFAULT_GRAPH_OUT)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

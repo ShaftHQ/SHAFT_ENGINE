@@ -1,0 +1,5 @@
+Branch and worktree shape for a session. The PR-count default lives in `.agents/skills/act-as-mohab/references/work-github-planning.md` Sec. 3b (tracking issue, one real issue per subtask, and one PR per group of related subtasks), which supersedes the older framing this object carried. Read it there; a second copy in memory is what let two shapes both look current.
+
+Do a session's work in one worktree on one branch, rather than opening a new branch or worktree per task, issue, or phase. This does not override housekeeping for stale leftover worktrees.
+
+Exception: when sub-issues have file-level dependencies, merge the completed non-conflicting work first, then cut a fresh branch from updated `origin/main` for each remaining dependent item. Implement, verify, PR, wait green, and merge sequentially; never put file-dependent items in parallel worktrees.

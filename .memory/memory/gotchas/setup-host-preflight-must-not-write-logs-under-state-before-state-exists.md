@@ -1,0 +1,1 @@
+A provider hostPreflight that calls ReportingSetupService.runProcess with a log under paths.state()/logs will throw NoSuchFileException on a cold cache, then wrap it as a missing-tool diagnosis. Probe-only Docker/compose commands must pass log=null. Mutation commands may write logs only after creating the log parent. Evidence: independent review of #5042 / #5041.

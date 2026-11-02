@@ -1,0 +1,35 @@
+{
+  "body_path": "memory/gotchas/memory-cli-supersede-shorthand-fails-on-windows-with-long-object-ids.md",
+  "content_hash": "sha256:7fad3a80dfcfd8f04421dae41dda56bdc6abdec7d001ef762b5adc0c9387934c",
+  "created_at": "2026-07-19T22:05:53+03:00",
+  "evidence": [
+    {
+      "id": "663d6f435d2be08c9fa82c526086803e911d3481",
+      "kind": "commit"
+    },
+    {
+      "id": "7e01797c2be110ae941483f5a97f7b554cd0d7e4",
+      "kind": "commit"
+    },
+    {
+      "id": "1c8bdb33e987a89f3616db33fa48faebb23586e8",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.memory-cli-supersede-shorthand-fails-on-windows-with-long-object-ids",
+  "source": {
+    "kind": "agent",
+    "task": "document Windows MAX_PATH issue with memory CLI supersede shorthand"
+  },
+  "status": "active",
+  "tags": [
+    "windows",
+    "memory-cli",
+    "max-path",
+    "upstream-bug",
+    "relations"
+  ],
+  "title": "memory CLI: relation auto-naming from concatenated long object ids risks Windows MAX_PATH -- supersede shorthand and create_relation both affected",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

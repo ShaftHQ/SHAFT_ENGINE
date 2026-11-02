@@ -1,0 +1,3124 @@
+package com.shaft.intellij.ui;
+
+import com.intellij.ide.BrowserUtil;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.Disposable;
+import com.intellij.openapi.ide.CopyPasteManager;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.ui.components.ActionLink;
+import com.intellij.ui.components.JBScrollPane;
+import com.intellij.ui.components.JBTextArea;
+import com.intellij.util.ui.FormBuilder;
+import com.intellij.util.ui.JBUI;
+import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
+import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.mcp.ShaftPluginExecutor;
+import com.shaft.intellij.project.ShaftGithubWorkflowFile;
+import com.shaft.intellij.settings.AssistantAgentRoute;
+import com.shaft.intellij.settings.ShaftPluginResetService;
+import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.settings.ProviderCredentialSource;
+import org.jetbrains.annotations.NotNull;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JTextPane;
+import javax.swing.Timer;
+import javax.swing.Icon;
+import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.KeyEvent;
+import java.io.IOException;
+import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+/**
+ * First-run SHAFT MCP setup panel.
+ */
+public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
+    private static final String INSTALLER_BRANCH = "main";
+    private static final String MCP_DOCS_URL = "https://shafthq.github.io/docs/agentic/mcp";
+    private static final String USER_GUIDE_URL = "https://shafthq.github.io";
+    private static final int TOAST_MILLIS = 2500;
+    private static final String[] INSTALLER_TARGETS = {
+            "CODEX",
+            "CLAUDE_CODE",
+            "CLAUDE_DESKTOP",
+            "COPILOT_CLI",
+            "COPILOT_INTELLIJ",
+            "GROK",
+            "INTELLIJ_PLUGIN"
+    };
+    private static final String GUIDE_SETUP_STEP =
+            "Next: choose your agent, then press Copy -- this opens a terminal with the MCP+skills+CLI "
+                    + "install command ready to go; run it there, then press Check.";
+    private static final String CHECK_NEXT_STEP = "Press Check now.";
+    // Issue #4160 area A: a returning user reopening the panel in a new IDE session after setup
+    // already succeeded sees "4 Check setup: Done" (settings.mcpSetupComplete persists) alongside
+    // steps 1-3, which always reset to neutral on a fresh landing (issue #3426 A4/A5, #3560) --
+    // CHECK_NEXT_STEP's "Press Check now." reads as if nothing had ever been verified, contradicting
+    // the Done badge right above it. This greeting acknowledges the prior success instead.
+    private static final String ALREADY_VERIFIED_STEP =
+            "SHAFT MCP was verified in a previous session. Press Check to re-verify now.";
+    private static final String GEMINI_FAMILY = "GEMINI";
+    private static final String GEMINI_KEY_NAME = "GEMINI_API_KEY";
+    /** Client-property key {@link #stepRow} stashes its action component under, so the row-collapse
+     * logic (issue #3601 S2) can find and hide it without a dedicated field per row. */
+    private static final String STEP_ACTION_KEY = "shaft.stepRow.action";
+    /** Client-property key {@link #stepRow} stashes its discoverable recheck icon under (issue
+     * #4314 fix 4), so {@link #styleStepRow} can show it only in the "done" state without a
+     * dedicated field per row. */
+    private static final String STEP_RECHECK_KEY = "shaft.stepRow.recheck";
+    private static final String STEP_BORDER_KEY = "shaft.stepRow.border";
+    private static final String STEP_TITLE_KEY = "shaft.stepLabel.title";
+
+    @FunctionalInterface
+    interface AgentReadinessProbe {
+        ShaftMcpToolResult test(String client, String runtime);
+    }
+
+    /**
+     * Cloud provider API-key storage used by the setup check. Backed by IntelliJ Password Safe in
+     * production and injectable so tests never touch the real credential store.
+     */
+    interface CloudKeyStore {
+        boolean hasKey(String keyName);
+
+        void saveKey(String keyName, char[] secret);
+    }
+
+    /**
+     * Opens a terminal tab (name, command) with the command pre-typed; injectable for tests.
+     * Returns whether the terminal actually opened (the pre-type was scheduled) — that alone does
+     * not mean the command was actually typed, since the pre-type is async and can still fail after
+     * the widget opens (issue #3551). {@code onOutcome} fires exactly once, on the EDT (the real
+     * implementation's caller is a {@code javax.swing.Timer} listener, which the Swing contract
+     * guarantees runs on the EDT), with the real outcome once it is known; callers that don't need
+     * it may pass a no-op consumer.
+     */
+    @FunctionalInterface
+    interface TerminalOpener {
+        boolean open(String tabName, String command, Consumer<Boolean> onOutcome);
+    }
+
+    private final Project project;
+    private final ShaftSettingsState.Settings settings;
+    private final Runnable connected;
+    private final AgentReadinessProbe readinessProbe;
+    private final AgentReadinessProbe deepReadinessProbe;
+    private final CloudKeyStore cloudKeyStore;
+    private Recommendation recommendation;
+    private final JBTextArea installerCommand;
+    private final JBTextArea mcpCommand;
+    private final JComboBox<String> family;
+    private final JComboBox<String> runtime;
+    private final JComboBox<AssistantAgentRoute> agentRoute;
+    private final javax.swing.JPasswordField geminiApiKey;
+    private final JCheckBox useGeminiEnvironment;
+    private final JLabel geminiKeyStatus;
+    private final JPanel runtimeRow;
+    private final JPanel apiKeyRow;
+    private final JComboBox<String> installerTarget;
+    private final JCheckBox manualInstallerTarget;
+    private final JCheckBox installShaftCli;
+    private JCheckBox advancedInstallerToggle;
+    private JLabel readyChecklist;
+    private final JButton copyUpgradeCommand;
+    private final JButton checkUpgrade;
+    private final JButton checkChosenAgent;
+    private final JLabel upgradeDetail;
+    private final JButton installNow;
+    private final JButton checkMcpVersion;
+    private final JLabel mcpVersionDetail;
+    private final JButton test;
+    private final JButton startChatting;
+    private final JButton startWithoutAgent;
+    private final JButton connectAgent;
+    private final JButton resetAndReinstall;
+    private final JCheckBox expertMode;
+    private final JButton connectionAgentsRecheck;
+    private final JButton resetEverything;
+    private final JButton generateCiWorkflow;
+    private final JProgressBar progress;
+    private final JLabel runtimeStatus;
+    private final JLabel assistStatus;
+    private final JLabel upgradeStep;
+    private final JLabel upgradeState;
+    private final JLabel chooseStep;
+    private final JLabel chooseState;
+    private final JLabel installStep;
+    private final JLabel installState;
+    private final JLabel agentCheckStep;
+    private final JLabel agentCheckState;
+    private final JLabel testStep;
+    private final JLabel testState;
+    private final JLabel readyStep;
+    private final JLabel readyState;
+    private final JLabel status;
+    private final JLabel recommendedAgent;
+    private final JLabel recoveryStatus;
+    private final JLabel toast;
+    private final JButton copyCommand;
+    private final JButton copyOutput;
+    private final JButton copyDocs;
+    private final JButton copyRestartCommand;
+    private final JTextPane details;
+    private final JBScrollPane detailsScroll;
+    private final JButton toggleDetails;
+    private final JPanel installerDetailsPanel;
+    private final JPanel detailsPanel;
+    private final JPanel prerequisitesRow;
+    private final JPanel prerequisitesList;
+    private final JLabel prerequisitesStep;
+    private final JLabel prerequisitesState;
+    private final JPanel upgradeRow;
+    private final JPanel chooseRow;
+    private final JPanel installRow;
+    private final JPanel agentCheckRow;
+    private final JPanel checkRow;
+    private final JPanel chatRow;
+    private java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>> prerequisitesDetector =
+            SetupPrerequisites::detect;
+    private String diagnosticCommand = "";
+    private String diagnosticOutput = "";
+    /** Real on-disk state (issue #3426 A5): whether an installed shaft-mcp was found locally. */
+    private boolean installedCommandDetected;
+    /** Whether the last explicit "Check now" run failed, for the failed step badge. */
+    private boolean lastCheckFailed;
+    /**
+     * Whether the user has explicitly pressed "Check" for the upgrade/MCP-version rows
+     * (issue #3560): a step badge only earns green after this real, user-triggered check passes —
+     * never from passive on-disk detection alone, so a fresh landing (or a post-reset re-render)
+     * never shows green by default.
+     */
+    private boolean upgradeChecked;
+    private boolean mcpVersionChecked;
+    /** Last {@link #refreshPrerequisites()} result, mirrored into a field (issue #3601 S2) so the
+     * row-collapse pass can read it without re-running tool detection on every setup update. */
+    private boolean prerequisitesAllPresent = true;
+    /** Step rows a user clicked open to inspect after they auto-collapsed (issue #3601 S2); cleared
+     * on the next real setup update so a manual override never outlives the progress that earned it. */
+    private final java.util.Set<JPanel> manuallyExpandedRows = new java.util.HashSet<>();
+    private ShaftProjectVersionCheck.Result upgradeCheckResult;
+    /** Runs the real project-vs-latest SHAFT version comparison; injectable for tests. */
+    private java.util.function.Supplier<ShaftProjectVersionCheck.Result> upgradeChecker = () ->
+            ShaftProjectVersionCheck.check(projectRoot(), SetupPrerequisites.knownLatestEngineVersion());
+    private ShaftMcpVersionCheck.Result mcpVersionCheckResult;
+    /** Runs the real installed-vs-latest shaft-mcp version comparison; injectable for tests. */
+    private java.util.function.Supplier<ShaftMcpVersionCheck.Result> mcpVersionChecker = () ->
+            ShaftMcpVersionCheck.check(installedShaftMcpVersion(), SetupPrerequisites.knownLatestMcpVersion());
+    private TerminalOpener terminalOpener = this::openTerminalWithPreparedCommand;
+    private Consumer<String> copySink = ShaftMcpSetupPanel::copyToClipboard;
+    private Consumer<String> toastSink = this::showToast;
+    private Timer toastTimer;
+    private java.util.function.BooleanSupplier confirmReset = this::confirmResetDialog;
+    private Runnable resetAction = () -> ShaftPluginResetService.getInstance().resetEverything();
+    private java.util.function.Function<String, String> providerEnvironmentLookup = System::getenv;
+    private java.util.function.Function<char[], com.shaft.intellij.settings.ProviderKeyProbe.Result> geminiKeyProbe =
+            com.shaft.intellij.settings.ProviderKeyProbe::testGemini;
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected) {
+        // Production: PATH-level probe for the fast recommended-agent scan at construction time,
+        // and the deep client-can-access-shaft-mcp probe (which spawns the client CLI) reserved
+        // for the explicit user-triggered "Check now" on a background thread.
+        this(project, settings, connected, AssistantLocalAgentRunner::readiness,
+                AssistantLocalAgentRunner::connectionReadiness, passwordSafeKeyStore());
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe) {
+        this(project, settings, connected, readinessProbe, readinessProbe, passwordSafeKeyStore());
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull AgentReadinessProbe deepReadinessProbe) {
+        this(project, settings, connected, readinessProbe, deepReadinessProbe, passwordSafeKeyStore());
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull CloudKeyStore cloudKeyStore) {
+        this(project, settings, connected, readinessProbe, readinessProbe, cloudKeyStore);
+    }
+
+    ShaftMcpSetupPanel(@NotNull Project project, @NotNull ShaftSettingsState.Settings settings,
+                       @NotNull Runnable connected, @NotNull AgentReadinessProbe readinessProbe,
+                       @NotNull AgentReadinessProbe deepReadinessProbe,
+                       @NotNull CloudKeyStore cloudKeyStore) {
+        super(new BorderLayout(8, 8));
+        this.project = project;
+        this.settings = settings;
+        this.connected = connected;
+        this.readinessProbe = readinessProbe;
+        this.deepReadinessProbe = deepReadinessProbe;
+        this.cloudKeyStore = cloudKeyStore;
+        recommendation = recommendFamily(settings);
+        setBorder(JBUI.Borders.empty(12));
+
+        installerCommand = commandArea(3, "MCP installer command");
+        installerCommand.setEditable(false);
+        installerCommand.getAccessibleContext().setAccessibleDescription(
+                "Terminal command that installs SHAFT MCP for the selected assistant client.");
+        mcpCommand = commandArea(4, "Managed SHAFT MCP command");
+        mcpCommand.setText(settings.mcpCommand == null ? "" : settings.mcpCommand);
+        mcpCommand.getAccessibleContext().setAccessibleDescription(
+                "Local command used to start SHAFT MCP in stdio mode.");
+        mcpCommand.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent event) {
+                commandChanged();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent event) {
+                commandChanged();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent event) {
+                commandChanged();
+            }
+        });
+
+        progress = new JProgressBar();
+        progress.setIndeterminate(true);
+        progress.setVisible(false);
+        progress.setPreferredSize(JBUI.size(96, 14));
+        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", "ANTIGRAVITY", GEMINI_FAMILY});
+        ShaftUiLabels.applyFriendlyRenderer(family);
+        String familyValue = initialFamily(settings);
+        if (familyValue.isBlank()) {
+            family.setSelectedIndex(-1);
+        } else {
+            family.setSelectedItem(familyValue);
+        }
+        family.getAccessibleContext().setAccessibleName("Assistant family");
+        runtime = new JComboBox<>(new String[]{"CLI", "IDE_PLUGIN", "DESKTOP_APP"});
+        ShaftUiLabels.applyFriendlyRenderer(runtime);
+        runtime.setSelectedItem(normalize(settings.assistantRuntime, "CLI"));
+        runtime.getAccessibleContext().setAccessibleName("Assistant runtime");
+        agentRoute = new JComboBox<>(AssistantAgentRoute.values());
+        agentRoute.setSelectedItem(AssistantAgentRoute.fromSettings(settings));
+        agentRoute.getAccessibleContext().setAccessibleName("Assistant agent");
+        agentRoute.getAccessibleContext().setAccessibleDescription(
+                "Select the agent that SHAFT will configure and use for Agentic Tools installation.");
+        agentRoute.setRenderer((list, value, index, selected, focused) -> {
+            JLabel label = (JLabel) new DefaultListCellRenderer()
+                    .getListCellRendererComponent(list, value, index, selected, focused);
+            if (value == null) {
+                label.setText("Select an option");
+            } else {
+                label.setText(value.displayName());
+            }
+            return label;
+        });
+        syncLegacySelectionFromRoute();
+        geminiApiKey = new javax.swing.JPasswordField(24);
+        geminiApiKey.getAccessibleContext().setAccessibleName("Gemini API key");
+        geminiApiKey.getAccessibleContext().setAccessibleDescription(
+                "Google AI Studio API key stored in IntelliJ Password Safe when the setup check passes.");
+        useGeminiEnvironment = new JCheckBox();
+        useGeminiEnvironment.getAccessibleContext().setAccessibleName("Use configured Gemini environment variable");
+        ProviderCredentialSource.Source initialGeminiSource = selectedGeminiEnvironment().orElse(null);
+        if (initialGeminiSource != null) {
+            var source = initialGeminiSource;
+            useGeminiEnvironment.setText(source.label());
+            useGeminiEnvironment.getAccessibleContext().setAccessibleName(source.label());
+            useGeminiEnvironment.getAccessibleContext().setAccessibleDescription(
+                    source.variableName() + " will be read only when launching or validating Gemini.");
+            useGeminiEnvironment.setSelected(source.variableName().equals(
+                    settings.providerApiKeyEnvironmentVariable("gemini")));
+        }
+        useGeminiEnvironment.addActionListener(event -> {
+            settings.setProviderApiKeyEnvironmentVariable("gemini", useGeminiEnvironment.isSelected()
+                    ? detectGeminiEnvironment().map(ProviderCredentialSource.Source::variableName).orElse("")
+                    : "");
+            updateCloudControls();
+        });
+        geminiKeyStatus = setupStatusLabel("Gemini API key status");
+        installerTarget = new JComboBox<>(INSTALLER_TARGETS);
+        ShaftUiLabels.applyFriendlyRenderer(installerTarget);
+        if (selectedAgentRoute() != null) {
+            installerTarget.setSelectedItem(selectedAgentRoute().installerTarget());
+        }
+        installerTarget.getAccessibleContext().setAccessibleName("MCP installer target");
+        installerTarget.getAccessibleContext().setAccessibleDescription(
+                "MCP client or plugin target used to build the installer command.");
+        installerTarget.setVisible(false);
+        manualInstallerTarget = new JCheckBox("MCP target");
+        manualInstallerTarget.setVisible(false);
+        manualInstallerTarget.getAccessibleContext().setAccessibleName("Show manual MCP install target");
+        manualInstallerTarget.setToolTipText("Show advanced installer targets when the inferred default is not correct");
+        manualInstallerTarget.addActionListener(event -> {
+            installerTarget.setVisible(false);
+        });
+        installShaftCli = new JCheckBox("Also install shaft-cli");
+        installShaftCli.getAccessibleContext().setAccessibleName("Also install shaft-cli command line");
+        installShaftCli.setToolTipText("Also install the shaft-cli command line (--install-shaft-cli), "
+                + "a terminal interface to the same SHAFT MCP tools");
+        // Complete setup by default (issue #3743): MCP + skills + shaft-cli install together with
+        // one click. This checkbox (inside Advanced installer options, hidden by default) exists
+        // only for a user who explicitly wants to opt back out of the CLI.
+        installShaftCli.setSelected(true);
+        installShaftCli.addActionListener(event -> installerTargetChanged());
+        installerCommand.setText(installerCommand());
+        copyUpgradeCommand = new JButton("Copy");
+        copyUpgradeCommand.getAccessibleContext().setAccessibleName("Copy SHAFT upgrade command");
+        copyUpgradeCommand.setToolTipText("Copy the SHAFT upgrade command and open a terminal with it pre-typed "
+                + "— just press Enter there to run it");
+        applyLabeledAction(copyUpgradeCommand, ShaftIcons.COPY);
+        copyUpgradeCommand.addActionListener(event -> copyUpgradeCommand());
+        checkUpgrade = new JButton("Check");
+        checkUpgrade.getAccessibleContext().setAccessibleName("Check SHAFT project version");
+        checkUpgrade.setToolTipText("Read this project's pom.xml and compare its SHAFT version "
+                + "against the latest release");
+        applyLabeledAction(checkUpgrade, ShaftIcons.CHECK);
+        checkUpgrade.addActionListener(event -> runUpgradeCheck(true));
+        upgradeDetail = setupStatusLabel("SHAFT project version status");
+        checkMcpVersion = new JButton("Check");
+        checkMcpVersion.getAccessibleContext().setAccessibleName("Check SHAFT MCP version");
+        checkMcpVersion.setToolTipText("Compare the installed SHAFT MCP version against the latest release");
+        applyLabeledAction(checkMcpVersion, ShaftIcons.CHECK);
+        checkMcpVersion.addActionListener(event -> runMcpVersionCheck(true));
+        // Issue #4314 fix 2: every other step already has its own "Check" button that turns its
+        // badge green on its own -- "2 Pick agent" only turned green as a side effect of the full
+        // step-4 MCP probe. This lets a user verify "is my picked agent already installed/connected"
+        // without running the whole setup flow.
+        checkChosenAgent = new JButton("Check");
+        checkChosenAgent.getAccessibleContext().setAccessibleName("Check agent connection");
+        checkChosenAgent.setToolTipText("Verify the selected agent is already installed and connected, "
+                + "without running the full SHAFT MCP setup check");
+        applyLabeledAction(checkChosenAgent, ShaftIcons.CHECK);
+        checkChosenAgent.addActionListener(event -> checkChosenAgentClicked());
+        // Primary one-click install action (issue #3743; reworked for JetBrains Marketplace
+        // compliance -- see ShaftPluginSecurityTest, which forbids this plugin from spawning
+        // processes): copies the full MCP + skills + CLI command to the clipboard AND opens a
+        // terminal with it pre-typed through the same TerminalOpener seam, via the shared
+        // copyCommandIntoTerminal() helper every other copy-then-terminal action on this screen
+        // already uses; the plugin never executes the command itself, the user presses Enter.
+        // Issue #4314 fix 3: this used to be two functionally near-identical buttons ("Install" and
+        // a separate "Copy" that additionally copied to clipboard first) -- merged into this one.
+        installNow = new JButton("Copy");
+        installNow.getAccessibleContext().setAccessibleName("Copy SHAFT Tools & Skills setup command");
+        installNow.setToolTipText("Copies the SHAFT Agentic Tools + skills + shaft-cli install command to the clipboard and "
+                + "opens a terminal with it pre-typed for the selected client -- press Enter there to run it, "
+                + "then press Check.");
+        applyLabeledAction(installNow, ShaftIcons.COPY);
+        installNow.addActionListener(event -> runInstall());
+        mcpVersionDetail = setupStatusLabel("SHAFT MCP version status");
+        test = new JButton("Check");
+        test.getAccessibleContext().setAccessibleName("Test SHAFT MCP connection");
+        test.setToolTipText("Infer the stdio command and verify SHAFT MCP");
+        test.setMnemonic(KeyEvent.VK_K);
+        applyLabeledAction(test, ShaftIcons.CHECK);
+        test.addActionListener(event -> testConnection());
+        startChatting = new JButton("Start chatting");
+        startChatting.getAccessibleContext().setAccessibleName("Start chatting with SHAFT Assistant");
+        startChatting.setToolTipText("Open the Assistant with this verified MCP command");
+        startChatting.setMnemonic(KeyEvent.VK_S);
+        applyLabeledAction(startChatting, ShaftIcons.SEND);
+        startChatting.setVisible(false);
+        startChatting.addActionListener(event -> connected.run());
+        startWithoutAgent = new JButton("Start without an agent");
+        startWithoutAgent.getAccessibleContext().setAccessibleName("Start SHAFT without an agent");
+        startWithoutAgent.setToolTipText("Recorder, codegen, doctor, and healer only need the verified SHAFT MCP. "
+                + "Connect an agent later for chat.");
+        applyLabeledAction(startWithoutAgent, ShaftIcons.SEND);
+        startWithoutAgent.setVisible(false);
+        startWithoutAgent.addActionListener(event -> connected.run());
+        // "Connect agent" (issue: Ready step had no way back to a fully green agent lane besides
+        // scrolling up and redoing steps 2/4 from scratch): the primary, "get to green" action
+        // alongside the startWithoutAgent skip option whenever the agent lane isn't ready yet.
+        connectAgent = new JButton("Connect agent");
+        connectAgent.getAccessibleContext().setAccessibleName("Connect SHAFT agent");
+        connectAgent.setToolTipText("Retry just the agent readiness check for the selected client, without "
+                + "redoing the whole SHAFT MCP setup");
+        applyLabeledAction(connectAgent, ShaftIcons.CHECK);
+        connectAgent.setVisible(false);
+        connectAgent.addActionListener(event -> connectAgentClicked());
+        resetAndReinstall = new JButton("Copy");
+        resetAndReinstall.getAccessibleContext().setAccessibleName("Copy fresh SHAFT MCP setup command");
+        resetAndReinstall.setToolTipText("Clear the saved MCP command and copy a fresh installer command");
+        applyLabeledAction(resetAndReinstall, ShaftIcons.COPY);
+        resetAndReinstall.setVisible(false);
+        resetAndReinstall.addActionListener(event -> resetAndCopyInstaller());
+        boolean postSetupReentry = settings.mcpReady();
+        expertMode = new JCheckBox("Enable expert mode");
+        expertMode.getAccessibleContext().setAccessibleName("Enable expert mode");
+        expertMode.setToolTipText("Show the full workflow selector (Guided, Recorder, Inspector, Triage, "
+                + "Evidence, Projects, Advanced) instead of just Assistant");
+        expertMode.setMnemonic(KeyEvent.VK_E);
+        expertMode.setSelected(settings.advancedUiEnabled);
+        expertMode.setVisible(postSetupReentry);
+        expertMode.addActionListener(event -> settings.advancedUiEnabled = expertMode.isSelected());
+        connectionAgentsRecheck = new JButton("Connection & agents");
+        connectionAgentsRecheck.getAccessibleContext().setAccessibleName("Re-check connection and agents");
+        connectionAgentsRecheck.setToolTipText(
+                "Re-check your current connection and agent setup without resetting anything");
+        applyLabeledAction(connectionAgentsRecheck, ShaftIcons.CHECK);
+        connectionAgentsRecheck.setVisible(postSetupReentry);
+        connectionAgentsRecheck.addActionListener(event -> recheckConnectionAndAgents());
+        resetEverything = new JButton("Reset everything");
+        resetEverything.getAccessibleContext().setAccessibleName("Reset everything");
+        resetEverything.setToolTipText("Factory-reset SHAFT settings, saved provider API keys, tool approvals, "
+                + "and Assistant chat history. Your project source code is never touched.");
+        resetEverything.setMnemonic(KeyEvent.VK_V);
+        applyLabeledAction(resetEverything, ShaftIcons.RESET);
+        resetEverything.setForeground(ShaftStatusPresentation.error());
+        resetEverything.setVisible(postSetupReentry);
+        resetEverything.addActionListener(event -> confirmAndReset());
+        generateCiWorkflow = new JButton("CI workflow");
+        generateCiWorkflow.getAccessibleContext().setAccessibleName("Generate GitHub Actions workflow");
+        generateCiWorkflow.setToolTipText("Write " + ShaftGithubWorkflowFile.RELATIVE_PATH
+                + " to run this project's SHAFT tests headless on GitHub Actions and upload Allure results."
+                + " An existing file is never overwritten.");
+        applyLabeledAction(generateCiWorkflow, ShaftIcons.CHECK);
+        generateCiWorkflow.setVisible(postSetupReentry);
+        generateCiWorkflow.addActionListener(event -> generateCiWorkflow());
+        runtimeStatus = setupStatusLabel("Assistant runtime setup status");
+        assistStatus = setupStatusLabel("Assistant connection setup status");
+        recommendedAgent = setupStatusLabel("Recommended assistant agent");
+        setRecommendedAgentText();
+        recommendedAgent.setVisible(true);
+        recoveryStatus = new JLabel();
+        recoveryStatus.getAccessibleContext().setAccessibleName("SHAFT MCP recovery summary");
+        recoveryStatus.setVisible(false);
+        toast = new JLabel();
+        toast.getAccessibleContext().setAccessibleName("SHAFT setup clipboard toast");
+        toast.setOpaque(true);
+        toast.setBackground(UIManagerColors.activeBackground());
+        toast.setForeground(UIManagerColors.foreground());
+        toast.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(ShaftStatusPresentation.progress(), 1),
+                JBUI.Borders.empty(4, 8)));
+        toast.setVisible(false);
+        status = new JLabel();
+        status.setPreferredSize(JBUI.size(560, 28));
+        // Pin the minimum to the same size (issue #3743): a JLabel's UI-computed minimum size
+        // ignores an overridden preferred size and falls back to its own natural single-line
+        // height, so once the new "Install SHAFT MCP" row grew tall enough to leave the "form"
+        // column a few pixels short, GridBagLayout's shortage-distribution silently squashed this
+        // row down to that smaller natural minimum instead of any of the zero-slack rows around it
+        // -- the exact same footgun setupStateLabel's badges were already pinned against below.
+        status.setMinimumSize(JBUI.size(560, 28));
+        setStatusText(GUIDE_SETUP_STEP);
+        status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
+        copyCommand = new JButton("Copy");
+        copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
+        copyCommand.setToolTipText("Copy the diagnostic command and open a terminal with it pre-typed");
+        applyLabeledAction(copyCommand, ShaftIcons.COPY);
+        copyCommand.setEnabled(false);
+        copyCommand.setVisible(false);
+        copyCommand.addActionListener(event -> copyDiagnosticCommand());
+        copyOutput = new JButton("Copy");
+        copyOutput.getAccessibleContext().setAccessibleName("Copy setup diagnostic output");
+        copyOutput.setToolTipText("Copy the setup diagnostic output");
+        applyLabeledAction(copyOutput, ShaftIcons.COPY);
+        copyOutput.setEnabled(false);
+        copyOutput.addActionListener(event -> copyDiagnosticOutput());
+        copyDocs = new JButton("Copy");
+        copyDocs.getAccessibleContext().setAccessibleName("Copy SHAFT MCP docs link");
+        copyDocs.setToolTipText("Copy the SHAFT MCP setup docs link");
+        applyLabeledAction(copyDocs, ShaftIcons.HELP);
+        copyDocs.setEnabled(false);
+        copyDocs.setVisible(false);
+        copyDocs.addActionListener(event -> copyDocsLink());
+        copyRestartCommand = new JButton("Copy");
+        copyRestartCommand.getAccessibleContext().setAccessibleName("Copy assistant CLI restart command");
+        copyRestartCommand.setToolTipText(
+                "Copy a command that stops any running sessions of the selected assistant CLI and "
+                        + "re-checks its shaft-mcp access, so it picks up a fresh shaft-mcp install; "
+                        + "also opens a terminal with it pre-typed");
+        applyLabeledAction(copyRestartCommand, ShaftIcons.RESET);
+        copyRestartCommand.setEnabled(false);
+        copyRestartCommand.setVisible(false);
+        copyRestartCommand.addActionListener(event -> copyCommandIntoTerminal(
+                restartCommand(), "SHAFT assistant restart", "Copied assistant CLI restart command"));
+        details = new JTextPane();
+        details.setPreferredSize(JBUI.size(560, 180));
+        details.getAccessibleContext().setAccessibleName("SHAFT MCP setup output");
+        details.setEditable(false);
+        details.setFont(new Font(AssistantTranscriptView.monospacedFontFamily(), Font.PLAIN, details.getFont() == null ? 12 : details.getFont().getSize()));
+        details.setBackground(UIManagerColors.background());
+        details.setForeground(UIManagerColors.foreground());
+        details.setBorder(JBUI.Borders.compound(JBUI.Borders.empty(6), JBUI.Borders.customLine(UIManagerColors.border(), 1)));
+        detailsScroll = new JBScrollPane(details);
+        // Collapsed behind a toggle by default (issue #3601 B1.4): recoveryStatus is the primary,
+        // actually-useful content of a failure state, so the raw probe output no longer dominates
+        // the view on its own -- see #toggleDetailsVisibility, which the button below drives.
+        detailsScroll.setVisible(false);
+        // Icon-only, tooltip-flip toggle (issue #3538 convention), mirroring
+        // ShaftFeaturePanel#showRawOutput's established raw-output-toggle pattern.
+        toggleDetails = new JButton();
+        ShaftIconButtons.apply(toggleDetails, "Show details", "Toggle raw SHAFT MCP setup output", ShaftIcons.VIEW);
+        toggleDetails.getAccessibleContext().setAccessibleDescription(
+                "Shows or hides the raw diagnostic output below the recovery guidance.");
+        toggleDetails.setEnabled(false);
+        toggleDetails.addActionListener(event -> toggleDetailsVisibility());
+        setDetailsToggleText();
+
+        upgradeStep = setupStepLabel("Upgrade project setup step");
+        upgradeState = setupStateLabel("Upgrade project setup state");
+        chooseStep = setupStepLabel("Choose agent setup step");
+        chooseState = setupStateLabel("Choose agent setup state");
+        installStep = setupStepLabel("Setup SHAFT Tools & Skills step");
+        installState = setupStateLabel("Setup SHAFT Tools & Skills state");
+        agentCheckStep = setupStepLabel("Check agent connection step");
+        agentCheckState = setupStateLabel("Check agent connection state");
+        testStep = setupStepLabel("Check SHAFT agentic tools installation step");
+        testState = setupStateLabel("Check SHAFT agentic tools installation state");
+        readyStep = setupStepLabel("Start chatting setup step");
+        readyState = setupStateLabel("Start chatting setup state");
+        JPanel agentControls = new JPanel();
+        agentControls.setLayout(new javax.swing.BoxLayout(agentControls, javax.swing.BoxLayout.Y_AXIS));
+        agentControls.setOpaque(false);
+        JPanel agentRouteRow = labeledControl("Agent", agentRoute);
+        agentControls.add(agentRouteRow);
+        JPanel familyRow = labeledControl("Assistant family", family);
+        familyRow.setVisible(false);
+        family.setVisible(false);
+        agentControls.add(familyRow);
+        runtimeRow = labeledControl("Runtime", runtime);
+        runtimeRow.setVisible(false);
+        runtime.setVisible(false);
+        agentControls.add(runtimeRow);
+        apiKeyRow = labeledControl("Gemini API key", geminiApiKey);
+        apiKeyRow.add(useGeminiEnvironment);
+        apiKeyRow.add(geminiKeyStatus);
+        apiKeyRow.setVisible(false);
+        agentControls.add(apiKeyRow);
+        recommendedAgent.setVisible(false);
+        // Issue #3771: each labeledControl row above packs its own label at that label's natural
+        // width ("Assistant family" is longer than "Runtime"), so without this the dropdowns beside
+        // them land at different x-offsets -- a ragged left edge next to a real aligned form.
+        alignLabelColumn(agentRouteRow, apiKeyRow);
+        JPanel checkActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        checkActions.setOpaque(false);
+        checkActions.add(test);
+        checkActions.add(progress);
+        checkActions.add(assistStatus);
+        JPanel upgradeActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        upgradeActions.setOpaque(false);
+        upgradeActions.add(checkUpgrade);
+        upgradeActions.add(copyUpgradeCommand);
+        upgradeActions.add(upgradeDetail);
+        // Merged row #3 (issue #3560): the old separate "SHAFT MCP version" row is folded into
+        // "3 Install SHAFT MCP" — one row, one Check, one Install, badge driven by
+        // mcpVersionStepState(). Issue #4314 fix 3: Install and the old separate Copy button are
+        // themselves merged into this one Install action.
+        JPanel installActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        installActions.setOpaque(false);
+        installActions.add(installNow);
+        installActions.add(mcpVersionDetail);
+        JPanel agentCheckActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        agentCheckActions.setOpaque(false);
+        agentCheckActions.add(checkChosenAgent);
+        upgradeRow = stepRow(upgradeStep, upgradeState, upgradeActions);
+        chooseRow = stepRow(chooseStep, chooseState, agentControls);
+        installRow = stepRow(installStep, installState, installActions);
+        agentCheckRow = stepRow(agentCheckStep, agentCheckState, agentCheckActions);
+        checkRow = stepRow(testStep, testState, checkActions);
+        prerequisitesList = new JPanel();
+        prerequisitesList.setLayout(new javax.swing.BoxLayout(prerequisitesList, javax.swing.BoxLayout.Y_AXIS));
+        prerequisitesList.setOpaque(false);
+        prerequisitesList.getAccessibleContext().setAccessibleName("SHAFT setup prerequisites");
+        JButton recheckPrerequisites = new JButton("Recheck");
+        recheckPrerequisites.getAccessibleContext().setAccessibleName("Recheck prerequisites");
+        recheckPrerequisites.setToolTipText("Detect the required tools again after installing one");
+        applyLabeledAction(recheckPrerequisites, ShaftIcons.CHECK);
+        recheckPrerequisites.addActionListener(event -> {
+            refreshPrerequisites();
+            updateActionState(false);
+        });
+        JButton copyEngineWarmup = new JButton("Copy");
+        // Resolve the latest engine release off-EDT now so the click below can pin a real version.
+        SetupPrerequisites.prefetchLatestEngineVersion();
+        // Same fire-once, off-EDT pattern for the latest shaft-mcp release (issue #3538).
+        SetupPrerequisites.prefetchLatestMcpVersion();
+        copyEngineWarmup.getAccessibleContext().setAccessibleName("Copy SHAFT Engine warm-up command");
+        copyEngineWarmup.setToolTipText("Copy a Maven command that downloads SHAFT Engine and its dependencies "
+                + "into the local Maven repository so future projects reuse them without re-downloading; "
+                + "also opens a terminal with it pre-typed");
+        applyLabeledAction(copyEngineWarmup, ShaftIcons.COPY);
+        copyEngineWarmup.addActionListener(event -> copyCommandIntoTerminal(
+                SetupPrerequisites.shaftEngineWarmupCommand(), "SHAFT Engine warm-up",
+                "Copied SHAFT Engine warm-up command"));
+        JPanel prerequisitesActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        prerequisitesActions.setOpaque(false);
+        prerequisitesActions.add(recheckPrerequisites);
+        prerequisitesActions.add(copyEngineWarmup);
+        JPanel prerequisitesControls = new JPanel();
+        prerequisitesControls.setLayout(new javax.swing.BoxLayout(prerequisitesControls, javax.swing.BoxLayout.Y_AXIS));
+        prerequisitesControls.setOpaque(false);
+        prerequisitesControls.add(prerequisitesList);
+        prerequisitesControls.add(prerequisitesActions);
+        prerequisitesStep = setupStepLabel("Prerequisites setup step");
+        prerequisitesState = setupStateLabel("Prerequisites setup state");
+        prerequisitesRow = stepRow(prerequisitesStep, prerequisitesState, prerequisitesControls);
+        // Threaded click-to-inspect (issue #3601 S2): once a row auto-collapses to its label+badge
+        // line, clicking it re-expands the full detail so a "done" row stays inspectable; the
+        // readyStep/chatRow never collapses (nothing is ever behind it), so it is excluded here.
+        installRowInspectionToggle(prerequisitesRow, prerequisitesStep, prerequisitesState);
+        installRowInspectionToggle(upgradeRow, upgradeStep, upgradeState);
+        installRowInspectionToggle(chooseRow, chooseStep, chooseState);
+        installRowInspectionToggle(installRow, installStep, installState);
+        installRowInspectionToggle(agentCheckRow, agentCheckStep, agentCheckState);
+        installRowInspectionToggle(checkRow, testStep, testState);
+        readyStep.setText("Ready");
+        JPanel readyActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        readyActions.setOpaque(false);
+        readyActions.add(startChatting);
+        readyActions.add(connectAgent);
+        readyActions.add(startWithoutAgent);
+        // Explicit success checklist (issue #3500 S6): one line answering "am I ready?" with the
+        // same dimensions as the tool-window readiness strip.
+        readyChecklist = new JLabel();
+        readyChecklist.getAccessibleContext().setAccessibleName("Setup ready checklist");
+        // Accessible description mirrors the live checklist text (issue #3603): see showTestResult(),
+        // the choke point every later update runs through.
+        readyChecklist.getAccessibleContext().setAccessibleDescription("");
+        readyChecklist.setForeground(ShaftStatusPresentation.success());
+        JPanel readyControls = new JPanel();
+        readyControls.setLayout(new javax.swing.BoxLayout(readyControls, javax.swing.BoxLayout.Y_AXIS));
+        readyControls.setOpaque(false);
+        readyControls.add(readyChecklist);
+        readyControls.add(readyActions);
+        chatRow = stepRow(readyStep, readyState, readyControls);
+        chatRow.setVisible(false);
+        // Threads the six step rows into one visual path (issue #3601 B1.3): a thin connector line
+        // shows through the transparent gaps between rows, painted behind each row's own opaque,
+        // state-colored background -- purely additive, styleStepRow's border/background behavior
+        // per row is untouched.
+        JPanel workflow = new JPanel() {
+            @Override
+            protected void paintComponent(java.awt.Graphics graphics) {
+                super.paintComponent(graphics);
+                graphics.setColor(UIManagerColors.border());
+                int lineX = JBUI.scale(15);
+                graphics.fillRect(lineX, 0, JBUI.scale(2), getHeight());
+            }
+        };
+        workflow.setLayout(new javax.swing.BoxLayout(workflow, javax.swing.BoxLayout.Y_AXIS));
+        workflow.add(prerequisitesRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(upgradeRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(chooseRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(installRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(agentCheckRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(checkRow);
+        workflow.add(javax.swing.Box.createVerticalStrut(4));
+        workflow.add(chatRow);
+        JPanel targetRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        targetRow.add(manualInstallerTarget);
+        targetRow.add(installerTarget);
+        targetRow.setVisible(false);
+        JPanel diagnosticRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        diagnosticRow.add(copyCommand);
+        diagnosticRow.add(copyOutput);
+        diagnosticRow.add(copyDocs);
+        diagnosticRow.add(copyRestartCommand);
+        diagnosticRow.add(toggleDetails);
+        JPanel secondaryActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        secondaryActions.add(resetAndReinstall);
+        JPanel postSetupControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
+        postSetupControls.add(expertMode);
+        postSetupControls.add(connectionAgentsRecheck);
+        postSetupControls.add(generateCiWorkflow);
+        postSetupControls.add(resetEverything);
+        agentRoute.addActionListener(event -> {
+            syncLegacySelectionFromRoute();
+            recommendation = recommendFamily(currentSelectionSnapshot());
+            assistantSelectionChanged();
+            updateActionState(false);
+        });
+        installerTarget.addActionListener(event -> installerTargetChanged());
+        showRuntimeSelected();
+        showAssistNotConfigured();
+        updateCloudControls();
+        JPanel intro = new JPanel(new BorderLayout(4, 2));
+        JLabel title = new JLabel("Connect SHAFT Assistant");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, title.getFont().getSize2D() + 3f));
+        // Agent-agnostic positioning (issue #3425 C3): the same workflows run on every agent.
+        intro.add(title, BorderLayout.NORTH);
+        installerDetailsPanel = FormBuilder.createFormBuilder()
+                .addComponent(targetRow)
+                .addComponent(installShaftCli)
+                .addLabeledComponent("Installer command", new JBScrollPane(installerCommand))
+                .getPanel();
+        installerDetailsPanel.setVisible(false);
+        // Deliberate advanced-installer disclosure (issue #3500 S5): the details panel was
+        // dead-hidden since #3270, which also made the manual MCP-target selection unreachable.
+        advancedInstallerToggle = new JCheckBox("Advanced installer options");
+        advancedInstallerToggle.getAccessibleContext().setAccessibleName("Show advanced installer options");
+        advancedInstallerToggle.setToolTipText(
+                "Show the raw installer command and shaft-cli option.");
+        advancedInstallerToggle.setOpaque(false);
+        advancedInstallerToggle.addActionListener(event -> {
+            installerDetailsPanel.setVisible(advancedInstallerToggle.isSelected());
+            updateProgressivePanels();
+        });
+        JCheckBox moreOptionsToggle = new JCheckBox("More options");
+        moreOptionsToggle.getAccessibleContext().setAccessibleName("Show more setup options");
+        moreOptionsToggle.getAccessibleContext().setAccessibleDescription(
+                "Show advanced installer, recovery, and reset options.");
+        moreOptionsToggle.setOpaque(false);
+        JPanel moreOptionsPanel = new JPanel();
+        moreOptionsPanel.setLayout(new javax.swing.BoxLayout(moreOptionsPanel, javax.swing.BoxLayout.Y_AXIS));
+        moreOptionsPanel.setOpaque(false);
+        moreOptionsPanel.add(advancedInstallerToggle);
+        moreOptionsPanel.add(checkMcpVersion);
+        moreOptionsPanel.add(installerDetailsPanel);
+        moreOptionsPanel.add(secondaryActions);
+        moreOptionsPanel.add(postSetupControls);
+        moreOptionsPanel.setVisible(false);
+        moreOptionsToggle.addActionListener(event -> {
+            moreOptionsPanel.setVisible(moreOptionsToggle.isSelected());
+            updateProgressivePanels();
+        });
+        JPanel form = FormBuilder.createFormBuilder()
+                .addComponent(intro)
+                .addComponent(runtimeStatus)
+                .addComponent(workflow)
+                .addComponent(moreOptionsToggle)
+                .addComponent(moreOptionsPanel)
+                .addComponent(status)
+                .addComponent(toast)
+                .addComponent(recoveryStatus)
+                .addComponentFillVertically(new JPanel(), 0)
+                .getPanel();
+        detailsPanel = new JPanel(new BorderLayout(4, 4));
+        detailsPanel.add(diagnosticRow, BorderLayout.NORTH);
+        detailsPanel.add(detailsScroll, BorderLayout.CENTER);
+        detailsPanel.setVisible(false);
+        // The setup flow has grown taller than many tool-window sizes, so the whole page lives in
+        // a vertical scroll pane: the scrollbar appears only when needed and the user can always
+        // reach the bottom. Width tracks the viewport so rows re-wrap instead of scrolling sideways.
+        JPanel content = new ScrollableContentPanel(new BorderLayout(8, 8));
+        content.add(form, BorderLayout.NORTH);
+        content.add(detailsPanel, BorderLayout.CENTER);
+        JBScrollPane setupScroll = new JBScrollPane(content,
+                javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        setupScroll.setBorder(JBUI.Borders.empty());
+        setupScroll.getVerticalScrollBar().setUnitIncrement(16);
+        setupScroll.getAccessibleContext().setAccessibleName("SHAFT MCP setup scroll pane");
+        add(setupScroll, BorderLayout.CENTER);
+        // Documentation lives in the online user guide, not inside the plugin; this pinned footer
+        // link is the only doc surface the panel keeps.
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.TRAILING, 8, 2));
+        footer.setOpaque(false);
+        ActionLink userGuideLink = new ActionLink("User Guide ↗",
+                (java.awt.event.ActionListener) event -> BrowserUtil.browse(USER_GUIDE_URL));
+        userGuideLink.getAccessibleContext().setAccessibleName("Open SHAFT user guide in browser");
+        userGuideLink.setToolTipText(USER_GUIDE_URL);
+        // ActionLink under-reports its preferred width for the trailing arrow glyph, which
+        // ellipsizes the label ("User Guid..."); pad the computed width so the text renders whole.
+        java.awt.Dimension linkSize = userGuideLink.getPreferredSize();
+        userGuideLink.setPreferredSize(new java.awt.Dimension(linkSize.width + JBUI.scale(20), linkSize.height));
+        footer.add(userGuideLink);
+        add(footer, BorderLayout.SOUTH);
+        refreshPrerequisites();
+        refreshRealChecks();
+        if (!currentCommand().isBlank()) {
+            setStatusText(settings.mcpSetupComplete
+                    ? SetupReadiness.message(true, true, true)
+                    : SetupReadiness.message(false, false, false));
+        }
+        updateActionState(false);
+    }
+
+    /**
+     * Re-runs the cheap on-disk detection the "4 Check setup" badge falls back to, so its Waiting
+     * vs. Next distinction reflects whether an installed shaft-mcp actually exists on disk rather
+     * than a button click (issue #3426 A5). Agent readiness is no longer derived here: the "2 Pick
+     * agent" badge earns green only from a verified connection check (issue #3560), never from a
+     * passive PATH probe at construction time.
+     */
+    private void refreshRealChecks() {
+        installedCommandDetected = !inferInstalledStdioCommand().isBlank();
+    }
+
+    /**
+     * Runs the real "Upgrade project" check: parse the project pom, compare its SHAFT version to
+     * the latest release, and reflect the truth in the step badge and detail label.
+     */
+    private void runUpgradeCheck(boolean announce) {
+        upgradeCheckResult = upgradeChecker.get();
+        if (announce) {
+            upgradeChecked = true;
+        }
+        String upgradeDetailText = upgradeDetailText();
+        upgradeDetail.setText(upgradeDetailText);
+        upgradeDetail.getAccessibleContext().setAccessibleDescription(upgradeDetailText);
+        upgradeDetail.setForeground(switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> ShaftStatusPresentation.success();
+            case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
+            default -> ShaftStatusPresentation.pending();
+        });
+        if (announce) {
+            setStatusText(upgradeDetailText());
+        }
+        updateActionState(false);
+    }
+
+    private String upgradeDetailText() {
+        if (upgradeCheckResult == null) {
+            return "";
+        }
+        return switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected — already the latest ("
+                    + upgradeCheckResult.latestVersion() + ") or newer. Nothing to do.";
+            case UPGRADE_AVAILABLE -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected — "
+                    + upgradeCheckResult.latestVersion() + " is available. Run the upgrade command, then press Check.";
+            // Project-shape-aware guidance (issue #3425 A5): an empty folder needs a project
+            // scaffold, while a plain Maven project needs the SHAFT upgrade/adoption command.
+            case NOT_A_SHAFT_PROJECT -> upgradeCheckResult.pomPresent()
+                    ? "Maven project detected without a SHAFT dependency. Run the upgrade command to adopt SHAFT, "
+                    + "then press Check."
+                    : "No pom.xml found here. Ask the Assistant to \"create a SHAFT project\" (or use the Projects "
+                    + "workflow) to scaffold one, then press Check.";
+            case LATEST_UNKNOWN -> "SHAFT " + upgradeCheckResult.projectVersion() + " detected, but the latest "
+                    + "release could not be determined (offline?). Press Check to retry.";
+        };
+    }
+
+    /**
+     * Runs the real "SHAFT MCP version" check: compares the installed shaft-mcp version (detected
+     * from disk) against the latest released version, and reflects the truth in the step badge and
+     * detail label. This row never gates the rest of the setup flow — an unknown latest version
+     * (offline) is a neutral state, never a failure (issue #3538).
+     */
+    private void runMcpVersionCheck(boolean announce) {
+        mcpVersionCheckResult = mcpVersionChecker.get();
+        if (announce) {
+            mcpVersionChecked = true;
+        }
+        String mcpVersionDetailText = mcpVersionDetailText();
+        mcpVersionDetail.setText(mcpVersionDetailText);
+        mcpVersionDetail.getAccessibleContext().setAccessibleDescription(mcpVersionDetailText);
+        mcpVersionDetail.setForeground(switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> ShaftStatusPresentation.success();
+            case UPGRADE_AVAILABLE -> ShaftStatusPresentation.progress();
+            default -> ShaftStatusPresentation.pending();
+        });
+        if (announce) {
+            setStatusText(mcpVersionDetailText());
+        }
+        updateActionState(false);
+    }
+
+    private String mcpVersionDetailText() {
+        if (mcpVersionCheckResult == null) {
+            return "";
+        }
+        return switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> "SHAFT MCP " + mcpVersionCheckResult.installedVersion() + " is up to date.";
+            case UPGRADE_AVAILABLE -> "Update available — installed " + mcpVersionCheckResult.installedVersion()
+                    + ", latest " + mcpVersionCheckResult.latestVersion() + ".";
+            case NOT_INSTALLED -> "SHAFT MCP is not installed yet.";
+            case LATEST_UNKNOWN -> "Couldn't check the latest SHAFT MCP version (offline); installed: "
+                    + (mcpVersionCheckResult.installedVersion().isBlank()
+                    ? "none" : mcpVersionCheckResult.installedVersion()) + ". Press Check to retry.";
+        };
+    }
+
+    /**
+     * Scroll-pane view that always matches the viewport's width (content re-wraps vertically
+     * instead of ever scrolling horizontally) while keeping its own preferred height so the
+     * vertical scrollbar appears exactly when the setup flow outgrows the tool window.
+     */
+    private static final class ScrollableContentPanel extends JPanel implements javax.swing.Scrollable {
+        ScrollableContentPanel(java.awt.LayoutManager layout) {
+            super(layout);
+        }
+
+        @Override
+        public java.awt.Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) {
+            return orientation == javax.swing.SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+    }
+
+    /**
+     * Re-detects the setup prerequisites for the selected assistant family and rebuilds the
+     * prerequisites step: each tool is either shown as detected or paired with a copyable per-OS
+     * install command, so a fresh machine can be provisioned entirely from this screen.
+     */
+    private void refreshPrerequisites() {
+        prerequisitesList.removeAll();
+        AssistantAgentRoute selected = selectedAgentRoute();
+        List<SetupPrerequisites.Prerequisite> detected =
+                prerequisitesDetector.apply(selected == null ? "" : selected.family());
+        boolean allRequiredPresent = true;
+        for (SetupPrerequisites.Prerequisite prerequisite : detected) {
+            boolean blocking = !prerequisite.present() && prerequisite.required();
+            allRequiredPresent &= !blocking;
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+            row.setOpaque(false);
+            String stateText = prerequisite.present() ? " detected"
+                    : prerequisite.required() ? " missing" : " missing (optional; auto-installed when needed)";
+            JLabel label = new JLabel((prerequisite.present()
+                    ? ShaftStatusPresentation.SUCCESS_ICON
+                    : ShaftStatusPresentation.WARNING_ICON) + " " + prerequisite.name() + stateText);
+            label.setForeground(prerequisite.present() ? ShaftStatusPresentation.success()
+                    : blocking ? ShaftStatusPresentation.error() : ShaftStatusPresentation.pending());
+            label.getAccessibleContext().setAccessibleName(prerequisite.name() + stateText.trim());
+            row.add(label);
+            if (!prerequisite.present()) {
+                JButton copyInstall = new JButton("Copy");
+                copyInstall.getAccessibleContext().setAccessibleName(
+                        "Copy " + prerequisite.name() + " install command");
+                copyInstall.setToolTipText("Copy the terminal command that installs " + prerequisite.name());
+                applyLabeledAction(copyInstall, ShaftIcons.COPY);
+                String installCommand = prerequisite.installCommand();
+                String copiedMessage = "Copied " + prerequisite.name() + " install command";
+                copyInstall.addActionListener(event -> copyCommandIntoTerminal(
+                        installCommand, prerequisite.name() + " install", copiedMessage));
+                row.add(copyInstall);
+            }
+            prerequisitesList.add(row);
+        }
+        prerequisitesAllPresent = allRequiredPresent;
+        setStep(prerequisitesStep, prerequisitesState, "0 Prerequisites", allRequiredPresent ? "done" : "next");
+        styleStepRow(prerequisitesRow, allRequiredPresent ? "done" : "next");
+        alignStepLabelWidths();
+        prerequisitesList.revalidate();
+        prerequisitesList.repaint();
+    }
+
+    JComponent preferredFocusComponent() {
+        return agentRoute;
+    }
+
+    private void testConnection() {
+        String command = currentCommand();
+        if (command.isBlank()) {
+            String inferred = inferInstalledStdioCommand();
+            if (!inferred.isBlank()) {
+                mcpCommand.setText(inferred);
+                command = inferred;
+            }
+        }
+        settings.mcpCommand = command;
+        // Race fix (issue #3551): a check is starting, so readiness must go false for the whole
+        // in-flight window — mcpReady() would otherwise still read true from a previous successful
+        // check while this one is running (mcpCommand is already set above, above the failure and
+        // commandChanged() branches that are the only other places this used to be reset).
+        settings.mcpSetupComplete = false;
+        applySelectionToSettings();
+        if (command.isBlank()) {
+            showAssistError();
+            settings.agentGuidanceOptimizationPromptPending = false;
+            setStatusText("Run installer, then check again.");
+            setDiagnosticText(troubleshootingDetails("Probe failed",
+                    "No SHAFT MCP command configured.", "", true), "");
+            updateActionState(false);
+            return;
+        }
+        showAssistConnecting();
+        setRunning(true, "Testing...");
+        // The deep readiness probe spawns the selected client CLI (Claude's `mcp get` health check
+        // takes ~10s), so it runs here on the probe's background completion thread — never on the
+        // EDT. Selection-derived inputs are captured before leaving the EDT.
+        boolean cloudSelected = cloudFamilySelected();
+        String cloudVariable = cloudSelected && useGeminiEnvironment.isSelected()
+                ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        String selectedClientLabel = assistantRuntimeLabel();
+        ShaftMcpConnectionProbe.test(command, settings, projectRoot()).whenComplete((result, error) -> {
+            boolean mcpPassed = error == null && result != null && result.success();
+            boolean phaseOnePassed = mcpPassed && !cloudSelected;
+            if (phaseOnePassed) {
+                // Incremental feedback only (issue #3551): the deep readiness probe below spawns
+                // the client CLI and blocks on Process.waitFor() for up to ~10s with no streaming
+                // hook to attach to, so this is a plain "still working" message posted before that
+                // wait starts — never a claim of real protocol visibility into the CLI's progress.
+                ApplicationManager.getApplication().invokeLater(() -> setStatusText(
+                        "SHAFT MCP connected — asking " + selectedClientLabel
+                                + " to verify access (~10s)..."));
+            }
+            ShaftMcpToolResult precomputedReadiness = phaseOnePassed
+                    ? deepReadinessProbe.test(selectedClient, selectedRuntime)
+                    : mcpPassed && cloudSelected ? cloudCredentialReadiness(cloudVariable) : null;
+            ApplicationManager.getApplication().invokeLater(
+                    () -> showTestResult(result, error, precomputedReadiness));
+        });
+    }
+
+    private static JBTextArea commandArea(int rows, String accessibleName) {
+        JBTextArea area = new JBTextArea(rows, 56);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.getAccessibleContext().setAccessibleName(accessibleName);
+        area.setFont(new Font(AssistantTranscriptView.monospacedFontFamily(), Font.PLAIN, area.getFont() == null ? 12 : area.getFont().getSize()));
+        area.setMinimumSize(JBUI.size(360, Math.max(72, rows * 24)));
+        return area;
+    }
+
+    private String readyChecklistText(boolean agentReady) {
+        boolean workspaceOk = Files.isDirectory(projectRoot());
+        return "MCP connected · "
+                + (workspaceOk ? "Workspace root OK" : "Workspace root unavailable") + " · "
+                + (agentReady ? "Agent ready" : "Agent optional (not connected)")
+                + " · Ready to record";
+    }
+
+    private Path projectRoot() {
+        return project.getBasePath() == null ? Path.of(".") : Path.of(project.getBasePath());
+    }
+
+    /**
+     * Whether this project already carries the AGENTS.md guidance scaffold the
+     * agent-guidance-optimization prompt and its referenced validator script
+     * are designed for. Installing/prompting that validator into an unrelated
+     * project makes it crash on files (README.md, host-context files, guidance
+     * budgets) it has no reason to expect -- so the prompt must not be shown
+     * unless the project has actually adopted this scaffold.
+     */
+    private boolean hasAgentGuidanceScaffold() {
+        return Files.isRegularFile(projectRoot().resolve("AGENTS.md"));
+    }
+
+    private void showTestResult(ShaftMcpToolResult result, Throwable error) {
+        showTestResult(result, error, null);
+    }
+
+    private void showTestResult(ShaftMcpToolResult result, Throwable error, ShaftMcpToolResult precomputedReadiness) {
+        boolean success = error == null && result != null && result.success();
+        boolean agentReady = false;
+        setRunning(false, success ? "Connected" : "Test failed. Retry test.");
+        if (error != null) {
+            showAssistError();
+            setDiagnosticText(troubleshootingDetails("Probe failed", error.getMessage(), mcpCommand(), true), mcpCommand());
+        } else if (result == null) {
+            showAssistError();
+            setDiagnosticText(troubleshootingDetails("Probe failed", "No test result returned.", mcpCommand(), true),
+                    mcpCommand());
+        } else {
+            if (result.success()) {
+                clearDiagnostics();
+                ShaftMcpToolResult readiness = verifySelectedAgentReadiness(precomputedReadiness);
+                agentReady = applyAgentReadinessOutcome(readiness, result.output());
+            } else {
+                showAssistError();
+                setDiagnosticText(troubleshootingDetails("Probe failed", result.output(), mcpCommand(), true),
+                        mcpCommand());
+            }
+        }
+        lastCheckFailed = !success;
+        refreshRealChecks();
+        if (success) {
+            settings.mcpSetupComplete = true;
+            settings.agentGuidanceOptimizationPromptPending = hasAgentGuidanceScaffold();
+            applyAgentLaneState(agentReady);
+        } else {
+            settings.mcpSetupComplete = false;
+            settings.agentLaneReady = false;
+            settings.agentGuidanceOptimizationPromptPending = false;
+            startChatting.setVisible(false);
+            startWithoutAgent.setVisible(false);
+            connectAgent.setVisible(false);
+            readyChecklist.setText("");
+            readyChecklist.getAccessibleContext().setAccessibleDescription("");
+            showRuntimeSelected();
+        }
+        updateActionState(false);
+    }
+
+    /**
+     * Applies an agent-readiness outcome to the shared Assist/runtime status widgets, diagnostics,
+     * and restart-recovery affordance -- factored out of {@link #showTestResult}'s success branch
+     * so the automatic post-MCP-probe check and the standalone {@link #connectAgentClicked()} retry
+     * (issue: Ready step had no button to get the agent lane to green besides redoing steps 2/4)
+     * apply the exact same UI and can never drift apart.
+     *
+     * @param readiness      the (possibly freshly re-probed) agent readiness result
+     * @param mcpProbeOutput the most recent verified SHAFT MCP probe output, used for the success
+     *                       summary's workspace detail and echoed into failure diagnostics; blank
+     *                       when no fresh MCP probe ran (the standalone agent-only retry)
+     * @return whether the agent lane is ready
+     */
+    private boolean applyAgentReadinessOutcome(ShaftMcpToolResult readiness, String mcpProbeOutput) {
+        boolean agentReady = readiness.success();
+        if (agentReady) {
+            showAssistConfigured();
+            showRuntimeVerified();
+            setStatusText(successSummary(mcpProbeOutput));
+        } else {
+            // Two-lane readiness (issue #3425 A2): the recorder, codegen, doctor, and healer only
+            // need a verified SHAFT MCP — a working agent adds chat and is the optional second lane.
+            // A missing agent therefore no longer fails setup.
+            showAssistStatus("MCP verified — agent optional", ShaftStatusPresentation.progress());
+            assistStatus.setVisible(true);
+            showRuntimeVerified();
+            setStatusText("SHAFT MCP verified. Recorder, codegen, and doctor are ready now — "
+                    + "connecting an agent adds chat and is optional.");
+            String probeOutputText = mcpProbeOutput == null || mcpProbeOutput.isBlank()
+                    ? "MCP already verified; no new SHAFT MCP probe was run for this retry."
+                    : mcpProbeOutput;
+            setDiagnosticText(troubleshootingDetails("Agent lane not ready (optional)",
+                    "MCP probe output:\n" + probeOutputText + "\n\nAgent readiness failed: " + readiness.output(),
+                    readinessDiagnosticCommand(), true), readinessDiagnosticCommand());
+            showRestartCommandRecovery();
+        }
+        return agentReady;
+    }
+
+    /**
+     * Reflects a (possibly newly established) agent-readiness state into settings and the Ready
+     * step's action buttons/checklist -- shared by {@link #showTestResult} and
+     * {@link #connectAgentClicked()} so startChatting/startWithoutAgent/connectAgent visibility,
+     * the readyChecklist text, and settings.agentLaneReady always stay in lockstep. Only called on
+     * the success path (MCP itself already verified); the failure path in showTestResult resets
+     * these directly since there is nothing agent-related to reflect.
+     */
+    private void applyAgentLaneState(boolean agentReady) {
+        settings.agentLaneReady = agentReady;
+        startChatting.setVisible(agentReady);
+        startWithoutAgent.setVisible(!agentReady);
+        connectAgent.setVisible(!agentReady);
+        String readyChecklistText = readyChecklistText(agentReady);
+        readyChecklist.setText(readyChecklistText);
+        readyChecklist.getAccessibleContext().setAccessibleDescription(readyChecklistText);
+        (agentReady ? startChatting : connectAgent).requestFocusInWindow();
+    }
+
+    /**
+     * "Connect agent" (real user report: the Ready step showed only "Start without an agent" once
+     * SHAFT MCP was verified but the agent CLI's deep readiness check hadn't succeeded — no button
+     * anywhere retried just the agent half; the only way back to green was scrolling up to redo
+     * steps 2/4 from scratch). Guards on MCP already being verified (this button only ever shows
+     * once it is) and against re-entry while another action is already running.
+     *
+     * <p>Mirrors {@link #testConnection()}'s off-EDT pattern for the non-cloud families: the deep
+     * readiness probe spawns the selected client CLI and blocks on it for up to ~10s, so it must
+     * never run on the EDT. Unlike testConnection(), MCP is already verified here, so there is no
+     * existing background probe future to piggyback the readiness check onto the way
+     * ShaftMcpConnectionProbe.test(...).whenComplete(...) does -- this hop uses
+     * {@link ShaftPluginExecutor}, the same pattern
+     * {@code ShaftSettingsConfigurable#runProviderKeyProbe} already established for exactly this
+     * "MCP verified, need our own background hop" shape. Environment-backed Gemini validation also
+     * uses this pool because it performs one bounded provider request.</p>
+     */
+    private void connectAgentClicked() {
+        if (!settings.mcpSetupComplete || progress.isVisible()) {
+            return;
+        }
+        setRunning(true, "Connecting agent (~10s)...");
+        if (cloudFamilySelected()) {
+            String cloudVariable = useGeminiEnvironment.isSelected()
+                    ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            if (cloudVariable.isBlank()) {
+                applyConnectAgentResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
+                return;
+            }
+            CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
+                            ShaftPluginExecutor.getInstance().executor())
+                    .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                            applyConnectAgentResult(verifySelectedAgentReadiness(error == null ? readiness
+                                    : ShaftMcpToolResult.failure("Could not validate the provider credential.")))));
+            return;
+        }
+        if (selectedAgentRoute() == null || !selectedAgentRoute().cli()) {
+            applyConnectAgentResult(verifySelectedAgentReadiness(null));
+            return;
+        }
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                        applyConnectAgentResult(error != null
+                                ? ShaftMcpToolResult.failure("Could not run the agent readiness check: "
+                                        + error.getMessage())
+                                : readiness)));
+    }
+
+    private void applyConnectAgentResult(ShaftMcpToolResult readiness) {
+        setRunning(false, readiness.success() ? "Agent connected." : "Agent still not ready. See details below.");
+        boolean agentReady = applyAgentReadinessOutcome(readiness, null);
+        applyAgentLaneState(agentReady);
+        updateActionState(false);
+    }
+
+    /**
+     * "2 Pick agent"'s own standalone "Check" (issue #4314 fix 2): verifies the currently selected
+     * family/runtime is already installed/connected without running the whole step-4 MCP probe.
+     * Mirrors {@link #connectAgentClicked()}'s off-EDT dispatch for the non-cloud deep readiness
+     * probe (spawns the client CLI, ~10s -- must never block the EDT); environment-backed Gemini
+     * validation also runs on the same background executor.
+     *
+     * <p>Deliberately does <b>not</b> call {@link #applyAgentLaneState}: that method also flips the
+     * Ready step's startChatting/startWithoutAgent/connectAgent visibility, which this step-2-only
+     * check must never touch (those widgets are earned solely by the real step-4 MCP probe). Only
+     * {@code settings.agentLaneReady} and this row's own badge (via {@link #updateActionState}) are
+     * updated here.</p>
+     */
+    private void checkChosenAgentClicked() {
+        if (progress.isVisible()) {
+            return;
+        }
+        applySelectionToSettings();
+        setRunning(true, "Checking agent (~10s)...");
+        if (cloudFamilySelected()) {
+            String cloudVariable = useGeminiEnvironment.isSelected()
+                    ? settings.providerApiKeyEnvironmentVariable("gemini") : "";
+            if (cloudVariable.isBlank()) {
+                applyChosenAgentCheckResult(verifySelectedAgentReadiness(cloudCredentialReadiness("")));
+                return;
+            }
+            CompletableFuture.supplyAsync(() -> cloudCredentialReadiness(cloudVariable),
+                            ShaftPluginExecutor.getInstance().executor())
+                    .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                            applyChosenAgentCheckResult(verifySelectedAgentReadiness(error == null ? readiness
+                                    : ShaftMcpToolResult.failure("Could not validate the provider credential.")))));
+            return;
+        }
+        if (selectedAgentRoute() == null || !selectedAgentRoute().cli()) {
+            applyChosenAgentCheckResult(verifySelectedAgentReadiness(null));
+            return;
+        }
+        String selectedClient = settings.defaultAutobotClient;
+        String selectedRuntime = settings.assistantRuntime;
+        CompletableFuture.supplyAsync(() -> deepReadinessProbe.test(selectedClient, selectedRuntime),
+                        ShaftPluginExecutor.getInstance().executor())
+                .whenComplete((readiness, error) -> ApplicationManager.getApplication().invokeLater(() ->
+                        applyChosenAgentCheckResult(error != null
+                                ? ShaftMcpToolResult.failure("Could not run the agent readiness check: "
+                                        + error.getMessage())
+                                : readiness)));
+    }
+
+    private void applyChosenAgentCheckResult(ShaftMcpToolResult readiness) {
+        setRunning(false, readiness.success() ? "Agent connected." : "Agent not ready yet. See details below.");
+        settings.agentLaneReady = readiness.success();
+        updateActionState(false);
+    }
+
+    private void setRunning(boolean running, String text) {
+        updateActionState(running);
+        progress.setVisible(running);
+        useGeminiEnvironment.setEnabled(!running);
+        installerCommand.setEnabled(!running);
+        installerTarget.setEnabled(!running);
+        manualInstallerTarget.setEnabled(!running);
+        mcpCommand.setEnabled(!running);
+        family.setEnabled(!running);
+        runtime.setEnabled(!running);
+        agentRoute.setEnabled(!running);
+        geminiApiKey.setEnabled(!running);
+        setStatusText(text);
+    }
+
+    private void updateActionState(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        // Check and Copy stay visible in every state (issue #3560): verification is how a step
+        // earns its Done badge, never a button click or button visibility (issue #3426 A5) — the
+        // row's own blue/green/red styling is what conveys pass/fail now.
+        installShaftCli.setEnabled(!running);
+        boolean agentChosen = selectedAgentRoute() != null;
+        checkChosenAgent.setEnabled(!running && agentChosen);
+        checkUpgrade.setEnabled(!running);
+        copyUpgradeCommand.setEnabled(!running);
+        checkMcpVersion.setEnabled(!running && agentChosen);
+        installNow.setEnabled(!running && agentChosen);
+        test.setEnabled(!running && agentChosen);
+        startChatting.setVisible((complete && !startWithoutAgent.isVisible()) || startChatting.isVisible());
+        startChatting.setEnabled(!running && startChatting.isVisible());
+        startWithoutAgent.setEnabled(!running && startWithoutAgent.isVisible());
+        connectAgent.setEnabled(!running && connectAgent.isVisible());
+        chatRow.setVisible(startChatting.isVisible() || startWithoutAgent.isVisible() || connectAgent.isVisible());
+        copyCommand.setEnabled(!running && !diagnosticCommand.isBlank());
+        boolean canReset = complete || detailsPanel.isVisible();
+        resetAndReinstall.setVisible(canReset);
+        resetAndReinstall.setEnabled(!running && canReset);
+        updateProgressivePanels();
+        updateSetupSteps(running);
+        updateWorkflowRows(running);
+        updateLiveSummary();
+    }
+
+    private void commandChanged() {
+        clearDiagnostics();
+        showAssistNotConfigured();
+        startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
+        settings.mcpSetupComplete = false;
+        settings.agentGuidanceOptimizationPromptPending = false;
+        lastCheckFailed = false;
+        setStatusText(currentCommand().isBlank()
+                ? GUIDE_SETUP_STEP
+                : CHECK_NEXT_STEP);
+        updateActionState(false);
+    }
+
+    private void assistantSelectionChanged() {
+        settings.agentLaneReady = false;
+        updateCloudControls();
+        showRuntimeSelected();
+        refreshPrerequisites();
+        refreshRealChecks();
+        String suggestedTarget = suggestedInstallerTarget();
+        if (!suggestedTarget.equals(String.valueOf(installerTarget.getSelectedItem()))) {
+            installerTarget.setSelectedItem(suggestedTarget);
+            return;
+        }
+        installerTargetChanged();
+    }
+
+    private void installerTargetChanged() {
+        clearDiagnostics();
+        installerCommand.setText(installerCommand());
+        lastCheckFailed = false;
+        showAssistNotConfigured();
+        startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
+        settings.mcpSetupComplete = false;
+        settings.agentGuidanceOptimizationPromptPending = false;
+        setStatusText(currentCommand().isBlank()
+                ? GUIDE_SETUP_STEP
+                : CHECK_NEXT_STEP);
+        updateActionState(false);
+    }
+
+    private static String resolveFamily(ShaftSettingsState.Settings settings) {
+        String family = normalize(settings.assistantFamily, "");
+        if (!family.isBlank()) {
+            return family;
+        }
+        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
+        if (client.isBlank()) {
+            return "";
+        }
+        return switch (client.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_')) {
+            case "CLAUDE_CODE" -> "CLAUDE";
+            case "COPILOT_CLI" -> "COPILOT";
+            case "GROK" -> "GROK";
+            case "CODEX" -> "CODEX";
+            default -> "";
+        };
+    }
+
+    private static String initialFamily(ShaftSettingsState.Settings settings) {
+        boolean geminiCloudConfigured = "CLOUD".equals(normalize(settings.assistantProviderType, "LOCAL"))
+                && "gemini".equalsIgnoreCase(settings.cloudProvider == null ? "" : settings.cloudProvider.trim());
+        return geminiCloudConfigured ? GEMINI_FAMILY : resolveFamily(settings);
+    }
+
+    private AssistantAgentRoute selectedAgentRoute() {
+        Object selected = agentRoute.getSelectedItem();
+        return selected instanceof AssistantAgentRoute route ? route : null;
+    }
+
+    private void syncLegacySelectionFromRoute() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            family.setSelectedIndex(-1);
+            return;
+        }
+        family.setSelectedItem(route.family());
+        runtime.setSelectedItem(route.runtime());
+    }
+
+    private boolean cloudFamilySelected() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        return route != null && route.gemini();
+    }
+
+    /**
+     * Writes the current agent selection into settings. A Gemini selection configures the cloud
+     * provider route (issue #3369) and never overwrites the last local family, so switching back
+     * to a local agent later restores the previous local configuration.
+     */
+    private void applySelectionToSettings() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return;
+        }
+        route.applyTo(settings);
+        if (route.gemini()) {
+            if (!useGeminiEnvironment.isSelected()) {
+                settings.setProviderApiKeyEnvironmentVariable("gemini", "");
+            }
+            if (useGeminiEnvironment.isSelected()) {
+                settings.setProviderApiKeyEnvironmentVariable("gemini", selectedGeminiEnvironment()
+                        .map(ProviderCredentialSource.Source::variableName).orElse(""));
+            }
+            if (settings.cloudModel == null || settings.cloudModel.isBlank()) {
+                settings.cloudModel = AssistantModelCatalog.defaultCloudModel("gemini");
+            }
+        }
+    }
+
+    /**
+     * Verifies the selected agent after a successful MCP probe: local families check their CLI
+     * runtime and its actual access to shaft-mcp (using the readiness precomputed on the background
+     * probe thread when available, since the deep check spawns the client CLI), while the Gemini
+     * cloud route stores the entered API key and checks that one is present in Password Safe.
+     */
+    private ShaftMcpToolResult verifySelectedAgentReadiness(ShaftMcpToolResult precomputedReadiness) {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return ShaftMcpToolResult.failure("Select an agent first.");
+        }
+        if (!route.gemini() && !route.cli()) {
+            return ShaftMcpToolResult.failure(route.displayName()
+                    + " selected. SHAFT cannot verify this external runtime from IntelliJ; "
+                    + "copy the setup command, run it, then confirm the integration in that client.");
+        }
+        if (!route.gemini()) {
+            return precomputedReadiness != null
+                    ? precomputedReadiness
+                    : deepReadinessProbe.test(settings.defaultAutobotClient, settings.assistantRuntime);
+        }
+        applySelectionToSettings();
+        if (!useGeminiEnvironment.isSelected()) {
+            settings.setProviderApiKeyEnvironmentVariable("gemini", "");
+            storeEnteredGeminiKey();
+        }
+        updateCloudControls();
+        if (useGeminiEnvironment.isSelected()) {
+            return precomputedReadiness == null
+                    ? ShaftMcpToolResult.failure("Gemini environment validation did not complete.")
+                    : precomputedReadiness;
+        }
+        return cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                ? ShaftMcpToolResult.success("Gemini API key is stored in IntelliJ Password Safe.")
+                : ShaftMcpToolResult.failure(
+                "No Gemini API key stored. Paste your Google AI Studio API key, then check again.");
+    }
+
+    private ShaftMcpToolResult validateGeminiEnvironment(String variableName) {
+        String value = providerEnvironmentLookup.apply(variableName);
+        if (value == null || value.isBlank()) {
+            return ShaftMcpToolResult.failure(variableName + " is not configured.");
+        }
+        char[] secret = value.toCharArray();
+        try {
+            var result = geminiKeyProbe.apply(secret);
+            return result.success()
+                    ? ShaftMcpToolResult.success(variableName + " is valid.")
+                    : ShaftMcpToolResult.failure("Gemini rejected " + variableName + ": " + result.reason());
+        } finally {
+            java.util.Arrays.fill(secret, '\0');
+        }
+    }
+
+    private ShaftMcpToolResult cloudCredentialReadiness(String selectedVariable) {
+        if (selectedVariable == null || selectedVariable.isBlank()) {
+            return cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                    ? ShaftMcpToolResult.success("Gemini API key is stored in IntelliJ Password Safe.")
+                    : ShaftMcpToolResult.failure("No Gemini API key stored.");
+        }
+        return validateGeminiEnvironment(selectedVariable);
+    }
+
+    private void storeEnteredGeminiKey() {
+        char[] entered = geminiApiKey.getPassword();
+        boolean meaningful = false;
+        for (char character : entered) {
+            if (!Character.isWhitespace(character)) {
+                meaningful = true;
+                break;
+            }
+        }
+        if (meaningful) {
+            cloudKeyStore.saveKey(GEMINI_KEY_NAME, entered);
+            geminiApiKey.setText("");
+        } else {
+            java.util.Arrays.fill(entered, '\0');
+        }
+    }
+
+    private void updateCloudControls() {
+        boolean cloud = cloudFamilySelected();
+        runtimeRow.setVisible(false);
+        apiKeyRow.setVisible(cloud);
+        // The CLI recommendation only applies to local agent families.
+        recommendedAgent.setVisible(!cloud);
+        if (cloud) {
+            var environmentSource = selectedGeminiEnvironment();
+            environmentSource.ifPresent(source -> {
+                useGeminiEnvironment.setText(source.label());
+                useGeminiEnvironment.getAccessibleContext().setAccessibleName(source.label());
+                useGeminiEnvironment.getAccessibleContext().setAccessibleDescription(
+                        source.variableName() + " will be read only when launching or validating Gemini.");
+            });
+            useGeminiEnvironment.setVisible(environmentSource.isPresent());
+            geminiApiKey.setEnabled(!useGeminiEnvironment.isSelected());
+            String geminiKeyStatusText = useGeminiEnvironment.isSelected() && environmentSource.isPresent()
+                    ? environmentSource.orElseThrow().variableName() + " will be used; its value is not stored."
+                    : cloudKeyStore.hasKey(GEMINI_KEY_NAME)
+                    ? "Key stored in Password Safe."
+                    : "Paste your Google AI Studio API key.";
+            geminiKeyStatus.setText(geminiKeyStatusText);
+            geminiKeyStatus.getAccessibleContext().setAccessibleDescription(geminiKeyStatusText);
+        }
+    }
+
+    private java.util.Optional<ProviderCredentialSource.Source> detectGeminiEnvironment() {
+        return ProviderCredentialSource.detect("gemini", providerEnvironmentLookup);
+    }
+
+    private java.util.Optional<ProviderCredentialSource.Source> selectedGeminiEnvironment() {
+        String selected = settings.providerApiKeyEnvironmentVariable("gemini");
+        return ProviderCredentialSource.present("gemini", providerEnvironmentLookup).stream()
+                .filter(source -> source.variableName().equals(selected))
+                .findFirst()
+                .or(this::detectGeminiEnvironment);
+    }
+
+    private static CloudKeyStore passwordSafeKeyStore() {
+        return new CloudKeyStore() {
+            @Override
+            public boolean hasKey(String keyName) {
+                return com.shaft.intellij.settings.ShaftCredentialService.getInstance().hasApiKey(keyName);
+            }
+
+            @Override
+            public void saveKey(String keyName, char[] secret) {
+                com.shaft.intellij.settings.ShaftCredentialService.getInstance().setApiKey(keyName, secret);
+            }
+        };
+    }
+
+    /**
+     * How the recommended-agent label earned its wording. "Detected" is only ever claimed when a
+     * readiness probe actually succeeded — the label must never assert a check that did not run
+     * (the same real-checks-only rule the step badges follow, issue #3426 A5).
+     */
+    private enum RecommendationBasis {
+        DETECTED,
+        NOT_DETECTED,
+        SAVED_SELECTION
+    }
+
+    private record Recommendation(String family, RecommendationBasis basis) {
+    }
+
+    private ShaftSettingsState.Settings currentSelectionSnapshot() {
+        ShaftSettingsState.Settings snapshot = new ShaftSettingsState.Settings();
+        snapshot.defaultAutobotClient = settings.defaultAutobotClient;
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route != null) {
+            route.applyTo(snapshot);
+        }
+        return snapshot;
+    }
+
+    private Recommendation recommendFamily(ShaftSettingsState.Settings settings) {
+        String explicit = normalize(settings.assistantFamily, "");
+        if (!explicit.isBlank()) {
+            return new Recommendation(explicit, RecommendationBasis.SAVED_SELECTION);
+        }
+        String resolved = resolveFamily(settings);
+        if (!"CLI".equals(normalize(settings.assistantRuntime, "CLI"))) {
+            return new Recommendation(resolved, RecommendationBasis.SAVED_SELECTION);
+        }
+        for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT", "GROK", "ANTIGRAVITY")) {
+            ShaftMcpToolResult result = readinessProbe.test(clientFromFamily(familyCandidate), "CLI");
+            if (result != null && result.success()) {
+                return new Recommendation(familyCandidate, RecommendationBasis.DETECTED);
+            }
+        }
+        return new Recommendation(resolved, RecommendationBasis.NOT_DETECTED);
+    }
+
+    private String recommendedAgentText() {
+        String label = cliAgentLabel(recommendation.family());
+        return switch (recommendation.basis()) {
+            case DETECTED -> "Recommended: " + label + " detected";
+            case NOT_DETECTED -> "Recommended: " + label
+                    + " — not detected yet; install it from the Prerequisites step above";
+            case SAVED_SELECTION -> "Recommended: " + label + " (your saved selection)";
+        };
+    }
+
+    private static String cliAgentLabel(String family) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
+            case "CLAUDE" -> "Claude Code CLI";
+            case "COPILOT" -> "GitHub Copilot CLI";
+            case "GROK" -> com.shaft.intellij.settings.GrokInstallIdentity.detectedLabel();
+            case "ANTIGRAVITY" -> "Antigravity";
+            case "CODEX" -> "Codex CLI";
+            default -> "";
+        };
+    }
+
+    private static String clientFromFamily(String family) {
+        String normalized = normalize(family, "");
+        if (normalized.isBlank()) {
+            return "";
+        }
+        return switch (normalized) {
+            case "CLAUDE" -> "CLAUDE_CODE";
+            case "COPILOT" -> "COPILOT_CLI";
+            case "GROK" -> "GROK";
+            case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "CODEX" -> "CODEX";
+            default -> "";
+        };
+    }
+
+    private String installerCommand() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "";
+        }
+        String command = installerCommandFor(installerArgumentFor(route.installerTarget()));
+        if (installShaftCli.isSelected()) {
+            // Insert next to the skills flag so the addition stays inside the quoted
+            // PowerShell command on Windows.
+            command = command.replace("--install-shaft-skills", "--install-shaft-skills --install-shaft-cli");
+        }
+        return command;
+    }
+
+    private String suggestedInstallerTarget() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        return route == null ? "" : route.installerTarget();
+    }
+
+    public static java.util.List<String> installerTargetNames() {
+        return java.util.List.of(INSTALLER_TARGETS);
+    }
+
+    public static String installerArgumentFor(String target) {
+        return switch (normalize(target, "")) {
+            case "" -> "";
+            case "CLAUDE_CODE" -> "claude";
+            case "CLAUDE_DESKTOP" -> "claude-desktop";
+            case "COPILOT_CLI" -> "copilot";
+            case "COPILOT_INTELLIJ" -> "copilot-intellij";
+            case "INTELLIJ_PLUGIN" -> "intellij-plugin";
+            case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "antigravity";
+            case "CODEX" -> "codex";
+            default -> "codex";
+        };
+    }
+
+    public static String installerCommandFor(String target) {
+        String body = installerScriptBody(target, false);
+        return isWindows() ? "powershell -NoProfile -ExecutionPolicy Bypass -Command '" + body + "'" : body;
+    }
+
+    /**
+     * The installer script's inner body (download-and-invoke on Windows, download-and-run on
+     * Unix), shared by every call site that builds an installer command string -- {@link
+     * #installerCommandFor(String)} and, via the "Also install shaft-cli" checkbox, {@link
+     * #installerCommand()} -- so they never drift apart. This string is always handed to a
+     * terminal for the user to run, never executed by the plugin itself (issue #3743 rework: see
+     * {@code ShaftPluginSecurityTest}, which forbids this plugin from spawning OS processes).
+     */
+    public static String installerScriptBody(String target, boolean installCli) {
+        String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/" + INSTALLER_BRANCH
+                + "/scripts/mcp/install-shaft-agentic-tools";
+        String flags = installCli ? "--install-shaft-skills --install-shaft-cli" : "--install-shaft-skills";
+        if (isWindows()) {
+            return "$installer=Join-Path $env:TEMP \"install-shaft-agentic-tools.ps1\"; "
+                    + "Invoke-WebRequest -UseBasicParsing \"" + url
+                    + ".ps1\" -OutFile $installer; & $installer -Client " + target + " " + flags;
+        }
+        return "tmp=\"${TMPDIR:-/tmp}/install-shaft-agentic-tools.sh\"; curl -fL " + url
+                + ".sh -o \"$tmp\" && sh \"$tmp\" --" + target + " " + flags;
+    }
+
+    /**
+     * Downloads and runs the SHAFT modular-upgrade script against the current project. No
+     * {@code --yes}: the script prints a diff and asks for interactive confirmation, which is the
+     * right default for a first command a user runs against their own project.
+     */
+    private static String upgradeCommand() {
+        String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/" + INSTALLER_BRANCH
+                + "/shaft-upgrader/upgrade_to_modular_shaft.py";
+        if (isWindows()) {
+            return "powershell -NoProfile -ExecutionPolicy Bypass -Command '$upgrader=Join-Path $env:TEMP "
+                    + "\"upgrade_to_modular_shaft.py\"; Invoke-WebRequest -UseBasicParsing \"" + url
+                    + "\" -OutFile $upgrader; py -3 $upgrader --project .'";
+        }
+        return "tmp=\"${TMPDIR:-/tmp}/upgrade_to_modular_shaft.py\"; curl -fL " + url
+                + " -o \"$tmp\" && python3 \"$tmp\" --project .";
+    }
+
+    private void copyUpgradeCommand() {
+        String command = upgradeCommand();
+        copy(command, "Copied SHAFT upgrade command");
+        boolean opened = terminalOpener.open("SHAFT upgrade", command, typed -> { });
+        if (opened) {
+            openIntellijTerminal();
+        }
+        setStatusText(opened
+                ? "Terminal opened with the upgrade command pre-typed. Press Enter there to run it, then press Check."
+                : "Upgrade command copied. Paste it into a terminal, run it, then press Check.");
+        updateActionState(false);
+    }
+
+    /**
+     * Primary "Install SHAFT MCP" action (issue #3743; reworked for JetBrains Marketplace
+     * compliance -- {@code ShaftPluginSecurityTest} forbids this plugin from spawning OS
+     * processes). Copies the full MCP + skills + CLI command for the selected client to the
+     * clipboard AND opens a terminal with it pre-typed, through {@link #copyCommandIntoTerminal} --
+     * the same copy-then-terminal helper every other action on this screen shares -- so the plugin
+     * itself never executes anything; the user presses Enter. Install and upgrade are the same
+     * command — re-running the installer script always fetches the latest release — so there is no
+     * separate "install" vs "upgrade" flavor of this command (issue #3538); it goes through {@link
+     * #installerCommand()} — the same helper the Advanced installer options panel uses — to honor
+     * the "Also install shaft-cli" checkbox.
+     *
+     * <p>Issue #4314 fix 3: this used to be two functionally near-identical actions -- this one and
+     * a separate "Copy" button that additionally copied to the clipboard first -- merged here.</p>
+     */
+    private void runInstall() {
+        copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install", "Copied SHAFT MCP install command");
+        updateActionState(false);
+    }
+
+    private void resetAndCopyInstaller() {
+        clearDiagnostics();
+        mcpCommand.setText("");
+        settings.mcpCommand = "";
+        settings.mcpSetupComplete = false;
+        settings.agentGuidanceOptimizationPromptPending = false;
+        installerCommand.setText(installerCommand());
+        startChatting.setVisible(false);
+        startWithoutAgent.setVisible(false);
+        connectAgent.setVisible(false);
+        showRuntimeSelected();
+        showAssistNotConfigured();
+        refreshRealChecks();
+        copyCommandIntoTerminal(installerCommand(), "SHAFT MCP install",
+                "Installer command copied. Run it in terminal, then check.");
+        updateActionState(false);
+        installNow.requestFocusInWindow();
+    }
+
+    /**
+     * Non-destructive re-check for a returning user (issue #3601 S4): reuses the exact real
+     * connection/readiness check {@link #testConnection()} already runs for "Check now" -- this
+     * never touches {@link ShaftPluginResetService}, so settings, saved credentials, tool
+     * approvals, and chat history are all left alone, unlike {@link #confirmAndReset()}. Forcing
+     * the choose/install/check rows open for the run lets a returning user see current state (and
+     * change {@link #family}/{@link #runtime} in {@link #chooseRow} if needed) without hunting
+     * through the collapsed "Done" summaries {@link #collapseStepsBehindProgress} leaves behind.
+     */
+    private void recheckConnectionAndAgents() {
+        testConnection();
+        manuallyExpandedRows.add(chooseRow);
+        manuallyExpandedRows.add(installRow);
+        manuallyExpandedRows.add(checkRow);
+        collapseStepsBehindProgress(stepStatesForCollapse(true));
+    }
+
+    /**
+     * Confirms with the user, then delegates to {@link ShaftPluginResetService#resetEverything()}.
+     * Cancelling the confirmation dialog is a no-op. Both the confirmation prompt and the reset
+     * action itself are indirected through overridable fields so tests can drive this without a
+     * real IntelliJ {@code Application}/dialog.
+     */
+    private void confirmAndReset() {
+        if (!confirmReset.getAsBoolean()) {
+            return;
+        }
+        resetAction.run();
+    }
+
+    /**
+     * Writes the GitHub Actions workflow for this project (issue #6641) and reports the outcome in
+     * the toast; opens the new file in the editor when running inside a real IDE.
+     */
+    private void generateCiWorkflow() {
+        ShaftGithubWorkflowFile.Result result;
+        try {
+            result = ShaftGithubWorkflowFile.generate(projectRoot());
+        } catch (IOException e) {
+            showToast("Could not write " + ShaftGithubWorkflowFile.RELATIVE_PATH + ": " + e.getMessage());
+            return;
+        }
+        switch (result.outcome()) {
+            case CREATED -> {
+                showToast("Created " + ShaftGithubWorkflowFile.RELATIVE_PATH);
+                openInEditor(result.file());
+            }
+            case ALREADY_EXISTS -> showToast(ShaftGithubWorkflowFile.RELATIVE_PATH
+                    + " already exists; left unchanged");
+            case UNSUPPORTED_BUILD -> showToast("No pom.xml or gradlew in the project root; workflow not created");
+        }
+    }
+
+    private void openInEditor(Path file) {
+        if (project == null || Proxy.isProxyClass(project.getClass()) || ApplicationManager.getApplication() == null) {
+            return;
+        }
+        VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file);
+        if (virtualFile != null) {
+            new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile).navigate(true);
+        }
+    }
+
+    private boolean confirmResetDialog() {
+        return Messages.showYesNoDialog(
+                project,
+                """
+                        This resets the SHAFT plugin to its factory state:
+                        • All SHAFT plugin settings (agent selection, MCP command, toggles)
+                        • Saved provider API keys in IntelliJ Password Safe
+                        • Tool approvals for every open project
+                        • Assistant chat history for every open project
+
+                        After the reset, every setup step is re-checked against what is really on this machine — nothing stays green because of earlier clicks.
+
+                        Not removed (they belong to your machine, not this plugin): your project source code, the shaft-mcp files under your local application data, Maven artifacts in ~/.m2, and SHAFT MCP registrations inside agent CLI configs (re-run the installer to update those).""",
+                "Reset SHAFT Plugin",
+                "Reset everything",
+                "Cancel",
+                Messages.getWarningIcon()) == Messages.YES;
+    }
+
+    private boolean openTerminalWithPreparedCommand(String tabName, String command, Consumer<Boolean> onOutcome) {
+        return ShaftTerminalCommands.openWithPreparedCommand(
+                project, projectRoot().toString(), tabName, command, onOutcome);
+    }
+
+    private void openIntellijTerminal() {
+        if (project == null || Proxy.isProxyClass(project.getClass()) || ApplicationManager.getApplication() == null) {
+            return;
+        }
+        ApplicationManager.getApplication().invokeLater(() -> {
+            try {
+                ToolWindow terminal = ToolWindowManager.getInstance(project).getToolWindow("Terminal");
+                if (terminal != null) {
+                    terminal.activate(null);
+                }
+            } catch (RuntimeException ignored) {
+                // Terminal plugin/tool window may be unavailable; the command is already copied.
+            }
+        });
+    }
+
+    public static String inferInstalledStdioCommand() {
+        return inferInstalledStdioCommand(applicationDataRoot(), bootstrapRoot());
+    }
+
+    static String inferInstalledStdioCommand(Path applicationDataRoot, Path bootstrapRoot) {
+        Path argsFile = latestArgsFile(applicationDataRoot);
+        if (argsFile == null) {
+            return "";
+        }
+        Path java = installerJava(bootstrapRoot);
+        return quote(java == null ? "java" : java.toString()) + " " + quote("@" + argsFile);
+    }
+
+    /**
+     * Installed shaft-mcp version, read from the parent directory name of the newest
+     * {@code versions/<version>/shaft-mcp.args} on disk — the same file
+     * {@link #inferInstalledStdioCommand(Path, Path)} already reads to build the stdio command
+     * (issue #3538). Blank when nothing is installed.
+     */
+    static String installedShaftMcpVersion(Path applicationDataRoot) {
+        Path argsFile = latestArgsFile(applicationDataRoot);
+        if (argsFile == null || argsFile.getParent() == null) {
+            return "";
+        }
+        return String.valueOf(argsFile.getParent().getFileName());
+    }
+
+    private static String installedShaftMcpVersion() {
+        return installedShaftMcpVersion(applicationDataRoot());
+    }
+
+    private static Path latestArgsFile(Path applicationDataRoot) {
+        Path versions = applicationDataRoot.resolve("versions");
+        if (!Files.isDirectory(versions)) {
+            return null;
+        }
+        try (Stream<Path> entries = Files.list(versions)) {
+            return entries.map(path -> path.resolve("shaft-mcp.args"))
+                    .filter(Files::isRegularFile)
+                    .max(Comparator.comparingLong(ShaftMcpSetupPanel::lastModified))
+                    .orElse(null);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static Path installerJava(Path bootstrapRoot) {
+        Path jdkRoot = bootstrapRoot.resolve("tools").resolve("jdk");
+        if (!Files.isDirectory(jdkRoot)) {
+            return null;
+        }
+        String executable = isWindows() ? "java.exe" : "java";
+        try (Stream<Path> entries = Files.walk(jdkRoot, 8)) {
+            return entries.filter(Files::isRegularFile)
+                    .filter(path -> executable.equals(path.getFileName().toString()))
+                    .filter(path -> path.getParent() != null && "bin".equals(path.getParent().getFileName().toString()))
+                    .max(Comparator.comparingLong(ShaftMcpSetupPanel::lastModified))
+                    .orElse(null);
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static long lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException ignored) {
+            return 0L;
+        }
+    }
+
+    private static Path applicationDataRoot() {
+        String override = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override);
+        }
+        Path home = Path.of(System.getProperty("user.home", "."));
+        if (isWindows()) {
+            String localAppData = System.getenv("LOCALAPPDATA");
+            Path base = localAppData == null || localAppData.isBlank()
+                    ? home.resolve("AppData").resolve("Local")
+                    : Path.of(localAppData);
+            return base.resolve("ShaftHQ").resolve("shaft-mcp");
+        }
+        if (isMac()) {
+            return home.resolve("Library").resolve("Application Support").resolve("ShaftHQ").resolve("shaft-mcp");
+        }
+        String dataHome = System.getenv("XDG_DATA_HOME");
+        Path base = dataHome == null || dataHome.isBlank()
+                ? home.resolve(".local").resolve("share")
+                : Path.of(dataHome);
+        return base.resolve("shafthq").resolve("shaft-mcp");
+    }
+
+    private static Path bootstrapRoot() {
+        String override = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
+        if (override != null && !override.isBlank()) {
+            return Path.of(override);
+        }
+        Path home = Path.of(System.getProperty("user.home", "."));
+        if (isWindows()) {
+            String localAppData = System.getenv("LOCALAPPDATA");
+            Path base = localAppData == null || localAppData.isBlank()
+                    ? home.resolve("AppData").resolve("Local")
+                    : Path.of(localAppData);
+            return base.resolve("ShaftHQ").resolve("shaft-mcp").resolve("bootstrap");
+        }
+        if (isMac()) {
+            return home.resolve("Library").resolve("Caches").resolve("ShaftHQ").resolve("shaft-mcp-bootstrap");
+        }
+        String cacheHome = System.getenv("XDG_CACHE_HOME");
+        Path base = cacheHome == null || cacheHome.isBlank()
+                ? home.resolve(".cache")
+                : Path.of(cacheHome);
+        return base.resolve("shafthq").resolve("shaft-mcp-bootstrap");
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static boolean isMac() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+    }
+
+    private static String quote(String value) {
+        if (value.isBlank()) {
+            return "\"\"";
+        }
+        if (value.chars().noneMatch(Character::isWhitespace) && !value.contains("\"")) {
+            return value;
+        }
+        return "\"" + value.replace("\"", "\\\"") + "\"";
+    }
+
+    private String mcpCommand() {
+        return settings.mcpCommand == null ? "" : settings.mcpCommand.trim();
+    }
+
+    private String currentCommand() {
+        return mcpCommand.getText() == null ? "" : mcpCommand.getText().trim();
+    }
+
+    /**
+     * A command the user can paste into a terminal to properly restart the selected assistant CLI:
+     * running sessions started before a shaft-mcp (re)install keep the old MCP registration, so
+     * stale processes are stopped and a fresh invocation re-checks shaft-mcp access.
+     */
+    String restartCommand() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "";
+        }
+        String executable = route.gemini() ? "" : switch (route.family()) {
+            case "CLAUDE" -> "claude";
+            case "COPILOT" -> "copilot";
+            case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "agy";
+            case "CODEX" -> "codex";
+            default -> "";
+        };
+        if (executable.isBlank()) {
+            return "";
+        }
+        String verification = "copilot".equals(executable) ? executable + " --version" : executable + " mcp list";
+        if (isWindows()) {
+            return "powershell -NoProfile -Command \"Get-Process " + executable
+                    + " -ErrorAction SilentlyContinue | Stop-Process -Force; " + verification + "\"";
+        }
+        return "pkill -x " + executable + " 2>/dev/null; " + verification;
+    }
+
+    /**
+     * Surfaces the restart-command recovery action after a failed client readiness check for a
+     * local CLI family. The restart path is what fixes the common "just reinstalled shaft-mcp but
+     * my CLI still cannot see it" case, so the copy button is offered for every readiness failure,
+     * not only ones whose message mentions restarting.
+     */
+    private void showRestartCommandRecovery() {
+        if (restartCommand().isBlank()) {
+            return;
+        }
+        copyRestartCommand.setVisible(true);
+        copyRestartCommand.setEnabled(true);
+        String recoveryStatusText = "Recovery: run the installer or copy the restart command, then check again.";
+        recoveryStatus.setText(recoveryStatusText);
+        recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
+        recoveryStatus.setVisible(true);
+    }
+
+    private String readinessDiagnosticCommand() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "";
+        }
+        if (route.gemini()) {
+            return "";
+        }
+        return switch (route.family()) {
+            case "CLAUDE" -> "claude --version";
+            case "COPILOT" -> "copilot --version";
+            case "GROK" -> "grok --version";
+            case "ANTIGRAVITY" -> "agy --version";
+            case "CODEX" -> "codex --version";
+            default -> "";
+        };
+    }
+
+    private String troubleshootingDetails(String title, String output, String command, boolean probeFailure) {
+        String detailsOutput = output == null || output.isBlank() ? "No diagnostic output returned." : output.trim();
+        String category = failureCategory(detailsOutput);
+        String commandText = visibleDiagnosticCommand(command);
+        StringBuilder formatted = new StringBuilder(title).append("\n\n")
+                .append("What failed\n")
+                .append("- Category: ").append(category).append('\n')
+                .append("- Client: ").append(clientDisplayName()).append('\n')
+                .append("- Runtime: ").append(runtimeDisplayName()).append("\n\n")
+                .append("Next steps\n");
+        for (String step : troubleshootingSteps(category, probeFailure)) {
+            formatted.append("- ").append(step).append('\n');
+        }
+        return formatted.append("\nDiagnostic command\n")
+                .append(commandText)
+                .append("\n\nOutput\n")
+                .append(detailsOutput)
+                .toString();
+    }
+
+    private String failureCategory(String output) {
+        String text = output == null ? "" : output.toLowerCase(Locale.ROOT);
+        if (text.contains("no shaft mcp command configured")
+                || text.contains("enter a shaft mcp stdio command")) {
+            return "MCP command";
+        }
+        if (text.contains("not registered with")) {
+            return "Client MCP registration";
+        }
+        if (text.contains("could not connect to it")) {
+            return "Client MCP connection";
+        }
+        if (text.contains("unsupportedclassversionerror")
+                || text.contains("java_home")
+                || text.contains("could not find or load main class")
+                || text.contains("cannot run program \"java\"")
+                || text.contains("java: command not found")
+                || text.contains("java is not recognized")
+                || text.contains("java runtime")
+                || text.contains("local java")) {
+            return "Java/runtime";
+        }
+        if (text.contains("could not resolve")
+                || text.contains("could not find artifact")
+                || text.contains("failed to collect dependencies")
+                || text.contains("could not transfer artifact")
+                || text.contains("io.github.shafthq:shaft-mcp")) {
+            return "Maven artifact resolution";
+        }
+        if (text.contains("mcp.json")
+                || text.contains("config.toml")
+                || text.contains("client configuration")
+                || text.contains("failed to write")
+                || text.contains("permission denied")) {
+            return "Client configuration";
+        }
+        if (text.contains("not available on path")
+                || text.contains("executable is not available")
+                || text.contains("cli executable")
+                || text.contains("client executable")
+                || text.contains("command not found")) {
+            return "Client runtime";
+        }
+        return "MCP probe";
+    }
+
+    private List<String> troubleshootingSteps(String category, boolean probeFailure) {
+        List<String> steps = new ArrayList<>();
+        switch (category) {
+            case "MCP command" -> steps.add("Run the installer command, then check again. SHAFT will find the local command automatically.");
+            case "Client MCP registration" -> steps.add(
+                    "Run the installer command for the selected client, then check again.");
+            case "Client MCP connection" -> steps.add(
+                    "Restart the selected client CLI (copy the restart command below), then check again.");
+            case "Java/runtime" -> steps.add("Install or select a Java runtime that can run shaft-mcp, then retry.");
+            case "Maven artifact resolution" -> steps.add(
+                    "Check Maven Central/network access and retry once artifact resolution is available.");
+            case "Client configuration" -> steps.add(
+                    "Check that the selected client can write and read its MCP configuration file.");
+            case "Client runtime" -> steps.add(
+                    "Install the selected client CLI or add it to PATH, then retry.");
+            default -> steps.add("Run the installer command again, then check setup once it finishes.");
+        }
+        if (probeFailure) {
+            steps.add(clientSpecificStep());
+        }
+        return steps;
+    }
+
+    private String clientSpecificStep() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        if (route == null) {
+            return "Select an agent, then retry the check.";
+        }
+        if (route.gemini()) {
+            return "For Gemini, paste a valid Google AI Studio API key in the setup form, then check again.";
+        }
+        return switch (route.family()) {
+            case "CLAUDE" -> "For Claude, run `claude mcp list` for Claude Code or restart Claude Desktop after desktop config changes.";
+            case "COPILOT" -> "For GitHub Copilot, check the Copilot MCP client configuration and any organization MCP policy.";
+            case "GROK" -> "For Grok, run `grok mcp list` and verify the SHAFT MCP server in ~/.grok/config.toml.";
+            case "CODEX" -> "For Codex, run `codex mcp list` and verify the SHAFT MCP server in the Codex config.";
+            default -> "Select an agent, then retry the check.";
+        };
+    }
+
+    private String visibleDiagnosticCommand(String command) {
+        if (command == null || command.isBlank()) {
+            return "Managed by SHAFT automatically.";
+        }
+        return isUserRunnableDiagnosticCommand(command) ? command : "Managed by SHAFT automatically.";
+    }
+
+    private boolean isUserRunnableDiagnosticCommand(String command) {
+        return command != null && !command.isBlank() && !command.trim().equals(mcpCommand());
+    }
+
+    private String clientDisplayName() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        return route == null ? "Select an option" : route.displayName();
+    }
+
+    private String runtimeDisplayName() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        return route == null ? "Select an option" : ShaftUiLabels.friendly(route.runtime());
+    }
+
+    private static String normalize(String value, String fallback) {
+        String normalized = value == null || value.isBlank() ? fallback : value.trim();
+        return normalized.toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+    }
+
+    private static JLabel setupStatusLabel(String accessibleName) {
+        JLabel label = new JLabel();
+        label.getAccessibleContext().setAccessibleName(accessibleName);
+        return label;
+    }
+
+    private static JLabel setupStepLabel(String accessibleName) {
+        JLabel label = new JLabel();
+        // Don't clamp preferred size; let layout manager compute it from font metrics
+        label.setBorder(JBUI.Borders.empty(2, 6));
+        label.getAccessibleContext().setAccessibleName(accessibleName);
+        return label;
+    }
+
+    private static JLabel setupStateLabel(String accessibleName) {
+        JLabel label = new JLabel();
+        label.setOpaque(true);
+        label.setHorizontalAlignment(JLabel.CENTER);
+        Dimension badgeSize = JBUI.size(74, 22);
+        label.setPreferredSize(badgeSize);
+        // Also pin the minimum size (issue #3560): a JLabel's UI-computed minimum size ignores an
+        // overridden preferred size and falls back to its own short text's natural width (e.g.
+        // "Next"), so under a width-constrained row a GridBagLayout column can silently shrink this
+        // badge below its intended 74px unless the minimum matches the preferred size exactly.
+        label.setMinimumSize(badgeSize);
+        label.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(UIManagerColors.border(), 1),
+                JBUI.Borders.empty(2, 6)));
+        label.getAccessibleContext().setAccessibleName(accessibleName);
+        return label;
+    }
+
+    private static void applyLabeledAction(JButton button, Icon icon) {
+        button.setIcon(icon);
+        button.setMargin(JBUI.insets(4, 8));
+        button.setFocusPainted(true);
+        button.setRolloverEnabled(true);
+    }
+
+    private void setStatusText(String text) {
+        status.setToolTipText(text);
+        // Accessible description mirrors the live, unescaped status text (issue #3603): the name
+        // stays a stable category label ("SHAFT MCP setup next step"), but a screen reader also
+        // needs to hear the actual next-step guidance, which changes throughout the setup flow.
+        status.getAccessibleContext().setAccessibleDescription(text);
+        if (GUIDE_SETUP_STEP.equals(text)) {
+            status.setText(GUIDE_SETUP_STEP);
+            status.setVisible(false);
+            return;
+        }
+        status.setText(escapeHtml(text));
+        status.setVisible(true);
+    }
+
+    /**
+     * Every step badge below reflects a real, user-triggered check, never a click's mere
+     * side-effect or passive on-disk detection (issue #3426 A4/A5, issue #3560): a badge only
+     * turns green once the user has pressed that row's Check and it passed — a fresh landing (or a
+     * post-"Reset everything" re-render) always starts neutral/blue, never green. The upgrade step
+     * compares the project pom against the latest release once checked, the agent step requires the
+     * connection check to have verified the agent (not just detected it), the merged install/MCP-
+     * version row borrows the version check's state, and the check step requires the probe to have
+     * actually passed — with an explicit Failed badge when it did not.
+     */
+    private String upgradeStepState() {
+        if (!upgradeChecked || upgradeCheckResult == null) {
+            return "next";
+        }
+        return switch (upgradeCheckResult.state()) {
+            case UP_TO_DATE -> "done";
+            case UPGRADE_AVAILABLE, NOT_A_SHAFT_PROJECT -> "next";
+            case LATEST_UNKNOWN -> "optional";
+        };
+    }
+
+    private String chooseStepState() {
+        if (selectedAgentRoute() == null) {
+            return "wait";
+        }
+        return settings.agentLaneReady ? "done" : "next";
+    }
+
+    private String checkStepState(boolean running, boolean complete, boolean hasCommand) {
+        if (running) {
+            return "checking";
+        }
+        if (complete) {
+            return "done";
+        }
+        if (lastCheckFailed) {
+            return "failed";
+        }
+        return installedCommandDetected || hasCommand ? "next" : "wait";
+    }
+
+    /**
+     * Never "failed" (issue #3538): an offline latest-version lookup is surfaced as "optional" —
+     * the same neutral badge the upgrade step's LATEST_UNKNOWN uses — so this row can never block
+     * the rest of setup. Also drives the merged "3 Install SHAFT MCP" row's badge (issue #3560):
+     * that row is green only once this check has actually run and passed.
+     */
+    private String mcpVersionStepState() {
+        if (!mcpVersionChecked || mcpVersionCheckResult == null) {
+            return "next";
+        }
+        return switch (mcpVersionCheckResult.state()) {
+            case UP_TO_DATE -> "done";
+            case UPGRADE_AVAILABLE, NOT_INSTALLED -> "next";
+            case LATEST_UNKNOWN -> "optional";
+        };
+    }
+
+    private void updateSetupSteps(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        setStep(upgradeStep, upgradeState, "1 Upgrade project", upgradeStepState());
+        setStep(chooseStep, chooseState, "2 Choose agent", chooseStepState());
+        setStep(installStep, installState, "3 Setup SHAFT Tools & Skills", mcpVersionStepState());
+        setStep(agentCheckStep, agentCheckState, "4 Check agent connection",
+                selectedAgentRoute() == null ? "wait" : "next");
+        setStep(testStep, testState, "5 Check SHAFT agentic tools installation",
+                checkStepState(running, complete, hasCommand));
+        setStep(null, readyState, "Ready", complete ? "next" : "wait");
+        alignStepLabelWidths();
+    }
+
+    private void updateWorkflowRows(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        styleStepRow(upgradeRow, upgradeStepState());
+        styleStepRow(chooseRow, chooseStepState());
+        styleStepRow(installRow, mcpVersionStepState());
+        styleStepRow(agentCheckRow, selectedAgentRoute() == null ? "wait" : "next");
+        styleStepRow(checkRow, checkStepState(running, complete, hasCommand));
+        styleStepRow(chatRow, complete ? "next" : "wait");
+        manuallyExpandedRows.clear();
+        collapseStepsBehindProgress(stepStatesForCollapse(running));
+    }
+
+    /**
+     * Human-readable step-state word for tooltips/badges. Kept separate from the internal
+     * {@code state} string keys used by every {@code switch} in this class: {@code "optional"}
+     * used to display as the literal word "Optional", which reads as "not needed" even though it
+     * only ever means "the latest-version lookup was offline" (issue #3551). Only this display
+     * copy changes; the state key itself, and every color/badge switch keyed on it, is untouched.
+     */
+    private static String displayState(String state) {
+        return "optional".equals(state) ? "Offline" : state;
+    }
+
+    private static void setStep(JLabel label, JLabel stateLabel, String name, String state) {
+        if (label != null) {
+            label.putClientProperty(STEP_TITLE_KEY, name);
+            label.setText(name);
+            label.setToolTipText(name + " is " + displayState(state));
+            label.getAccessibleContext().setAccessibleName(name + " setup step: " + state);
+            label.setFont(label.getFont().deriveFont("next".equals(state) || "checking".equals(state)
+                    || "optional".equals(state)
+                    ? Font.BOLD
+                    : Font.PLAIN));
+            label.setForeground(switch (state) {
+                case "done" -> ShaftStatusPresentation.success();
+                case "failed" -> ShaftStatusPresentation.error();
+                case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
+                default -> UIManagerColors.foreground();
+            });
+        }
+        // Issue #4314 fix 5: the "next" badge is blanked out entirely -- no text, no opaque pill
+        // background, no border -- since it looked like a clickable button but wasn't and added no
+        // signal beyond the "done" (green) transition + auto-expanding next row already convey.
+        // Every other state keeps its exact existing text/opacity/border, untouched.
+        stateLabel.setText(switch (state) {
+            case "done" -> "Done";
+            case "failed" -> "Failed";
+            case "next" -> "";
+            case "checking" -> "Checking";
+            case "optional" -> "Offline";
+            default -> "Waiting";
+        });
+        stateLabel.setToolTipText(name + " is " + displayState(state));
+        stateLabel.getAccessibleContext().setAccessibleDescription(name + " setup state: " + state);
+        stateLabel.setOpaque(!"next".equals(state));
+        stateLabel.setBorder("next".equals(state)
+                ? JBUI.Borders.empty(2, 6)
+                : JBUI.Borders.compound(JBUI.Borders.customLine(UIManagerColors.border(), 1), JBUI.Borders.empty(2, 6)));
+        stateLabel.setBackground(switch (state) {
+            case "done" -> UIManagerColors.doneBackground();
+            case "next", "checking", "optional" -> UIManagerColors.activeBackground();
+            default -> UIManagerColors.panelBackground();
+        });
+        stateLabel.setForeground(switch (state) {
+            case "done" -> ShaftStatusPresentation.success();
+            case "failed" -> ShaftStatusPresentation.error();
+            case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
+            default -> UIManagerColors.foreground();
+        });
+    }
+
+    /**
+     * Symmetric row (issue #3560): step label and state badge sit in consistent, aligned columns
+     * across every workflow row — fixing the ragged left edges a wrapping FlowLayout produced —
+     * with the (often much wider, per-row-variable) actions content given its own full-width line
+     * underneath. Actions cannot share the label/badge line: the setup panel also renders at a
+     * deliberately narrow width (see the plugin's narrow-tool-window screenshot coverage), and a
+     * three-column single-line GridBagLayout row has no minimum width to shrink into without
+     * cropping — GridBagLayout, once a row's assigned width falls below the combined minimum width
+     * of all its columns, shrinks every column proportionally including "no-fill" ones, with no
+     * escape valve short of literal text clipping. Splitting the wide, variable-width actions
+     * content onto its own line sidesteps that degenerate case entirely: it always gets the row's
+     * full width to itself.
+     */
+    private JPanel stepRow(JLabel label, JLabel stateLabel, JComponent action) {
+        JPanel row = new JPanel(new GridBagLayout());
+        row.setOpaque(true);
+        row.setAlignmentX(LEFT_ALIGNMENT);
+        GridBagConstraints labelConstraints = new GridBagConstraints();
+        labelConstraints.gridx = 0;
+        labelConstraints.gridy = 0;
+        labelConstraints.anchor = GridBagConstraints.WEST;
+        labelConstraints.weightx = 1.0;
+        labelConstraints.insets = JBUI.insets(0, 0, 0, 10);
+        row.add(label, labelConstraints);
+        GridBagConstraints stateConstraints = new GridBagConstraints();
+        stateConstraints.gridx = 1;
+        stateConstraints.gridy = 0;
+        stateConstraints.anchor = GridBagConstraints.WEST;
+        stateConstraints.insets = JBUI.insets(0, 0, 0, 10);
+        row.add(stateLabel, stateConstraints);
+        // Discoverable recheck affordance (issue #4314 fix 4): a collapsed "done" row was already
+        // reconfigurable non-destructively by clicking it (toggleStepRowInspection below), but
+        // nothing on screen hinted it was clickable. This icon -- only shown once the row is
+        // actually "done" (see styleStepRow) -- fires that exact same toggle, never new logic; a
+        // plain JButton is keyboard-reachable on its own via the normal Tab/Enter/Space contract, so
+        // it needs no extra key bindings of its own, and (being an opaque child component) consumes
+        // its own clicks without also triggering the whole-row MouseAdapter installed below.
+        JButton recheck = ShaftIconButtons.create("Recheck this step",
+                label.getAccessibleContext().getAccessibleName() + " recheck", ShaftIcons.RERUN,
+                event -> toggleStepRowInspection(row));
+        recheck.setVisible(false);
+        GridBagConstraints recheckConstraints = new GridBagConstraints();
+        recheckConstraints.gridx = 2;
+        recheckConstraints.gridy = 0;
+        recheckConstraints.anchor = GridBagConstraints.NORTHEAST;
+        recheckConstraints.weightx = 1.0;
+        row.add(recheck, recheckConstraints);
+        GridBagConstraints actionConstraints = new GridBagConstraints();
+        actionConstraints.gridx = 0;
+        actionConstraints.gridy = 1;
+        actionConstraints.gridwidth = 3;
+        actionConstraints.anchor = GridBagConstraints.WEST;
+        actionConstraints.fill = GridBagConstraints.HORIZONTAL;
+        actionConstraints.weightx = 1.0;
+        actionConstraints.insets = JBUI.insets(4, 0, 0, 0);
+        row.add(action, actionConstraints);
+        row.setBorder(JBUI.Borders.compound(
+                JBUI.Borders.customLine(UIManagerColors.border(), 1),
+                JBUI.Borders.empty(8)));
+        row.putClientProperty(STEP_ACTION_KEY, action);
+        row.putClientProperty(STEP_RECHECK_KEY, recheck);
+        return row;
+    }
+
+    /**
+     * Once a step's action component is hidden ({@link #collapseStepsBehindProgress}), a click on
+     * the row's remaining label+badge line re-expands it for inspection (issue #3601 S2). This is
+     * the file's only row-click idiom, so both the row panel and its two always-visible labels get
+     * the same listener — otherwise a click landing on the label/badge text itself (the only visible
+     * surface once collapsed) would be swallowed by the child component instead of reaching the row.
+     * Focusable with an Enter/Space key binding (#3601 a11y audit): a plain {@code MouseListener}
+     * has no keyboard equivalent, so without this the toggle would be unreachable without a mouse.
+     */
+    private void installRowInspectionToggle(JPanel row, JLabel label, JLabel stateLabel) {
+        row.setFocusable(true);
+        row.getAccessibleContext().setAccessibleName(label.getAccessibleContext().getAccessibleName() + " row");
+        row.getAccessibleContext().setAccessibleDescription(
+                "Click, or focus and press Enter or Space, to show or hide this step's detail once it is "
+                        + "complete.");
+        java.awt.event.MouseAdapter toggle = new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent event) {
+                toggleStepRowInspection(row);
+            }
+        };
+        row.addMouseListener(toggle);
+        label.addMouseListener(toggle);
+        stateLabel.addMouseListener(toggle);
+        javax.swing.Action toggleAction = new javax.swing.AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                toggleStepRowInspection(row);
+            }
+        };
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "toggleStepRowInspection");
+        row.getInputMap(JComponent.WHEN_FOCUSED).put(
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "toggleStepRowInspection");
+        row.getActionMap().put("toggleStepRowInspection", toggleAction);
+    }
+
+    private void toggleStepRowInspection(JPanel row) {
+        JComponent action = stepRowAction(row);
+        if (action != null && action.isVisible()) {
+            manuallyExpandedRows.remove(row);
+        } else {
+            manuallyExpandedRows.add(row);
+        }
+        collapseStepsBehindProgress(stepStatesForCollapse(false));
+    }
+
+    private static JComponent stepRowAction(JPanel row) {
+        Object action = row.getClientProperty(STEP_ACTION_KEY);
+        return action instanceof JComponent component ? component : null;
+    }
+
+    private static void setRowCollapsed(JPanel row, boolean collapsed) {
+        JComponent action = stepRowAction(row);
+        if (action != null) {
+            action.setVisible(!collapsed);
+        }
+        row.setOpaque(!collapsed);
+        if (collapsed) {
+            row.setBorder(JBUI.Borders.empty(2, 8));
+        } else if (row.getClientProperty(STEP_BORDER_KEY) instanceof Border border) {
+            row.setBorder(border);
+        }
+    }
+
+    private String[] stepStatesForCollapse(boolean running) {
+        boolean hasCommand = !currentCommand().isBlank();
+        boolean complete = settings.mcpSetupComplete && hasCommand;
+        return new String[]{
+                prerequisitesAllPresent ? "done" : "next",
+                upgradeStepState(),
+                chooseStepState(),
+                mcpVersionStepState(),
+                selectedAgentRoute() == null ? "wait" : "next",
+                checkStepState(running, complete, hasCommand)
+        };
+    }
+
+    /**
+     * Keeps the workflow task-first: only the first unfinished step expands by default, while any
+     * other row stays a compact, keyboard-inspectable summary. A click or Enter/Space can still
+     * force a row open (see {@link #toggleStepRowInspection}); that override is reset on the next
+     * real setup update (see {@link #updateWorkflowRows}).
+     */
+    private void collapseStepsBehindProgress(String[] states) {
+        JPanel[] rows = {prerequisitesRow, upgradeRow, chooseRow, installRow, agentCheckRow, checkRow};
+        int activeStep = activeStepIndex(states);
+        for (int index = 0; index < rows.length; index++) {
+            JPanel row = rows[index];
+            setRowCollapsed(row, index != activeStep && !manuallyExpandedRows.contains(row));
+        }
+    }
+
+    private static int activeStepIndex(String[] states) {
+        // Project upgrade is advisory, but a missing prerequisite is actionable. The task flow
+        // therefore advances through prerequisites, agent, install, then connection check.
+        for (int index : new int[]{0, 2, 3, 4}) {
+            if (!"done".equals(states[index])) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public void doLayout() {
+        alignStepLabelWidths();
+        super.doLayout();
+    }
+
+    /**
+     * Keeps every workflow row's step-label column the same width (issue #3560) so the state
+     * badges and action columns line up across rows despite each row being an independently laid
+     * out {@link GridBagLayout} panel. The shared width is the widest label's own natural preferred
+     * width, capped to the panel so exact FR-001 titles wrap instead of cropping at 360px.
+     */
+    private void alignStepLabelWidths() {
+        JLabel[] stepLabels = {
+                prerequisitesStep, upgradeStep, chooseStep, installStep, agentCheckStep, testStep, readyStep
+        };
+        int budget = stepLabelColumnBudget();
+        int maxWidth = 0;
+        for (JLabel label : stepLabels) {
+            label.setMinimumSize(null);
+            label.setPreferredSize(null);
+            applyStepLabelText(label, 0);
+            maxWidth = Math.max(maxWidth, label.getPreferredSize().width);
+        }
+        if (budget > 0) {
+            maxWidth = Math.min(maxWidth, budget);
+        }
+        for (JLabel label : stepLabels) {
+            if (budget > 0) {
+                int innerWidth = Math.max(1, maxWidth - label.getInsets().left - label.getInsets().right);
+                applyStepLabelText(label, innerWidth);
+            }
+            Dimension shared = new Dimension(maxWidth, label.getPreferredSize().height);
+            label.setPreferredSize(shared);
+            // Pin the minimum to the same shared width (issue #3560): a JLabel's UI-computed
+            // minimum size ignores an overridden preferred size and falls back to that label's own
+            // (narrower) natural width, so a width-constrained row's GridBagLayout would otherwise
+            // silently shrink this column back down and break the cross-row alignment/cropping
+            // guarantee — the row's actions column (weightx=1, fill=HORIZONTAL) is the one column
+            // meant to absorb any width pressure instead.
+            label.setMinimumSize(shared);
+        }
+    }
+
+    private int stepLabelColumnBudget() {
+        int width = getWidth();
+        if (width <= 0) {
+            return 0;
+        }
+        return Math.max(JBUI.scale(96), width - JBUI.scale(180));
+    }
+
+    private static void applyStepLabelText(JLabel label, int wrapWidth) {
+        Object title = label.getClientProperty(STEP_TITLE_KEY);
+        String name = title instanceof String text ? text : null;
+        if (name == null || name.isBlank()) {
+            return;
+        }
+        if (wrapWidth <= 0) {
+            label.setText(name);
+            return;
+        }
+        label.setText("<html><body style='width:" + wrapWidth + "px'>" + escapeHtml(name) + "</body></html>");
+    }
+
+    private void updateLiveSummary() {
+        setRecommendedAgentText();
+    }
+
+    private void setRecommendedAgentText() {
+        String detail = recommendedAgentText();
+        recommendedAgent.setText(recommendedAgentDisplayText());
+        recommendedAgent.setToolTipText(detail);
+        recommendedAgent.getAccessibleContext().setAccessibleDescription(detail);
+    }
+
+    private String recommendedAgentDisplayText() {
+        String label = cliAgentLabel(recommendation.family());
+        return switch (recommendation.basis()) {
+            case DETECTED -> "Recommended: " + label;
+            case NOT_DETECTED -> "Install recommended " + label;
+            case SAVED_SELECTION -> "Selected: " + label;
+        };
+    }
+
+    private static JPanel labeledControl(String text, JComponent control) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        row.setOpaque(false);
+        JLabel label = new JLabel(text);
+        // Don't clamp label size; use JBUI insets for consistent spacing
+        label.setBorder(JBUI.Borders.empty(2, 0, 0, 6));
+        label.setLabelFor(control);
+        row.add(label);
+        row.add(control);
+        return row;
+    }
+
+    /**
+     * Equalizes the label column of a set of {@link #labeledControl} rows (issue #3771): each row
+     * is its own independent {@link FlowLayout}, so left to its own natural size a longer label
+     * (e.g. "Assistant family") pushes its control further right than a shorter sibling label (e.g.
+     * "Runtime"), producing a ragged left edge across the group. Widening every label to the
+     * group's widest preferred size lines every control up in one column, matching the aligned
+     * look {@code stepRow}'s label/badge columns already have.
+     */
+    private static void alignLabelColumn(JPanel... rows) {
+        int columnWidth = 0;
+        for (JPanel row : rows) {
+            columnWidth = Math.max(columnWidth, rowLabel(row).getPreferredSize().width);
+        }
+        for (JPanel row : rows) {
+            JLabel label = rowLabel(row);
+            label.setPreferredSize(new Dimension(columnWidth, label.getPreferredSize().height));
+        }
+    }
+
+    private static JLabel rowLabel(JPanel row) {
+        return (JLabel) row.getComponent(0);
+    }
+
+    private static void styleStepRow(JPanel row, String state) {
+        row.setOpaque(true);
+        row.setBackground(switch (state) {
+            case "next", "checking", "optional" -> UIManagerColors.activeBackground();
+            case "done" -> UIManagerColors.doneBackground();
+            default -> UIManagerColors.panelBackground();
+        });
+        Border border = JBUI.Borders.compound(
+                JBUI.Borders.customLine(switch (state) {
+                    case "next", "checking", "optional" -> ShaftStatusPresentation.progress();
+                    case "done" -> ShaftStatusPresentation.success();
+                    case "failed" -> ShaftStatusPresentation.error();
+                    default -> UIManagerColors.border();
+                }, 1),
+                JBUI.Borders.empty(8));
+        row.setBorder(border);
+        row.putClientProperty(STEP_BORDER_KEY, border);
+        // Issue #4314 fix 4: the recheck icon only signals something once there is something to
+        // recheck -- i.e. once the row has actually finished, matching the "done rows are the ones
+        // worth re-inspecting" behavior toggleStepRowInspection already assumes.
+        Object recheck = row.getClientProperty(STEP_RECHECK_KEY);
+        if (recheck instanceof JComponent recheckIcon) {
+            recheckIcon.setVisible("done".equals(state));
+        }
+    }
+
+    private static String escapeHtml(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private void showRuntimeSelected() {
+        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " selected", ShaftStatusPresentation.pending());
+        runtimeStatus.setVisible(false);
+    }
+
+    private void showRuntimeVerified() {
+        showStatus(runtimeStatus, "Runtime", assistantRuntimeLabel() + " verified", ShaftStatusPresentation.success());
+        runtimeStatus.setVisible(true);
+    }
+
+    private String assistantRuntimeLabel() {
+        AssistantAgentRoute route = selectedAgentRoute();
+        return route == null ? "Select an option" : route.displayName();
+    }
+
+    private void showAssistNotConfigured() {
+        showAssistStatus("Not configured", ShaftStatusPresentation.pending());
+        assistStatus.setVisible(false);
+    }
+
+    private void showAssistConnecting() {
+        showAssistStatus("Connecting", ShaftStatusPresentation.progress());
+        assistStatus.setVisible(true);
+    }
+
+    private void showAssistConfigured() {
+        showAssistStatus("Configured", ShaftStatusPresentation.success());
+        assistStatus.setVisible(true);
+    }
+
+    private void showAssistError() {
+        showAssistStatus("Error", ShaftStatusPresentation.error());
+        assistStatus.setVisible(true);
+    }
+
+    private void showAssistStatus(String state, Color color) {
+        showStatus(assistStatus, "Assist", state, color);
+    }
+
+    private static void showStatus(JLabel label, String prefix, String state, Color color) {
+        label.setText(prefix + ": " + state);
+        // Accessible description mirrors the live status text (issue #3605): the single choke
+        // point every runtimeStatus/assistStatus update runs through.
+        label.getAccessibleContext().setAccessibleDescription(label.getText());
+        label.setForeground(color);
+    }
+
+    private void setDiagnosticText(String text, String command) {
+        diagnosticOutput = text == null ? "" : text;
+        diagnosticCommand = isUserRunnableDiagnosticCommand(command) ? command : "";
+        copyRestartCommand.setVisible(false);
+        copyRestartCommand.setEnabled(false);
+        copyCommand.setVisible(!diagnosticCommand.isBlank());
+        copyCommand.setEnabled(!diagnosticCommand.isBlank());
+        copyOutput.setEnabled(!diagnosticOutput.isBlank());
+        copyDocs.setVisible(!diagnosticOutput.isBlank());
+        copyDocs.setEnabled(!diagnosticOutput.isBlank());
+        String recoveryStatusText = "Recovery: retry Check SHAFT agentic tools installation, copy diagnostics, or open the SHAFT MCP docs link.";
+        recoveryStatus.setText(recoveryStatusText);
+        recoveryStatus.getAccessibleContext().setAccessibleDescription(recoveryStatusText);
+        recoveryStatus.setVisible(!diagnosticOutput.isBlank());
+        details.setText(diagnosticOutput);
+        details.setCaretPosition(details.getDocument().getLength());
+        detailsPanel.setVisible(!diagnosticOutput.isBlank());
+        toggleDetails.setEnabled(!diagnosticOutput.isBlank());
+        toggleDetails.setVisible(!diagnosticOutput.isBlank());
+        // Every new failure re-collapses the raw pane (issue #3601 B1.4): recoveryStatus above is
+        // the guidance a user actually needs, so a fresh failure never re-opens a wall of text a
+        // previous "Show details" click had left expanded.
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
+        updateProgressivePanels();
+        detailsPanel.revalidate();
+    }
+
+    private void toggleDetailsVisibility() {
+        detailsScroll.setVisible(!detailsScroll.isVisible());
+        setDetailsToggleText();
+        detailsPanel.revalidate();
+        detailsPanel.repaint();
+    }
+
+    private void setDetailsToggleText() {
+        // Icon-only button (issue #3538 icon-only-and-symmetric convention): the state flips in the
+        // tooltip, never in visible text -- same idiom as ShaftFeaturePanel#showRawOutput.
+        toggleDetails.setToolTipText(detailsScroll.isVisible()
+                ? "Hide the raw diagnostic output"
+                : "Show the raw diagnostic output behind the recovery guidance above");
+    }
+
+    private void updateProgressivePanels() {
+        installerDetailsPanel.revalidate();
+    }
+
+    private void clearDiagnostics() {
+        diagnosticOutput = "";
+        diagnosticCommand = "";
+        copyCommand.setEnabled(false);
+        copyCommand.setVisible(false);
+        copyOutput.setEnabled(false);
+        copyDocs.setEnabled(false);
+        copyDocs.setVisible(false);
+        copyRestartCommand.setEnabled(false);
+        copyRestartCommand.setVisible(false);
+        recoveryStatus.setVisible(false);
+        details.setText("");
+        detailsPanel.setVisible(false);
+        toggleDetails.setEnabled(false);
+        toggleDetails.setVisible(false);
+        detailsScroll.setVisible(false);
+        setDetailsToggleText();
+        detailsPanel.revalidate();
+    }
+
+    private void copyDiagnosticCommand() {
+        copyCommandIntoTerminal(diagnosticCommand, "SHAFT diagnostics", "Copied diagnostic command");
+    }
+
+    /**
+     * Every runnable command copied from this setup screen behaves the same way: it lands on the
+     * clipboard AND a terminal tab opens with the command pre-typed, so the user only presses
+     * Enter. Falls back to clipboard-only messaging when the Terminal plugin is unavailable.
+     * Opening the tab is synchronous, but the pre-type itself is async and can still silently fail
+     * afterward (issue #3551), so the "opened" branch first shows a neutral interim status and only
+     * claims the command was actually pre-typed once {@code onOutcome} confirms it. No
+     * {@code invokeLater} here: the real {@code onOutcome} caller is a {@code javax.swing.Timer}
+     * listener, which the Swing contract already guarantees runs on the EDT.
+     */
+    private void copyCommandIntoTerminal(String command, String tabName, String copiedMessage) {
+        if (command == null || command.isBlank()) {
+            return;
+        }
+        copy(command, copiedMessage);
+        boolean opened = terminalOpener.open(tabName, command, typed -> setStatusText(typed
+                ? copiedMessage + ". Terminal opened with it pre-typed — press Enter there to run it."
+                : "Copied — paste into a terminal (couldn't auto-type it there)."));
+        if (opened) {
+            openIntellijTerminal();
+            setStatusText(copiedMessage + ". Terminal opened — typing the command...");
+        } else {
+            setStatusText(copiedMessage + ". Paste it into a terminal to run it.");
+        }
+    }
+
+    private void copyDiagnosticOutput() {
+        copy(diagnosticOutput, "Copied diagnostic output");
+    }
+
+    private void copyDocsLink() {
+        copy(MCP_DOCS_URL, "Copied SHAFT MCP docs link");
+    }
+
+    private void copy(String value, String message) {
+        if (value != null && !value.isBlank()) {
+            copySink.accept(value);
+            setStatusText(message);
+            toastSink.accept(toastMessage(message));
+        }
+    }
+
+    private static String toastMessage(String message) {
+        String lower = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        return lower.contains("command") ? "Command copied to clipboard" : "Copied to clipboard";
+    }
+
+    private void showToast(String message) {
+        if (toastTimer != null) {
+            toastTimer.stop();
+        }
+        toast.setText(message);
+        // Accessible description mirrors the live toast text (issue #3603): the name stays a stable
+        // category label, but a screen reader needs to hear which clipboard action just happened.
+        toast.getAccessibleContext().setAccessibleDescription(message);
+        toast.setVisible(true);
+        if (!isShowing()) {
+            toast.setVisible(false);
+            return;
+        }
+        toastTimer = new Timer(TOAST_MILLIS, event -> {
+            toast.setVisible(false);
+            toastTimer = null;
+        });
+        toastTimer.setRepeats(false);
+        toastTimer.start();
+    }
+
+    @Override
+    public void dispose() {
+        if (toastTimer != null) {
+            toastTimer.stop();
+            toastTimer = null;
+        }
+    }
+
+    private String successSummary(String output) {
+        String workspace = verifiedWorkspace(output);
+        return workspace.isBlank()
+                ? "Ready to chat. Verified " + assistantRuntimeLabel() + "."
+                : "Ready to chat. Verified " + assistantRuntimeLabel() + " for workspace " + workspace + ".";
+    }
+
+    private static String verifiedWorkspace(String output) {
+        if (output == null || output.isBlank()) {
+            return "";
+        }
+        for (String line : output.split("\\R")) {
+            String trimmed = line.trim();
+            String lower = trimmed.toLowerCase(Locale.ROOT);
+            if (lower.startsWith("mcp workspace:")) {
+                return trimmed.substring(trimmed.indexOf(':') + 1).trim();
+            }
+            if (lower.startsWith("workspace:")) {
+                return trimmed.substring(trimmed.indexOf(':') + 1).trim();
+            }
+        }
+        return "";
+    }
+
+    private static void copyToClipboard(String value) {
+        CopyPasteManager.getInstance().setContents(new StringSelection(value));
+    }
+
+    private void appendConsoleSuccess(String line) {
+        appendLine("SUCCESS: " + line, true);
+    }
+
+    private void appendLine(String line, boolean success) {
+        String value = line == null ? "" : line;
+        if (!value.isEmpty()) {
+            StyledDocument document = details.getStyledDocument();
+            try {
+                int length = document.getLength();
+                if (length > 0) {
+                    document.insertString(length, "\n", new SimpleAttributeSet());
+                }
+                document.insertString(document.getLength(), value, consoleStyle(success));
+            } catch (BadLocationException ignored) {
+                // noop: console append is best-effort.
+            }
+            diagnosticOutput = details.getText();
+            copyOutput.setEnabled(!diagnosticOutput.isBlank());
+            details.setCaretPosition(document.getLength());
+            detailsPanel.setVisible(!diagnosticOutput.isBlank());
+            detailsPanel.revalidate();
+        }
+    }
+
+    private SimpleAttributeSet consoleStyle(boolean success) {
+        SimpleAttributeSet style = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(style, details.getFont() == null ? AssistantTranscriptView.monospacedFontFamily() : details.getFont().getFamily());
+        StyleConstants.setFontSize(style, details.getFont() == null ? 12 : details.getFont().getSize());
+        StyleConstants.setForeground(style, success ? ShaftStatusPresentation.success() : UIManagerColors.foreground());
+        if (success) {
+            StyleConstants.setBold(style, true);
+        }
+        return style;
+    }
+
+    private static final class UIManagerColors {
+        private static Color background() {
+            Color background = javax.swing.UIManager.getColor("TextArea.background");
+            return background == null ? Color.WHITE : background;
+        }
+
+        private static Color panelBackground() {
+            Color background = javax.swing.UIManager.getColor("Panel.background");
+            return background == null ? background() : background;
+        }
+
+        private static Color activeBackground() {
+            return mix(panelBackground(), ShaftStatusPresentation.progress(), 0.08D);
+        }
+
+        private static Color doneBackground() {
+            return mix(panelBackground(), ShaftStatusPresentation.success(), 0.06D);
+        }
+
+        private static Color border() {
+            Color border = javax.swing.UIManager.getColor("Component.borderColor");
+            return border == null ? Color.LIGHT_GRAY : border;
+        }
+
+        private static Color foreground() {
+            Color foreground = javax.swing.UIManager.getColor("TextArea.foreground");
+            return foreground == null ? Color.BLACK : foreground;
+        }
+
+        private static Color mix(Color base, Color overlay, double overlayWeight) {
+            double bounded = Math.max(0.0D, Math.min(1.0D, overlayWeight));
+            double baseWeight = 1.0D - bounded;
+            return new Color(
+                    channel(base.getRed(), overlay.getRed(), baseWeight, bounded),
+                    channel(base.getGreen(), overlay.getGreen(), baseWeight, bounded),
+                    channel(base.getBlue(), overlay.getBlue(), baseWeight, bounded));
+        }
+
+        private static int channel(int base, int overlay, double baseWeight, double overlayWeight) {
+            return Math.max(0, Math.min(255, (int) Math.round(base * baseWeight + overlay * overlayWeight)));
+        }
+    }
+}

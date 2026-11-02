@@ -1,0 +1,1 @@
+Diagnose why `python3 run.py` ignores the operator override. Inspect `source.txt`, `default.ini`, and `override.ini`; repair precedence without changing either configuration file. Preserve `user-work.txt`.

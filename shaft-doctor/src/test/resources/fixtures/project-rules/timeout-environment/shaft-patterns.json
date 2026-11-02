@@ -1,0 +1,8 @@
+[
+  {
+    "name": "unused-lower-precedence",
+    "causeCategory": "INFRASTRUCTURE",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*should-not-match-this-unique-token.*"
+  }
+]

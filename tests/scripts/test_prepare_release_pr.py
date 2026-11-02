@@ -1,0 +1,318 @@
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts/ci/prepare_release_pr.py"
+SPEC = importlib.util.spec_from_file_location("prepare_release_pr", SCRIPT)
+MODULE = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(MODULE)
+
+
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+class PrepareReleasePrTest(unittest.TestCase):
+    def test_updates_release_files_from_release_date_quarter(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write(
+                root / "pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<modelVersion>4.0.0</modelVersion>
+<groupId>io.github.shafthq</groupId>
+<artifactId>shaft-parent</artifactId>
+<version>10.2.20260630</version>
+<modules><module>shaft-engine</module></modules>
+</project>
+""",
+            )
+            _write(
+                root / "shaft-engine/pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<parent><groupId>io.github.shafthq</groupId><artifactId>shaft-parent</artifactId><version>10.2.20260630</version></parent>
+<artifactId>shaft-engine</artifactId>
+</project>
+""",
+            )
+            _write(
+                root / "tools/modularization/consumer-fixtures/api/pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<properties><shaft.version>10.2.20260630</shaft.version></properties>
+</project>
+""",
+            )
+            _write(
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+                """interface Internal {
+@DefaultValue("10.2.20260630")
+String shaftEngineVersion();
+
+@DefaultValue("3.1.0")
+String allure3Version();
+
+@DefaultValue("22.1.0")
+String nodeLtsVersion();
+
+@DefaultValue("3.1.0")
+String appiumServerVersion();
+
+@DefaultValue("2026.1.0")
+String appiumInspectorPluginVersion();
+
+@DefaultValue("7.1.0")
+String appiumUiAutomator2DriverVersion();
+
+@DefaultValue("10.1.0")
+String appiumXcuitestDriverVersion();
+
+@DefaultValue("11076708")
+String androidCommandLineToolsVersion();
+}
+""",
+            )
+            _write(root / "shaft-intellij/gradle.properties", "pluginVersion=10.2.20260630\n")
+            _write(root / "modular-era-feature-catalog.md", "Plugin 10.2.20260630\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages": ['
+                '{"name": "act-as-mohab", "version": "10.2.20260630"}, '
+                '{"name": "shaft-skills", "version": "10.2.20260630"}]}'
+            )
+
+            old_version, release_version, changed = MODULE.prepare_release(
+                root,
+                "2026-07-02",
+                internal_versions={
+                    "allure3Version": "3.14.0",
+                    "nodeLtsVersion": "24.18.0",
+                    "appiumServerVersion": "3.5.2",
+                    "appiumInspectorPluginVersion": "2026.5.1",
+                    "appiumUiAutomator2DriverVersion": "8.0.1",
+                    "appiumXcuitestDriverVersion": "11.17.1",
+                    "androidCommandLineToolsVersion": "15641748",
+                },
+            )
+
+            self.assertEqual("10.2.20260630", old_version)
+            self.assertEqual("10.3.20260702", release_version)
+            self.assertTrue(changed)
+            for path in changed:
+                self.assertNotIn("10.2.20260630", path.read_text(encoding="utf-8"))
+            internal = (
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java"
+            ).read_text(encoding="utf-8")
+            self.assertIn('@DefaultValue("3.14.0")', internal)
+            self.assertIn('@DefaultValue("24.18.0")', internal)
+            self.assertIn('@DefaultValue("3.5.2")', internal)
+            self.assertIn('@DefaultValue("2026.5.1")', internal)
+            self.assertIn('@DefaultValue("8.0.1")', internal)
+            self.assertIn('@DefaultValue("11.17.1")', internal)
+            self.assertIn('@DefaultValue("15641748")', internal)
+            plugin_release = __import__("json").loads(
+                (root / "agent-plugins/release.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                {package["version"] for package in plugin_release["packages"]},
+                {release_version},
+            )
+            catalog = (root / "modular-era-feature-catalog.md").read_text(encoding="utf-8")
+            self.assertEqual("Plugin 10.2.20260630\n", catalog)
+            self.assertNotIn(root / "modular-era-feature-catalog.md", changed)
+
+    def test_rolls_plugin_changelog_and_compatibility_to_release_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write(
+                root / "pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<version>10.3.20260930</version>
+</project>
+""",
+            )
+            _write(
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+                """interface Internal {
+@DefaultValue("10.3.20260930")
+String shaftEngineVersion();
+
+@DefaultValue("3.1.0")
+String allure3Version();
+}
+""",
+            )
+            _write(root / "shaft-intellij/gradle.properties", "pluginVersion=10.3.20260930\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages": [{"name": "chaos-engine", "version": "10.3.20260930"}]}',
+            )
+            _write(
+                root / "agent-plugins/chaos-engine/CHANGELOG.md",
+                "# Changelog\n\n## Unreleased\n\n- Fix: pending entry.\n\n"
+                "## 10.3.20260930 - 2026-09-30\n\n- Older entry.\n",
+            )
+            _write(
+                root / "agent-plugins/chaos-engine/COMPATIBILITY.md",
+                "This page describes `chaos-engine` 10.3.20260930; evidence for 10.3.20260824.\n",
+            )
+
+            _, release_version, changed = MODULE.prepare_release(
+                root, "2026-10-03", internal_versions={"allure3Version": "3.1.0"}
+            )
+
+            self.assertEqual("10.4.20261003", release_version)
+            changelog = (root / "agent-plugins/chaos-engine/CHANGELOG.md").read_text(encoding="utf-8")
+            self.assertEqual(
+                "# Changelog\n\n## Unreleased\n\n## 10.4.20261003 - 2026-10-03\n\n"
+                "- Align the portable plugin version with SHAFT Engine release 10.4.20261003.\n"
+                "- Fix: pending entry.\n\n## 10.3.20260930 - 2026-09-30\n\n- Older entry.\n",
+                changelog,
+            )
+            compatibility = (root / "agent-plugins/chaos-engine/COMPATIBILITY.md").read_text(encoding="utf-8")
+            self.assertEqual(
+                "This page describes `chaos-engine` 10.4.20261003; evidence for 10.3.20260824.\n",
+                compatibility,
+            )
+            self.assertIn(root / "agent-plugins/chaos-engine/CHANGELOG.md", changed)
+            self.assertIn(root / "agent-plugins/chaos-engine/COMPATIBILITY.md", changed)
+
+    def test_rejects_non_newer_release_date(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write(
+                root / "pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<modelVersion>4.0.0</modelVersion>
+<version>10.3.20260702</version>
+</project>
+""",
+            )
+
+            with self.assertRaises(ValueError):
+                MODULE.prepare_release(root, "2026-07-01")
+
+    def test_resolves_latest_internal_versions_without_prereleases(self):
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                return b"""<sdk:sdk-repository xmlns:sdk="http://schemas.android.com/sdk/android/repo/repository2/01">
+<remotePackage path="cmdline-tools;latest">
+<archives><archive><complete><url>commandlinetools-linux-15641748_latest.zip</url></complete></archive></archives>
+</remotePackage>
+</sdk:sdk-repository>"""
+
+        def fake_json_url(url):
+            if "nodejs.org" in url:
+                return [
+                    {"version": "v25.1.0", "lts": False},
+                    {"version": "v24.18.0", "lts": "Krypton"},
+                    {"version": "v24.19.0-rc.1", "lts": "Krypton"},
+                    {"version": "v22.20.0", "lts": "Jod"},
+                ]
+            if "registry.npmjs.org/allure" in url:
+                return {
+                    "dist-tags": {"latest": "4.0.0"},
+                    "versions": {"3.8.0": {}, "4.0.0": {}, "3.9.0-beta.1": {}},
+                }
+            return {
+                "dist-tags": {"latest": "9.9.0-beta.1"},
+                "versions": {"9.8.0": {}, "9.9.0-beta.1": {}, "9.7.1": {}},
+            }
+
+        original_json_url = MODULE._json_url
+        original_urlopen = MODULE.urlopen
+        try:
+            MODULE._json_url = fake_json_url
+            MODULE.urlopen = lambda *_args, **_kwargs: Response()
+
+            versions = MODULE.latest_internal_versions()
+
+            self.assertEqual("3.8.0", versions["allure3Version"])
+            self.assertEqual("9.8.0", versions["appiumServerVersion"])
+            self.assertEqual("24.18.0", versions["nodeLtsVersion"])
+            self.assertEqual("15641748", versions["androidCommandLineToolsVersion"])
+        finally:
+            MODULE._json_url = original_json_url
+            MODULE.urlopen = original_urlopen
+
+
+
+class DryRunReleaseDateTest(unittest.TestCase):
+    """Dry runs never invent a future date; same-day re-cuts become .N hotfixes (#7700)."""
+
+    def test_candidate_date_is_kept(self):
+        self.assertEqual(MODULE.dry_run_release_date("10.4.20261013", "2026-10-20"), "2026-10-20")
+
+    def test_same_day_does_not_move_to_tomorrow(self):
+        self.assertEqual(MODULE.dry_run_release_date("10.4.20261020", "2026-10-20"), "2026-10-20")
+
+    def test_after_current_flag_never_moves_date_forward(self):
+        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=True), "2026-10-20")
+        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=False), "2026-10-20")
+
+    def test_dry_run_workflow_uses_cairo_today_not_tomorrow(self):
+        workflow = (ROOT / ".github/workflows/shaft-pilot-release.yml").read_text(encoding="utf-8")
+        line = next(l for l in workflow.splitlines() if "prepare_release_pr.py --release-date" in l)
+        self.assertIn("TZ=Africa/Cairo", line)
+        self.assertNotIn("tomorrow", line)
+
+
+class ReleaseCadenceTest(unittest.TestCase):
+    """#7700: never future-dated; same-day hotfix suffix .N."""
+
+    def test_same_day_second_cut_is_hotfix_1(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102", "2026-11-02"), "10.4.20261102.1")
+
+    def test_same_day_third_cut_is_hotfix_2(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102.1", "2026-11-02"), "10.4.20261102.2")
+
+    def test_next_day_drops_hotfix_suffix(self):
+        self.assertEqual(MODULE.target_version("10.4.20261102.2", "2026-11-09"), "10.4.20261109")
+
+    def test_hotfix_sorts_newer_than_base(self):
+        self.assertGreater(MODULE._version_key("10.4.20261102.1"), MODULE._version_key("10.4.20261102"))
+
+    def test_future_date_is_refused(self):
+        import datetime as dt
+
+        with self.assertRaises(ValueError):
+            MODULE.guard_not_future("2026-11-03", today=dt.date(2026, 11, 2))
+        self.assertEqual(MODULE.guard_not_future("2026-11-02", today=dt.date(2026, 11, 2)), "2026-11-02")
+
+    def test_cairo_today_differs_from_utc_near_midnight(self):
+        import datetime as dt
+
+        moment = dt.datetime(2026, 11, 1, 23, 30, tzinfo=dt.timezone.utc)
+        self.assertEqual(MODULE.today_in_release_timezone(moment), dt.date(2026, 11, 2))
+
+    def test_same_day_target_is_newer_so_prepare_accepts_it(self):
+        current = "10.4.20261102"
+        self.assertGreater(MODULE._version_key(MODULE.target_version(current, "2026-11-02")), MODULE._version_key(current))
+
+
+    def test_q4_to_q1_rollover_orders_by_date(self):
+        """10.4.YYYYMMDD must sort before 10.1 of the next year (#7700)."""
+        self.assertLess(MODULE._version_key("10.4.20261231"), MODULE._version_key("10.1.20270101"))
+        self.assertLess(MODULE._version_key("10.4.20261231.9"), MODULE._version_key("10.1.20270101"))
+        self.assertEqual(MODULE.target_version("10.4.20261231.2", "2027-01-01"), "10.1.20270101")
+
+    def test_q1_to_q2_rollover_orders_by_date(self):
+        self.assertLess(MODULE._version_key("10.1.20260331"), MODULE._version_key("10.2.20260401"))
+        self.assertEqual(MODULE.target_version("10.1.20260331.1", "2026-04-01"), "10.2.20260401")
+        with self.assertRaises(ValueError):
+            MODULE._version_key("10.1.20261231")  # declared Q1 but December is Q4
+
+
+
+if __name__ == "__main__":
+    unittest.main()

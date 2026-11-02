@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/workflows/proactively-file-enhancement-gap-recommendations-as-github-tickets.md",
+  "content_hash": "sha256:f193593fcfbabbcb7de8a3aa179437fb395972bd4aaafb7011f0514e7ce9c472",
+  "created_at": "2026-07-18T19:46:24+03:00",
+  "evidence": [],
+  "id": "feature.proactively-file-enhancement-gap-recommendations-as-github-tickets",
+  "source": {
+    "kind": "agent",
+    "task": "Owner process directives issued 2026-07-18"
+  },
+  "status": "active",
+  "tags": [
+    "process",
+    "proactive",
+    "github",
+    "issues"
+  ],
+  "title": "Proactively file enhancement/gap recommendations as GitHub tickets",
+  "type": "feature",
+  "updated_at": "2026-07-18T19:46:24+03:00"
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Zip root must contain node_modules/allure/cli.js so unpacking into
+     ~/.m2/repository/allure/allure-cli/<version>/ matches AllureManager (#5801/#5815). -->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+    <id>dist</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <fileSets>
+        <fileSet>
+            <directory>${project.build.directory}/allure-cli-stage</directory>
+            <outputDirectory>/</outputDirectory>
+            <excludes>
+                <exclude>package-lock.json</exclude>
+            </excludes>
+        </fileSet>
+    </fileSets>
+</assembly>

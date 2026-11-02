@@ -1,0 +1,1 @@
+MemPalace 3.7.0 CLI has `daemon`, not a verb named daydream. Official changelog 3.5.0/3.7.0: daemon is an opt-in local write serializer for mines/hooks. Overnight ingest remains `mempalace sync` + `mine`. SHAFT overnight owner is SHAFT-Nightly-Knowledge-Refresh (#4809). Do not start daemon as an overnight updater and do not write daydream into guidance.

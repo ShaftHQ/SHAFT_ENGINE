@@ -1,0 +1,11 @@
+{
+  "confidence": "high",
+  "content_hash": "sha256:5b85d8fa11e7c65d110b25bfd365b1be3071fd70871fdd3f913d53763d936d43",
+  "created_at": "2026-09-15T20:18:39+00:00",
+  "from": "gotcha.learning-session-memory-save-is-the-default-write-path",
+  "id": "rel.gotcha-learning-session-memory-save-is-the-default-write-path-related-to-gotcha-memory-saves-use-intent-first-json-on-stdin",
+  "predicate": "related_to",
+  "status": "active",
+  "to": "gotcha.memory-saves-use-intent-first-json-on-stdin",
+  "updated_at": "2026-09-15T20:18:39+00:00"
+}

@@ -1,0 +1,1 @@
+If composeRunning swallows IOException and returns false, stop/reuse will delete the lease and leave the owned project running. Inspect errors must throw; delete the lease only when compose ps succeeds and reports no containers. Evidence: independent review of #5042 / #5041.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Fluent API"
+  short_description: "Compose correct SHAFT fluent chains"
+  default_prompt: "Use $shaft-fluent-api to compose or repair this SHAFT action and assertion chain."

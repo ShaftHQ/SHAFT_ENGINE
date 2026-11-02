@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/failed-locator-by-must-not-run-before-getby-on-the-same-line.md",
+  "content_hash": "sha256:19cab46539453302cb62ebb0b7c4f49b02eb8f88b3be0fabaab54e3ceeeba4d6",
+  "created_at": "2026-08-18T19:17:30+03:00",
+  "evidence": [],
+  "id": "gotcha.failed-locator-by-must-not-run-before-getby-on-the-same-line",
+  "source": {
+    "kind": "agent",
+    "task": "Record locator sanitizer gotcha from #5137/#5138"
+  },
+  "status": "active",
+  "tags": [
+    "doctor",
+    "sanitizer",
+    "locator",
+    "playwright"
+  ],
+  "title": "FAILED_LOCATOR By.* must not run before getBy* on the same line",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T19:17:30+03:00"
+}

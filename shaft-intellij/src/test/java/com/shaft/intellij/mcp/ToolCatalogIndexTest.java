@@ -1,0 +1,135 @@
+package com.shaft.intellij.mcp;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Covers {@link ToolCatalogIndex}: the lazy-holder reader for the bundled build-time copy of
+ * shaft-mcp's canonical {@code META-INF/shaft-mcp/tool-index.json} (design doc Decision 4/5,
+ * amendment A7), which feeds {@link com.shaft.intellij.ui.AssistantCommand}'s deterministic
+ * routing (issue #3870/#3866 T4) instead of a second hand-maintained keyword source.
+ *
+ * <p>Asserted against the real bundled resource (not a fake), so this suite also proves the
+ * build actually copies the file where the plugin classloader can find it.</p>
+ */
+class ToolCatalogIndexTest {
+
+    @Test
+    void toolNamesIncludesRealSurvivingToolsAndExcludesDeletedOnes() {
+        Set<String> names = ToolCatalogIndex.toolNames();
+
+        assertTrue(names.contains("capture_start"), "a real, surviving tool must be present");
+        assertTrue(names.contains("browser_navigate"), "a real, surviving tool must be present");
+        assertTrue(names.contains("element_click"), "a real, surviving tool must be present");
+        assertTrue(names.contains("driver_initialize"), "a real, surviving tool must be present");
+        assertTrue(names.contains("autobot_provider_models"), "a real, surviving tool must be present");
+        assertTrue(names.contains("setup_catalog"), "the setup adapter catalog must be present");
+        assertTrue(names.contains("setup_install"), "the setup adapter mutation boundary must be present");
+        assertTrue(names.contains("doctor_managed_local_ai_status"),
+                "managed local AI diagnostics must reach the IDE through the canonical catalog");
+        assertTrue(names.contains("design_ingest"),
+                "story ingest must reach the IDE through the canonical catalog (issue #5947)");
+        assertTrue(names.contains("design_analyze"),
+                "testability analysis must reach the IDE through the canonical catalog (issue #5948)");
+        assertTrue(names.contains("design_gherkin_draft"),
+                "Gherkin draft must reach the IDE through the canonical catalog (issue #5949)");
+        assertTrue(names.contains("design_examples"),
+                "Examples design must reach the IDE through the canonical catalog (issue #5950)");
+        assertTrue(names.contains("design_lexicon"),
+                "business-step lexicon must reach the IDE through the canonical catalog (issue #5951)");
+        assertTrue(names.contains("design_coverage"),
+                "AC coverage must reach the IDE through the canonical catalog (issue #5952)");
+        assertTrue(names.contains("design_lint"),
+                "Gherkin lint must reach the IDE through the canonical catalog (issue #5953)");
+        assertTrue(names.contains("design_gap_map"),
+                "fluent gap map must reach the IDE through the canonical catalog (issue #5954)");
+        assertTrue(names.contains("design_handoff"), "design_handoff must be indexed");
+        assertTrue(names.contains("design_readiness"),
+                "design readiness gate must reach the IDE through the canonical catalog (issue #5955)");
+        assertFalse(names.contains("natural_act"), "natural_act was deleted outright (owner mandate)");
+        assertFalse(names.contains("mobile_natural_act"), "mobile_natural_act was deleted outright");
+        assertFalse(names.contains("playwright_browser_navigate"),
+                "playwright_browser_navigate was absorbed into browser_navigate's engine dispatch");
+    }
+
+    @Test
+    void toolNamesMatchesBundledCatalogWithoutHardcodedMagnitude() {
+        // Issue #5982: magnitude lives in ShaftMcpApplicationTests against the live MCP
+        // manifest. The plugin index must stay in sync with its bundled resource without a
+        // third copied integer — assert non-empty + tools()/toolNames() agreement instead.
+        Set<String> names = ToolCatalogIndex.toolNames();
+        assertFalse(names.isEmpty(), "bundled tool-index.json must expose at least one tool");
+        assertEquals(ToolCatalogIndex.tools().size(), names.size(),
+                "tools() and toolNames() must describe the same bundled catalog");
+        assertTrue(names.containsAll(ToolCatalogIndex.tools().stream()
+                        .map(ToolCatalogIndex.ToolMetadata::name)
+                        .collect(java.util.stream.Collectors.toSet())),
+                "every ToolMetadata name must appear in toolNames()");
+    }
+
+    @Test
+    void intentKeywordsReturnsCuratedOverlayEntriesForARealTool() {
+        // shaft_project_upgrade's curated overlay entries (tool-index-overlay.json) include two
+        // phrases not present in AssistantCommand's hand-maintained INTENT_KEYWORDS list -- real,
+        // observable proof the index contributes real data, not just an empty pass-through.
+        List<String> keywords = ToolCatalogIndex.intentKeywords("shaft_project_upgrade");
+
+        assertTrue(keywords.contains("upgrade shaft project"), keywords.toString());
+        assertTrue(keywords.contains("upgrade this shaft project"), keywords.toString());
+    }
+
+    @Test
+    void intentKeywordsReturnsEmptyForAnUnknownToolNameInsteadOfThrowing() {
+        assertEquals(List.of(), ToolCatalogIndex.intentKeywords("not_a_real_tool_xyz"));
+    }
+
+    @Test
+    void intentKeywordsReturnsEmptyForAToolWithNoCuratedKeywordsYet() {
+        // Most of the 108-tool catalog has no curated intentKeywords overlay entries yet
+        // are curated as of #3868/#3869) -- must degrade to an empty list, never null or an exception.
+        assertEquals(List.of(), ToolCatalogIndex.intentKeywords("element_click"));
+    }
+
+    /**
+     * Covers issue #3883(a): {@code slashAlias}-driven {@code /mcp} autocomplete. The curated
+     * subset (tool-index-overlay.json) added by this task -- a real, observable sample, not a
+     * synthetic fixture.
+     */
+    @Test
+    void slashAliasesMapsCuratedAliasesToTheirCanonicalToolNames() {
+        Map<String, String> aliases = ToolCatalogIndex.slashAliases();
+
+        assertEquals("driver_initialize", aliases.get("init"));
+        assertEquals("driver_quit", aliases.get("quit"));
+        assertEquals("browser_navigate", aliases.get("nav"));
+        assertEquals("browser_take_screenshot", aliases.get("screenshot"));
+        assertEquals("capture_start", aliases.get("start"));
+        assertEquals("capture_stop", aliases.get("stop"));
+        assertEquals("element_click", aliases.get("click"));
+        assertEquals("element_type", aliases.get("type"));
+        assertEquals("generate_test_report", aliases.get("report"));
+        assertEquals("healer_run_failed_test", aliases.get("heal"));
+        assertEquals("test_plan_explore", aliases.get("explore"));
+        assertEquals(15, aliases.size(), aliases.toString());
+    }
+
+    @Test
+    void slashAliasesOmitsToolsWithNoCuratedAliasYet() {
+        // element_hover has no curated slashAlias overlay entry -- its tool name must never appear
+        // as a slashAliases() value.
+        assertFalse(ToolCatalogIndex.slashAliases().containsValue("element_hover"));
+    }
+
+    @Test
+    void toolNameForAliasReturnsNullForAnUnknownAlias() {
+        assertNull(ToolCatalogIndex.slashAliases().get("not_a_real_alias_xyz"));
+    }
+}

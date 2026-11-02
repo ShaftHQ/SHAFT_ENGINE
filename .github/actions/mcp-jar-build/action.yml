@@ -1,0 +1,21 @@
+name: 'Build shaft-mcp Runtime Dependency JAR Layout'
+description: >-
+  Installs reactor artifacts, then copies shaft-mcp's runtime dependencies
+  into its thin-classpath target/dependency directory.
+inputs:
+  install-args:
+    description: 'Maven goal/args passed before -DskipTests -Dgpg.skip, e.g. "-pl shaft-mcp -am install".'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Install reactor artifacts without tests
+      shell: bash
+      run: mvn --batch-mode ${{ inputs.install-args }} -DskipTests -Dgpg.skip
+    - name: Copy shaft-mcp runtime dependencies
+      shell: bash
+      run: >-
+        mvn --batch-mode
+        -pl shaft-mcp dependency:copy-dependencies -DincludeScope=runtime
+        '-DoutputDirectory=${maven.multiModuleProjectDirectory}/shaft-mcp/target/dependency'
+        -DskipTests -Dgpg.skip

@@ -1,0 +1,6371 @@
+#!/usr/bin/env python3
+"""Plan and verify ChaosEngine-owned runtime dependencies."""
+
+from __future__ import annotations
+
+import argparse
+from contextlib import ExitStack, contextmanager, nullcontext
+import ctypes.wintypes
+import errno
+import hashlib
+import json
+import math
+import os
+import platform
+import re
+import secrets
+import shlex
+import shutil
+import sqlite3
+import stat
+import subprocess  # nosec B404 - fixed list-form dependency commands from tracked spec.
+import sys
+import tarfile
+import time
+import urllib.error
+import urllib.request
+import zipfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path, PurePosixPath, PureWindowsPath
+
+
+RECEIPT_SCHEMA = 1
+RUNTIME_CONTRACT_VERSION = 2
+STALE_AFTER = timedelta(hours=24)
+RECEIPT_NAME = "receipt.json"
+LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
+UV_TOOLS_LOCK_NAME = ".chaos-engine-uv-tools.lock"
+UV_TOOL_INSTALL_ATTEMPTS = 5
+UV_TOOL_INSTALL_RETRY_SLEEP_S = 0.5
+
+
+def default_uv_tools_dir() -> Path:
+    """Shared account uv tools directory (concurrent bots race here)."""
+    override = os.environ.get("UV_TOOL_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".local/share/uv/tools"
+
+
+@contextmanager
+def uv_tools_dir_lock(tools_root: Path | None = None):
+    """Exclusive lock for account-scoped ``uv tool install`` mutations."""
+    root = Path(tools_root) if tools_root is not None else default_uv_tools_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    lock = root / UV_TOOLS_LOCK_NAME
+    flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+    created = False
+    try:
+        descriptor = os.open(lock, flags | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+    except FileExistsError:
+        descriptor = os.open(lock, flags)
+    try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        os.close(descriptor)
+        raise
+    deadline = time.monotonic() + 60.0
+    locked = False
+    try:
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except (OSError, BlockingIOError):
+                if time.monotonic() >= deadline:
+                    stream.close()
+                    raise RuntimeError(f"uv tools directory is locked: {root}") from None
+                time.sleep(UV_TOOL_INSTALL_RETRY_SLEEP_S)
+        if created:
+            stream.seek(0)
+            stream.write(b'chaos-engine-uv-tools-lock-v1\n')
+            stream.truncate()
+            stream.flush()
+        yield root
+    finally:
+        try:
+            if locked:
+                if os.name == "nt":
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        finally:
+            stream.close()
+
+
+def _uv_tool_race_error(error: BaseException) -> bool:
+    """True when uv failed removing a tool env during a concurrent install."""
+    blob = f"{error}".casefold()
+    if hasattr(error, "stderr"):
+        blob += f" {getattr(error, 'stderr', '')}".casefold()
+    if hasattr(error, "full_output"):
+        blob += f" {getattr(error, 'full_output', '')}".casefold()
+    return "directory not empty" in blob or "failed to remove" in blob
+
+
+def is_uv_tool_install_command(command: list[str]) -> bool:
+    """True for ``… uv tool install …`` argv (account or project runtime)."""
+    lowered = [str(part).casefold() for part in command]
+    for index in range(len(lowered) - 2):
+        if lowered[index].endswith("uv") or lowered[index].endswith("uv.exe"):
+            if lowered[index + 1] == "tool" and lowered[index + 2] == "install":
+                return True
+    return False
+
+
+def run_uv_tool_install_with_lock(
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    run_command=None,
+) -> subprocess.CompletedProcess[str]:
+    """Serialize ``uv tool install`` on the shared tools dir; retry remove races."""
+    execute = run_command or _run_account_command
+    last_error: BaseException | None = None
+    with uv_tools_dir_lock():
+        for attempt in range(1, UV_TOOL_INSTALL_ATTEMPTS + 1):
+            try:
+                return execute(command, project, runner=runner)
+            except Exception as error:  # noqa: BLE001 - bounded retry on known race only
+                last_error = error
+                if attempt >= UV_TOOL_INSTALL_ATTEMPTS or not _uv_tool_race_error(error):
+                    raise
+                time.sleep(UV_TOOL_INSTALL_RETRY_SLEEP_S * attempt)
+    assert last_error is not None
+    raise last_error
+
+BUILD_MARKER_MAGIC = "chaos-engine-dependencies-build-v1\n"
+BUILD_MARKER_OWNED_SUFFIX = ".owned"
+POINTER_NAME = ".chaos-engine-runtime-current.json"
+POINTER_REMOVING_NAME = f"{POINTER_NAME}.removing"
+POINTER_SCHEMA = 1
+GENERATIONS_NAME = ".chaos-engine-runtime-generations"
+TRANSACTIONS_NAME = ".chaos-engine-runtime-transactions"
+MAX_CONTROL_BYTES = 4 * 1024 * 1024
+# Pinned uv 0.11.29 + Graphify/MemPalace ownership is ~6.74 MiB compact.
+MAX_RECEIPT_BYTES = 8 * 1024 * 1024
+MAX_EXECUTABLE_BYTES = 256 * 1024 * 1024
+MAX_RUNTIME_ARCHIVE_BYTES = 256 * 1024 * 1024
+MAX_RUNTIME_EXPANDED_BYTES = 1024 * 1024 * 1024
+HEX_ID = re.compile(r"[0-9a-f]{32}")
+HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
+REQUIRED_DISPATCHES = {
+    "uv",
+    "mempalace",
+    "mempalace-mcp",
+    "graphify",
+    "memory",
+    "memory-mcp",
+}
+def _load_schema3_tools() -> dict[str, dict[str, object]]:
+    """Load the schema v3 tool contract from the dependency file beside this module."""
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        cli = "py -3" if os.name == "nt" else "python3"
+        raise ValueError(
+            "ChaosEngine dependency specification is missing "
+            "(wiped or incomplete `.chaos-engine` runtime). fix-next: run the "
+            "ChaosEngine install one-liner from INSTALL.md, then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`"
+        ) from error
+    document = json.loads(raw)
+    tools = document.get("tools")
+    if not isinstance(tools, dict):
+        raise ValueError("tool dependency specification is invalid")
+    loaded: dict[str, dict[str, object]] = {}
+    for name, record in tools.items():
+        if not isinstance(name, str) or not isinstance(record, dict):
+            raise ValueError("tool dependency specification is invalid")
+        loaded[name] = {
+            key: list(value) if isinstance(value, list) else value
+            for key, value in record.items()
+        }
+    return loaded
+
+
+SCHEMA3_TOOLS = _load_schema3_tools()
+PINNED_MEMPALACE_PACKAGE = str(SCHEMA3_TOOLS["mempalace"]["package"])
+PINNED_MEMPALACE_WITH = tuple(SCHEMA3_TOOLS["mempalace"]["with"])
+# Opt-in CLIs are never provisioned. A missing binary must not block account setup.
+OPTIONAL_ACCOUNT_DEPENDENCIES = frozenset({"deja"})
+WINDOWS_UV_JUNCTION_TAG = 0xA0000003
+WINDOWS_UV_ALIAS = re.compile(
+    r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
+)
+CANDIDATE_TRUST_BOUNDARY = (
+    "A same-user trusted subprocess has ambient write authority and this stdlib "
+    "controller cannot sandbox it. Held handles and no-follow operations contain "
+    "concurrent path substitution by other actors; command output remains untrusted."
+)
+PYTHON_DISPATCH = (
+    "import importlib.metadata as m,sys;"
+    "e=next(e for e in m.distribution(sys.argv[1]).entry_points "
+    "if e.group=='console_scripts' and e.name==sys.argv[2]);"
+    "sys.argv=[sys.argv[2],*sys.argv[3:]];raise SystemExit(e.load()())"
+)
+SUPPORTED_PLATFORMS = (
+    "windows-x64", "windows-arm64", "linux-x64", "linux-arm64",
+    "macos-x64", "macos-arm64",
+)
+ACCOUNT_RECEIPT_SCHEMA = 2
+ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
+DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "blocked"})
+ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
+# A fresh repository mine can embed tens of thousands of drawers on CPU, far past
+# the synchronous budget, so install hands it to a detached incremental runner.
+MEMPALACE_MINE_MODE_ENV = "CHAOS_ENGINE_MEMPALACE_MINE"
+# Installer-owned paths the project palace must never mine (#6540). Mining the
+# installed harness copies cost ~150 s per install and crowded retrieval.
+MEMPALACE_OWNED_EXCLUDES = (
+    "mempalace.yaml",
+    ".memory/**",
+    "graphify-out/**",
+    ".chaos-engine/**",
+    ".chaos-engine-runtime/**",
+    ".chaos-engine-state/**",
+    ".chaos-engine.backup/**",
+    ".chaos-engine.backup.*/**",
+    ".chaos-engine-*.json",
+    ".chaos-engine.*",
+    "plugins/chaos-engine/**",
+    "plugins/caveman/**",
+    "plugins/ponytail/**",
+    "plugins/icm-architect/**",
+    "**/skills/chaos-engine/**",
+    ".claude/agents/chaos-engine-*",
+    ".codex/agents/chaos-engine-*",
+    # #7314: rollback journals and generated minified/embedded bundles are
+    # huge single files that dominate mining time and carry no project knowledge.
+    ".chaos-engine-account-rollback/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.bundle.js",
+    "**/*-embedded.html",
+)
+MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
+# Full re-index only on: no index, unreadable index, schema or embedder change,
+# or an explicit request (CHAOS_ENGINE_MEMPALACE_FULL=1). Otherwise MemPalace
+# mines incrementally (it skips files whose mtime is already recorded).
+MEMPALACE_FULL_ENV = "CHAOS_ENGINE_MEMPALACE_FULL"
+MEMPALACE_INDEX_SCHEMA = 1
+# Beside (never inside) the palace: doctor quarantines unknown palace files.
+MEMPALACE_INDEX_META_NAME = "mempalace-index-meta.json"
+_LAST_MINE_EMBEDDER: dict[str, str] = {}
+MEMPALACE_NESTED_MARKER = "  # chaos-engine: nested repositories (managed)"
+MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
+MEMPALACE_INDEX_LOG_NAME = "mempalace-index.log"
+TRANSIENT_MEMPALACE_TLS_EOF = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
+_UNSTABLE_VERSION = re.compile(
+    r"(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)", re.IGNORECASE
+)
+_SECRET_KEY = re.compile(
+    r"authorization|credential|password|private.?key|secret|token|api.?key",
+    re.IGNORECASE,
+)
+
+
+def version_key(value: str) -> tuple[int, ...]:
+    """Return a comparable stable numeric version without accepting prereleases."""
+    normalized = value.strip().lstrip("v")
+    if not normalized or _UNSTABLE_VERSION.search(normalized):
+        raise ValueError(f"dependency version is not stable: {value}")
+    release = normalized.split("+", 1)[0]
+    parts = re.findall(r"\d+", release)
+    if not parts:
+        raise ValueError(f"dependency version is invalid: {value}")
+    return tuple(int(part) for part in parts)
+
+
+def version_at_least(actual: str | int, minimum: str | int) -> bool:
+    """True when actual is higher than or equal to the supported minimum floor."""
+    if isinstance(actual, int) and isinstance(minimum, int):
+        return actual >= minimum
+    return version_key(str(actual)) >= version_key(str(minimum))
+
+
+def _within_maximum_series(key: tuple[int, ...], maximum_series: str | None) -> bool:
+    """True when ``key`` is not newer than a major.minor series such as ``3.14``."""
+    if not maximum_series:
+        return True
+    series = version_key(maximum_series)
+    prefix = key[:len(series)]
+    if len(prefix) < len(series):
+        prefix = prefix + (0,) * (len(series) - len(prefix))
+    return prefix <= series
+
+
+def latest_compatible_stable(
+    candidates: list[dict[str, object]], *, minimum: str, maximum_series: str | None = None
+) -> str:
+    """Select newest non-yanked stable candidate satisfying the minimum version."""
+    minimum_key = version_key(minimum)
+    accepted: list[tuple[tuple[int, ...], str]] = []
+    for candidate in candidates:
+        value = candidate.get("version")
+        if not isinstance(value, str) or candidate.get("yanked") is True:
+            continue
+        try:
+            key = version_key(value)
+        except ValueError:
+            continue
+        if key >= minimum_key and _within_maximum_series(key, maximum_series):
+            accepted.append((key, value.lstrip("v")))
+    if not accepted:
+        raise ValueError("no compatible stable dependency version is available")
+    return max(accepted)[1]
+
+
+def dependency_action(
+    *,
+    installed_version: str | None,
+    resolved_version: str | None,
+    healthy: bool,
+    latest_version_verified: bool,
+) -> str:
+    """Classify one dependency; a healthy install survives an unreachable stable channel."""
+    if installed_version is None:
+        return "installed" if latest_version_verified and resolved_version else "blocked"
+    if not healthy:
+        return "repaired" if latest_version_verified and resolved_version else "blocked"
+    if not latest_version_verified or resolved_version is None:
+        # Registry unreachable: keep the healthy install; doctor warns (unverified).
+        return "reused"
+    return (
+        "reused"
+        if installed_version.lstrip("v") == resolved_version.lstrip("v")
+        else "upgraded"
+    )
+
+
+def _user_path_publish_enabled() -> bool:
+    """Publish during a real install. Unit tests opt in with CHAOS_ENGINE_USER_PATHS=1."""
+    flag = os.environ.get("CHAOS_ENGINE_USER_PATHS", "").strip().casefold()
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    argv = " ".join(sys.argv)
+    under_test = any(token in argv for token in ("unittest", "pytest", "tests/scripts"))
+    if under_test:
+        return flag in {"1", "true", "yes", "on"}
+    return True
+
+
+def user_data_dir() -> Path:
+    """Per-user ChaosEngine directory. Not the project checkout and not a secret store."""
+    override = os.environ.get("CHAOS_ENGINE_USER_DIR", "").strip()
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    return base / "chaos-engine"
+
+
+def _prints_python3(executable: str, runner, prefix: tuple[str, ...]) -> bool:
+    try:
+        result = runner(
+            [executable, *prefix, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, TypeError, subprocess.SubprocessError):
+        return False
+    output = f"{getattr(result, 'stdout', '') or ''}\n{getattr(result, 'stderr', '') or ''}"
+    return "Python 3" in output
+
+
+def _python3_from_python(which, search_path: str, runner) -> str | None:
+    """Use ``python`` or the ``py -3`` launcher when ``python3`` is not a command."""
+    for command, prefix in (
+        ("python", ()),
+        ("python.exe", ()),
+        ("py", ("-3",)),
+        ("py.exe", ("-3",)),
+    ):
+        found = which(command, path=search_path)
+        if isinstance(found, str) and found.strip() and _prints_python3(found, runner, prefix):
+            return found
+    return None
+
+
+def _which_account_command(command: str, *, which, search_path: str, runner) -> str | None:
+    found = which(command, path=search_path)
+    if found or command != "python3":
+        return found
+    return _python3_from_python(which, search_path, runner)
+
+
+def _probe_path(executable_path: str):
+    """Pure path for a probe file name.
+
+    ``pathlib.Path`` on Python 3.11 follows ``os.name`` and refuses to construct
+    ``WindowsPath`` on POSIX. The ``.cmd`` probe sets ``os.name`` to ``nt`` there.
+    """
+    if os.name == "nt":
+        return PureWindowsPath(executable_path)
+    return PurePosixPath(executable_path)
+
+
+def _shim_arguments(target: Path | PurePosixPath | PureWindowsPath) -> tuple[str, ...]:
+    """The Windows ``py`` launcher selects Python 3 only with ``-3``."""
+    if target.name.lower() in {"py", "py.exe"}:
+        return ("-3",)
+    return ()
+
+
+def _write_python3_shim(directory: Path, target: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    arguments = _shim_arguments(target)
+    extra = " ".join(arguments)
+    tail = f"{extra} %*".strip()
+    cmd = directory / "python3.cmd"
+    cmd.write_text(f'@echo off\r\n"{target}" {tail}\r\n', encoding="utf-8")
+    if os.name == "nt":
+        return cmd
+    shim = directory / "python3"
+    if shim.exists() or shim.is_symlink():
+        shim.unlink()
+    if arguments:
+        shim.write_text(
+            f'#!/bin/sh\nexec "{target}" {" ".join(arguments)} "$@"\n',
+            encoding="utf-8",
+        )
+        shim.chmod(0o755)
+        return shim
+    shim.symlink_to(target)
+    return shim
+
+
+def _prepend_process_path(directories: list[str]) -> None:
+    current = os.environ.get("PATH", "")
+    parts = [part for part in current.split(os.pathsep) if part]
+    for directory in reversed(directories):
+        if directory not in parts:
+            parts.insert(0, directory)
+    os.environ["PATH"] = os.pathsep.join(parts)
+
+
+def _persist_windows_user_path(directories: list[str]) -> None:
+    """Prepend tool directories to the user PATH. The process PATH is not copied in."""
+    if os.name != "nt":
+        return
+    try:
+        import winreg
+    except ImportError:
+        return
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ | winreg.KEY_SET_VALUE
+        ) as key:
+            try:
+                current, _kind = winreg.QueryValueEx(key, "Path")
+            except FileNotFoundError:
+                current = ""
+            existing = [part for part in str(current).split(os.pathsep) if part]
+            prepend = [directory for directory in directories if directory not in existing]
+            if not prepend:
+                return
+            winreg.SetValueEx(
+                key, "Path", 0, winreg.REG_EXPAND_SZ, os.pathsep.join([*prepend, *existing])
+            )
+    except OSError:
+        return
+
+
+def publish_user_tool_paths(commands: dict[str, str]) -> Path | None:
+    """Record tool paths and make ``python3`` resolvable when only ``python`` exists.
+
+    Writes ``user.properties`` under the ChaosEngine user directory. On Windows
+    the user PATH gains the shim directory. A unit test does not write unless
+    ``CHAOS_ENGINE_USER_PATHS=1``.
+    """
+    if not _user_path_publish_enabled():
+        return None
+    root = user_data_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    bindir = root / "bin"
+    # The install receipt keeps the discovered executables. The shim is only
+    # the user-facing python3 command and must not add keys to that receipt.
+    recorded = {
+        name: value for name, value in commands.items() if isinstance(value, str) and value
+    }
+    python_path = recorded.get("python") or recorded.get("python3")
+    python3 = recorded.get("python3")
+    if python_path and python3 and Path(python3).name.lower() not in {"python3", "python3.exe", "python3.cmd"}:
+        shim = _write_python3_shim(bindir, Path(python3))
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
+    elif python_path and not python3:
+        shim = _write_python3_shim(bindir, Path(python_path))
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
+    recorded = dict(sorted(recorded.items()))
+    destination = root / "user.properties"
+    destination.write_text(
+        "".join(f"{name}={value}\n" for name, value in recorded.items()),
+        encoding="utf-8",
+    )
+    if bindir.is_dir() and any(bindir.iterdir()):
+        _prepend_process_path([str(bindir)])
+        _persist_windows_user_path([str(bindir)])
+    return destination
+
+
+def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, dict[str, str]]:
+    """Resolve every required sibling independently from the invoking user's PATH."""
+    result: dict[str, dict[str, str]] = {}
+    for name in names:
+        selected = which(name)
+        if not selected:
+            result[name] = {"status": "missing"}
+            continue
+        path = Path(selected).expanduser()
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError:
+            result[name] = {"status": "invalid"}
+            continue
+        if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
+            result[name] = {"status": "invalid"}
+            continue
+        executable_ok = resolved.is_file() and (
+            os.name == "nt" or os.access(resolved, os.X_OK)
+        )
+        result[name] = (
+            {"status": "healthy", "executable": str(resolved)}
+            if executable_ok
+            else {"status": "invalid"}
+        )
+    return result
+
+
+def sanitize_receipt(value: object, *, home: Path | None = None) -> object:
+    """Remove credential-shaped fields and replace the account home prefix."""
+    lexical_home = home or Path.home()
+    account_homes = tuple(dict.fromkeys((
+        str(lexical_home),
+        str(lexical_home.resolve()),
+    )))
+    if isinstance(value, dict):
+        return {
+            str(key): sanitize_receipt(item, home=lexical_home)
+            for key, item in value.items()
+            if not _SECRET_KEY.search(str(key))
+        }
+    if isinstance(value, list):
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
+    if isinstance(value, tuple):
+        return [sanitize_receipt(item, home=lexical_home) for item in value]
+    if isinstance(value, str):
+        rendered = value
+        for account_home in account_homes:
+            rendered = rendered.replace(account_home, "<home>")
+            rendered = rendered.replace(account_home.replace("\\", "/"), "<home>")
+        return rendered
+    if value is None or type(value) in {bool, int, float}:
+        return value
+    return type(value).__name__
+
+
+
+_CE_UV_TOOL_SHIMS = (
+    # launcher name → uv tools package directory name
+    ("mempalace", "mempalace"),
+    ("mempalace-mcp", "mempalace"),
+    ("graphify", "graphifyy"),
+)
+
+
+def dangling_ce_uv_tool_shims(
+    *,
+    bin_dir: Path | None = None,
+    tools_root: Path | None = None,
+) -> list[str]:
+    """Return CE-owned ~/.local/bin uv shim names whose tool tree target is missing (#7557).
+
+    Only ChaosEngine `uv tool install` launchers are considered. Foreign binaries
+    in the same bin dir are ignored. Never deletes paths (delete_guard).
+    """
+    root = bin_dir if bin_dir is not None else Path.home() / ".local/bin"
+    tools = tools_root if tools_root is not None else Path.home() / ".local/share/uv/tools"
+    found: list[str] = []
+    for name, package in _CE_UV_TOOL_SHIMS:
+        shim = root / name
+        try:
+            if not shim.exists() and not shim.is_symlink():
+                continue
+            if shim.is_symlink():
+                try:
+                    target = shim.resolve(strict=True)
+                    missing = False
+                except (OSError, RuntimeError):
+                    missing = True
+                else:
+                    missing = not target.is_file()
+            else:
+                # Rare non-link occupant with a CE launcher name: only treat as
+                # stale when the uv tools package tree for that launcher is gone.
+                expected = tools / package / "bin" / name
+                missing = not expected.is_file()
+            if missing:
+                found.append(name)
+        except OSError:
+            continue
+    return found
+
+
+def account_tool_plan(
+    project: Path,
+    specification: dict[str, object],
+    *,
+    actions: dict[str, str],
+    executables: dict[str, str],
+    resolved_versions: dict[str, str | None] | None = None,
+) -> dict[str, list[list[str]]]:
+    """Render user-scope tool commands; project initialization is a separate phase."""
+    del project
+    validate_runtime_specification(specification)
+    uv = executables["uv"]
+    npm = executables["npm"]
+
+    def resolved_package(name: str, package: str, separator: str) -> str:
+        version = (resolved_versions or {}).get(name)
+        if not version or name == "mempalace":
+            return package
+        return f"{package.rsplit(separator, 1)[0]}{separator}{version}"
+
+    def uv_commands(
+        name: str, package: str, extra: tuple[str, ...] = ()
+    ) -> list[list[str]]:
+        action = actions.get(name)
+        options = [item for dependency in extra for item in ("--with", dependency)]
+        if action in {"installed", "upgraded", "repaired"}:
+            # Always --force: action "installed" still hits leftover ~/.local/bin
+            # uv shims after a tools wipe (mempalace/graphify; #7557).
+            force = ["--force"]
+            python_pin: list[str] = []
+            if name in {"mempalace", "graphify"}:
+                python_version = (resolved_versions or {}).get("python")
+                if not isinstance(python_version, str) or not python_version.strip():
+                    raise ValueError("account tool install requires the resolved Python version")
+                # Pin the interpreter. An unpinned install follows the newest CPython ABI,
+                # and chromadb/onnxruntime have no wheel for that ABI (#6780).
+                python_pin = ["--python", python_version]
+            return [[
+                uv, "tool", "install", *force, *python_pin, *options,
+                resolved_package(name, package, "=="),
+            ]]
+        return []
+
+    def npm_commands(name: str, package: str) -> list[list[str]]:
+        return (
+            [[npm, "install", "-g", resolved_package(name, package, "@")]]
+            if actions.get(name) in {"installed", "upgraded", "repaired"}
+            else []
+        )
+
+    return {
+        "mempalace": uv_commands(
+            "mempalace", str(specification["tools"]["mempalace"]["package"]),
+            tuple(specification["tools"]["mempalace"].get("with", [])),
+        ),
+        "graphify": uv_commands(
+            "graphify", str(specification["tools"]["graphify"]["package"]),
+            tuple(specification["tools"]["graphify"].get("with", [])),
+        ),
+        "memory": npm_commands(
+            "memory", str(specification["tools"]["memory"]["package"])
+        ),
+        "context7": npm_commands("context7", "ctx7@latest"),
+    }
+
+
+def resolve_account_launcher(
+    command: str, *, which=shutil.which, search_path: str | None = None
+) -> str:
+    """Resolve one CreateProcess-safe launcher (Windows PATHEXT / pwsh→powershell) (#5629)."""
+    if not command:
+        raise ValueError("dependency launcher is empty")
+    # Absolute or explicit path forms: pass through so mocked/account receipt
+    # paths are not re-resolved (and missing fixtures stay FileNotFound at exec).
+    if (
+        os.path.isabs(command)
+        or "/" in command
+        or "\\" in command
+        or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"})
+    ):
+        return command
+    kwargs = {}
+    if search_path is not None:
+        kwargs["path"] = search_path
+    if os.name == "nt" and command.casefold() in {"pwsh", "powershell"}:
+        for candidate in ("pwsh", "powershell", "pwsh.exe", "powershell.exe"):
+            selected = which(candidate, **kwargs)
+            if selected:
+                return selected
+        raise FileNotFoundError("pwsh")
+    selected = which(command, **kwargs)
+    if selected:
+        return selected
+    if os.name == "nt":
+        for suffix in (".exe", ".cmd", ".bat", ".com"):
+            selected = which(f"{command}{suffix}", **kwargs)
+            if selected:
+                return selected
+    raise FileNotFoundError(command)
+
+
+def missing_executable_diagnostic(command: str | Path, error: BaseException | None = None) -> str:
+    """CE diagnostic naming the missing executable + fix-next for WinError 2 / ENOENT."""
+    name = Path(str(command)).name or str(command)
+    winerror = getattr(error, "winerror", None) if error is not None else None
+    errno_value = getattr(error, "errno", None) if error is not None else None
+    suffix = ""
+    if winerror == 2 or errno_value == errno.ENOENT or isinstance(error, FileNotFoundError):
+        suffix = " (system could not find the executable)"
+    return (
+        f"dependency launcher not found: {name}{suffix}. "
+        f"fix-next: install `{name}` on PATH "
+        f"(Windows: ensure `.exe`/`.cmd` or the `py`/`powershell` launcher is available), "
+        f"then rerun the ChaosEngine install one-liner"
+    )
+
+
+def prerequisite_command_plan(
+    system: str, provider: str, actions: dict[str, str], *, node_major: int = 22,
+    node_version: str | None = None, python_version: str = "3.14.0",
+    uv_version: str = "0.12.0", which=shutil.which,
+) -> dict[str, list[list[str]]]:
+    """Render dry platform prerequisite commands with tightly scoped elevation."""
+    wanted = lambda name: actions.get(name) in {"installed", "upgraded", "repaired"}
+    plan: dict[str, list[list[str]]] = {"uv": [], "python": [], "node": [], "java": []}
+    if wanted("uv"):
+        if system == "windows":
+            shell = None
+            for candidate in ("pwsh", "powershell", "pwsh.exe", "powershell.exe"):
+                shell = which(candidate)
+                if shell:
+                    break
+            shell = shell or "powershell"
+            plan["uv"] = [[
+                shell, "-NoProfile", "-ExecutionPolicy", "ByPass", "-c",
+                f"$ErrorActionPreference='Stop'; $env:UV_INSTALL_DIR=Join-Path $HOME '.local/bin'; $env:UV_NO_MODIFY_PATH='1'; irm https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.ps1 | iex",
+            ]]
+        else:
+            plan["uv"] = [["bash", "-o", "pipefail", "-c", f"curl -fsSL https://github.com/astral-sh/uv/releases/download/{uv_version}/uv-installer.sh | env UV_INSTALL_DIR=\"$HOME/.local/bin\" UV_NO_MODIFY_PATH=1 sh"]]
+    if wanted("python"):
+        plan["python"] = [["uv", "python", "install", python_version, "--no-progress"]]
+    return plan
+
+
+
+UV_PYTHON_VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def _uv_python_listing(
+    uv_command: str, project: Path, series: str | None, *, runner=subprocess.run
+) -> list[object] | None:
+    """Ask uv which CPython builds it can download; ``None`` when uv cannot be asked."""
+    command = [uv_command, "python", "list", "--only-downloads", "--all-versions", "--output-format", "json"]
+    try:
+        result = _run_account_command(
+            command + ([series] if series else []), project, runner=runner, timeout=120,
+        )
+        entries = json.loads(result.stdout or "[]")
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        return None
+    return entries if isinstance(entries, list) else None
+
+
+def _eligible_uv_python(entries: list[object], requested: str, minimum: str) -> str | None:
+    """Newest stable default CPython in ``entries`` within the minimum and the request."""
+    candidates = {
+        str(entry.get("version"))
+        for entry in entries
+        if isinstance(entry, dict)
+        and entry.get("implementation") == "cpython"
+        and entry.get("variant", "default") == "default"
+        and UV_PYTHON_VERSION.fullmatch(str(entry.get("version")))
+    }
+    eligible = [
+        version for version in candidates
+        if version_key(version) <= version_key(requested) and version_at_least(version, minimum)
+    ]
+    return max(eligible, key=version_key) if eligible else None
+
+
+def uv_downloadable_python(
+    uv_command: str, requested: str, minimum: str, project: Path, *, runner=subprocess.run
+) -> str | None:
+    """#6325: newest CPython uv can download, never newer than the stable channel.
+
+    python.org can publish a patch (for example 3.14.8) days before uv's
+    download metadata knows it, and ``uv python install 3.14.8`` then fails.
+    A whole new minor can lag the same way: uv may list only a release
+    candidate for it, so the search widens to the older minors that still
+    satisfy the minimum. Returns ``None`` when uv cannot be asked, so callers
+    keep the request.
+    """
+    match = UV_PYTHON_VERSION.fullmatch(requested or "")
+    if match is None:
+        return None
+    series = f"{match.group(1)}.{match.group(2)}"
+    entries = _uv_python_listing(uv_command, project, series, runner=runner)
+    if entries is None:
+        return None
+    found = _eligible_uv_python(entries, requested, minimum)
+    if found is not None:
+        return found
+    wider = _uv_python_listing(uv_command, project, None, runner=runner)
+    return _eligible_uv_python(wider, requested, minimum) if wider else None
+
+
+def clamp_python_to_uv_downloads(
+    record: dict[str, object], uv_command: str, project: Path, *, minimum: str,
+    runner=subprocess.run,
+) -> str:
+    """#6325: lower a python.org-resolved request to what uv can download now."""
+    action = str(record.get("action"))
+    requested = str(record.get("resolvedVersion") or "")
+    if action not in {"installed", "upgraded", "repaired"}:
+        return action
+    available = uv_downloadable_python(uv_command, requested, minimum, project, runner=runner)
+    if available is None or version_key(available) >= version_key(requested):
+        return action
+    record["upstreamResolvedVersion"] = requested
+    record["resolvedVersion"] = available
+    record["downloadLag"] = f"python.org lists {requested}; uv downloads {available}"
+    installed = record.get("installedVersion")
+    if (
+        record.get("healthy") is True
+        and isinstance(installed, str)
+        and installed.lstrip("v") == available
+    ):
+        record["action"] = "reused"
+    return str(record["action"])
+
+
+
+def plan_downloadable_python(
+    record: dict[str, object], specification: dict[str, object], uv_command: str,
+    project: Path, *, runner=subprocess.run,
+) -> tuple[str, list[list[str]]]:
+    """#6325: return the python action and its uv command after the download clamp."""
+    contract = specification["dependencies"]["python"]  # type: ignore[index]
+    action = clamp_python_to_uv_downloads(
+        record, uv_command, project,
+        minimum=str(contract.get("minimumVersion") or "0"),  # type: ignore[union-attr]
+        runner=runner,
+    )
+    if action == "reused":
+        return action, []
+    version = str(record.get("resolvedVersion") or "")
+    return action, [["uv", "python", "install", version, "--no-progress"]]
+
+
+_GH_CLI_TOKEN: list[str | None] = []
+
+
+def _github_api_token() -> str | None:
+    """#6235: same order as bootstrap: GITHUB_TOKEN, GH_TOKEN, bounded `gh auth token`."""
+    for key in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if os.environ.get("CHAOS_ENGINE_GH_AUTH", "").strip().casefold() in {"0", "false", "no", "off"}:
+        return None
+    if not _GH_CLI_TOKEN:
+        token = None
+        executable = shutil.which("gh")
+        if executable:
+            try:
+                completed = subprocess.run(  # nosec B603 - resolved gh binary, fixed argv.
+                    [executable, "auth", "token", "--hostname", "github.com"],
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5, check=False,
+                )
+                value = (completed.stdout or "").strip()
+                if completed.returncode == 0 and value and not any(c.isspace() for c in value):
+                    token = value
+            except (OSError, subprocess.SubprocessError, ValueError):
+                token = None
+        _GH_CLI_TOKEN.append(token)
+    return _GH_CLI_TOKEN[0]
+
+
+NETWORK_ATTEMPTS = 3
+NETWORK_BACKOFF_SECONDS = 2.0
+
+
+def _open_with_retry(opener, target, *, timeout: float):
+    """Open one URL, retrying transient network failures so a single blip cannot fail setup."""
+    last_error: OSError | None = None
+    for attempt in range(NETWORK_ATTEMPTS):
+        if attempt:
+            time.sleep(NETWORK_BACKOFF_SECONDS * attempt)
+        try:
+            return opener(target, timeout=timeout)
+        except urllib.error.HTTPError as error:
+            if error.code < 500 and error.code != 429:
+                raise
+            last_error = error
+        except OSError as error:
+            last_error = error
+    assert last_error is not None
+    raise last_error
+
+
+def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
+    headers = {"Accept": "application/json", "User-Agent": "ChaosEngine-installer"}
+    github_token = _github_api_token() if url.startswith("https://api.github.com/") else None
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    request = urllib.request.Request(
+        url,
+        headers=headers,
+    )
+    with _open_with_retry(opener, request, timeout=30) as response:
+        payload = response.read(MAX_CONTROL_BYTES + 1)
+    if len(payload) > MAX_CONTROL_BYTES:
+        raise ValueError("stable-channel response exceeds the size limit")
+    return json.loads(payload)
+
+
+def resolve_stable_version(
+    name: str, contract: dict[str, object], *, opener=urllib.request.urlopen
+) -> str:
+    """Resolve one stable version from its official channel."""
+    url = contract.get("stableChannel")
+    minimum = contract.get("minimumVersion")
+    if not isinstance(url, str) or not url.startswith("https://") or not isinstance(minimum, str):
+        raise ValueError(f"dependency stable-channel contract is invalid: {name}")
+    payload = _read_json_url(url, opener=opener)
+    candidates: list[dict[str, object]] = []
+    if name == "node":
+        if not isinstance(payload, list):
+            raise ValueError("Node stable-channel response is invalid")
+        candidates = [
+            {"version": item.get("version"), "yanked": False}
+            for item in payload
+            if isinstance(item, dict) and item.get("lts") not in (False, None, "")
+        ]
+    elif name == "python":
+        if not isinstance(payload, list):
+            raise ValueError("Python stable-channel response is invalid")
+        for item in payload:
+            release_name = item.get("name") if isinstance(item, dict) else None
+            match = re.fullmatch(r"Python (3\.\d+\.\d+)", release_name or "")
+            if match:
+                candidates.append({
+                    "version": match.group(1),
+                    "yanked": bool(item.get("pre_release"))
+                    or item.get("is_published") is not True,
+                })
+    elif name in {"mempalace", "graphify"}:
+        releases = payload.get("releases") if isinstance(payload, dict) else None
+        if not isinstance(releases, dict):
+            raise ValueError(f"{name} stable-channel response is invalid")
+        for version, files in releases.items():
+            if not isinstance(version, str) or not isinstance(files, list) or not files:
+                continue
+            candidates.append({
+                "version": version,
+                "yanked": all(
+                    isinstance(item, dict) and item.get("yanked") is True
+                    for item in files
+                ),
+            })
+    elif name in {"memory", "context7"}:
+        version = payload.get("version") if isinstance(payload, dict) else None
+        candidates = [{"version": version, "yanked": False}]
+    elif name == "java":
+        releases = payload.get("versions") if isinstance(payload, dict) else None
+        if not isinstance(releases, list):
+            raise ValueError("JDK stable-channel response is invalid")
+        candidates = [
+            {"version": match.group(0), "yanked": False}
+            for item in releases
+            if isinstance(item, dict)
+            and item.get("major") == 25
+            and (match := re.match(r"\d+\.\d+\.\d+\+\d+", str(item.get("semver"))))
+        ]
+    else:
+        tag = payload.get("tag_name") if isinstance(payload, dict) else None
+        prerelease = payload.get("prerelease") if isinstance(payload, dict) else True
+        draft = payload.get("draft") if isinstance(payload, dict) else True
+        candidates = [{"version": tag, "yanked": bool(prerelease or draft)}]
+    maximum = contract.get("maximumSeries")
+    maximum_series = maximum if isinstance(maximum, str) and maximum else None
+    return latest_compatible_stable(
+        candidates, minimum=minimum, maximum_series=maximum_series
+    )
+
+
+def _version_from_output(output: str) -> str | None:
+    if _UNSTABLE_VERSION.search(output):
+        return None
+    match = re.search(r"(?<!\d)(\d+(?:\.\d+){1,3}(?:[+._-]\d+)?)", output)
+    return match.group(1).replace("_", ".") if match else None
+
+
+def probe_account_dependency(
+    name: str,
+    executable_path: str,
+    contract: dict[str, object],
+    *,
+    runner=subprocess.run,
+) -> dict[str, object]:
+    """Run bounded version and functional probes for one account executable."""
+    probe = contract.get("probe")
+    if not isinstance(probe, list) or not all(isinstance(item, str) for item in probe):
+        raise ValueError(f"dependency probe contract is invalid: {name}")
+    command = [executable_path, *_shim_arguments(_probe_path(executable_path)), *probe[1:]]
+    if os.name == "nt" and executable_path.lower().endswith((".cmd", ".bat")):
+        command = ["cmd", "/c", *command]
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key.upper() not in {"AUTHORIZATION", "TOKEN", "API_KEY"}
+        and not _SECRET_KEY.search(key)
+    }
+    environment["PATH"] = _account_search_path()
+    try:
+        result = runner(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+            env=environment,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        return {"healthy": False, "version": None, "detail": type(error).__name__}
+    output = f"{result.stdout or ''}\n{result.stderr or ''}".strip()
+    version = _version_from_output(output)
+    if name == "java":
+        build = re.search(r"(?<!\d)(\d+\.\d+\.\d+\+\d+)", output)
+        if build:
+            version = build.group(1)
+    return {
+        "healthy": result.returncode == 0,
+        "version": version,
+        "detail": "passed" if result.returncode == 0 else f"exit-{result.returncode}",
+    }
+
+
+def _account_search_path() -> str:
+    home = Path.home()
+    managed_node = home / ".local/share/chaos-engine/node"
+    node_bins = sorted(
+        (
+            root if os.name == "nt" else root / "bin"
+            for root in managed_node.glob("*")
+            if root.is_dir()
+        ),
+        key=lambda path: tuple(
+            int(part)
+            for part in re.findall(
+                r"\d+", path.name if os.name == "nt" else path.parent.name
+            )
+        ),
+        reverse=True,
+    )
+    uv_tool_bin = Path(os.environ.get("UV_TOOL_BIN_DIR") or home / ".local/bin")
+    npm_prefix = Path(os.environ.get("NPM_CONFIG_PREFIX") or home / ".local")
+    npm_bin = npm_prefix / ("Scripts" if os.name == "nt" else "bin")
+    candidates = [
+        *node_bins,
+        uv_tool_bin,
+        *((npm_prefix,) if os.name == "nt" else ()),
+        npm_bin,
+        home / ".local/bin",
+        home / ".cargo/bin",
+    ]
+    current = os.environ.get("PATH", "")
+    return os.pathsep.join([*(str(path) for path in candidates), current])
+
+
+def _remember_unusable(
+    notes: dict[str, tuple[str, str | None]], command: str, selected: str | None
+) -> str | None:
+    """Return a real launcher path, or record a Store stub or a missing one."""
+    if not selected:
+        notes.setdefault(command, ("missing", None))
+        return None
+    kind = executable_probe_kind(selected)
+    if kind != "real":
+        notes[command] = (kind, selected)
+        return None
+    notes.pop(command, None)
+    return selected
+
+
+def _stamp_unusable_probe(
+    record: dict[str, object], notes: dict[str, tuple[str, str | None]]
+) -> None:
+    """Attach the unusable probe so provision can see a Store stub or a miss."""
+    if not notes:
+        return
+    kind, path = next(iter(notes.values()))
+    for candidate_kind, candidate_path in notes.values():
+        if candidate_kind == "store-stub":
+            kind, path = candidate_kind, candidate_path
+            break
+    record["probeKind"] = kind
+    if path:
+        record["executable"] = path
+
+
+def discover_account_commands(
+    specification: dict[str, object], *, preferred_commands: dict[str, str] | None = None,
+    which=shutil.which, runner=subprocess.run
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Discover and probe every dependency, including required sibling commands."""
+    contracts = specification.get("dependencies")
+    if specification.get("schemaVersion") != 3 or not isinstance(contracts, dict):
+        raise ValueError("dependency specification schema is unsupported")
+    commands: dict[str, str] = {}
+    components: dict[str, dict[str, object]] = {}
+    search_path = _account_search_path()
+    for name, value in contracts.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"dependency contract is invalid: {name}")
+        names = value.get("executables")
+        if not isinstance(names, list) or not all(isinstance(item, str) for item in names):
+            raise ValueError(f"dependency executable contract is invalid: {name}")
+        sibling_paths: dict[str, str] = {}
+        unusable: dict[str, tuple[str, str | None]] = {}
+        for command in names:
+            preferred = (preferred_commands or {}).get(command)
+            selected = _remember_unusable(
+                unusable, command, preferred if isinstance(preferred, str) else None
+            )
+            if not selected or not Path(selected).is_file():
+                found = _which_account_command(
+                    command, which=which, search_path=search_path, runner=runner
+                )
+                selected = _remember_unusable(
+                    unusable, command, found if isinstance(found, str) else None
+                )
+            if selected:
+                resolved = Path(selected).resolve()
+                if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
+                    continue
+                sibling_paths[command] = str(resolved)
+                commands[command] = sibling_paths[command]
+        primary = names[0] if names else None
+        if primary is None:
+            components[name] = {"status": "not-applicable", "siblings": sibling_paths}
+            continue
+        if len(sibling_paths) != len(names):
+            if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+                components[name] = {
+                    "status": "absent",
+                    "healthy": False,
+                    "version": None,
+                    "taskImpact": "optional",
+                    "detail": "optional-absent",
+                    "siblings": sibling_paths,
+                }
+                continue
+            missing = {
+                "status": "missing",
+                "healthy": False,
+                "version": None,
+                "siblings": sibling_paths,
+            }
+            _stamp_unusable_probe(missing, unusable)
+            components[name] = missing
+            continue
+        probed = probe_account_dependency(
+            name, sibling_paths[primary], value, runner=runner
+        )
+        if (
+            name == "mempalace"
+            and probed["version"]
+            != PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
+        ):
+            probed = {**probed, "healthy": False, "detail": "version-mismatch"}
+        components[name] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": sibling_paths[primary],
+            "siblings": sibling_paths,
+        }
+    publish_user_tool_paths(commands)
+    return components, commands
+
+
+def _resolve_stable_version_or_error(
+    name: str, contract: dict[str, object], *, opener=urllib.request.urlopen
+) -> tuple[str | None, str | None]:
+    """Resolve the stable version, or return the lookup error type after network retries."""
+    try:
+        version = resolve_stable_version(name, contract, opener=opener)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return None, type(error).__name__
+    if name == "java":
+        version = _published_temurin_or_pinned(version, opener=opener)
+    return version, None
+
+
+def _current_system() -> str:
+    return "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+
+
+def _published_temurin_or_pinned(version: str, *, opener=urllib.request.urlopen) -> str:
+    """Resolve to the pinned Temurin when the latest GA has no binary for this platform yet.
+
+    Keeps resolve and install in agreement, so a healthy rerun reuses the pinned JDK
+    instead of planning an upgrade it cannot download (Temurin 25.0.5+8, Oct 22 2026).
+    """
+    pinned = _pinned_temurin_version()
+    if not pinned or pinned == version:
+        return version
+    try:
+        url = _temurin_url(version, _current_system())
+        with _open_with_retry(opener, f"{url}.sha256.txt", timeout=30):
+            return version
+    except urllib.error.HTTPError as error:
+        return pinned if error.code == 404 else version
+    except (OSError, ValueError):
+        return version
+
+
+def describe_blocked_dependencies(actions: dict[str, dict[str, object]]) -> str:
+    """Name each blocked required dependency with its cause."""
+    parts = []
+    for name in sorted(actions):
+        record = actions[name]
+        if record.get("action") != "blocked" or record.get("taskImpact") == "optional":
+            continue
+        error = record.get("lookupError")
+        parts.append(f"{name} (stable-channel lookup failed: {error})" if error else name)
+    return ", ".join(parts)
+
+
+def resolve_account_actions(
+    specification: dict[str, object],
+    local: dict[str, dict[str, object]],
+    *,
+    opener=urllib.request.urlopen,
+) -> dict[str, dict[str, object]]:
+    """Combine local health with independently attempted stable-channel resolution."""
+    validate_runtime_specification(specification)
+    contracts = specification["dependencies"]
+    pinned_mempalace_version = _pinned_package_identity(
+        specification["tools"]["mempalace"]["package"]
+    )[1]
+    resolved: dict[str, dict[str, object]] = {}
+    for name, contract in contracts.items():  # type: ignore[union-attr]
+        if name in {"maven-tools-mcp", "chrome-devtools-mcp"}:
+            continue
+        record = local.get(name, {})
+        if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+            present = record.get("healthy") is True and record.get("status") != "absent"
+            resolved[name] = {
+                **record,
+                "provider": contract.get("provider"),
+                "source": contract.get("stableChannel"),
+                "installedVersion": record.get("version") if present else None,
+                "resolvedVersion": record.get("version") if present else None,
+                "latestVersionVerified": bool(present),
+                "action": "reused" if present else "skipped",
+                "status": "healthy" if present else "absent",
+                "taskImpact": "optional",
+                "probe": record.get("detail", "optional-absent"),
+            }
+            continue
+        latest = None
+        verified = False
+        lookup_error = None
+        if name == "mempalace":
+            latest = pinned_mempalace_version
+            verified = True
+        else:
+            latest, lookup_error = _resolve_stable_version_or_error(
+                name, contract, opener=opener
+            )
+            verified = lookup_error is None
+        installed = record.get("version") if isinstance(record.get("version"), str) else None
+        healthy = record.get("healthy") is True
+        action = dependency_action(
+            installed_version=installed,
+            resolved_version=latest,
+            healthy=healthy,
+            latest_version_verified=verified,
+        )
+        resolved[name] = {
+            **record,
+            "provider": contract.get("provider"),
+            "source": contract.get("stableChannel"),
+            "installedVersion": installed,
+            "resolvedVersion": latest,
+            "latestVersionVerified": verified,
+            "action": action,
+            "probe": record.get("detail", "not-run"),
+            **({"lookupError": lookup_error} if lookup_error else {}),
+        }
+    return resolved
+
+
+def read_account_receipt(project: Path, *, path: Path | None = None) -> dict[str, object]:
+    path = project.resolve() / ACCOUNT_RECEIPT_NAME if path is None else path
+    try:
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("account dependency receipt is missing or invalid") from error
+    if not isinstance(receipt, dict):
+        raise ValueError("account dependency receipt schema is unsupported")
+    if receipt.get("schemaVersion") == 1:
+        receipt = {
+            **receipt,
+            "schemaVersion": ACCOUNT_RECEIPT_SCHEMA,
+            "scope": "user",
+            "migration": "migrated-v1",
+        }
+    if (
+        receipt.get("schemaVersion") != ACCOUNT_RECEIPT_SCHEMA
+        or not isinstance(receipt.get("components"), dict)
+        or not isinstance(receipt.get("commands"), dict)
+    ):
+        raise ValueError("account dependency receipt schema is unsupported")
+    return receipt
+
+
+def optional_account_dependency_enabled(project: Path, name: str) -> bool:
+    """True only when the operator opted in. Missing bundle options stay off."""
+    if name not in OPTIONAL_ACCOUNT_DEPENDENCIES:
+        return True
+    path = project / ".chaos-engine-state" / "bundle-options.json"
+    if not path.is_file():
+        return False
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    enabled = document.get("enabled") if isinstance(document, dict) else None
+    return isinstance(enabled, dict) and enabled.get(name) is True
+
+
+def select_account_receipt_components(
+    project: Path,
+    actions: dict[str, dict[str, object]],
+    local: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Receipt rows for required tools, plus an opt-in tool only when it is healthy."""
+    selected: dict[str, dict[str, object]] = {}
+    for name, record in actions.items():
+        observed = local.get(name, {})
+        if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+            installed_healthy = (
+                observed.get("healthy") is True and observed.get("status") == "healthy"
+            )
+            if not optional_account_dependency_enabled(project, name) or not installed_healthy:
+                continue
+        selected[name] = {
+            **record,
+            **observed,
+            "installedVersion": observed.get("version"),
+            "scope": "user",
+            "action": record["action"],
+            "probe": observed.get("detail", "passed"),
+        }
+    return selected
+
+
+def account_receipt_commands(
+    components: dict[str, dict[str, object]], commands: dict[str, str]
+) -> dict[str, str]:
+    """Drop an opt-in executable when its component was omitted from the receipt."""
+    published = dict(commands)
+    for name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+        if name not in components:
+            published.pop(name, None)
+    return published
+
+
+def write_account_receipt(
+    project: Path,
+    components: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    *,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Publish a secret-free account receipt without claiming global package ownership."""
+    receipt = sanitize_receipt({
+        "schemaVersion": ACCOUNT_RECEIPT_SCHEMA,
+        "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
+        "scope": "user",
+        "components": components,
+        "commands": commands,
+    })
+    if not isinstance(receipt, dict):
+        raise ValueError("account dependency receipt is invalid")
+    receipt["commands"] = {
+        name: str(Path(command).resolve()) for name, command in commands.items()
+    }
+    path = project.resolve() / ACCOUNT_RECEIPT_NAME
+    scratch = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+    scratch.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    scratch.replace(path)
+    return receipt
+
+
+def mempalace_project_palace(project: Path) -> Path:
+    """Return the shared sqlite_exact palace, or the project palace outside Git."""
+    import runpy
+
+    path = Path(__file__).resolve().with_name("stores.py")
+    if path.is_file():
+        namespace = runpy.run_path(str(path), run_name="_chaos_engine_stores_palace")
+        return namespace["resolve_palace"](project)
+    return project.resolve() / ".chaos-engine-state/mempalace"
+
+
+def mempalace_project_cli(executable: str, action: str, project: Path) -> list[str]:
+    """Pin init/mine to sqlite_exact at the exact project palace (#5854).
+
+    ``--palace`` / global ``--backend`` must precede the subcommand (MemPalace
+    argparse). Do not pass ``--auto-mine``: empty or Downloads-like folders must
+    not be mined as a corpus. Init without ``--auto-mine`` still prompts to mine;
+    account runners use ``stdin=DEVNULL`` so that prompt EOFs and declines.
+    ``ensure_mempalace_exact_target`` heals the database when the CLI skips it.
+    """
+    if action not in {"init", "mine"}:
+        raise ValueError(f"unsupported MemPalace project action: {action}")
+    palace = str(mempalace_project_palace(project))
+    command = [
+        executable,
+        "--palace",
+        palace,
+        "--backend",
+        "sqlite_exact",
+        action,
+        ".",
+    ]
+    if action == "init":
+        command.extend(["--yes", "--no-llm"])
+    return command
+
+
+def mempalace_project_setup_action(command: list[str]) -> str | None:
+    """Return init/mine when argv is a project-owned palace setup command."""
+    if len(command) < 3:
+        return None
+    index = 1
+    while index < len(command) and command[index].startswith("-"):
+        flag = command[index]
+        if flag in {"--palace", "--backend"}:
+            index += 2
+            continue
+        index += 1
+    if index + 1 >= len(command):
+        return None
+    action = command[index]
+    if action in {"init", "mine"} and command[index + 1] == ".":
+        return action
+    return None
+
+
+def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str]]:
+    """Plan current-folder initialization without resetting existing project data."""
+    project = project.resolve()
+    planned: list[list[str]] = []
+    mempalace = commands.get("mempalace")
+    if mempalace:
+        configured = mempalace_project_configuration_exists(project)
+        if configured:
+            adopt_relocated_mempalace_palace(project)
+        index = mempalace_index_status(project) if configured else None
+        resume = index is not None and index["status"] in {"failed", "interrupted"}
+        if configured and (resume or not mempalace_project_setup_complete(project)):
+            if index is None or index["status"] != "running":
+                planned.append(mempalace_project_cli(mempalace, "mine", project))
+        elif not configured:
+            planned.append(mempalace_project_cli(mempalace, "init", project))
+    graphify = commands.get("graphify")
+    if graphify:
+        graph_out = project / "graphify-out"
+        store_path = Path(__file__).resolve().with_name("stores.py")
+        if store_path.is_file():
+            import runpy
+
+            namespace = runpy.run_path(str(store_path), run_name="_chaos_engine_stores_graph")
+            graph_out = namespace["resolve_graph_out"](project)
+        if not (graph_out / "graph.json").is_file():
+            command = [graphify, "extract", ".", "--code-only"]
+            if graph_out.resolve() != (project / "graphify-out").resolve():
+                command.extend(["--out", str(graph_out.parent)])
+            planned.append(command)
+    memory = commands.get("memory")
+    if memory and not (project / ".memory/config.json").is_file():
+        planned.append([memory, "init", "--no-view"])
+    return planned
+
+
+def git_head_is_unborn(project: Path) -> bool:
+    """True inside a Git work tree whose HEAD has no commit yet (``git init`` only)."""
+    git = shutil.which("git")
+    if git is None:
+        return False
+    try:
+        inside = subprocess.run(  # nosec B603 - fixed git argv, no shell.
+            [git, "rev-parse", "--git-dir"],
+            cwd=project, capture_output=True, text=True, check=False, timeout=30,
+        )
+        if inside.returncode != 0:
+            return False
+        head = subprocess.run(  # nosec B603 - fixed git argv, no shell.
+            [git, "rev-parse", "--verify", "--quiet", "HEAD"],
+            cwd=project, capture_output=True, text=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return head.returncode != 0
+
+
+def memory_init_environment(project: Path) -> dict[str, str]:
+    """Let ``memory init`` succeed in a repository with no commits (#6496).
+
+    Memory reads ``git rev-parse HEAD`` during init and fails with
+    MemoryGitOperationFailed on an unborn HEAD. Hiding Git for that one call
+    makes Memory initialize exactly as in a plain folder; the files it writes
+    match a Git-mode init, and the runtime ignore rules come from the
+    ChaosEngine-owned .gitignore block.
+    """
+    if not git_head_is_unborn(project):
+        return {}
+    return {"GIT_DIR": os.devnull}
+
+
+def mempalace_project_setup_complete(project: Path) -> bool:
+    """Return whether a valid configuration already has mined exact state (#6377)."""
+    import runpy
+
+    palace = mempalace_project_palace(project)
+    path = Path(__file__).resolve().with_name("stores.py")
+    if not path.is_file():
+        return (palace / "sqlite_exact.sqlite3").is_file()
+    namespace = runpy.run_path(str(path), run_name="_chaos_engine_stores_count")
+    return bool(namespace["palace_drawer_count"](palace))
+
+
+def mempalace_project_configuration_exists(project: Path) -> bool:
+    """Reject unsafe config entries and report a regular legacy configuration."""
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration):
+        raise ValueError("MemPalace project configuration is a link or reparse point")
+    if not configuration.exists():
+        return False
+    if not configuration.is_file():
+        raise ValueError("MemPalace project configuration is not a regular file")
+    return True
+
+
+def mempalace_project_setup_environment(
+    project: Path, command: list[str]
+) -> dict[str, str]:
+    """Bind non-resolver initialization to its one exact project-owned palace."""
+    if mempalace_project_setup_action(command) is None:
+        return {}
+    palace = str(mempalace_project_palace(project))
+    return {
+        "MEMPALACE_PALACE_PATH": palace,
+        "MEMPALACE_BACKEND": "sqlite_exact",
+        "MEMPALACE_BACKEND_EXPLICIT": "sqlite_exact",
+    }
+
+
+def ensure_mempalace_exact_target(project: Path) -> Path:
+    """Create sqlite_exact when CLI init/mine did not (#5854).
+
+    ``mempalace init`` writes ``mempalace.yaml`` and may add ``.mempalace/origin.json``
+    without creating the sqlite_exact database. User config.json ``backend`` also
+    outranks ``MEMPALACE_BACKEND``, so mine can persist Chroma instead. Heal by
+    creating the empty exact schema next to any allowed sidecar files.
+    """
+    palace = mempalace_project_palace(project)
+    database = palace / "sqlite_exact.sqlite3"
+    if database.is_file() and not is_link_or_reparse(database):
+        return database
+    if palace.exists():
+        if is_link_or_reparse(palace) or not palace.is_dir():
+            raise RuntimeError("MemPalace init did not create the exact target")
+        if not _project_palace_accepts_home_adopt(palace):
+            raise RuntimeError("MemPalace init did not create the exact target")
+    palace.mkdir(parents=True, exist_ok=True)
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    if database.exists() or is_link_or_reparse(database):
+        raise RuntimeError("MemPalace init did not create the exact target")
+    connection = sqlite3.connect(database)
+    try:
+        connection.executescript(
+            """
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE collections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                dimension INTEGER,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                collection_id INTEGER NOT NULL,
+                id TEXT NOT NULL,
+                document TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                dim INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (collection_id, id),
+                FOREIGN KEY(collection_id) REFERENCES collections(id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_documents_collection ON documents(collection_id);
+            INSERT INTO collections(name, created_at)
+            VALUES ('mempalace_drawers', CURRENT_TIMESTAMP);
+            """
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    if not database.is_file():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    return database
+
+
+def default_mempalace_palace() -> Path:
+    """MemPalace default palace when CLI/env palace binding is ignored."""
+    return Path.home() / ".mempalace" / "palace"
+
+
+def _project_palace_accepts_home_adopt(palace: Path) -> bool:
+    if not palace.exists():
+        return True
+    if is_link_or_reparse(palace) or not palace.is_dir():
+        return False
+    names = {child.name for child in palace.iterdir()}
+    return names <= {".mined", ".mempalace"}
+
+
+def adopt_mempalace_default_palace(project: Path) -> None:
+    """Copy sqlite_exact files from ~/.mempalace/palace when the project target is vacant."""
+    palace = mempalace_project_palace(project)
+    if (palace / "sqlite_exact.sqlite3").is_file():
+        return
+    if not _project_palace_accepts_home_adopt(palace):
+        return
+    source = default_mempalace_palace()
+    exact = source / "sqlite_exact.sqlite3"
+    if is_link_or_reparse(source) or not exact.is_file() or is_link_or_reparse(exact):
+        return
+    palace.mkdir(parents=True, exist_ok=True)
+    for name in (
+        "sqlite_exact.sqlite3",
+        "sqlite_exact.sqlite3-wal",
+        "sqlite_exact.sqlite3-shm",
+    ):
+        candidate = source / name
+        if candidate.is_file() and not is_link_or_reparse(candidate):
+            shutil.copy2(candidate, palace / name)
+
+
+def prepare_mempalace_project_target(project: Path) -> Path:
+    """Adopt or create the exact palace so retrieval works before any mine."""
+    adopt_mempalace_default_palace(project)
+    palace = mempalace_project_palace(project)
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        ensure_mempalace_exact_target(project)
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        raise RuntimeError("MemPalace init did not create the exact target")
+    return palace
+
+
+def apply_owned_mempalace_excludes(project: Path) -> bool:
+    """Ensure every owned exclude is listed; append missing ones, keep user entries (#7465).
+
+    Installer-created configs and user/consumer configs are both merged. Existing
+    ``exclude_patterns`` entries are preserved; only absent owned patterns are added.
+    An owned pattern the user removed is re-added by design on the next install, mine,
+    repair, or doctor-driven merge — private harness paths must stay out of the palace.
+    """
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration) or not configuration.is_file():
+        return False
+    text = configuration.read_text(encoding="utf-8")
+    missing = missing_owned_mempalace_excludes(project)
+    if not missing:
+        return False
+    addition = "".join(f"  - '{pattern}'\n" for pattern in missing)
+    if not re.search(r"(?m)^exclude_patterns\s*:", text):
+        block = "exclude_patterns:\n" + "".join(
+            f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
+        )
+        separator = "" if not text or text.endswith("\n") else "\n"
+        configuration.write_text(text + separator + block, encoding="utf-8")
+        return True
+    # Flow-style list on one line: expand to a block, keep prior items, then owned.
+    flow = re.search(r"(?m)^(exclude_patterns\s*:\s*)\[([^\]]*)\]\s*$", text)
+    if flow is not None:
+        prior = [item.strip().strip("'\"") for item in flow.group(2).split(",") if item.strip()]
+        seen = set(prior)
+        ordered = list(prior)
+        for pattern in MEMPALACE_OWNED_EXCLUDES:
+            if pattern not in seen:
+                ordered.append(pattern)
+                seen.add(pattern)
+        block = "exclude_patterns:\n" + "".join(f"  - '{pattern}'\n" for pattern in ordered)
+        configuration.write_text(text[: flow.start()] + block + text[flow.end() :].lstrip("\n"), encoding="utf-8")
+        return True
+    # Block-style: insert missing entries just before the next top-level key (or EOF).
+    match = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
+    if match is None:
+        return False
+    body_end = match.end()
+    configuration.write_text(text[:body_end] + addition + text[body_end:], encoding="utf-8")
+    return True
+
+
+
+def missing_owned_mempalace_excludes(project: Path) -> list[str]:
+    """Owned patterns a configuration does not list (advisory for user configs)."""
+    configuration = project.resolve() / "mempalace.yaml"
+    try:
+        text = configuration.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [
+        pattern for pattern in MEMPALACE_OWNED_EXCLUDES
+        if not re.search(rf"(?m)^\s*-\s*['\"]?{re.escape(pattern)}['\"]?\s*$", text)
+    ]
+
+
+def _stores_namespace(run_name: str = "_chaos_engine_stores_index") -> dict:
+    import runpy
+
+    return runpy.run_path(str(Path(__file__).resolve().with_name("stores.py")), run_name=run_name)
+
+
+def mempalace_embedder_version(executable: str | None) -> str:
+    """MemPalace distribution version beside ``executable``; empty when unknown."""
+    if not executable:
+        return ""
+    try:
+        base = Path(executable).resolve().parent.parent
+    except OSError:
+        return ""
+    for pattern in ("lib/python*/site-packages/mempalace-*.dist-info", "Lib/site-packages/mempalace-*.dist-info"):
+        for match in sorted(base.glob(pattern)):
+            return match.name[len("mempalace-"):-len(".dist-info")]
+    return ""
+
+
+def read_mempalace_index_meta(palace: Path) -> dict | None:
+    """Recorded schema/embedder of the last completed mine; None for legacy markers."""
+    try:
+        text = (palace.parent / MEMPALACE_INDEX_META_NAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    try:
+        meta = json.loads(text)
+    except ValueError:
+        return None
+    return meta if isinstance(meta, dict) else None
+
+
+def adopt_relocated_mempalace_palace(project: Path) -> Path | None:
+    """Reuse a populated palace left at the other state location; copy, never move."""
+    stores = _stores_namespace("_chaos_engine_stores_relocate")
+    target = mempalace_project_palace(project)
+    if stores["palace_drawer_count"](target):
+        return None
+    for candidate in stores["palace_candidates"](project):
+        try:
+            if candidate.resolve() == target.resolve() or is_link_or_reparse(candidate):
+                continue
+        except OSError:
+            continue
+        if not stores["palace_drawer_count"](candidate):
+            continue
+        target.mkdir(parents=True, exist_ok=True)
+        for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal", "sqlite_exact.sqlite3-shm", ".mined"):
+            source = candidate / name
+            if source.is_file() and not is_link_or_reparse(source):
+                shutil.copy2(source, target / name)
+        meta = candidate.parent / MEMPALACE_INDEX_META_NAME
+        if meta.is_file() and not is_link_or_reparse(meta):
+            shutil.copy2(meta, target.parent / MEMPALACE_INDEX_META_NAME)
+        print(f"chaos-engine: MemPalace index reused from {candidate} (state location moved)",
+              file=sys.stderr)
+        return candidate
+    return None
+
+
+def mempalace_mine_decision(project: Path, command: list[str] | None = None,
+                            environ=None) -> tuple[str, str]:
+    """Return (``full``|``incremental``, reason) for the next project mine."""
+    environ = os.environ if environ is None else environ
+    # #7436: always merge owned harness excludes before deciding to mine, so a
+    # user-owned mempalace.yaml cannot leave .chaos-engine/** indexable.
+    apply_owned_mempalace_excludes(project)
+    if str(environ.get(MEMPALACE_FULL_ENV, "")).strip().lower() in {"1", "true", "yes", "full"}:
+        return "full", f"explicit request ({MEMPALACE_FULL_ENV})"
+    palace = mempalace_project_palace(project)
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        return "full", "index missing"
+    count = _stores_namespace("_chaos_engine_stores_decision")["palace_drawer_count"](palace)
+    if count is None:
+        return "full", "index unreadable or corrupt"
+    if count == 0:
+        return "full", "index empty"
+    meta = read_mempalace_index_meta(palace)
+    if meta is not None:
+        if meta.get("schema") != MEMPALACE_INDEX_SCHEMA:
+            return "full", f"index schema changed ({meta.get('schema')} -> {MEMPALACE_INDEX_SCHEMA})"
+        embedder = mempalace_embedder_version(command[0] if command else None)
+        if embedder and meta.get("embedder") and meta["embedder"] != embedder:
+            return "full", f"embedder changed ({meta['embedder']} -> {embedder})"
+    return "incremental", f"reusing index with {count} drawers; only changed files are mined"
+
+
+def set_aside_mempalace_index(project: Path) -> Path | None:
+    """Before a full mine, keep the old index beside the palace (never delete it)."""
+    palace = mempalace_project_palace(project)
+    present = [palace / name for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal",
+                                          "sqlite_exact.sqlite3-shm", ".mined")
+               if (palace / name).is_file() or (
+                   name == ".mined" and (palace / name).is_dir()
+               )]
+    if not present:
+        # L84: never leave empty previous-* dirs from a prior aborted repair.
+        _remove_empty_mempalace_previous(palace.parent)
+        return None
+    aside = palace.with_name(f"{palace.name}.previous-{time.strftime('%Y%m%d%H%M%S')}")
+    aside.mkdir(parents=True, exist_ok=False)
+    for path in present:
+        dest = aside / path.name
+        path.replace(dest)
+    # L84: if move left the aside empty, remove it; also prune other empty previous-* dirs.
+    try:
+        if aside.is_dir() and not any(aside.iterdir()):
+            aside.rmdir()
+            aside = None
+    except OSError:
+        # Best-effort cleanup; a busy aside must not fail the full mine.
+        pass
+    _remove_empty_mempalace_previous(palace.parent)
+    return aside
+
+
+def _remove_empty_mempalace_previous(parent: Path) -> list[str]:
+    """L84: delete empty mempalace.previous-* directories left by aborted repair."""
+    removed: list[str] = []
+    if not parent.is_dir():
+        return removed
+    for child in list(parent.iterdir()):
+        if not child.is_dir() or not child.name.startswith("mempalace.previous-"):
+            continue
+        try:
+            if not any(child.iterdir()):
+                child.rmdir()
+                removed.append(child.name)
+        except OSError:
+            # Skip unreadable previous-* dirs; doctor will still flag leftovers.
+            continue
+    return removed
+
+
+def apply_nested_repository_excludes(project: Path) -> list[str]:
+    """Keep nested repositories/worktrees out of the mine (installer-owned config only)."""
+    nested = _stores_namespace("_chaos_engine_stores_nested")["nested_repository_roots"](project)
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration) or not configuration.is_file():
+        return nested
+    text = configuration.read_text(encoding="utf-8")
+    # #7465: merge owned excludes first so nested marker updates can run on a complete list.
+    apply_owned_mempalace_excludes(project)
+    text = configuration.read_text(encoding="utf-8")
+    if missing_owned_mempalace_excludes(project):
+        if nested:
+            print("chaos-engine: mempalace.yaml still lacks owned exclude_patterns after merge; "
+                  "add exclude_patterns for nested repositories to keep them out of the index: "
+                  + ", ".join(f"{path}/**" for path in nested), file=sys.stderr)
+        return nested
+    lines = text.splitlines()
+    if MEMPALACE_NESTED_MARKER in lines:
+        start = lines.index(MEMPALACE_NESTED_MARKER)
+        end = start + 1
+        while end < len(lines) and lines[end].startswith("  - "):
+            end += 1
+        del lines[start:end]
+    else:
+        start = None
+    if nested:
+        block = [MEMPALACE_NESTED_MARKER, *(f"  - '{path}/**'" for path in nested)]
+        if start is None:
+            last = max(i for i, line in enumerate(lines)
+                       if line.startswith("  - ") and any(
+                           line.strip("- '\"") == pattern for pattern in MEMPALACE_OWNED_EXCLUDES))
+            start = last + 1
+            while start < len(lines) and lines[start].startswith("  - "):
+                start += 1
+        lines[start:start] = block
+    updated = "\n".join(lines) + "\n"
+    if updated != text:
+        configuration.write_text(updated, encoding="utf-8")
+    return nested
+
+
+def mempalace_exclude_patterns(project: Path) -> list[str]:
+    """Return the ``exclude_patterns`` list items of the project's mempalace.yaml."""
+    try:
+        text = (project.resolve() / "mempalace.yaml").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    block = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
+    if block is None:
+        return []
+    items = re.findall(r"(?m)^\s*-\s*['\"]?([^'\"#\n]+?)['\"]?\s*$", block.group(1))
+    return [item for item in items if item]
+
+
+def _exclude_regex(pattern: str) -> re.Pattern[str]:
+    """Translate a MemPalace glob (``**``, ``*``, ``?``) into an anchored regex."""
+    out, index = [], 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        else:
+            char = pattern[index]
+            out.append("[^/]*" if char == "*" else "[^/]" if char == "?" else re.escape(char))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def _foreign_repository_relative(project: Path, source: str) -> str | None:
+    """Map another checkout's absolute ``source_file`` onto this one, or None."""
+    namespace = _stores_namespace()
+    relative_fn = namespace.get("repository_relative")
+    roots_fn = namespace.get("registered_roots")
+    if not callable(relative_fn) or not callable(roots_fn):
+        return None
+    relative = relative_fn(source, roots_fn(project))
+    return relative if isinstance(relative, str) else None
+
+
+def _prunable_source(project: Path, source: str, patterns: list[re.Pattern[str]]) -> bool:
+    """True when a drawer source under ``project`` is deleted or now excluded."""
+    try:
+        relative = Path(source).resolve().relative_to(project).as_posix()
+    except (ValueError, OSError):
+        relative = _foreign_repository_relative(project, source)
+        if relative is None:
+            return False  # outside this repository: not ours to judge.
+        if not (project / relative).exists():
+            return True
+        return any(pattern.match(relative) for pattern in patterns)
+    if not Path(source).exists():
+        return True
+    return any(pattern.match(relative) for pattern in patterns)
+
+
+def prune_mempalace_drawers(project: Path) -> tuple[int, int]:
+    """Drop drawers whose source is deleted or now excluded, without a reindex (#7314).
+
+    ``mempalace sync`` ignores ``exclude_patterns``, and its per-id
+    ``DELETE FROM docs_fts WHERE doc_id=?`` scans the whole FTS table per row.
+    One transaction joins the doomed ids against ``docs_fts`` by rowid instead.
+    Returns ``(sources, drawers)`` removed.
+    """
+    project = project.resolve()
+    database = mempalace_project_palace(project) / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return 0, 0
+    patterns = [_exclude_regex(item) for item in mempalace_exclude_patterns(project)]
+    connection = sqlite3.connect(database, timeout=30)
+    try:
+        rows = connection.execute(
+            "SELECT DISTINCT json_extract(metadata_json, '$.source_file') FROM documents"
+        ).fetchall()
+        doomed = [row[0] for row in rows if row[0] and _prunable_source(project, row[0], patterns)]
+        if not doomed:
+            return 0, 0
+        with connection:
+            connection.execute("CREATE TEMP TABLE IF NOT EXISTS ce_prune_sources(source TEXT PRIMARY KEY)")
+            connection.execute("DELETE FROM ce_prune_sources")
+            connection.executemany("INSERT OR IGNORE INTO ce_prune_sources VALUES (?)",
+                                   [(item,) for item in doomed])
+            connection.execute(
+                "CREATE TEMP TABLE ce_prune_ids AS SELECT d.collection_id AS cid, d.id AS id "
+                "FROM documents d JOIN ce_prune_sources s "
+                "ON json_extract(d.metadata_json, '$.source_file') = s.source"
+            )
+            connection.execute("CREATE INDEX temp.ce_prune_ids_key ON ce_prune_ids(id, cid)")
+            connection.execute(
+                "DELETE FROM docs_fts WHERE rowid IN (SELECT f.rowid FROM docs_fts f "
+                "JOIN ce_prune_ids g ON f.doc_id = g.id AND f.collection_id = g.cid)"
+            )
+            removed = connection.execute(
+                "DELETE FROM documents WHERE (collection_id, id) IN (SELECT cid, id FROM ce_prune_ids)"
+            ).rowcount
+            connection.execute("DROP TABLE ce_prune_ids")
+        return len(doomed), removed
+    finally:
+        connection.close()
+
+
+def _prune_before_incremental_mine(project: Path) -> None:
+    """Best-effort prune so an incremental mine never keeps excluded drawers."""
+    try:
+        sources, drawers = prune_mempalace_drawers(project)
+    except (sqlite3.Error, OSError) as error:
+        print(f"chaos-engine: MemPalace prune skipped: {error}", file=sys.stderr)
+        return
+    if drawers:
+        print(f"chaos-engine: MemPalace pruned {drawers} drawers from {sources} "
+              "deleted or excluded sources", file=sys.stderr)
+
+
+def prune_after_install(project: Path) -> None:
+    """#7316: prune on a reuse install too, once an index exists (never mid full mine)."""
+    if mempalace_mine_decision(project)[0] == "incremental":
+        _prune_before_incremental_mine(project)
+
+
+def prepare_mempalace_mine(project: Path, command: list[str]) -> tuple[str, str]:
+    """Skip nested repos, pick full vs incremental, and log the mode and reason."""
+    nested = apply_nested_repository_excludes(project)
+    _LAST_MINE_EMBEDDER[str(project.resolve())] = mempalace_embedder_version(command[0] if command else None)
+    mode, reason = mempalace_mine_decision(project, command)
+    if mode == "full":
+        aside = set_aside_mempalace_index(project)
+        if aside is not None:
+            reason += f"; previous index kept at {aside}"
+    else:
+        _prune_before_incremental_mine(project)
+    print(f"chaos-engine: MemPalace index mode={mode} reason={reason}", file=sys.stderr)
+    if nested:
+        print(f"chaos-engine: MemPalace skips {len(nested)} nested repositories: "
+              + ", ".join(nested), file=sys.stderr)
+    return mode, reason
+
+
+def mark_mempalace_project_setup(project: Path, embedder: str | None = None) -> None:
+    """Mark only a successful sqlite_exact project setup as mined."""
+    palace = prepare_mempalace_project_target(project)
+    (palace / ".mined").write_bytes(b"current\n")
+    if embedder is None:
+        embedder = _LAST_MINE_EMBEDDER.get(str(project.resolve()), "")
+    meta = {"schema": MEMPALACE_INDEX_SCHEMA, "embedder": embedder}
+    (palace.parent / MEMPALACE_INDEX_META_NAME).write_text(json.dumps(meta, sort_keys=True) + "\n",
+                                                    encoding="utf-8")
+
+
+def mempalace_index_paths(project: Path) -> tuple[Path, Path]:
+    """Return the background index status and log beside (never inside) the palace."""
+    parent = mempalace_project_palace(project).parent
+    return parent / MEMPALACE_INDEX_STATUS_NAME, parent / MEMPALACE_INDEX_LOG_NAME
+
+
+def mempalace_mine_mode(environ=None) -> str:
+    """Return background (default) or the explicit foreground override."""
+    value = (os.environ if environ is None else environ).get(MEMPALACE_MINE_MODE_ENV, "")
+    return "foreground" if value.strip().casefold() == "foreground" else "background"
+
+
+def _process_alive(pid: int) -> bool:
+    """Probe a pid without signalling it (Windows os.kill would terminate it)."""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        code = ctypes.wintypes.DWORD(0)
+        try:
+            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        finally:
+            kernel32.CloseHandle(handle)
+        return bool(ok) and code.value == 259
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _write_index_status(project: Path, document: dict[str, object]) -> None:
+    status_path, _log = mempalace_index_paths(project)
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    scratch = status_path.with_name(f".{status_path.name}.{os.getpid()}.tmp")
+    scratch.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="utf-8")
+    scratch.replace(status_path)
+
+
+def _index_document(state: str, command: list[str], **extra: object) -> dict[str, object]:
+    document: dict[str, object] = {
+        "schemaVersion": 1,
+        "status": state,
+        "command": list(command),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    document.update(extra)
+    return document
+
+
+def _rerun_hint(command: object) -> str:
+    if isinstance(command, list) and all(isinstance(part, str) for part in command):
+        return (
+            "rerun the ChaosEngine installer (the mine resumes incrementally) or run: "
+            + shlex.join(command)
+        )
+    return "rerun the ChaosEngine installer; the mine resumes incrementally"
+
+
+def mempalace_index_status(project: Path, *, alive=None) -> dict[str, object] | None:
+    """Classify the background initial mine for doctor: running/complete/failed/interrupted."""
+    status_path, log_path = mempalace_index_paths(project)
+    try:
+        document = json.loads(status_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    state = document.get("status")
+    command = document.get("command")
+    if state == "complete":
+        return {"status": "complete", "detail": "MemPalace initial index complete"}
+    if state == "running":
+        pid = document.get("pid")
+        probe = _process_alive if alive is None else alive
+        if not isinstance(pid, int) or probe(pid):
+            return {
+                "status": "running",
+                "detail": (
+                    "MemPalace initial index running in background; "
+                    "retrieval is partial until it finishes"
+                ),
+                "fixNext": f"no action needed; runner log: {log_path}",
+            }
+        return {
+            "status": "interrupted",
+            "detail": "MemPalace initial index stopped before finishing",
+            "fixNext": _rerun_hint(command),
+        }
+    detail = document.get("detail")
+    return {
+        "status": "failed",
+        "detail": "MemPalace initial index failed"
+        + (f": {detail}" if isinstance(detail, str) and detail else ""),
+        "fixNext": _rerun_hint(command),
+    }
+
+
+def start_background_mempalace_mine(
+    command: list[str], project: Path, *, extra_environment: dict[str, str] | None = None,
+    spawner=subprocess.Popen,
+) -> None:
+    """Prepare the exact palace, then detach the incremental mine from install."""
+    prepare_mempalace_mine(project, command)
+    prepare_mempalace_project_target(project)
+    _status_path, log_path = mempalace_index_paths(project)
+    _write_index_status(project, _index_document("running", command, log=str(log_path)))
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment.update(extra_environment or {})
+    argv = [sys.executable, str(Path(__file__).resolve()), MEMPALACE_INDEX_SUBCOMMAND,
+            str(project.resolve()), "--", *command]
+    options: dict[str, object] = {"cwd": str(project), "env": environment,
+                                  "stdin": subprocess.DEVNULL, "stderr": subprocess.STDOUT,
+                                  "close_fds": True}
+    if os.name == "nt":
+        options["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
+    else:
+        options["start_new_session"] = True
+    with open(log_path, "ab") as log:
+        spawner(argv, stdout=log, **options)  # nosec B603 - fixed list-form argv.
+    print(f"chaos-engine: MemPalace index running in the background; progress: {log_path}",
+          file=sys.stderr)
+
+
+def run_mempalace_index(project: Path, command: list[str], *, runner=subprocess.run) -> int:
+    """Detached runner body: mine incrementally, then record complete or failed."""
+    _status_path, log_path = mempalace_index_paths(project)
+    _write_index_status(
+        project, _index_document("running", command, pid=os.getpid(), log=str(log_path))
+    )
+    try:
+        started = time.monotonic()
+        print(f"chaos-engine: MemPalace index started: {' '.join(command)}", flush=True)
+        _run_transient_mempalace_mine(command, project, runner=runner, announce=False)
+        mark_mempalace_project_setup(project, mempalace_embedder_version(command[0]))
+        print(f"chaos-engine: MemPalace index complete in {time.monotonic() - started:.0f}s",
+              flush=True)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        _write_index_status(project, _index_document("failed", command, detail=str(error)[:400]))
+        return 1
+    _write_index_status(project, _index_document("complete", command))
+    return 0
+
+
+def mempalace_index_entry(argv: list[str]) -> int:
+    """``dependencies.py mempalace-index <project> -- <mine argv>``."""
+    if len(argv) < 4 or argv[0] != MEMPALACE_INDEX_SUBCOMMAND or argv[2] != "--":
+        print("usage: dependencies.py mempalace-index <project> -- <command>", file=sys.stderr)
+        return 2
+    return run_mempalace_index(Path(argv[1]), argv[3:])
+
+
+def detected_package_provider(system: str | None = None, *, which=shutil.which) -> str:
+    selected = system or ("windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux")
+    candidates = {
+        "windows": ("winget",),
+        "macos": ("brew",),
+        "linux": ("apt-get", "dnf"),
+    }.get(selected, ())
+    for command in candidates:
+        if which(command):
+            return "apt" if command == "apt-get" else command
+    raise RuntimeError(f"no supported {selected} package provider was detected")
+
+
+def require_user_writable_npm_prefix(
+    npm: str, project: Path, *, runner=subprocess.run
+) -> Path:
+    """Use npm's current writable prefix or configure the standard account prefix."""
+    result = _run_account_command([npm, "config", "get", "prefix"], project, runner=runner)
+    prefix = Path((result.stdout or "").strip()).expanduser()
+    if prefix.is_dir() and os.access(prefix, os.W_OK):
+        return prefix.resolve()
+    prefix = Path.home() / ".local"
+    prefix.mkdir(parents=True, exist_ok=True)
+    _run_account_command(
+        [npm, "config", "set", "prefix", str(prefix)], project, runner=runner
+    )
+    return prefix.resolve()
+
+
+def _run_account_command(
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
+    timeout: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
+    which=shutil.which,
+    stdin=None,
+) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    search_path = _account_search_path()
+    environment["PATH"] = search_path
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    if extra_environment:
+        environment.update(extra_environment)
+    if not command:
+        raise ValueError("dependency command is empty")
+    resolved = list(command)
+    try:
+        resolved[0] = resolve_account_launcher(
+            command[0], which=which, search_path=search_path
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError(missing_executable_diagnostic(command[0], error)) from error
+    run_kwargs: dict[str, object] = {
+        "cwd": project,
+        "env": environment,
+        "capture_output": True,
+        "text": True,
+        "check": False,
+        "timeout": timeout,
+    }
+    if stdin is not None:
+        run_kwargs["stdin"] = stdin
+    try:
+        result = runner(resolved, **run_kwargs)
+    except FileNotFoundError as error:
+        raise RuntimeError(missing_executable_diagnostic(resolved[0], error)) from error
+    except OSError as error:
+        if getattr(error, "winerror", None) == 2 or error.errno in {errno.ENOENT, None}:
+            if getattr(error, "winerror", None) == 2 or error.errno == errno.ENOENT:
+                raise RuntimeError(
+                    missing_executable_diagnostic(resolved[0], error)
+                ) from error
+        raise
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "no process output").strip()
+        raise _AccountCommandError(
+            f"dependency command failed: {Path(resolved[0]).name}: {_bounded_failure_detail(detail)}",
+            stderr=str(result.stderr or ""),
+            stdout=str(result.stdout or ""),
+        )
+    return result
+
+
+def _bounded_failure_detail(detail: str, limit: int = 500) -> str:
+    """Bound public error text; keep the tail so the real failure is not masked."""
+    if len(detail) <= limit:
+        return detail
+    return detail[-limit:]
+
+
+class _AccountCommandError(RuntimeError):
+    """Keep full process streams private while presenting a bounded error."""
+
+    def __init__(self, message: str, *, stderr: str, stdout: str) -> None:
+        super().__init__(message)
+        self.stderr = stderr
+        self.stdout = stdout
+        self.full_output = f"{stderr}\n{stdout}"
+
+
+def account_host_probes(local: dict[str, dict[str, object]]) -> list[dict[str, str]]:
+    """Probe facts for the provision decision. A Store stub and a miss stay in the list."""
+    probes: list[dict[str, str]] = []
+    for name, record in local.items():
+        if not isinstance(record, dict):
+            continue
+        raw_path = record.get("executable")
+        path = raw_path if isinstance(raw_path, str) else ""
+        kind = record.get("probeKind")
+        if kind in {"store-stub", "missing"}:
+            probes.append({"name": name, "path": path, "kind": str(kind)})
+            continue
+        if not path:
+            continue
+        if kind != "real":
+            kind = executable_probe_kind(path)
+        probes.append({"name": name, "path": path, "kind": str(kind)})
+    return probes
+
+
+def launcher_name(command: str) -> str:
+    """Last path segment, whether the host writes ``\\`` or ``/``."""
+    normalized = str(command).replace("\\", "/")
+    return normalized.rsplit("/", 1)[-1]
+
+
+def executable_probe_kind(path: str | None) -> str:
+    """Classify one launcher path. A Store alias and a missing path are equally unusable.
+
+    POSIX ``which`` already returns nothing for a missing binary. Windows
+    ``which`` returns the ``WindowsApps`` app-execution alias, which is not an
+    interpreter. Callers treat both kinds with one rule.
+    """
+    if path is None or not str(path).strip():
+        return "missing"
+    folded = str(path).replace("/", "\\").casefold()
+    if "\\windowsapps\\" in folded:
+        return "store-stub"
+    return "real"
+
+
+_CORPUS_EMPTY_MARKERS = ("graph is empty", "extraction produced no nodes")
+_UNUSABLE_LAUNCH_MARKERS = (
+    "microsoft store",
+    "windowsapps",
+    "not recognized as an internal or external command",
+    "no such file or directory",
+    "cannot find the file",
+    "the system cannot find",
+    "winerror 2",
+)
+
+
+def _probe_kind_for_launcher(
+    command: list[str], probes: list[dict[str, str]] | None
+) -> str | None:
+    """Kind of this command's own launcher. A sibling tool's probe does not match."""
+    if not command:
+        return None
+    launched = launcher_name(command[0]).casefold()
+    stem = launched[:-4] if launched.endswith(".exe") else launched
+    for item in probes or []:
+        if not isinstance(item, dict):
+            continue
+        labels: list[str] = []
+        path = item.get("path")
+        path_label = launcher_name(path) if isinstance(path, str) and path else ""
+        for raw in (item.get("name"), path_label):
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            folded = raw.casefold()
+            labels.append(folded)
+            if folded.endswith(".exe"):
+                labels.append(folded[:-4])
+        if launched in labels or stem in labels:
+            kind = item.get("kind")
+            if kind in {"real", "store-stub", "missing"}:
+                return str(kind)
+    return None
+
+
+def decide_provision_child(
+    *,
+    command: list[str],
+    returncode: int,
+    stdout: str,
+    stderr: str,
+    probes: list[dict[str, str]] | None = None,
+) -> tuple[str, str]:
+    """Decide whether one provision child failed for a real reason.
+
+    ``continue`` is the false failure: graphify had nothing to index, or
+    graphify's own launcher is a Windows Store stub or a POSIX missing binary
+    and the child never started a real extract. A sibling probe does not absorb
+    a real extract diagnostic. ``fail`` keeps the child text so the install
+    report is not only ``CE-INSTALL-FAILED``.
+    """
+    reason = ((stderr or "").strip() or (stdout or "").strip())[:500]
+    name = launcher_name(command[0]) if command else "command"
+    graphify_setup = (
+        bool(command)
+        and name.casefold() in {"graphify", "graphify.exe"}
+        and len(command) >= 2
+        and command[1] in GRAPHIFY_ABSORBED_SUBCOMMANDS
+    )
+    if returncode == 0:
+        return "ok", reason
+    folded = reason.casefold()
+    if graphify_setup and any(marker in folded for marker in _CORPUS_EMPTY_MARKERS):
+        return "continue", reason
+    launcher_kind = _probe_kind_for_launcher(command, probes)
+    if graphify_setup and launcher_kind in {"store-stub", "missing"} and (
+        not reason or any(marker in folded for marker in _UNUSABLE_LAUNCH_MARKERS)
+    ):
+        return "continue", reason or f"executable probe is unusable for {name}"
+    detail = reason or "no process output"
+    return "fail", f"dependency command failed: {name}: {detail}"
+
+
+
+def run_until_stalled(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+    """Run without a wall-clock cap; stores.py stops it only when it stalls (#6377)."""
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location(
+        "chaos_engine_stores_watchdog", Path(__file__).with_name("stores.py")
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("stores.py watchdog is unavailable")
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.run_until_stalled(args, **kwargs)
+
+
+def _run_transient_mempalace_mine(
+    command: list[str], project: Path, *, runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
+    budget: float = float("inf"),
+    announce: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    """Mine with no wall-clock cap (stall watchdog, #6377); retry a transient TLS EOF."""
+    if announce:
+        prepare_mempalace_mine(project, command)
+    if runner is subprocess.run:
+        runner = run_until_stalled
+    elif getattr(runner, "inner", None) is subprocess.run and callable(getattr(runner, "rewrap", None)):
+        runner = runner.rewrap(run_until_stalled)
+    deadline = time.monotonic() + budget
+    for attempt in range(3):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError("MemPalace setup retry budget exhausted")
+        try:
+            return _run_account_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+                # subprocess cannot wait on float("inf"); None means no wall-clock cap.
+                timeout=remaining if math.isfinite(remaining) else None,
+            )
+        except _AccountCommandError as error:
+            if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in error.full_output.upper():
+                raise
+            delay = (1, 2)[attempt]
+            if deadline - time.monotonic() <= delay:
+                raise
+            time.sleep(delay)
+    raise AssertionError("bounded MemPalace retry did not return or raise")
+
+
+
+GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT = "graphify-empty-output-after-version"
+GRAPHIFY_ABSORBED_SUBCOMMANDS = frozenset({"extract", "install"})
+
+
+def is_graphify_empty_output(command: list[str], error: BaseException) -> bool:
+    """#6166 classifier: graphify(.exe) extract/install exited non-zero with empty streams."""
+    if not command:
+        return False
+    name = Path(command[0]).name.casefold()
+    return (
+        name in {"graphify", "graphify.exe"}
+        and len(command) >= 2
+        and command[1] in GRAPHIFY_ABSORBED_SUBCOMMANDS
+        and "no process output" in str(error)
+    )
+
+
+def record_known_flake(fingerprint: str, *, environ=None) -> str:
+    """Emit one fingerprint line (stderr + GitHub job summary) so babysitters skip full logs."""
+    environ = os.environ if environ is None else environ
+    line = f"chaos-engine: known flake absorbed: {fingerprint} (#6166)"
+    print(line, file=sys.stderr)
+    summary = environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        try:
+            with open(summary, "a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+        except OSError:
+            return line
+    return line
+
+
+def _run_project_setup_command(
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    extra_environment: dict[str, str] | None = None,
+    stdin=None,
+    host_probes: list[dict[str, str]] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run one project-setup command.
+
+    Windows reupgrade can launch graphify.exe for ``extract`` or
+    ``install --platform agents`` and get a non-zero exit with empty streams
+    even though ``--version`` still works (#6127, #6166). Retry once (after
+    clearing a partial graphify-out for ``extract``, including a shared
+    ``--out`` target). If the launcher is still healthy, keep the upgrade
+    moving and emit the ``graphify-empty-output-after-version`` fingerprint;
+    graphify output is derived data. A non-zero exit that prints a diagnostic
+    stays red, and that diagnostic is the child reason (#6934). An empty
+    corpus and an unusable graphify launcher (Store stub or missing binary)
+    are the same false failure on every host and do not abort provision.
+    A sibling tool's probe does not absorb a real extract diagnostic.
+    """
+    try:
+        return _run_account_command(
+            command,
+            project,
+            runner=runner,
+            extra_environment=extra_environment,
+            stdin=stdin,
+        )
+    except _AccountCommandError as error:
+        decision, detail = decide_provision_child(
+            command=command,
+            returncode=1,
+            stdout=error.stdout,
+            stderr=error.stderr,
+            probes=host_probes,
+        )
+        if decision == "continue":
+            print(f"chaos-engine: graphify setup continued: {detail}", file=sys.stderr)
+            return subprocess.CompletedProcess(command, 0, error.stdout, error.stderr)
+        if not is_graphify_empty_output(command, error):
+            raise
+        partial = project / "graphify-out"
+        if "--out" in command:
+            try:
+                out_parent = Path(command[command.index("--out") + 1])
+            except (ValueError, IndexError):
+                out_parent = None
+            if out_parent is not None:
+                partial = out_parent / "graphify-out"
+        if (
+            command[1] == "extract"
+            and partial.exists()
+            and not (partial / "graph.json").is_file()
+        ):
+            shutil.rmtree(partial, ignore_errors=True)
+        try:
+            return _run_account_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+                stdin=stdin,
+            )
+        except _AccountCommandError as retry_error:
+            if "no process output" not in str(retry_error):
+                raise
+            version = _run_account_command(
+                [command[0], "--version"],
+                project,
+                runner=runner,
+                extra_environment=extra_environment,
+            )
+            if version.returncode != 0:
+                raise retry_error
+            record_known_flake(GRAPHIFY_EMPTY_OUTPUT_FINGERPRINT)
+            return version
+
+
+
+
+def _run_account_mempalace_setup(
+    project: Path,
+    commands: dict[str, str],
+    *,
+    runner,
+    local: dict[str, dict[str, object]],
+    background_mine: bool,
+    mine_spawner,
+) -> None:
+    """Init/mine project palace; merge owned excludes (#7465)."""
+    user_configuration = mempalace_project_configuration_exists(project)
+    for command in project_setup_plan(project, commands):
+        environment = mempalace_project_setup_environment(project, command)
+        if command[0] == commands.get("memory") and command[1:2] == ["init"]:
+            environment.update(memory_init_environment(project))
+        action = mempalace_project_setup_action(command)
+        # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
+        stdin = subprocess.DEVNULL if action == "init" else None
+        if action == "mine" and background_mine:
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            start_background_mempalace_mine(
+                command, project, extra_environment=environment,
+                spawner=mine_spawner or subprocess.Popen,
+            )
+            continue
+        if action == "mine":
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            _run_transient_mempalace_mine(
+                command, project, runner=runner, extra_environment=environment
+            )
+        else:
+            _run_project_setup_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=environment,
+                stdin=stdin,
+                host_probes=account_host_probes(local),
+            )
+        if action in {"init", "mine"}:
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            mark_mempalace_project_setup(project)
+
+
+def _reprobe_managed_account_runtimes(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    prerequisite_actions: dict[str, str],
+    selected_system: str,
+    *,
+    runner,
+    opener,
+    which=shutil.which,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Install exact java/node and re-probe after non-reused prerequisite installs."""
+    managed_python = None
+    if prerequisite_actions["python"] != "reused":
+        uv_command = commands.get("uv", "uv")
+        found = _run_account_command(
+            [uv_command, "python", "find", str(actions["python"]["resolvedVersion"])],
+            project,
+            runner=runner,
+        )
+        candidate = Path((found.stdout or "").strip()).resolve()
+        if not candidate.is_file():
+            raise RuntimeError("latest stable Python executable was not found after installation")
+        managed_python = str(candidate)
+    managed_java = None
+    if prerequisite_actions["java"] != "reused":
+        managed_java = install_exact_java(
+            str(actions["java"].get("resolvedVersion") or ""),
+            system=selected_system,
+            opener=opener,
+        )
+    managed_node = None
+    if prerequisite_actions["node"] != "reused":
+        managed_node = install_exact_node(
+            str(actions["node"].get("resolvedVersion") or ""),
+            system=selected_system,
+            opener=opener,
+        )
+        commands.pop("node", None)
+    local, commands = discover_account_commands(
+        specification, preferred_commands=commands, which=which, runner=runner
+    )
+    if managed_python is not None:
+        python_contract = specification["dependencies"]["python"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "python", managed_python, python_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["python"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_python,
+            "siblings": {"python3": managed_python},
+        }
+        commands["python3"] = managed_python
+    if managed_java is not None:
+        java_contract = specification["dependencies"]["java"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "java", managed_java, java_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["java"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_java,
+            "siblings": {"java": managed_java},
+        }
+        commands["java"] = managed_java
+    if managed_node is not None:
+        node_root = Path(managed_node).parent if selected_system == "windows" else Path(managed_node).parent.parent
+        managed_npm = node_root / ("npm.cmd" if selected_system == "windows" else "bin/npm")
+        managed_npx = node_root / ("npx.cmd" if selected_system == "windows" else "bin/npx")
+        if not managed_npm.is_file() or not managed_npx.is_file():
+            raise RuntimeError("latest stable Node sibling executables are incomplete")
+        node_contract = specification["dependencies"]["node"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["node"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_node,
+            "siblings": {
+                "node": managed_node,
+                "npm": str(managed_npm.resolve()),
+                "npx": str(managed_npx.resolve()),
+            },
+        }
+        commands.update(
+            node=managed_node,
+            npm=str(managed_npm.resolve()),
+            npx=str(managed_npx.resolve()),
+        )
+    missing = [
+        name for name in ("uv", "python", "node", "java")
+        if local.get(name, {}).get("healthy") is not True
+    ]
+    if missing:
+        raise RuntimeError(
+            "dependency prerequisite verification failed: " + ", ".join(missing)
+        )
+
+    return local, commands
+
+def _install_non_reused_account_prerequisites(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    prerequisite_actions: dict[str, str],
+    selected_system: str,
+    *,
+    runner,
+    which,
+    opener,
+    provider: str | None,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Download and bind uv/python/node/java when account actions require it."""
+    selected_provider = provider or ""
+    prerequisite_commands = prerequisite_command_plan(
+        selected_system,
+        selected_provider,
+        prerequisite_actions,
+        node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
+        node_version=str(actions["node"].get("resolvedVersion") or ""),
+        python_version=str(actions["python"].get("resolvedVersion") or ""),
+        uv_version=str(actions["uv"].get("resolvedVersion") or ""),
+        which=which,
+    )
+    for name in ("uv", "python", "node", "java"):
+        if name == "python" and prerequisite_actions["python"] != "reused":
+            prerequisite_actions["python"], prerequisite_commands["python"] = (
+                plan_downloadable_python(
+                    actions["python"], specification, commands.get("uv", "uv"),
+                    project, runner=runner,
+                )
+            )
+        for command in prerequisite_commands[name]:
+            if command[0] == "uv" and commands.get("uv"):
+                command = [commands["uv"], *command[1:]]
+            _run_account_command(command, project, runner=runner)
+        if name == "uv" and prerequisite_actions["uv"] != "reused":
+            selected_uv = which("uv", path=_account_search_path())
+            if not selected_uv:
+                raise RuntimeError("latest stable uv executable was not found after installation")
+            commands["uv"] = str(Path(selected_uv).resolve())
+    return _reprobe_managed_account_runtimes(
+        project,
+        specification,
+        actions,
+        commands,
+        local,
+        prerequisite_actions,
+        selected_system,
+        runner=runner,
+        opener=opener,
+        which=which,
+    )
+
+
+
+def _ensure_account_prerequisites(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    *,
+    runner,
+    which,
+    opener,
+    system: str | None,
+    provider: str | None,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Install uv/python/node/java when the account action is not reused."""
+    selected_system = system or (
+        "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    )
+    prerequisite_actions = {
+        name: str(actions[name]["action"])
+        for name in ("uv", "python", "node", "java")
+    }
+    if any(value != "reused" for value in prerequisite_actions.values()):
+        local, commands = _install_non_reused_account_prerequisites(
+            project,
+            specification,
+            actions,
+            commands,
+            local,
+            prerequisite_actions,
+            selected_system,
+            runner=runner,
+            which=which,
+            opener=opener,
+            provider=provider,
+        )
+    return local, commands
+
+
+def install_account_dependencies(  # noqa: MC0001 - preflight then ordered account mutation.
+    project: Path,
+    specification: dict[str, object],
+    *,
+    runner=subprocess.run,
+    opener=urllib.request.urlopen,
+    which=shutil.which,
+    system: str | None = None,
+    provider: str | None = None,
+    allow_root: bool = False,
+    now: datetime | None = None,
+    mine_spawner=None,
+    background_mine_allowed: bool = True,
+) -> dict[str, object]:
+    """Install/upgrade required tools for the invoking account, then initialize cwd."""
+    project = project.resolve()
+    validate_runtime_specification(specification)
+    if os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() == 0 and not allow_root:
+        raise RuntimeError("ChaosEngine installer must not run as root")
+    prior_commands: dict[str, str] = {}
+    try:
+        prior_receipt = read_account_receipt(project)
+        prior = prior_receipt.get("commands")
+        if isinstance(prior, dict):
+            prior_commands = {
+                name: command for name, command in prior.items()
+                if isinstance(name, str) and isinstance(command, str)
+            }
+    except ValueError:
+        pass  # no usable account receipt yet; discover commands from the environment
+    local, commands = discover_account_commands(
+        specification, preferred_commands=prior_commands, which=which, runner=runner
+    )
+    actions = resolve_account_actions(
+        specification, local, opener=opener
+    )
+    blocked = describe_blocked_dependencies(actions)
+    if blocked:
+        raise RuntimeError("dependency setup blocked: " + blocked)
+
+    local, commands = _ensure_account_prerequisites(
+        project,
+        specification,
+        actions,
+        commands,
+        local,
+        runner=runner,
+        which=which,
+        opener=opener,
+        system=system,
+        provider=provider,
+    )
+
+    tool_actions = {
+        name: str(actions[name]["action"])
+        for name in ("mempalace", "graphify", "memory", "context7")
+    }
+    if "uv" not in commands or "npm" not in commands:
+        raise RuntimeError("dependency prerequisite siblings are incomplete")
+    if any(value in {"installed", "upgraded", "repaired"} for value in (
+        tool_actions["memory"], tool_actions["context7"]
+    )):
+        require_user_writable_npm_prefix(commands["npm"], project, runner=runner)
+    for name, planned in account_tool_plan(
+        project,
+        specification,
+        actions=tool_actions,
+        executables={"uv": commands["uv"], "npm": commands["npm"]},
+        resolved_versions={
+            name: actions[name].get("resolvedVersion")
+            if isinstance(actions[name].get("resolvedVersion"), str) else None
+            for name in (*tool_actions, "python")
+        },
+    ).items():
+        for command in planned:
+            if is_uv_tool_install_command(command):
+                run_uv_tool_install_with_lock(command, project, runner=runner)
+            else:
+                _run_account_command(command, project, runner=runner)
+
+    local, commands = discover_account_commands(
+        specification, preferred_commands=commands, which=which, runner=runner
+    )
+    unhealthy = [
+        name
+        for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        if local.get(name, {}).get("healthy") is not True
+    ]
+    if unhealthy:
+        raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
+    # An injected runner without mine_spawner keeps the mine synchronous.
+    # install.py wraps subprocess.run for tracing (``.inner``); unwrap before deciding.
+    # Upgrades snapshot MemPalace state for rollback, so the mine must finish first.
+    background_mine = background_mine_allowed and mempalace_mine_mode() == "background" and (
+        mine_spawner is not None
+        or runner is subprocess.run
+        or getattr(runner, "inner", None) is subprocess.run
+    )
+    _run_account_mempalace_setup(
+        project,
+        commands,
+        runner=runner,
+        local=local,
+        background_mine=background_mine,
+        mine_spawner=mine_spawner,
+    )
+
+    final_components = select_account_receipt_components(project, actions, local)
+    return write_account_receipt(
+        project,
+        final_components,
+        account_receipt_commands(final_components, commands),
+        now=now,
+    )
+
+
+def platform_key(*, system: str | None = None, machine: str | None = None) -> str:
+    systems = {"windows": "windows", "linux": "linux", "darwin": "macos", "macos": "macos"}
+    machines = {"x86_64": "x64", "amd64": "x64", "x64": "x64", "aarch64": "arm64", "arm64": "arm64"}
+    system_name = systems.get((system or platform.system()).casefold())
+    machine_name = machines.get((machine or platform.machine()).casefold())
+    key = f"{system_name}-{machine_name}"
+    if system_name is None or machine_name is None or key not in SUPPORTED_PLATFORMS:
+        raise ValueError(f"unsupported platform: {system or platform.system()}/{machine or platform.machine()}")
+    return key
+
+
+def select_runtime_artifact(
+    specification: dict[str, object], runtime: str, *, system: str | None = None,
+    machine: str | None = None,
+) -> dict[str, object]:
+    runtimes = specification.get("runtimes")
+    selected = runtimes.get(runtime) if isinstance(runtimes, dict) else None
+    artifacts = selected.get("artifacts") if isinstance(selected, dict) else None
+    artifact = artifacts.get(platform_key(system=system, machine=machine)) if isinstance(artifacts, dict) else None
+    if not isinstance(artifact, dict):
+        raise ValueError(f"runtime artifact is missing: {runtime}")
+    url, digest = artifact.get("url"), artifact.get("sha256")
+    if not isinstance(url, str) or not url.startswith("https://") or not isinstance(digest, str) or HEX_DIGEST.fullmatch(digest) is None:
+        raise ValueError(f"runtime artifact is invalid: {runtime}")
+    return dict(artifact)
+
+
+def _pinned_package_identity(package: object) -> tuple[str, str] | None:
+    """Return (name, version) for a uv ``name==version`` or npm ``name@version`` pin."""
+    if not isinstance(package, str) or not package or any(character.isspace() for character in package):
+        return None
+    if "==" in package:
+        name, version = package.split("==", 1)
+    elif package.startswith("@") and package.count("@") >= 2:
+        name, version = package.rsplit("@", 1)
+    elif "@" in package and not package.startswith("@"):
+        name, version = package.rsplit("@", 1)
+    else:
+        return None
+    if not name or not version:
+        return None
+    return name, version
+
+
+def _schema3_tools_match(tools: dict[str, object]) -> bool:
+    """Same tool set, commands, and extras. Package versions may move; names may not."""
+    if set(tools) != set(SCHEMA3_TOOLS):
+        return False
+    for name, expected in SCHEMA3_TOOLS.items():
+        actual = tools.get(name)
+        if not isinstance(actual, dict) or set(actual) != set(expected):
+            return False
+        for key, value in expected.items():
+            if key == "package":
+                expected_identity = _pinned_package_identity(value)
+                actual_identity = _pinned_package_identity(actual.get("package"))
+                if (
+                    expected_identity is None
+                    or actual_identity is None
+                    or expected_identity[0] != actual_identity[0]
+                ):
+                    return False
+                continue
+            if actual.get(key) != value:
+                return False
+    return True
+
+
+def validate_runtime_specification(specification: dict[str, object]) -> None:
+    if specification.get("schemaVersion") not in {2, 3}:
+        raise ValueError("dependency specification schema is unsupported")
+    if specification.get("schemaVersion") == 3:
+        dependencies = specification.get("dependencies")
+        tools = specification.get("tools")
+        if not isinstance(dependencies, dict) or not {
+            "uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7",
+            "maven-tools-mcp",
+        } <= set(dependencies):
+            raise ValueError("account dependency specification is invalid")
+        if not isinstance(tools, dict):
+            raise ValueError("tool dependency specification is invalid")
+        if not _schema3_tools_match(tools):
+            raise ValueError("tool dependency specification is not the exact schema v3 contract")
+        for name, contract in dependencies.items():
+            if (
+                not isinstance(contract, dict)
+                or not isinstance(contract.get("minimumVersion"), str)
+                or not isinstance(contract.get("provider"), str)
+                or not isinstance(contract.get("stableChannel"), str)
+                or not isinstance(contract.get("executables"), list)
+                or not isinstance(contract.get("probe"), list)
+            ):
+                raise ValueError(f"account dependency specification is invalid: {name}")
+        return
+    runtimes = specification.get("runtimes")
+    if not isinstance(runtimes, dict):
+        raise ValueError("dependency runtime specification is invalid")
+    for name in ("uv", "node", "temurin"):
+        runtime = runtimes.get(name)
+        artifacts = runtime.get("artifacts") if isinstance(runtime, dict) else None
+        if not isinstance(artifacts, dict) or set(artifacts) != set(SUPPORTED_PLATFORMS):
+            raise ValueError(f"dependency runtime artifact matrix is invalid: {name}")
+        for key in SUPPORTED_PLATFORMS:
+            select_runtime_artifact(
+                specification, name, system=key.split("-")[0], machine=key.split("-")[1]
+            )
+    platform_key()
+
+
+def owned_node(root: Path) -> Path:
+    return root / ("node/node.exe" if os.name == "nt" else "node/bin/node")
+
+
+def memory_javascript(root: Path, name: str) -> Path:
+    suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+    return root / f"npm/node_modules/@aictx/memory/{suffix}"
+
+
+def require_javascript_entrypoint(path: Path, relative: str) -> None:
+    posix = relative.replace("\\", "/")
+    name = Path(posix).name.casefold()
+    if "node_modules/.bin/" in posix or name.endswith((".cmd", ".ps1")):
+        raise ValueError(f"dependency entrypoint is an npm launcher shim: {relative}")
+    if not posix.endswith(".js"):
+        raise ValueError(f"dependency entrypoint is not JavaScript: {relative}")
+    try:
+        head = path.read_bytes()[:64]
+    except OSError as error:
+        raise ValueError(f"dependency entrypoint is unreadable: {relative}") from error
+    shebang = head.split(b"\n", 1)[0]
+    if head.startswith(b"#!") and b"node" not in shebang.lower():
+        raise ValueError(f"dependency entrypoint is a POSIX shim: {relative}")
+
+
+def node_dispatch(generation: Path, script: Path) -> dict[str, object]:
+    node = owned_node(generation)
+    relative = script.relative_to(generation).as_posix()
+    require_javascript_entrypoint(script, relative)
+    return {
+        "kind": "node",
+        "executable": node.relative_to(generation).as_posix(),
+        "executableSha256": sha256(node),
+        "executableSize": node.stat().st_size,
+        "script": relative,
+        "scriptSha256": sha256(script),
+        "scriptSize": script.stat().st_size,
+    }
+
+
+def download_cache_root() -> Path:
+    """Return the user-level, project-independent artifact cache keyed by sha256 (#6416)."""
+    override = os.environ.get("CHAOS_ENGINE_CACHE_DIR")
+    if override:
+        base = Path(override)
+    elif os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local") / "chaos-engine"
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Caches/chaos-engine"
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "chaos-engine"
+    return base / "downloads"
+
+
+def download_cache_status() -> dict[str, object]:
+    """Report the shared download cache size."""
+    root = download_cache_root()
+    entries = [path for path in root.glob("*") if path.is_file()] if root.is_dir() else []
+    return {"root": str(root), "artifacts": len(entries), "bytes": sum(path.stat().st_size for path in entries)}
+
+
+def purge_download_cache() -> dict[str, object]:
+    """Empty the shared download cache."""
+    root = download_cache_root()
+    removed = 0
+    for path in root.glob("*") if root.is_dir() else ():
+        if path.is_file():
+            path.unlink()
+            removed += 1
+    return {"root": str(root), "removed": removed}
+
+
+def _cached_artifact(expected: str, destination: Path) -> bool:
+    entry = download_cache_root() / expected
+    if not entry.is_file() or hashlib.sha256(entry.read_bytes()).hexdigest() != expected:
+        return False
+    shutil.copyfile(entry, destination)
+    return True
+
+
+def _remember_artifact(expected: str, source: Path) -> None:
+    root = download_cache_root()
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        partial = root / f".{expected}.{os.getpid()}.part"
+        shutil.copyfile(source, partial)
+        os.replace(partial, root / expected)
+    except OSError:
+        return  # the cache is an optimisation; a read-only home must not fail the install
+
+
+def _download_artifact(
+    url: str, destination: Path, expected: str, opener=urllib.request.urlopen, *, reporter=None
+) -> None:
+    if _cached_artifact(expected, destination):
+        if reporter is not None:
+            reporter.trace(f"cache hit {expected[:12]} → {destination.name}")
+        return
+    if reporter is not None:
+        # Keep Provision as the sole running phase; refresh detail/trace only.
+        if getattr(reporter, "current_operation", None) != "Provision dependencies":
+            reporter.start("Provision dependencies", detail=url)
+        else:
+            reporter.trace(f"download {url}")
+            # Update detail via begin_download below.
+        reporter.trace(f"download artifact → {destination.name} ({url})")
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with _open_with_retry(opener, url, timeout=60) as response, destination.open("xb") as stream:
+            length = None
+            headers = getattr(response, "headers", None)
+            if headers is not None:
+                try:
+                    candidate = int(headers.get("Content-Length", ""))
+                    length = (
+                        candidate
+                        if 0 < candidate <= MAX_RUNTIME_ARCHIVE_BYTES
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    length = None
+            if reporter is not None:
+                reporter.begin_download(length, detail=url)
+            while chunk := response.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_RUNTIME_ARCHIVE_BYTES:
+                    raise ValueError("runtime artifact exceeds the download limit")
+                digest.update(chunk)
+                stream.write(chunk)
+                if reporter is not None:
+                    reporter.downloaded(len(chunk))
+        if digest.hexdigest() != expected:
+            raise ValueError("runtime artifact checksum verification failed")
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+    _remember_artifact(expected, destination)
+
+
+def _safe_archive_members(archive: Path) -> list[tuple[str, bytes, int]]:
+    result: list[tuple[str, bytes, int]] = []
+    total = 0
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as bundle:
+            for member in bundle.infolist():
+                mode = member.external_attr >> 16
+                if stat.S_ISLNK(mode):
+                    raise ValueError("runtime archive contains a link")
+                if member.is_dir():
+                    continue
+                total += member.file_size
+                if total > MAX_RUNTIME_EXPANDED_BYTES:
+                    raise ValueError("runtime archive expands beyond the size limit")
+                result.append((member.filename, bundle.read(member), mode))
+    else:
+        with tarfile.open(archive, "r:*") as bundle:
+            for member in bundle.getmembers():
+                if member.issym() or member.islnk():
+                    base = PurePosixPath(member.name).parent if member.issym() else PurePosixPath()
+                    target = PurePosixPath(os.path.normpath(str(base / member.linkname)).replace("\\", "/"))
+                    if target.is_absolute() or not target.parts or ".." in target.parts:
+                        raise ValueError("runtime archive contains an unsafe link")
+                    continue
+                if not (member.isfile() or member.isdir()):
+                    raise ValueError("runtime archive contains an unsafe entry")
+                if member.isdir():
+                    continue
+                total += member.size
+                if total > MAX_RUNTIME_EXPANDED_BYTES:
+                    raise ValueError("runtime archive expands beyond the size limit")
+                stream = bundle.extractfile(member)
+                if stream is None:
+                    raise ValueError("runtime archive entry is unreadable")
+                result.append((member.name, stream.read(), member.mode))
+    return result
+
+
+def _extract_runtime_archive(archive: Path, destination: Path) -> None:
+    members = _safe_archive_members(archive)
+    if not members:
+        raise ValueError("runtime archive is empty")
+    split = [Path(name.replace("\\", "/")).parts for name, _, _ in members]
+    if any(not parts or Path(*parts).is_absolute() or ".." in parts for parts in split):
+        raise ValueError("runtime archive contains an unsafe path")
+    strip = 1 if len({parts[0] for parts in split}) == 1 and all(len(parts) > 1 for parts in split) else 0
+    destination.mkdir(parents=True)
+    for (name, payload, mode), parts in zip(members, split):
+        relative = Path(*parts[strip:])
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        if os.name != "nt" and mode & stat.S_IXUSR:
+            target.chmod(target.stat().st_mode | stat.S_IXUSR)
+
+
+def install_exact_node(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Node release for this account."""
+    machine = platform.machine().casefold()
+    architecture = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    platform_name = {"windows": "win", "macos": "darwin", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz" if system == "macos" else ".tar.xz"
+    filename = f"node-v{version}-{platform_name}-{architecture}{suffix}"
+    base = f"https://nodejs.org/download/release/v{version}"
+    with _open_with_retry(opener, f"{base}/SHASUMS256.txt", timeout=30) as response:
+        checksums = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksums) > MAX_CONTROL_BYTES:
+        raise ValueError("Node checksum manifest exceeds the size limit")
+    expected = next(
+        (
+            line.split()[0]
+            for line in checksums.decode("utf-8").splitlines()
+            if line.split()[1:] == [filename]
+        ),
+        None,
+    )
+    if expected is None or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Node checksum manifest is missing the selected release")
+    root = Path.home() / ".local/share/chaos-engine/node" / version
+    executable = root / ("node.exe" if system == "windows" else "bin/node")
+    if executable.is_file():
+        _ensure_node_siblings(root, system)
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing Node account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{version}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(f"{base}/{filename}", archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed Node account runtime is incomplete")
+    _ensure_node_siblings(root, system)
+    return str(executable.resolve())
+
+
+def _ensure_node_siblings(root: Path, system: str) -> None:
+    """Restore safe npm launchers omitted when archive links are rejected."""
+    for name in ("npm", "npx"):
+        launcher = root / (f"{name}.cmd" if system == "windows" else f"bin/{name}")
+        if system == "windows":
+            if not launcher.is_file():
+                raise ValueError("installed Node account runtime is incomplete")
+            continue
+        script = root / "lib/node_modules/npm/bin" / f"{name}-cli.js"
+        if not script.is_file():
+            raise ValueError("installed Node account runtime is incomplete")
+        launcher.write_text(
+            '#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/../lib/node_modules/npm/bin/'
+            f'{name}-cli.js" "$@"\n',
+            encoding="utf-8",
+        )
+        launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+
+
+def _pinned_temurin_version() -> str:
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return str(data.get("runtimes", {}).get("temurin", {}).get("version") or "")
+
+
+def install_exact_java(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Latest Temurin first; pinned runtime when its binary is not yet published here.
+
+    Adoptium's API lists a GA release before every platform binary is uploaded
+    (25.0.5+8: linux 200, windows 404 on Oct 22 2026). Only a 404 falls back.
+    """
+    try:
+        return _install_temurin_release(version, system=system, opener=opener)
+    except urllib.error.HTTPError as error:
+        pinned = _pinned_temurin_version()
+        if error.code != 404 or not pinned or pinned == version:
+            raise
+        return _install_temurin_release(pinned, system=system, opener=opener)
+
+
+def _temurin_url(version: str, system: str) -> str:
+    """Official Temurin 25 archive URL for this platform."""
+    match = re.fullmatch(r"(25\.\d+\.\d+)\+(\d+)", version)
+    if match is None:
+        raise ValueError("Temurin release version is invalid")
+    feature, build = match.groups()
+    machine = platform.machine().casefold()
+    architecture = (
+        "aarch64"
+        if system != "windows" and machine in {"arm64", "aarch64"}
+        else "x64"
+    )
+    platform_name = {"windows": "windows", "macos": "mac", "linux": "linux"}[system]
+    suffix = ".zip" if system == "windows" else ".tar.gz"
+    filename = (
+        f"OpenJDK25U-jdk_{architecture}_{platform_name}_hotspot_"
+        f"{feature}_{build}{suffix}"
+    )
+    tag = f"jdk-{feature}%2B{build}"
+    url = (
+        "https://github.com/adoptium/temurin25-binaries/releases/download/"
+        f"{tag}/{filename}"
+    )
+    return url
+
+
+def _install_temurin_release(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Temurin 25 release for this account."""
+    url = _temurin_url(version, system)
+    feature, build = version.split("+", 1)
+    suffix = ".zip" if system == "windows" else ".tar.gz"
+    with _open_with_retry(opener, f"{url}.sha256.txt", timeout=30) as response:
+        checksum = response.read(MAX_CONTROL_BYTES + 1)
+    if len(checksum) > MAX_CONTROL_BYTES:
+        raise ValueError("Temurin checksum manifest exceeds the size limit")
+    expected = checksum.decode("utf-8").split()[0] if checksum.strip() else ""
+    if re.fullmatch(r"[0-9a-f]{64}", expected) is None:
+        raise ValueError("Temurin checksum manifest is invalid")
+    root = Path.home() / ".local/share/chaos-engine/java" / version
+    executable = root / (
+        "bin/java.exe"
+        if system == "windows"
+        else "Contents/Home/bin/java"
+        if system == "macos"
+        else "bin/java"
+    )
+    if executable.is_file():
+        return str(executable.resolve())
+    if root.exists() or is_link_or_reparse(root):
+        raise ValueError("existing JDK account runtime is invalid")
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    transaction = parent / f".{feature}-{build}.{secrets.token_hex(8)}.building"
+    archive = transaction.with_suffix(suffix)
+    try:
+        _download_artifact(url, archive, expected, opener)
+        _extract_runtime_archive(archive, transaction)
+        transaction.rename(root)
+    except BaseException:
+        archive.unlink(missing_ok=True)
+        if transaction.exists() and not is_link_or_reparse(transaction):
+            shutil.rmtree(transaction)
+        raise
+    finally:
+        archive.unlink(missing_ok=True)
+    if not executable.is_file():
+        raise ValueError("installed JDK account runtime is incomplete")
+    return str(executable.resolve())
+
+
+def provision_generation_runtimes(
+    generation: Path, transaction: Path, specification: dict[str, object], *,
+    opener=urllib.request.urlopen, reporter=None, confirmer=None,
+) -> None:
+    platform_key()
+    for name in ("uv", "node"):
+        artifact = select_runtime_artifact(specification, name)
+        suffix = ".zip" if str(artifact["url"]).endswith(".zip") else (
+            ".tar.xz" if str(artifact["url"]).endswith(".tar.xz") else ".tar.gz"
+        )
+        archive = transaction / f"{name}{suffix}"
+        if confirmer is not None:
+            confirmer(f"Download {name} runtime from {artifact['url']}")
+        _download_artifact(
+            str(artifact["url"]), archive, str(artifact["sha256"]), opener,
+            reporter=reporter,
+        )
+        destination = (
+            generation / "bootstrap" / ("Scripts" if os.name == "nt" else "bin")
+            if name == "uv" else generation / "node"
+        )
+        _extract_runtime_archive(archive, destination)
+
+
+class DanglingRuntimeLink(ValueError):
+    pass
+
+
+def is_link_or_reparse(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+    except FileNotFoundError:
+        return False
+    return bool(attributes & 0x400)
+
+
+def runtime_entries(runtime: Path) -> list[Path]:
+    """List a runtime tree without traversing links or reparse points."""
+    entries: list[Path] = []
+    pending = [runtime]
+    while pending:
+        directory = pending.pop()
+        with os.scandir(directory) as children:
+            paths = sorted((Path(child.path) for child in children), reverse=True)
+        for path in paths:
+            entries.append(path)
+            if not is_link_or_reparse(path) and path.is_dir():
+                pending.append(path)
+    return sorted(entries)
+
+
+def executable(directory: Path, name: str) -> str:
+    suffix = ".exe" if os.name == "nt" else ""
+    return str(directory / f"{name}{suffix}")
+
+
+def npm_executable(directory: Path, name: str) -> str:
+    suffix = ".cmd" if os.name == "nt" else ""
+    return str(directory / f"{name}{suffix}")
+
+
+@contextmanager
+def runtime_lock(runtime: Path):
+    lock = runtime.with_name(f"{runtime.name}.lock")
+    flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+    created = False
+    try:
+        descriptor = os.open(lock, flags | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+    except FileExistsError:
+        if is_link_or_reparse(lock):
+            raise ValueError(f"dependency lock is a link or reparse point: {lock}")
+        descriptor = os.open(lock, flags)
+    try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        os.close(descriptor)
+        raise
+    try:
+        opened = os.fstat(stream.fileno())
+        named = os.stat(lock, follow_symlinks=False)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            raise ValueError(f"dependency lock collision: {lock}")
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (OSError, BlockingIOError) as error:
+        stream.close()
+        raise RuntimeError(f"dependency runtime is locked: {runtime}") from error
+    except (Exception, KeyboardInterrupt, SystemExit):
+        stream.close()
+        raise
+    try:
+        stream.seek(0)
+        existing = stream.read()
+        if created:
+            stream.seek(0)
+            stream.write(LOCK_MAGIC)
+            stream.truncate()
+            stream.flush()
+        elif existing != LOCK_MAGIC:
+            raise ValueError(f"dependency lock is not ChaosEngine-owned: {lock}")
+        yield
+    finally:
+        try:
+            if os.name == "nt":
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        finally:
+            stream.close()
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def json_integrity(value: dict[str, object]) -> str:
+    body = {
+        key: item
+        for key, item in value.items()
+        if key not in {"integritySha256", "receiptIntegritySha256"}
+    }
+    encoded = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _validate_generation_record(value: object) -> dict[str, str]:
+    fields = {
+        "generationId",
+        "specificationSha256",
+        "coreSha256",
+        "receiptSha256",
+    }
+    if not isinstance(value, dict) or set(value) != fields:
+        raise ValueError("dependency generation record is invalid")
+    record = {key: item for key, item in value.items() if isinstance(item, str)}
+    if set(record) != fields or HEX_ID.fullmatch(record["generationId"]) is None:
+        raise ValueError("dependency generation identifier is invalid")
+    if any(
+        HEX_DIGEST.fullmatch(record[name]) is None
+        for name in fields - {"generationId"}
+    ):
+        raise ValueError("dependency generation digest is invalid")
+    return record
+
+
+def _select_previous(project: Path, active: dict[str, str]) -> dict[str, str] | None:
+    pointer_path = project / POINTER_NAME
+    if not (pointer_path.exists() or is_link_or_reparse(pointer_path)):
+        return None
+    current = _read_pointer(project)
+    current_active = _validate_generation_record(current["active"])
+    try:
+        _validate_selected_generation(
+            project,
+            current_active,
+            current_active["specificationSha256"],
+            current_active["coreSha256"],
+            verify_installed_core=False,
+        )
+    except (OSError, ValueError):
+        current_active = active
+    if current_active != active:
+        return current_active
+    if current.get("previous") is None:
+        return None
+    previous = _validate_generation_record(current["previous"])
+    try:
+        _validate_selected_generation(
+            project,
+            previous,
+            previous["specificationSha256"],
+            previous["coreSha256"],
+            verify_installed_core=False,
+        )
+    except (OSError, ValueError):
+        return None
+    return previous
+
+
+def _persist_pointer(
+    project: Path, pointer: dict[str, object], transaction: str
+) -> dict[str, object]:
+    path = project / POINTER_NAME
+    temporary = project / f"{POINTER_NAME}.tmp.{transaction}.{secrets.token_hex(8)}"
+    if is_link_or_reparse(path):
+        raise ValueError("dependency pointer is a link or reparse point")
+    directory = None
+    if os.name != "nt":
+        directory = os.open(project, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(pointer, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+        if directory is not None:
+            try:
+                os.fsync(directory)
+            except OSError:
+                # Replacement is commit point; a durability warning cannot be rolled back.
+                persisted, _ = _bounded_json(project, POINTER_NAME, "pointer")
+                if persisted != pointer:
+                    raise
+                result = dict(pointer)
+                result["publicationStatus"] = "committed-not-durable"
+                return result
+    finally:
+        if temporary.exists() and not is_link_or_reparse(temporary):
+            temporary.unlink()
+        if directory is not None:
+            os.close(directory)
+    result = dict(pointer)
+    result["publicationStatus"] = "durable"
+    return result
+
+
+def publish_pointer(
+    project: Path,
+    active: dict[str, str],
+    *,
+    transaction_id: str | None = None,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+) -> dict[str, object]:
+    """Atomically select immutable generations using identifiers, never paths."""
+    project = project.absolute()
+    active = _validate_generation_record(active)
+    if (
+        active["specificationSha256"] != expected_specification_sha256
+        or active["coreSha256"] != expected_core_sha256
+    ):
+        raise ValueError("dependency candidate does not match requested specification or core")
+    _validate_selected_generation(
+        project,
+        active,
+        expected_specification_sha256,
+        expected_core_sha256,
+        verify_installed_core=True,
+    )
+    previous = _select_previous(project, active)
+    transaction = transaction_id or secrets.token_hex(16)
+    if HEX_ID.fullmatch(transaction) is None:
+        raise ValueError("dependency transaction identifier is invalid")
+    persisted_pointer: dict[str, object] = {
+        "schemaVersion": POINTER_SCHEMA,
+        "transactionId": transaction,
+        "active": active,
+        "previous": previous,
+    }
+    persisted_pointer["integritySha256"] = json_integrity(persisted_pointer)
+    return _persist_pointer(project, persisted_pointer, transaction)
+
+
+def _relative_parts(relative: str, label: str) -> tuple[str, ...]:
+    path = Path(relative)
+    if (
+        path.is_absolute()
+        or path.anchor
+        or path.drive
+        or path.root
+        or not path.parts
+        or ".." in path.parts
+    ):
+        raise ValueError(f"dependency {label} path is unsafe")
+    return path.parts
+
+
+def _trusted_root(root: Path, label: str) -> Path:
+    lexical = _lexical_path(root)
+    try:
+        resolved = root.resolve(strict=True)
+    except OSError as error:
+        raise ValueError(f"dependency {label} root is missing or unsafe") from error
+    if is_link_or_reparse(lexical) or os.path.normcase(str(lexical)) != os.path.normcase(
+        str(resolved)
+    ):
+        raise ValueError(f"dependency {label} root has an unsafe ancestor or link")
+    return lexical
+
+
+@contextmanager
+def _hold_directory(path: Path, label: str):
+    """Hold directory identity; Windows handle denies rename/delete while in use."""
+    path = _trusted_root(path, label)
+    if os.name == "nt":
+        class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
+            _fields_ = [
+                ("FileAttributes", ctypes.wintypes.DWORD),
+                ("ReparseTag", ctypes.wintypes.DWORD),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file = kernel32.CreateFileW
+        create_file.argtypes = [
+            ctypes.wintypes.LPCWSTR,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.LPVOID,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.HANDLE,
+        ]
+        create_file.restype = ctypes.wintypes.HANDLE
+        handle = create_file(
+            str(path),
+            0x80000000,
+            0x00000001 | 0x00000002,
+            None,
+            3,
+            0x00200000 | 0x02000000,
+            None,
+        )
+        if handle == ctypes.c_void_p(-1).value:
+            raise ValueError(f"dependency {label} directory cannot be held safely")
+        try:
+            attributes = FILE_ATTRIBUTE_TAG_INFO()
+            if not kernel32.GetFileInformationByHandleEx(
+                handle, 9, ctypes.byref(attributes), ctypes.sizeof(attributes)
+            ) or attributes.FileAttributes & 0x400:
+                raise ValueError(f"dependency {label} directory is a reparse point")
+            value = os.stat(path, follow_symlinks=False)
+            yield (None, (value.st_dev, value.st_ino))
+        finally:
+            kernel32.CloseHandle(handle)
+        return
+    descriptor = os.open(
+        path,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        value = os.fstat(descriptor)
+        yield (descriptor, (value.st_dev, value.st_ino))
+    finally:
+        os.close(descriptor)
+
+
+def _assert_held_directory(path: Path, held: tuple[object, tuple[int, int]], label: str) -> None:
+    if is_link_or_reparse(path):
+        raise ValueError(f"dependency {label} directory became unsafe")
+    try:
+        value = os.stat(path, follow_symlinks=False)
+    except OSError as error:
+        raise ValueError(f"dependency {label} directory identity changed") from error
+    if (value.st_dev, value.st_ino) != held[1]:
+        raise ValueError(f"dependency {label} directory identity changed")
+
+
+def _delete_fd_contents(directory: int) -> None:
+    for name in os.listdir(directory):
+        value = os.stat(name, dir_fd=directory, follow_symlinks=False)
+        if stat.S_ISDIR(value.st_mode):
+            child = os.open(
+                name,
+                os.O_RDONLY
+                | getattr(os, "O_DIRECTORY", 0)
+                | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory,
+            )
+            try:
+                opened = os.fstat(child)
+                if (opened.st_dev, opened.st_ino) != (value.st_dev, value.st_ino):
+                    raise ValueError("dependency cleanup directory identity changed")
+                _delete_fd_contents(child)
+                after = os.fstat(child)
+                if (after.st_dev, after.st_ino) != (opened.st_dev, opened.st_ino):
+                    raise ValueError("dependency cleanup directory identity changed")
+            finally:
+                os.close(child)
+            os.rmdir(name, dir_fd=directory)
+        else:
+            os.unlink(name, dir_fd=directory)
+
+
+def _delete_held_child(
+    parent: tuple[object, tuple[int, int]],
+    name: str,
+    child: tuple[object, tuple[int, int]],
+    expected: tuple[int, int],
+) -> None:
+    parent_fd, child_identity = parent[0], child[1]
+    child_fd = child[0]
+    if not isinstance(parent_fd, int) or not isinstance(child_fd, int):
+        raise ValueError("descriptor-relative cleanup is unavailable")
+    named = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    opened = os.fstat(child_fd)
+    identities = {
+        (named.st_dev, named.st_ino),
+        (opened.st_dev, opened.st_ino),
+        child_identity,
+    }
+    if identities != {expected}:
+        raise ValueError("dependency cleanup identity changed; quarantine retained")
+    _delete_fd_contents(child_fd)
+    os.rmdir(name, dir_fd=parent_fd)
+
+
+def _delete_windows_tree(
+    path: Path, expected: tuple[int, int], runtime: Path | None = None
+) -> None:
+    runtime = runtime or path
+    if is_link_or_reparse(path):
+        raise ValueError("dependency cleanup path is unsafe; quarantine retained")
+    value = os.stat(path, follow_symlinks=False)
+    if (value.st_dev, value.st_ino) != expected:
+        raise ValueError("dependency cleanup identity changed; quarantine retained")
+    children = sorted(path.iterdir(), reverse=True)
+    for child in children:
+        if is_link_or_reparse(child):
+            if child.is_symlink():
+                child.unlink()
+                continue
+            _windows_uv_junction_record(runtime, child)
+            child.rmdir()
+    for child in children:
+        if not child.exists() and not is_link_or_reparse(child):
+            continue
+        if child.is_dir():
+            state = os.stat(child, follow_symlinks=False)
+            _delete_windows_tree(child, (state.st_dev, state.st_ino), runtime)
+        else:
+            child.unlink()
+    path.rmdir()
+
+
+def _open_regular_relative(root: Path, relative: str, label: str) -> int:
+    """Open a regular descendant without following POSIX links in any component."""
+    root = _trusted_root(root, label)
+    parts = _relative_parts(relative, label)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    binary = getattr(os, "O_BINARY", 0)
+    if os.name != "nt" and os.open in os.supports_dir_fd:
+        directory = os.open(
+            root,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow,
+        )
+        try:
+            for part in parts[:-1]:
+                child = os.open(
+                    part,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | nofollow,
+                    dir_fd=directory,
+                )
+                previous = directory
+                directory = child
+                os.close(previous)
+            descriptor = os.open(
+                parts[-1], os.O_RDONLY | binary | nofollow, dir_fd=directory
+            )
+        except OSError as error:
+            if error.errno == errno.ENOENT:
+                raise ValueError(f"dependency {label} is missing") from error
+            raise ValueError(f"dependency {label} has an unsafe ancestor or link") from error
+        finally:
+            os.close(directory)
+    elif os.name == "nt":
+        current = root
+        for part in parts:
+            current /= part
+            if is_link_or_reparse(current):
+                raise ValueError(f"dependency {label} has an unsafe ancestor or link")
+        descriptor = _open_windows_regular(root, current, label)
+    else:
+        raise ValueError("safe no-follow file traversal is unavailable on this platform")
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            raise ValueError(f"dependency {label} is not a regular file")
+    except (Exception, KeyboardInterrupt, SystemExit):
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _open_windows_regular(root: Path, path: Path, label: str) -> int:
+    """Open final Windows file without following it; validate kernel-resolved location."""
+    import msvcrt
+
+    class FILE_ATTRIBUTE_TAG_INFO(ctypes.Structure):
+        _fields_ = [
+            ("FileAttributes", ctypes.wintypes.DWORD),
+            ("ReparseTag", ctypes.wintypes.DWORD),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [
+        ctypes.wintypes.LPCWSTR,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.LPVOID,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.HANDLE,
+    ]
+    create_file.restype = ctypes.wintypes.HANDLE
+    invalid = ctypes.c_void_p(-1).value
+    handle = invalid
+    error_number = 0
+    for delay in (0.0, 0.02, 0.05, 0.1, 0.2):
+        if delay:
+            time.sleep(delay)
+        handle = create_file(
+            str(path),
+            0x80000000,
+            0x00000001 | 0x00000002 | 0x00000004,
+            None,
+            3,
+            0x00200000 | 0x08000000,
+            None,
+        )
+        if handle != invalid:
+            break
+        error_number = ctypes.get_last_error()
+        if error_number not in {5, 32, 33}:
+            break
+    if handle == invalid:
+        raise ValueError(
+            f"dependency {label} is missing or unsafe (Windows error {error_number})"
+        ) from OSError(error_number, ctypes.FormatError(error_number))
+    try:
+        attributes = FILE_ATTRIBUTE_TAG_INFO()
+        if not kernel32.GetFileInformationByHandleEx(
+            handle, 9, ctypes.byref(attributes), ctypes.sizeof(attributes)
+        ):
+            raise ValueError(f"dependency {label} identity cannot be verified")
+        if attributes.FileAttributes & 0x400:
+            raise ValueError(f"dependency {label} is a link or reparse point")
+        size = kernel32.GetFinalPathNameByHandleW(handle, None, 0, 0)
+        if not size:
+            raise ValueError(f"dependency {label} final path cannot be verified")
+        buffer = ctypes.create_unicode_buffer(size + 1)
+        if not kernel32.GetFinalPathNameByHandleW(handle, buffer, len(buffer), 0):
+            raise ValueError(f"dependency {label} final path cannot be verified")
+        final_path = _lexical_path(Path(buffer.value))
+        if not final_path.is_relative_to(root):
+            raise ValueError(f"dependency {label} escaped its trusted root")
+        named = os.stat(path, follow_symlinks=False)
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+        handle = None
+        opened = os.fstat(descriptor)
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            os.close(descriptor)
+            raise ValueError(f"dependency {label} identity changed during open")
+        return descriptor
+    finally:
+        if handle is not None:
+            kernel32.CloseHandle(handle)
+
+
+def _read_regular_relative(
+    root: Path, relative: str, label: str, limit: int | None = None
+) -> bytes:
+    descriptor = _open_regular_relative(root, relative, label)
+    try:
+        opened = os.fstat(descriptor)
+        if limit is not None and opened.st_size > limit:
+            raise ValueError(f"dependency {label} is too large")
+        chunks: list[bytes] = []
+        remaining = None if limit is None else limit + 1
+        while remaining is None or remaining > 0:
+            chunk = os.read(descriptor, 1024 * 1024 if remaining is None else min(1024 * 1024, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if remaining is not None:
+                remaining -= len(chunk)
+        data = b"".join(chunks)
+        if limit is not None and len(data) > limit:
+            raise ValueError(f"dependency {label} is too large")
+        return data
+    finally:
+        os.close(descriptor)
+
+
+def _capture_regular_relative(
+    root: Path,
+    relative: str,
+    label: str,
+    expected_size: int | None = None,
+) -> tuple[str, dict[str, int]]:
+    if expected_size is not None and (
+        not isinstance(expected_size, int) or not 0 <= expected_size <= MAX_EXECUTABLE_BYTES
+    ):
+        raise ValueError(f"dependency {label} size is invalid")
+    descriptor = _open_regular_relative(root, relative, label)
+    digest = hashlib.sha256()
+    try:
+        before = os.fstat(descriptor)
+        if before.st_size > MAX_EXECUTABLE_BYTES:
+            raise ValueError(f"dependency {label} is too large")
+        if expected_size is not None and before.st_size != expected_size:
+            raise ValueError(f"dependency {label} size drift detected")
+        remaining = before.st_size
+        while remaining > 0:
+            chunk = os.read(descriptor, min(1024 * 1024, remaining))
+            if not chunk:
+                break
+            digest.update(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError(f"dependency {label} changed while hashing")
+        after = os.fstat(descriptor)
+        identity = lambda item: (
+            item.st_dev,
+            item.st_ino,
+            item.st_size,
+            item.st_mtime_ns,
+            item.st_ctime_ns,
+            item.st_mode,
+        )
+        if identity(before) != identity(after):
+            raise ValueError(f"dependency {label} changed while hashing")
+    finally:
+        os.close(descriptor)
+    return digest.hexdigest(), _identity_from_stat(after)
+
+
+def _digest_regular_relative(
+    root: Path, relative: str, label: str, expected_size: int
+) -> str:
+    return _capture_regular_relative(root, relative, label, expected_size)[0]
+
+
+def _bounded_json(
+    root: Path,
+    relative: str,
+    label: str,
+    limit: int = MAX_CONTROL_BYTES,
+) -> tuple[dict[str, object], bytes]:
+    try:
+        data = _read_regular_relative(root, relative, label, limit)
+        value = json.loads(data)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"dependency {label} is missing or invalid") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"dependency {label} is invalid")
+    return value, data
+
+
+def _validate_generation_receipt(receipt: dict[str, object]) -> None:
+    required = {
+        "schemaVersion",
+        "runtimeContractVersion",
+        "checkedAt",
+        "specificationSha256",
+        "coreSha256",
+        "environment",
+        "installed",
+        "tools",
+        "ownership",
+        "receiptIntegritySha256",
+    }
+    modern = receipt.get("schemaVersion") == 3 and receipt.get("runtimeContractVersion") == 4
+    if modern:
+        required.add("runtimes")
+    if (
+        not (modern or (receipt.get("schemaVersion") == 2 and receipt.get("runtimeContractVersion") == 3))
+        or set(receipt) != required
+        or HEX_DIGEST.fullmatch(str(receipt.get("specificationSha256", ""))) is None
+        or HEX_DIGEST.fullmatch(str(receipt.get("coreSha256", ""))) is None
+        or not isinstance(receipt.get("environment"), dict)
+        or not isinstance(receipt.get("installed"), dict)
+        or not isinstance(receipt.get("ownership"), dict)
+    ):
+        raise ValueError("dependency generation receipt schema is invalid")
+    if modern and not isinstance(receipt.get("runtimes"), dict):
+        raise ValueError("dependency generation runtime metadata is invalid")
+    ownership = receipt["ownership"]
+    if (
+        set(ownership) != {"directories", "files", "links", "sha256", "identities"}
+        or not isinstance(ownership.get("directories"), list)
+        or not isinstance(ownership.get("files"), dict)
+        or not isinstance(ownership.get("links"), list)
+        or not isinstance(ownership.get("identities"), dict)
+        or HEX_DIGEST.fullmatch(str(ownership.get("sha256", ""))) is None
+    ):
+        raise ValueError("dependency generation receipt ownership is invalid")
+    try:
+        checked = datetime.fromisoformat(str(receipt["checkedAt"]))
+    except ValueError as error:
+        raise ValueError("dependency generation receipt timestamp is invalid") from error
+    if checked.tzinfo is None:
+        raise ValueError("dependency generation receipt timestamp is invalid")
+    tools = receipt.get("tools")
+    if not isinstance(tools, dict) or set(tools) != REQUIRED_DISPATCHES:
+        raise ValueError("dependency generation tool metadata is invalid")
+    for name, record in tools.items():
+        dispatch = record.get("dispatch") if isinstance(record, dict) else None
+        _validate_dispatch_metadata(name, dispatch)
+
+
+def _validate_dispatch_metadata(name: str, value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    python_name = "python.exe" if os.name == "nt" else "python"
+    uv_name = "uv.exe" if os.name == "nt" else "uv"
+    if name == "uv":
+        expected = {
+            "kind": "executable",
+            "path": f"bootstrap/{scripts}/{uv_name}",
+        }
+        fields = {**expected, "sha256": value.get("sha256"), "size": value.get("size")}
+        if set(value) != set(fields) or any(value.get(key) != item for key, item in expected.items()):
+            raise ValueError("dependency generation tool metadata is invalid: uv")
+        digest, size = value.get("sha256"), value.get("size")
+    elif name in {"mempalace", "mempalace-mcp", "graphify"}:
+        environment = "graphifyy" if name == "graphify" else "mempalace"
+        expected = {
+            "kind": "python",
+            "interpreter": f"uv-tools/{environment}/{scripts}/{python_name}",
+            "distribution": environment,
+            "entrypoint": name,
+        }
+        required = set(expected) | {"interpreterSha256", "interpreterSize"}
+        linked = {"interpreterLinkTarget", "interpreterTarget"}
+        if set(value) not in {frozenset(required), frozenset(required | linked)} or any(
+            value.get(key) != item for key, item in expected.items()
+        ):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+        if linked <= set(value) and (
+            not all(isinstance(value.get(key), str) and value.get(key) for key in linked)
+            or Path(str(value["interpreterLinkTarget"])).is_absolute()
+            or Path(str(value["interpreterTarget"])).is_absolute()
+        ):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+        digest, size = value.get("interpreterSha256"), value.get("interpreterSize")
+    elif name in {"memory", "memory-mcp"}:
+        suffix = "dist/cli/main.js" if name == "memory" else "dist/mcp/server.js"
+        script = str(value.get("script", "")).replace("\\", "/")
+        if "node_modules/.bin/" in script or not script.endswith(".js"):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+        if value.get("kind") == "npm":
+            expected = {
+                "kind": "npm", "script": f"npm/node_modules/@aictx/memory/{suffix}",
+                "entrypoint": name,
+            }
+            required = set(expected) | {"scriptSha256", "scriptSize"}
+            if set(value) != required or any(value.get(key) != item for key, item in expected.items()):
+                raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+            digest, size = value.get("scriptSha256"), value.get("scriptSize")
+            if not isinstance(digest, str) or HEX_DIGEST.fullmatch(digest) is None or not isinstance(size, int) or not 0 < size <= MAX_EXECUTABLE_BYTES:
+                raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+            return value
+        expected = {
+            "kind": "node",
+            "executable": "node/node.exe" if os.name == "nt" else "node/bin/node",
+            "script": f"npm/node_modules/@aictx/memory/{suffix}",
+            "entrypoint": name,
+        }
+        required = set(expected) | {"executableSha256", "executableSize", "scriptSha256", "scriptSize"}
+        if set(value) != required or any(value.get(key) != item for key, item in expected.items()):
+            raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+        digest, size = value.get("executableSha256"), value.get("executableSize")
+    else:
+        raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+    if (
+        not isinstance(digest, str)
+        or HEX_DIGEST.fullmatch(digest) is None
+        or not isinstance(size, int)
+        or not 0 < size <= MAX_EXECUTABLE_BYTES
+    ):
+        raise ValueError(f"dependency generation tool metadata is invalid: {name}")
+    return value
+
+
+def _read_pointer_at(project: Path, relative: str) -> dict[str, object]:
+    pointer, _ = _bounded_json(project, relative, "pointer")
+    if (
+        pointer.get("schemaVersion") != POINTER_SCHEMA
+        or HEX_ID.fullmatch(str(pointer.get("transactionId", ""))) is None
+        or pointer.get("integritySha256") != json_integrity(pointer)
+        or set(pointer) != {
+            "schemaVersion",
+            "transactionId",
+            "active",
+            "previous",
+            "integritySha256",
+        }
+    ):
+        raise ValueError("dependency pointer schema or integrity is invalid")
+    _validate_generation_record(pointer.get("active"))
+    if pointer.get("previous") is not None:
+        _validate_generation_record(pointer["previous"])
+    return pointer
+
+
+def _read_pointer(project: Path) -> dict[str, object]:
+    return _read_pointer_at(project, POINTER_NAME)
+
+
+def _authenticate_selected_generation(
+    project: Path,
+    active: dict[str, str],
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+) -> tuple[Path, dict[str, object]]:
+    if (
+        HEX_DIGEST.fullmatch(expected_specification_sha256) is None
+        or HEX_DIGEST.fullmatch(expected_core_sha256) is None
+        or active["specificationSha256"] != expected_specification_sha256
+        or active["coreSha256"] != expected_core_sha256
+    ):
+        raise ValueError("dependency generation does not match tracked specification or core")
+    generation = project / GENERATIONS_NAME / active["generationId"]
+    receipt, receipt_bytes = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+        MAX_RECEIPT_BYTES,
+    )
+    if hashlib.sha256(receipt_bytes).hexdigest() != active["receiptSha256"]:
+        raise ValueError("dependency generation receipt digest drift detected")
+    _validate_generation_receipt(receipt)
+    if receipt.get("receiptIntegritySha256") != json_integrity(receipt):
+        raise ValueError("dependency generation receipt integrity drift detected")
+    if receipt.get("specificationSha256") != expected_specification_sha256:
+        raise ValueError("dependency generation specification digest drift detected")
+    if receipt.get("coreSha256") != expected_core_sha256:
+        raise ValueError("dependency generation core digest drift detected")
+    return generation, receipt
+
+
+def _validate_selected_generation(
+    project: Path,
+    active: dict[str, str],
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    verify_installed_core: bool,
+) -> Path:
+    generation, receipt = _authenticate_selected_generation(
+        project,
+        active,
+        expected_specification_sha256,
+        expected_core_sha256,
+    )
+    verify_sealed_ownership(generation, receipt["ownership"])
+    if verify_installed_core:
+        core = _read_regular_relative(
+            project,
+            ".chaos-engine/manifest.json",
+            "installed core manifest",
+            MAX_CONTROL_BYTES,
+        )
+        if hashlib.sha256(core).hexdigest() != expected_core_sha256:
+            raise ValueError("dependency installed core digest drift detected")
+    return generation
+
+
+def active_generation(
+    project: Path,
+    *,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+) -> tuple[Path, dict[str, object]]:
+    project = project.absolute()
+    pointer = _read_pointer(project)
+    active = _validate_generation_record(pointer.get("active"))
+    generation = _validate_selected_generation(
+        project,
+        active,
+        expected_specification_sha256,
+        expected_core_sha256,
+        verify_installed_core=True,
+    )
+    return generation, pointer
+
+
+def pointer_records(project: Path) -> dict[str, object]:
+    """Return authenticated active/previous records without accepting paths."""
+    return _read_pointer(project.absolute())
+
+
+def validated_previous(
+    project: Path,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    runner=None,
+) -> dict[str, str]:
+    """Validate and probe the compatible previous generation before rollback."""
+    project = project.absolute()
+    pointer = _read_pointer(project)
+    previous = _validate_generation_record(pointer.get("previous"))
+    generation = _validate_selected_generation(
+        project,
+        previous,
+        expected_specification_sha256,
+        expected_core_sha256,
+        verify_installed_core=False,
+    )
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{previous['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+        MAX_RECEIPT_BYTES,
+    )
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    execute = runner or run_command
+    probes = {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }
+    for name, arguments in probes.items():
+        execute(dispatch_command(generation, receipt, name, arguments), environment)
+    return previous
+
+
+def probe_active(
+    project: Path,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+    *,
+    runner=None,
+) -> None:
+    """Actively probe every exact dispatch from the selected generation."""
+    project = project.absolute()
+    generation, pointer = active_generation(
+        project,
+        expected_specification_sha256=expected_specification_sha256,
+        expected_core_sha256=expected_core_sha256,
+    )
+    active = _validate_generation_record(pointer["active"])
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{active['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+        MAX_RECEIPT_BYTES,
+    )
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    execute = runner or run_command
+    for name, arguments in {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }.items():
+        execute(dispatch_command(generation, receipt, name, arguments), environment)
+
+
+def dependency_heal_fix_next() -> str:
+    """Actionable restore path when the dependency receipt/pointer is missing (#5586)."""
+    cli = "py -3" if os.name == "nt" else "python3"
+    return (
+        f"run the ChaosEngine install one-liner from INSTALL.md "
+        f"(or `{cli} chaos-engine/bootstrap.py` / `{cli} .chaos-engine/install.py install` "
+        f"from a source checkout), then `{cli} .chaos-engine/install.py doctor --project .`"
+    )
+
+
+def _shared_account_receipt(project: Path) -> Path | None:
+    """Receipt recorded for this origin by another checkout. Missing stores stay local."""
+    finder = _stores_namespace().get("registered_account_receipt")
+    if not callable(finder):
+        return None
+    found = finder(project)
+    return found if isinstance(found, Path) else None
+
+
+def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]:
+    """Resolve one account command, falling back to authenticated legacy generations."""
+    project = project.absolute()
+    account_path = project / ACCOUNT_RECEIPT_NAME
+    shared = None
+    if not (account_path.is_file() and not is_link_or_reparse(account_path)):
+        shared = _shared_account_receipt(project)
+    if (account_path.is_file() and not is_link_or_reparse(account_path)) or shared is not None:
+        receipt = read_account_receipt(project) if shared is None else read_account_receipt(project, path=shared)
+        commands = receipt["commands"]
+        command = commands.get(tool) if isinstance(commands, dict) else None
+        if not isinstance(command, str) or not Path(command).is_absolute():
+            raise ValueError(f"account dependency tool dispatch is missing: {tool}")
+        resolved = Path(command).resolve(strict=True)
+        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
+            raise ValueError(f"account dependency tool dispatch is unhealthy: {tool}")
+        return [str(resolved), *arguments]
+    pointer_path = project / POINTER_NAME
+    if not (pointer_path.exists() or is_link_or_reparse(pointer_path)):
+        raise ValueError(
+            "dependency pointer is missing or invalid. "
+            f"fix-next: {dependency_heal_fix_next()}"
+        )
+    try:
+        pointer = _read_pointer(project)
+        active = _validate_generation_record(pointer.get("active"))
+        generation, receipt = _authenticate_selected_generation(
+            project,
+            active,
+            active["specificationSha256"],
+            active["coreSha256"],
+        )
+    except (OSError, ValueError) as error:
+        message = str(error)
+        if "fix-next:" in message.casefold():
+            raise
+        raise ValueError(
+            f"{message}. fix-next: {dependency_heal_fix_next()}"
+        ) from error
+    return dispatch_command(generation, receipt, tool, arguments)
+
+
+def dispatch_command(
+    generation: Path,
+    receipt: dict[str, object],
+    tool: str,
+    arguments: list[str],
+) -> list[str]:
+    tools = receipt.get("tools")
+    record = tools.get(tool) if isinstance(tools, dict) else None
+    dispatch = record.get("dispatch") if isinstance(record, dict) else None
+    if not isinstance(dispatch, dict):
+        raise ValueError(f"dependency tool dispatch is missing: {tool}")
+    dispatch = _validate_dispatch_metadata(tool, dispatch)
+    if dispatch.get("kind") == "python":
+        relative = dispatch.get("interpreter")
+        distribution = dispatch.get("distribution")
+        entrypoint = dispatch.get("entrypoint")
+        expected_digest = dispatch.get("interpreterSha256")
+        expected_size = dispatch.get("interpreterSize")
+        if not all(
+            isinstance(item, str) and item
+            for item in (relative, distribution, entrypoint, expected_digest)
+        ) or HEX_DIGEST.fullmatch(str(expected_digest)) is None:
+            raise ValueError(f"dependency Python dispatch is invalid: {tool}")
+        interpreter = generation / str(relative)
+        try:
+            target = str(relative)
+            if "interpreterLinkTarget" in dispatch:
+                if not interpreter.is_symlink():
+                    raise ValueError("recorded interpreter link is missing")
+                link_target = os.readlink(interpreter)
+                if link_target != dispatch["interpreterLinkTarget"]:
+                    raise ValueError("recorded interpreter link target drift detected")
+                resolved = _managed_link_target(generation, interpreter)
+                target = resolved.relative_to(generation).as_posix()
+                if target != dispatch["interpreterTarget"]:
+                    raise ValueError("recorded interpreter terminal target drift detected")
+            actual_digest = _digest_regular_relative(
+                generation, target, f"Python interpreter for {tool}", expected_size  # type: ignore[arg-type]
+            )
+        except ValueError as error:
+            raise ValueError(
+                f"dependency Python interpreter is unsafe or a link: {tool}"
+            ) from error
+        if actual_digest != expected_digest:
+            raise ValueError(f"dependency Python interpreter drift detected: {tool}")
+        return [
+            str(interpreter),
+            "-c",
+            PYTHON_DISPATCH,
+            str(distribution),
+            str(entrypoint),
+            *arguments,
+        ]
+    if dispatch.get("kind") == "executable":
+        relative = str(dispatch["path"])
+        digest = _digest_regular_relative(
+            generation,
+            relative,
+            f"executable for {tool}",
+            dispatch["size"],  # type: ignore[arg-type]
+        )
+        if digest != dispatch["sha256"]:
+            raise ValueError(f"dependency executable drift detected: {tool}")
+        return [str(generation / relative), *arguments]
+    if dispatch.get("kind") == "node":
+        executable_relative = str(dispatch["executable"])
+        executable_digest = _digest_regular_relative(
+            generation, executable_relative, f"Node executable for {tool}", dispatch["executableSize"]  # type: ignore[arg-type]
+        )
+        if executable_digest != dispatch["executableSha256"]:
+            raise ValueError(f"dependency Node executable drift detected: {tool}")
+        relative = str(dispatch["script"])
+        script = generation / relative
+        require_javascript_entrypoint(script, relative)
+        digest = _digest_regular_relative(
+            generation,
+            relative,
+            f"npm script for {tool}",
+            dispatch["scriptSize"],  # type: ignore[arg-type]
+        )
+        if digest != dispatch["scriptSha256"]:
+            raise ValueError(f"dependency npm script drift detected: {tool}")
+        return [str(generation / executable_relative), str(script), *arguments]
+    if dispatch.get("kind") == "npm":
+        relative = str(dispatch["script"])
+        script = generation / relative
+        require_javascript_entrypoint(script, relative)
+        digest = _digest_regular_relative(
+            generation, relative, f"npm script for {tool}", dispatch["scriptSize"]  # type: ignore[arg-type]
+        )
+        if digest != dispatch["scriptSha256"]:
+            raise ValueError(f"dependency npm script drift detected: {tool}")
+        return [shutil.which("node") or "node", str(script), *arguments]
+    raise ValueError(f"dependency tool dispatch kind is unsupported: {tool}")
+
+
+def generation_environment(generation: Path, transaction: Path) -> dict[str, str]:
+    return {
+        "UV_TOOL_DIR": str(generation / "uv-tools"),
+        "UV_TOOL_BIN_DIR": str(transaction / "bin"),
+        "UV_CACHE_DIR": str(transaction / "uv-cache"),
+        "UV_PYTHON_INSTALL_DIR": str(generation / "uv-python"),
+        "UV_PYTHON_BIN_DIR": str(transaction / "python-bin"),
+        "UV_LINK_MODE": "copy",
+        "NPM_CONFIG_PREFIX": str(generation / "npm"),
+        "NPM_CONFIG_CACHE": str(transaction / "npm-cache"),
+        "PIP_NO_CACHE_DIR": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+
+
+def generation_install_plan(
+    generation: Path, specification: dict[str, object]
+) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
+    tools = specification.get("tools")
+    if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
+        raise ValueError("dependency specification schema is unsupported")
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    bootstrap = generation / "bootstrap"
+    uv = executable(bootstrap / scripts, "uv")
+    node = str(owned_node(generation))
+    npm_cli = generation / (
+        "node/node_modules/npm/bin/npm-cli.js" if os.name == "nt"
+        else "node/lib/node_modules/npm/bin/npm-cli.js"
+    )
+    graphify = tools.get("graphify")
+    mempalace = tools.get("mempalace")
+    python_runtime = specification.get("runtimes", {}).get("python", {})
+    python_version = python_runtime.get("version") if isinstance(python_runtime, dict) else None
+    if not isinstance(python_version, str) or re.fullmatch(r"3\.\d+", python_version) is None:
+        raise ValueError("Python runtime specification is invalid")
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
+    uv_commands = [[uv, "--version"]] if os.path.isfile(uv) else [
+        [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
+        [executable(bootstrap / scripts, "python"), "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
+    ]
+    return {
+        "uv": uv_commands,
+        "mempalace": [[
+            uv,
+            "tool",
+            "install",
+            "--no-cache",
+            "--managed-python",
+            "--python",
+            python_version,
+            "--link-mode",
+            "copy",
+            "--with",
+            str(mempalace["with"][0]),
+            str(mempalace["package"]),
+        ]],
+        "graphify": [[
+            uv,
+            "tool",
+            "install",
+            "--no-cache",
+            "--managed-python",
+            "--python",
+            python_version,
+            "--link-mode",
+            "copy",
+            "--with",
+            str(graphify["with"][0]),  # type: ignore[index]
+            str(graphify["package"]),
+        ]],
+        "memory": [[
+            node,
+            str(npm_cli),
+            "install",
+            "--ignore-scripts",
+            "--prefix",
+            str(generation / "npm"),
+            str(tools["memory"]["package"]),  # type: ignore[index]
+        ]],
+    }
+
+
+def _generation_dispatches(generation: Path) -> dict[str, dict[str, object]]:
+    scripts = "Scripts" if os.name == "nt" else "bin"
+    python_name = "python.exe" if os.name == "nt" else "python"
+    uv_name = "uv.exe" if os.name == "nt" else "uv"
+
+    def file_record(path: Path) -> tuple[str, int]:
+        if is_link_or_reparse(path) or not path.is_file():
+            raise ValueError(f"dependency entrypoint is missing or unsafe: {path}")
+        return sha256(path), path.stat().st_size
+
+    uv = generation / f"bootstrap/{scripts}/{uv_name}"
+    uv_digest, uv_size = file_record(uv)
+    records: dict[str, dict[str, object]] = {
+        "uv": {"dispatch": {"kind": "executable", "path": uv.relative_to(generation).as_posix(), "sha256": uv_digest, "size": uv_size}}
+    }
+    for name, environment, distribution in (
+        ("mempalace", "mempalace", "mempalace"),
+        ("mempalace-mcp", "mempalace", "mempalace"),
+        ("graphify", "graphifyy", "graphifyy"),
+    ):
+        interpreter = generation / f"uv-tools/{environment}/{scripts}/{python_name}"
+        link_metadata: dict[str, object] = {}
+        if interpreter.is_symlink():
+            link_target = os.readlink(interpreter)
+            if Path(link_target).is_absolute():
+                raise ValueError(f"dependency entrypoint link is not canonical: {interpreter}")
+            target = _managed_link_target(generation, interpreter)
+            digest, size = file_record(target)
+            link_metadata = {
+                "interpreterLinkTarget": link_target,
+                "interpreterTarget": target.relative_to(generation).as_posix(),
+            }
+        else:
+            digest, size = file_record(interpreter)
+        records[name] = {"dispatch": {
+            "kind": "python",
+            "interpreter": interpreter.relative_to(generation).as_posix(),
+            "interpreterSha256": digest,
+            "interpreterSize": size,
+            "distribution": distribution,
+            "entrypoint": name,
+            **link_metadata,
+        }}
+    for name, suffix in (
+        ("memory", "dist/cli/main.js"),
+        ("memory-mcp", "dist/mcp/server.js"),
+    ):
+        script = memory_javascript(generation, name)
+        require_javascript_entrypoint(script, script.relative_to(generation).as_posix())
+        digest, size = file_record(script)
+        node = owned_node(generation)
+        records[name] = {"dispatch": (
+            {**node_dispatch(generation, script), "entrypoint": name}
+            if node.is_file() else {
+                "kind": "npm", "script": script.relative_to(generation).as_posix(),
+                "scriptSha256": digest, "scriptSize": size, "entrypoint": name,
+            }
+        )}
+    return records
+
+
+def _verify_dispatch_set(
+    generation: Path, records: dict[str, dict[str, object]]
+) -> None:
+    for name in REQUIRED_DISPATCHES:
+        dispatch = _validate_dispatch_metadata(name, records[name]["dispatch"])
+        if dispatch["kind"] == "python":
+            path, digest, size = (
+                dispatch.get("interpreterTarget", dispatch["interpreter"]),
+                dispatch["interpreterSha256"],
+                dispatch["interpreterSize"],
+            )
+        elif dispatch["kind"] == "node":
+            path, digest, size = (
+                dispatch["executable"],
+                dispatch["executableSha256"],
+                dispatch["executableSize"],
+            )
+        elif dispatch["kind"] == "npm":
+            path, digest, size = dispatch["script"], dispatch["scriptSha256"], dispatch["scriptSize"]
+        else:
+            path, digest, size = dispatch["path"], dispatch["sha256"], dispatch["size"]
+        actual = _digest_regular_relative(
+            generation,
+            str(path),
+            f"dispatch target for {name}",
+            size,  # type: ignore[arg-type]
+        )
+        if actual != digest:
+            raise ValueError(f"dependency dispatch digest drift detected: {name}")
+
+
+def _crosscheck_dispatch_ownership(
+    ownership: dict[str, object], records: dict[str, dict[str, object]]
+) -> None:
+    files = ownership.get("files")
+    links = ownership.get("links")
+    if not isinstance(files, dict) or not valid_link_records(links):
+        raise ValueError("dependency sealed ownership files are invalid")
+    for name, record in records.items():
+        dispatch = record["dispatch"]
+        kind = dispatch["kind"]
+        if kind == "python":
+            path = dispatch.get("interpreterTarget", dispatch["interpreter"])
+            digest = dispatch["interpreterSha256"]
+            if "interpreterTarget" in dispatch and not any(
+                link.get("path") == dispatch["interpreter"]
+                and link.get("target") == dispatch["interpreterLinkTarget"]
+                for link in links
+            ):
+                raise ValueError(f"dependency dispatch ownership link drift detected: {name}")
+        elif kind == "node":
+            path, digest = dispatch["executable"], dispatch["executableSha256"]
+        elif kind == "npm":
+            path, digest = dispatch["script"], dispatch["scriptSha256"]
+        else:
+            path, digest = dispatch["path"], dispatch["sha256"]
+        if files.get(path) != digest:
+            raise ValueError(f"dependency dispatch ownership digest drift detected: {name}")
+
+
+def _install_candidate_payload(
+    project: Path,
+    generation: Path,
+    transaction: Path,
+    specification: dict[str, object],
+    core_sha256: str,
+    generation_name: str,
+    command_runner,
+    validate_holds,
+    checked_at: datetime,
+    confirmer=None,
+) -> dict[str, str]:
+    environment = generation_environment(generation, transaction)
+    completed: dict[str, list[str]] = {}
+    for tool, commands in generation_install_plan(generation, specification).items():
+        completed[tool] = []
+        for command in commands:
+            if confirmer is not None:
+                package = next((item for item in reversed(command) if not item.startswith("-")), tool)
+                confirmer(f"Install {tool} package {package}")
+            validate_holds()
+            try:
+                result = command_runner(command, environment)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
+            validate_holds()
+            completed[tool].append((result.stdout or result.stderr).strip())
+    canonicalize_runtime_links(generation)
+    records = _generation_dispatches(generation)
+    for name, arguments in {
+        "uv": ["--version"],
+        "mempalace": ["--version"],
+        "mempalace-mcp": ["--help"],
+        "graphify": ["--version"],
+        "memory": ["--help"],
+        "memory-mcp": ["--help"],
+    }.items():
+        validate_holds()
+        try:
+            result = command_runner(
+                dispatch_command(generation, {"tools": records}, name, arguments),
+                environment,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise RuntimeError(f"{name} entrypoint probe failed") from error
+        validate_holds()
+        _verify_dispatch_set(generation, records)
+        records[name]["resolved"] = (result.stdout or result.stderr).strip()
+    ownership = sealed_ownership_record(generation)
+    _crosscheck_dispatch_ownership(ownership, records)
+    receipt: dict[str, object] = {
+        "schemaVersion": 3,
+        "runtimeContractVersion": 4,
+        "checkedAt": checked_at.isoformat(),
+        "specificationSha256": specification_digest(specification),
+        "coreSha256": core_sha256,
+        "environment": {
+            key: (
+                value
+                if key in {"UV_LINK_MODE", "PIP_NO_CACHE_DIR", "PYTHONDONTWRITEBYTECODE"}
+                else Path(value).relative_to(generation).as_posix()
+            )
+            for key, value in environment.items()
+            if key
+            not in {"UV_CACHE_DIR", "UV_TOOL_BIN_DIR", "UV_PYTHON_BIN_DIR", "NPM_CONFIG_CACHE"}
+        },
+        "installed": completed,
+        "runtimes": {
+            name: {
+                "version": specification["runtimes"][name]["version"],  # type: ignore[index]
+                "platform": platform_key(),
+                **select_runtime_artifact(specification, name),
+            }
+            for name in ("uv", "node")
+        },
+        "tools": records,
+        "ownership": ownership,
+    }
+    receipt["receiptIntegritySha256"] = json_integrity(receipt)
+    receipt_path = generation / RECEIPT_NAME
+    receipt_path.write_text(
+        json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
+    record = {
+        "generationId": generation_name,
+        "specificationSha256": specification_digest(specification),
+        "coreSha256": core_sha256,
+        "receiptSha256": sha256(receipt_path),
+    }
+    _validate_selected_generation(
+        project,
+        record,
+        record["specificationSha256"],
+        core_sha256,
+        verify_installed_core=True,
+    )
+    return record
+
+
+def _cleanup_candidate_paths(removals, holds: ExitStack, failed: bool) -> None:
+    try:
+        if os.name != "nt":
+            try:
+                for _, name, parent_hold, child_hold, identity in removals:
+                    if identity is None or parent_hold is None:
+                        continue
+                    opened_here = None
+                    if child_hold is None:
+                        descriptor = os.open(
+                            name,
+                            os.O_RDONLY
+                            | getattr(os, "O_DIRECTORY", 0)
+                            | getattr(os, "O_NOFOLLOW", 0),
+                            dir_fd=parent_hold[0],
+                        )
+                        state = os.fstat(descriptor)
+                        child_hold = (descriptor, (state.st_dev, state.st_ino))
+                        opened_here = descriptor
+                    try:
+                        _delete_held_child(parent_hold, name, child_hold, identity)
+                    finally:
+                        if opened_here is not None:
+                            os.close(opened_here)
+            finally:
+                holds.close()
+        else:
+            holds.close()
+            for path, _, _, _, identity in removals:
+                if identity is not None:
+                    _delete_windows_tree(path, identity)
+    except Exception:
+        if not failed:
+            raise
+
+
+def prepare_candidate(
+    project: Path,
+    specification: dict[str, object],
+    core_sha256: str,
+    *,
+    runner=None,
+    now: datetime | None = None,
+    generation_id: str | None = None,
+    transaction_id: str | None = None,
+    reporter=None,
+    confirmer=None,
+) -> dict[str, str]:
+    """Build once at the final path with held no-follow identities."""
+    project = _trusted_root(project.absolute(), "project")
+    command_runner = runner or run_command
+    generation_name = generation_id or secrets.token_hex(16)
+    transaction_name = transaction_id or secrets.token_hex(16)
+    if HEX_ID.fullmatch(generation_name) is None or HEX_ID.fullmatch(transaction_name) is None:
+        raise ValueError("dependency generation or transaction identifier is invalid")
+    if HEX_DIGEST.fullmatch(core_sha256) is None:
+        raise ValueError("dependency core digest is invalid")
+    core = _read_regular_relative(
+        project, ".chaos-engine/manifest.json", "installed core manifest", MAX_CONTROL_BYTES
+    )
+    if hashlib.sha256(core).hexdigest() != core_sha256:
+        raise ValueError("dependency installed core digest drift detected")
+    generations = project / GENERATIONS_NAME
+    transactions = project / ".chaos-engine-runtime-transactions"
+    generation = generations / generation_name
+    transaction = transactions / transaction_name
+    holds = ExitStack()
+    created_generation: tuple[int, int] | None = None
+    created_transaction: tuple[int, int] | None = None
+    generation_hold = None
+    transaction_hold = None
+    candidate_hold = None
+    candidate_transaction_hold = None
+    succeeded = False
+    try:
+        project_hold = holds.enter_context(_hold_directory(project, "project"))
+        project_descriptor = project_hold[0]
+        container_holds = []
+        for path in (generations, transactions):
+            if os.name != "nt" and project_descriptor is not None:
+                try:
+                    os.mkdir(path.name, dir_fd=project_descriptor)
+                except FileExistsError:
+                    # Re-entry authenticates the existing directory immediately below.
+                    pass
+                expected = os.stat(
+                    path.name, dir_fd=project_descriptor, follow_symlinks=False
+                )
+            else:
+                path.mkdir(exist_ok=True)
+                expected = os.stat(path, follow_symlinks=False)
+            held = holds.enter_context(_hold_directory(path, path.name))
+            if held[1] != (expected.st_dev, expected.st_ino):
+                raise ValueError("dependency container identity changed during open")
+            container_holds.append((path, held, path.name))
+        generation_hold = container_holds[0][1]
+        transaction_hold = container_holds[1][1]
+        if os.name != "nt":
+            os.mkdir(generation_name, dir_fd=generation_hold[0])
+            created = os.stat(
+                generation_name, dir_fd=generation_hold[0], follow_symlinks=False
+            )
+            created_generation = (created.st_dev, created.st_ino)
+            os.mkdir(transaction_name, dir_fd=transaction_hold[0])
+            created = os.stat(
+                transaction_name, dir_fd=transaction_hold[0], follow_symlinks=False
+            )
+            created_transaction = (created.st_dev, created.st_ino)
+        else:
+            generation.mkdir()
+            created = os.stat(generation, follow_symlinks=False)
+            created_generation = (created.st_dev, created.st_ino)
+            transaction.mkdir()
+            created = os.stat(transaction, follow_symlinks=False)
+            created_transaction = (created.st_dev, created.st_ino)
+        candidate_hold = holds.enter_context(
+            _hold_directory(generation, "candidate generation")
+        )
+        candidate_transaction_hold = holds.enter_context(
+            _hold_directory(transaction, "candidate transaction")
+        )
+        if candidate_hold[1] != created_generation or candidate_transaction_hold[1] != created_transaction:
+            raise ValueError("dependency candidate identity changed during open")
+        held_paths = [
+            (project, project_hold, "project"),
+            *container_holds,
+            (generation, candidate_hold, "candidate generation"),
+            (transaction, candidate_transaction_hold, "candidate transaction"),
+        ]
+
+        def validate_holds() -> None:
+            for path, held, label in held_paths:
+                _assert_held_directory(path, held, label)
+
+        if runner is None:
+            provision_generation_runtimes(
+                generation, transaction, specification, reporter=reporter,
+                confirmer=confirmer,
+            )
+            validate_holds()
+
+        result = _install_candidate_payload(
+            project,
+            generation,
+            transaction,
+            specification,
+            core_sha256,
+            generation_name,
+            command_runner,
+            validate_holds,
+            now or datetime.now(timezone.utc),
+            confirmer=confirmer,
+        )
+        succeeded = True
+        return result
+    finally:
+        failed = not succeeded
+        removals = (
+            (
+                transaction,
+                transaction_name,
+                transaction_hold,
+                candidate_transaction_hold,
+                created_transaction,
+            ),
+            (
+                generation,
+                generation_name,
+                generation_hold,
+                candidate_hold,
+                created_generation if failed else None,
+            ),
+        )
+        _cleanup_candidate_paths(removals, holds, failed)
+
+
+def unlink_owned_marker(path: Path, identity: tuple[int, int]) -> None:
+    if is_link_or_reparse(path):
+        raise ValueError("dependency build marker ownership drift detected")
+    scratch = path.with_name(f"{path.name}{BUILD_MARKER_OWNED_SUFFIX}")
+    if scratch.exists() or is_link_or_reparse(scratch):
+        raise ValueError(f"dependency build marker scratch collision: {scratch}")
+    path.replace(scratch)
+    try:
+        named = os.stat(scratch, follow_symlinks=False)
+        if (named.st_dev, named.st_ino) != identity:
+            raise ValueError("dependency build marker ownership drift detected")
+        if scratch.read_text(encoding="utf-8") != BUILD_MARKER_MAGIC:
+            raise ValueError("dependency build marker ownership drift detected")
+        scratch.unlink()
+    except (Exception, KeyboardInterrupt, SystemExit):
+        if scratch.exists() and not path.exists():
+            scratch.replace(path)
+        raise
+
+
+def specification_digest(specification: dict[str, object]) -> str:
+    tool_specification = {key: value for key, value in specification.items() if key != "components"}
+    encoded = json.dumps(tool_specification, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def capability_policy_digest(specification: dict[str, object]) -> str:
+    components = specification.get("components")
+    if not isinstance(components, dict):
+        raise ValueError("dependency capability policy is missing or invalid")
+    encoded = json.dumps(components, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def is_generated_python_cache(relative: str, *, directory: bool = False) -> bool:
+    parts = relative.split("/")
+    if directory:
+        return bool(parts) and parts[-1] == "__pycache__"
+    return len(parts) >= 2 and parts[-2] == "__pycache__" and parts[-1].endswith(".pyc")
+
+
+def ownership_digest(
+    files: dict[str, str], links: list[dict[str, str]] | None = None
+) -> str:
+    digest = hashlib.sha256()
+    for relative, file_digest in sorted(files.items()):
+        digest.update(relative.encode())
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(file_digest))
+    for link in sorted(links or [], key=lambda item: item["path"]):
+        digest.update(b"link\0")
+        digest.update(link["path"].encode())
+        digest.update(b"\0")
+        digest.update(link["target"].encode())
+        digest.update(b"\0")
+        digest.update(str(link.get("type", "symlink")).encode())
+        digest.update(b"\0")
+        digest.update(str(link.get("tag", "")).encode())
+    return digest.hexdigest()
+
+
+def valid_link_records(value: object) -> bool:
+    return isinstance(value, list) and all(
+        isinstance(link, dict)
+        and set(link) in (
+            {"path", "target"},
+            {"path", "target", "type", "tag"},
+        )
+        and isinstance(link["path"], str)
+        and isinstance(link["target"], str)
+        and (
+            set(link) == {"path", "target"}
+            or (link["type"] == "junction" and link["tag"] == "0xa0000003")
+        )
+        for link in value
+    )
+
+
+def _lexical_path(path: Path) -> Path:
+    value = os.path.abspath(path)
+    if os.name == "nt" and value.startswith("\\\\?\\UNC\\"):
+        value = f"\\\\{value[8:]}"
+    elif os.name == "nt" and value.startswith("\\\\?\\"):
+        value = value[4:]
+    return Path(value)
+
+
+def _windows_uv_junction_record(runtime: Path, path: Path) -> dict[str, str]:
+    if os.name != "nt":
+        raise ValueError("dependency runtime contains an unsupported reparse point")
+    relative = path.relative_to(runtime).as_posix()
+    alias = WINDOWS_UV_ALIAS.fullmatch(relative)
+    state = os.lstat(path)
+    if alias is None or getattr(state, "st_reparse_tag", 0) != WINDOWS_UV_JUNCTION_TAG:
+        raise ValueError(f"dependency runtime contains an unsupported reparse point: {relative}")
+    try:
+        target = _lexical_path(Path(os.readlink(path)))
+    except OSError as error:
+        raise ValueError(f"dependency runtime junction is unreadable: {relative}") from error
+    root = _lexical_path(runtime)
+    if not target.is_relative_to(root) or target.parent != _lexical_path(path.parent):
+        raise ValueError(f"dependency runtime junction escapes the runtime: {relative}")
+    expected = re.fullmatch(
+        rf"cpython-{re.escape(alias.group('version'))}\.\d+-windows-"
+        rf"{re.escape(alias.group('arch'))}-none",
+        target.name,
+    )
+    if expected is None or is_link_or_reparse(target) or not target.is_dir():
+        raise ValueError(f"dependency runtime junction target is invalid: {relative}")
+    return {
+        "path": relative,
+        "target": target.relative_to(root).as_posix(),
+        "type": "junction",
+        "tag": "0xa0000003",
+    }
+
+
+def _managed_link_target(
+    runtime: Path, path: Path, active: set[Path] | None = None
+) -> Path:
+    root = _lexical_path(runtime)
+    candidate = _lexical_path(path)
+    if not candidate.is_relative_to(root):
+        raise ValueError(f"dependency runtime link escapes the runtime: {path}")
+    seen = active or set()
+    current = root
+    for part in candidate.relative_to(root).parts:
+        current /= part
+        if current.is_symlink():
+            identity = _lexical_path(current)
+            if identity in seen:
+                raise ValueError(f"dependency runtime link cycle detected: {path}")
+            raw_target = Path(os.readlink(current))
+            target = _lexical_path(
+                raw_target if raw_target.is_absolute() else current.parent / raw_target
+            )
+            if not target.is_relative_to(root):
+                raise ValueError(f"dependency runtime link escapes the runtime: {current}")
+            current = _managed_link_target(root, target, seen | {identity})
+        elif is_link_or_reparse(current):
+            raise ValueError(f"dependency runtime contains an unsupported reparse point: {current}")
+        elif not current.exists():
+            raise DanglingRuntimeLink(f"dependency runtime link is dangling: {path}")
+    return current
+
+
+def canonicalize_runtime_links(runtime: Path) -> None:
+    """Validate every managed link, then rewrite safe targets for relocation."""
+    runtime = _lexical_path(runtime)
+    links: list[tuple[Path, str, Path]] = []
+    for path in runtime_entries(runtime):
+        if path.is_symlink():
+            resolved = _managed_link_target(runtime, path)
+            raw = Path(os.readlink(path))
+            immediate = _lexical_path(raw if raw.is_absolute() else path.parent / raw)
+            relative = os.path.relpath(immediate, path.parent)
+            links.append((path, relative, resolved))
+        elif is_link_or_reparse(path):
+            _windows_uv_junction_record(runtime, path)
+    for path, target, resolved in links:
+        if os.readlink(path) == target:
+            continue
+        path.unlink()
+        path.symlink_to(target, target_is_directory=resolved.is_dir())
+    for path, _, _ in links:
+        _managed_link_target(runtime, path)
+
+
+def normalized_ownership_record(ownership: object) -> object:
+    if not isinstance(ownership, dict):
+        return ownership
+    directories = ownership.get("directories")
+    files = ownership.get("files")
+    if (
+        not isinstance(directories, list)
+        or not all(isinstance(path, str) for path in directories)
+        or not isinstance(files, dict)
+        or not all(isinstance(path, str) and isinstance(digest, str) for path, digest in files.items())
+    ):
+        return ownership
+    normalized = dict(ownership)
+    links = ownership.get("links", [])
+    if not valid_link_records(links):
+        return ownership
+    normalized["directories"] = [
+        path for path in directories if not is_generated_python_cache(path, directory=True)
+    ]
+    normalized_files = {
+        path: digest
+        for path, digest in files.items()
+        if not is_generated_python_cache(path)
+    }
+    normalized["files"] = normalized_files
+    normalized["links"] = links
+    normalized["sha256"] = ownership_digest(normalized_files, links)
+    return normalized
+
+
+def ownership_record(
+    runtime: Path, expected_links: dict[str, str] | None = None
+) -> dict[str, object]:
+    if is_link_or_reparse(runtime):
+        raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
+    files: dict[str, str] = {}
+    directories: list[str] = []
+    links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
+        relative = path.relative_to(runtime).as_posix()
+        if path.is_symlink():
+            target = os.readlink(path)
+            if Path(target).is_absolute():
+                raise ValueError(f"dependency runtime link target is not relative: {relative}")
+            try:
+                _managed_link_target(runtime, path)
+            except DanglingRuntimeLink:
+                if expected_links is None or expected_links.get(relative) != target:
+                    raise
+            links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            links.append(_windows_uv_junction_record(runtime, path))
+        elif path.is_dir():
+            if not is_generated_python_cache(relative, directory=True):
+                directories.append(relative)
+        elif path.is_file() and relative != RECEIPT_NAME:
+            if not is_generated_python_cache(relative):
+                files[relative] = sha256(path)
+    return {
+        "directories": directories,
+        "files": files,
+        "links": links,
+        "sha256": ownership_digest(files, links),
+    }
+
+
+def _identity_from_stat(value) -> dict[str, int]:
+    return {
+        "size": value.st_size,
+        "mtimeNs": value.st_mtime_ns,
+        "ctimeNs": value.st_ctime_ns,
+        "mode": value.st_mode,
+        "device": value.st_dev,
+        "inode": value.st_ino,
+    }
+
+
+def _file_identity(path: Path) -> dict[str, int]:
+    return _identity_from_stat(os.stat(path, follow_symlinks=False))
+
+
+def sealed_ownership_record(runtime: Path) -> dict[str, object]:
+    if is_link_or_reparse(runtime):
+        raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
+    files: dict[str, str] = {}
+    identities: dict[str, dict[str, int]] = {}
+    directories: list[str] = []
+    links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
+        relative = path.relative_to(runtime).as_posix()
+        if path.is_symlink():
+            target = os.readlink(path)
+            if Path(target).is_absolute():
+                raise ValueError(f"dependency runtime link target is not relative: {relative}")
+            _managed_link_target(runtime, path)
+            links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            links.append(_windows_uv_junction_record(runtime, path))
+        elif path.is_dir():
+            if not is_generated_python_cache(relative, directory=True):
+                directories.append(relative)
+        elif path.is_file() and relative != RECEIPT_NAME:
+            if not is_generated_python_cache(relative):
+                digest, identity = _capture_regular_relative(
+                    runtime, relative, f"sealed generation file {relative}"
+                )
+                files[relative] = digest
+                identities[relative] = identity
+    return {
+        "directories": directories,
+        "files": files,
+        "links": links,
+        "sha256": ownership_digest(files, links),
+        "identities": identities,
+    }
+
+
+def verify_sealed_ownership(
+    runtime: Path, expected: object, *, full: bool = False
+) -> None:
+    if not isinstance(expected, dict):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    files = expected.get("files")
+    identities = expected.get("identities")
+    directories = expected.get("directories")
+    links = expected.get("links")
+    if (
+        not isinstance(files, dict)
+        or not isinstance(identities, dict)
+        or set(files) != set(identities)
+        or not isinstance(directories, list)
+        or not valid_link_records(links)
+    ):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    actual_files: set[str] = set()
+    actual_directories: list[str] = []
+    actual_links: list[dict[str, str]] = []
+    for path in runtime_entries(runtime):
+        relative = path.relative_to(runtime).as_posix()
+        if path.is_symlink():
+            target = os.readlink(path)
+            _managed_link_target(runtime, path)
+            actual_links.append({"path": relative, "target": target})
+        elif is_link_or_reparse(path):
+            actual_links.append(_windows_uv_junction_record(runtime, path))
+        elif path.is_dir() and not is_generated_python_cache(relative, directory=True):
+            actual_directories.append(relative)
+        elif path.is_file() and relative != RECEIPT_NAME and not is_generated_python_cache(relative):
+            actual_files.add(relative)
+    if (
+        actual_directories != directories
+        or actual_links != links
+        or actual_files != set(files)
+    ):
+        raise ValueError("dependency sealed generation contains unexpected or missing content")
+    for relative, expected_identity in identities.items():
+        if not isinstance(expected_identity, dict):
+            raise ValueError("dependency sealed generation identity is invalid")
+        current = _file_identity(runtime / relative)
+        if not full and os.name != "nt" and current == expected_identity:
+            continue
+        digest, captured = _capture_regular_relative(
+            runtime,
+            relative,
+            f"sealed generation file {relative}",
+            current["size"],
+        )
+        immutable = {"size", "mode", "device", "inode"}
+        if any(captured.get(key) != expected_identity.get(key) for key in immutable):
+            raise ValueError("dependency sealed generation identity drift detected")
+        if digest != files[relative]:
+            raise ValueError("dependency sealed generation content drift detected")
+
+
+def _capture_removal_files(
+    generation: Path, files: dict, identities: dict
+) -> dict[str, dict[str, int]]:
+    captured: dict[str, dict[str, int]] = {}
+    for relative, expected_digest in files.items():
+        expected_identity = identities.get(relative)
+        if not isinstance(relative, str) or not isinstance(expected_identity, dict):
+            raise ValueError("dependency sealed generation ownership is invalid")
+        digest, identity = _capture_regular_relative(
+            generation,
+            relative,
+            f"sealed generation removal file {relative}",
+            expected_identity.get("size"),
+        )
+        immutable = {"size", "mode", "device", "inode"}
+        if digest != expected_digest or any(
+            identity.get(key) != expected_identity.get(key) for key in immutable
+        ):
+            raise ValueError("dependency sealed generation changed before removal")
+        captured[relative] = identity
+    return captured
+
+
+def _validate_removal_links(generation: Path, links: list[dict[str, str]]) -> None:
+    for link in links:
+        relative = str(link["path"])
+        path = generation / relative
+        if path.is_symlink():
+            if os.readlink(path) != link["target"]:
+                raise ValueError("dependency sealed generation link changed before removal")
+            _managed_link_target(generation, path)
+        elif is_link_or_reparse(path):
+            if _windows_uv_junction_record(generation, path) != link:
+                raise ValueError("dependency sealed generation link changed before removal")
+        else:
+            raise ValueError("dependency sealed generation link is missing before removal")
+
+
+def _remove_captured_files(
+    generation: Path, captured: dict[str, dict[str, int]]
+) -> None:
+    for relative, identity in captured.items():
+        path = generation / relative
+        current = _file_identity(path)
+        if any(current.get(key) != identity.get(key) for key in ("size", "device", "inode")):
+            raise ValueError("dependency sealed generation changed during removal")
+        path.unlink()
+
+
+def _remove_owned_links(generation: Path, links: list[dict[str, str]]) -> None:
+    for link in sorted(links, key=lambda item: str(item["path"]), reverse=True):
+        path = generation / str(link["path"])
+        if path.is_symlink():
+            path.unlink()
+        else:
+            path.rmdir()
+
+
+def _remove_generated_caches(generation: Path) -> set[str]:
+    generated_directories: set[str] = set()
+    for path in reversed(runtime_entries(generation)):
+        relative = path.relative_to(generation).as_posix()
+        if is_link_or_reparse(path):
+            continue
+        if path.is_file() and is_generated_python_cache(relative):
+            path.unlink()
+        elif path.is_dir() and is_generated_python_cache(relative, directory=True):
+            generated_directories.add(relative)
+    return generated_directories
+
+
+def _remove_empty_directories(generation: Path, directories: set[str]) -> bool:
+    for relative in sorted(
+        directories, key=lambda value: (value.count("/"), value), reverse=True
+    ):
+        path = generation / relative
+        if path.is_dir() and not is_link_or_reparse(path):
+            try:
+                path.rmdir()
+            except OSError as error:
+                if error.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+                    raise
+    try:
+        generation.rmdir()
+    except OSError as error:
+        if error.errno not in {errno.ENOTEMPTY, errno.EEXIST}:
+            raise
+        return False
+    return True
+
+
+def _remove_sealed_generation_contents(
+    generation: Path,
+    ownership: dict[str, object],
+    receipt_sha256: str,
+) -> bool:
+    """Remove only receipt-owned entries; retain a nonempty generation as quarantine."""
+    files = ownership["files"]
+    identities = ownership["identities"]
+    directories = ownership["directories"]
+    links = ownership["links"]
+    if not isinstance(files, dict) or not isinstance(identities, dict):
+        raise ValueError("dependency sealed generation ownership is invalid")
+    if not isinstance(directories, list) or not valid_link_records(links):
+        raise ValueError("dependency sealed generation ownership is invalid")
+
+    captured = _capture_removal_files(generation, files, identities)
+
+    receipt_bytes = _read_regular_relative(
+        generation, RECEIPT_NAME, "generation removal receipt", MAX_RECEIPT_BYTES
+    )
+    if hashlib.sha256(receipt_bytes).hexdigest() != receipt_sha256:
+        raise ValueError("dependency generation receipt changed before removal")
+    receipt_identity = _file_identity(generation / RECEIPT_NAME)
+
+    _validate_removal_links(generation, links)
+    _remove_captured_files(generation, captured)
+    _remove_owned_links(generation, links)
+
+    if _file_identity(generation / RECEIPT_NAME) != receipt_identity:
+        raise ValueError("dependency generation receipt changed during removal")
+    (generation / RECEIPT_NAME).unlink()
+
+    generated_directories = _remove_generated_caches(generation)
+
+    removable_directories = {
+        str(relative) for relative in directories if isinstance(relative, str)
+    } | generated_directories
+    return _remove_empty_directories(generation, removable_directories)
+
+
+def remove_generation(project: Path, record: dict[str, str]) -> None:
+    """Delete one unselected verified generation without following path links."""
+    project = _trusted_root(project.absolute(), "project")
+    record = _validate_generation_record(record)
+    pointer_path = project / POINTER_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        pointer = _read_pointer(project)
+        if record in (pointer.get("active"), pointer.get("previous")):
+            raise ValueError("dependency selected generation cannot be removed")
+    generation = _validate_selected_generation(
+        project,
+        record,
+        record["specificationSha256"],
+        record["coreSha256"],
+        verify_installed_core=False,
+    )
+    receipt, _ = _bounded_json(
+        project,
+        f"{GENERATIONS_NAME}/{record['generationId']}/{RECEIPT_NAME}",
+        "generation receipt",
+        MAX_RECEIPT_BYTES,
+    )
+    generations = project / GENERATIONS_NAME
+    with ExitStack() as holds:
+        parent = holds.enter_context(_hold_directory(generations, "generation container"))
+        child = holds.enter_context(_hold_directory(generation, "retired generation"))
+        expected = child[1]
+        named = os.stat(record["generationId"], dir_fd=parent[0], follow_symlinks=False) if (
+            os.name != "nt" and isinstance(parent[0], int)
+        ) else os.stat(generation, follow_symlinks=False)
+        if (named.st_dev, named.st_ino) != expected:
+            raise ValueError("dependency generation identity changed before removal")
+        verify_sealed_ownership(generation, receipt["ownership"], full=True)
+    _remove_sealed_generation_contents(
+        generation,
+        receipt["ownership"],
+        record["receiptSha256"],
+    )
+
+
+def _pointer_generation_records(pointer: dict[str, object]) -> list[dict[str, str]]:
+    records = [_validate_generation_record(pointer["active"])]
+    if pointer.get("previous") is not None:
+        previous = _validate_generation_record(pointer["previous"])
+        if previous not in records:
+            records.append(previous)
+    return records
+
+
+def prepare_generation_remove(
+    project: Path,
+    *,
+    expected_specification_sha256: str,
+    expected_core_sha256: str,
+) -> list[dict[str, str]]:
+    """Authenticate selected generations and tombstone the active pointer."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if is_link_or_reparse(pointer_path) or is_link_or_reparse(removing_path):
+        raise ValueError("dependency pointer removal path is a link or reparse point")
+    if removing_path.exists():
+        raise ValueError("dependency generation removal recovery is required")
+    pointer = _read_pointer(project)
+    records = _pointer_generation_records(pointer)
+    for record in records:
+        generation = _validate_selected_generation(
+            project,
+            record,
+            record["specificationSha256"],
+            record["coreSha256"],
+            verify_installed_core=False,
+        )
+        receipt, _ = _bounded_json(
+            project,
+            f"{GENERATIONS_NAME}/{record['generationId']}/{RECEIPT_NAME}",
+            "generation receipt",
+            MAX_RECEIPT_BYTES,
+        )
+        verify_sealed_ownership(generation, receipt["ownership"], full=True)
+    active = records[0]
+    if (
+        active["specificationSha256"] != expected_specification_sha256
+        or active["coreSha256"] != expected_core_sha256
+    ):
+        raise ValueError("dependency active generation does not match installed core")
+    pointer_path.replace(removing_path)
+    return records
+
+
+def cancel_generation_remove(project: Path) -> None:
+    """Restore a prepared pointer after another uninstall resource failed."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        raise ValueError("dependency generation removal cannot be cancelled")
+    pointer = _read_pointer_at(project, POINTER_REMOVING_NAME)
+    for record in _pointer_generation_records(pointer):
+        _validate_selected_generation(
+            project,
+            record,
+            record["specificationSha256"],
+            record["coreSha256"],
+            verify_installed_core=False,
+        )
+    removing_path.replace(pointer_path)
+
+
+def finalize_generation_remove(project: Path) -> None:
+    """Remove only authenticated selected generations, leaving foreign files intact."""
+    project = _trusted_root(project.absolute(), "project")
+    pointer_path = project / POINTER_NAME
+    removing_path = project / POINTER_REMOVING_NAME
+    if pointer_path.exists() or is_link_or_reparse(pointer_path):
+        raise ValueError("dependency generation removal is not prepared")
+    if not removing_path.exists():
+        return
+    pointer = _read_pointer_at(project, POINTER_REMOVING_NAME)
+    for record in _pointer_generation_records(pointer):
+        generation = project / GENERATIONS_NAME / record["generationId"]
+        if generation.exists() or is_link_or_reparse(generation):
+            remove_generation(project, record)
+    generations = project / GENERATIONS_NAME
+    transactions = project / TRANSACTIONS_NAME
+    for container in (generations, transactions):
+        if is_link_or_reparse(container):
+            raise ValueError("dependency runtime container is a link or reparse point")
+        if container.is_dir() and not any(container.iterdir()):
+            container.rmdir()
+    removing_path.unlink()
+
+
+def _project_runtime_python_pin(specification: dict[str, object]) -> str:
+    """Series passed to project-runtime ``uv tool install --python`` (#6782)."""
+    dependencies = specification.get("dependencies")
+    contract = dependencies.get("python") if isinstance(dependencies, dict) else None
+    series = contract.get("maximumSeries") if isinstance(contract, dict) else None
+    if not isinstance(series, str) or re.fullmatch(r"3\.\d+", series.strip()) is None:
+        raise ValueError("project runtime install requires the Python maximum series")
+    return series.strip()
+
+
+def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
+    if specification.get("schemaVersion") == 3:
+        validate_runtime_specification(specification)
+    tools = specification.get("tools")
+    if specification.get("schemaVersion") not in {2, 3} or not isinstance(tools, dict):
+        raise ValueError("dependency specification schema is unsupported")
+    environment = runtime / "bootstrap"
+    scripts = environment / ("Scripts" if os.name == "nt" else "bin")
+    uv = executable(scripts, "uv")
+    npm_prefix = runtime / "npm"
+    npm = npm_executable(runtime / ("node" if os.name == "nt" else "node/bin"), "npm")
+    graphify = tools["graphify"]
+    mempalace = tools["mempalace"]
+    if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
+        raise ValueError("tool dependency specification is invalid")
+    # Pin the interpreter series. An unpinned install follows the newest CPython
+    # ABI, and chromadb/onnxruntime have no wheel for that ABI (#6782).
+    python_pin = _project_runtime_python_pin(specification)
+    return {
+        "uv": [
+            [sys.executable, "-m", "venv", "--copies", str(environment)],
+            [executable(scripts, "python"), "-m", "pip", "install", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
+        ],
+        "mempalace": [
+            [uv, "tool", "install", "--managed-python", "--python", python_pin, "--link-mode", "copy", "--with", str(mempalace["with"][0]), str(mempalace["package"])],
+        ],
+        "graphify": [
+            [uv, "tool", "install", "--managed-python", "--python", python_pin, "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
+        ],
+        "memory": [
+            [npm, "install", "--prefix", str(npm_prefix), str(tools["memory"]["package"])],  # type: ignore[index]
+        ],
+    }
+
+
+def tool_environment(runtime: Path) -> dict[str, str]:
+    return {
+        "UV_TOOL_DIR": str(runtime / "uv-tools"),
+        "UV_TOOL_BIN_DIR": str(runtime / "bin"),
+        "UV_CACHE_DIR": str(runtime / "uv-cache"),
+        "UV_PYTHON_INSTALL_DIR": str(runtime / "uv-python"),
+        "UV_PYTHON_BIN_DIR": str(runtime / "python-bin"),
+        "UV_LINK_MODE": "copy",
+        "NPM_CONFIG_PREFIX": str(runtime / "npm"),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+
+
+def freshness(receipt: dict[str, object], now: datetime | None = None) -> str:
+    current = now or datetime.now(timezone.utc)
+    try:
+        checked = datetime.fromisoformat(str(receipt["checkedAt"]))
+    except (KeyError, ValueError) as error:
+        raise ValueError("dependency receipt has no valid checkedAt timestamp") from error
+    if checked.tzinfo is None:
+        raise ValueError("dependency receipt timestamp must include a timezone")
+    if checked > current + timedelta(minutes=5):
+        raise ValueError("dependency receipt timestamp is in the future")
+    return "stale" if current - checked > STALE_AFTER else "fresh"
+
+
+def load_specification(path: Path) -> dict[str, object]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("dependency specification must be an object")
+    validate_runtime_specification(value)
+    return value
+
+
+def probe_plan(runtime: Path) -> dict[str, list[list[str]]]:
+    bootstrap = runtime / "bootstrap" / ("Scripts" if os.name == "nt" else "bin")
+    bin_dir = runtime / "bin"
+    node = str(owned_node(runtime))
+    return {
+        "uv": [[executable(bootstrap, "uv"), "--version"]],
+        "mempalace": [
+            [executable(bin_dir, "mempalace"), "--version"],
+            [executable(bin_dir, "mempalace-mcp"), "--help"],
+        ],
+        "graphify": [[executable(bin_dir, "graphify"), "--version"]],
+        "memory": [
+            [node, str(memory_javascript(runtime, "memory")), "--help"],
+            [node, str(memory_javascript(runtime, "memory-mcp")), "--help"],
+        ],
+    }
+
+
+def run_command(command: list[str], environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    merged = os.environ.copy()
+    merged.update(environment)
+    return subprocess.run(  # nosec B603
+        command, check=True, capture_output=True, text=True, env=merged, timeout=300
+    )
+
+
+def invoke_tool_runner(runner, command: list[str], environment: dict[str, str]):
+    """Call (command, environment) runners; adapt subprocess.run (env= kwargs)."""
+    try:
+        return runner(command, environment)
+    except TypeError as error:
+        if "bufsize" not in str(error):
+            raise
+        merged = os.environ.copy()
+        merged.update(environment)
+        return runner(  # nosec B603
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=merged,
+            timeout=300,
+        )
+
+
+def execute_plan(
+    runtime: Path,
+    specification: dict[str, object],
+    runner=run_command,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    environment = tool_environment(runtime)
+    completed: dict[str, list[str]] = {}
+    for tool, commands in install_plan(runtime, specification).items():
+        completed[tool] = []
+        for command in commands:
+            try:
+                result = invoke_tool_runner(runner, command, environment)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"{tool} install command failed: {command[0]}") from error
+            completed[tool].append((result.stdout or result.stderr).strip())
+    canonicalize_runtime_links(runtime)
+    probes: dict[str, list[str]] = {}
+    for tool, commands in probe_plan(runtime).items():
+        probes[tool] = []
+        for command in commands:
+            try:
+                result = invoke_tool_runner(runner, command, environment)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"{tool} entrypoint probe failed: {command[0]}") from error
+            probes[tool].append((result.stdout or result.stderr).strip())
+    records = {}
+    tools = specification["tools"]  # validated by install_plan
+    for tool, commands in probe_plan(runtime).items():
+        records[tool] = {
+            "requested": tools[tool]["package"],  # type: ignore[index]
+            "commands": [relative_command(runtime, command) for command in commands],
+            "entrypoints": {
+                Path(command[0]).relative_to(runtime).as_posix(): sha256(Path(command[0]))
+                for command in commands
+            },
+            "resolved": probes[tool],
+        }
+    receipt: dict[str, object] = {
+        "schemaVersion": RECEIPT_SCHEMA,
+        "runtimeContractVersion": RUNTIME_CONTRACT_VERSION,
+        "checkedAt": (now or datetime.now(timezone.utc)).isoformat(),
+        "specificationSha256": specification_digest(specification),
+        "capabilityPolicySha256": capability_policy_digest(specification),
+        "environment": {
+            key: value
+            if key in {"PYTHONDONTWRITEBYTECODE", "UV_LINK_MODE"}
+            else Path(value).relative_to(runtime).as_posix()
+            for key, value in environment.items()
+        },
+        "installed": completed,
+        "tools": records,
+    }
+    metadata = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    ownership = ownership_record(runtime)
+    if not ownership["links"]:
+        del ownership["links"]
+    ownership["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    receipt["ownership"] = ownership
+    integrity = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+    receipt["receiptIntegritySha256"] = hashlib.sha256(integrity).hexdigest()
+    (runtime / RECEIPT_NAME).write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return receipt
+
+
+def relative_command(runtime: Path, command: list[str]) -> list[str]:
+    result = command.copy()
+    for index, item in enumerate(result):
+        try:
+            result[index] = Path(item).relative_to(runtime).as_posix()
+        except ValueError:
+            # External system executables remain absolute; only runtime-owned paths relocate.
+            pass
+    return result
+
+
+def runtime_ownership_state(
+    runtime: Path,
+    receipt: dict[str, object],
+    specification: dict[str, object],
+) -> str:
+    """Classify authenticated runtime content without following foreign links."""
+    verify_receipt_integrity(receipt)
+    ownership = normalized_ownership_record(receipt.get("ownership"))
+    if not isinstance(ownership, dict):
+        raise ValueError("dependency runtime ownership record is invalid")
+    metadata_receipt = {
+        key: value
+        for key, value in receipt.items()
+        if key not in {"ownership", "receiptIntegritySha256"}
+    }
+    metadata = json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+    expected_files = ownership.get("files")
+    expected_directories = ownership.get("directories")
+    expected_links = ownership.get("links", [])
+    if (
+        not isinstance(expected_files, dict)
+        or not isinstance(expected_directories, list)
+        or not valid_link_records(expected_links)
+    ):
+        raise ValueError("dependency runtime ownership record is invalid")
+    expected_link_map = {item["path"]: item["target"] for item in expected_links}
+    actual = ownership_record(runtime, expected_links=expected_link_map)
+    actual["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    if actual == ownership:
+        specification_changed = receipt.get("specificationSha256") != specification_digest(
+            specification
+        )
+        capability_changed = (
+            "capabilityPolicySha256" in receipt
+            and receipt.get("capabilityPolicySha256")
+            != capability_policy_digest(specification)
+        )
+        contract_changed = receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION
+        return (
+            "specification-stale"
+            if specification_changed or capability_changed or contract_changed
+            else "healthy"
+        )
+    actual_files = actual["files"]
+    actual_directories = actual["directories"]
+    actual_links = actual["links"]
+    actual_link_map = {item["path"]: item["target"] for item in actual_links}
+    if (
+        not set(actual_files) <= set(expected_files)
+        or not set(actual_directories) <= set(expected_directories)
+        or not set(actual_link_map) <= set(expected_link_map)
+    ):
+        raise ValueError("dependency runtime contains foreign content")
+    if (
+        any(expected_files[path] != digest for path, digest in actual_files.items())
+        or any(expected_link_map[path] != target for path, target in actual_link_map.items())
+        or actual.get("metadataSha256") != ownership.get("metadataSha256")
+    ):
+        raise ValueError("dependency runtime ownership drift detected")
+    return "missing-only"
+
+
+def repair(  # noqa: MC0001 - one locked transaction keeps recovery and publication atomic.
+    runtime: Path,
+    specification: dict[str, object],
+    runner=run_command,
+    now: datetime | None = None,
+    force: bool = False,
+) -> dict[str, object]:
+    runtime = runtime.absolute()
+    if is_link_or_reparse(runtime):
+        raise ValueError(f"dependency runtime is a link or reparse point: {runtime}")
+    runtime.parent.mkdir(parents=True, exist_ok=True)
+    with runtime_lock(runtime):
+        backup = runtime.with_name(f"{runtime.name}.backup")
+        removing = runtime.with_name(f"{runtime.name}.removing")
+        building = runtime.with_name(f"{runtime.name}.building")
+        building_owned = building.with_name(f"{building.name}{BUILD_MARKER_OWNED_SUFFIX}")
+        if any(
+            is_link_or_reparse(path)
+            for path in (backup, removing, building, building_owned)
+        ):
+            raise ValueError("dependency recovery path is a link or reparse point")
+        if building_owned.exists():
+            if building.exists():
+                raise ValueError("dependency build marker recovery collision")
+            with building_owned.open("r", encoding="utf-8") as marker:
+                if marker.read() != BUILD_MARKER_MAGIC:
+                    raise ValueError(
+                        f"dependency build marker scratch collision: {building_owned}"
+                    )
+                opened = os.fstat(marker.fileno())
+                named = os.stat(building_owned, follow_symlinks=False)
+                owned_identity = (opened.st_dev, opened.st_ino)
+                if owned_identity != (named.st_dev, named.st_ino):
+                    raise ValueError(
+                        "dependency build marker scratch ownership drift detected"
+                    )
+            building_owned.replace(building)
+            named = os.stat(building, follow_symlinks=False)
+            if (named.st_dev, named.st_ino) != owned_identity:
+                building.replace(building_owned)
+                raise ValueError("dependency build marker scratch ownership drift detected")
+        if removing.exists():
+            if runtime.exists():
+                remove(runtime, specification, removal_path=removing, already_locked=True)
+            else:
+                raise ValueError("dependency removal recovery is required before repair")
+        if building.exists():
+            if building.read_text(encoding="utf-8") != BUILD_MARKER_MAGIC:
+                raise ValueError(f"dependency build marker collision: {building}")
+            if runtime.exists() and not backup.exists():
+                try:
+                    verify_receipt(runtime, read_receipt(runtime), specification)
+                except (OSError, ValueError):
+                    shutil.rmtree(runtime)
+                else:
+                    building.unlink()
+                    return read_receipt(runtime)
+            elif runtime.exists():
+                shutil.rmtree(runtime)
+            if backup.exists():
+                verify_receipt(backup, read_receipt(backup))
+                backup.replace(runtime)
+            building.unlink()
+        if backup.exists() and not runtime.exists():
+            verify_receipt(backup, read_receipt(backup))
+            backup.replace(runtime)
+        elif backup.exists():
+            verify_receipt(runtime, read_receipt(runtime))
+            backup.replace(removing)
+            remove(runtime, specification, removal_path=removing, already_locked=True)
+        previous = runtime.exists()
+        if previous:
+            current = read_receipt(runtime)
+            state = runtime_ownership_state(runtime, current, specification)
+            if state == "healthy" and not force:
+                doctor(runtime, runner=runner, now=now, specification=specification)
+                return upgrade_capability_receipt(runtime, current, specification)
+        marker_created = False
+        marker_identity: tuple[int, int] | None = None
+        try:
+            if previous:
+                runtime.replace(backup)
+            descriptor = os.open(
+                building,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+                0o600,
+            )
+            marker_created = True
+            with os.fdopen(descriptor, "w", encoding="utf-8") as marker:
+                marker.write(BUILD_MARKER_MAGIC)
+                marker.flush()
+                os.fsync(marker.fileno())
+                opened = os.fstat(marker.fileno())
+                marker_identity = (opened.st_dev, opened.st_ino)
+            runtime.mkdir()
+            receipt = execute_plan(runtime, specification, runner=runner, now=now)
+        except (Exception, KeyboardInterrupt, SystemExit):
+            if runtime.exists():
+                shutil.rmtree(runtime, ignore_errors=True)
+            if previous and backup.exists() and not runtime.exists():
+                backup.replace(runtime)
+            if marker_created and building.exists() and not backup.exists():
+                unlink_owned_marker(building, marker_identity)  # type: ignore[arg-type]
+            raise
+        else:
+            unlink_owned_marker(building, marker_identity)  # type: ignore[arg-type]
+            if backup.exists():
+                backup.replace(removing)
+                try:
+                    remove(runtime, specification, removal_path=removing, already_locked=True)
+                except OSError:
+                    # The verified tombstone is durable recovery state for the next call.
+                    pass
+            return receipt
+
+
+def read_receipt(runtime: Path) -> dict[str, object]:
+    try:
+        receipt = json.loads((runtime / RECEIPT_NAME).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine dependency receipt is missing or invalid") from error
+    required = {"schemaVersion", "checkedAt", "specificationSha256", "environment", "installed", "tools", "ownership", "receiptIntegritySha256"}
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("schemaVersion") != RECEIPT_SCHEMA
+        or not required <= set(receipt)
+        or set(receipt.get("tools", {})) != {"uv", "mempalace", "graphify", "memory"}
+    ):
+        raise ValueError("ChaosEngine dependency receipt schema is unsupported")
+    return receipt
+
+
+def verify_receipt(
+    runtime: Path,
+    receipt: dict[str, object],
+    specification: dict[str, object] | None = None,
+) -> None:
+    verify_receipt_integrity(receipt)
+    if specification is not None and receipt["specificationSha256"] != specification_digest(specification):
+        raise ValueError("dependency runtime specification drift detected")
+    if (
+        specification is not None
+        and receipt.get("runtimeContractVersion") != RUNTIME_CONTRACT_VERSION
+    ):
+        raise ValueError("dependency runtime contract drift detected")
+    if (
+        specification is not None
+        and "capabilityPolicySha256" in receipt
+        and receipt["capabilityPolicySha256"] != capability_policy_digest(specification)
+    ):
+        raise ValueError("dependency capability policy drift detected")
+    ownership = normalized_ownership_record(receipt["ownership"])
+    metadata_receipt = {
+        key: value
+        for key, value in receipt.items()
+        if key not in {"ownership", "receiptIntegritySha256"}
+    }
+    metadata = json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+    expected = ownership_record(runtime)
+    expected["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    if not isinstance(ownership, dict) or ownership != expected:
+        raise ValueError("dependency runtime ownership drift detected")
+    tools = receipt["tools"]
+    if not isinstance(tools, dict):
+        raise ValueError("dependency tool receipt is invalid")
+    for record in tools.values():
+        if not isinstance(record, dict) or not {"requested", "commands", "entrypoints", "resolved"} <= set(record):
+            raise ValueError("dependency tool receipt is invalid")
+        entrypoints = record["entrypoints"]
+        if not isinstance(entrypoints, dict):
+            raise ValueError("dependency entrypoint receipt is invalid")
+        for path, expected_digest in entrypoints.items():
+            candidate = runtime / path if isinstance(path, str) else runtime
+            if not isinstance(path, str) or not isinstance(expected_digest, str) or sha256(candidate) != expected_digest:
+                raise ValueError("dependency entrypoint drift detected")
+
+
+def verify_receipt_integrity(receipt: dict[str, object]) -> None:
+    integrity_receipt = {key: value for key, value in receipt.items() if key != "receiptIntegritySha256"}
+    integrity = json.dumps(integrity_receipt, sort_keys=True, separators=(",", ":")).encode()
+    if receipt["receiptIntegritySha256"] != hashlib.sha256(integrity).hexdigest():
+        raise ValueError("dependency receipt integrity drift detected")
+
+
+def upgrade_capability_receipt(
+    runtime: Path, receipt: dict[str, object], specification: dict[str, object]
+) -> dict[str, object]:
+    if "capabilityPolicySha256" in receipt:
+        return receipt
+    upgraded = dict(receipt)
+    upgraded["capabilityPolicySha256"] = capability_policy_digest(specification)
+    ownership = dict(upgraded["ownership"])  # type: ignore[arg-type]
+    upgraded["ownership"] = ownership
+    metadata_receipt = {
+        key: value
+        for key, value in upgraded.items()
+        if key not in {"ownership", "receiptIntegritySha256"}
+    }
+    metadata = json.dumps(metadata_receipt, sort_keys=True, separators=(",", ":")).encode()
+    ownership["metadataSha256"] = hashlib.sha256(metadata).hexdigest()
+    integrity_receipt = {
+        key: value for key, value in upgraded.items() if key != "receiptIntegritySha256"
+    }
+    integrity = json.dumps(integrity_receipt, sort_keys=True, separators=(",", ":")).encode()
+    upgraded["receiptIntegritySha256"] = hashlib.sha256(integrity).hexdigest()
+    receipt_path = runtime / RECEIPT_NAME
+    temporary = runtime / f".{RECEIPT_NAME}.capability-upgrade"
+    if temporary.exists() or is_link_or_reparse(temporary):
+        raise ValueError("dependency capability receipt upgrade collision")
+    descriptor = os.open(
+        temporary,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(upgraded, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(receipt_path)
+    finally:
+        if temporary.exists() and not is_link_or_reparse(temporary):
+            temporary.unlink()
+    verify_receipt(runtime, upgraded, specification)
+    return upgraded
+
+
+def doctor(
+    runtime: Path,
+    runner=run_command,
+    now: datetime | None = None,
+    specification: dict[str, object] | None = None,
+) -> dict[str, object]:
+    receipt = read_receipt(runtime)
+    verify_receipt(runtime, receipt, specification)
+    environment = tool_environment(runtime)
+    for commands in probe_plan(runtime).values():
+        for command in commands:
+            invoke_tool_runner(runner, command, environment)
+    return {
+        "status": "healthy",
+        "freshness": freshness(receipt, now),
+        "checkedAt": receipt["checkedAt"],
+    }
+
+
+def status(
+    runtime: Path,
+    specification: dict[str, object],
+    now: datetime | None = None,
+) -> dict[str, object]:
+    receipt = read_receipt(runtime)
+    verify_receipt(runtime, receipt, specification)
+    return {
+        "status": "healthy",
+        "freshness": freshness(receipt, now),
+        "checkedAt": receipt["checkedAt"],
+    }
+
+
+def remove(
+    runtime: Path,
+    specification: dict[str, object],
+    removal_path: Path | None = None,
+    already_locked: bool = False,
+) -> None:
+    runtime = runtime.absolute()
+    removing = removal_path or runtime.with_name(f"{runtime.name}.removing")
+    with (nullcontext() if already_locked else runtime_lock(runtime)):
+        if is_link_or_reparse(runtime) or is_link_or_reparse(removing):
+            raise ValueError("dependency removal path is a link or reparse point")
+        if removal_path is None and runtime.exists() and removing.exists():
+            raise ValueError(f"dependency removal collision: {removing}")
+        if removal_path is None and runtime.exists():
+            receipt = read_receipt(runtime)
+            verify_receipt(runtime, receipt, specification)
+            runtime.replace(removing)
+        elif not removing.exists():
+            return
+        if not any(removing.iterdir()):
+            removing.rmdir()
+            return
+        receipt = read_receipt(removing)
+        if removal_path is not None or not runtime.exists():
+            verify_receipt_integrity(receipt)
+        else:
+            verify_receipt(removing, receipt, specification)
+        ownership = normalized_ownership_record(receipt["ownership"])
+        files = ownership.get("files") if isinstance(ownership, dict) else None
+        directories = ownership.get("directories") if isinstance(ownership, dict) else None
+        links = ownership.get("links", []) if isinstance(ownership, dict) else None
+        if (
+            not isinstance(files, dict)
+            or not isinstance(directories, list)
+            or not valid_link_records(links)
+        ):
+            raise ValueError("dependency removal ownership record is invalid")
+        expected_links = {item["path"]: item["target"] for item in links}
+        entries = runtime_entries(removing)
+        present_links = {
+            path.relative_to(removing).as_posix(): os.readlink(path)
+            for path in entries
+            if path.is_symlink()
+        }
+        if not set(present_links) <= set(expected_links) or any(
+            expected_links[path] != target for path, target in present_links.items()
+        ):
+            raise ValueError("dependency removal link ownership drift detected")
+        present = {
+            path.relative_to(removing).as_posix()
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_file()
+        }
+        generated_files = {
+            relative for relative in present if is_generated_python_cache(relative)
+        }
+        allowed = set(files) | generated_files | {RECEIPT_NAME}
+        if not present <= allowed:
+            raise ValueError("dependency removal contains an unowned file")
+        for relative in sorted(present - {RECEIPT_NAME}):
+            path = removing / relative
+            if relative not in generated_files and sha256(path) != files[relative]:
+                raise ValueError("dependency removal ownership drift detected")
+            path.unlink()
+        for relative in sorted(present_links):
+            (removing / relative).unlink()
+        present_directories = {
+            path.relative_to(removing).as_posix()
+            for path in entries
+            if not is_link_or_reparse(path) and path.is_dir()
+        }
+        expected_directories = set(directories) | {
+            relative
+            for relative in present_directories
+            if is_generated_python_cache(relative, directory=True)
+        }
+        if not present_directories <= expected_directories:
+            raise ValueError("dependency removal directory ownership drift detected")
+        for directory in sorted(
+            (
+                path
+                for path in entries
+                if not is_link_or_reparse(path) and path.is_dir()
+            ),
+            key=lambda path: len(path.parts),
+            reverse=True,
+        ):
+            directory.rmdir()
+        (removing / RECEIPT_NAME).unlink()
+        removing.rmdir()
+
+
+def prepare_remove(runtime: Path, specification: dict[str, object]) -> Path:
+    runtime = runtime.absolute()
+    removing = runtime.with_name(f"{runtime.name}.removing")
+    with runtime_lock(runtime):
+        if is_link_or_reparse(runtime) or is_link_or_reparse(removing):
+            raise ValueError("dependency removal path is a link or reparse point")
+        if removing.exists():
+            raise ValueError(f"dependency removal collision: {removing}")
+        verify_receipt(runtime, read_receipt(runtime), specification)
+        runtime.replace(removing)
+    return removing
+
+
+def cancel_remove(runtime: Path) -> None:
+    runtime = runtime.absolute()
+    removing = runtime.with_name(f"{runtime.name}.removing")
+    with runtime_lock(runtime):
+        if runtime.exists() or not removing.exists():
+            raise ValueError("dependency removal cannot be cancelled")
+        verify_receipt(removing, read_receipt(removing))
+        removing.replace(runtime)
+
+
+def finalize_remove(runtime: Path, specification: dict[str, object]) -> None:
+    removing = runtime.absolute().with_name(f"{runtime.name}.removing")
+    remove(runtime, specification, removal_path=removing)
+
+
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("command", choices=("doctor", "repair", "upgrade"))
+    result.add_argument("--runtime", required=True, type=Path)
+    result.add_argument(
+        "--specification", type=Path, default=Path(__file__).with_name("dependencies.json")
+    )
+    return result
+
+
+def main() -> int:
+    args = parser().parse_args()
+    try:
+        if args.command == "doctor":
+            with runtime_lock(args.runtime.absolute()):
+                result = doctor(
+                    args.runtime,
+                    specification=load_specification(args.specification),
+                )
+        else:
+            result = repair(
+                args.runtime,
+                load_specification(args.specification),
+                force=args.command == "upgrade",
+            )
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    if sys.argv[1:2] == [MEMPALACE_INDEX_SUBCOMMAND]:
+        raise SystemExit(mempalace_index_entry(sys.argv[1:]))
+    raise SystemExit(main())

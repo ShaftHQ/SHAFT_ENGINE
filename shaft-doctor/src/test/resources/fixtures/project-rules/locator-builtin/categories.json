@@ -1,0 +1,7 @@
+[
+  {
+    "name": "ENVIRONMENT",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*grid timeout.*"
+  }
+]

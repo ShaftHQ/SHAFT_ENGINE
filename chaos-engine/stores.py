@@ -1,0 +1,1942 @@
+#!/usr/bin/env python3
+"""Shared MemPalace and Graphify locations for every ChaosEngine checkout.
+
+One Git repository has one palace and one graphify-out. Linked worktrees and
+other branches resolve those same paths. A second clone of the same origin
+reuses those paths when they already hold a palace database or ``graph.json``.
+Refresh reuses one detached snapshot of the default-branch tip and does not
+reset a checkout. ``~/.mempalace`` is never read or migrated.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import secrets
+import shutil
+import sqlite3
+import subprocess  # nosec B404 - fixed git and store CLIs, no shell.
+import sys
+import tempfile
+import time
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Callable, Iterator
+
+
+PALACE_BACKEND = "sqlite_exact"
+GENERIC_MARKER = ".chaos-engine-source-revision.json"
+LEGACY_MARKER = ".sha" + "ft-source-revision.json"
+LOCK_NAME = "stores.lock"
+ATTEMPT_STAMP = "stores-refresh-attempted"
+STORE_SNAPSHOT = "store-snapshot"
+GRAPHIFY_GRAPH_COMMANDS = frozenset({
+    "query",
+    "path",
+    "explain",
+    "diagnose",
+    "affected",
+    "god-nodes",
+    "cluster-only",
+})
+Runner = Callable[[list[str], Path], object]
+
+
+def _git_executable() -> str:
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is not on PATH")
+    return git
+
+
+def _git(cwd: Path, *args: str) -> str:
+    completed = subprocess.run(  # nosec B603 - fixed git argv, no shell.
+        [_git_executable(), *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "git failed").strip()
+        raise RuntimeError(detail)
+    return completed.stdout.strip()
+
+
+def _override(names: tuple[str, ...]) -> Path | None:
+    for name in names:
+        if name not in os.environ:
+            continue
+        configured = os.environ[name].strip()
+        if not configured:
+            raise RuntimeError(f"{name} must not be blank")
+        path = Path(configured).expanduser()
+        if not path.is_absolute():
+            raise RuntimeError(f"{name} must be absolute")
+        return path.resolve()
+    return None
+
+
+def resolve_common_dir(cwd: Path) -> Path | None:
+    """Return the shared git directory, or None when cwd is not a repository."""
+    try:
+        raw = _git(cwd, "rev-parse", "--git-common-dir")
+    except RuntimeError:
+        return None
+    if not raw:
+        return None
+    common = Path(raw)
+    if not common.is_absolute():
+        common = (cwd / common).resolve()
+    return common.resolve()
+
+
+def _main_worktree(cwd: Path, common: Path) -> Path:
+    """Main worktree for ``common``; a separate git dir is not inside it (#7278)."""
+    if common.name == ".git":
+        return common.parent.resolve()
+    try:
+        listing = _git(cwd, "worktree", "list", "--porcelain")
+    except RuntimeError:
+        listing = ""
+    first = listing.split("\n\n", 1)[0].splitlines() if listing else []
+    if first and first[0].startswith("worktree ") and "bare" not in first:
+        listed = Path(first[0][len("worktree "):]).resolve()
+        # `git init --separate-git-dir` records no main worktree; git then lists the git dir itself.
+        if listed != common.resolve():
+            return listed
+    try:
+        top = _git(cwd, "rev-parse", "--show-toplevel")
+    except RuntimeError:
+        top = ""
+    return Path(top).resolve() if top else cwd.resolve()
+
+
+def resolve_primary_root(cwd: Path) -> Path:
+    """Return the main worktree that owns shared store files."""
+    common = resolve_common_dir(cwd)
+    if common is None:
+        return cwd.resolve()
+    return _main_worktree(cwd, common)
+
+
+def _local_palace(cwd: Path) -> Path:
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        return common / "chaos-engine" / "mempalace"
+    return cwd.resolve() / ".chaos-engine-state" / "mempalace"
+
+
+def resolve_palace(cwd: Path) -> Path:
+    """Return the one sqlite_exact palace for this repository."""
+    configured = _override(("CHAOS_ENGINE_MEMPALACE", "SHA" + "FT_MEMPALACE"))
+    if configured is not None:
+        return configured
+    return _shared_or_local(cwd, _local_palace(cwd), "palace")
+
+
+NESTED_REPOSITORY_PRUNE = frozenset({".git", "node_modules", ".chaos-engine", ".chaos-engine-state",
+                                      ".chaos-engine-runtime", "graphify-out", ".memory", "target"})
+
+
+def nested_repository_roots(project: Path) -> list[str]:
+    """Relative POSIX paths of Git repositories or worktrees below ``project``.
+
+    A directory holding a ``.git`` directory or file (worktree, submodule) is a
+    nested repository; it is reported once and never descended into. The root
+    itself is not reported. Symlinked directories are not followed.
+    """
+    root = project.resolve()
+    found: list[str] = []
+    for current, directories, _files in os.walk(root, followlinks=False):
+        here = Path(current)
+        kept = []
+        for name in sorted(directories):
+            if name in NESTED_REPOSITORY_PRUNE:
+                continue
+            child = here / name
+            if child.is_symlink():
+                continue
+            marker = child / ".git"
+            if marker.is_dir() or marker.is_file():
+                found.append(child.relative_to(root).as_posix())
+                continue
+            kept.append(name)
+        directories[:] = kept
+    return found
+
+
+def palace_candidates(cwd: Path) -> list[Path]:
+    """Every location a palace for this project may live in (#state relocation)."""
+    project = cwd.resolve()
+    candidates = [project / ".chaos-engine-state" / "mempalace"]
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        candidates.append(common / "chaos-engine" / "mempalace")
+    in_tree = project / ".git" / "chaos-engine" / "mempalace"
+    if in_tree not in candidates:
+        candidates.append(in_tree)
+    return candidates
+
+
+def legacy_palace(cwd: Path) -> Path:
+    """Project-local palace written by older host MCP args. Do not delete it."""
+    return cwd.resolve() / ".chaos-engine-state" / "mempalace"
+
+
+def palace_migration_hint(cwd: Path) -> str | None:
+    """Hint when the legacy directory exists and is not the shared palace."""
+    legacy = legacy_palace(cwd)
+    canonical = resolve_palace(cwd)
+    try:
+        if legacy.is_symlink() or not legacy.is_dir():
+            return None
+        if legacy.resolve() == canonical.resolve():
+            return None
+    except OSError:
+        return None
+    return (
+        "legacy MemPalace directory "
+        f"{legacy} differs from the shared palace {canonical}; "
+        "leave that data in place and point MCP at the shared palace"
+    )
+
+
+def _local_graph_out(cwd: Path) -> Path:
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        return _main_worktree(cwd, common) / "graphify-out"
+    return cwd.resolve() / "graphify-out"
+
+
+def resolve_graph_out(cwd: Path) -> Path:
+    """Return the one graphify-out directory for this repository."""
+    configured = _override(("CHAOS_ENGINE_GRAPHIFY_OUT", "SHA" + "FT_GRAPHIFY_OUT"))
+    if configured is not None:
+        return configured
+    return _shared_or_local(cwd, _local_graph_out(cwd), "graph")
+
+
+ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
+
+
+def _origin_url(cwd: Path) -> str | None:
+    try:
+        raw = _git(cwd, "remote", "get-url", "origin")
+    except RuntimeError:
+        return None
+    return raw.strip() or None
+
+
+def _registry_dir() -> Path:
+    """User registry of populated stores, keyed by origin URL.
+
+    ``CHAOS_ENGINE_STORE_REGISTRY`` isolates tests from the real home directory.
+    """
+    override = os.environ.get("CHAOS_ENGINE_STORE_REGISTRY", "").strip()
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_absolute():
+            raise RuntimeError("CHAOS_ENGINE_STORE_REGISTRY must be absolute")
+        return path
+    xdg = os.environ.get("XDG_DATA_HOME", "").strip()
+    base = Path(xdg).expanduser() if xdg else Path.home() / ".local" / "share"
+    return (base / "chaos-engine" / "store-registry").resolve()
+
+
+def _registry_path(origin: str) -> Path:
+    digest = hashlib.sha256(origin.encode("utf-8")).hexdigest()[:16]
+    return _registry_dir() / f"{digest}.json"
+
+
+def _read_record(origin: str) -> dict[str, Any]:
+    path = _registry_path(origin)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
+def _write_record(origin: str, record: dict[str, Any]) -> None:
+    path = _registry_path(origin)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(4)}.tmp")
+    temporary.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _store_populated(kind: str, path: Path) -> bool:
+    name = "sqlite_exact.sqlite3" if kind == "palace" else "graph.json"
+    candidate = path / name
+    return candidate.is_file() and not candidate.is_symlink()
+
+
+def _remember_receipt(cwd: Path, record: dict[str, Any], origin: str) -> None:
+    source = cwd.resolve() / ACCOUNT_RECEIPT_NAME
+    if source.is_symlink() or not source.is_file():
+        return
+    destination = _registry_path(origin).with_name(_registry_path(origin).stem + "-receipt.json")
+    temporary = destination.with_name(f".{destination.name}.{secrets.token_hex(4)}.tmp")
+    shutil.copyfile(source, temporary)
+    temporary.replace(destination)
+    record["receipt"] = str(destination)
+
+
+def _remember(cwd: Path, origin: str, kind: str, location: Path) -> None:
+    record = _read_record(origin)
+    record["origin"] = origin
+    record[kind] = str(location)
+    roots = [item for item in record.get("roots", []) if isinstance(item, str)]
+    root = str(cwd.resolve())
+    if root not in roots:
+        roots.append(root)
+    record["roots"] = roots
+    _remember_receipt(cwd, record, origin)
+    _write_record(origin, record)
+
+
+def _registered_path(origin: str, kind: str) -> Path | None:
+    raw = _read_record(origin).get(kind)
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    if not _store_populated(kind, path):
+        return None
+    return path
+
+
+def _shared_or_local(cwd: Path, local: Path, kind: str) -> Path:
+    """Prefer this checkout's populated store, else the one already mined for its origin."""
+    origin = _origin_url(cwd)
+    if origin is None:
+        return local
+    try:
+        if _store_populated(kind, local):
+            _remember(cwd, origin, kind, local)
+            return local
+        shared = _registered_path(origin, kind)
+        if shared is not None:
+            _remember(cwd, origin, kind, shared)
+            return shared
+    except OSError:
+        return local
+    return local
+
+
+def registered_roots(cwd: Path) -> list[Path]:
+    """Checkout roots that share this origin, including ``cwd``."""
+    roots: list[Path] = []
+    origin = _origin_url(cwd)
+    if origin is not None:
+        for item in _read_record(origin).get("roots", []):
+            if isinstance(item, str) and item:
+                roots.append(Path(item))
+    current = cwd.resolve()
+    if current not in roots:
+        roots.append(current)
+    return roots
+
+
+def registered_account_receipt(cwd: Path) -> Path | None:
+    """User-scoped account receipt copied from a checkout of this origin."""
+    origin = _origin_url(cwd)
+    if origin is None:
+        return None
+    raw = _read_record(origin).get("receipt")
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    if path.is_symlink() or not path.is_file():
+        return None
+    return path
+
+
+def repository_relative(source: str, roots: list[Path]) -> str | None:
+    """Repository-relative POSIX path for a drawer ``source_file`` under one of ``roots``."""
+    text = str(source).strip()
+    if not text:
+        return None
+    path = Path(text)
+    if not path.is_absolute():
+        if any(part == ".." for part in path.parts):
+            return None
+        return path.as_posix()
+    for root in roots:
+        try:
+            relative = path.resolve().relative_to(Path(root).resolve())
+        except (ValueError, OSError):
+            continue
+        return relative.as_posix()
+    return None
+
+
+def equivalent_source_files(source: str, roots: list[Path]) -> list[str]:
+    """Other ``source_file`` strings that name the same repository-relative file."""
+    relative = repository_relative(source, roots)
+    if relative is None:
+        return []
+    values: list[str] = []
+    if relative != source:
+        values.append(relative)
+    for root in roots:
+        try:
+            absolute = str((Path(root) / relative).resolve())
+        except OSError:
+            continue
+        if absolute != source and absolute not in values:
+            values.append(absolute)
+    return values
+
+
+def palace_records_source(cwd: Path, relative: str) -> bool:
+    """True when the shared palace already has a drawer for this repository-relative file."""
+    database = resolve_palace(cwd) / "sqlite_exact.sqlite3"
+    if not database.is_file() or database.is_symlink():
+        return False
+    roots = registered_roots(cwd)
+    wanted = Path(relative).as_posix()
+    try:
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return False
+    try:
+        try:
+            rows = connection.execute(
+                "SELECT json_extract(metadata_json, '$.source_file') FROM documents"
+            ).fetchall()
+        except sqlite3.Error:
+            return False
+    finally:
+        connection.close()
+    return any(
+        isinstance(stored, str) and repository_relative(stored, roots) == wanted
+        for (stored,) in rows
+    )
+
+
+def inject_mempalace_arguments(arguments: list[str], palace: Path) -> list[str]:
+    """Place ``--palace`` and ``--backend`` before the MemPalace subcommand.
+
+    A caller-supplied ``--palace`` keeps its path but still gets the pinned
+    backend, so an ambient backend selection cannot pick another one (#6212).
+    """
+    if "--backend" in arguments:
+        return list(arguments)
+    if "--palace" in arguments:
+        return ["--backend", PALACE_BACKEND, *arguments]
+    if arguments and arguments[0].startswith("-"):
+        return list(arguments)
+    return [
+        "--palace",
+        str(palace),
+        "--backend",
+        PALACE_BACKEND,
+        *arguments,
+    ]
+
+
+def inject_graphify_arguments(arguments: list[str], graph_json: Path) -> list[str]:
+    """Point graph-reading Graphify subcommands at the shared graph.json."""
+    if not arguments or arguments[0] not in GRAPHIFY_GRAPH_COMMANDS:
+        return list(arguments)
+    if "--graph" in arguments:
+        return list(arguments)
+    return [*arguments, "--graph", str(graph_json)]
+
+
+DEFAULT_BRANCH_FALLBACKS = ("main", "master")
+
+
+def default_branch_commit(cwd: Path) -> str:
+    """Return the local default-branch tip. Does not fetch."""
+    candidates: list[str] = []
+    try:
+        symbolic = _git(cwd, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    except RuntimeError:
+        symbolic = ""
+    if symbolic:
+        candidates.append(symbolic)
+    # #6216: conventional names only as a fallback when origin/HEAD is unset.
+    candidates.extend(f"refs/remotes/origin/{name}" for name in DEFAULT_BRANCH_FALLBACKS)
+    try:
+        remotes = _git(cwd, "remote")
+    except RuntimeError:
+        remotes = "unknown"
+    if not remotes:
+        # #6493: a local-only repository has no remote default branch to fetch;
+        # its local main/master is the default branch.
+        candidates.extend(f"refs/heads/{name}" for name in DEFAULT_BRANCH_FALLBACKS)
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            sha = _git(cwd, "rev-parse", "--verify", "--quiet", candidate)
+        except RuntimeError:
+            continue
+        if len(sha) == 40 and all(character in "0123456789abcdef" for character in sha):
+            return sha
+    raise RuntimeError(
+        "default-branch commit is not available locally. fix-next: git fetch"
+    )
+
+
+def _marker_path(graph_out: Path) -> Path | None:
+    generic = graph_out / GENERIC_MARKER
+    if generic.is_file():
+        return generic
+    legacy = graph_out / LEGACY_MARKER
+    if legacy.is_file():
+        return legacy
+    return None
+
+
+def _read_marker(graph_out: Path) -> dict[str, object] | None:
+    path = _marker_path(graph_out)
+    if path is None:
+        return None
+    import json
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _manifest_digest(graph_out: Path) -> str | None:
+    manifest = graph_out / "manifest.json"
+    if not manifest.is_file():
+        return None
+    return hashlib.sha256(manifest.read_bytes()).hexdigest()
+
+
+def graph_freshness(cwd: Path) -> tuple[bool, str]:
+    """Report whether the shared graph matches the local default-branch tip."""
+    graph_out = resolve_graph_out(cwd)
+    graph_json = graph_out / "graph.json"
+    if not graph_json.is_file():
+        return False, "absent - shared Graphify cache is not built"
+    digest = _manifest_digest(graph_out)
+    if digest is None:
+        return False, "stale - shared Graphify cache has no manifest.json"
+    marker = _read_marker(graph_out)
+    if not isinstance(marker, dict):
+        return False, "stale - shared Graphify cache has no indexed revision marker"
+    indexed = marker.get("indexed_revision")
+    expected = marker.get("manifest_sha256")
+    if not isinstance(indexed, str) or len(indexed) != 40:
+        return False, "stale - indexed revision marker has no valid revision"
+    if not isinstance(expected, str) or expected != digest:
+        return False, "stale - Graphify manifest changed after revision marker"
+    if not is_git_work_tree(cwd):
+        requested = project_content_revision(cwd)
+        if indexed != requested:
+            return False, f"stale - indexed={indexed} requested={requested} (non-git fingerprint)"
+        return True, str(graph_out)
+    try:
+        requested = default_branch_commit(cwd)
+    except RuntimeError as error:
+        return False, str(error)
+    if indexed != requested:
+        return False, f"stale - indexed={indexed} requested={requested}"
+    return True, str(graph_out)
+
+
+def write_marker(graph_out: Path, revision: str) -> Path:
+    """Bind the shared cache to the revision that was indexed."""
+    import json
+
+    digest = _manifest_digest(graph_out)
+    if digest is None:
+        raise RuntimeError("Graphify manifest.json is absent; extract did not finish")
+    graph_out.mkdir(parents=True, exist_ok=True)
+    marker = graph_out / GENERIC_MARKER
+    temporary = marker.with_suffix(marker.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "indexed_revision": revision,
+                "manifest_sha256": digest,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(marker)
+    return marker
+
+
+# #7303/#7487: emitted for never-indexed non-git graphs; severity maps to warning.
+NON_GIT_GRAPHIFY_DETAIL = (
+    "n/a - not a git repository; Graphify freshness binds to a git revision"
+)
+
+
+def is_git_work_tree(cwd: Path) -> bool:
+    """False only when git positively says cwd is outside any work tree."""
+    try:
+        _git(cwd, "rev-parse", "--git-dir")
+    except RuntimeError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+_FINGERPRINT_SKIP = frozenset({
+    ".git", ".chaos-engine-runtime", "graphify-out", ".memory", "target",
+    "node_modules", "__pycache__", ".chaos-engine-state",
+})
+
+
+def project_content_revision(cwd: Path) -> str:
+    """40-hex blake2b of sorted relative paths + file bytes for a non-git tree. #7487"""
+    root = Path(cwd).resolve()
+    digest = hashlib.blake2b(digest_size=20)
+    files: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if name not in _FINGERPRINT_SKIP and not name.startswith(".")
+        )
+        relative_dir = Path(dirpath).resolve().relative_to(root)
+        if any(part in _FINGERPRINT_SKIP for part in relative_dir.parts):
+            dirnames[:] = []
+            continue
+        for name in sorted(filenames):
+            if name.startswith(".") or name.endswith(".pyc"):
+                continue
+            path = Path(dirpath) / name
+            try:
+                if not path.is_file() or path.is_symlink():
+                    continue
+            except OSError:
+                continue
+            files.append(path)
+    for path in files:
+        rel = path.resolve().relative_to(root).as_posix().encode("utf-8")
+        digest.update(rel)
+        digest.update(b"\0")
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(b"?")
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _has_commit(cwd: Path) -> bool:
+    """True when HEAD resolves; unknown git state counts as having one."""
+    try:
+        _git(cwd, "rev-parse", "--verify", "--quiet", "HEAD^{commit}")
+    except RuntimeError:
+        try:
+            _git(cwd, "rev-parse", "--git-dir")
+        except (RuntimeError, OSError):
+            return True
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
+    """Doctor row for an existing shared graph. Missing caches stay the setup plan."""
+    graph_out = resolve_graph_out(cwd)
+    if not graph_out.exists():
+        return None
+    fresh, message = graph_freshness(cwd)
+    if fresh:
+        return {"status": "healthy", "detail": message}
+    if not is_git_work_tree(cwd):
+        # #7487: fingerprint-stale → repair. Never-indexed keeps #7303 warning detail.
+        fix = (
+            "python3 .chaos-engine/install.py repair --project . --component graphify"
+        )
+        if "non-git fingerprint" in message:
+            return {"status": "degraded", "detail": message, "fixNext": fix}
+        return {
+            "status": "degraded",
+            "detail": NON_GIT_GRAPHIFY_DETAIL,
+            "fixNext": fix,
+        }
+    if not _has_commit(cwd):
+        # #6499: repair cannot index a repository with no commits; say so.
+        return {
+            "status": "absent",
+            "detail": "waiting for the first commit - Graphify indexes a revision",
+            "fixNext": (
+                "commit once (git add -A && git commit -m init), then "
+                "python3 .chaos-engine/install.py repair --project . --component graphify"
+            ),
+        }
+    if _readable_tip_lag(message, graph_out):
+        # A readable graph behind the tip is still a lead. Stale stays on the
+        # retrieve receipt (#6409). Doctor must not call that degraded.
+        return {
+            "status": "sync-advisory",
+            "detail": message,
+            "fixNext": "python3 .chaos-engine/tool.py stores refresh --if-stale",
+        }
+    return {
+        "status": "degraded",
+        "detail": message,
+        "fixNext": (
+            "python3 .chaos-engine/install.py repair --project . --component graphify"
+        ),
+    }
+
+
+def _readable_tip_lag(message: str, graph_out: Path) -> bool:
+    """True only when the graph is readable and the sole gap is the branch tip."""
+    graph = graph_out / "graph.json"
+    return message.startswith("stale - indexed=") and graph.is_file() and graph.stat().st_size > 2
+
+
+def home_palace_note() -> str:
+    """Name a Chroma home palace without opening or migrating it."""
+    chroma = Path.home() / ".mempalace" / "palace" / "chroma.sqlite3"
+    if chroma.is_file():
+        return "ignored-chroma"
+    return ""
+
+
+def read_wing(root: Path) -> str | None:
+    """Return the single wing declared in mempalace.yaml, when present."""
+    path = root / "mempalace.yaml"
+    if not path.is_file():
+        return None
+    found: list[str] = []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("wing:"):
+            continue
+        value = stripped.split(":", 1)[1].strip()
+        if value:
+            found.append(value)
+    if len(found) == 1:
+        return found[0]
+    return None
+
+
+class RefreshBusy(RuntimeError):
+    """Another process holds the shared store refresh lock."""
+
+
+class SnapshotRefused(RuntimeError):
+    """A store snapshot or restore was refused because the refresh lease is held (#7118)."""
+
+
+CORRUPT_PALACE_DETAIL = "corrupt → quarantine + rebuild"
+
+
+@contextmanager
+def refresh_lock(common_dir: Path) -> Iterator[None]:
+    """Hold the repository store lock. A second refresh exits without building."""
+    lock_dir = common_dir / "chaos-engine"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / LOCK_NAME
+    lock_file = lock_path.open("a+b")
+    if lock_file.seek(0, os.SEEK_END) == 0:
+        lock_file.write(b"\0")
+        lock_file.flush()
+    lock_file.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt  # pylint: disable=import-outside-toplevel
+
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl  # pylint: disable=import-outside-toplevel
+
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        lock_file.close()
+        raise RefreshBusy("store refresh is already running") from error
+    try:
+        yield
+    finally:
+        lock_file.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        lock_file.close()
+
+
+def sqlite_quick_check(database: Path, *, bound: int = 1) -> str:
+    """Bounded ``PRAGMA quick_check``. ``ok``, or the first failure detail (#7118)."""
+    if not database.is_file():
+        return "missing"
+    limit = max(1, int(bound))
+    # immutable when no WAL exists: a read-only open of a delete-journal
+    # database must not create -wal/-shm sidecars beside a healthy palace.
+    wal = database.with_name(database.name + "-wal")
+    query = "mode=ro" if wal.is_file() else "mode=ro&immutable=1"
+    connection = None
+    try:
+        connection = sqlite3.connect(f"{database.resolve().as_uri()}?{query}", uri=True)
+        connection.execute("PRAGMA query_only=ON")
+        row = connection.execute(f"PRAGMA quick_check({limit})").fetchone()
+    except sqlite3.Error as error:
+        return str(error)
+    finally:
+        if connection is not None:
+            connection.close()
+    if not row:
+        return "quick_check returned nothing"
+    return str(row[0])
+
+
+def quarantine_corrupt_palace(palace: Path) -> Path:
+    """Move a torn sqlite_exact image out of the live palace (#7118)."""
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    destination = palace / ".chaos-engine-quarantine" / f"corrupt-{stamp}"
+    if destination.exists():
+        destination = destination.with_name(f"{destination.name}-{secrets.token_hex(2)}")
+    destination.mkdir(parents=True)
+    for suffix in ("", "-wal", "-shm"):
+        source = palace / f"sqlite_exact.sqlite3{suffix}"
+        if source.is_file() and not source.is_symlink():
+            source.rename(destination / source.name)
+    return destination
+
+
+def corrupt_palace_gate(palace: Path) -> dict[str, str] | None:
+    """Quarantine a palace whose bounded quick_check is not ok.
+
+    A locked database is left alone: a live mine is not corruption. Returns
+    None when the palace is missing or consistent.
+    """
+    database = palace / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return None
+    detail = sqlite_quick_check(database)
+    if detail == "ok" or "locked" in detail.casefold():
+        return None
+    try:
+        quarantined = quarantine_corrupt_palace(palace)
+        quarantine = str(quarantined)
+    except OSError:
+        quarantine = ""
+    return {
+        "detail": CORRUPT_PALACE_DETAIL,
+        "quickCheck": detail,
+        "quarantine": quarantine,
+        "fixNext": "python3 .chaos-engine/tool.py stores refresh",
+    }
+
+
+def _backup_sqlite(source: Path, destination: Path) -> str:
+    """Crash-consistent copy via the SQLite backup API. A bare file copy is never a snapshot."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        destination.unlink()
+    src = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
+    dst = sqlite3.connect(destination)
+    try:
+        src.backup(dst)
+        dst.commit()
+    finally:
+        dst.close()
+        src.close()
+    status = sqlite_quick_check(destination)
+    if status != "ok":
+        destination.unlink(missing_ok=True)
+        raise RuntimeError(f"store snapshot failed quick_check: {status}")
+    return status
+
+
+def snapshot_palace_database(cwd: Path, destination: Path) -> str:
+    """Snapshot the shared palace, or refuse while a refresh/mine holds the lease.
+
+    #7118 writer: the torn file beside
+    ``.git/chaos-engine/mempalace/sqlite_exact.sqlite3`` was not produced by
+    ``ensure_store_snapshot`` (that path is a detached git worktree) or by
+    ``stores refresh`` (mempalace mine writes the live database; it does not
+    copy it). The page and index damage matches a file copy of the main
+    database without its WAL while a mine held this lease. That copy is a box
+    snapshot outside the harness: it must stay idle of the lease. This
+    function is the harness snapshot. It uses the SQLite backup API, then
+    ``quick_check``.
+    """
+    palace = resolve_palace(cwd)
+    source = palace / "sqlite_exact.sqlite3"
+    if not source.is_file():
+        raise RuntimeError("palace database is missing")
+
+    def copy() -> str:
+        return _backup_sqlite(source, destination)
+
+    common = resolve_common_dir(cwd)
+    if common is None:
+        return copy()
+    try:
+        with refresh_lock(common):
+            return copy()
+    except RefreshBusy as error:
+        raise SnapshotRefused("store snapshot refused: refresh lease is held") from error
+
+
+def restore_palace_database(cwd: Path, snapshot: Path) -> str:
+    """Restore a snapshot with the backup API, or refuse while the lease is held.
+
+    A snapshot that fails ``quick_check`` is not restored. A published image
+    that then fails ``quick_check`` is quarantined and reported as corrupt.
+    """
+    incoming = sqlite_quick_check(snapshot)
+    if incoming != "ok":
+        raise RuntimeError(f"{CORRUPT_PALACE_DETAIL}: snapshot {incoming}")
+
+    def publish() -> str:
+        palace = resolve_palace(cwd)
+        palace.mkdir(parents=True, exist_ok=True)
+        staging = palace / ".sqlite_exact.restore.part"
+        target = palace / "sqlite_exact.sqlite3"
+        try:
+            _backup_sqlite(snapshot, staging)
+            for suffix in ("-wal", "-shm"):
+                sidecar = palace / f"sqlite_exact.sqlite3{suffix}"
+                if sidecar.is_file() and not sidecar.is_symlink():
+                    sidecar.unlink()
+            staging.replace(target)
+        except BaseException:
+            if staging.exists():
+                staging.unlink(missing_ok=True)
+            raise
+        status = sqlite_quick_check(target)
+        if status != "ok":
+            quarantine_corrupt_palace(palace)
+            raise RuntimeError(f"{CORRUPT_PALACE_DETAIL}: restored {status}")
+        return status
+
+    common = resolve_common_dir(cwd)
+    if common is None:
+        return publish()
+    try:
+        with refresh_lock(common):
+            return publish()
+    except RefreshBusy as error:
+        raise SnapshotRefused("store restore refused: refresh lease is held") from error
+
+
+def _run(runner: Runner, command: list[str], cwd: Path) -> None:
+    if runner is subprocess.run:
+        completed = run_until_stalled(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout or "command failed").strip()
+            raise RuntimeError(detail or "command failed")
+        return
+    result = runner(command, cwd)
+    if isinstance(result, int) and result != 0:
+        raise RuntimeError(f"command failed with exit {result}")
+
+
+def palace_drawer_count(palace: Path) -> int | None:
+    """Documents in a sqlite_exact palace; None when absent or unreadable (#6377)."""
+    database = palace / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return None
+    import sqlite3
+
+    try:
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        try:
+            row = connection.execute("select count(*) from documents").fetchone()
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        return None
+    return int(row[0]) if row else 0
+
+
+def palace_indexed_revision(palace: Path) -> str | None:
+    """Revision recorded after a palace mine, or None when the stamp is absent."""
+    path = palace / GENERIC_MARKER
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    revision = payload.get("indexed_revision")
+    if not isinstance(revision, str) or len(revision) != 40:
+        return None
+    if any(character not in "0123456789abcdef" for character in revision):
+        return None
+    return revision
+
+
+def write_palace_marker(palace: Path, revision: str) -> Path:
+    """Bind the shared palace to the revision that was mined."""
+    palace.mkdir(parents=True, exist_ok=True)
+    marker = palace / GENERIC_MARKER
+    temporary = marker.with_suffix(marker.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(
+            {"schema_version": 1, "indexed_revision": revision},
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(marker)
+    return marker
+
+
+def _component_current(cwd: Path, component: str) -> bool:
+    if component == "graphify":
+        fresh, _message = graph_freshness(cwd)
+        return fresh
+    if component == "mempalace":
+        # #6377: an initialized but never-mined palace is not current.
+        # A palace with rows is current only when those rows match this tip.
+        palace = resolve_palace(cwd)
+        if not palace_drawer_count(palace):
+            return False
+        recorded = palace_indexed_revision(palace)
+        if recorded is None:
+            return False
+        try:
+            return recorded == default_branch_commit(cwd)
+        except RuntimeError:
+            return False
+    raise RuntimeError(f"unsupported store component: {component}")
+
+
+_DOC_SUFFIXES = {".md", ".mdx"}
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+_SKIP_DOC_PARTS = frozenset({".git", "node_modules", "target"})
+_SECTION_TEXT_LIMIT = 600
+_GRAPHIFY_IGNORE = ".graphifyignore"
+
+
+def _ignore_regex(pattern: str) -> re.Pattern[str]:
+    """Translate one gitignore glob: ``**`` spans directories, ``*`` and ``?`` do not."""
+    out: list[str] = []
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        elif pattern[index] == "*":
+            out.append("[^/]*")
+            index += 1
+        elif pattern[index] == "?":
+            out.append("[^/]")
+            index += 1
+        else:
+            out.append(re.escape(pattern[index]))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def graphify_ignore_rules(root: Path) -> list[tuple[bool, bool, bool, re.Pattern[str]]]:
+    """Rules from ``root/.graphifyignore`` that the documentation pass honours.
+
+    Each rule is ``(negated, directory_only, anchored, regex)``. A bare document-suffix
+    rule (``*.md``) keeps pages out of Graphify's code extract, which this pass replaces,
+    so it does not drop pages here; every path and directory rule does.
+    """
+    path = root / _GRAPHIFY_IGNORE
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    rules: list[tuple[bool, bool, bool, re.Pattern[str]]] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        negated = line.startswith("!")
+        line = line[1:] if negated else line
+        directory_only = line.endswith("/")
+        line = line.rstrip("/")
+        bare = line[3:] if line.startswith("**/") else line
+        if not directory_only and "/" not in bare and bare in {"*" + suffix for suffix in _DOC_SUFFIXES}:
+            continue
+        anchored = "/" in line
+        if not line:
+            continue
+        rules.append((negated, directory_only, anchored, _ignore_regex(line.lstrip("/"))))
+    return rules
+
+
+def graphify_ignored(relative: str, rules: list[tuple[bool, bool, bool, re.Pattern[str]]]) -> bool:
+    """True when a repo-relative file path, or a directory above it, matches the rules (last wins)."""
+    parts = relative.split("/")
+    candidates = [("/".join(parts[:end]), end < len(parts)) for end in range(1, len(parts) + 1)]
+    ignored = False
+    for negated, directory_only, anchored, regex in rules:
+        for candidate, is_directory in candidates:
+            if directory_only and not is_directory:
+                continue
+            target = candidate if anchored else candidate.rsplit("/", 1)[-1]
+            if regex.match(target):
+                ignored = not negated
+                break
+    return ignored
+
+
+def _documentation_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    if not root.is_dir():
+        return files
+    rules = graphify_ignore_rules(root)
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in _DOC_SUFFIXES:
+            continue
+        relative = path.relative_to(root)
+        if any(part in _SKIP_DOC_PARTS for part in relative.parts):
+            continue
+        if rules and graphify_ignored(relative.as_posix(), rules):
+            continue
+        files.append(path)
+    return sorted(files)
+
+
+def _anchor(heading: str, seen: dict[str, int]) -> str:
+    """GitHub-style heading anchor, suffixed ``-N`` when repeated on the page."""
+    slug = re.sub(r"[^\w\- ]", "", heading.casefold()).strip().replace(" ", "-") or "section"
+    count = seen.get(slug, 0)
+    seen[slug] = count + 1
+    return slug if count == 0 else f"{slug}-{count}"
+
+
+def _section_text(lines: list[str]) -> str:
+    return " ".join(" ".join(lines).split())[:_SECTION_TEXT_LIMIT]
+
+
+def index_documentation(root: Path) -> dict:
+    """File Markdown and MDX pages: headings, links, and one bounded text chunk per section.
+
+    This is the zero-LLM documentation pass. External mine and code-only
+    extract commands still run; refresh merges this result afterward. Pages
+    that ``.graphifyignore`` excludes are skipped, and headings inside fenced
+    code blocks are text, not sections.
+    """
+    pages: list[dict] = []
+    for path in _documentation_files(root):
+        headings: list[str] = []
+        links: list[str] = []
+        sections: list[dict] = []
+        preamble: list[str] = []
+        body = preamble
+        trail: list[tuple[int, str]] = []
+        seen: dict[str, int] = {}
+        fenced = False
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            if _FENCE_RE.match(line):
+                fenced = not fenced
+            heading = None if fenced else _HEADING_RE.match(line)
+            if heading:
+                level = len(heading.group(1))
+                title = heading.group(2).strip()
+                headings.append(title)
+                trail = [item for item in trail if item[0] < level] + [(level, title)]
+                body = []
+                sections.append({
+                    "heading": title,
+                    "level": level,
+                    "trail": [item[1] for item in trail],
+                    "anchor": _anchor(title, seen),
+                    "lines": body,
+                })
+                continue
+            body.append(line)
+            links.extend(match.group(1) for match in _LINK_RE.finditer(line))
+        for section in sections:
+            section["text"] = _section_text(section.pop("lines"))
+        pages.append({
+            "path": path.relative_to(root).as_posix(),
+            "headings": headings,
+            "links": links,
+            "text": _section_text(preamble),
+            "sections": sections,
+        })
+    return {"pages": pages}
+
+
+def _documentation_labels(page: dict) -> tuple[str, str, list[tuple[str, str, str]]]:
+    """Page label, page text, and (anchor, label, text) per section, as the graph files them."""
+    label = str(page.get("path") or "")
+    headings = page.get("headings") or []
+    if headings:
+        label = str(headings[0])
+    sections = [section for section in page.get("sections") or [] if isinstance(section, dict)]
+    page_text = str(page.get("text") or "")
+    if sections and sections[0].get("level") == 1:
+        title_section, sections = sections[0], sections[1:]
+        page_text = " ".join(part for part in (page_text, str(title_section.get("text") or "")) if part)
+    filed: list[tuple[str, str, str]] = []
+    for section in sections:
+        trail = [str(item) for item in section.get("trail") or [] if str(item) != label]
+        section_label = " › ".join([label, *trail]) if trail else label
+        filed.append((str(section.get("anchor") or "section"), section_label, str(section.get("text") or "")))
+    return label, page_text, filed
+
+
+def documentation_texts(graph_out: Path) -> dict[tuple[str, str], str]:
+    """(path, label) -> stored text for every filed page and section node. Missing filing -> {}."""
+    try:
+        indexed = json.loads((graph_out / "documentation-pages.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        return {}
+    pages = indexed.get("pages") if isinstance(indexed, dict) else None
+    texts: dict[tuple[str, str], str] = {}
+    for page in pages if isinstance(pages, list) else []:
+        if not isinstance(page, dict) or not page.get("path"):
+            continue
+        path = str(page["path"])
+        label, page_text, sections = _documentation_labels(page)
+        texts.setdefault((path, label), page_text[:_SECTION_TEXT_LIMIT])
+        for _anchor, section_label, text in sections:
+            joined = texts.get((path, section_label))
+            texts[(path, section_label)] = f"{joined} {text}".strip() if joined else text
+    return texts
+
+
+def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
+    """Add documentation pages, and one node per page section, to a Graphify graph.json.
+
+    A section node's label is its heading trail under the page title and its body
+    text rides in ``rationale``, which Graphify's query scorer reads.
+    """
+    try:
+        graph = json.loads(graph_json.read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        graph = {}
+    if not isinstance(graph, dict):
+        graph = {}
+    nodes = graph.get("nodes")
+    edges = graph.get("edges")
+    if not isinstance(nodes, list):
+        nodes = []
+    if not isinstance(edges, list):
+        edges = []
+    for page in indexed.get("pages") or []:
+        if not isinstance(page, dict):
+            continue
+        page_path = str(page.get("path") or "")
+        if not page_path:
+            continue
+        node_id = "docs:" + page_path
+        label, page_text, sections = _documentation_labels(page)
+        node = {
+            "id": node_id,
+            "label": label,
+            "kind": "document",
+            "path": page_path,
+            "source_file": page_path,
+            "file_type": "document",
+            "headings": list(page.get("headings") or []),
+        }
+        if page_text:
+            node["rationale"] = page_text[:_SECTION_TEXT_LIMIT]
+        nodes.append(node)
+        for anchor, section_label, text in sections:
+            section_id = f"{node_id}#{anchor}"
+            section_node = {
+                "id": section_id,
+                "label": section_label,
+                "kind": "section",
+                "path": page_path,
+                "source_file": page_path,
+                "file_type": "document",
+            }
+            if text:
+                section_node["rationale"] = text
+            nodes.append(section_node)
+            edges.append({"source": node_id, "target": section_id, "kind": "contains"})
+        for link in page.get("links") or []:
+            edges.append({"source": node_id, "target": str(link), "kind": "link"})
+    graph["nodes"] = nodes
+    graph["edges"] = edges
+    graph_json.parent.mkdir(parents=True, exist_ok=True)
+    graph_json.write_text(json.dumps(graph, indent=2) + "\n", encoding="utf-8")
+    return graph
+
+
+def write_documentation_filing(directory: Path, indexed: dict) -> Path:
+    """Record the pages a documentation mine files, including .mdx."""
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = directory / "documentation-pages.json"
+    destination.write_text(json.dumps(indexed, indent=2) + "\n", encoding="utf-8")
+    return destination
+
+
+def _apply_documentation_index(source: Path, *destinations: Path) -> dict:
+    indexed = index_documentation(source)
+    if not indexed["pages"]:
+        return indexed
+    for destination in destinations:
+        if destination.name == "graph.json":
+            merge_documentation_graph(destination, indexed)
+        else:
+            write_documentation_filing(destination, indexed)
+    return indexed
+
+
+def _indexed_revision(graph_out: Path) -> str | None:
+    marker = _read_marker(graph_out)
+    indexed = marker.get("indexed_revision") if isinstance(marker, dict) else None
+    if isinstance(indexed, str) and len(indexed) == 40:
+        return indexed
+    return None
+
+
+def _ancestor_revision(snapshot: Path, previous: str | None, revision: str) -> bool:
+    """True when ``previous`` is an ancestor of ``revision``. Rewritten history is not."""
+    if not previous or previous == revision:
+        return False
+    try:
+        _git(snapshot, "merge-base", "--is-ancestor", previous, revision)
+    except RuntimeError:
+        return False
+    return True
+
+
+def _seed_existing_graph(existing: Path, produced: Path) -> bool:
+    """Copy the last checkpoint so Graphify's own incremental extract can run."""
+    graph = existing / "graph.json"
+    manifest = existing / "manifest.json"
+    if not graph.is_file() or graph.stat().st_size <= 2 or not manifest.is_file():
+        return False
+    produced.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(graph, produced / "graph.json")
+    shutil.copy2(manifest, produced / "manifest.json")
+    cache = existing / "cache"
+    if cache.is_dir():
+        shutil.copytree(cache, produced / "cache", dirs_exist_ok=True)
+    return True
+
+
+def _seed_incremental_graph(snapshot: Path, existing: Path, produced: Path, revision: str) -> bool:
+    if not existing.exists():
+        return False
+    if not _ancestor_revision(snapshot, _indexed_revision(existing), revision):
+        return False
+    return _seed_existing_graph(existing, produced)
+
+
+def _refresh_graphify(
+    cwd: Path,
+    *,
+    snapshot: Path,
+    scratch: Path,
+    revision: str,
+    invoke: Runner,
+) -> None:
+    """Extract Graphify into the shared graphify-out for one detached snapshot."""
+    graphify = shutil.which("graphify")
+    if graphify is None:
+        raise RuntimeError("graphify is not on PATH")
+    staging = scratch / "graph-out"
+    produced = staging / "graphify-out"
+    incremental = _seed_incremental_graph(snapshot, resolve_graph_out(cwd), produced, revision)
+    print(
+        f"stores: graphify {'incremental' if incremental else 'full'} extract",
+        file=sys.stderr,
+        flush=True,
+    )
+    _run(
+        invoke,
+        [
+            graphify,
+            "extract",
+            str(snapshot),
+            "--code-only",
+            "--no-cluster",
+            "--out",
+            str(staging),
+        ],
+        snapshot,
+    )
+    produced = staging / "graphify-out"
+    if not (produced / "graph.json").is_file() or not (produced / "manifest.json").is_file():
+        raise RuntimeError("graphify extract did not write graph.json and manifest.json")
+    _apply_documentation_index(snapshot, produced / "graph.json", produced)
+    target = resolve_graph_out(cwd)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    backup = target.with_name(target.name + ".replacing")
+    if backup.exists():
+        shutil.rmtree(backup)
+    if target.exists():
+        target.rename(backup)
+    try:
+        shutil.move(str(produced), str(target))
+        write_marker(target, revision)
+    except (OSError, RuntimeError):
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        if backup.exists():
+            backup.rename(target)
+        raise
+    if backup.exists():
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def store_snapshot_path(common: Path) -> Path:
+    """Stable detached checkout. MemPalace keys drawers by absolute path."""
+    return common / "chaos-engine" / STORE_SNAPSHOT
+
+
+def _snapshot_dirty(snapshot: Path) -> bool:
+    return bool(_git(snapshot, "status", "--porcelain"))
+
+
+def ensure_store_snapshot(cwd: Path, common: Path, revision: str) -> Path:
+    """Check out ``revision`` in the one reused snapshot.
+
+    A fresh temporary directory on every refresh gives every file a new
+    absolute path. MemPalace's unchanged-file skip then never matches, and
+    each refresh re-embeds the whole tree. Reusing this path keeps mtimes
+    for files git did not change.
+    """
+    snapshot = store_snapshot_path(common)
+    if (snapshot / ".git").exists():
+        current = _git(snapshot, "rev-parse", "HEAD")
+        if current != revision or _snapshot_dirty(snapshot):
+            _git(snapshot, "checkout", "--force", "--detach", revision)
+            _git(snapshot, "clean", "-fdq")
+        return snapshot
+    if snapshot.exists():
+        shutil.rmtree(snapshot)
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _git(cwd, "worktree", "add", "--detach", str(snapshot), revision)
+    except RuntimeError:
+        _git(cwd, "worktree", "prune")
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
+        _git(cwd, "worktree", "add", "--detach", str(snapshot), revision)
+    return snapshot
+
+
+# A project mine checks every file against the palace one query at a time; on a large palace
+# that full pass takes hours. Mine only what changed since the stamped revision (#7465).
+# A large change set stays incremental: never force a full remine solely because many
+# files changed. Full remine only when the stamped revision is missing or not an ancestor.
+
+
+def incremental_mine_paths(snapshot: Path, previous: str | None, revision: str) -> list[str] | None:
+    """
+    Files added or modified since ``previous``, or None when a full mine is required.
+
+    Full mine only when there is no stamped revision or it is not an ancestor of
+    ``revision`` (missing index stamp / rewritten history). Corrupt or format-changed
+    indexes are decided by ``mempalace_mine_decision`` on the project-mine path.
+    """
+    if previous is None:
+        return None
+    if previous == revision:
+        return []
+    try:
+        _git(snapshot, "merge-base", "--is-ancestor", previous, revision)
+        changed = _git(snapshot, "diff", "--name-only", "--diff-filter=AMR", previous, revision)
+    except RuntimeError:
+        return None
+    return [line for line in changed.splitlines() if line.strip()]
+
+
+def confine_rules(paths: list[str]) -> list[str]:
+    """Anchored ignore rules that keep exactly ``paths``, honoured by git and MemPalace.
+
+    A wildcard ``!*/`` makes MemPalace un-ignore every file under every directory, turning an
+    incremental mine into a full walk; so open each ancestor directory explicitly instead.
+    """
+    folders = sorted({"/".join(path.split("/")[:depth]) for path in paths
+                      for depth in range(1, path.count("/") + 1)},
+                     key=lambda folder: (folder.count("/"), folder))
+    rules = ["/*"]
+    for folder in folders:
+        rules += [f"!/{folder}/", f"/{folder}/*"]
+    return rules + [f"!/{path}" for path in paths]
+
+
+def _mine_only(snapshot: Path, paths: list[str], invoke: Runner, mine: list[str]) -> None:
+    """Mine just ``paths``: a temporary root ``.gitignore`` hides every other file from the miner.
+
+    Files stay on disk with their mtimes, so a later full mine still skips them. The original
+    ``.gitignore`` (bytes and mtime) is restored even when the mine fails.
+    """
+    ignore = snapshot / ".gitignore"
+    original = ignore.read_bytes() if ignore.is_file() else None
+    stat = ignore.stat() if original is not None else None
+    ignore.write_text("\n".join(confine_rules(paths)) + "\n", encoding="utf-8")
+    try:
+        _run(invoke, mine, snapshot)
+    finally:
+        if original is None:
+            ignore.unlink(missing_ok=True)
+        else:
+            ignore.write_bytes(original)
+            os.utime(ignore, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+
+
+def fast_mine_prefix(mempalace: str) -> list[str]:
+    """Run the mine through ``mempalace_fast_mine.py`` under MemPalace's interpreter (4.8x faster writes).
+
+    The interpreter comes from the ``mempalace`` launcher's shebang; without one, the plain CLI runs.
+    """
+    shim = Path(__file__).resolve().with_name("mempalace_fast_mine.py")
+    try:
+        first = Path(mempalace).read_text(encoding="utf-8", errors="ignore").splitlines()[0]
+    except (OSError, IndexError):
+        return [mempalace]
+    interpreter = first[2:].strip() if first.startswith("#!") else ""
+    if not shim.is_file() or not interpreter or " " in interpreter or not Path(interpreter).is_file():
+        return [mempalace]
+    return [interpreter, str(shim)]
+
+
+def _refresh_mempalace(
+    cwd: Path,
+    *,
+    snapshot: Path,
+    primary: Path,
+    revision: str,
+    invoke: Runner,
+) -> None:
+    """Mine the stable snapshot, drop deleted files, and stamp the revision."""
+    mempalace = shutil.which("mempalace")
+    if mempalace is None:
+        raise RuntimeError("mempalace is not on PATH")
+    palace = resolve_palace(cwd)
+    mine = [
+        *fast_mine_prefix(mempalace),
+        "--palace",
+        str(palace),
+        "--backend",
+        PALACE_BACKEND,
+        "mine",
+        str(snapshot),
+        "--agent",
+        "chaos-engine-stores",
+    ]
+    wing = read_wing(snapshot) or read_wing(primary)
+    if wing:
+        mine.extend(["--wing", wing])
+    paths = incremental_mine_paths(snapshot, palace_indexed_revision(palace), revision)
+    # The job log is the only progress signal for a mine that can run for many minutes.
+    scope = "full tree" if paths is None else f"incremental, {len(paths)} changed file(s)"
+    print(f"stores: mempalace mine ({scope}) at {revision[:12]}", file=sys.stderr, flush=True)
+    if paths is None:
+        _run(invoke, mine, snapshot)
+    elif paths:
+        _mine_only(snapshot, paths, invoke, mine)
+    sync = [
+        mempalace,
+        "--palace",
+        str(palace),
+        "--backend",
+        PALACE_BACKEND,
+        "sync",
+        "--apply",
+    ]
+    if wing:
+        sync.extend(["--wing", wing])
+    sync.append(str(snapshot))
+    _run(invoke, sync, snapshot)
+    _apply_documentation_index(snapshot, palace)
+    write_palace_marker(palace, revision)
+
+
+def refresh(
+    cwd: Path,
+    *,
+    if_stale: bool = False,
+    components: frozenset[str] | set[str] | None = None,
+    runner: Runner | None = None,
+) -> int:
+    """Index the default-branch tip into the shared stores.
+
+    Allowed from any worktree. Does not fetch, reset, or clean a checkout.
+    A store already indexed at that tip is left alone. ``if_stale`` (daily
+    timer, ``tool.py maintain``) never forces a second rebuild and treats a
+    refresh already running in another process as done (#6757).
+    """
+    if not isinstance(if_stale, bool):
+        raise RuntimeError("if_stale must be a bool")
+    selected = frozenset(components or {"graphify", "mempalace"})
+    unknown = selected - {"graphify", "mempalace"}
+    if unknown:
+        raise RuntimeError(f"unsupported store component: {sorted(unknown)[0]}")
+    common = resolve_common_dir(cwd)
+    if common is None and not is_git_work_tree(cwd):
+        # #7487: non-git projects refresh graphify against the live tree fingerprint.
+        if selected - {"graphify"}:
+            raise RuntimeError("store refresh requires a git repository")
+        if _component_current(cwd, "graphify"):
+            return 0
+        revision = project_content_revision(cwd)
+        invoke = runner or subprocess.run
+        scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
+        try:
+            _refresh_graphify(
+                cwd,
+                snapshot=Path(cwd).resolve(),
+                scratch=scratch,
+                revision=revision,
+                invoke=invoke,
+            )
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+        return 0
+    if common is None:
+        raise RuntimeError("store refresh requires a git repository")
+
+    def current() -> bool:
+        return all(_component_current(cwd, name) for name in selected)
+
+    if current():
+        return 0
+    revision = default_branch_commit(cwd)
+    invoke = runner or subprocess.run
+    try:
+        with refresh_lock(common):
+            if current():
+                return 0
+            primary = resolve_primary_root(cwd)
+            snapshot = ensure_store_snapshot(cwd, common, revision)
+            if "graphify" in selected and not _component_current(cwd, "graphify"):
+                scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
+                try:
+                    _refresh_graphify(
+                        cwd,
+                        snapshot=snapshot,
+                        scratch=scratch,
+                        revision=revision,
+                        invoke=invoke,
+                    )
+                finally:
+                    shutil.rmtree(scratch, ignore_errors=True)
+            if "mempalace" in selected and not _component_current(cwd, "mempalace"):
+                _refresh_mempalace(
+                    cwd,
+                    snapshot=snapshot,
+                    primary=primary,
+                    revision=revision,
+                    invoke=invoke,
+                )
+    except RefreshBusy:
+        if not if_stale:
+            raise
+        # The attempt never started. Drop the stamp so the next commit can retry.
+        (common / "chaos-engine" / ATTEMPT_STAMP).unlink(missing_ok=True)
+        print("stores: refresh already running in another process; skipped", file=sys.stderr)
+    return 0
+
+
+def _refresh_already_running(common: Path) -> bool:
+    try:
+        with refresh_lock(common):
+            return False
+    except RefreshBusy:
+        return True
+
+
+def _spawn_enabled() -> bool:
+    """Explicit refresh wins. A repo-guarded test run does not spawn (#6249)."""
+    if os.environ.get("CHAOS_ENGINE_TEST_REPO_GUARD", "").strip():
+        flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH", "")
+        return flag.strip().casefold() in {"1", "true", "yes", "on"}
+    flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH")
+    if flag is not None:
+        return flag.strip().casefold() not in {"", "0", "false", "no", "off"}
+    argv = " ".join(sys.argv)
+    return not any(token in argv for token in ("unittest", "pytest", "tests/scripts", "/tests/"))
+
+
+def maybe_spawn_refresh(cwd: Path, *, popen: Callable[..., object] = subprocess.Popen) -> str:
+    """Start one detached refresh when the shared store is behind the local tip.
+
+    The stamp is the revision already attempted, not a calendar day. A later
+    default-branch commit spawns again. The same tip does not, so a failed
+    refresh does not loop. The child output is discarded. The daily timer and
+    an explicit repair ignore the stamp. Unit-test processes do not spawn
+    unless ``CHAOS_ENGINE_STORE_REFRESH=1``.
+    """
+    if not _spawn_enabled():
+        return "skipped"
+    try:
+        if _component_current(cwd, "graphify") and _component_current(cwd, "mempalace"):
+            return "fresh"
+        requested = default_branch_commit(cwd)
+        common = resolve_common_dir(cwd)
+    except (OSError, RuntimeError):
+        return "skipped"
+    if common is None:
+        return "skipped"
+    stamp = common / "chaos-engine" / ATTEMPT_STAMP
+    try:
+        if stamp.is_file() and stamp.read_text(encoding="utf-8").strip() == requested:
+            return "cooldown"
+        if _refresh_already_running(common):
+            return "running"
+        stamp.parent.mkdir(parents=True, exist_ok=True)
+        stamp.write_text(requested + "\n", encoding="utf-8")
+    except OSError:
+        return "skipped"
+    tool = Path(__file__).resolve().with_name("tool.py")
+    popen(  # nosec B603 - owned tool.py argv, no shell.
+        [sys.executable, str(tool), "stores", "refresh", "--if-stale"],
+        cwd=str(resolve_primary_root(cwd)),
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return "spawned"
+
+
+def _schedule_tool(project: Path) -> Path:
+    tool = project / ".chaos-engine" / "tool.py"
+    if tool.is_file():
+        return tool
+    return project / "chaos-engine" / "tool.py"
+
+
+def install_schedule(project: Path, *, home: Path | None = None) -> Path:
+    """Write the user-level daily refresh timer. Does not start it."""
+    root = (home or Path.home()).resolve()
+    project = project.resolve()
+    tool = _schedule_tool(project)
+    command = f"{sys.executable} {tool} stores refresh --if-stale"
+    if sys.platform == "darwin":
+        destination = root / "Library/LaunchAgents/com.chaosengine.stores.refresh.plist"
+        text = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+            '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+            '<plist version="1.0"><dict>\n'
+            "<key>Label</key><string>com.chaosengine.stores.refresh</string>\n"
+            "<key>ProgramArguments</key><array>\n"
+            f"<string>{sys.executable}</string>\n"
+            f"<string>{tool}</string>\n"
+            "<string>stores</string><string>refresh</string><string>--if-stale</string>\n"
+            "</array>\n"
+            f"<key>WorkingDirectory</key><string>{project}</string>\n"
+            "<key>StartCalendarInterval</key><dict><key>Hour</key><integer>3</integer>"
+            "<key>Minute</key><integer>15</integer></dict>\n"
+            "</dict></plist>\n"
+        )
+    elif os.name == "nt":
+        destination = root / "AppData/Local/ChaosEngine/stores-refresh.cmd"
+        text = (
+            "@echo off\r\n"
+            f"cd /d \"{project}\"\r\n"
+            f"\"{sys.executable}\" \"{tool}\" stores refresh --if-stale\r\n"
+        )
+    else:
+        destination = root / ".config/systemd/user/chaosengine-stores.timer"
+        service = destination.with_name("chaosengine-stores.service")
+        service.parent.mkdir(parents=True, exist_ok=True)
+        service.write_text(
+            "[Unit]\n"
+            "Description=ChaosEngine shared MemPalace and Graphify refresh\n"
+            "\n"
+            "[Service]\n"
+            "Type=oneshot\n"
+            f"WorkingDirectory={project}\n"
+            f"ExecStart={command}\n",
+            encoding="utf-8",
+        )
+        text = (
+            "[Unit]\n"
+            "Description=Daily ChaosEngine store refresh\n"
+            "\n"
+            "[Timer]\n"
+            "OnCalendar=daily\n"
+            "Persistent=true\n"
+            "\n"
+            "[Install]\n"
+            "WantedBy=timers.target\n"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(text, encoding="utf-8")
+    return destination
+
+
+def schedule_installed(home: Path | None = None) -> bool:
+    """Return whether a user-level timer file is present. Does not query the OS."""
+    root = (home or Path.home()).resolve()
+    candidates = (
+        root / ".config/systemd/user/chaosengine-stores.timer",
+        root / "Library/LaunchAgents/com.chaosengine.stores.refresh.plist",
+        root / "AppData/Local/ChaosEngine/stores-refresh.cmd",
+    )
+    return any(path.is_file() for path in candidates)
+
+
+DEFAULT_STALL_SECONDS = 120
+STALL_ENV = "CHAOS_ENGINE_STALL_SECONDS"
+_POLL_SECONDS = 0.5
+
+
+def stall_seconds() -> int:
+    """Seconds without progress before a store command counts as stalled (#6377)."""
+    raw = os.environ.get(STALL_ENV, "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_STALL_SECONDS
+
+
+def _descendant_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree from /proc; None where /proc is unavailable."""
+    proc = Path("/proc")
+    if not (proc / str(pid) / "stat").is_file():
+        return None
+    parents: dict[int, list[int]] = {}
+    ticks: dict[int, int] = {}
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            fields = (entry / "stat").read_text(encoding="ascii").rsplit(")", 1)[1].split()
+        except (OSError, IndexError, UnicodeDecodeError):
+            continue
+        child = int(entry.name)
+        parents.setdefault(int(fields[1]), []).append(child)
+        ticks[child] = int(fields[11]) + int(fields[12])
+    return _tree_total(pid, parents, ticks)
+
+
+def _tree_total(pid: int, parents: dict[int, list[int]], ticks: dict[int, int]) -> int:
+    total, pending = 0, [pid]
+    while pending:
+        current = pending.pop()
+        total += ticks.get(current, 0)
+        pending.extend(parents.get(current, ()))
+    return total
+
+
+def _psutil_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via psutil; None when psutil is missing or fails."""
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    try:
+        root = psutil.Process(pid)
+        processes = (root, *root.children(recursive=True))
+    except psutil.Error:
+        return None
+    total = 0.0
+    for proc in processes:
+        try:
+            times = proc.cpu_times()
+        except psutil.Error:
+            continue
+        total += times.user + times.system
+    return int(total * 100)
+
+
+def _clock_ticks(clock: str) -> int | None:
+    """``[[dd-]hh:]mm:ss`` from ``ps`` as 1/100 s ticks; None when unparsable."""
+    seconds = 0.0
+    try:
+        for part in clock.replace("-", ":").split(":"):
+            seconds = seconds * 60 + float(part)
+    except ValueError:
+        return None
+    return int(seconds * 100)
+
+
+def _ps_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via POSIX ``ps`` (macOS/BSD); None when unavailable."""
+    ps = shutil.which("ps")
+    if not ps or os.name == "nt":
+        return None
+    try:
+        listing = subprocess.run(  # nosec B603 - resolved ps, fixed argv, no shell.
+            [ps, "-A", "-o", "pid=,ppid=,time="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return None
+    parents: dict[int, list[int]] = {}
+    ticks: dict[int, int] = {}
+    for fields in (line.split() for line in listing.splitlines()):
+        if len(fields) != 3 or not (fields[0].isdigit() and fields[1].isdigit()):
+            continue
+        value = _clock_ticks(fields[2])
+        if value is not None:
+            parents.setdefault(int(fields[1]), []).append(int(fields[0]))
+            ticks[int(fields[0])] = value
+    return _tree_total(pid, parents, ticks) if pid in ticks else None
+
+
+def process_tree_cpu(pid: int) -> int | None:
+    """CPU ticks of a process tree: /proc, then psutil or ``ps``; None when unmeasurable."""
+    for probe in (_descendant_cpu_ticks, _psutil_cpu_ticks, _ps_cpu_ticks):
+        ticks = probe(pid)
+        if ticks is not None:
+            return ticks
+    return None
+
+
+OUTPUT_ONLY_STALL_FACTOR = 5
+
+
+def run_until_stalled(
+    args: list[str], *, stall_seconds: float | None = None, **kwargs: Any
+) -> subprocess.CompletedProcess:
+    """Drop-in for ``subprocess.run`` without a wall-clock cap (#6377)."""
+    # The command runs as long as it progresses: new output or CPU time in its
+    # process tree. Only ``stall_seconds`` with neither raises
+    # ``subprocess.TimeoutExpired``. A ``timeout`` argument is ignored. Where CPU
+    # time cannot be read (no /proc, psutil or ``ps``), only output counts and the
+    # stall window is ``OUTPUT_ONLY_STALL_FACTOR`` times longer, so a hang still ends.
+    kwargs.pop("timeout", None)
+    check = kwargs.pop("check", False)
+    text = bool(kwargs.pop("text", False) or kwargs.pop("universal_newlines", False))
+    capture = kwargs.pop("capture_output", False)
+    window = float(stall_seconds or globals()["stall_seconds"]())
+    with tempfile.TemporaryFile() as out_file, tempfile.TemporaryFile() as err_file:
+        if capture:
+            kwargs["stdout"], kwargs["stderr"] = out_file, err_file
+        process = subprocess.Popen(args, **kwargs)  # nosec B603 - caller-built argv, no shell.
+        last_mark, last_progress = None, time.monotonic()
+        while process.poll() is None:
+            time.sleep(_POLL_SECONDS)
+            cpu = process_tree_cpu(process.pid)
+            mark = (os.fstat(out_file.fileno()).st_size, os.fstat(err_file.fileno()).st_size, cpu)
+            # Failsafe: when CPU is unmeasurable, only output counts and the window widens.
+            limit = window if cpu is not None else window * OUTPUT_ONLY_STALL_FACTOR
+            if mark != last_mark:
+                last_mark, last_progress = mark, time.monotonic()
+            elif time.monotonic() - last_progress >= limit:
+                process.kill()
+                process.wait()
+                raise subprocess.TimeoutExpired(args, window)
+        out_file.seek(0)
+        err_file.seek(0)
+        stdout, stderr = (out_file.read(), err_file.read()) if capture else (None, None)
+    if text and capture:
+        stdout = stdout.decode("utf-8", errors="replace")
+        stderr = stderr.decode("utf-8", errors="replace")
+    completed = subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+    if check:
+        completed.check_returncode()
+    return completed

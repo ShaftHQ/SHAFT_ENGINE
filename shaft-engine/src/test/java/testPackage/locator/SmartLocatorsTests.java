@@ -1,0 +1,70 @@
+package testPackage.locator;
+
+import org.openqa.selenium.Keys;
+import org.testng.annotations.Test;
+import testPackage.TestPageServer;
+import testPackage.Tests;
+
+@Test
+public class SmartLocatorsTests extends Tests {
+    // Phase 2: Beta Testing
+
+    // Integration with SHAFT Actions (including synchronization, reporting, logging, and more)
+
+    // AI-Powered research with help from Claude 3.5 Sonnet
+    // AI-Enhanced Logic with help from GitHub Copilot
+    // 11 patterns for input fields
+    // 21 patterns for clickable fields
+    // AI (and personal experience) adjusted priorities
+
+    public void testSmartLocators1() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
+                .and().element().type("Username", "standard_user")
+                .and().type("Password", "secret_sauce")
+                .and().click("LOGIN");
+    }
+
+    public void testSmartLocators2() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
+                .and().element().type("Username", "student")
+                .and().type("Password", "Password123")
+                .and().click("Submit");
+    }
+
+    public void testSmartLocators3() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
+                .and().element().type("Username", "test")
+                .and().type("Password", "test")
+                .and().click("login");
+    }
+
+    public void testSmartLocators6() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartWebFormFixture.html"))
+                .and().element().type("Text input", "text")
+                .and().type("Password", "password")
+                .and().type("Textarea", "a lot\nof text")
+                .and().type("Dropdown (datalist)", "New York")
+                .and().type("Date picker", "02/26/2025")
+                .and().click("Submit");
+    }
+
+    public void testSmartLocators7() {
+        driver.get().browser().navigateToURL("data:text/html;charset=utf-8,<html><body><span>Search</span><input placeholder='Search'></body></html>")
+                .and().element().type("Search", "Selenium" + Keys.ENTER);
+    }
+
+    public void testSmartLocators8() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
+                .and().element().type("Username", "test")
+                .and().type("Password", "test")
+                .and().click("Login");
+    }
+
+    public void testSmartLocators9() {
+        driver.get().browser().navigateToURL(TestPageServer.url("smartLoginFixture.html"))
+                .and().element().type("Username", "USERNAME")
+                .and().type("Email", "EMAIL@DOMAIN.COM")
+                .and().type("Password", "PASSWORD")
+                .and().click("Sign In");
+    }
+}

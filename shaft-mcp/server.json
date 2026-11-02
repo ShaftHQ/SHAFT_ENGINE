@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.ShaftHQ/shaft-mcp",
+  "title": "shaft-mcp",
+  "description": "SHAFT browser automation, capture, and offline deterministic failure diagnosis",
+  "version": "@project.version@",
+  "repository": {
+    "url": "https://github.com/ShaftHQ/SHAFT_ENGINE",
+    "source": "github"
+  },
+  "websiteUrl": "https://ShaftHQ.github.io/",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/shafthq/shaft-engine-mcp:@project.version@",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

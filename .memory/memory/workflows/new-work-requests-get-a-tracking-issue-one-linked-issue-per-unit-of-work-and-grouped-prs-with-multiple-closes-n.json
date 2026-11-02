@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/workflows/new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n.md",
+  "content_hash": "sha256:fb4b17ab1fe9308ef95a091feb11f8fdb5fbb2bc7cf15975a07428402b051ce7",
+  "created_at": "2026-07-20T23:29:00+03:00",
+  "evidence": [],
+  "id": "feature.new-work-requests-get-a-tracking-issue-one-linked-issue-per-unit-of-work-and-grouped-prs-with-multiple-closes-n",
+  "source": {
+    "kind": "agent",
+    "task": "Encode tracking-issue + per-item-issue + grouped-PR GitHub workflow as the binding default"
+  },
+  "status": "active",
+  "tags": [
+    "process",
+    "github",
+    "workflow",
+    "issues",
+    "tracking"
+  ],
+  "title": "New work requests get a tracking issue, one linked issue per unit of work, and grouped PRs with multiple Closes #N",
+  "type": "feature",
+  "updated_at": "2026-08-04T23:33:23+03:00"
+}

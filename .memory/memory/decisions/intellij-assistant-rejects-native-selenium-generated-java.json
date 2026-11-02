@@ -1,0 +1,25 @@
+{
+  "body_path": "memory/decisions/intellij-assistant-rejects-native-selenium-generated-java.md",
+  "content_hash": "sha256:96392171b2c529c59809e6159ce90463d3aa5a636e7e788dea2cfcca1e00b99a",
+  "created_at": "2026-07-02T23:32:22+03:00",
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.intellij-assistant-rejects-native-selenium-generated-java",
+  "source": {
+    "kind": "agent",
+    "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "assistant",
+    "shaft-only-code"
+  ],
+  "title": "IntelliJ Assistant rejects native Selenium generated Java",
+  "type": "decision",
+  "updated_at": "2026-08-01T21:40:42+03:00"
+}

@@ -1,0 +1,574 @@
+package com.shaft.gui.element.internal.interaction;
+
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import org.openqa.selenium.WebElement;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiPredicate;
+
+/**
+ * Cheap classifier: tagName, type, role/ARIA, contenteditable, disabled flags,
+ * Appium mobile class names, and Windows/UIA ControlType tokens.
+ * Conservative by design — ambiguous custom widgets return {@link ElementKind#UNKNOWN}.
+ * Shared by Selenium Wave B, Playwright Wave C, mobile Wave D, and desktop Wave E (#5732).
+ */
+public final class ElementClassifier {
+
+    private static final Set<String> TEXT_INPUT_TYPES = Set.of(
+            "text", "password", "email", "search", "tel", "url", "number", "");
+    private static final Set<String> DATE_INPUT_TYPES = Set.of(
+            "date", "time", "month", "week", "datetime-local");
+    private static final Set<String> BUTTON_INPUT_TYPES = Set.of(
+            "button", "submit", "reset", "image");
+    private static final Set<String> TEXT_ROLES = Set.of(
+            "textbox", "searchbox", "spinbutton");
+
+    /** Android / generic toggle class suffixes (lowered simple names). */
+    private static final Set<String> MOBILE_TOGGLE_CLASSES = Set.of(
+            "checkbox", "switch", "togglebutton");
+    /** iOS XCUI toggle class suffixes. */
+    private static final Set<String> IOS_TOGGLE_CLASSES = Set.of(
+            "xcuielementtypeswitch", "xcuielementtypecheckbox");
+    private static final Set<String> MOBILE_TOGGLE_ROLES = Set.of("checkbox", "switch");
+
+    private static final Set<String> MOBILE_RADIO_CLASSES = Set.of(
+            "radiobutton", "xcuielementtyperadiobutton");
+    private static final Set<String> MOBILE_RADIO_ROLES = Set.of("radio");
+
+    /** Android / Flutter text-entry class suffixes. */
+    private static final Set<String> MOBILE_TEXT_CLASSES = Set.of(
+            "edittext", "textfield", "autocompletetextview", "multiautocompletetextview",
+            // Flutter integration driver type names (ValueKey / Semantics still required by apps).
+            "editabletext");
+    /** iOS XCUI text-entry class suffixes. */
+    private static final Set<String> IOS_TEXT_CLASSES = Set.of(
+            "xcuielementtypetextfield", "xcuielementtypesecuretextfield", "xcuielementtypetextview");
+
+    private static final Set<String> MOBILE_BUTTON_CLASSES = Set.of(
+            "button", "imagebutton", "xcuielementtypebutton");
+    private static final Set<String> MOBILE_BUTTON_ROLES = Set.of("button");
+
+    private static final Set<String> MOBILE_LINK_CLASSES = Set.of("xcuielementtypelink");
+    private static final Set<String> MOBILE_LINK_ROLES = Set.of("link");
+
+    private static final Set<String> MOBILE_RANGE_CLASSES = Set.of(
+            "seekbar", "slider", "xcuielementtypeslider");
+
+    /**
+     * First-match-wins mobile kind rules. A loop over this table (rather than a sequential
+     * if-return chain) keeps {@link #classifyMobileNative} NPath under Codacy/PMD's gate —
+     * NPath multiplies across sequential branches even when each guard is a trivial call.
+     */
+    private static final List<MobileKindRule> MOBILE_KIND_RULES = List.of(
+            new MobileKindRule(ElementClassifier::isMobileToggle, ElementKind.CHECKBOX),
+            new MobileKindRule(ElementClassifier::isMobileRadio, ElementKind.RADIO),
+            new MobileKindRule(ElementClassifier::isMobileTextField, ElementKind.TEXT_LIKE),
+            new MobileKindRule(ElementClassifier::isMobileButton, ElementKind.BUTTON),
+            new MobileKindRule(ElementClassifier::isMobileLink, ElementKind.LINK),
+            // Range is class-suffix only; role "slider" stays on classifyByRole for non-mobile tags.
+            new MobileKindRule((simple, role) -> isMobileRange(simple), ElementKind.RANGE));
+
+    private record MobileKindRule(BiPredicate<String, String> matches, ElementKind kind) {
+    }
+
+    /**
+     * WinAppDriver / Appium Windows UIA control-type tokens (tag or class often
+     * {@code ControlType.Edit}, {@code Edit}, {@code CheckBox}, …).
+     */
+    private static final Set<String> WINDOWS_TEXT_CLASSES = Set.of("edit", "document");
+    private static final Set<String> WINDOWS_BUTTON_CLASSES = Set.of("button");
+    private static final Set<String> WINDOWS_LINK_CLASSES = Set.of("hyperlink");
+    private static final Set<String> WINDOWS_TOGGLE_CLASSES = Set.of("checkbox");
+    private static final Set<String> WINDOWS_RADIO_CLASSES = Set.of("radiobutton");
+    private static final Set<String> WINDOWS_COMBO_CLASSES = Set.of("combobox");
+    /** Window / Pane — focus surfaces only; not typed into as text fields. */
+    private static final Set<String> WINDOWS_FOCUS_SURFACE_CLASSES = Set.of("window", "pane");
+
+    /**
+     * First-match-wins Windows/UIA kind rules (NPath-safe table, same pattern as mobile).
+     * Button/CheckBox/Radio often already match mobile suffix sets; Edit/Document/Hyperlink/ComboBox
+     * need this table so they do not fall through to {@link ElementKind#UNKNOWN}.
+     */
+    private static final List<MobileKindRule> WINDOWS_KIND_RULES = List.of(
+            new MobileKindRule(ElementClassifier::isWindowsToggle, ElementKind.CHECKBOX),
+            new MobileKindRule(ElementClassifier::isWindowsRadio, ElementKind.RADIO),
+            new MobileKindRule(ElementClassifier::isWindowsTextField, ElementKind.TEXT_LIKE),
+            new MobileKindRule(ElementClassifier::isWindowsButton, ElementKind.BUTTON),
+            new MobileKindRule(ElementClassifier::isWindowsLink, ElementKind.LINK),
+            new MobileKindRule(ElementClassifier::isWindowsCombo, ElementKind.COMBOBOX));
+
+    private ElementClassifier() {
+    }
+
+    public static ElementKind classify(WebElement element) {
+        if (element == null) {
+            return ElementKind.UNKNOWN;
+        }
+        return classify(DriverFactoryHelper.isMobileNativeExecution()
+                ? fromNativeElement(element)
+                : fromWebElement(element));
+    }
+
+    /**
+     * Classify from pre-read DOM signals (Playwright evaluate map or Selenium attribute reads).
+     */
+    public static ElementKind classify(ElementSignals signals) {
+        if (signals == null) {
+            return ElementKind.UNKNOWN;
+        }
+
+        if (isTruthyFlagValue(signals.disabled(), "disabled")
+                || "true".equals(safeLower(signals.ariaDisabled()))) {
+            return ElementKind.DISABLED;
+        }
+        // Readonly before contenteditable/input kinds so type() can refuse
+        // while click() still focuses (HTML readonly controls remain clickable).
+        if (isTruthyFlagValue(signals.readonly(), "readonly")) {
+            return ElementKind.READONLY;
+        }
+
+        String tag = safeLower(signals.tagName());
+        String type = safeLower(signals.type());
+        String role = safeLower(signals.role());
+        String className = safeLower(signals.className());
+
+        if (isContentEditable(signals)) {
+            return ElementKind.CONTENTEDITABLE;
+        }
+
+        ElementKind byMobile = classifyMobileNative(tag, className, role);
+        if (byMobile != null) {
+            return byMobile;
+        }
+
+        ElementKind byWindows = classifyWindowsDesktop(tag, className, role);
+        if (byWindows != null) {
+            return byWindows;
+        }
+
+        ElementKind byTag = classifyByTag(tag, role);
+        if (byTag != null) {
+            return byTag;
+        }
+
+        if ("input".equals(tag)) {
+            return classifyInput(type, role);
+        }
+
+        return classifyByRole(role);
+    }
+
+    /**
+     * Appium native class / XCUI / Flutter-ish tags. Returns null when not a known mobile control.
+     * Conservative: only exact / well-known suffixes so custom views stay {@link ElementKind#UNKNOWN}.
+     */
+    static ElementKind classifyMobileNative(String tag, String className, String role) {
+        return classifyByKindRules(tag, className, role, MOBILE_KIND_RULES);
+    }
+
+    /**
+     * WinAppDriver / Appium Windows UIA ControlType tags. Returns null when not a known desktop control.
+     */
+    static ElementKind classifyWindowsDesktop(String tag, String className, String role) {
+        return classifyByKindRules(tag, className, role, WINDOWS_KIND_RULES);
+    }
+
+    /**
+     * True when tag/class looks like a UIA Window or Pane (foreground / focus surface).
+     */
+    public static boolean isWindowsFocusSurface(WebElement element) {
+        if (element == null) {
+            return false;
+        }
+        String token = firstNonBlank(safeTagName(element),
+                firstNonBlank(safeDom(element, "class"), safeProperty(element, "className")));
+        if (token == null) {
+            return false;
+        }
+        return WINDOWS_FOCUS_SURFACE_CLASSES.contains(simpleClassName(token));
+    }
+
+    private static ElementKind classifyByKindRules(String tag, String className, String role,
+                                                   List<MobileKindRule> rules) {
+        String token = firstNonBlank(tag, className);
+        if (token == null) {
+            return null;
+        }
+        String simple = simpleClassName(token);
+        for (MobileKindRule rule : rules) {
+            if (rule.matches().test(simple, role)) {
+                return rule.kind();
+            }
+        }
+        return null;
+    }
+
+    private static boolean isMobileToggle(String simple, String role) {
+        return roleMatches(role, MOBILE_TOGGLE_ROLES)
+                || MOBILE_TOGGLE_CLASSES.contains(simple)
+                || IOS_TOGGLE_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileRadio(String simple, String role) {
+        return roleMatches(role, MOBILE_RADIO_ROLES) || MOBILE_RADIO_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileTextField(String simple, String role) {
+        return roleMatches(role, TEXT_ROLES)
+                || MOBILE_TEXT_CLASSES.contains(simple)
+                || IOS_TEXT_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileButton(String simple, String role) {
+        return roleMatches(role, MOBILE_BUTTON_ROLES) || MOBILE_BUTTON_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileLink(String simple, String role) {
+        return roleMatches(role, MOBILE_LINK_ROLES) || MOBILE_LINK_CLASSES.contains(simple);
+    }
+
+    private static boolean isMobileRange(String simple) {
+        return MOBILE_RANGE_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsToggle(String simple, String role) {
+        return roleMatches(role, MOBILE_TOGGLE_ROLES) || WINDOWS_TOGGLE_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsRadio(String simple, String role) {
+        return roleMatches(role, MOBILE_RADIO_ROLES) || WINDOWS_RADIO_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsTextField(String simple, String role) {
+        return roleMatches(role, TEXT_ROLES) || WINDOWS_TEXT_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsButton(String simple, String role) {
+        return roleMatches(role, MOBILE_BUTTON_ROLES) || WINDOWS_BUTTON_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsLink(String simple, String role) {
+        return roleMatches(role, MOBILE_LINK_ROLES) || WINDOWS_LINK_CLASSES.contains(simple);
+    }
+
+    private static boolean isWindowsCombo(String simple, String role) {
+        return "combobox".equals(role) || "listbox".equals(role) || WINDOWS_COMBO_CLASSES.contains(simple);
+    }
+
+    private static boolean roleMatches(String role, Set<String> roles) {
+        return role != null && roles.contains(role);
+    }
+
+    private static String simpleClassName(String raw) {
+        String lower = raw.toLowerCase(Locale.ROOT);
+        int slash = Math.max(lower.lastIndexOf('.'), lower.lastIndexOf('/'));
+        return slash >= 0 && slash + 1 < lower.length() ? lower.substring(slash + 1) : lower;
+    }
+
+    /**
+     * Build signals from a Playwright-style evaluate result map (string keys, scalar values).
+     */
+    public static ElementSignals fromEvaluateMap(Map<?, ?> raw) {
+        if (raw == null) {
+            return null;
+        }
+        return new ElementSignals(
+                asString(raw.get("tagName")),
+                asString(raw.get("type")),
+                asString(raw.get("role")),
+                asString(raw.get("contentEditable")),
+                asString(raw.get("isContentEditable")),
+                asString(raw.get("disabled")),
+                asString(raw.get("readonly")),
+                asString(raw.get("ariaDisabled")),
+                asString(raw.get("dataMask")),
+                asString(raw.get("dataInputmask")),
+                asString(raw.get("mask")),
+                asString(raw.get("className")),
+                asString(raw.get("autocomplete")));
+    }
+
+    /**
+     * Conservative masked / OTP / input-mask heuristic for Playwright sequential typing.
+     * Prefer explicit data-* / mask attributes and known library class tokens over broad "mask" substrings.
+     */
+    public static boolean looksMasked(ElementSignals signals) {
+        if (signals == null) {
+            return false;
+        }
+        if (nonBlank(signals.dataMask())
+                || nonBlank(signals.dataInputmask())
+                || nonBlank(signals.mask())) {
+            return true;
+        }
+        String autocomplete = safeLower(signals.autocomplete());
+        if ("one-time-code".equals(autocomplete)) {
+            return true;
+        }
+        String className = safeLower(signals.className());
+        if (className == null) {
+            return false;
+        }
+        return className.contains("inputmask")
+                || className.contains("imask")
+                || className.contains("mask-input")
+                || className.contains("masked-input");
+    }
+
+    /**
+     * Native Android/iOS signals only (#6833). Appium rejects the web-only attributes with a 404 that
+     * cannot change, so each signal is read once, never retried and never followed by a DOM property read.
+     * The element's class name is the native widget type; {@code enabled="false"} maps to the disabled flag,
+     * except under the Flutter integration driver, which reports {@code enabled="false"} for editable fields
+     * (#6775 nightly), so its enabled state is not read.
+     */
+    static ElementSignals fromNativeElement(WebElement element) {
+        String enabled = isFlutterIntegration() ? null : safeNativeAttribute(element, "enabled");
+        return new ElementSignals(
+                safeTagName(element),
+                null,
+                null,
+                null,
+                null,
+                "false".equalsIgnoreCase(enabled) ? "true" : null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                safeNativeAttribute(element, "class"),
+                null);
+    }
+
+    private static boolean isFlutterIntegration() {
+        return "FlutterIntegration".equalsIgnoreCase(com.shaft.driver.SHAFT.Properties.mobile.automationName());
+    }
+
+    static String safeNativeAttribute(WebElement element, String name) {
+        try {
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static ElementSignals fromWebElement(WebElement element) {
+        return new ElementSignals(
+                safeTagName(element),
+                firstNonBlank(safeDom(element, "type"), safeProperty(element, "type")),
+                safeDom(element, "role"),
+                safeDom(element, "contenteditable"),
+                safeProperty(element, "isContentEditable"),
+                safeDom(element, "disabled"),
+                safeDom(element, "readonly"),
+                safeDom(element, "aria-disabled"),
+                safeDom(element, "data-mask"),
+                firstNonBlank(safeDom(element, "data-inputmask"), safeDom(element, "data-input-mask")),
+                safeDom(element, "mask"),
+                firstNonBlank(safeDom(element, "class"), safeProperty(element, "className")),
+                safeDom(element, "autocomplete"));
+    }
+
+    /** Tag → kind for web tags decided before input handling (NPath-safe map). */
+    private static final Map<String, ElementKind> TAG_KINDS = Map.of(
+            "select", ElementKind.SELECT,
+            "textarea", ElementKind.TEXT_LIKE,
+            "iframe", ElementKind.IFRAME,
+            "frame", ElementKind.IFRAME,
+            "a", ElementKind.LINK,
+            "button", ElementKind.BUTTON);
+
+    /**
+     * Tag-driven kinds (and tag/role pairs that are decided before input handling).
+     * Returns null when the tag does not decide the kind.
+     */
+    private static ElementKind classifyByTag(String tag, String role) {
+        ElementKind fromTag = tag == null ? null : TAG_KINDS.get(tag);
+        if (fromTag != null) {
+            return fromTag;
+        }
+        // Role-only link/button when the tag did not already decide.
+        if ("link".equals(role)) {
+            return ElementKind.LINK;
+        }
+        if ("button".equals(role)) {
+            return ElementKind.BUTTON;
+        }
+        return null;
+    }
+
+    private static ElementKind classifyInput(String type, String role) {
+        ElementKind toggle = classifyToggleInput(type, role);
+        if (toggle != null) {
+            return toggle;
+        }
+        ElementKind special = classifySpecialInput(type, role);
+        if (special != null) {
+            return special;
+        }
+        return classifyButtonOrTextInput(type);
+    }
+
+    /** Checkbox / radio input type or role. Returns null when not a toggle. */
+    private static ElementKind classifyToggleInput(String type, String role) {
+        if ("checkbox".equals(type) || "checkbox".equals(role)) {
+            return ElementKind.CHECKBOX;
+        }
+        if ("radio".equals(type) || "radio".equals(role)) {
+            return ElementKind.RADIO;
+        }
+        return null;
+    }
+
+    /** File / date / range / color. Returns null when not a special input. */
+    private static ElementKind classifySpecialInput(String type, String role) {
+        if ("file".equals(type)) {
+            return ElementKind.FILE;
+        }
+        if (DATE_INPUT_TYPES.contains(type)) {
+            return ElementKind.DATE_LIKE;
+        }
+        if ("range".equals(type) || "slider".equals(role)) {
+            return ElementKind.RANGE;
+        }
+        if ("color".equals(type)) {
+            return ElementKind.COLOR;
+        }
+        return null;
+    }
+
+    /** Button-like or text-like input types; unknown types stay UNKNOWN. */
+    private static ElementKind classifyButtonOrTextInput(String type) {
+        if (BUTTON_INPUT_TYPES.contains(type)) {
+            return ElementKind.BUTTON;
+        }
+        if (type == null || TEXT_INPUT_TYPES.contains(type)) {
+            return ElementKind.TEXT_LIKE;
+        }
+        // Unknown input type (e.g. custom) — do not guess.
+        return ElementKind.UNKNOWN;
+    }
+
+    /** ARIA role → kind for the role-only fallthrough path (NPath-safe map). */
+    private static final Map<String, ElementKind> ROLE_KINDS = Map.of(
+            "checkbox", ElementKind.CHECKBOX,
+            "switch", ElementKind.CHECKBOX,
+            "radio", ElementKind.RADIO,
+            "slider", ElementKind.RANGE,
+            "combobox", ElementKind.COMBOBOX,
+            "listbox", ElementKind.COMBOBOX);
+
+    private static ElementKind classifyByRole(String role) {
+        if (role == null) {
+            return ElementKind.UNKNOWN;
+        }
+        ElementKind kind = ROLE_KINDS.get(role);
+        if (kind != null) {
+            return kind;
+        }
+        // TEXT_ROLES stays the single source for textbox/searchbox/spinbutton.
+        return TEXT_ROLES.contains(role) ? ElementKind.TEXT_LIKE : ElementKind.UNKNOWN;
+    }
+
+    private static boolean isContentEditable(ElementSignals signals) {
+        if (isContentEditableAttributeValue(signals.contentEditable())) {
+            return true;
+        }
+        // Property path: only the boolean true string — mock junk like "dom-isContentEditable" must not match.
+        return "true".equalsIgnoreCase(signals.isContentEditableProperty());
+    }
+
+    /**
+     * HTML contenteditable is on for "", "true", "plaintext-only", or the attribute name itself.
+     * Reject arbitrary non-empty strings so mocked getDomAttribute defaults cannot false-positive.
+     */
+    static boolean isContentEditableAttributeValue(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return "true".equals(lower)
+                || "plaintext-only".equals(lower)
+                || "contenteditable".equals(lower);
+    }
+
+    /**
+     * HTML boolean attributes are present as "" or the attribute name; ARIA uses "true"/"false".
+     * Reject arbitrary non-empty strings so mocked defaults cannot false-positive.
+     */
+    static boolean isTruthyFlag(WebElement element, String attributeName) {
+        return isTruthyFlagValue(safeDom(element, attributeName), attributeName);
+    }
+
+    static boolean isTruthyFlagValue(String value, String attributeName) {
+        if (value == null) {
+            return false;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return "true".equals(lower) || attributeName.equalsIgnoreCase(trimmed);
+    }
+
+    private static String safeTagName(WebElement element) {
+        try {
+            return element.getTagName();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String safeDom(WebElement element, String name) {
+        try {
+            return IosXcuiAttributeNames.readDomAttribute(element, name);
+        } catch (RuntimeException ignored) {
+            return IosXcuiAttributeNames.read(element, name);
+        }
+    }
+
+    private static String safeProperty(WebElement element, String name) {
+        try {
+            return element.getDomProperty(name);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String safeLower(String value) {
+        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return first != null ? first : second;
+    }
+
+    private static boolean nonBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static String asString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Boolean bool) {
+            return bool ? "true" : "false";
+        }
+        String text = String.valueOf(value);
+        return "null".equals(text) ? null : text;
+    }
+}

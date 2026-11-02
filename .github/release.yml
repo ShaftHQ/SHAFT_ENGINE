@@ -1,0 +1,25 @@
+# .github/release.yml
+# Curate release notes from one required human-PR classification label.
+# Reference: https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+
+changelog:
+  exclude:
+    authors:
+      - dependabot[bot]
+      - dependabot
+      - github-actions[bot]
+      - github-actions
+      - copilot-swe-agent[bot]
+    labels:
+      - skip-release-notes
+  categories:
+    - title: Breaking Changes
+      labels:
+        - breaking-change
+    - title: Enhancements
+      labels:
+        - enhancement
+    - title: Bug Fixes
+      labels:
+        - bug
+        - regression

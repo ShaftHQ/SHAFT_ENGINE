@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* Dropdown Button */
+        .dropbtn {
+            background-color: #04AA6D;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+        /* The container - needed to position the dropdown content */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        /* Individual dropdown items */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 1;
+        }
+        .dropdown-content div {
+            color: black;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+        /* Adjust the position of the first item below the button */
+        .dropdown-content div:first-child {
+            margin-top: 5px;
+        }
+        /* Change color of dropdown items on hover */
+        .dropdown-content div:hover {
+            background-color: #ddd;
+        }
+        /* Show the dropdown items */
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+        /* Change the background color of the dropdown button when the dropdown is open */
+        .dropdown:hover .dropbtn {
+            background-color: #3e8e41;
+        }
+        /* Change the background color of the dropdown item when clicked */
+        .dropdown div.clicked {
+            background-color: lightgreen;
+        }
+        body {
+            background-color: powderblue;
+        }
+        h1 {
+            color: blue;
+        }
+        p {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<div class="dropdown">
+    <button class="dropbtn">Dropdown</button>
+    <div class="dropdown-content">
+        <div>Div 1</div>
+        <div>Div 2</div>
+        <div>Div 3</div>
+    </div>
+</div>
+</body>
+</html>

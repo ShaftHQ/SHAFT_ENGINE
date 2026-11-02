@@ -1,0 +1,22 @@
+{
+  "anchors": [
+    ".github/workflows/docs-links.yml"
+  ],
+  "body_path": "memory/gotchas/lychee-gnu-build-needs-newer-glibc.md",
+  "content_hash": "sha256:dc495f3ed3ccf32b78f827e0e8fabc20635e23a6fc57e8c4a437ba9271941f43",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.lychee-gnu-build-needs-newer-glibc",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "lychee"
+  ],
+  "title": "Prebuilt Rust gnu binaries can need a newer glibc than ubuntu-22.04",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T18:17:15+03:00"
+}

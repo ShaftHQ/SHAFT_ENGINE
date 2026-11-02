@@ -1,0 +1,313 @@
+package com.shaft.gui.internal.healing;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
+import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
+import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
+import org.apache.logging.log4j.Level;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+public class HealingActionsIntegrationTest {
+    private static final By ORIGINAL = By.id("old-id");
+
+    @BeforeMethod
+    public void configure() {
+        SHAFT.Properties.healing.set().strategy("shaft-heal");
+        SHAFT.Properties.healenium.set().healEnabled(false);
+        SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+        SHAFT.Properties.mobile.set().browserName("chrome");
+        SHAFT.Properties.reporting.set().captureElementName(false);
+        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(true);
+        SHAFT.Properties.flags.set().scrollingMode("legacy");
+        SHAFT.Properties.visuals.set().createAnimatedGif(false);
+        SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        HealingProviderRegistry.resetProviderForTesting();
+        Properties.clearForCurrentThread();
+    }
+
+    @Test
+    public void fluentActionShouldExecuteOnlyAfterProviderReturnsOneValidatedElement() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        when(driver.findElements(ORIGINAL)).thenReturn(List.of());
+        when(recovered.isDisplayed()).thenReturn(true);
+        when(recovered.isEnabled()).thenReturn(true);
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-1", List.of(recovered), By.id("new-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helper).click(ORIGINAL);
+        }
+
+        verify(recovered).click();
+        verify(provider).recordOutcome(any());
+        verify(provider, never()).observe(any());
+    }
+
+    @Test
+    public void multiMatchLocatorShouldHealToHistoricallyObservedElementWhenLastResortNarrowingCannotDisambiguate() {
+        // issue #4327: extends the zero-match self-heal mechanism (#4321/PR #4326) to the MULTI-match
+        // branch. Both candidates below are displayed+enabled, so #4321's visibility-based narrowing
+        // (uniqueDisplayedAndEnabledElement) cannot disambiguate them on its own -- the locator stays
+        // genuinely ambiguous through every retry poll. Only once the identification timeout is fully
+        // exhausted should SHAFT Heal's fingerprint history be consulted, as a further last resort.
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement decoy = mock(WebElement.class);
+        WebElement healed = mock(WebElement.class);
+        when(decoy.isDisplayed()).thenReturn(true);
+        when(decoy.isEnabled()).thenReturn(true);
+        when(healed.isDisplayed()).thenReturn(true);
+        when(healed.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(decoy, healed));
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-multi", List.of(healed), By.id("healed-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var waits = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            waits.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any()))
+                    .thenThrow(new IllegalStateException("lazy-loading probe failed"));
+            new Actions(helper).click(locator);
+        }
+
+        verify(healed).click();
+        verify(decoy, never()).click();
+        verify(provider).recordOutcome(any());
+    }
+
+    @Test
+    public void multiMatchLocatorShouldStillThrowWhenHealingProviderHasNoHistoryForIt() {
+        // issue #4327, acceptance criterion (c): SHAFT Heal enabled but no prior history for this
+        // locator must still throw cleanly -- no silent misbehavior when there is nothing to heal from.
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(first.isDisplayed()).thenReturn(true);
+        when(first.isEnabled()).thenReturn(true);
+        when(second.isDisplayed()).thenReturn(true);
+        when(second.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(first, second));
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.empty());
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException thrown = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helper).click(locator));
+            Throwable cause = thrown;
+            while (cause != null && !(cause instanceof MultipleElementsFoundException)) {
+                cause = cause.getCause();
+            }
+            Assert.assertTrue(cause instanceof MultipleElementsFoundException,
+                    "Expected a MultipleElementsFoundException in the cause chain, but got: " + thrown);
+        }
+
+        verify(first, never()).click();
+        verify(second, never()).click();
+    }
+
+    @Test
+    public void multiMatchLocatorShouldNeverInvokeHealingProviderWhenShaftHealDisabled() {
+        // issue #4327, acceptance criterion (a): default/SHAFT-Heal-disabled behavior must be
+        // unchanged -- zero new surface for the common case.
+        SHAFT.Properties.healing.set().strategy("disabled");
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        By locator = By.className("ambiguous");
+        WebDriver driver = mock(WebDriver.class);
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(first.isDisplayed()).thenReturn(true);
+        when(first.isEnabled()).thenReturn(true);
+        when(second.isDisplayed()).thenReturn(true);
+        when(second.isEnabled()).thenReturn(true);
+        when(driver.findElements(locator)).thenReturn(List.of(first, second));
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            Assert.expectThrows(RuntimeException.class, () -> new Actions(helper).click(locator));
+        }
+
+        verify(provider, never()).resolve(any());
+    }
+
+    @Test
+    public void providerFailureShouldPreserveOriginalActionFailure() {
+        WebDriver driver = mock(WebDriver.class);
+        when(driver.findElements(ORIGINAL)).thenReturn(List.of());
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenThrow(new IllegalStateException("provider failed"));
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, ORIGINAL, "CLICK", true, null, null, null);
+
+        org.testng.Assert.assertTrue(resolution.isEmpty());
+    }
+
+    @Test
+    public void acceptedProviderResolutionShouldLogWarningWithOriginalAndHealedLocators() {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingResolution recoveredResolution = new HealingResolution("attempt-1", List.of(recovered), By.id("new-id"));
+        when(provider.resolve(any())).thenReturn(Optional.of(recoveredResolution));
+        when(provider.explain("attempt-1")).thenReturn(Optional.of(new HealingExplanation(
+                "attempt-1",
+                ORIGINAL,
+                By.id("new-id"),
+                0.91,
+                0.75,
+                List.of("accessibility=1.000"),
+                "deterministic",
+                "A unique candidate passed deterministic confidence and action preconditions.")));
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        try (var reportManager = org.mockito.Mockito.mockStatic(ReportManager.class)) {
+            Optional<HealingResolution> resolution = HealingManager.resolve(
+                    driver, ORIGINAL, "CLICK", true, null, null, null);
+
+            org.testng.Assert.assertTrue(resolution.isPresent());
+            reportManager.verify(() -> ReportManager.log(
+                    argThat(message -> message.contains("old-id") && message.contains("new-id")),
+                    eq(Level.WARN)));
+        }
+    }
+
+    @Test
+    public void validationActionsShouldNeverInvokeHealingProvider() {
+        WebDriver driver = mock(WebDriver.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, ORIGINAL, "ASSERT_THAT_ELEMENT_EXISTS", true, null, null, null);
+
+        Assert.assertTrue(resolution.isEmpty());
+        verify(provider, never()).resolve(any());
+    }
+
+    @Test
+    public void nativeMobileActionsShouldUseTheConfiguredHealingProvider() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-mobile", List.of(recovered), By.id("new-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, ORIGINAL, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isPresent());
+        verify(provider, atLeastOnce()).resolve(any());
+    }
+
+    @Test
+    public void flutterByLocatorShouldNeverInvokeHealingProvider() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        By flutterLocator = AppiumBy.flutterKey("submit-button");
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, flutterLocator, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isEmpty());
+        verify(provider, never()).resolve(any());
+    }
+
+    @Test
+    public void nonFlutterAppiumLocatorHealingShouldRemainUnchanged() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        HealingProvider provider = mock(HealingProvider.class);
+        when(provider.resolve(any())).thenReturn(Optional.of(
+                new HealingResolution("attempt-accessibility-id", List.of(recovered), By.id("new-id"))));
+        HealingProviderRegistry.setProviderForTesting(provider);
+        By accessibilityIdLocator = AppiumBy.accessibilityId("submit-button");
+
+        Optional<HealingResolution> resolution = HealingManager.resolve(
+                driver, accessibilityIdLocator, "CLICK", true, null, null, null);
+
+        Assert.assertTrue(resolution.isPresent());
+        verify(provider, atLeastOnce()).resolve(any());
+    }
+
+    @Test(dataProvider = "postActionVerification")
+    public void recoveryShouldRecordExpectedPostActionVerification(
+            String action,
+            String expectedVerification) {
+        WebDriver driver = mock(WebDriver.class);
+        WebElement recovered = mock(WebElement.class);
+        when(recovered.isDisplayed()).thenReturn(true);
+        when(recovered.isEnabled()).thenReturn(true);
+        HealingProvider provider = mock(HealingProvider.class);
+        HealingProviderRegistry.setProviderForTesting(provider);
+        HealingResolution resolution =
+                new HealingResolution("attempt-type", List.of(recovered), By.id("new-id"));
+
+        HealingManager.recordOutcome(driver, resolution, ORIGINAL, action, true, "");
+
+        var outcome = org.mockito.ArgumentCaptor.forClass(HealingActionOutcome.class);
+        verify(provider).recordOutcome(outcome.capture());
+        Assert.assertEquals(outcome.getValue().verification(), expectedVerification);
+    }
+
+    @DataProvider
+    public Object[][] postActionVerification() {
+        return new Object[][]{
+                {"TYPE", "ELEMENT_INTERACTABLE"},
+                {"SELECT", "ELEMENT_INTERACTABLE"},
+                {"CLEAR", "ELEMENT_INTERACTABLE"},
+                {"ELEMENT_RESOLUTION", "ELEMENT_INTERACTABLE"},
+                {"WAIT", "ELEMENT_INTERACTABLE"},
+                {"CLICK", "UNVERIFIABLE"},
+                {"HOVER", "UNVERIFIABLE"},
+                {"DRAG_AND_DROP", "UNVERIFIABLE"}
+        };
+    }
+}

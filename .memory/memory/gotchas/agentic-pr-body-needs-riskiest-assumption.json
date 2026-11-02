@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/agentic-pr-body-needs-riskiest-assumption.md",
+  "content_hash": "sha256:d25bf37cd3730267b8af3019062f379ffb0d181046c94e212444046cacb47dab",
+  "created_at": "2026-10-17T00:19:07+03:00",
+  "evidence": [],
+  "id": "gotcha.agentic-pr-body-needs-riskiest-assumption",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7097"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "ci"
+  ],
+  "title": "Agentic PR bodies need Plan, retrieve, Riskiest assumption and a release-note label at create",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:19:07+03:00"
+}

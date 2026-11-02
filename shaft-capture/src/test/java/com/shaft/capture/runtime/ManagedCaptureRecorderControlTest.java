@@ -1,0 +1,706 @@
+package com.shaft.capture.runtime;
+
+import com.shaft.capture.collector.BrowserSignal;
+import com.shaft.capture.model.BrowserMetadata;
+import com.shaft.capture.model.CaptureEvent;
+import com.shaft.capture.model.CaptureSession;
+import com.shaft.capture.model.EventContext;
+import com.shaft.capture.model.PageContext;
+import com.shaft.capture.model.network.BodyRef;
+import com.shaft.capture.model.network.HttpRequestRecord;
+import com.shaft.capture.model.network.HttpResponseRecord;
+import com.shaft.capture.model.network.NetworkTiming;
+import com.shaft.capture.model.network.ResourceKind;
+import com.shaft.capture.network.CaptureNetworkRecorder;
+import com.shaft.capture.privacy.CapturePrivacyPolicy;
+import com.shaft.capture.storage.CaptureSessionStore;
+import com.shaft.capture.storage.NetworkBodyStore;
+import com.shaft.driver.SHAFT;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.openqa.selenium.MutableCapabilities;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ManagedCaptureRecorderControlTest {
+    @TempDir
+    Path temp;
+
+    @Test
+    void browserUiSignalsPauseCheckpointResumeAndStopWithoutLaunchingBrowser() throws Exception {
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "ui-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        recorder.acceptSignal(BrowserSignal.generated(
+                "checkpoint",
+                "window-1",
+                Map.of("url", "https://example.test", "title", "Example"),
+                Map.of("description", "Edited captured action 1: Click submit", "kind", "USER_MARKER")));
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "PAUSE")));
+        recorder.acceptSignal(BrowserSignal.generated(
+                "navigation",
+                "window-1",
+                Map.of("url", "https://example.test/paused", "title", "Paused"),
+                Map.of("action", "OPEN")));
+
+        assertEquals(0, recorder.status().eventCount());
+        assertEquals(1, store.read().checkpoints().size());
+        assertEquals("Edited captured action 1: Click submit",
+                store.read().checkpoints().getFirst().description());
+
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "RESUME")));
+        recorder.acceptSignal(BrowserSignal.generated(
+                "navigation",
+                "window-1",
+                Map.of("url", "https://example.test/resumed", "title", "Resumed"),
+                Map.of("action", "OPEN")));
+        recorder.acceptSignal(BrowserSignal.generated("control", "window-1", Map.of(), Map.of("action", "STOP")));
+
+        // The UI STOP control now completes on its own dedicated thread (never on the delivering
+        // collector thread, whose own shutdown would interrupt the teardown mid-way), so the
+        // final state is awaited rather than asserted synchronously.
+        CaptureStatus status = awaitState(recorder, CaptureStatus.State.COMPLETED);
+        assertEquals(CaptureStatus.State.COMPLETED, status.state());
+        assertEquals(1, status.eventCount());
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, store.read().status());
+        assertTrue(store.read().events().getFirst() instanceof CaptureEvent.NavigationEvent);
+    }
+
+    @Test
+    void acceptNetworkEventAttributesToTheCurrentWindowAfterATabSwitch() throws Exception {
+        // Regression for issue #4090: acceptNetworkEvent() built each NetworkEvent's PageContext
+        // from currentWindowHandle, a field cached ONCE at start() (issue #4077) and never updated
+        // afterward, so every network event kept attributing to the session's original window even
+        // after the user switched tabs. currentWindowHandle must now track the tab that most
+        // recently produced a BrowserSignal (acceptSignal()), never a live driver.getWindowHandle()
+        // call from acceptNetworkEvent() -- that call runs on the CDP Fetch.requestPaused callback
+        // thread and is exactly the reentrant deadlock #4077 fixed.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+        // Simulates start()'s one-time cache (issue #4077) without launching a real browser.
+        recorder.currentWindowHandleForTesting("window-1");
+
+        recorder.acceptNetworkEvent(networkTransaction("txn-1", "https://api.example.test/first"));
+
+        recorder.acceptSignal(BrowserSignal.generated(
+                "navigation",
+                "window-2",
+                Map.of("url", "https://example.test/second", "title", "Second"),
+                Map.of("action", "OPEN")));
+        recorder.acceptNetworkEvent(networkTransaction("txn-2", "https://api.example.test/second"));
+
+        List<CaptureEvent.NetworkEvent> networkEvents = store.read().events().stream()
+                .filter(CaptureEvent.NetworkEvent.class::isInstance)
+                .map(CaptureEvent.NetworkEvent.class::cast)
+                .toList();
+        assertEquals(2, networkEvents.size());
+        assertEquals("window-1", networkEvents.get(0).context().page().logicalWindowId(),
+                "The network event recorded while window-1 was active must attribute to window-1.");
+        assertEquals("window-2", networkEvents.get(1).context().page().logicalWindowId(),
+                "A network event recorded after switching to window-2 must attribute to window-2, "
+                        + "not the stale window-1 handle captured at session start.");
+    }
+
+    private CaptureNetworkRecorder.RecordedTransaction networkTransaction(String transactionId, String url) {
+        return new CaptureNetworkRecorder.RecordedTransaction(
+                transactionId,
+                ResourceKind.XHR,
+                new HttpRequestRecord("GET", url, Map.of(), null),
+                new HttpResponseRecord(200, Map.of(), null),
+                new NetworkTiming(null, null, null, null, null, Duration.ofMillis(5)),
+                "",
+                url);
+    }
+
+    @Test
+    void stopFinalizesAStepSoftDeletedInsideTheUndoGraceWindowBeforeTeardown() {
+        // Regression for issue #3560: the IDE's Stop button reaches capture_stop -> stop() directly,
+        // never the in-overlay confirmStop that commits a pending soft delete, so a step deleted in
+        // the last few seconds of recording used to survive the undo grace window's teardown and
+        // resurface in the generated JSON/code. stop() must now read the overlay's not-yet-committed
+        // deletes and finalize them before the pipeline (and browser) is torn down.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "soft-delete-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        recorder.acceptSignal(userTraversal("ui-keep", "https://example.test/keep"));
+        recorder.acceptSignal(userTraversal("ui-drop", "https://example.test/drop"));
+        assertTrue(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-keep")),
+                "The kept step must be persisted before stop.");
+        String droppedActionId = store.steps().stream()
+                .map(step -> step.clientActionId())
+                .filter(clientActionId -> clientActionId.endsWith(":ui-drop"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "The soft-deleted step must still be persisted server-side before stop."));
+        assertTrue(droppedActionId.startsWith("ctx:"),
+                "The soft-deleted step is still persisted server-side until the delete is committed.");
+
+        // The overlay reports the server-synced, globally unique id as soft-deleted but not yet
+        // committed when stop is pressed.
+        recorder.pendingBrowserDeletesReaderForTesting(() -> List.of(droppedActionId));
+        CaptureStatus status = recorder.stop(false);
+
+        assertEquals(CaptureStatus.State.COMPLETED, status.state());
+        assertTrue(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-keep")),
+                "The step the user did not delete must survive.");
+        assertFalse(store.steps().stream().anyMatch(step -> step.clientActionId().endsWith(":ui-drop")),
+                "A step soft-deleted in the undo grace window must not resurface after stop.");
+    }
+
+    private static BrowserSignal userTraversal(String clientActionId, String url) {
+        return BrowserSignal.generated(
+                "navigation",
+                "window-1",
+                Map.of("url", url, "title", url),
+                Map.of("action", "OPEN", "navigationSource", "user_traversal",
+                        "clientActionId", clientActionId, "stepDescription", "Navigate to " + url));
+    }
+
+    @Test
+    void stopCompletesOnAnAlreadyInterruptedThreadAndRestoresTheInterruptFlag() throws Exception {
+        // Regression for issue #3409: the overlay Stop button delivered its STOP control on a
+        // collector-owned thread that stop() itself interrupts while closing that collector.
+        // NIO session-store writes then failed with ClosedByInterruptException and
+        // WebDriver.quit() aborted, leaving the session INCOMPLETE and the browser orphaned.
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, CaptureStartOptions.defaults());
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "interrupted-stop-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+
+        Thread.currentThread().interrupt();
+        CaptureStatus status;
+        try {
+            status = recorder.stop(false);
+        } finally {
+            // The flag must have been restored for the caller; consume it so JUnit's own
+            // machinery is not affected by a lingering interrupt.
+            assertTrue(Thread.interrupted(), "stop() must restore the caller's interrupt flag");
+        }
+
+        assertEquals(CaptureStatus.State.COMPLETED, status.state());
+        assertEquals(CaptureSession.SessionStatus.COMPLETED, store.read().status());
+    }
+
+    private static CaptureStatus awaitState(ManagedCaptureRecorder recorder, CaptureStatus.State expected)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5_000;
+        CaptureStatus status = recorder.status();
+        while (status.state() != expected && System.currentTimeMillis() < deadline) {
+            Thread.sleep(25);
+            status = recorder.status();
+        }
+        return status;
+    }
+
+    @Test
+    void browserOptionsCarryCodegenSessionMetadataWithoutLaunchingBrowser() throws Exception {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "java",
+                "data-pw",
+                "chrome-beta",
+                "Desktop",
+                "1024,768",
+                "",
+                "",
+                true,
+                false,
+                "",
+                "",
+                "en-GB",
+                "",
+                "http://proxy.example:8080",
+                "localhost",
+                "",
+                "",
+                Duration.ofSeconds(2),
+                "agent-user-agent",
+                temp.resolve("profile"));
+
+        MutableCapabilities chrome = new ManagedCaptureRecorder(request(CaptureBrowser.CHROME, options)).browserOptions();
+        MutableCapabilities edge = new ManagedCaptureRecorder(request(CaptureBrowser.EDGE, options)).browserOptions();
+
+        assertEquals(true, chrome.getCapability("acceptInsecureCerts"));
+        assertEquals(true, edge.getCapability("acceptInsecureCerts"));
+        assertArguments(chrome.getCapability("goog:chromeOptions"));
+        assertArguments(edge.getCapability("ms:edgeOptions"));
+        assertNotNull(chrome.getCapability("unhandledPromptBehavior"));
+        assertNotNull(edge.getCapability("unhandledPromptBehavior"));
+    }
+
+    @Test
+    void browserOptionsApplyDevicePresetAsChromiumMobileEmulationWithoutLaunchingBrowser() {
+        CaptureStartOptions options = new CaptureStartOptions(
+                "",
+                "",
+                "",
+                "Pixel 7",
+                "",
+                "",
+                "",
+                false,
+                false,
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                Duration.ZERO,
+                "",
+                temp.resolve("profile"));
+
+        MutableCapabilities chrome = new ManagedCaptureRecorder(request(CaptureBrowser.CHROME, options)).browserOptions();
+        MutableCapabilities edge = new ManagedCaptureRecorder(request(CaptureBrowser.EDGE, options)).browserOptions();
+
+        assertMobileEmulation(chrome.getCapability("goog:chromeOptions"));
+        assertMobileEmulation(edge.getCapability("ms:edgeOptions"));
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsInvertsExcludeAssetsIntoIncludeAssetTypes() {
+        // Regression for issue #4014: com.shaft.capture.runtime.NetworkCaptureOptions.excludeAssets
+        // (true = drop asset requests) and com.shaft.capture.network.NetworkCaptureOptions.includeAssetTypes
+        // (true = keep asset requests) are the same concept with inverted polarity, translated by
+        // hand at ManagedCaptureRecorder.translateNetworkCaptureOptions with no compiler guard. This
+        // pins the inversion so a "simplified" (unguarded) mapping fails loudly instead of silently
+        // recording the opposite of what the caller asked for.
+        NetworkCaptureOptions excludeAssetsRequested = new NetworkCaptureOptions();
+        excludeAssetsRequested.excludeAssets = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(excludeAssetsRequested);
+
+        assertFalse(translated.includeAssetTypes(),
+                "excludeAssets=true (drop assets) must translate to includeAssetTypes=false (keep no assets)");
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsKeepsAssetTypesWhenNotExcluded() {
+        NetworkCaptureOptions includeAssetsRequested = new NetworkCaptureOptions();
+        includeAssetsRequested.excludeAssets = false;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(includeAssetsRequested);
+
+        assertTrue(translated.includeAssetTypes(),
+                "excludeAssets=false (keep assets) must translate to includeAssetTypes=true (keep assets)");
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsCarriesCaptureRequestBodiesThrough() {
+        // Regression for issue #4057: captureRequestBodies was silently discarded by the translation,
+        // so a caller who set it had no effect on CaptureNetworkRecorder's body-capture behavior.
+        NetworkCaptureOptions requested = new NetworkCaptureOptions();
+        requested.captureRequestBodies = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(requested);
+
+        assertTrue(translated.captureRequestBodies(),
+                "captureRequestBodies=true on the MCP-bound options must survive translation");
+    }
+
+    @Test
+    void translateNetworkCaptureOptionsCarriesCaptureResponseBodiesThrough() {
+        // Regression for issue #4057: captureResponseBodies was silently discarded by the translation.
+        NetworkCaptureOptions requested = new NetworkCaptureOptions();
+        requested.captureResponseBodies = true;
+
+        com.shaft.capture.network.NetworkCaptureOptions translated =
+                ManagedCaptureRecorder.translateNetworkCaptureOptions(requested);
+
+        assertTrue(translated.captureResponseBodies(),
+                "captureResponseBodies=true on the MCP-bound options must survive translation");
+    }
+
+    @Test
+    void networkCaptureExplicitlyDisabledIsTrueOnlyWhenEnabledIsExplicitlyFalse() {
+        // Regression for issue #4057: NetworkCaptureOptions.enabled had no equivalent on the target
+        // record and was silently discarded, so a caller could not opt out of network recording via
+        // networkOptions once apiCapture (or the global capture.enabled property) turned it on.
+        NetworkCaptureOptions disabled = new NetworkCaptureOptions();
+        disabled.enabled = false;
+        assertTrue(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(disabled),
+                "enabled=false must be honored as an explicit opt-out");
+
+        NetworkCaptureOptions defaultEnabled = new NetworkCaptureOptions();
+        assertFalse(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(defaultEnabled),
+                "the default enabled=true must not suppress network recording");
+
+        assertFalse(ManagedCaptureRecorder.networkCaptureExplicitlyDisabled(null),
+                "a null networkOptions must not suppress network recording");
+    }
+
+    @Test
+    void filterHarByGlobKeepsOnlyEntriesWhoseUrlMatchesTheGlobAndCountsDropped() {
+        String harJson = """
+                {
+                  "log": {
+                    "version": "1.2",
+                    "creator": {"name": "SHAFT", "comment": "test"},
+                    "entries": [
+                      {"method": "GET", "url": "https://api.example.test/users", "status": 200},
+                      {"method": "GET", "url": "https://api.example.test/orders", "status": 200},
+                      {"method": "GET", "url": "https://cdn.example.test/app.js", "status": 200}
+                    ]
+                  }
+                }
+                """;
+
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(harJson, "*api.example.test*");
+
+        assertEquals(2, result.kept());
+        assertEquals(1, result.dropped());
+        assertTrue(result.json().contains("api.example.test/users"));
+        assertTrue(result.json().contains("api.example.test/orders"));
+        assertFalse(result.json().contains("cdn.example.test"));
+    }
+
+    @Test
+    void savesHarEndToEndAppliesGlobFilterAndReportsKeptDroppedCounts() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://cdn.example.test/app.js", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+
+            Path harPath = temp.resolve("filtered.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME,
+                    harOptions(harPath.toString(), "*api.example.test*"));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("api.example.test/users"), "Matching entry must be written.");
+            assertFalse(har.contains("cdn.example.test"), "Non-matching entry must be dropped.");
+            assertTrue(status.warnings().stream().anyMatch(warning ->
+                            warning.contains("kept 1") && warning.contains("dropped 1")),
+                    "Kept/dropped counts must be reported: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    @Test
+    void savesHarWithoutGlobWritesAllObservedEntriesUnchanged() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://cdn.example.test/app.js", 200, Map.of(), Map.of(), 5, 0, 0, "", ""));
+
+            Path harPath = temp.resolve("unfiltered.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), ""));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("api.example.test/users"), "All entries must still be written without a glob.");
+            assertTrue(har.contains("cdn.example.test"), "All entries must still be written without a glob.");
+            assertTrue(status.warnings().stream().noneMatch(warning -> warning.contains("Capture HAR glob filter")),
+                    "No filter summary should be logged when no glob is set: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    private CaptureSessionStore activateEmptySession(ManagedCaptureRecorder recorder, CaptureStartRequest request)
+            throws Exception {
+        CaptureSessionStore store = new CaptureSessionStore(request.outputPath());
+        store.start(CaptureSession.start(
+                "har-session",
+                Instant.parse("2026-01-02T03:04:05Z"),
+                new BrowserMetadata("chrome", "149", "test", "browser", Map.of())));
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store,
+                request.outputPath(),
+                CapturePrivacyPolicy.defaults(),
+                ignored -> { },
+                ignored -> { });
+        recorder.activeSessionForTesting(store, pipeline);
+        return store;
+    }
+
+    private CaptureStartOptions harOptions(String saveHarPath, String saveHarGlob) {
+        return harOptions(saveHarPath, saveHarGlob, "");
+    }
+
+    private CaptureStartOptions harOptions(String saveHarPath, String saveHarGlob, String saveHarContent) {
+        return new CaptureStartOptions(
+                "", "", "", "", "", "", "", false, false,
+                "", "", "", "", "", "", saveHarPath, saveHarGlob, Duration.ZERO, "", null, "", false, null,
+                saveHarContent);
+    }
+
+    /**
+     * Builds a persisted network event as {@code CaptureNetworkRecorder} would have (with headers
+     * already redacted by the caller, mirroring {@code SecretHeaderReplacer} having run), so tests can
+     * plant full-body API-capture evidence directly in a {@link CaptureSessionStore} without launching
+     * a real browser/DevTools session.
+     */
+    private CaptureEvent.NetworkEvent networkEvent(
+            long sequence, String method, String url, int status,
+            Map<String, String> requestHeaders, Map<String, String> responseHeaders,
+            BodyRef requestBody, BodyRef responseBody) {
+        PageContext page = new PageContext("https://example.test", "Example", "window-1", List.of(), 0, 0);
+        EventContext context = new EventContext(
+                sequence, Instant.parse("2026-01-02T03:04:05Z"), page,
+                EventContext.ReplayStatus.NOT_REPLAYED, List.of(), Map.of());
+        HttpRequestRecord httpRequest = new HttpRequestRecord(method, url, requestHeaders, requestBody);
+        HttpResponseRecord httpResponse = status <= 0 ? null : new HttpResponseRecord(status, responseHeaders, responseBody);
+        NetworkTiming timing = new NetworkTiming(null, null, null, null, null, Duration.ofMillis(12));
+        return new CaptureEvent.NetworkEvent(
+                context, "txn-" + sequence, ResourceKind.XHR, httpRequest, httpResponse, timing, "",
+                "https://example.test", null);
+    }
+
+    @Test
+    void savesHarWithDefaultContentModeIgnoresApiCaptureFullBodiesAndKeepsTruncatedPreviewBodies() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "",
+                    "probe-marker-preview-body"));
+
+            Path harPath = temp.resolve("default-mode.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), ""));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            CaptureSessionStore store = activateEmptySession(recorder, request);
+
+            NetworkBodyStore bodyStore = new NetworkBodyStore();
+            BodyRef responseBodyRef = bodyStore.store(
+                    "probe-marker-full-response-body".getBytes(StandardCharsets.UTF_8),
+                    "application/json", recorder.networkBodiesDirectoryForTesting());
+            store.append(networkEvent(1, "GET", "https://api.example.test/users", 200,
+                    Map.of(), Map.of(), null, responseBodyRef));
+
+            recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("probe-marker-preview-body"),
+                    "Default (unset) content mode must still emit the truncated network trace preview body.");
+            assertFalse(har.contains("probe-marker-full-response-body"),
+                    "Default (unset) content mode must not inline full API-capture bodies.");
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    @Test
+    void savesHarWithFullContentModeInlinesFullBodiesAndCarriesRedactedHeadersThrough() throws Exception {
+        Path harPath = temp.resolve("full-mode.har");
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+
+        Path bodiesDirectory = recorder.networkBodiesDirectoryForTesting();
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef requestBodyRef = bodyStore.store(
+                "probe-marker-full-request-body".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+        BodyRef responseBodyRef = bodyStore.store(
+                "probe-marker-full-response-body".getBytes(StandardCharsets.UTF_8), "application/json", bodiesDirectory);
+        store.append(networkEvent(1, "POST", "https://api.example.test/users", 201,
+                Map.of("authorization", "secret-ref:AUTHORIZATION_ab12cd34_ef56gh78"),
+                Map.of("content-type", "application/json"),
+                requestBodyRef, responseBodyRef));
+
+        recorder.stop(false);
+
+        String har = Files.readString(harPath, StandardCharsets.UTF_8);
+        assertTrue(har.contains("probe-marker-full-request-body"), "Full mode must inline the full request body.");
+        assertTrue(har.contains("probe-marker-full-response-body"), "Full mode must inline the full response body.");
+        assertTrue(har.contains("secret-ref:AUTHORIZATION_ab12cd34_ef56gh78"),
+                "Headers already redacted by SecretHeaderReplacer at capture time must be carried through unchanged.");
+    }
+
+    @Test
+    void savesHarWithFullContentModeBase64EncodesNonTextualBodies() throws Exception {
+        Path harPath = temp.resolve("full-mode-binary.har");
+        CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+        ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+        CaptureSessionStore store = activateEmptySession(recorder, request);
+
+        byte[] binaryBody = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 1, 2, 3};
+        NetworkBodyStore bodyStore = new NetworkBodyStore();
+        BodyRef responseBodyRef = bodyStore.store(
+                binaryBody, "image/png", recorder.networkBodiesDirectoryForTesting());
+        store.append(networkEvent(1, "GET", "https://cdn.example.test/logo.png", 200,
+                Map.of(), Map.of(), null, responseBodyRef));
+
+        recorder.stop(false);
+
+        String har = Files.readString(harPath, StandardCharsets.UTF_8);
+        assertTrue(har.contains("\"encoding\" : \"base64\""), "Non-textual bodies must be flagged base64-encoded.");
+        assertTrue(har.contains(Base64.getEncoder().encodeToString(binaryBody)),
+                "The binary body must be inlined as base64 text.");
+    }
+
+    @Test
+    void savesHarWithFullContentModeFallsBackToPreviewWhenNoApiCaptureTransactionsWereRecorded() throws Exception {
+        boolean originalTraceEnabled = SHAFT.Properties.reporting.traceEnabled();
+        boolean originalTraceIncludeNetwork = SHAFT.Properties.reporting.traceIncludeNetwork();
+        BrowserObservabilityRecorder.clear();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+            BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
+                    "GET", "https://api.example.test/users", 200, Map.of(), Map.of(), 5, 0, 0, "",
+                    "probe-marker-preview-only-body"));
+
+            Path harPath = temp.resolve("full-mode-fallback.har");
+            CaptureStartRequest request = request(CaptureBrowser.CHROME, harOptions(harPath.toString(), "", "full"));
+            ManagedCaptureRecorder recorder = new ManagedCaptureRecorder(request);
+            activateEmptySession(recorder, request);
+
+            CaptureStatus status = recorder.stop(false);
+
+            String har = Files.readString(harPath, StandardCharsets.UTF_8);
+            assertTrue(har.contains("probe-marker-preview-only-body"),
+                    "A `full` request with no recorded API-capture transactions must fall back to the "
+                            + "truncated network trace preview.");
+            assertTrue(status.warnings().stream().anyMatch(warning -> warning.contains("falling back to truncated")),
+                    "A fallback warning must be reported: " + status.warnings());
+        } finally {
+            SHAFT.Properties.reporting.set()
+                    .traceEnabled(originalTraceEnabled)
+                    .traceIncludeNetwork(originalTraceIncludeNetwork);
+            BrowserObservabilityRecorder.clear();
+        }
+    }
+
+    private CaptureStartRequest request(CaptureBrowser browser, CaptureStartOptions options) {
+        return new CaptureStartRequest(
+                "https://example.test",
+                browser,
+                temp.resolve(browser.name().toLowerCase()).resolve("capture.json"),
+                temp.resolve(browser.name().toLowerCase()).resolve("runtime"),
+                true,
+                options);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertArguments(Object capability) {
+        assertTrue(capability instanceof Map<?, ?>);
+        List<String> arguments = (List<String>) ((Map<?, ?>) capability).get("args");
+        assertTrue(arguments.stream().anyMatch(argument -> argument.startsWith("--user-data-dir=")));
+        assertTrue(arguments.contains("--profile-directory=Default"));
+        assertTrue(arguments.contains("--user-agent=agent-user-agent"));
+        assertTrue(arguments.contains("--lang=en-GB"));
+        assertTrue(arguments.contains("--proxy-server=http://proxy.example:8080"));
+        assertTrue(arguments.contains("--proxy-bypass-list=localhost"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertMobileEmulation(Object capability) {
+        assertTrue(capability instanceof Map<?, ?>);
+        Map<String, Object> mobileEmulation = (Map<String, Object>) ((Map<?, ?>) capability).get("mobileEmulation");
+        Map<String, Object> deviceMetrics = (Map<String, Object>) mobileEmulation.get("deviceMetrics");
+        assertEquals(412, deviceMetrics.get("width"));
+        assertEquals(915, deviceMetrics.get("height"));
+        assertEquals(2.625, deviceMetrics.get("pixelRatio"));
+        assertEquals(true, deviceMetrics.get("touch"));
+        assertEquals(true, deviceMetrics.get("mobile"));
+        assertTrue(String.valueOf(mobileEmulation.get("userAgent")).contains("Pixel 7"));
+    }
+    @Test
+    void filterHarByGlobReturnsOriginalWhenEntriesMissing() {
+        String bare = "{\"log\":{}}";
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(bare, "*example*");
+        assertEquals(bare, result.json());
+        assertEquals(0, result.kept());
+        assertEquals(0, result.dropped());
+    }
+
+    @Test
+    void filterHarByGlobDropsNonMatchingEntriesAndKeepsMatchingOnes() {
+        String har = """
+                {"log":{"entries":[
+                  {"url":"https://api.example.test/v1"},
+                  {"url":"https://cdn.example.test/app.js"},
+                  {"url":"https://other.test/"}
+                ]}}
+                """;
+        ManagedCaptureRecorder.HarGlobFilterResult result =
+                ManagedCaptureRecorder.filterHarByGlob(har, "*api.example.test*");
+        assertEquals(1, result.kept());
+        assertEquals(2, result.dropped());
+        assertTrue(result.json().contains("api.example.test"));
+        assertFalse(result.json().contains("other.test"));
+    }
+
+}

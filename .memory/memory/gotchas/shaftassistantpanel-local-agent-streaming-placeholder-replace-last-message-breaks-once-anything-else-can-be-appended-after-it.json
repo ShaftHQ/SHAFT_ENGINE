@@ -1,0 +1,28 @@
+{
+  "body_path": "memory/gotchas/shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it.md",
+  "content_hash": "sha256:028b79c528e3a77aab90dd5106731621244a193c1cd62999bf04d18e94fac93e",
+  "created_at": "2026-07-17T23:38:38+03:00",
+  "evidence": [
+    {
+      "id": "0fbf115e4645f39f32bd2fcf768dec65c456432a",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaftassistantpanel-local-agent-streaming-placeholder-replace-last-message-breaks-once-anything-else-can-be-appended-after-it",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ Assistant #3695: remove Run timeline list, move milestones into chat bubbles"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "shaftassistantpanel",
+    "assistanttranscriptview",
+    "streaming",
+    "local-agent",
+    "regression"
+  ],
+  "title": "ShaftAssistantPanel local-agent streaming placeholder: replace-last-message breaks once anything else can be appended after it",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:55:58+03:00"
+}

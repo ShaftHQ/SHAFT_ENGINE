@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/setupexecutor-calls-install-even-on-diagnose-actions.md",
+  "content_hash": "sha256:80936e6e0af20231fbf7eec589e406106aa202de99226dd0e17de072197beb81",
+  "created_at": "2026-08-17T18:50:52+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5052",
+      "kind": "task"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5051",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.setupexecutor-calls-install-even-on-diagnose-actions",
+  "source": {
+    "kind": "agent",
+    "task": "Record AGENT_TOOLS increment gotchas from #5052 / #5051 babysit"
+  },
+  "status": "active",
+  "tags": [
+    "setup",
+    "diagnose",
+    "agent-tools"
+  ],
+  "title": "SetupExecutor calls install() even on DIAGNOSE actions",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T18:50:52+03:00"
+}

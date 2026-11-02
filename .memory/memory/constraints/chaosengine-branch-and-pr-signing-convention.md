@@ -1,0 +1,1 @@
+New branches created for SHAFT work use the `ChaosEngine/*` prefix. PR attribution may identify ChaosEngine, developed by Mohab Mohie, without encoding a provider model or effort level. Existing valid Git commit attribution remains unchanged unless the user directs otherwise.

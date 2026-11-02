@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead.md",
+  "content_hash": "sha256:349dddf4bb41926b6b5d62ca738072455173b1c7ef64f59d0abe6dff8eebeb5c",
+  "created_at": "2026-07-17T04:38:38+03:00",
+  "evidence": [
+    {
+      "id": "d18a4079fc842694ed0c2f9a07b19e4513c77402",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.swing-context-menus-wired-via-a-raw-mouselistener-ispopuptrigger-are-mouse-only-use-jcomponent-setcomponentpopupmenu-instead",
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij issue #3630 keyboard-reachable transcript message context menu"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing",
+    "accessibility",
+    "context-menu"
+  ],
+  "title": "Swing context menus wired via a raw MouseListener.isPopupTrigger() are mouse-only -- use JComponent.setComponentPopupMenu instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

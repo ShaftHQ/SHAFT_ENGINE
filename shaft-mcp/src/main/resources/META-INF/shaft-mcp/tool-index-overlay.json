@@ -1,0 +1,1052 @@
+{
+  "schemaVersion": "1.0",
+  "tools": {
+    "autobot_local_agent_clients": {
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "autobot_local_agent_run": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "autobot_provider_chat": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "autobot_provider_status": {
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "provider": "anthropic",
+          "model": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "autobot_provider_models": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "browser_accessibility_audit": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_aria_snapshot": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_delete_cookies": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_get_current_url": {
+      "mutation": false,
+      "sensitive": false,
+      "slashAlias": "url"
+    },
+    "browser_get_page_dom": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_get_title": {
+      "mutation": false,
+      "sensitive": false,
+      "slashAlias": "title",
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "browser_navigate": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "nav",
+      "example": {
+        "request": {
+          "targetUrl": "https://demo.example.com/checkout"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "browser_navigate_back": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_navigate_forward": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_network_requests": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "browser_open_intent": {
+      "example": {
+        "request": {
+          "maxCharacters": 4000,
+          "maxElements": 20,
+          "targetUrl": "https://demo.example.com/checkout",
+          "userIntent": "click the Checkout button"
+        },
+        "response": "truncated bounded-DOM map (see shaft-skills/choosing-shaft-locators/SKILL.md Example calls)"
+      },
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_refresh": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_route": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_set_window_size": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "browser_storage_state_load": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_storage_state_save": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "browser_take_screenshot": {
+      "mutation": true,
+      "sensitive": true,
+      "slashAlias": "screenshot"
+    },
+    "browser_unroute": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_generate": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_api_response_leaves": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_api_start": {
+      "mutation": true,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "targetUrl": "https://demo.example.com/checkout",
+          "browser": "Chrome",
+          "headless": true,
+          "networkOptions": {
+            "enabled": true,
+            "captureRequestBodies": false,
+            "captureResponseBodies": false
+          }
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "capture_api_status": {
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "capture_api_stop": {
+      "mutation": true,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "discard": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "capture_api_transactions": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_backend_comparison": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_checkpoint": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_code_blocks": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_codegen_features": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_evidence_pack": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_generate_replay": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_pick_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "capture_record_at_target_code_blocks": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_set_mode": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_start": {
+      "example": {
+        "request": {
+          "targetUrl": "https://demo.example.com/checkout",
+          "browser": "Chrome",
+          "headless": true,
+          "sessionGoal": "live e2e smoke"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "intentKeywords": [
+        "start recording",
+        "start a recording",
+        "start recorder",
+        "start capture",
+        "start browser recording",
+        "start a browser recording",
+        "start webdriver recording",
+        "start a webdriver recording",
+        "record my browser actions"
+      ],
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "start"
+    },
+    "capture_status": {
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "mutation": false,
+      "sensitive": false,
+      "slashAlias": "status"
+    },
+    "capture_step_delete": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_step_reorder": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "capture_stop": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "stop",
+      "example": {
+        "request": {
+          "discard": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "capture_target_candidates": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "design_ingest": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design ingest",
+      "intentKeywords": [
+        "ingest user story",
+        "paste acceptance criteria",
+        "design ingest",
+        "turn this story into a pack"
+      ]
+    },
+    "design_analyze": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design analyze",
+      "intentKeywords": [
+        "analyze testability",
+        "gap register",
+        "design analyze",
+        "requirements analysis"
+      ]
+    },
+    "design_gherkin_draft": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design gherkin",
+      "intentKeywords": [
+        "draft gherkin",
+        "generate gherkin",
+        "design gherkin",
+        "feature scenario"
+      ]
+    },
+    "design_examples": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design examples",
+      "intentKeywords": [
+        "scenario outline",
+        "examples table",
+        "design examples",
+        "boundary partitions"
+      ]
+    },
+    "design_lexicon": {
+      "mutation": true,
+      "sensitive": true,
+      "cliCommand": "design lexicon",
+      "intentKeywords": [
+        "ubiquitous language",
+        "reuse login phrase",
+        "design lexicon",
+        "step catalog"
+      ]
+    },
+    "design_coverage": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design coverage",
+      "intentKeywords": [
+        "ac coverage",
+        "uncovered acceptance criteria",
+        "design coverage",
+        "requirement traceability"
+      ]
+    },
+    "design_lint": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design lint",
+      "intentKeywords": [
+        "lint gherkin",
+        "xpath smell",
+        "design lint",
+        "declarative gherkin"
+      ]
+    },
+    "design_gap_map": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design gap-map",
+      "intentKeywords": [
+        "fluent gap map",
+        "gherkin shaft mapping",
+        "needs recording",
+        "design gap map"
+      ]
+    },
+    "design_readiness": {
+      "mutation": false,
+      "sensitive": true,
+      "cliCommand": "design readiness",
+      "intentKeywords": [
+        "design readiness",
+        "ready for automation",
+        "example mapping gate",
+        "handoff allowed"
+      ]
+    },
+    "doctor_analyze_failed_allure": {
+      "example": {
+        "request": {
+          "allureResultPaths": [],
+          "historicalBundlePaths": [],
+          "outputDirectory": "",
+          "includeScreenshots": false,
+          "includePageSnapshots": false,
+          "minimumAllureResults": 1,
+          "repositoryRoot": "",
+          "allowedSourcePaths": [],
+          "useAi": false,
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "driverVariableName": "driver",
+          "backend": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "intentKeywords": [
+        "run doctor",
+        "analyze allure",
+        "analyse allure",
+        "diagnose my last run",
+        "diagnose the last run",
+        "diagnose the latest run",
+        "analyze the latest report",
+        "analyze latest report",
+        "why did my test fail",
+        "why did my tests fail"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "doctor_analyze_trace": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_managed_local_ai_status": {
+      "intentKeywords": [
+        "managed local ai status",
+        "local ai status",
+        "local model status"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_propose_advisory_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_propose_healed_locator": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "doctor_suggest_fix": {
+      "example": {
+        "request": {
+          "jsonReportPath": "target/shaft-doctor/doctor-report.json",
+          "repositoryRoot": "",
+          "allowedSourcePaths": [],
+          "useAi": false,
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "driverVariableName": "driver",
+          "backend": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "mutation": false,
+      "sensitive": false
+    },
+    "driver_initialize": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "init",
+      "example": {
+        "request": {
+          "targetBrowser": "CHROME",
+          "engine": "MOBILE_WEB",
+          "mobileOptions": {
+            "targetUrl": "https://demo.example.com/checkout",
+            "browser": "CHROME",
+            "headless": true
+          }
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "driver_quit": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "quit",
+      "example": {
+        "request": {},
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "element_clear": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "clear"
+    },
+    "element_click": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "click",
+      "example": {
+        "request": {
+          "locatorStrategy": "ID",
+          "locatorValue": "go"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "element_drag_and_drop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_hover": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "element_is_displayed": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_is_enabled": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_is_selected": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "element_type": {
+      "mutation": true,
+      "sensitive": true,
+      "slashAlias": "type",
+      "example": {
+        "request": {
+          "locatorStrategy": "ID",
+          "locatorValue": "username",
+          "text": "shaft-live-e2e"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "element_upload_file": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "generate_test_report": {
+      "mutation": true,
+      "sensitive": false,
+      "slashAlias": "report"
+    },
+    "healer_run_failed_test": {
+      "mutation": true,
+      "sensitive": true,
+      "slashAlias": "heal",
+      "example": {
+        "request": {
+          "repositoryRoot": ".",
+          "testCommand": [
+            "mvn.cmd",
+            "test"
+          ],
+          "outputDirectory": "",
+          "maxAttempts": 1,
+          "includeScreenshots": false,
+          "includePageSnapshots": false,
+          "allowedSourcePaths": [],
+          "networkValidationApproved": false,
+          "useConfiguredAi": false,
+          "allowLocalAi": false,
+          "allowRemoteAi": false,
+          "driverVariableName": "driver",
+          "backend": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "mobile_activate_app": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_background_app": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_get_accessibility_tree": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "mobile_get_contexts": {
+      "mutation": false,
+      "sensitive": true,
+      "example": {
+        "request": {
+          "maxCharacters": 0
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "mobile_hide_keyboard": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_inspector_record_start": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_inspector_record_status": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "mobile_inspector_record_stop": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_keyboard_key": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_rotate": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_swipe": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_switch_context": {
+      "mutation": true,
+      "sensitive": true
+    },
+    "mobile_tap_coordinates": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "mobile_toolchain_status": {
+      "intentKeywords": [
+        "toolchain",
+        "appium",
+        "adb",
+        "sdk"
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "platformName": "Android"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "report_merge_shards": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "shaft_coding_partner_diff": {
+      "example": {
+        "request": {
+          "repositoryPath": ".",
+          "targetSourcePath": "src/test/java/tests/LiveE2EDemoTest.java",
+          "codeBlocks": [
+            "System.out.println(\"hi\");"
+          ],
+          "insertionAnchor": ""
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_coding_partner_plan": {
+      "example": {
+        "request": {
+          "repositoryPath": ".",
+          "intent": "add a login test",
+          "backend": "",
+          "currentSourcePath": "",
+          "selectedText": "",
+          "artifactPaths": [],
+          "maxResults": 5
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "intentKeywords": [
+        "plan coding partner work for",
+        "plan partner work for",
+        "coding partner plan for",
+        "partner plan for",
+        "find reuse for"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_guide_search": {
+      "example": {
+        "request": {
+          "query": "page object model",
+          "maxResults": 3
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "intentKeywords": [
+        "search shaft docs",
+        "search the shaft docs",
+        "search shaft guide",
+        "search the shaft guide",
+        "find shaft docs",
+        "find shaft guide",
+        "guide me on",
+        "docs for"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "shaft_project_create": {
+      "mutation": true,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "outputDirectory": "live-e2e-demo-project",
+          "runner": "TestNG",
+          "platform": "web",
+          "groupId": "",
+          "artifactId": "",
+          "version": "",
+          "shaftVersion": "1.0.0",
+          "optionalModules": [],
+          "includeGithubActions": false,
+          "includeDependabot": false,
+          "overwrite": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "shaft_project_init_agents": {
+      "mutation": true,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "loop": "claude",
+          "targetDirectory": "live-e2e-demo-project",
+          "overwrite": true
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "shaft_project_upgrade": {
+      "intentKeywords": [
+        "preview shaft upgrade",
+        "preview upgrade",
+        "dry run shaft upgrade",
+        "upgrade shaft project",
+        "upgrade this shaft project"
+      ],
+      "mutation": true,
+      "sensitive": true,
+      "example": {
+        "request": {
+          "projectRoot": "live-e2e-demo-project",
+          "upgradeType": "basic",
+          "dryRun": true,
+          "approve": false,
+          "shaftVersion": "",
+          "compileCommand": "",
+          "compileTimeout": 0,
+          "skipBaselineCompile": true,
+          "allowAiRepair": false
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "setup_catalog": {
+      "intentKeywords": [
+        "setup catalog",
+        "setup profiles",
+        "available infrastructure"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "setup_doctor": {
+      "intentKeywords": [
+        "diagnose setup",
+        "setup doctor",
+        "infrastructure prerequisites"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "setup_install": {
+      "intentKeywords": [
+        "install approved setup",
+        "apply setup plan"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "setup_logs": {
+      "intentKeywords": [
+        "setup logs",
+        "infrastructure logs"
+      ],
+      "mutation": false,
+      "sensitive": true
+    },
+    "setup_plan": {
+      "intentKeywords": [
+        "create setup plan",
+        "plan infrastructure install"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "setup_start": {
+      "intentKeywords": [
+        "start setup service",
+        "start managed infrastructure"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "setup_status": {
+      "intentKeywords": [
+        "setup status",
+        "infrastructure readiness"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "setup_stop": {
+      "intentKeywords": [
+        "stop setup service",
+        "stop managed infrastructure"
+      ],
+      "mutation": true,
+      "sensitive": false
+    },
+    "setup_verify": {
+      "intentKeywords": [
+        "verify setup",
+        "verify infrastructure"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "test_automation_scenarios": {
+      "intentKeywords": [
+        "find scenarios",
+        "find automation scenarios",
+        "show scenarios",
+        "automation scenarios for",
+        "scenario ideas for"
+      ],
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "area": "web",
+          "intent": "login",
+          "maxResults": 5
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "test_code_guardrails_check": {
+      "example": {
+        "request": {
+          "language": "java",
+          "code": "driver.element().click(SHAFT.GUI.Locator.id(\"login\"));"
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "intentKeywords": [
+        "check generated java code",
+        "check this java code",
+        "run guardrails",
+        "guardrails check"
+      ],
+      "mutation": false,
+      "sensitive": false
+    },
+    "test_plan_explore": {
+      "example": {
+        "request": {
+          "targetUrl": "https://example.com/",
+          "goal": "smoke",
+          "maxDepth": 1,
+          "maxPages": 1
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      },
+      "mutation": true,
+      "sensitive": true,
+      "slashAlias": "explore"
+    },
+    "trace_latest": {
+      "mutation": false,
+      "sensitive": false,
+      "example": {
+        "request": {
+          "maxResults": 5
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "trace_open_viewer": {
+      "mutation": true,
+      "sensitive": false
+    },
+    "trace_read": {
+      "mutation": false,
+      "sensitive": true
+    },
+    "trace_summarize": {
+      "mutation": false,
+      "sensitive": false
+    },
+    "verify_run_focused": {
+      "mutation": true,
+      "sensitive": true,
+      "example": {
+        "request": {
+          "repositoryRoot": "",
+          "command": [
+            "mvn.cmd",
+            "-q",
+            "compile"
+          ],
+          "networkValidationApproved": false
+        },
+        "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
+      }
+    },
+    "design_handoff": {
+      "mutation": false,
+      "sensitive": true,
+      "deprecated": false
+    },
+    "report_history": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report history",
+      "intentKeywords": [
+        "cross-run allure history",
+        "allure history",
+        "history.jsonl",
+        "flaky across launches",
+        "report history",
+        "show test history"
+      ]
+    },
+    "report_flake": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report flake",
+      "intentKeywords": [
+        "flake table",
+        "retry-hidden",
+        "flaky transitions",
+        "dual flake",
+        "report flake",
+        "flaky tests",
+        "transition count"
+      ]
+    },
+    "report_smart_tags": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report tags",
+      "intentKeywords": [
+        "smart tags",
+        "new failure",
+        "always failing",
+        "regressed",
+        "fixed test",
+        "report tags",
+        "duration anomaly",
+        "test stability tags"
+      ]
+    },
+    "report_clusters": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report clusters",
+      "intentKeywords": [
+        "unique errors",
+        "error clusters",
+        "signature clusters",
+        "impacted tests",
+        "report clusters",
+        "unique-error clustering",
+        "historical-signature"
+      ]
+    },
+    "doctor_cause_label": {
+      "mutation": true,
+      "sensitive": false,
+      "deprecated": false,
+      "cliCommand": "doctor cause-label",
+      "intentKeywords": [
+        "confirm defect label",
+        "confirmed cause",
+        "defect label",
+        "cause label",
+        "PRODUCT TEST ENVIRONMENT LOCATOR TIMING",
+        "doctor cause-label",
+        "label memory"
+      ]
+    },
+    "report_heal": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report heal",
+      "intentKeywords": [
+        "heal insights",
+        "healing decision",
+        "persist-on-pass",
+        "review gate",
+        "recovered heal",
+        "ambiguous heal",
+        "report heal",
+        "locator patch review"
+      ]
+    },
+    "report_mute": {
+      "mutation": true,
+      "sensitive": false,
+      "cliCommand": "report mute",
+      "intentKeywords": [
+        "mute flake",
+        "quarantine test",
+        "local mute",
+        "unmute test",
+        "recover mute",
+        "report mute",
+        "mute list"
+      ]
+    },
+    "report_open": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report open",
+      "intentKeywords": [
+        "open allure",
+        "open report",
+        "allure html",
+        "report open",
+        "generate_test_report cta",
+        "reporting canvas",
+        "open allure report"
+      ]
+    },
+    "report_summary": {
+      "mutation": false,
+      "sensitive": false,
+      "cliCommand": "report summary",
+      "intentKeywords": [
+        "report summary",
+        "engineer summary",
+        "stakeholder summary",
+        "reconciled counts",
+        "execution reporting",
+        "stakeholder reporting",
+        "copy summary"
+      ]
+    },
+    "element_count": {
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    "element_highlight": {
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    }
+  }
+}

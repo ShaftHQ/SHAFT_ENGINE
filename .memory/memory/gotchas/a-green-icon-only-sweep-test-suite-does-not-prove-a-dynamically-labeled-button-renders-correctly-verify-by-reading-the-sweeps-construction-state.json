@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state.md",
+  "content_hash": "sha256:19269b20a2144217b4c19087c2fd1e2c9bd2c42b4a4f7a1051707fd6c132e808",
+  "created_at": "2026-07-17T03:21:37+03:00",
+  "evidence": [
+    {
+      "id": "issue #3626",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.a-green-icon-only-sweep-test-suite-does-not-prove-a-dynamically-labeled-button-renders-correctly-verify-by-reading-the-sweeps-construction-state",
+  "source": {
+    "kind": "agent",
+    "task": "intellij #3626 recovery action buttons review"
+  },
+  "status": "active",
+  "tags": [
+    "review-discipline",
+    "trust-but-verify",
+    "shaft-intellij",
+    "test-gap"
+  ],
+  "title": "A green icon-only-sweep test suite does not prove a dynamically-labeled button renders correctly -- verify by reading the sweep's construction state",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

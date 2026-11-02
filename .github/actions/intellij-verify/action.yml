@@ -1,0 +1,131 @@
+name: 'Verify or Publish IntelliJ Plugin'
+description: >-
+  Sets up JDK 25 and runs the shaft-intellij Gradle wrapper build
+  (check buildPlugin verifyPlugin). When publish=='true', also validates the
+  JetBrains Marketplace secrets and signs/publishes the plugin.
+inputs:
+  publish:
+    description: 'When "true", also sign and publish the plugin to the JetBrains Marketplace.'
+    required: false
+    default: 'false'
+  verify:
+    description: >-
+      "true" runs check buildPlugin verifyPlugin in one retried build (release
+      workflows). "build" runs check buildPlugin and "plugin" runs verifyPlugin,
+      so PR Gate can run them as two parallel jobs (#6189). "false" skips the
+      build; use it with publish=="true" so a long :verifyPlugin cannot consume
+      the Marketplace publish timeout.
+    required: false
+    default: 'true'
+  marketplace-token:
+    description: 'JetBrains Marketplace publishing token. Required when publish=="true".'
+    required: false
+    default: ''
+  certificate-chain:
+    description: 'JetBrains plugin signing certificate chain. Required when publish=="true".'
+    required: false
+    default: ''
+  private-key:
+    description: 'JetBrains plugin signing private key. Required when publish=="true".'
+    required: false
+    default: ''
+  private-key-password:
+    description: 'JetBrains plugin signing private key password. Required when publish=="true".'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate the Gradle wrapper jar
+      uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+    - name: Reject an unknown verify mode
+      if: inputs.verify != 'true' && inputs.verify != 'false' && inputs.verify != 'build' && inputs.verify != 'plugin'
+      shell: bash
+      run: |
+        echo "::error::intellij-verify: verify must be true, false, build, or plugin"
+        exit 1
+    - name: Set up JDK 25
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+      with:
+        java-version: '25'
+        distribution: 'zulu'
+        check-latest: true
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
+      with:
+        # The 3 GB artifact-transform cache restores more slowly than it helps this single build
+        # and competes with SHAFT's Maven caches in GitHub's shared 10 GiB repository budget.
+        gradle-home-cache-excludes: |
+          caches/transforms-3
+    # ubuntu-22.04 runner images ship only fonts-noto-color-emoji (no DejaVu/
+    # Liberation/any general text font). Without a real text font present,
+    # JVM/Swing logical-font substitution for Dialog/sans-serif on that image
+    # resolves to something with no relationship to any real desktop, which
+    # makes headless Swing layout tests (font metrics, text wrapping) unstable
+    # relative to local/production rendering. No-op on non-Linux runners.
+    - name: Install text fonts for headless Swing rendering
+      if: runner.os == 'Linux' && inputs.verify != 'plugin'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-dejavu-core fonts-liberation
+    - name: Validate Marketplace secrets
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        ORG_GRADLE_PROJECT_intellijPlatformPublishingToken: ${{ inputs.marketplace-token }}
+        ORG_GRADLE_PROJECT_intellijPlatformCertificateChain: ${{ inputs.certificate-chain }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKey: ${{ inputs.private-key }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword: ${{ inputs.private-key-password }}
+      run: |
+        missing=0
+        for name in \
+          ORG_GRADLE_PROJECT_intellijPlatformPublishingToken \
+          ORG_GRADLE_PROJECT_intellijPlatformCertificateChain \
+          ORG_GRADLE_PROJECT_intellijPlatformPrivateKey \
+          ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword; do
+          if [ -z "${!name}" ]; then
+            echo "::error::$name is required to publish the IntelliJ plugin"
+            missing=1
+          fi
+        done
+        exit "$missing"
+    # `:verifyPlugin` resolves the JetBrains Plugin Verifier and the IDE
+    # distributions it verifies against from a remote host at
+    # dependency-resolution time, so one connect timeout there fails the whole
+    # job -- it sank PR #4491, whose diff was 14 Python comments and two memory
+    # files (issue #4494). The retry is the same fresh-process lever #4453
+    # established for Maven Central, and it retries a transfer refusal only:
+    # a verifier finding or a compile error still fails on the first attempt.
+    - name: Run Gradle build
+      if: inputs.verify == 'true'
+      shell: bash
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin verifyPlugin
+    # PR Gate splits the same three tasks across two parallel jobs (#6189):
+    # the union of these two steps is exactly the release build above.
+    - name: Run Gradle check and buildPlugin
+      if: inputs.verify == 'build'
+      shell: bash
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij check buildPlugin
+    - name: Run IntelliJ Plugin Verifier
+      if: inputs.verify == 'plugin'
+      shell: bash
+      run: bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij verifyPlugin
+    # Deliberately not retried. A JetBrains Marketplace version number is
+    # single-use, so a publish that failed after the upload landed cannot
+    # succeed on a second attempt -- it would only bury the real reason under a
+    # rejection. Split from the verify build so the retry above still covers the
+    # release workflows' verification half.
+    - name: Sign and publish the plugin
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        ORG_GRADLE_PROJECT_intellijPlatformPublishingToken: ${{ inputs.marketplace-token }}
+        ORG_GRADLE_PROJECT_intellijPlatformCertificateChain: ${{ inputs.certificate-chain }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKey: ${{ inputs.private-key }}
+        ORG_GRADLE_PROJECT_intellijPlatformPrivateKeyPassword: ${{ inputs.private-key-password }}
+      run: |
+        set -euo pipefail
+        log="${RUNNER_TEMP:-/tmp}/shaft-intellij-publishPlugin.log"
+        bash shaft-intellij/gradlew -p shaft-intellij signPlugin publishPlugin --console=plain 2>&1 | tee "$log"
+        python3 scripts/ci/assert_intellij_marketplace_receipt.py \
+          --log "$log" \
+          --properties shaft-intellij/gradle.properties

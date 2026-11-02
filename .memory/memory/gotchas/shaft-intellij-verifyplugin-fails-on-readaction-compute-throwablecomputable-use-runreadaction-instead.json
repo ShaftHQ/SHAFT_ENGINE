@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/shaft-intellij-verifyplugin-fails-on-readaction-compute-throwablecomputable-use-runreadaction-instead.md",
+  "content_hash": "sha256:2111c95d36bd9a6efcc5d73a78b2b52208dae9111394bdf2717999ee8e84bf83",
+  "created_at": "2026-07-17T14:03:08+03:00",
+  "evidence": [
+    {
+      "id": "93bafa9e02851330511489d3146faa557e78a264",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-intellij-verifyplugin-fails-on-readaction-compute-throwablecomputable-use-runreadaction-instead",
+  "source": {
+    "kind": "agent",
+    "task": "verifyPlugin flags ReadAction.compute(ThrowableComputable) as deprecated against newer IU targets"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "gradle",
+    "verifyplugin",
+    "deprecated-api",
+    "read-action"
+  ],
+  "title": "shaft-intellij verifyPlugin fails on ReadAction.compute(ThrowableComputable) -- use runReadAction instead",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

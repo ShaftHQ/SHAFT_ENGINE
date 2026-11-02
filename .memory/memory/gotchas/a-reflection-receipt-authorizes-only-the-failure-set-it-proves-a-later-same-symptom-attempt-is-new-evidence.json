@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/a-reflection-receipt-authorizes-only-the-failure-set-it-proves-a-later-same-symptom-attempt-is-new-evidence.md",
+  "content_hash": "sha256:04c8539ec982af074e55ba39e92912b94cae633796d9f3f171191681ef6d1ec7",
+  "created_at": "2026-08-16T08:45:41+03:00",
+  "evidence": [
+    {
+      "id": "chaos-engine/hooks/reflection.py",
+      "kind": "file"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5000",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.a-reflection-receipt-authorizes-only-the-failure-set-it-proves-a-later-same-symptom-attempt-is-new-evidence",
+  "source": {
+    "kind": "agent",
+    "task": "Route the correct reflection guard refusal observed during blocked MemPalace task cleanup"
+  },
+  "status": "active",
+  "tags": [
+    "reflection",
+    "guard",
+    "receipt",
+    "cleanup",
+    "gotcha"
+  ],
+  "title": "A reflection receipt authorizes only the failure set it proves; a later same-symptom attempt is new evidence",
+  "type": "gotcha",
+  "updated_at": "2026-08-16T08:45:41+03:00"
+}

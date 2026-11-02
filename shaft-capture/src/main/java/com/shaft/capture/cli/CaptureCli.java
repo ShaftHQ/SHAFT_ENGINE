@@ -1,0 +1,636 @@
+package com.shaft.capture.cli;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import com.shaft.capture.control.CaptureControlClient;
+import com.shaft.capture.control.CaptureControlFiles;
+import com.shaft.capture.control.CaptureControlServer;
+import com.shaft.capture.generate.CaptureGenerationReport;
+import com.shaft.capture.generate.CaptureGenerationRequest;
+import com.shaft.capture.generate.CaptureGenerationResult;
+import com.shaft.capture.generate.CaptureGenerator;
+import com.shaft.capture.generate.CaptureTargetInsertionPlan;
+import com.shaft.capture.generate.CaptureTargetInsertionPlanner;
+import com.shaft.capture.generate.CodegenFeatureCatalog;
+import com.shaft.capture.model.CaptureReadiness;
+import com.shaft.capture.model.Checkpoint;
+import com.shaft.capture.privacy.CapturePrivacyClassifier;
+import com.shaft.capture.runtime.CaptureBrowser;
+import com.shaft.capture.runtime.CaptureManager;
+import com.shaft.capture.runtime.CaptureStartRequest;
+import com.shaft.capture.runtime.CaptureStartOptions;
+import com.shaft.capture.runtime.CaptureStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
+
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.lang.management.ManagementFactory;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * Executable local CLI for managed SHAFT Capture recording.
+ */
+public final class CaptureCli {
+    private static final Duration START_TIMEOUT = Duration.ofSeconds(60);
+    private static final Path DEFAULT_RUNTIME = Path.of("target", "shaft-capture");
+    private static final DateTimeFormatter FILE_TIME = DateTimeFormatter
+            .ofPattern("yyyyMMdd-HHmmss")
+            .withZone(ZoneOffset.UTC);
+    private static final ObjectMapper MAPPER = JsonMapper.builder().build();
+    private static final PrintWriter OUTPUT = new PrintWriter(
+            new OutputStreamWriter(new FileOutputStream(FileDescriptor.out), StandardCharsets.UTF_8), true);
+    private static final PrintWriter ERROR = new PrintWriter(
+            new OutputStreamWriter(new FileOutputStream(FileDescriptor.err), StandardCharsets.UTF_8), true);
+
+    private CaptureCli() {
+        throw new IllegalStateException("Utility class");
+    }
+
+    /**
+     * CLI entry point.
+     *
+     * @param args capture command arguments
+     */
+    public static void main(String[] args) {
+        int exitCode = run(args, defaultLaunchPrefix());
+        if (exitCode != 0) {
+            System.exit(exitCode);
+        }
+    }
+
+    /**
+     * Runs a command with an explicit daemon launch prefix.
+     *
+     * @param args capture command arguments
+     * @param launchPrefix command used to relaunch this CLI before the daemon subcommand
+     * @return process-style exit code
+     */
+    public static int run(String[] args, List<String> launchPrefix) {
+        try {
+            if (args == null || args.length == 0) {
+                throw new IllegalArgumentException(usage());
+            }
+            String command = args[0].trim().toLowerCase(Locale.ROOT);
+            Arguments options = Arguments.parse(Arrays.copyOfRange(args, 1, args.length));
+            return switch (command) {
+                case "start" -> start(options, launchPrefix);
+                case "status" -> status(options);
+                case "stop" -> stop(options);
+                case "checkpoint" -> checkpoint(options);
+                case "generate" -> generate(options);
+                case "features" -> features();
+                case "daemon" -> daemon(options);
+                default -> throw new IllegalArgumentException(usage());
+            };
+        } catch (RuntimeException exception) {
+            ERROR.println("SHAFT Capture command failed: " + safeMessage(exception));
+            return 1;
+        }
+    }
+
+    private static int start(Arguments options, List<String> launchPrefix) {
+        Path runtime = options.path("runtime-dir", DEFAULT_RUNTIME);
+        CaptureControlFiles files = new CaptureControlFiles(runtime);
+        CaptureControlClient client = new CaptureControlClient(runtime);
+        if (files.hasActiveControl() && isRunning(client.status().state())) {
+            throw new IllegalStateException("A SHAFT Capture session is already active.");
+        }
+        String url = options.required("url");
+        CaptureBrowser browser = CaptureBrowser.parse(options.value("browser", "chrome"));
+        Path output = options.path(
+                "output",
+                Path.of("recordings", "capture-" + FILE_TIME.format(Instant.now()) + ".json"));
+        CaptureStartRequest request = new CaptureStartRequest(
+                url,
+                browser,
+                output,
+                runtime,
+                options.flag("headless"),
+                startOptions(options));
+        var safeUrl = new CapturePrivacyClassifier().sanitizeUrl(url).value();
+        files.writeStatus(new CaptureStatus(
+                CaptureStatus.State.STARTING,
+                "",
+                browser.name().toLowerCase(),
+                safeUrl,
+                0,
+                List.of(),
+                request.outputPath().toString(),
+                false,
+                0,
+                Instant.now()));
+        Path requestFile = files.writeLaunchRequest(request);
+        Process process = launchDaemon(launchPrefix, runtime, requestFile);
+        CaptureStatus started = awaitStart(client, files, process);
+        print(started);
+        return started.state() == CaptureStatus.State.ACTIVE ? 0 : 1;
+    }
+
+    private static int status(Arguments options) {
+        CaptureStatus status = new CaptureControlClient(
+                options.path("runtime-dir", DEFAULT_RUNTIME)).status();
+        print(status);
+        return 0;
+    }
+
+    private static int stop(Arguments options) {
+        CaptureControlClient client = new CaptureControlClient(
+                options.path("runtime-dir", DEFAULT_RUNTIME));
+        CaptureStatus status = client.status();
+        if (!isRunning(status.state())) {
+            print(status);
+            return 0;
+        }
+        print(client.stop(options.flag("discard")));
+        return 0;
+    }
+
+    private static int checkpoint(Arguments options) {
+        CaptureControlClient client = new CaptureControlClient(
+                options.path("runtime-dir", DEFAULT_RUNTIME));
+        Checkpoint.CheckpointKind kind;
+        try {
+            kind = Checkpoint.CheckpointKind.valueOf(
+                    options.value("kind", "USER_MARKER").toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Unsupported checkpoint kind.", exception);
+        }
+        print(client.checkpoint(options.required("description"), kind));
+        return 0;
+    }
+
+    private static int generate(Arguments options) {
+        CaptureGenerationRequest.EnrichmentMode enrichmentMode =
+                options.flag("ai-preview")
+                        ? CaptureGenerationRequest.EnrichmentMode.PREVIEW
+                        : options.values().containsKey("apply-enrichment")
+                        ? CaptureGenerationRequest.EnrichmentMode.APPLY
+                        : CaptureGenerationRequest.EnrichmentMode.NONE;
+        Path output = options.path("output-dir", Path.of("generated-tests"));
+        Path preview = enrichmentMode == CaptureGenerationRequest.EnrichmentMode.APPLY
+                ? options.pathRequired("apply-enrichment")
+                : options.path("enrichment-preview",
+                output.resolve("target/shaft-capture/enrichment-preview.json"));
+        CaptureGenerationRequest.ControlFlowMode controlFlowMode =
+                options.values().containsKey("apply-control-flow-preview")
+                        ? CaptureGenerationRequest.ControlFlowMode.APPLY
+                        : options.flag("control-flow-preview")
+                        ? CaptureGenerationRequest.ControlFlowMode.PREVIEW
+                        : CaptureGenerationRequest.ControlFlowMode.NONE;
+        Path controlFlowPreview = controlFlowMode == CaptureGenerationRequest.ControlFlowMode.APPLY
+                ? options.pathRequired("apply-control-flow-preview")
+                : output.resolve("target/shaft-capture/control-flow-preview.json");
+        ApprovalPolicy approval = new ApprovalPolicy(
+                options.flag("allow-local-ai"),
+                options.flag("allow-remote-ai"),
+                EnumSet.of(EvidenceCategory.TEXT));
+        long timeoutSeconds = parsePositiveLong(
+                options.value("replay-timeout-seconds", "300"),
+                "replay-timeout-seconds");
+        CaptureGenerationResult result = new CaptureGenerator().generate(new CaptureGenerationRequest(
+                        options.pathRequired("session"),
+                        output,
+                        options.value("package", "generated.capture"),
+                        options.value("class-name", ""),
+                        options.flag("overwrite"),
+                        !options.flag("skip-compile"),
+                        options.flag("replay"),
+                        Duration.ofSeconds(timeoutSeconds),
+                        enrichmentMode,
+                        preview,
+                        options.flag("approve-enrichment"),
+                        approval,
+                        !options.flag("disable-fallback-locators"),
+                        controlFlowMode,
+                        controlFlowPreview),
+                generationBackend(options));
+        CaptureGenerationReport.Status status = result.report() == null
+                ? CaptureGenerationReport.Status.FAILED
+                : result.report().status();
+        if (options.values().containsKey("target-source") || options.values().containsKey("insert-after")) {
+            if (!options.values().containsKey("target-source") || !options.values().containsKey("insert-after")) {
+                throw new IllegalArgumentException(
+                        "Capture record-at-target requires both --target-source and --insert-after.");
+            }
+            CaptureTargetInsertionPlan insertion = status != CaptureGenerationReport.Status.FAILED
+                    ? new CaptureTargetInsertionPlanner().plan(
+                            result.sourcePath(),
+                            options.pathRequired("target-source"),
+                            options.required("insert-after"),
+                            options.value("driver-variable", "driver"))
+                    : null;
+            printJson(new CaptureGenerateAtTargetResult(result, insertion),
+                    "Capture record-at-target result could not be serialized.");
+        } else {
+            print(result);
+        }
+        if (status == CaptureGenerationReport.Status.UNCONFIRMED) {
+            // Issue #4029: the default (no --replay) quick-start flow keeps its fast, exit-0
+            // contract -- but must never let that read as a proven-working test. Loud and
+            // impossible to miss in the human-facing output, not buried in the JSON status field.
+            // Issue #4225: printed AFTER the JSON dump -- whatever prints last is what stays
+            // visible in a real terminal without scrolling back, and the JSON dump of a
+            // non-trivial CaptureGenerationReport can be long enough to push an earlier banner
+            // off-screen.
+            OUTPUT.println("UNCONFIRMED: the generated test compiled but replay was not requested, "
+                    + "so the recorded scenario was NOT proven to run. Pass --replay to confirm it.");
+        }
+        return status == CaptureGenerationReport.Status.FAILED ? 1 : 0;
+    }
+
+    private static int features() {
+        printJson(CodegenFeatureCatalog.features(), "Capture feature inventory could not be serialized.");
+        return 0;
+    }
+
+    private static int daemon(Arguments options) {
+        Path runtime = options.path("runtime-dir", DEFAULT_RUNTIME);
+        CaptureControlFiles files = new CaptureControlFiles(runtime);
+        CaptureStartRequest request = files.consumeLaunchRequest(options.pathRequired("request-file"));
+        if (!request.runtimeDirectory().equals(runtime.toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Capture launch request runtime directory does not match.");
+        }
+        String token = token();
+        CountDownLatch stopped = new CountDownLatch(1);
+        CaptureManager manager = new CaptureManager();
+        CaptureControlServer server = new CaptureControlServer(manager, files, token, stopped::countDown);
+        Thread shutdownHook = new Thread(() -> {
+            manager.close();
+            files.writeStatus(manager.status());
+            files.clearActiveControl();
+        }, "shaft-capture-shutdown");
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
+        try {
+            int port = server.start();
+            files.writeToken(token);
+            files.writeDescriptor(new CaptureControlFiles.ControlDescriptor(
+                    port, ProcessHandle.current().pid()));
+            CaptureStatus active = manager.start(request);
+            files.writeStatus(active);
+            while (!stopped.await(500, TimeUnit.MILLISECONDS)) {
+                CaptureStatus current = manager.status();
+                files.writeStatus(current);
+                if (!isRunning(current.state())) {
+                    break;
+                }
+            }
+            files.writeStatus(manager.status());
+            return 0;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            manager.close();
+            files.writeStatus(manager.status());
+            return 1;
+        } catch (RuntimeException exception) {
+            CaptureStatus failed = new CaptureStatus(
+                    CaptureStatus.State.FAILED,
+                    manager.status().sessionId(),
+                    request.browser().name().toLowerCase(),
+                    new CapturePrivacyClassifier().sanitizeUrl(request.targetUrl()).value(),
+                    manager.status().eventCount(),
+                    CaptureReadiness.State.BLOCKED,
+                    List.of("Managed browser startup failed."),
+                    request.outputPath().toString(),
+                    false,
+                    ProcessHandle.current().pid(),
+                    Instant.now());
+            files.writeStatus(failed);
+            return 1;
+        } finally {
+            server.close();
+            manager.close();
+            files.clearActiveControl();
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException ignored) {
+                // JVM shutdown is already running the same cleanup.
+            }
+        }
+    }
+
+    private static Process launchDaemon(List<String> launchPrefix, Path runtime, Path requestFile) {
+        if (launchPrefix == null || launchPrefix.isEmpty()) {
+            throw new IllegalArgumentException("Capture daemon launch command is unavailable.");
+        }
+        List<String> command = new ArrayList<>(launchPrefix);
+        command.add("daemon");
+        command.add("--runtime-dir");
+        command.add(runtime.toAbsolutePath().normalize().toString());
+        command.add("--request-file");
+        command.add(requestFile.toAbsolutePath().normalize().toString());
+        try {
+            Path normalizedRuntime = runtime.toAbsolutePath().normalize();
+            Files.createDirectories(normalizedRuntime);
+            Path log = normalizedRuntime.resolve("daemon.log");
+            return new ProcessBuilder(command)
+                    .directory(normalizedRuntime.toFile())
+                    .redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()))
+                    .redirectError(ProcessBuilder.Redirect.appendTo(log.toFile()))
+                    .start();
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("SHAFT Capture daemon process could not be launched.", exception);
+        }
+    }
+
+    private static CaptureStatus awaitStart(
+            CaptureControlClient client,
+            CaptureControlFiles files,
+            Process process) {
+        Instant deadline = Instant.now().plus(START_TIMEOUT);
+        while (Instant.now().isBefore(deadline)) {
+            if (!files.hasActiveControl() && process.isAlive()) {
+                sleepForStart();
+                continue;
+            }
+            CaptureStatus status = client.status();
+            if (status.state() == CaptureStatus.State.ACTIVE
+                    || status.state() == CaptureStatus.State.FAILED
+                    || status.state() == CaptureStatus.State.INCOMPLETE) {
+                return status;
+            }
+            if (!process.isAlive()) {
+                return files.readStatus();
+            }
+            sleepForStart();
+        }
+        process.destroy();
+        return new CaptureStatus(
+                CaptureStatus.State.FAILED,
+                "",
+                "",
+                "",
+                0,
+                CaptureReadiness.State.BLOCKED,
+                List.of("Managed browser startup timed out."),
+                "",
+                false,
+                process.pid(),
+                null);
+    }
+
+    private static void sleepForStart() {
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while starting SHAFT Capture.", exception);
+        }
+    }
+
+    private static List<String> defaultLaunchPrefix() {
+        String javaCommand = ProcessHandle.current().info().command().orElse("java");
+        String classpath = absoluteClassPath(ManagementFactory.getRuntimeMXBean().getClassPath());
+        return List.of(javaCommand, "@" + writeLaunchArgsFile(classpath, CaptureCli.class.getName()));
+    }
+
+    /**
+     * Writes a Java {@code @argfile} for relaunching with the given classpath: passed inline on
+     * Windows, hundreds of runtime jar paths can exceed the ~32K CreateProcess command-line limit
+     * ("The filename or extension is too long"), which fails the daemon relaunch before it starts.
+     */
+    private static Path writeLaunchArgsFile(String classpath, String mainClass) {
+        try {
+            Path argsFile = Files.createTempFile("shaft-capture-launch-", ".args");
+            argsFile.toFile().deleteOnExit();
+            Files.writeString(argsFile,
+                    "-cp" + System.lineSeparator()
+                            + argFileQuote(classpath) + System.lineSeparator()
+                            + mainClass + System.lineSeparator(),
+                    StandardCharsets.UTF_8);
+            return argsFile.toAbsolutePath().normalize();
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("SHAFT Capture launch argfile could not be written.", exception);
+        }
+    }
+
+    /**
+     * Quotes one Java @argfile line: backslashes become forward slashes (the argfile parser
+     * treats backslashes as escapes) and embedded quotes are escaped.
+     */
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "/").replace("\"", "\\\"") + '"';
+    }
+
+    private static String absoluteClassPath(String classPath) {
+        return Arrays.stream(classPath.split(Pattern.quote(File.pathSeparator)))
+                .map(entry -> Path.of(entry).toAbsolutePath().normalize().toString())
+                .collect(Collectors.joining(File.pathSeparator));
+    }
+
+    private static String token() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static void print(CaptureStatus status) {
+        printJson(status, "Capture status could not be serialized.");
+    }
+
+    private static void print(CaptureGenerationResult result) {
+        printJson(result, "Capture generation result could not be serialized.");
+    }
+
+    private static void printJson(Object value, String failureMessage) {
+        try {
+            OUTPUT.println(MAPPER.writeValueAsString(value));
+        } catch (tools.jackson.core.JacksonException exception) {
+            throw new IllegalStateException(failureMessage, exception);
+        }
+    }
+
+    private static boolean isRunning(CaptureStatus.State state) {
+        return state == CaptureStatus.State.STARTING
+                || state == CaptureStatus.State.ACTIVE
+                || state == CaptureStatus.State.STOPPING;
+    }
+
+    private static String safeMessage(RuntimeException exception) {
+        String message = exception.getMessage();
+        return message == null || message.isBlank() ? "operation failed." : message;
+    }
+
+    private static String usage() {
+        return "Usage: capture start --url <url> [--browser chrome|chromium|edge] [--output <path>] "
+                + "[--runtime-dir <path>] [--headless] [--viewport-size <width,height>] "
+                + "[--device <name>] [--color-scheme dark|light|no-preference] "
+                + "[--geolocation <lat,lon>] [--timezone <id>] [--block-service-workers] "
+                + "[--load-storage <path>] [--save-storage <path>] [--save-har <path>] "
+                + "[--test-id-attribute <name>] [--user-agent <value>] [--user-data-dir <path>] "
+                + "[--session-goal <text>] [--target <lang>] "
+                + "[--lang <locale>] [--proxy-server <url>] [--proxy-bypass <list>] "
+                + "[--ignore-https-errors] | status | stop [--discard] | "
+                + "checkpoint --description <text> "
+                + "[--kind USER_MARKER|ASSERTION|PAGE_TRANSITION|RECOVERY|FLOW_START|FLOW_END] | "
+                + "generate --session <capture.json> [--backend webdriver|playwright] "
+                + "[--output-dir <path>] [--package <name>] "
+                + "[--class-name <name>] [--overwrite] [--skip-compile] [--replay] "
+                + "[--disable-fallback-locators] [--enable-fallback-locators] "
+                + "[--control-flow-preview] [--apply-control-flow-preview <path>] "
+                + "[--target-source <path> --insert-after <anchor> [--driver-variable <name>]] "
+                + "[--replay-timeout-seconds <seconds>] [--ai-preview --allow-local-ai|--allow-remote-ai] "
+                + "[--enrichment-preview <path>] "
+                + "[--apply-enrichment <path> --approve-enrichment] | features";
+    }
+
+    private static CaptureStartOptions startOptions(Arguments options) {
+        CaptureStartOptions startOptions = new CaptureStartOptions(
+                options.value("target", ""),
+                options.value("test-id-attribute", ""),
+                options.value("channel", ""),
+                options.value("device", ""),
+                options.value("viewport-size", ""),
+                options.value("color-scheme", ""),
+                options.value("geolocation", ""),
+                options.flag("ignore-https-errors"),
+                options.flag("block-service-workers"),
+                options.value("load-storage", ""),
+                options.value("save-storage", ""),
+                options.value("lang", ""),
+                options.value("timezone", ""),
+                options.value("proxy-server", ""),
+                options.value("proxy-bypass", ""),
+                options.value("save-har", ""),
+                options.value("save-har-glob", ""),
+                options.values().containsKey("timeout")
+                        ? Duration.ofMillis(parsePositiveLong(options.value("timeout", "0"), "timeout"))
+                        : Duration.ZERO,
+                options.value("user-agent", ""),
+                options.values().containsKey("user-data-dir")
+                        ? Path.of(options.value("user-data-dir", ""))
+                        : null,
+                options.value("session-goal", ""));
+        requireLoadStorageExists(startOptions.loadStoragePath());
+        return startOptions;
+    }
+
+    /**
+     * Issue #5965 / S2-09: a configured {@code --load-storage} path that is not a readable file
+     * fails closed before the browser launches.
+     */
+    private static void requireLoadStorageExists(String loadStoragePath) {
+        if (loadStoragePath == null || loadStoragePath.isBlank()) {
+            return;
+        }
+        Path path = Path.of(loadStoragePath);
+        if (!Files.isRegularFile(path)) {
+            throw new IllegalArgumentException(
+                    "Capture --load-storage path does not exist (fail closed): " + path);
+        }
+    }
+
+    private static CaptureGenerator.CodegenBackend generationBackend(Arguments options) {
+        String value = options.value("backend", "webdriver").trim().toLowerCase(Locale.ROOT);
+        return switch (value) {
+            case "webdriver", "selenium" -> CaptureGenerator.CodegenBackend.WEBDRIVER;
+            case "playwright", "shaft-playwright" -> CaptureGenerator.CodegenBackend.PLAYWRIGHT;
+            default -> throw new IllegalArgumentException(
+                    "Capture option --backend must be webdriver or playwright.");
+        };
+    }
+
+    private static long parsePositiveLong(String value, String option) {
+        try {
+            long parsed = Long.parseLong(value);
+            if (parsed <= 0) {
+                throw new NumberFormatException();
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Capture option --" + option
+                    + " must be a positive integer.", exception);
+        }
+    }
+
+    private record Arguments(Map<String, String> values, java.util.Set<String> flags) {
+        private static Arguments parse(String[] args) {
+            Map<String, String> values = new LinkedHashMap<>();
+            java.util.Set<String> flags = new java.util.LinkedHashSet<>();
+            for (int index = 0; index < args.length; index++) {
+                String argument = args[index];
+                if (!argument.startsWith("--")) {
+                    throw new IllegalArgumentException("Unexpected capture argument.");
+                }
+                String name = argument.substring(2);
+                if (Set.of(
+                        "headless",
+                        "discard",
+                        "overwrite",
+                        "skip-compile",
+                        "replay",
+                        "enable-fallback-locators",
+                        "disable-fallback-locators",
+                        "control-flow-preview",
+                        "ai-preview",
+                        "approve-enrichment",
+                        "allow-local-ai",
+                        "allow-remote-ai",
+                        "ignore-https-errors",
+                        "block-service-workers").contains(name)) {
+                    flags.add(name);
+                } else {
+                    if (index + 1 >= args.length || args[index + 1].startsWith("--")) {
+                        throw new IllegalArgumentException("Capture option --" + name + " requires a value.");
+                    }
+                    values.put(name, args[++index]);
+                }
+            }
+            return new Arguments(Map.copyOf(values), Set.copyOf(flags));
+        }
+
+        private String required(String name) {
+            String value = values.get(name);
+            if (value == null || value.isBlank()) {
+                throw new IllegalArgumentException("Capture option --" + name + " is required.");
+            }
+            return value;
+        }
+
+        private String value(String name, String fallback) {
+            String value = values.get(name);
+            return value == null || value.isBlank() ? fallback : value;
+        }
+
+        private Path path(String name, Path fallback) {
+            String value = values.get(name);
+            return value == null || value.isBlank() ? fallback : Path.of(value);
+        }
+
+        private Path pathRequired(String name) {
+            return Path.of(required(name));
+        }
+
+        private boolean flag(String name) {
+            return flags.contains(name);
+        }
+    }
+
+    private record CaptureGenerateAtTargetResult(
+            CaptureGenerationResult generation,
+            CaptureTargetInsertionPlan insertion) {
+    }
+}

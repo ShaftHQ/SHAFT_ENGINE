@@ -1,0 +1,6 @@
+<!-- Optional Gradle-plugin integration (#6428): SHAFT run overrides on Gradle run configurations. -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <externalSystem.runConfigurationEx implementation="com.shaft.intellij.testrunner.ShaftGradleRunConfigurationExtension"/>
+    </extensions>
+</idea-plugin>

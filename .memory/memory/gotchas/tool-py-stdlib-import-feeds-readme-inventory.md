@@ -1,0 +1,1 @@
+`chaos-engine/README.md` carries a source-derived `python-libraries` inventory; adding `import functools` to `tool.py` failed `validate_agent_setup` (chaos-engine-readme) in CI only (#7097). Prefer an existing import, or regenerate the inventory in the same commit.

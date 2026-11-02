@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "chosen_skill": {
+      "type": "string",
+      "description": "Canonical name of the one SHAFT specialist selected for the immediate deliverable."
+    }
+  },
+  "required": [
+    "chosen_skill"
+  ],
+  "additionalProperties": false
+}

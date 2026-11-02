@@ -1,0 +1,1 @@
+A rule set valid for git can mean something else to another parser; assert with the consumer's own scanner (mempalace.miner.scan_project) when importable.

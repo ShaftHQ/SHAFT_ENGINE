@@ -1,0 +1,23 @@
+{
+  "body_path": "memory/gotchas/mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open.md",
+  "content_hash": "sha256:993cfe0897fa1b2d504f3046fe5cec04256b3969eab04291e9a55fa9082d4870",
+  "created_at": "2026-07-07T10:57:29+03:00",
+  "evidence": [],
+  "id": "gotcha.mvn-test-must-force-headlessexecution-true-and-never-invoke-allure-serve-report-open",
+  "source": {
+    "kind": "agent",
+    "task": "Standing hard rule: always configure headless browser execution and never auto-open Allure when running mvn test"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "headless",
+    "allure",
+    "mvn",
+    "maven",
+    "hard-rule"
+  ],
+  "title": "mvn test MUST force headlessExecution=true and never invoke allure:serve/report-open",
+  "type": "gotcha",
+  "updated_at": "2026-07-07T10:57:29+03:00"
+}

@@ -1,0 +1,1 @@
+#4570's issue prose claimed eight unadapted general-purpose dispatches, but the source transcript contains 18 calls: nine adapted (six coder and three reviewer) and nine general-purpose. The portable A12 fixture must replay those exact events and treat the unadapted entries as negative controls; otherwise the regression validates the wrong premise.

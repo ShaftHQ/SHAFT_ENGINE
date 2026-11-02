@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/decisions/a-rule-that-compares-tracked-state-against-a-derived-copy-must-exclude-whatever-the-current-branch-is-changing.md",
+  "content_hash": "sha256:0938a3b72a7ac071aa1af353659697632bf31bfcd8d6c749c750f0bd20987a33",
+  "created_at": "2026-08-05T11:51:23+03:00",
+  "evidence": [],
+  "id": "decision.a-rule-that-compares-tracked-state-against-a-derived-copy-must-exclude-whatever-the-current-branch-is-changing",
+  "source": {
+    "kind": "agent",
+    "task": "Route the durable learnings from the harness enforcement batch (#4547, #4552, R20 false positive)"
+  },
+  "status": "active",
+  "tags": [
+    "guard",
+    "hooks",
+    "false-positive",
+    "harness",
+    "sync"
+  ],
+  "title": "A rule that compares tracked state against a derived copy must exclude whatever the current branch is changing",
+  "type": "decision",
+  "updated_at": "2026-08-05T11:51:23+03:00"
+}

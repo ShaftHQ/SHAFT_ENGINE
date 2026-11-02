@@ -1,0 +1,1 @@
+soup-cli 0.73.3 clones source-only llama.cpp to ~/.soup/llama.cpp. The 3.12 uv venv has no pip, so soup cannot auto-install convert deps or build llama-quantize. On this workstation, drop a prebuilt llama-quantize.exe plus ggml/llama DLLs into that directory, then rerun soup export --format gguf --quant q4_k_m. Do not use host Python 3.14.

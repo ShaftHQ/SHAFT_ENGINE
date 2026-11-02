@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/chaos-engine-busy-lock-is-live-flock-not-a-corrupt-lock-file.md",
+  "content_hash": "sha256:b51344fd42acf77beab89d016638f665fca63ab28a54a6e43f223574761c294e",
+  "created_at": "2026-09-16T21:40:43+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5879",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5880",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.chaos-engine-busy-lock-is-live-flock-not-a-corrupt-lock-file",
+  "source": {
+    "kind": "agent",
+    "task": "2026-09-16 CE install lock investigation"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "installer",
+    "lock",
+    "gotcha"
+  ],
+  "title": "ChaosEngine busy lock is live flock not a corrupt lock file",
+  "type": "gotcha",
+  "updated_at": "2026-09-16T21:40:43+03:00"
+}

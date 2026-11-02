@@ -1,0 +1,874 @@
+package com.shaft.api;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
+import com.shaft.driver.SHAFT;
+import com.shaft.gui.driver.BrowserActionsContract;
+import com.shaft.properties.internal.Properties;
+import com.shaft.validation.Validations;
+import com.sun.net.httpserver.HttpServer;
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.config.RestAssuredConfig;
+import io.restassured.http.ContentType;
+import io.restassured.http.Cookie;
+import io.restassured.http.Cookies;
+import io.restassured.http.Header;
+import io.restassured.http.Headers;
+import io.restassured.path.json.JsonPath;
+import io.restassured.response.Response;
+import io.restassured.response.ResponseBody;
+import io.restassured.specification.FilterableRequestSpecification;
+import io.restassured.specification.RequestSpecification;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+public class RestActionsCoverageUnitTest {
+    private static final String COVERAGE_TEST_DATA = "src/test/resources/testDataFiles/restActionsCoverage/";
+
+    private record ApiUser(int id, String name) {
+    }
+
+    // tools.jackson (Jackson 3) annotations: SHAFT serializes with a tools.jackson mapper, which ignores legacy com.fasterxml.jackson databind annotations.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    private static class CustomerPayload {
+        private String name;
+        private Integer dialCode;
+        private String phone;
+        private String optionalField;
+
+        CustomerPayload(String name, Integer dialCode, String phone, String optionalField) {
+            this.name = name;
+            this.dialCode = dialCode;
+            this.phone = phone;
+            this.optionalField = optionalField;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Integer getDialCode() {
+            return dialCode;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public String getOptionalField() {
+            return optionalField;
+        }
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        Properties.clearForCurrentThread();
+    }
+
+    @Test
+    public void constructorWithDriverAndPrepareRequestUrlAreCovered() {
+        SHAFT.API mockDriver = Mockito.mock(SHAFT.API.class);
+        RestActions actions = new RestActions("http://localhost/", mockDriver);
+
+        Validations.assertThat().object(actions.getDriver()).isEqualTo(mockDriver).perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", "a=1", "users"))
+                .isEqualTo("http://localhost/users?a=1").perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", "", "users"))
+                .isEqualTo("http://localhost/users").perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", null, "users"))
+                .isEqualTo("http://localhost/users").perform();
+    }
+
+    @Test
+    public void buildNewRequestCreatesBuildersForEveryRequestType() {
+        RestActions actions = new RestActions("http://localhost/");
+        for (RestActions.RequestType requestType : RestActions.RequestType.values()) {
+            RequestBuilder sessionBuilder = actions.buildNewRequest("resource", requestType);
+            RequestBuilder staticBuilder = RestActions.buildNewRequest("http://localhost/", "resource", requestType);
+
+            Validations.assertThat().object(sessionBuilder.getRequestType()).isEqualTo(requestType).perform();
+            Validations.assertThat().object(sessionBuilder.getServiceName()).isEqualTo("resource").perform();
+            Validations.assertThat().object(sessionBuilder.getServiceURI()).isEqualTo("http://localhost/").perform();
+            Validations.assertThat().object(staticBuilder.getRequestType()).isEqualTo(requestType).perform();
+        }
+    }
+
+    @Test
+    public void requestBuilderHeaderCookieQueryAndFormHelpersMutateRequestState() {
+        RestActions actions = new RestActions("http://localhost/");
+        Map<String, Object> queryParameters = new LinkedHashMap<>();
+        queryParameters.put("q", "shaft api");
+        queryParameters.put("page", 2);
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Trace", "trace-1");
+        Map<String, String> cookies = new LinkedHashMap<>();
+        cookies.put("feature", "enabled");
+
+        RequestBuilder queryBuilder = actions.buildNewRequest("users/{userId}", RestActions.RequestType.GET)
+                .setPathParameters(Map.of("userId", 10))
+                .setUrlArguments("sort=asc")
+                .setParameters(queryParameters, RestActions.ParametersType.QUERY)
+                .addHeader("X-Request", "single")
+                .addHeaders(headers)
+                .addCookie("session", "abc")
+                .addCookies(cookies)
+                .appendDefaultContentCharsetToContentTypeIfUndefined(false)
+                .enableUrlEncoding(false);
+
+        Validations.assertThat().object(queryBuilder.getServiceName()).isEqualTo("users/10").perform();
+        Validations.assertThat().object(queryBuilder.getUrlArguments()).isEqualTo("sort=asc").perform();
+        Validations.assertThat().object(queryBuilder.getParametersType()).isEqualTo(RestActions.ParametersType.QUERY).perform();
+        Validations.assertThat().object(queryBuilder.getParametersMap().get("q")).isEqualTo("shaft api").perform();
+        Validations.assertThat().object(queryBuilder.getSessionHeaders().get("X-Request")).isEqualTo("single").perform();
+        Validations.assertThat().object(queryBuilder.getSessionHeaders().get("X-Trace")).isEqualTo("trace-1").perform();
+        Validations.assertThat().object(queryBuilder.getSessionCookies().get("session")).isEqualTo("abc").perform();
+        Validations.assertThat().object(queryBuilder.getSessionCookies().get("feature")).isEqualTo("enabled").perform();
+
+        Map<String, Object> formParameters = new LinkedHashMap<>();
+        formParameters.put("username", "shaft");
+        RequestBuilder formBuilder = actions.buildNewRequest("login", RestActions.RequestType.POST)
+                .setParameters(formParameters, RestActions.ParametersType.FORM)
+                .setContentType("application/json");
+
+        Validations.assertThat().object(formBuilder.getParametersType()).isEqualTo(RestActions.ParametersType.FORM).perform();
+        Validations.assertThat().object(formBuilder.getContentType()).isEqualTo(ContentType.JSON).perform();
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> actions.buildNewRequest("users", RestActions.RequestType.GET).setPathParameters("10"));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> actions.buildNewRequest("users/{id}", RestActions.RequestType.GET).setPathParameters(Map.of("missing", 10)));
+    }
+
+    @Test
+    public void prepareRequestSpecsShouldHonorJacksonNamingOnJsonRequestBodies() {
+        RestActions actions = new RestActions("http://localhost/");
+        Map<String, String> headers = Map.of("Content-Type", "application/json");
+        CustomerPayload payload = new CustomerPayload("Test", 966, "512345678", null);
+
+        RequestSpecification spec = actions.prepareRequestSpecs(
+                null, null, payload, ContentType.JSON, Map.of(), headers, RestAssuredConfig.config(), true, true);
+
+        String wireBody = ((FilterableRequestSpecification) spec).getBody();
+        Validations.assertThat().object(wireBody).contains("\"dial_code\":966").perform();
+        Validations.assertThat().object(wireBody).doesNotContain("dialCode").perform();
+        Validations.assertThat().object(wireBody).doesNotContain("optional_field").perform();
+    }
+
+    @Test
+    public void prepareRequestSpecsCoversBodyMapQueryFormAndMultipartParameterBranches() throws Exception {
+        RestActions actions = new RestActions("http://localhost/");
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("Content-Type", "application/json");
+        Map<String, Object> cookies = new LinkedHashMap<>();
+        cookies.put("sid", "123");
+
+        RequestSpecification bodySpec = actions.prepareRequestSpecs(
+                null, null, "{\"name\":\"shaft\"}", ContentType.JSON, cookies, headers, RestAssuredConfig.config(), true, true);
+        Validations.assertThat().object(bodySpec).isNotNull().perform();
+        Validations.assertThat().object(actions.prepareRequestSpecs(
+                null, null, new org.json.JSONObject(Map.of("name", "shaft")), ContentType.JSON, cookies, headers,
+                RestAssuredConfig.config(), true, true)).isNotNull().perform();
+        Validations.assertThat().object(actions.prepareRequestSpecs(
+                null, null, new org.json.JSONArray(List.of("alpha", "beta")), ContentType.JSON, cookies, headers,
+                RestAssuredConfig.config(), true, true)).isNotNull().perform();
+
+        Map<String, Object> queryParams = new LinkedHashMap<>();
+        queryParams.put("q", "value");
+        RequestSpecification querySpec = actions.prepareRequestSpecs(
+                queryParams, RestActions.ParametersType.QUERY, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, false);
+        Validations.assertThat().object(((FilterableRequestSpecification) querySpec).getQueryParams().get("q"))
+                .isEqualTo("value").perform();
+
+        Map<String, Object> formParams = new LinkedHashMap<>();
+        formParams.put("username", "shaft");
+        formParams.put("page", 1);
+        RequestSpecification formSpec = actions.prepareRequestSpecs(
+                formParams, RestActions.ParametersType.FORM, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
+        FilterableRequestSpecification filterableFormSpec = (FilterableRequestSpecification) formSpec;
+        Validations.assertThat().object(filterableFormSpec.getFormParams().get("username")).isEqualTo("shaft").perform();
+        Validations.assertThat().object(filterableFormSpec.getContentType()).doesNotContain("multipart/form-data").perform();
+
+        Path tempFile = Files.createTempFile("shaft-rest", ".txt");
+        try {
+            Files.writeString(tempFile, "payload");
+            Map<String, Object> multipartParams = new LinkedHashMap<>();
+            multipartParams.put("file", tempFile.toFile());
+            multipartParams.put("description", "text-part");
+            RequestSpecification multipartSpec = actions.prepareRequestSpecs(
+                    multipartParams, RestActions.ParametersType.MULTIPART, null, ContentType.ANY, cookies, headers, RestAssuredConfig.config(), true, true);
+            String multipartContentType = ((FilterableRequestSpecification) multipartSpec).getContentType();
+            Validations.assertThat().object(multipartContentType).contains("multipart/form-data").perform();
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    public void sendRequestSupportsAllHttpMethodsAgainstLocalServer() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resource", exchange -> {
+            try (InputStream requestBody = exchange.getRequestBody()) {
+                requestBody.readAllBytes();
+            }
+            byte[] body = ("{\"method\":\"" + exchange.getRequestMethod() + "\"}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            int port = server.getAddress().getPort();
+            String url = "http://127.0.0.1:" + port + "/resource";
+            RestActions actions = new RestActions("http://127.0.0.1:" + port + "/");
+            RequestSpecification specs = new RequestSpecBuilder().build();
+
+            for (RestActions.RequestType requestType : RestActions.RequestType.values()) {
+                Validations.assertThat().object(actions.sendRequest(requestType, url, specs).getStatusCode())
+                        .isEqualTo(200).perform();
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void requestBuilderShouldSendQueryParametersOnce() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resource", exchange -> {
+            String query = exchange.getRequestURI().getRawQuery();
+            byte[] body = ("{\"query\":\"" + query + "\"}").getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            Map<String, Object> parameters = new LinkedHashMap<>();
+            parameters.put("q", "shaft");
+            parameters.put("page", 2);
+            SHAFT.API api = new SHAFT.API("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+
+            api.get("resource")
+                    .setParameters(parameters, RestActions.ParametersType.QUERY)
+                    .perform();
+
+            String query = api.getResponseJSONValue("query");
+            Validations.assertThat().object(query.split("q=", -1).length - 1).isEqualTo(1).perform();
+            Validations.assertThat().object(query.split("page=", -1).length - 1).isEqualTo(1).perform();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void responseMetadataAndXmlHelpersUseLocalServerResponses() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/xml", exchange -> {
+            byte[] body = "<root><item id=\"1\" name=\"alpha\"/><item id=\"2\" name=\"beta\"/></root>"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/xml");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/xml";
+            Response response = new RestActions("http://127.0.0.1:" + server.getAddress().getPort() + "/")
+                    .sendRequest(RestActions.RequestType.GET, url, new RequestSpecBuilder().build());
+
+            Validations.assertThat().object(RestActions.getResponseStatusCode(response)).isEqualTo(200).perform();
+            Validations.assertThat().number(RestActions.getResponseTime(response)).isGreaterThanOrEquals(0).perform();
+            Validations.assertThat().object(RestActions.getResponseBody(response)).contains("alpha").perform();
+            Validations.assertThat().object(RestActions.getResponseXMLValue(response, "root.item[0].@name")).isEqualTo("alpha").perform();
+            List<Object> nodes = RestActions.getResponseXMLValueAsList(response, "root.item");
+            Validations.assertThat().object(nodes.size()).isEqualTo(2).perform();
+            Validations.assertThat().object(RestActions.getResponseXMLValue(nodes.get(1), "name")).isEqualTo("beta").perform();
+            Validations.assertThat().object(RestActions.formatXML("<root><child>value</child></root>")).contains(System.lineSeparator()).perform();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void prepareReportMessageExtractsCookiesHeadersAndBearerToken() {
+        RestActions actions = new RestActions("http://localhost/");
+        Response response = Mockito.mock(Response.class);
+        JsonPath jsonPath = Mockito.mock(JsonPath.class);
+
+        Mockito.when(response.getDetailedCookies())
+                .thenReturn(new Cookies(new Cookie.Builder("XSRF-TOKEN", "csrf-value").build()));
+        Mockito.when(response.getHeaders())
+                .thenReturn(new Headers(new Header("Set-Cookie", "a=b"), new Header("X-XSRF-TOKEN", "csrf-header")));
+        Mockito.when(response.jsonPath()).thenReturn(jsonPath);
+        Mockito.when(jsonPath.getString("type")).thenReturn("bearer");
+        Mockito.when(response.asPrettyString()).thenReturn("{\"type\":\"bearer\",\"token\":\"abc123\"}");
+        Mockito.when(response.asString()).thenReturn("{\"type\":\"bearer\",\"token\":\"abc123\"}");
+        Mockito.when(response.timeIn(TimeUnit.MILLISECONDS)).thenReturn(25L);
+
+        String message = actions.prepareReportMessage(response, 200, RestActions.RequestType.GET, "users", ContentType.JSON, "a=1");
+
+        Validations.assertThat().object(message).contains("GET").perform();
+        Validations.assertThat().object(actions.getSessionHeaders().get("Authorization")).isEqualTo("Bearer abc123").perform();
+        Validations.assertThat().object(actions.getSessionHeaders().get("X-XSRF-TOKEN")).isEqualTo("csrf-header").perform();
+        Validations.assertThat().object(actions.getSessionCookies().get("XSRF-TOKEN")).isEqualTo("csrf-value").perform();
+        Assert.assertEquals(actions.getCookies().get("XSRF-TOKEN").getDomain(), "localhost");
+    }
+
+    @Test
+    public void apiShouldImportBrowserCookiesWithDomainAndPathFilter() {
+        BrowserActionsContract browser = Mockito.mock(BrowserActionsContract.class);
+        org.openqa.selenium.Cookie sessionCookie = new org.openqa.selenium.Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/app")
+                .isSecure(true)
+                .isHttpOnly(true)
+                .sameSite("Strict")
+                .build();
+        org.openqa.selenium.Cookie skippedCookie = new org.openqa.selenium.Cookie.Builder("other", "value")
+                .domain("other.example.com")
+                .path("/")
+                .build();
+        Mockito.when(browser.getAllCookies()).thenReturn(Set.of(sessionCookie, skippedCookie));
+
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(browser, "example.com", "/app");
+
+        Map<String, Cookie> cookies = api.getCookies();
+        Cookie imported = cookies.get("session");
+        Assert.assertNotNull(imported);
+        Assert.assertEquals(imported.getValue(), "secret");
+        Assert.assertEquals(imported.getDomain(), ".example.com");
+        Assert.assertEquals(imported.getPath(), "/app");
+        Assert.assertTrue(imported.isSecured());
+        Assert.assertTrue(imported.isHttpOnly());
+        Assert.assertEquals(imported.getSameSite(), "Strict");
+        Assert.assertFalse(cookies.containsKey("other"));
+        Assert.assertThrows(UnsupportedOperationException.class,
+                () -> cookies.put("new", new Cookie.Builder("new", "value").build()));
+    }
+
+    @Test
+    public void prepareReportMessageReturnsEmptyWhenResponseIsNull() {
+        RestActions actions = new RestActions("http://localhost/");
+        String message = actions.prepareReportMessage(null, 200, RestActions.RequestType.GET, "users", ContentType.JSON, null);
+        Validations.assertThat().object(message).isEqualTo("").perform();
+    }
+
+    @Test
+    public void evaluateResponseStatusCodeAndStaticActionHelpersAreCovered() {
+        RestActions actions = new RestActions("http://localhost/");
+        Response ok = Mockito.mock(Response.class);
+        Mockito.when(ok.getStatusCode()).thenReturn(200);
+        Mockito.when(ok.getStatusLine()).thenReturn("HTTP/1.1 200 OK");
+        Validations.assertThat().object(actions.evaluateResponseStatusCode(ok, 0)).isTrue().perform();
+
+        // Test the new contract: evaluateResponseStatusCode returns false on mismatch and doesn't throw
+        Response mismatch = Mockito.mock(Response.class);
+        Mockito.when(mismatch.getStatusCode()).thenReturn(500);
+        Mockito.when(mismatch.getStatusLine()).thenReturn("HTTP/1.1 500 Internal Server Error");
+        boolean result = actions.evaluateResponseStatusCode(mismatch, 200);
+        Validations.assertThat().object(result).isFalse().perform();
+
+        RestActions.passAction("covered-path");
+        Assert.assertThrows(RuntimeException.class,
+                () -> RestActions.failAction("force-failure", new RuntimeException("boom")));
+    }
+
+    @Test
+    public void requestBuilderPublicPathThrowsAssertionErrorOnStatusMismatch() throws Exception {
+        // Regression: public path RequestBuilder.perform still throws AssertionError to users on status mismatch
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/test", exchange -> {
+            exchange.sendResponseHeaders(500, 0);
+            exchange.close();
+        });
+        server.start();
+
+        try {
+            int port = server.getAddress().getPort();
+            String baseUrl = "http://127.0.0.1:" + port + "/";
+            RestActions actions = new RestActions(baseUrl);
+            Assert.assertThrows(AssertionError.class,
+                    () -> actions.buildNewRequest("test", RestActions.RequestType.GET)
+                            .setTargetStatusCode(200)
+                            .perform());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void getResponseJsonValueSupportsStringsCollectionsFiltersAndMockedResponses() throws Exception {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.asPrettyString()).thenReturn("{\"items\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]}");
+
+        Validations.assertThat().object(RestActions.getResponseJSONValue("{\"name\":\"shaft\"}", "$.name")).isEqualTo("shaft").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new org.json.JSONObject("{\"id\":7}"), "id")).isEqualTo("7").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new org.json.JSONArray("[{\"value\":\"x\"}]"), "[0].value")).isEqualTo("x").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(List.of(Map.of("k", "v")), "[0].k")).isEqualTo("v").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(new java.util.HashMap<>(Map.of("key", "value")), "key")).isEqualTo("value").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValue(response, "$.items[?(@.id==2)].name")).isEqualTo("beta").perform();
+        Validations.assertThat().object(RestActions.getResponseJSONValueFromList(response, "$.items", "name", "id", "1"))
+                .isEqualTo("alpha").perform();
+    }
+
+    @Test
+    public void parseBodyToJsonCoversStringsStreamsJacksonNodesMapsAndMockedResponseBodies() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode objectNode = mapper.createObjectNode().put("name", "shaft");
+        ArrayNode arrayNode = mapper.createArrayNode().add("a").add("b");
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asString()).thenReturn("{\"from\":\"response\"}");
+
+        Validations.assertThat().object(new String(RestActions.parseBodyToJson("{\"from\":\"string\"}").readAllBytes(), StandardCharsets.UTF_8))
+                .contains("string").perform();
+        Validations.assertThat().object(new String(RestActions.parseBodyToJson(
+                        new ByteArrayInputStream("{\"from\":\"stream\"}".getBytes(StandardCharsets.UTF_8))).readAllBytes(), StandardCharsets.UTF_8))
+                .contains("stream").perform();
+        Validations.assertThat().object(new String(RestActions.parseBodyToJson(response).readAllBytes(), StandardCharsets.UTF_8))
+                .contains("response").perform();
+        Validations.assertThat().object(RestActions.parseBodyToJson(objectNode)).isNotNull().perform();
+        Validations.assertThat().object(RestActions.parseBodyToJson(arrayNode)).isNotNull().perform();
+        Validations.assertThat().object(RestActions.parseBodyToJson(Map.of("x", 1))).isNotNull().perform();
+    }
+
+    @Test
+    public void getResponseAsMapsJsonBodyToRecord() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json; charset=utf-8");
+        Mockito.when(response.asString()).thenReturn("{\"id\":7,\"name\":\"shaft\"}");
+
+        ApiUser user = RestActions.getResponseAs(response, ApiUser.class);
+
+        Validations.assertThat().object(user).isEqualTo(new ApiUser(7, "shaft")).perform();
+    }
+
+    @Test
+    public void getResponseAsListMapsJsonArrayToRecords() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.asString()).thenReturn("[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]");
+
+        List<ApiUser> users = RestActions.getResponseAsList(response, ApiUser.class);
+
+        Validations.assertThat().object(users).isEqualTo(List.of(new ApiUser(1, "alpha"), new ApiUser(2, "beta"))).perform();
+    }
+
+    @Test
+    public void getResponseAsMapsJsonBodyToGenericTypeReference() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/problem+json");
+        Mockito.when(response.asString()).thenReturn("{\"users\":[{\"id\":1,\"name\":\"alpha\"}]}");
+
+        Map<String, List<ApiUser>> payload = RestActions.getResponseAs(response, new TypeReference<>() {
+        });
+
+        Validations.assertThat().object(payload).isEqualTo(Map.of("users", List.of(new ApiUser(1, "alpha")))).perform();
+    }
+
+    @Test
+    public void shaftApiMapsLastResponseWithTypedHelpers() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn("application/json");
+        Mockito.when(response.asString()).thenReturn("[{\"id\":1,\"name\":\"alpha\"}]");
+        RestActions actions = new RestActions("http://localhost/");
+        actions.setLastResponse(response);
+        SHAFT.API api = new SHAFT.API(actions);
+
+        List<ApiUser> users = api.getResponseAsList(ApiUser.class);
+
+        Validations.assertThat().object(users).isEqualTo(List.of(new ApiUser(1, "alpha"))).perform();
+    }
+
+    @Test
+    public void getResponseAsReportsClearMappingErrors() {
+        Response emptyResponse = Mockito.mock(Response.class);
+        Mockito.when(emptyResponse.getContentType()).thenReturn("application/json");
+        Mockito.when(emptyResponse.asString()).thenReturn(" ");
+
+        IllegalStateException emptyBody = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(emptyResponse, ApiUser.class));
+        Assert.assertTrue(emptyBody.getMessage().contains("empty response body"));
+
+        Response textResponse = Mockito.mock(Response.class);
+        Mockito.when(textResponse.getContentType()).thenReturn("text/plain");
+        Mockito.when(textResponse.asString()).thenReturn("plain text");
+
+        IllegalStateException nonJson = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(textResponse, ApiUser.class));
+        Assert.assertTrue(nonJson.getMessage().contains("Content-Type is not JSON"));
+
+        Response invalidUserResponse = Mockito.mock(Response.class);
+        Mockito.when(invalidUserResponse.getContentType()).thenReturn("application/json");
+        Mockito.when(invalidUserResponse.asString()).thenReturn("{\"id\":{},\"name\":\"shaft\"}");
+
+        IllegalArgumentException mappingFailure = Assert.expectThrows(IllegalArgumentException.class,
+                () -> RestActions.getResponseAs(invalidUserResponse, ApiUser.class));
+        Assert.assertTrue(mappingFailure.getMessage().contains("Failed to map response body"));
+        Assert.assertNotNull(mappingFailure.getCause());
+    }
+
+    @Test
+    public void graphQlOverloadsAreCoveredAgainstLocalServer() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/graphql", exchange -> {
+            try (InputStream requestBody = exchange.getRequestBody()) {
+                requestBody.readAllBytes();
+            }
+            byte[] body = "{\"data\":{\"ok\":true}}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            String baseUri = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequest(baseUri, "{ ping }", "{\"id\":1}", "fragment").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
+            Validations.assertThat().object(RestActions.sendGraphQlRequestWithHeader(baseUri, "{ ping }", "{\"id\":1}", "fragment", "Authorization", "Bearer token").statusCode()).isEqualTo(200).perform();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    public void compareJsonCoversPositiveAndNegativeLocalFileStrategies() {
+        Response objectResponse = Mockito.mock(Response.class);
+        Mockito.when(objectResponse.asString()).thenReturn("{\"id\":1,\"name\":\"shaft\",\"active\":true,\"roles\":[\"admin\",\"tester\"]}");
+        Mockito.when(objectResponse.asPrettyString()).thenReturn("{\"id\":1,\"name\":\"shaft\",\"active\":true,\"roles\":[\"admin\",\"tester\"]}");
+
+        Response arrayResponse = Mockito.mock(Response.class);
+        Mockito.when(arrayResponse.asString()).thenReturn("[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]");
+        Mockito.when(arrayResponse.asPrettyString()).thenReturn("[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]");
+
+        Response nestedArrayResponse = Mockito.mock(Response.class);
+        Mockito.when(nestedArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"},{\"id\":3,\"name\":\"gamma\"}]}");
+        Mockito.when(nestedArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"},{\"id\":3,\"name\":\"gamma\"}]}");
+
+        Response nestedExactArrayResponse = Mockito.mock(Response.class);
+        Mockito.when(nestedExactArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]}");
+        Mockito.when(nestedExactArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":1,\"name\":\"alpha\"},{\"id\":2,\"name\":\"beta\"}]}");
+
+        Response nestedReorderedArrayResponse = Mockito.mock(Response.class);
+        Mockito.when(nestedReorderedArrayResponse.asString()).thenReturn("{\"data\":[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]}");
+        Mockito.when(nestedReorderedArrayResponse.asPrettyString()).thenReturn("{\"data\":[{\"id\":2,\"name\":\"beta\"},{\"id\":1,\"name\":\"alpha\"}]}");
+
+        Validations.assertThat().object(RestActions.compareJSON(
+                objectResponse, COVERAGE_TEST_DATA + "expectedObject.json", RestActions.ComparisonType.EQUALS)).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                objectResponse, COVERAGE_TEST_DATA + "containsObject.json", RestActions.ComparisonType.CONTAINS)).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                arrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.EQUALS_IGNORING_ORDER)).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                nestedArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.CONTAINS, "$.data")).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                nestedExactArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.EQUALS, "$.data")).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                nestedReorderedArrayResponse, COVERAGE_TEST_DATA + "orderedArray.json", RestActions.ComparisonType.EQUALS_IGNORING_ORDER, "$.data")).isTrue().perform();
+        Validations.assertThat().object(RestActions.compareJSON(
+                objectResponse, COVERAGE_TEST_DATA + "mismatchObject.json", RestActions.ComparisonType.EQUALS)).isFalse().perform();
+    }
+
+    @Test
+    public void responseBodyEqualsIgnoringOrderShouldCompareJsonStructurally() {
+        Response response = Mockito.mock(Response.class);
+        ResponseBody<?> responseBody = Mockito.mock(ResponseBody.class);
+        Mockito.when(response.getBody()).thenReturn(responseBody);
+        Mockito.when(responseBody.asString()).thenReturn("{\"roles\":[\"tester\",\"admin\"],\"name\":\"shaft\"}");
+
+        Validations.assertThat().response(response)
+                .body().equalsIgnoringOrder("{\"name\":\"shaft\",\"roles\":[\"admin\",\"tester\"]}").perform();
+        Validations.assertThat().response(response)
+                .body().doesNotEqualIgnoringOrder("{\"name\":\"other\",\"roles\":[\"admin\",\"tester\"]}").perform();
+        Assert.assertThrows(AssertionError.class, () -> Validations.assertThat().response(response)
+                .body().equalsIgnoringOrder("{\"name\":\"other\",\"roles\":[\"admin\",\"tester\"]}").perform());
+    }
+
+    @Test
+    public void apiShouldExportCookiesToBrowserWithDomainAndPathFilter() {
+        BrowserActionsContract sourceBrowser = Mockito.mock(BrowserActionsContract.class);
+        org.openqa.selenium.Cookie matchingCookie = new org.openqa.selenium.Cookie.Builder("session", "secret")
+                .domain(".example.com")
+                .path("/app")
+                .build();
+        org.openqa.selenium.Cookie skippedCookie = new org.openqa.selenium.Cookie.Builder("other", "value")
+                .domain("other.example.com")
+                .path("/")
+                .build();
+        Mockito.when(sourceBrowser.getAllCookies()).thenReturn(Set.of(matchingCookie, skippedCookie));
+
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.importCookiesFrom(sourceBrowser);
+
+        BrowserActionsContract targetBrowser = Mockito.mock(BrowserActionsContract.class);
+
+        SHAFT.API returned = api.exportCookiesTo(targetBrowser, "example.com", "/app");
+
+        Assert.assertSame(returned, api);
+        Mockito.verify(targetBrowser).addCookie("session", "secret");
+        Mockito.verify(targetBrowser, Mockito.never()).addCookie(Mockito.eq("other"), Mockito.anyString());
+    }
+
+    @Test
+    public void apiExportCookiesToWithoutFiltersExportsAllSessionCookiesAndRejectsNull() {
+        SHAFT.API api = new SHAFT.API("https://api.example.com/");
+        api.addCookie("token", "abc123");
+
+        BrowserActionsContract targetBrowser = Mockito.mock(BrowserActionsContract.class);
+        api.exportCookiesTo(targetBrowser);
+
+        Mockito.verify(targetBrowser).addCookie("token", "abc123");
+        Assert.assertThrows(NullPointerException.class, () -> api.exportCookiesTo(null));
+    }
+
+    @Test
+    public void apiConstructorShouldSeedCookiesFromStorageStateFile() throws Exception {
+        Path storageStateFile = Files.createTempFile("shaft-storage-state", ".json");
+        try {
+            String json = "{"
+                    + "\"schemaVersion\":\"1.0\","
+                    + "\"origin\":\"https://example.com\","
+                    + "\"cookies\":[{"
+                    + "\"name\":\"session\","
+                    + "\"value\":\"secret\","
+                    + "\"domain\":\".example.com\","
+                    + "\"path\":\"/app\","
+                    + "\"expiry\":4102444800000,"
+                    + "\"secure\":true,"
+                    + "\"httpOnly\":true,"
+                    + "\"sameSite\":\"Strict\""
+                    + "}],"
+                    + "\"origins\":[]"
+                    + "}";
+            Files.writeString(storageStateFile, json);
+
+            SHAFT.API api = new SHAFT.API("https://api.example.com/", storageStateFile.toString());
+
+            Map<String, Cookie> cookies = api.getCookies();
+            Cookie imported = cookies.get("session");
+            Assert.assertNotNull(imported);
+            Assert.assertEquals(imported.getValue(), "secret");
+            Assert.assertEquals(imported.getDomain(), ".example.com");
+            Assert.assertEquals(imported.getPath(), "/app");
+            Assert.assertTrue(imported.isSecured());
+            Assert.assertTrue(imported.isHttpOnly());
+            Assert.assertEquals(imported.getSameSite(), "Strict");
+        } finally {
+            Files.deleteIfExists(storageStateFile);
+        }
+    }
+
+    @Test
+    public void apiConstructorWithStorageStatePathThrowsForMissingFile() {
+        Assert.assertThrows(IllegalStateException.class,
+                () -> new SHAFT.API("https://api.example.com/", "does-not-exist/storage-state.json"));
+    }
+
+    @Test
+    public void importCookiesFromStorageStateSkipsBlankNamesAndRejectsUnreadableFiles() throws Exception {
+        Path storageStateFile = Files.createTempFile("shaft-storage-state-import", ".json");
+        try {
+            Files.writeString(storageStateFile, """
+                    {
+                      "cookies": [
+                        {"name":"session","value":"secret","domain":".example.com","path":"/app","expiry":4102444800000,"secure":true,"httpOnly":true,"sameSite":"Strict"},
+                        {"name":"plain","value":null},
+                        {"name":"   ","value":"skip-blank"},
+                        {"name":null,"value":"skip-null"}
+                      ]
+                    }
+                    """);
+            RestActions actions = new RestActions("https://api.example.com/");
+            Assert.assertSame(actions, actions.importCookiesFromStorageState(storageStateFile.toString()));
+            Map<String, Cookie> cookies = actions.getCookies();
+            Assert.assertEquals(cookies.keySet(), Set.of("session", "plain"));
+            Cookie imported = cookies.get("session");
+            Assert.assertEquals(imported.getValue(), "secret");
+            Assert.assertEquals(imported.getDomain(), ".example.com");
+            Assert.assertEquals(imported.getPath(), "/app");
+            Assert.assertEquals(imported.getExpiryDate(), new java.util.Date(4102444800000L));
+            Assert.assertTrue(imported.isSecured());
+            Assert.assertTrue(imported.isHttpOnly());
+            Assert.assertEquals(imported.getSameSite(), "Strict");
+            Cookie plain = cookies.get("plain");
+            Assert.assertEquals(plain.getValue(), "");
+            Assert.assertFalse(plain.hasDomain());
+            Assert.assertFalse(plain.hasPath());
+        } finally {
+            Files.deleteIfExists(storageStateFile);
+        }
+
+        Path nullCookies = Files.createTempFile("shaft-storage-state-null", ".json");
+        try {
+            Files.writeString(nullCookies, "{\"cookies\":null}");
+            RestActions actions = new RestActions("https://api.example.com/");
+            Assert.assertSame(actions, actions.importCookiesFromStorageState(nullCookies.toString()));
+            Assert.assertTrue(actions.getCookies().isEmpty());
+        } finally {
+            Files.deleteIfExists(nullCookies);
+        }
+
+        Path missing = Path.of("does-not-exist", "storage-state.json").toAbsolutePath();
+        IllegalStateException missingFile = Assert.expectThrows(IllegalStateException.class,
+                () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(missing.toString()));
+        Assert.assertEquals(missingFile.getMessage(),
+                "Could not read browser storage state from `" + missing.toFile().getAbsolutePath() + "`.");
+
+        Path broken = Files.createTempFile("shaft-storage-state-broken", ".json");
+        try {
+            Files.writeString(broken, "{");
+            IllegalStateException brokenJson = Assert.expectThrows(IllegalStateException.class,
+                    () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(broken.toString()));
+            Assert.assertEquals(brokenJson.getMessage(),
+                    "Could not read browser storage state from `" + broken.toFile().getAbsolutePath() + "`.");
+            Assert.assertNotNull(brokenJson.getCause());
+        } finally {
+            Files.deleteIfExists(broken);
+        }
+
+        NullPointerException nullPath = Assert.expectThrows(NullPointerException.class,
+                () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(null));
+        Assert.assertEquals(nullPath.getMessage(), "storageStatePath");
+    }
+
+    @Test
+    public void getCookiesSynthesizesAnEmptyValueAndSkipsANullName() {
+        RestActions actions = new RestActions("http://localhost/");
+        actions.addCookieVariable("session", null);
+        actions.addCookieVariable(null, "ignored");
+
+        Cookie cookie = actions.getCookies().get("session");
+        Assert.assertNotNull(cookie);
+        Assert.assertEquals(cookie.getValue(), "");
+        Assert.assertFalse(actions.getCookies().containsKey(null));
+    }
+
+    @Test
+    public void prepareRequestSpecsTreatsAFormFileAsMultipart() throws Exception {
+        RestActions actions = new RestActions("http://localhost/");
+        Path tempFile = Files.createTempFile("shaft-rest-form", ".txt");
+        try {
+            Files.writeString(tempFile, "payload");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("file", tempFile.toFile());
+            RequestSpecification spec = actions.prepareRequestSpecs(
+                    formParams, RestActions.ParametersType.FORM, null, ContentType.ANY,
+                    Map.of(), Map.of(), RestAssuredConfig.config(), true, true);
+            Assert.assertTrue(((FilterableRequestSpecification) spec).getContentType().contains("multipart/form-data"));
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    public void getResponseAsRejectsANullContentTypeWithTheExactMessage() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn(null);
+        Mockito.when(response.asString()).thenReturn("{\"id\":1,\"name\":\"shaft\"}");
+
+        IllegalStateException error = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(response, ApiUser.class));
+        Assert.assertEquals(error.getMessage(),
+                "Cannot map response body to " + ApiUser.class.getName()
+                        + " because response Content-Type is not JSON: null.");
+    }
+
+    @Test
+    public void prepareRequestSpecsRejectsEnabledSwaggerValidationWithoutASpecUrl() {
+        SHAFT.Properties.api.set().swaggerValidationEnabled(true).swaggerValidationUrl(" \t ");
+        RestActions actions = new RestActions("http://localhost/");
+
+        IllegalArgumentException error = Assert.expectThrows(IllegalArgumentException.class,
+                () -> actions.prepareRequestSpecs(
+                        null, null, null, ContentType.JSON, Map.of(), Map.of(),
+                        RestAssuredConfig.config(), true, true));
+        Assert.assertEquals(error.getMessage(),
+                com.shaft.api.internal.ApiSettings.missingSpecUrlMessage(
+                        com.shaft.api.internal.ApiSettings.SWAGGER_ENABLED_KEY));
+    }
+
+    @Test
+    public void getResponseJSONValueAsListShouldParseArraysAndFallbackObjects() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.asPrettyString()).thenReturn("{\"items\":[{\"id\":1},{\"id\":2}]}");
+        List<Object> items = RestActions.getResponseJSONValueAsList(response, "$.items");
+        Assert.assertNotNull(items);
+        Assert.assertEquals(items.size(), 2);
+
+        Mockito.when(response.asPrettyString()).thenReturn("not-json-prefix {\"items\":[{\"id\":9}]} trailing");
+        List<Object> recovered = RestActions.getResponseJSONValueAsList(response, "$.items");
+        Assert.assertNotNull(recovered);
+    }
+
+    @Test
+    public void addHeaderVariableShouldAccumulateOnTheSession() {
+        RestActions actions = new RestActions("https://example.test/");
+        Assert.assertSame(actions.addHeaderVariable("X-Coverage", "1"), actions);
+        Assert.assertSame(actions.addHeaderVariable("X-Coverage", "2"), actions);
+        Assert.assertEquals(actions.getHeaders().get("X-Coverage"), "2");
+        RequestSpecification spec = actions.prepareRequestSpecs(
+                null, null, null, ContentType.JSON, Map.of(), Map.of(),
+                RestAssuredConfig.config(), true, true);
+        Assert.assertNotNull(spec);
+    }
+
+
+
+    @Test
+    public void getResponseJSONValueShouldHandleMapsListsAndXmlFallbacks() {
+        Response json = Mockito.mock(Response.class);
+        Mockito.when(json.asPrettyString()).thenReturn("{\"user\":{\"name\":\"shaft\",\"roles\":[\"a\",\"b\"]}}");
+        Assert.assertEquals(RestActions.getResponseJSONValue(json, "$.user.name"), "shaft");
+        Assert.assertNotNull(RestActions.getResponseJSONValueAsList(json, "$.user.roles"));
+
+        Assert.assertEquals(RestActions.getResponseJSONValue(new java.util.HashMap<>(Map.of("ok", true)), "ok"), "true");
+        Assert.assertEquals(RestActions.getResponseJSONValue(new org.json.JSONObject("{\"count\":2}"), "count"), "2");
+
+        io.restassured.path.xml.XmlPath xmlPath = Mockito.mock(io.restassured.path.xml.XmlPath.class);
+        Response xml = Mockito.mock(Response.class);
+        Mockito.when(xml.xmlPath()).thenReturn(xmlPath);
+        Mockito.when(xmlPath.getString("root.item")).thenReturn("one");
+        Assert.assertEquals(RestActions.getResponseXMLValue(xml, "root.item"), "one");
+    }
+
+
+
+
+}

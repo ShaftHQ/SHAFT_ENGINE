@@ -1,0 +1,22 @@
+{
+  "body_path": "memory/decisions/always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve.md",
+  "content_hash": "sha256:16aba29b478768da8731ac87234eadf7c2e0cb06734c10dbbcf5a219a65e8768",
+  "created_at": "2026-08-04T23:52:26+03:00",
+  "evidence": [],
+  "id": "decision.always-loaded-guidance-ceiling-uses-utf-8-bytes-with-a-quarter-cap-reserve",
+  "source": {
+    "kind": "agent",
+    "task": "Record PR #4537 / issue #4498 guidance-budget decision"
+  },
+  "status": "active",
+  "tags": [
+    "guidance",
+    "budget",
+    "validation",
+    "pr-4537",
+    "issue-4498"
+  ],
+  "title": "Always-loaded guidance ceiling uses UTF-8 bytes with a quarter-cap reserve",
+  "type": "decision",
+  "updated_at": "2026-08-04T23:52:26+03:00"
+}

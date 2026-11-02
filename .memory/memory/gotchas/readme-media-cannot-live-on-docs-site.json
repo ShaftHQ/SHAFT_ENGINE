@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/readme-media-cannot-live-on-docs-site.md",
+  "content_hash": "sha256:ce2602e8dbdc9aefd09c17cd3df92723d7b7ac35bafff1bc5a6182c4f6533683",
+  "created_at": "2026-10-17T00:45:00+03:00",
+  "evidence": [],
+  "id": "gotcha.readme-media-cannot-live-on-docs-site",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7100"
+  },
+  "status": "active",
+  "tags": [
+    "readme",
+    "docs"
+  ],
+  "title": "README media can't be linked from the docs site",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:45:00+03:00"
+}

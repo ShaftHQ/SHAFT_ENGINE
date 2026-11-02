@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/memory-saves-use-intent-first-json-on-stdin.md",
+  "content_hash": "sha256:97e08b60b48d684cb75cf003c73b826262d7e58cc15200cd0a508dafe8f47545",
+  "created_at": "2026-06-20T12:08:49+03:00",
+  "evidence": [
+    {
+      "id": ".memory/schema/patch.schema.json",
+      "kind": "file"
+    },
+    {
+      "id": "memory --help and memory remember --help checked on 2026-06-28",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.memory-saves-use-intent-first-json-on-stdin",
+  "source": {
+    "kind": "agent",
+    "task": "Record agent workflow corrections for Memory CLI usage"
+  },
+  "status": "active",
+  "tags": [
+    "agent-workflow",
+    "memory",
+    "cli"
+  ],
+  "title": "Use supported Memory CLI write commands",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T20:18:39+00:00"
+}

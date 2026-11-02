@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize.md",
+  "content_hash": "sha256:e35ec9324824010ef2b45aac690c15228cb1cead62a26649e99269e274eaf76e",
+  "created_at": "2026-08-18T19:11:52+03:00",
+  "evidence": [
+    {
+      "id": "5143",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.soup-export-q4-k-m-on-windows-needs-a-prebuilt-llama-quantize",
+  "source": {
+    "kind": "agent",
+    "task": "Record workstation soup export/deploy gotchas from #5143/#5144 Batch 4"
+  },
+  "status": "active",
+  "tags": [
+    "soup",
+    "export",
+    "gguf",
+    "windows"
+  ],
+  "title": "soup export q4_k_m on Windows needs a prebuilt llama-quantize",
+  "type": "gotcha",
+  "updated_at": "2026-08-18T19:12:19+03:00"
+}

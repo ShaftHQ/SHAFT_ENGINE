@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/decisions/issue-4161-fingerprint-seeding-seam-shipped-in-pr-4173-new-observefingerprint-method-name-not-an-observe-overload.md",
+  "content_hash": "sha256:180caee554a9924bf1f3bafb9b014d111c8985c0c19e383b3dfb39e0e78dd105",
+  "created_at": "2026-07-26T20:23:29+03:00",
+  "evidence": [
+    {
+      "id": "issue #4172",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.issue-4161-fingerprint-seeding-seam-shipped-in-pr-4173-new-observefingerprint-method-name-not-an-observe-overload",
+  "source": {
+    "kind": "agent",
+    "task": "issue 4161 fingerprint seeding seam + maximumPerformanceMode ordering"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-heal",
+    "shaft-engine",
+    "shaft-capture",
+    "locator-healing",
+    "issue-4161",
+    "issue-4172",
+    "pr-4173"
+  ],
+  "title": "Issue 4161 fingerprint-seeding seam shipped in PR 4173: new observeFingerprint method name, not an observe overload",
+  "type": "decision",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

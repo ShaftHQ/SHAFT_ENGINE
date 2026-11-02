@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "name": "Quantum Mandate",
+  "colors": {
+    "void": "#06080D",
+    "carbon": "#10141C",
+    "opticalWhite": "#F2F7FF",
+    "ionBlue": "#2F7DFF",
+    "electricCyan": "#61D4FF",
+    "cyberneticRed": "#FF3B4D"
+  }
+}

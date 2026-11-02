@@ -1,0 +1,48 @@
+{
+  "surfaces": [
+    {
+      "name": "intellij-status-success-dark",
+      "foreground": "#81C784",
+      "background": "#3C3F41",
+      "largeText": false,
+      "states": ["loading", "empty", "partial", "error", "recovery", "success"],
+      "minTargetPx": 24,
+      "keyboardAccessible": true,
+      "visibleFocus": true,
+      "labeledControls": true,
+      "statusMessages": true,
+      "narrowLayoutOk": true,
+      "reducedMotionEquivalent": true,
+      "avoidsLayoutShiftAnimation": true,
+      "actionLabelsConsistent": true,
+      "hasPerformanceEvidence": true,
+      "hasVisualRegressionEvidence": true,
+      "motionGatesContent": false,
+      "motionPurpose": "state",
+      "maxLayoutShift": 0.05,
+      "maxMotionDurationMs": 200
+    },
+    {
+      "name": "docs-callout",
+      "foreground": "#1B1F23",
+      "background": "#F6F8FA",
+      "largeText": false,
+      "states": ["loading", "empty", "partial", "error", "recovery", "success"],
+      "minTargetPx": 24,
+      "keyboardAccessible": true,
+      "visibleFocus": true,
+      "labeledControls": true,
+      "statusMessages": true,
+      "narrowLayoutOk": true,
+      "reducedMotionEquivalent": true,
+      "avoidsLayoutShiftAnimation": true,
+      "actionLabelsConsistent": true,
+      "hasPerformanceEvidence": true,
+      "hasVisualRegressionEvidence": true,
+      "motionGatesContent": false,
+      "motionPurpose": "none",
+      "maxLayoutShift": 0.0,
+      "maxMotionDurationMs": 0
+    }
+  ]
+}

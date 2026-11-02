@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aictx.dev/schemas/v5/config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "project", "memory"],
+  "properties": {
+    "version": {
+      "enum": [5]
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^project\\.[a-z0-9][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["defaultTokenBudget", "autoIndex"],
+      "properties": {
+        "defaultTokenBudget": {
+          "type": "integer",
+          "minimum": 501,
+          "maximum": 50000
+        },
+        "autoIndex": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

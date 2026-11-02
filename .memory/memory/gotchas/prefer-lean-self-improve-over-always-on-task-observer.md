@@ -1,0 +1,1 @@
+Reject full always-on Task Observer style scanning for this harness: token cost is high relative to durable yield. Keep SessionStart locator-only and run dual-track self-improve on the delivery Stop path via portable hooks. Issue #5643.

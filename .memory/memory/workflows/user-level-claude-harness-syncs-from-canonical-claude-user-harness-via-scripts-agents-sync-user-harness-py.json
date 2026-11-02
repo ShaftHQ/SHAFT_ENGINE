@@ -1,0 +1,32 @@
+{
+  "body_path": "memory/workflows/user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py.md",
+  "content_hash": "sha256:c9c408b52399b3e0290923ee4b42baa679804ba10b9cd30d3da6b8135ff4c9eb",
+  "created_at": "2026-07-17T09:20:42+03:00",
+  "evidence": [
+    {
+      "id": "scripts/agents/sync_user_harness.py",
+      "kind": "file"
+    },
+    {
+      "id": "tests/scripts/test_sync_user_harness.py",
+      "kind": "file"
+    }
+  ],
+  "id": "feature.user-level-claude-harness-syncs-from-canonical-claude-user-harness-via-scripts-agents-sync-user-harness-py",
+  "source": {
+    "kind": "agent",
+    "task": "Harness-wide optimization: consolidate agent instructions, prune duplicate plugins, source-control user-level config, codify Haiku-first delegation"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "sync",
+    "user-harness",
+    "secrets",
+    "workflow",
+    "act-as-mohab"
+  ],
+  "title": "User-level Claude harness deploys from tracked adapters and the canonical act-as-mohab entrypoint",
+  "type": "feature",
+  "updated_at": "2026-08-01T16:14:23+03:00"
+}

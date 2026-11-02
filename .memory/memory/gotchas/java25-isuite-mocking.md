@@ -1,0 +1,1 @@
+Mockito or proxy paths touching org.testng.ISuite can pull optional Guice types and fail on Java 25. Extract list/value helper logic and test it directly when suite behavior is not the subject.

@@ -1,0 +1,9 @@
+{
+  "id": 1,
+  "name": "shaft",
+  "active": true,
+  "roles": [
+    "admin",
+    "tester"
+  ]
+}

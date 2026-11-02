@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/default-architect-agents-md-only-history-must-not-require-a-slashy-cited-path.md",
+  "content_hash": "sha256:2a2680d2aab87b112c98cd0d6d89d079224197bce9fa84f296cc3a62044d83ca",
+  "created_at": "2026-08-17T23:41:04+03:00",
+  "evidence": [
+    {
+      "id": "7951797cee41512fa8fb31a6c43afc473550e6b5",
+      "kind": "commit"
+    },
+    {
+      "id": "5073",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.default-architect-agents-md-only-history-must-not-require-a-slashy-cited-path",
+  "source": {
+    "kind": "agent",
+    "task": "Learning loop after #5075 merged: default architect cited-path contract"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-architect",
+    "cited-path",
+    "aider",
+    "5073",
+    "5075"
+  ],
+  "title": "Default shaft-architect AGENTS.md-only history must not require a slashy cited path",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T23:41:04+03:00"
+}

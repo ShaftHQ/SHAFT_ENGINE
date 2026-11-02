@@ -1,0 +1,354 @@
+"""Operator CLI for centralized SHAFT knowledge stores (#5068)."""
+
+import os
+import shutil
+import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
+import sys
+import tempfile
+import unittest
+from unittest import mock
+from pathlib import Path
+
+GIT = shutil.which("git") or "git"
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts/agents/knowledge_stores.py"
+
+
+class KnowledgeStoresTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.sandbox = Path(self.temporary.name)
+        self.primary = self.sandbox / "primary"
+        self.primary.mkdir()
+        self.git("init", cwd=self.primary)
+        self.git("config", "user.email", "knowledge-stores@example.invalid", cwd=self.primary)
+        self.git("config", "user.name", "Knowledge Stores Test", cwd=self.primary)
+        (self.primary / "source.py").write_text("print('indexed')\n", encoding="utf-8")
+        self.git("add", "source.py", cwd=self.primary)
+        self.git("commit", "-m", "indexed source", cwd=self.primary)
+        self.palace = self.primary / ".git" / "chaos-engine" / "mempalace"
+        self.palace.mkdir(parents=True)
+        self.linked = self.sandbox / "linked"
+        self.git("worktree", "add", "-b", "feature", str(self.linked), cwd=self.primary)
+        self.log = self.sandbox / "mempalace.log"
+        fake_bin = self.sandbox / "fake-bin"
+        fake_bin.mkdir()
+        if os.name == "nt":
+            (fake_bin / "mempalace.cmd").write_text(
+                "@echo off\r\n"
+                "echo mempalace %* >>\"%KNOWLEDGE_STORES_LOG%\"\r\n"  # space before >>; cmd treats N>> as fd N
+                "echo MEMPALACE-FAKE-OUTPUT\r\n",
+                encoding="utf-8",
+            )
+        else:
+            (fake_bin / "mempalace").write_text(
+                "#!/bin/sh\n"
+                "printf 'mempalace %s\\n' \"$*\" >>\"$KNOWLEDGE_STORES_LOG\"\n"
+                "printf 'MEMPALACE-FAKE-OUTPUT\\n'\n",
+                encoding="utf-8",
+            )
+            (fake_bin / "mempalace").chmod(0o755)
+        self.env = os.environ.copy()
+        self.env["PATH"] = str(fake_bin) + os.pathsep + self.env.get("PATH", "")
+        self.env["KNOWLEDGE_STORES_LOG"] = str(self.log)
+
+    def git(self, *args, cwd):
+        git_executable = shutil.which("git")
+        self.assertIsNotNone(git_executable)
+        return subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+            [git_executable, *args],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def cli(self, *args, cwd=None):
+        return subprocess.run(  # nosec B603 - current interpreter and repository-owned harness.
+            [sys.executable, str(SCRIPT), *args],
+            cwd=cwd or self.linked,
+            env=self.env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def checkout_palace_created(self, root):
+        return (root / ".chaos-engine-state" / "mempalace").exists()
+
+    def mempalace_tokens(self):
+        logged = self.log.read_text(encoding="utf-8")
+        line = next((item for item in logged.splitlines() if item.strip()), "")
+        return line.split()
+
+    def assert_global_flags_before(self, subcommand):
+        tokens = self.mempalace_tokens()
+        palace_at = tokens.index("--palace")
+        backend_at = tokens.index("--backend")
+        command_at = tokens.index(subcommand)
+        self.assertLess(palace_at, command_at, tokens)
+        self.assertLess(backend_at, command_at, tokens)
+        self.assertEqual("sqlite_exact", tokens[backend_at + 1], tokens)
+        self.assertEqual(str(self.palace.resolve()), tokens[palace_at + 1], tokens)
+        return tokens
+
+    def test_status_from_linked_worktree_uses_central_palace_and_graphify_check(self):
+        completed = self.cli("status")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn(str(self.palace.resolve()), combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        self.assertTrue(self.log.exists(), combined)
+        self.assert_global_flags_before("status")
+        self.assertRegex(completed.stderr + completed.stdout, r"(?:absent|stale) -")
+        self.assertIn("Graphify: degraded", completed.stderr)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+        self.assertFalse(self.checkout_palace_created(self.primary))
+
+    def test_search_without_wing_uses_checkout_yaml_wing(self):
+        (self.linked / "mempalace.yaml").write_text(
+            "wing: checkout_main\n"
+            "rooms:\n- name: general\n  description: Checkout files\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
+
+        completed = self.cli("search", "shared cache")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        self.assertIn("checkout_main", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_explicit_wing_overrides_checkout_yaml_wing(self):
+        (self.linked / "mempalace.yaml").write_text(
+            "wing: checkout_main\n"
+            "rooms:\n- name: general\n  description: Checkout files\n"
+            "exclude_patterns:\n- .git/**\n",
+            encoding="utf-8",
+        )
+
+        completed = self.cli("search", "shared cache", "--wing", "explicit_main")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        self.assertIn("explicit_main", tokens)
+        self.assertNotIn("checkout_main", tokens)
+
+    def test_search_from_linked_worktree_forwards_query_to_resolved_palace(self):
+        completed = self.cli("search", "shared cache", "--wing", "shaft_engine_main")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("shared cache", logged)
+        self.assertIn("shaft_engine_main", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_query_flag_forwards_to_resolved_palace(self):
+        completed = self.cli(
+            "search",
+            "--query",
+            "flag query",
+            "--wing",
+            "shaft_engine_main",
+            "--room",
+            "scripts",
+            "--results",
+            "4",
+        )
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("flag query", logged)
+        self.assertIn("shaft_engine_main", tokens)
+        self.assertIn("scripts", tokens)
+        self.assertIn("--results", tokens)
+        self.assertIn("4", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_top_level_query_flag_runs_search(self):
+        completed = self.cli(
+            "--query",
+            "top level query",
+            "--wing",
+            "shaft_engine_main",
+            "--room",
+            "scripts",
+            "--results",
+            "3",
+        )
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        self.assertIn("MEMPALACE-FAKE-OUTPUT", completed.stdout)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("top level query", logged)
+        self.assertIn("shaft_engine_main", tokens)
+        self.assertIn("scripts", tokens)
+        self.assertIn("--results", tokens)
+        self.assertIn("3", tokens)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_rejects_disagreeing_positional_and_query_flag(self):
+        completed = self.cli("search", "alpha", "--query", "beta")
+        combined = completed.stdout + completed.stderr
+
+        self.assertNotEqual(0, completed.returncode, combined)
+        self.assertIn("must match", combined)
+        self.assertFalse(self.log.exists())
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_search_matching_positional_and_query_flag_forwards_once(self):
+        completed = self.cli("search", "same query", "--query", "same query")
+        combined = completed.stdout + completed.stderr
+
+        self.assertEqual(0, completed.returncode, combined)
+        tokens = self.assert_global_flags_before("search")
+        logged = self.log.read_text(encoding="utf-8")
+        self.assertIn("same query", logged)
+        self.assertEqual(1, logged.count("same query"))
+        self.assertEqual("search", tokens[tokens.index("search")])
+        self.assertFalse(self.checkout_palace_created(self.linked))
+
+    def test_refresh_from_a_linked_worktree_does_not_create_a_checkout_palace(self):
+        # A remote whose default branch was never fetched keeps refresh refusing;
+        # a remote-less repository now resolves its local main/master (#6493).
+        self.git("remote", "add", "origin", str(self.sandbox / "unfetched.git"), cwd=self.primary)
+        linked = self.cli("refresh", cwd=self.linked)
+        primary = self.cli("refresh", cwd=self.primary)
+
+        for completed in (linked, primary):
+            combined = completed.stdout + completed.stderr
+            self.assertNotEqual(0, completed.returncode, combined)
+            self.assertIn("fix-next: git fetch", combined)
+            self.assertNotIn("Refuse linked worktrees", combined)
+        self.assertFalse(self.log.exists())
+        self.assertFalse(self.checkout_palace_created(self.linked))
+        self.assertFalse(self.checkout_palace_created(self.primary))
+
+    def test_relative_override_fails_closed_without_creating_a_palace(self):
+        self.env["SHAFT_MEMPALACE"] = "relative/palace"
+        completed = self.cli("status")
+
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("SHAFT_MEMPALACE must be absolute", completed.stderr)
+        self.assertFalse(self.checkout_palace_created(self.linked))
+        self.assertFalse(self.log.exists())
+
+
+class MempalaceBackendPinSuite6212(unittest.TestCase):
+    """Run the focused tests/scripts/test_mempalace_backend_mismatch_6212.py suite inside this CI-gated module."""
+
+    def test_wave3_mempalace_backend_pin_suite_passes(self) -> None:
+        import sys as _sys
+        from pathlib import Path as _Path
+
+        root = str(_Path(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.insert(0, root)
+        suite = unittest.defaultTestLoader.loadTestsFromName("tests.scripts.test_mempalace_backend_mismatch_6212")
+        result = unittest.TestResult()
+        suite.run(result)
+        problems = [f"{test}: {trace}" for test, trace in result.failures + result.errors]
+        self.assertTrue(result.testsRun > 0, "focused suite discovered no tests")
+        self.assertEqual([], problems)
+
+
+class GraphifyNoCommitRowTest(unittest.TestCase):
+    """#6499: a repository with no commits gets a commit-first graphify fix-next."""
+
+    def test_no_commit_repository_is_waiting_not_degraded(self):
+        import runpy
+        import subprocess
+        stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run([GIT, "init", "-q", str(project)], check=True)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            row = stores["graphify_doctor_row"](project)
+            self.assertEqual("absent", row["status"])
+            self.assertIn("commit once", row["fixNext"])
+            (project / "a.txt").write_text("a", encoding="utf-8")
+            subprocess.run([GIT, "-C", str(project), "add", "a.txt"], check=True)
+            subprocess.run(
+                [GIT, "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
+                 "commit", "-qm", "init"], check=True)
+            row = stores["graphify_doctor_row"](project)
+            self.assertEqual("degraded", row["status"])
+            self.assertIn("repair --project . --component graphify", row["fixNext"])
+
+
+    def test_non_git_graphify_fingerprint_fresh_is_healthy(self):
+        """#7487: non-git freshness binds to blake2 file bytes, not git init."""
+        import os
+        import runpy
+        root = Path(__file__).resolve().parents[2] / "chaos-engine"
+        stores = runpy.run_path(str(root / "stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            target = project / "src" / "a.py"
+            target.write_text("print(1)\n", encoding="utf-8")
+            graph = project / "graphify-out"
+            graph.mkdir()
+            (graph / "graph.json").write_text("{\"nodes\":[]}", encoding="utf-8")
+            (graph / "manifest.json").write_text("{\"ok\":true}", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
+                self.assertFalse(stores["is_git_work_tree"](project))
+                fingerprint = stores["project_content_revision"](project)
+                stores["write_marker"](graph, fingerprint)
+                row = stores["graphify_doctor_row"](project)
+                self.assertEqual("healthy", row["status"], row)
+                # Same size + forced same mtime, different bytes → must go stale.
+                prior = target.stat()
+                target.write_text("print(2)\n", encoding="utf-8")
+                os.utime(target, ns=(prior.st_atime_ns, prior.st_mtime_ns))
+                self.assertEqual(prior.st_size, target.stat().st_size)
+                self.assertEqual(prior.st_mtime_ns, target.stat().st_mtime_ns)
+                stale = stores["graphify_doctor_row"](project)
+                self.assertEqual("degraded", stale["status"], stale)
+                self.assertNotIn("git init", stale.get("fixNext", ""))
+                self.assertIn("repair --project . --component graphify", stale["fixNext"])
+
+    def test_non_git_never_indexed_keeps_7303_warning_severity(self):
+        """#7303 severity: n/a non-git detail stays a warning; live constant."""
+        import runpy
+        root = Path(__file__).resolve().parents[2] / "chaos-engine"
+        stores = runpy.run_path(str(root / "stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
+                self.assertFalse(stores["is_git_work_tree"](project))
+                row = stores["graphify_doctor_row"](project)
+        self.assertEqual("degraded", row["status"])
+        self.assertEqual(stores["NON_GIT_GRAPHIFY_DETAIL"], row["detail"])
+        self.assertNotIn("git init", row.get("fixNext", ""))
+        installer = runpy.run_path(str(root / "install.py"))
+        severity = installer["_component_severity"]
+        self.assertEqual("warning", severity({**row, "taskImpact": "required-when-indexed"}))
+        self.assertEqual(
+            "error",
+            severity({"status": "degraded", "detail": "stale", "taskImpact": "required-when-indexed"}),
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

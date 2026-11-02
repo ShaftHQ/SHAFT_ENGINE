@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "kind": "addon",
+  "name": "shaft-core-developers",
+  "title": "SHAFT core developers",
+  "description": "Repository facts, playbooks, and mastery chapters for contributors to ShaftHQ/SHAFT_ENGINE.",
+  "useWhen": "changing ShaftHQ/SHAFT_ENGINE itself (engine source, tests, CI, releases, agent guidance)",
+  "requires": ["shaft-engine-users"],
+  "distribution": "repository",
+  "router": "entrypoint.md"
+}

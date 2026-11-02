@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "shaft-mcp": {
+      "type": "stdio",
+      "command": "java",
+      "args": ["@/absolute/path/shaft-mcp.args"]
+    }
+  }
+}

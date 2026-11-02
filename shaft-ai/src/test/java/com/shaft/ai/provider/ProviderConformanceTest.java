@@ -1,0 +1,626 @@
+package com.shaft.ai.provider;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import com.shaft.driver.SHAFT;
+import com.shaft.doctor.DoctorAiAnalysisRequest;
+import com.shaft.doctor.ai.DoctorAiAnalysisService;
+import com.shaft.doctor.model.CauseCategory;
+import com.shaft.doctor.model.Confidence;
+import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.model.DoctorAdvisory;
+import com.shaft.doctor.model.EvidenceBundle;
+import com.shaft.doctor.model.EvidenceItem;
+import com.shaft.doctor.model.EvidenceProvenance;
+import com.shaft.doctor.model.Finding;
+import com.shaft.doctor.model.RedactionSummary;
+import com.shaft.pilot.ai.AiBudget;
+import com.shaft.pilot.ai.AiExecutionService;
+import com.shaft.pilot.ai.AiModelDiscovery;
+import com.shaft.pilot.ai.AiProvider;
+import com.shaft.pilot.ai.AiProviderRegistry;
+import com.shaft.pilot.ai.AiRequest;
+import com.shaft.pilot.ai.AiResponse;
+import com.shaft.pilot.ai.AiResponseStatus;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
+import com.shaft.pilot.ai.ProcessingLocation;
+import com.shaft.pilot.config.PilotConfiguration;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ProviderConformanceTest {
+    private static final ObjectMapper JSON = new ObjectMapper();
+    @TempDir
+    Path temp;
+    private HttpServer server;
+
+    @AfterEach
+    void cleanup() {
+        if (server != null) {
+            server.stop(0);
+        }
+        SHAFT.Properties.clearForCurrentThread();
+    }
+
+    @ParameterizedTest(name = "{0} returns the same structured contract")
+    @MethodSource("providerIds")
+    void allProvidersPassStructuredMockConformance(String providerId) throws Exception {
+        AtomicReference<String> capturedBody = new AtomicReference<>("");
+        AtomicReference<String> capturedCredential = new AtomicReference<>("");
+        server = server(exchange -> {
+            capturedBody.set(readBody(exchange));
+            capturedCredential.set(switch (providerId) {
+                case "openai" -> exchange.getRequestHeaders().getFirst("Authorization");
+                case "anthropic" -> exchange.getRequestHeaders().getFirst("x-api-key");
+                case "gemini" -> exchange.getRequestHeaders().getFirst("x-goog-api-key");
+                case "github" -> exchange.getRequestHeaders().getFirst("Authorization");
+                default -> "";
+            });
+            respond(exchange, 200, successfulResponse(providerId, "{\"answer\":\"ok\"}"));
+        });
+        configure(providerId, server.getAddress().getPort());
+        AiResponse response = execute(providerId, request(providerId, Duration.ofSeconds(1)));
+
+        assertEquals(AiResponseStatus.SUCCESS, response.status());
+        assertEquals("ok", response.structuredPayload().path("answer").asText());
+        assertFalse(capturedBody.get().contains("do-not-transmit"));
+        assertFalse(capturedBody.get().contains("test-credential"));
+        assertTrue(capturedBody.get().contains("[REDACTED]"));
+        assertTrue(capturedBody.get().contains("answer"));
+        if (!"ollama".equals(providerId) && !"lmstudio".equals(providerId)) {
+            assertTrue(capturedCredential.get().contains("test-credential"));
+        }
+        if ("gemini".equals(providerId)) {
+            JsonNode body = JSON.readTree(capturedBody.get());
+            JsonNode generationConfig = body.path("generationConfig");
+            assertEquals("application/json", generationConfig.path("responseMimeType").asText());
+            assertTrue(generationConfig.has("responseSchema"));
+            assertFalse(generationConfig.has("responseFormat"));
+        }
+    }
+
+    @ParameterizedTest(name = "{0} accepts the Doctor advisory contract")
+    @MethodSource("providerIds")
+    void allProvidersPassDoctorAdvisoryConformance(String providerId) throws Exception {
+        AtomicReference<String> capturedBody = new AtomicReference<>("");
+        server = server(exchange -> {
+            capturedBody.set(readBody(exchange));
+            respond(exchange, 200, successfulResponse(providerId, doctorPayload()));
+        });
+        configure(providerId, server.getAddress().getPort());
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
+        ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider(providerId));
+        try {
+            DoctorAiAnalysisService service = new DoctorAiAnalysisService(
+                    request -> new AiExecutionService(
+                            registry,
+                            PilotConfiguration::current,
+                            event -> {
+                            }).execute(request),
+                    PilotConfiguration::current);
+
+            DoctorAdvisory advisory = service.analyze(
+                    doctorBundle(),
+                    doctorDiagnosis(),
+                    DoctorAiAnalysisRequest.defaults(approval),
+                    temp.resolve(providerId));
+
+            assertEquals(DoctorAdvisory.Status.SUCCESS, advisory.status());
+            assertEquals(providerId, advisory.metadata().provider());
+            assertEquals(List.of("evidence-1"),
+                    advisory.analysis().observations().getFirst().evidenceIds());
+            assertTrue(capturedBody.get().contains("schemaVersion"));
+            assertTrue(capturedBody.get().contains("evidence-1"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @ParameterizedTest(name = "{0} normalizes {1}")
+    @MethodSource("providerFailures")
+    void allProvidersNormalizeFailures(String providerId, FailureCase failureCase,
+                                       AiResponseStatus expectedStatus) throws Exception {
+        server = server(exchange -> {
+            if (failureCase == FailureCase.TIMEOUT) {
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                respondQuietly(exchange, 200, successfulResponse(providerId, "{\"answer\":\"late\"}"));
+            } else if (failureCase == FailureCase.MALFORMED_JSON) {
+                respond(exchange, 200, "{not-json");
+            } else if (failureCase == FailureCase.SCHEMA_VIOLATION) {
+                respond(exchange, 200, successfulResponse(providerId, "{\"wrong\":true}"));
+            } else if (failureCase == FailureCase.RATE_LIMIT) {
+                respond(exchange, 429, "{}");
+            } else {
+                respond(exchange, 401, "{}");
+            }
+        });
+        configure(providerId, server.getAddress().getPort());
+        Duration timeout = failureCase == FailureCase.TIMEOUT ? Duration.ofMillis(50) : Duration.ofSeconds(1);
+
+        AiResponse response = execute(providerId, request(providerId, timeout));
+
+        assertEquals(expectedStatus, response.status());
+        assertEquals("deterministic", response.structuredPayload().path("answer").asText());
+        assertFalse(response.fallbackReason().contains("do-not-transmit"));
+        assertFalse(response.fallbackReason().contains("test-credential"));
+    }
+
+    @Test
+    void serviceLoaderDiscoversAllDirectProviders() {
+        var ids = new AiProviderRegistry().serviceProviders().stream().map(AiProvider::id).toList();
+
+        assertEquals(List.of("managed-local", "anthropic", "gemini", "github", "lmstudio", "ollama", "openai"),
+                ids);
+    }
+
+    @ParameterizedTest
+    @MethodSource("localModelListings")
+    void localProvidersDiscoverModelsWithoutLeakingResponses(String providerId, String response,
+                                                               AiModelDiscovery.Status expected,
+                                                               List<String> models) throws Exception {
+        server = server(exchange -> respond(exchange, 200, response));
+        configure(providerId, server.getAddress().getPort());
+
+        AiModelDiscovery discovery = provider(providerId).discoverModels();
+
+        assertEquals(expected, discovery.status());
+        assertEquals(models, discovery.models());
+        assertFalse(discovery.toString().contains("secret-response"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("discoveryFailures")
+    void modelDiscoveryMapsUnsafeFailuresWithoutLeakingSecrets(int status, String body,
+                                                                 AiModelDiscovery.Status expected) throws Exception {
+        server = server(exchange -> respond(exchange, status, body));
+        configure("lmstudio", server.getAddress().getPort());
+
+        AiModelDiscovery discovery = provider("lmstudio").discoverModels();
+
+        assertEquals(expected, discovery.status());
+        assertTrue(discovery.models().isEmpty());
+        assertFalse(discovery.toString().contains("secret-response"));
+    }
+
+    @Test
+    void githubDiscoveryUsesCatalogEndpointAndTopLevelIds() throws Exception {
+        AtomicReference<String> method = new AtomicReference<>();
+        AtomicReference<String> path = new AtomicReference<>();
+        AtomicReference<String> authorization = new AtomicReference<>();
+        server = server(exchange -> { method.set(exchange.getRequestMethod()); path.set(exchange.getRequestURI().getPath()); authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            respond(exchange, 200, "[{\"id\":\"openai/gpt-4.1\"}]"); });
+        configure("github", server.getAddress().getPort());
+        SHAFT.Properties.pilot.set().githubEndpoint("http://127.0.0.1:" + server.getAddress().getPort() + "/inference/chat/completions");
+        AiModelDiscovery discovery = provider("github").discoverModels();
+        assertEquals(AiModelDiscovery.Status.AVAILABLE, discovery.status());
+        assertEquals(List.of("openai/gpt-4.1"), discovery.models());
+        assertEquals("GET", method.get());
+        assertEquals("/catalog/models", path.get());
+        assertEquals("Bearer test-credential", authorization.get());
+    }
+
+    @Test
+    void discoveryRejectsWrongCollectionShapes() throws Exception {
+        server = server(exchange -> respond(exchange, 200, "{\"data\":{\"id\":\"not-an-array\"}}"));
+        configure("lmstudio", server.getAddress().getPort());
+        assertEquals(AiModelDiscovery.Status.FAILED, provider("lmstudio").discoverModels().status());
+    }
+
+    @ParameterizedTest
+    @MethodSource("malformedDiscoveryLists")
+    void discoveryRejectsNonEmptyMalformedLists(String providerId, String body) throws Exception {
+        server = server(exchange -> respond(exchange, 200, body));
+        configure(providerId, server.getAddress().getPort());
+        assertEquals(AiModelDiscovery.Status.FAILED, provider(providerId).discoverModels().status());
+    }
+
+    @Test
+    void lmStudioNeverFollowsRedirectsOffLoopback() throws Exception {
+        AtomicReference<String> remoteAuthorization = new AtomicReference<>("");
+        try {
+            AtomicReference<String> initialAuthorization = new AtomicReference<>("");
+            server = server(exchange -> {
+                initialAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                exchange.getResponseHeaders().set("Location", "http://192.0.2.1/v1/responses");
+                exchange.sendResponseHeaders(307, -1);
+                exchange.close();
+            });
+            configure("lmstudio", server.getAddress().getPort());
+            SHAFT.Properties.pilot.set().lmStudioApiKeyEnvironmentVariable("LMSTUDIO_TOKEN");
+            AiResponse response = new LmStudioProvider(HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.NORMAL).build(), ignored -> "local-secret")
+                    .execute(request("lmstudio", Duration.ofSeconds(1)));
+
+            assertEquals(AiResponseStatus.ERROR, response.status());
+            assertEquals("Bearer local-secret", initialAuthorization.get());
+            assertEquals("", remoteAuthorization.get());
+        } finally {
+        }
+    }
+
+    @Test
+    void lmStudioRejectsHostnameEndpoints() {
+        SHAFT.Properties.pilot.set().lmStudioEndpoint("http://localhost:1234/v1/responses").lmStudioModel("test-model");
+        assertFalse(new LmStudioProvider().availability().available());
+    }
+
+    @Test
+    void liveGeminiDuckDuckGoPromptReturnsValidTestCase() {
+        Assumptions.assumeTrue(Boolean.getBoolean("shaft.ai.liveGemini"),
+                "Set -Dshaft.ai.liveGemini=true to run the live Gemini conformance test.");
+        Assumptions.assumeTrue(hasEnvironment("GEMINI_API_KEY"),
+                "Set GEMINI_API_KEY to run the live Gemini conformance test.");
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("gemini")
+                .localConsent(false)
+                .remoteConsent(true)
+                .allowedEvidenceCategories("TEXT")
+                .retryMaxAttempts(1)
+                .timeoutSeconds(60)
+                .maxOutputTokens(2_000);
+
+        AiResponse response = new AiExecutionService().execute(duckDuckGoTestCaseRequest());
+
+        assertEquals(AiResponseStatus.SUCCESS, response.status());
+        assertEquals("gemini", response.provider());
+        assertFalse(response.model().isBlank());
+        JsonNode payload = response.structuredPayload();
+        String className = payload.path("className").asText("");
+        String source = payload.path("source").asText("");
+        String lowerSource = source.toLowerCase(java.util.Locale.ROOT);
+        assertTrue(className.contains("DuckDuckGo"));
+        assertTrue(source.contains("SHAFT"));
+        assertTrue(source.contains("@Test"));
+        assertTrue(lowerSource.contains("duckduckgo"));
+        assertTrue(lowerSource.contains("search"));
+    }
+
+    @Test
+    void securedOnPremOllamaUsesOnlyNamedEnvironmentCredential() throws Exception {
+        AtomicReference<String> authorization = new AtomicReference<>("");
+        server = server(exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            respond(exchange, 200, successfulResponse("ollama", "{\"answer\":\"ok\"}"));
+        });
+        SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider("ollama")
+                .localConsent(false)
+                .onPremConsent(true)
+                .remoteConsent(false)
+                .allowedEvidenceCategories("TEXT")
+                .retryMaxAttempts(1)
+                .ollamaEndpoint("http://127.0.0.1:" + server.getAddress().getPort() + "/api/chat")
+                .ollamaModel("test-model")
+                .ollamaProcessingLocation("on-prem")
+                .ollamaApiKeyEnvironmentVariable("OLLAMA_GATEWAY_TOKEN")
+                .ollamaApiKeyHeader("Authorization")
+                .ollamaApiKeyPrefix("Bearer ");
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(new OllamaProvider(
+                HttpClient.newHttpClient(),
+                name -> "OLLAMA_GATEWAY_TOKEN".equals(name) ? "gateway-secret" : ""));
+        try {
+            ApprovalPolicy approval = new ApprovalPolicy(
+                    false, true, false, EnumSet.of(EvidenceCategory.TEXT));
+            AiResponse response = new AiExecutionService(
+                    registry, PilotConfiguration::current, event -> {
+            }).execute(requestWithApproval(approval));
+
+            assertEquals(AiResponseStatus.SUCCESS, response.status());
+            assertEquals("Bearer gateway-secret", authorization.get());
+            assertFalse(response.toString().contains("gateway-secret"));
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    @ParameterizedTest(name = "{0} does not advertise unsupported tool calling")
+    @MethodSource("providerIds")
+    void builtInProvidersDoNotAdvertiseToolCalling(String providerId) {
+        assertFalse(provider(providerId).capabilities().toolCalling());
+    }
+
+    private AiResponse execute(String providerId, AiRequest request) {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        registry.registerForCurrentThread(provider(providerId));
+        try {
+            return new AiExecutionService(registry, com.shaft.pilot.config.PilotConfiguration::current,
+                    event -> {
+                    }).execute(request);
+        } finally {
+            registry.clearForCurrentThread();
+        }
+    }
+
+    private static AiProvider provider(String providerId) {
+        HttpClient client = HttpClient.newBuilder().build();
+        return switch (providerId) {
+            case "openai" -> new OpenAiProvider(client, ignored -> "test-credential");
+            case "anthropic" -> new AnthropicProvider(client, ignored -> "test-credential");
+            case "gemini" -> new GeminiProvider(client, ignored -> "test-credential");
+            case "github" -> new GitHubModelsProvider(client, ignored -> "test-credential");
+            case "ollama" -> new OllamaProvider(client, ignored -> "");
+            case "lmstudio" -> new LmStudioProvider(client, ignored -> "");
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        };
+    }
+
+    private static AiRequest request(String providerId, Duration timeout) {
+        JsonNode schema = JSON.createObjectNode()
+                .put("type", "object")
+                .set("properties", JSON.createObjectNode()
+                        .set("answer", JSON.createObjectNode().put("type", "string")));
+        ((tools.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
+        ApprovalPolicy approval = new ApprovalPolicy(local, !local, EnumSet.allOf(EvidenceCategory.class));
+        return AiRequest.builder("provider-conformance", schema)
+                .text("Authorization: Bearer do-not-transmit")
+                .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
+                .approvalPolicy(approval)
+                .timeout(timeout)
+                .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
+                .build();
+    }
+
+    private static AiRequest requestWithApproval(ApprovalPolicy approval) {
+        JsonNode schema = JSON.createObjectNode()
+                .put("type", "object")
+                .set("properties", JSON.createObjectNode()
+                        .set("answer", JSON.createObjectNode().put("type", "string")));
+        ((tools.jackson.databind.node.ObjectNode) schema).putArray("required").add("answer");
+        return AiRequest.builder("provider-conformance", schema)
+                .text("bounded evidence")
+                .budget(new AiBudget(1_000, 100, java.math.BigDecimal.ONE))
+                .approvalPolicy(approval)
+                .timeout(Duration.ofSeconds(1))
+                .deterministicFallback(JSON.createObjectNode().put("answer", "deterministic"))
+                .build();
+    }
+
+    private static AiRequest duckDuckGoTestCaseRequest() {
+        tools.jackson.databind.node.ObjectNode properties = JSON.createObjectNode();
+        properties.set("className", JSON.createObjectNode().put("type", "string"));
+        properties.set("summary", JSON.createObjectNode().put("type", "string"));
+        properties.set("source", JSON.createObjectNode().put("type", "string"));
+        tools.jackson.databind.node.ObjectNode schema = JSON.createObjectNode().put("type", "object");
+        schema.set("properties", properties);
+        schema.putArray("required").add("className").add("summary").add("source");
+        tools.jackson.databind.node.ObjectNode fallback = JSON.createObjectNode()
+                .put("className", "")
+                .put("summary", "")
+                .put("source", "");
+        ApprovalPolicy approval = new ApprovalPolicy(false, true, EnumSet.of(EvidenceCategory.TEXT));
+        return AiRequest.builder("live-gemini-duckduckgo", schema)
+                .text("""
+                        Generate one complete Java TestNG SHAFT Engine web test case.
+                        Requirements:
+                        - Class name must be DuckDuckGoSearchTest.
+                        - Use com.shaft.driver.SHAFT.
+                        - Open https://duckduckgo.com/.
+                        - Search for SHAFT Engine.
+                        - Validate that search results are shown.
+                        - Return Java source in the source field only.
+                        """)
+                .budget(new AiBudget(8_000, 2_000, java.math.BigDecimal.ZERO))
+                .approvalPolicy(approval)
+                .timeout(Duration.ofSeconds(60))
+                .deterministicFallback(fallback)
+                .build();
+    }
+
+    private static boolean hasEnvironment(String name) {
+        String value = System.getenv(name);
+        return value != null && !value.isBlank();
+    }
+
+    private static void configure(String providerId, int port) {
+        boolean local = "ollama".equals(providerId) || "lmstudio".equals(providerId);
+        var properties = SHAFT.Properties.pilot.set()
+                .enabled(true)
+                .provider(providerId)
+                .localConsent(local)
+                .remoteConsent(!local)
+                .allowedEvidenceCategories("TEXT,LOG,CONFIGURATION,DOM")
+                .retryMaxAttempts(1)
+                .timeoutSeconds(1);
+        String base = "http://127.0.0.1:" + port;
+        switch (providerId) {
+            case "openai" -> properties.openAiEndpoint(base + "/responses").openAiModel("test-model");
+            case "anthropic" -> properties.anthropicEndpoint(base + "/messages").anthropicModel("test-model");
+            case "gemini" -> properties.geminiEndpoint(base + "/v1beta/models").geminiModel("test-model");
+            case "github" -> properties.githubEndpoint(base + "/inference/chat/completions").githubModel("test-model");
+            case "ollama" -> properties.ollamaEndpoint(base + "/api/chat").ollamaModel("test-model");
+            case "lmstudio" -> properties.lmStudioEndpoint(base + "/v1/responses").lmStudioModel("test-model");
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        }
+    }
+
+    private static Stream<String> providerIds() {
+        return Stream.of("openai", "anthropic", "gemini", "github", "lmstudio", "ollama");
+    }
+
+    private static Stream<Arguments> localModelListings() {
+        return Stream.of(
+                Arguments.of("ollama", "{\"models\":[{\"name\":\"qwen3\"},{\"name\":\"llama3\"}]}",
+                        AiModelDiscovery.Status.AVAILABLE, List.of("llama3", "qwen3")),
+                Arguments.of("lmstudio", "{\"data\":[{\"id\":\"local-model\"}]}",
+                        AiModelDiscovery.Status.AVAILABLE, List.of("local-model")),
+                Arguments.of("lmstudio", "{\"data\":[]}", AiModelDiscovery.Status.EMPTY, List.of()));
+    }
+
+    private static Stream<Arguments> discoveryFailures() {
+        return Stream.of(
+                Arguments.of(401, "{\"error\":\"secret-response\"}", AiModelDiscovery.Status.AUTHENTICATION_FAILED),
+                Arguments.of(503, "{\"error\":\"secret-response\"}", AiModelDiscovery.Status.UNAVAILABLE),
+                Arguments.of(200, "{secret-response", AiModelDiscovery.Status.FAILED));
+    }
+
+    private static Stream<Arguments> malformedDiscoveryLists() {
+        return Stream.of(
+                Arguments.of("lmstudio", "{\"data\":[{}]}"),
+                Arguments.of("ollama", "{\"models\":[{}]}"),
+                Arguments.of("gemini", "{\"models\":[{}]}"),
+                Arguments.of("github", "[{}]"));
+    }
+
+    private static Stream<Arguments> providerFailures() {
+        return providerIds().flatMap(providerId -> Stream.of(
+                Arguments.of(providerId, FailureCase.AUTHENTICATION, AiResponseStatus.AUTHENTICATION_FAILED),
+                Arguments.of(providerId, FailureCase.RATE_LIMIT, AiResponseStatus.RATE_LIMITED),
+                Arguments.of(providerId, FailureCase.TIMEOUT, AiResponseStatus.TIMEOUT),
+                Arguments.of(providerId, FailureCase.MALFORMED_JSON, AiResponseStatus.INVALID_RESPONSE),
+                Arguments.of(providerId, FailureCase.SCHEMA_VIOLATION, AiResponseStatus.INVALID_RESPONSE)));
+    }
+
+    private static String doctorPayload() throws JacksonException {
+        return JSON.writeValueAsString(Map.of(
+                "schemaVersion", "2.0",
+                "observations", List.of(Map.of(
+                        "statement", "The submitted exception reports a missing element.",
+                        "evidenceIds", List.of("evidence-1"))),
+                "hypotheses", List.of(Map.of(
+                        "causeCategory", "LOCATOR",
+                        "statement", "The locator likely no longer matches the intended element.",
+                        "confidence", "HIGH",
+                        "evidenceIds", List.of("evidence-1"))),
+                "missingEvidence", List.of("Current DOM snapshot"),
+                "recommendedActions", List.of(Map.of(
+                        "operation", "UPDATE_TEST_LOCATOR",
+                        "target", "TEST_LOCATOR",
+                        "evidenceIds", List.of("evidence-1"))),
+                "limitations", List.of("Only submitted evidence was analyzed.")));
+    }
+
+    private static EvidenceBundle doctorBundle() {
+        return new EvidenceBundle(
+                EvidenceBundle.CURRENT_SCHEMA_VERSION,
+                "bundle-1",
+                List.of(new EvidenceItem(
+                        "evidence-1",
+                        com.shaft.doctor.model.EvidenceCategory.EXCEPTION_CHAIN,
+                        "text/plain",
+                        "",
+                        "sha-1",
+                        50,
+                        "NoSuchElementException: unable to locate element",
+                        true,
+                        false,
+                        Map.of(),
+                        new EvidenceProvenance("fixture", "fixture/result.json", "sha-1"))),
+                new RedactionSummary(List.of(), List.of(), 0),
+                Map.of());
+    }
+
+    private static Diagnosis doctorDiagnosis() {
+        return new Diagnosis(
+                Diagnosis.CURRENT_SCHEMA_VERSION,
+                CauseCategory.LOCATOR,
+                List.of(),
+                Confidence.HIGH,
+                "Locator did not resolve an element.",
+                "The deterministic locator rule matched submitted evidence.",
+                List.of(new Finding(
+                        "finding-1",
+                        Finding.Kind.INFERENCE,
+                        CauseCategory.LOCATOR,
+                        Finding.Severity.ERROR,
+                        "Locator not found",
+                        "The locator did not resolve an element.",
+                        "locator-not-found",
+                        List.of("evidence-1"))),
+                List.of(),
+                List.of("Current DOM snapshot"));
+    }
+
+    private static HttpServer server(ExchangeHandler handler) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> handler.handle(exchange));
+        server.start();
+        return server;
+    }
+
+    private static String successfulResponse(String providerId, String payload) {
+        String escaped = payload.replace("\\", "\\\\").replace("\"", "\\\"");
+        return switch (providerId) {
+            case "openai" -> "{\"model\":\"test-model\",\"output\":[{\"content\":[{\"type\":\"output_text\","
+                    + "\"text\":\"" + escaped + "\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
+            case "anthropic" -> "{\"model\":\"test-model\",\"content\":[{\"type\":\"text\",\"text\":\""
+                    + escaped + "\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
+            case "gemini" -> "{\"modelVersion\":\"test-model\",\"candidates\":[{\"content\":{\"parts\":[{\"text\":\""
+                    + escaped + "\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2}}";
+            case "github" -> "{\"model\":\"test-model\",\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\""
+                    + escaped + "\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}}";
+            case "ollama" -> "{\"model\":\"test-model\",\"message\":{\"role\":\"assistant\",\"content\":\""
+                    + escaped + "\"},\"prompt_eval_count\":3,\"eval_count\":2}";
+            case "lmstudio" -> "{\"model\":\"test-model\",\"output\":[{\"content\":[{\"type\":\"output_text\","
+                    + "\"text\":\"" + escaped + "\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}";
+            default -> throw new IllegalArgumentException("Unknown provider: " + providerId);
+        };
+    }
+
+    private static String readBody(HttpExchange exchange) throws IOException {
+        return new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    }
+
+    private static void respond(HttpExchange exchange, int status, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(status, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
+    private static void respondQuietly(HttpExchange exchange, int status, String body) {
+        try {
+            respond(exchange, status, body);
+        } catch (IOException ignored) {
+            exchange.close();
+        }
+    }
+
+    @FunctionalInterface
+    private interface ExchangeHandler {
+        void handle(HttpExchange exchange) throws IOException;
+    }
+
+    private enum FailureCase {
+        AUTHENTICATION,
+        RATE_LIMIT,
+        TIMEOUT,
+        MALFORMED_JSON,
+        SCHEMA_VIOLATION
+    }
+}

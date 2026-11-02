@@ -1,0 +1,28 @@
+{
+  "body_path": "memory/gotchas/grok-hook-trust-is-host-gated-sync-advisory-not-install-recovery.md",
+  "content_hash": "sha256:48d380d42c89a7fbccf53d318fe56493411f27481cce858837786e5b87e2dcf8",
+  "created_at": "2026-09-15T06:21:11+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5791",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.grok-hook-trust-is-host-gated-sync-advisory-not-install-recovery",
+  "source": {
+    "kind": "agent",
+    "task": "Deliver ChaosEngine learning ticket #5791 Grok hook trust sync-advisory"
+  },
+  "status": "active",
+  "tags": [
+    "grok",
+    "hooks-trust",
+    "doctor",
+    "sync-advisory",
+    "host-parity",
+    "gotcha"
+  ],
+  "title": "Grok hook trust is host-gated sync-advisory, not install recovery",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T06:21:11+03:00"
+}

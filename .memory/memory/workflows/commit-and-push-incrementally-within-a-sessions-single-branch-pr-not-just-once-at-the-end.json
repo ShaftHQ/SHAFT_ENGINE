@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/workflows/commit-and-push-incrementally-within-a-sessions-single-branch-pr-not-just-once-at-the-end.md",
+  "content_hash": "sha256:501a5c7d2cca6db4555d599147bb30695d72750675e02d24b886636e196bc2aa",
+  "created_at": "2026-07-09T12:59:30+03:00",
+  "evidence": [],
+  "id": "feature.commit-and-push-incrementally-within-a-sessions-single-branch-pr-not-just-once-at-the-end",
+  "source": {
+    "kind": "agent",
+    "task": "Fix #3409: real interactive local-agent approval, richer Verbose detail, mid-run toggle fix (PR #3411)"
+  },
+  "status": "active",
+  "tags": [
+    "git",
+    "workflow",
+    "session-hygiene"
+  ],
+  "title": "Commit and push each verified increment, not once at session end",
+  "type": "feature",
+  "updated_at": "2026-08-04T23:28:39+03:00"
+}

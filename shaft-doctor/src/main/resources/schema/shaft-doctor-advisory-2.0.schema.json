@@ -1,0 +1,103 @@
+{
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "observations",
+    "hypotheses",
+    "missingEvidence",
+    "recommendedActions",
+    "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["2.0"]
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": ["statement", "evidenceIds"],
+        "properties": {
+          "statement": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "evidenceIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["causeCategory", "statement", "confidence", "evidenceIds"],
+        "properties": {
+          "causeCategory": {
+            "type": "string",
+            "enum": [
+              "PRODUCT", "TEST", "LOCATOR", "DATA", "TIMING_SYNCHRONIZATION",
+              "ENVIRONMENT_CONFIGURATION", "INFRASTRUCTURE", "UNKNOWN"
+            ]
+          },
+          "statement": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]},
+          "evidenceIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "missingEvidence": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"type": "string", "minLength": 1, "maxLength": 2000}
+    },
+    "recommendedActions": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "required": ["operation", "target", "evidenceIds"],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "COLLECT_EVIDENCE", "REVIEW_CONFIGURATION", "UPDATE_TEST_LOCATOR",
+              "ADD_EXPLICIT_WAIT", "REVIEW_TEST_DATA", "RETRY_INFRASTRUCTURE_CHECK"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "DOM_SNAPSHOT", "RUNTIME_CONFIGURATION", "TEST_LOCATOR",
+              "WAIT_CONDITION", "TEST_DATA", "INFRASTRUCTURE_STATUS"
+            ]
+          },
+          "evidenceIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 12,
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {"type": "string", "minLength": 1, "maxLength": 2000}
+    }
+  },
+  "additionalProperties": false
+}

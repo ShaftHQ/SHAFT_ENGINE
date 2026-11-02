@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/bundled-templates-can-ship-dead-keys.md",
+  "content_hash": "sha256:b4787dddb1f0fa4ac0eb2c0de08b78e75afbe03ad0f3e1cc924c7c6be9af5380",
+  "created_at": "2026-10-16T21:20:00+03:00",
+  "evidence": [],
+  "id": "gotcha.bundled-templates-can-ship-dead-keys",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7088-#7091"
+  },
+  "status": "active",
+  "tags": [
+    "properties",
+    "config"
+  ],
+  "title": "Bundled property templates can ship keys SHAFT never reads",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T21:20:00+03:00"
+}

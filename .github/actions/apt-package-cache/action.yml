@@ -1,0 +1,48 @@
+name: 'Cache apt packages for Playwright host dependencies'
+description: >-
+  Restores downloaded .deb archives for Playwright host dependencies and makes
+  apt retry stalled downloads. Two nightlies in a row (runs 39907428266 and
+  40026385042, issue #7290) lost the Edge, WebKit and iPhone Playwright jobs to
+  their job timeouts while `playwright install-deps` downloaded from a throttled
+  azure.archive.ubuntu.com mirror at about 60 KB/s. With the archives cached,
+  apt only installs them locally, so the mirror's speed no longer decides the
+  result. The key follows the Playwright version, and the restore-key prefix
+  keeps the previous archives so a version bump downloads only the delta.
+inputs:
+  browser:
+    description: 'Playwright browser whose host dependencies are installed (for example webkit or msedge).'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve Playwright version
+      id: version
+      shell: bash
+      run: |
+        version=$(sed -n 's:.*<playwright.version>\(.*\)</playwright.version>.*:\1:p' pom.xml | head -n 1)
+        if [ -z "$version" ]; then
+          echo "::error::playwright.version not found in pom.xml"
+          exit 1
+        fi
+        echo "playwright=$version" >> "$GITHUB_OUTPUT"
+    - name: Point apt at the cached archive directory and retry stalled downloads
+      shell: bash
+      run: |
+        archives="$RUNNER_TEMP/apt-archives"
+        mkdir -p "$archives/partial"
+        sudo tee /etc/apt/apt.conf.d/80-shaft-ci >/dev/null <<APT
+        Dir::Cache::Archives "$archives/";
+        Binary::apt::APT::Keep-Downloaded-Packages "true";
+        APT::Keep-Downloaded-Packages "true";
+        Acquire::Retries "5";
+        Acquire::http::Timeout "30";
+        Acquire::https::Timeout "30";
+        APT
+        echo "SHAFT_APT_ARCHIVES=$archives" >> "$GITHUB_ENV"
+    - name: Restore apt archives
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: ${{ runner.temp }}/apt-archives/*.deb
+        key: shaft-apt-${{ runner.os }}-${{ runner.arch }}-${{ inputs.browser }}-playwright-${{ steps.version.outputs.playwright }}
+        restore-keys: |
+          shaft-apt-${{ runner.os }}-${{ runner.arch }}-${{ inputs.browser }}-

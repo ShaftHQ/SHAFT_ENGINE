@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <!-- New UI outlined tool-window glyph dark (#CED0D6). -->
+  <g fill="none" stroke="#CED0D6" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="8" cy="8" r="2.25"/>
+    <path d="M8 2.5v1.2M8 12.3v1.2M2.5 8h1.2M12.3 8h1.2M4.05 4.05l.85.85M11.1 11.1l.85.85M11.95 4.05l-.85.85M4.9 11.1l-.85.85"/>
+  </g>
+</svg>

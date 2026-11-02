@@ -1,0 +1,1 @@
+Orchestrator status must be one RAG line, one where-we-are paragraph, and one status table (Task ID, Tickets, PR, Scope, Status, Elapsed, ETA). Status values live only in the table. Never send heartbeat still-working messages without artifacts. Evidence-backed claims only. Token objective remains Kanban eliminate-waste with Caveman and Ponytail ultra on implementation paths.

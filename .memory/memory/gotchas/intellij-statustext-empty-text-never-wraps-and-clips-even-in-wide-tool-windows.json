@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/intellij-statustext-empty-text-never-wraps-and-clips-even-in-wide-tool-windows.md",
+  "content_hash": "sha256:e3eeb0e9852895098669d50cd89e99d92d8447a0f12bfde8caa67154618bb86a",
+  "created_at": "2026-07-11T19:41:58+03:00",
+  "evidence": [
+    {
+      "id": "PR ShaftHQ/SHAFT_ENGINE#3431 screenshot evidence",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.intellij-statustext-empty-text-never-wraps-and-clips-even-in-wide-tool-windows",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ plugin expert quality pass: recorder dies after launch, codegen wedge, assistant UX (issue #3429, PR #3431)"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "IntelliJ StatusText empty text never wraps and clips long lines even in wide tool windows",
+  "type": "gotcha",
+  "updated_at": "2026-07-11T19:41:58+03:00"
+}

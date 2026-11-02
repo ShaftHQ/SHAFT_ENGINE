@@ -1,0 +1,7 @@
+from pathlib import Path
+
+def load(path: str) -> dict[str, str]:
+    return dict(line.split("=", 1) for line in Path(path).read_text().splitlines())
+
+settings = load("current.conf")
+print(f"host={settings['host']};port={settings['port']}")

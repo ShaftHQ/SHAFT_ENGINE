@@ -1,0 +1,29 @@
+{
+  "body_path": "memory/gotchas/playwright-linux-plan-only-accepts-ubuntu-2404-not-ci-2204.md",
+  "content_hash": "sha256:689f405be5a73aa302caa96c9918e22530c298d1e4ca7f459b04ecc4e414f2cf",
+  "created_at": "2026-08-17T19:31:01+03:00",
+  "evidence": [
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/5057",
+      "kind": "task"
+    },
+    {
+      "id": "af67c718ddcec31eb4c2040ce889743e6a07353d",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.playwright-linux-plan-only-accepts-ubuntu-2404-not-ci-2204",
+  "source": {
+    "kind": "agent",
+    "task": "Record Playwright Linux host pin vs CI Ubuntu 22.04"
+  },
+  "status": "active",
+  "tags": [
+    "playwright",
+    "setup",
+    "ci"
+  ],
+  "title": "Playwright Linux planning only accepts Ubuntu 24.04, not CI Ubuntu 22.04",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T19:31:01+03:00"
+}

@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.shafthq</groupId>
+        <artifactId>shaft-parent</artifactId>
+        <version>10.4.20261102</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>shaft-mcp</artifactId>
+    <packaging>jar</packaging>
+    <name>shaft-mcp</name>
+    <description>Model Context Protocol server for SHAFT browser automation.</description>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+
+    <properties>
+        <surefire.failIfNoSpecifiedTests>false</surefire.failIfNoSpecifiedTests>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- GHSA advisory (low): logback-core < 1.5.35 Object Injection via HardenedObjectInputStream.
+                 Spring Boot 4.1.0 manages 1.5.34; direct entries outrank the imported Boot BOM.
+                 Drop once a Boot bump ships logback 1.5.35+. -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>1.6.6</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>1.6.6</version>
+            </dependency>
+            <!-- Import the reactor's selenium-bom before spring-boot-dependencies: Spring Boot
+                 also manages org.seleniumhq.selenium artifacts (at an older version), and the
+                 first import wins, so without this shaft-mcp runs Selenium 4.43 test classpaths
+                 against shaft-engine/shaft-capture bytecode compiled with the reactor pin. -->
+            <dependency>
+                <groupId>org.seleniumhq.selenium</groupId>
+                <artifactId>selenium-bom</artifactId>
+                <version>${selenium.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.jspecify</groupId>
+                <artifactId>jspecify</artifactId>
+                <version>${jspecify.version}</version>
+            </dependency>
+            <!-- Same failure mode as selenium-bom above: spring-boot-dependencies 4.1.0 manages
+                 io.netty:* at 4.2.15.Final (GHSA netty-codec-http/http2/haproxy/compression
+                 advisories, alerts #155-#165), which as a child-declared import would beat the
+                 reactor's netty-bom (root pom.xml, already 4.2.17.Final). Import it here, first,
+                 so the patched version actually reaches shaft-mcp's resolved classpath. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Dependabot/GHSA: Boot manages tomcat-embed-core below the fixed 11.0.25
+                 floor. Direct entries after the Boot BOM import outrank it on shaft-mcp. -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>11.0.25</version>
+            </dependency>
+            <!-- GHSA alert #154: spring-boot-dependencies manages org.postgresql:postgresql at
+                 42.7.11 (vulnerable, GHSA), which overrides shaft-engine's own direct 42.7.13 pin
+                 (shaft-engine/pom.xml) once shaft-mcp imports the Boot BOM above. Direct entries
+                 outrank the imported Boot BOM, so pin the same version shaft-engine already uses
+                 to keep the reactor's resolved postgresql driver consistent. -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.13</version>
+            </dependency>
+            <!-- Boot 4.1.0 manages log4j-api/core at 2.25.4 (GHSA-qv9r-c865-cp47 / #183) and
+                 httpcore5/httpcore5-h2 at 5.4.2 (GHSA-hf6x-8p5f-cgmf / #181,
+                 GHSA-v3jc-474w-2wm6 / #182). Those child-import pins beat the reactor
+                 (log4j2.version 2.26.1, httpclient5 5.6.4 -> httpcore5 5.4.3). Direct entries
+                 restore the patched versions on shaft-mcp's classpath. -->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.core5</groupId>
+                <artifactId>httpcore5-h2</artifactId>
+                <version>${httpcore5.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${tools.jackson.core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tools.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${tools.jackson.core.version}</version>
+            </dependency>
+            <!-- MCP jackson3 calls Schema.validate(tools.jackson.databind.JsonNode).
+                 That method exists on networknt 3.0.0. The parent pin 2.0.8 keeps
+                 REST Assured convergence and removes the method, so the stdio
+                 server exits 1. This entry outranks the parent for shaft-mcp.
+                 #7483: shaft-engine's openapi-request-validator + REST Assured jsv are
+                 excluded below so Jackson-2 SchemaRegistry.getSchema never meets
+                 this module's networknt 3.x. Do not enable swaggerValidationEnabled
+                 or matchesJsonSchema on the mcp classpath. -->
+            <dependency>
+                <groupId>com.networknt</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>3.0.8</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-infrastructure</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-engine</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-to-slf4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+                <!-- Engine networknt 2.0.8 must not win over mcp's 3.0.8 pin. -->
+                <exclusion>
+                    <groupId>com.networknt</groupId>
+                    <artifactId>json-schema-validator</artifactId>
+                </exclusion>
+                <!-- #7483: isolate Jackson-2 OpenAPI / REST Assured jsv from mcp's
+                     networknt 3.x classpath (latent NoSuchMethodError on getSchema). -->
+                <exclusion>
+                    <groupId>com.atlassian.oai</groupId>
+                    <artifactId>openapi-request-validator-restassured</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.atlassian.oai</groupId>
+                    <artifactId>openapi-request-validator-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.rest-assured</groupId>
+                    <artifactId>json-schema-validator</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-capture</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-capture-proxy</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-doctor</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>shaft-pilot-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../shaft-engine/src/main/resources/examples</directory>
+                <targetPath>META-INF/shaft-mcp/examples</targetPath>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../shaft-upgrader</directory>
+                <targetPath>META-INF/shaft-mcp</targetPath>
+                <includes>
+                    <include>upgrade_to_modular_shaft.py</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+            <resource>
+                <!--
+                    Bundles the SHAFT skill guides straight from shaft-skills/ so
+                    shaft_project_init_agents can generate loop-specific bridge files from the
+                    live skill content instead of a hand-duplicated copy that would go stale.
+                    The complete canonical pack is included so the installed hub retains its
+                    direct routing, specialist playbooks, catalogs, and examples.
+                -->
+                <directory>${project.basedir}/../shaft-skills</directory>
+                <targetPath>META-INF/shaft-mcp/shaft-skills</targetPath>
+                <includes>
+                    <include>**/*</include>
+                </includes>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <configuration>
+                    <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.11.0</version>
+                <executions>
+                    <execution>
+                        <id>write-runtime-dependencies</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>list</goal>
+                        </goals>
+                        <configuration>
+                            <includeScope>runtime</includeScope>
+                            <excludeTransitive>false</excludeTransitive>
+                            <appendOutput>false</appendOutput>
+                            <outputFile>${project.build.outputDirectory}/META-INF/shaft-mcp/runtime-dependencies.txt</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Implementation-Version>${project.version}</Implementation-Version>
+                        </manifestEntries>
+                    </archive>
+                    <includes>
+                        <include>com/**</include>
+                        <include>META-INF/shaft-mcp/**</include>
+                        <include>application*.properties</include>
+                        <include>logback-spring.xml</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>com/**/*.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <header>shaft-mcp, ${project.version}</header>
+                    <doctitle>shaft-mcp, ${project.version}</doctitle>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+                <configuration>
+                    <!--
+                        Surefire's built-in default includes (Test*.java, *Test.java, *Tests.java,
+                        *TestCase.java) do NOT match *IT.java classes: that pattern is Failsafe's
+                        default, and this module does not bind Failsafe. Restate the default Test*
+                        patterns explicitly and add the *IT.java pattern so integration-style tests
+                        such as ShaftMcpStdioManifestIT are collected by `mvn test`; group filtering
+                        (below, and in the mcp-browser-e2e profile) still controls whether they
+                        actually execute.
+                    -->
+                    <includes>
+                        <include>**/Test*.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                        <include>**/*TestCase.java</include>
+                        <include>**/*IT.java</include>
+                    </includes>
+                    <excludedGroups>external-e2e</excludedGroups>
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    <failIfNoTests>false</failIfNoTests>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>mcp-browser-e2e</id>
+            <activation>
+                <property>
+                    <name>includeMcpBrowserE2E</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <groups>external-e2e</groups>
+                            <!--
+                                combine.self="override" is required here: without it, Maven's model
+                                merge combines this empty element with the base configuration's
+                                <excludedGroups>external-e2e</excludedGroups> instead of replacing
+                                it, leaving external-e2e simultaneously included AND excluded, which
+                                the JUnit Platform resolves as excluded, so `mvn test
+                                -DincludeMcpBrowserE2E` silently ran zero tests. Overriding forces
+                                this profile's (empty) value to win so the tagged tests actually run.
+                            -->
+                            <excludedGroups combine.self="override"/>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

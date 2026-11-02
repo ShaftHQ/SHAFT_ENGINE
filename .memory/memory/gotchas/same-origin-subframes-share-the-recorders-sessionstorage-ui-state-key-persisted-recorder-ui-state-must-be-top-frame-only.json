@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/gotchas/same-origin-subframes-share-the-recorders-sessionstorage-ui-state-key-persisted-recorder-ui-state-must-be-top-frame-only.md",
+  "content_hash": "sha256:e3c118756e2ba428929665d76b98a3b7ed9e7a1076136e80f3a66e5c7cc9afcd",
+  "created_at": "2026-07-11T20:56:28+03:00",
+  "evidence": [
+    {
+      "id": "7c25f949f11b5a88543cf651c959907f66d9af1f",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.same-origin-subframes-share-the-recorders-sessionstorage-ui-state-key-persisted-recorder-ui-state-must-be-top-frame-only",
+  "source": {
+    "kind": "agent",
+    "task": "Fix PR #3432 release-candidate failure: duplicate Navigate rows in the capture recorder overlay"
+  },
+  "status": "active",
+  "tags": [],
+  "title": "Same-origin subframes share the recorder's sessionStorage UI-state key; persisted recorder UI state must be top-frame-only",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

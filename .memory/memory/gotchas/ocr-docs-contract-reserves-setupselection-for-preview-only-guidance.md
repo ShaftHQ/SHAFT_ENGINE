@@ -1,0 +1,1 @@
+shafthq.github.io tests/ocr-docs-release-contract.test.js forbids the token SetupSelection anywhere in current (non-preview) local-infrastructure.mdx guidance. Grid/Healenium/ReportPortal custom scale must be described as Java selection components without naming SetupSelection, or the OCR release contract fails even though those profiles are already shipped.

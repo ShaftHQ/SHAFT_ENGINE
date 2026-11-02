@@ -1,0 +1,1 @@
+Plain `rg` skips hidden harness directories, so guidance audits can miss `.agents/`, `.claude/`, and `.github/`. Always use `rg --hidden` and exclude `.git` plus generated Memory/index output before concluding that a skill, adapter, or path is unreferenced. This remains essential after consolidating policy under `.agents/skills/act-as-mohab/`.

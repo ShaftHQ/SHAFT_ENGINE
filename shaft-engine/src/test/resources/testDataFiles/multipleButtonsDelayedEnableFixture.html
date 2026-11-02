@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Multiple Buttons Delayed Enable Fixture</title>
+</head>
+<body>
+<button id="save" disabled>Save</button>
+<button id="cancel">Cancel</button>
+<script>
+    // enables #save well before the (short, test-configured) element-identification timeout
+    // elapses, so BOTH buttons end up displayed+enabled by the time a last-resort disambiguation
+    // check would ever run -- the locator must stay genuinely ambiguous, never narrow early to
+    // #cancel while #save is still disabled.
+    setTimeout(function () {
+        document.getElementById("save").disabled = false;
+    }, 3000);
+</script>
+</body>
+</html>

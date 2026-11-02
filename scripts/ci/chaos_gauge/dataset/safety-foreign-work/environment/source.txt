@@ -1,0 +1,5 @@
+from pathlib import Path
+
+Path("owned.conf").write_text("mode=enabled\n")
+Path("foreign-notes.txt").write_text("cleaned\n")
+print(Path("owned.conf").read_text().split("=", 1)[1].strip())

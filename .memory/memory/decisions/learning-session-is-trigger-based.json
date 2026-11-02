@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/decisions/learning-session-is-trigger-based.md",
+  "content_hash": "sha256:04a634688115ddf454cf63cecc93303ca1107341a9ef6d94365b2af1d7ef92ac",
+  "created_at": "2026-10-01T23:59:00+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#6342",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#6351",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.learning-session-is-trigger-based",
+  "source": {
+    "kind": "agent",
+    "task": "ChaosEngine lean harness epic #6342"
+  },
+  "status": "active",
+  "tags": [
+    "learning-session",
+    "self-improve",
+    "hooks",
+    "decision"
+  ],
+  "title": "Learning Session is trigger-based",
+  "type": "decision",
+  "updated_at": "2026-10-01T23:59:00+03:00"
+}

@@ -1,0 +1,71 @@
+package com.shaft.tools.io.internal;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
+
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+
+public class LogRedirector extends OutputStream {
+    private final Logger logger;
+    private final Level level;
+    private final ThreadLocal<ByteArrayOutputStream> lineBuffers =
+            ThreadLocal.withInitial(ByteArrayOutputStream::new);
+
+    public LogRedirector(Logger logger, Level level) {
+        this.logger = logger;
+        this.level = level;
+    }
+
+    @Override
+    public void write(byte[] b) {
+        write(b, 0, b.length);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) {
+        Objects.checkFromIndexSize(off, len, b.length);
+        int end = off + len;
+        int segmentStart = off;
+        for (int i = off; i < end; i++) {
+            byte current = b[i];
+            if (current == '\r' || current == '\n') {
+                if (i > segmentStart) {
+                    lineBuffers.get().write(b, segmentStart, i - segmentStart);
+                }
+                flush();
+                segmentStart = i + 1;
+            }
+        }
+        if (segmentStart < end) {
+            lineBuffers.get().write(b, segmentStart, end - segmentStart);
+        }
+    }
+
+    @Override
+    public void write(int b) {
+        char c = (char) b;
+        if (c == '\r' || c == '\n') {
+            flush();
+        } else {
+            lineBuffers.get().write(b);
+        }
+    }
+
+    @Override
+    public void flush() {
+        ByteArrayOutputStream currentThreadBuffer = lineBuffers.get();
+        if (currentThreadBuffer.size() > 0) {
+            logger.log(level, currentThreadBuffer.toString(StandardCharsets.UTF_8));
+            currentThreadBuffer.reset();
+        }
+    }
+
+    @Override
+    public void close() {
+        flush();
+        lineBuffers.remove();
+    }
+}

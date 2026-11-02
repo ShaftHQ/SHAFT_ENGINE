@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "fixture": "desktop-video",
+  "rootCoordinate": "io.github.shafthq:shaft-video:10.2.20260605",
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "artifactCount": 318,
+  "artifactBytes": 198872925,
+  "seededRepositoryBytes": 812508,
+  "repositoryBytes": 227215182,
+  "repositoryGrowthBytes": 226402674,
+  "elapsedSeconds": 58.4,
+  "artifactsRef": "artifacts-desktop-video.json"
+}

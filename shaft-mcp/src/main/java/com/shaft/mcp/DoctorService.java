@@ -1,0 +1,569 @@
+package com.shaft.mcp;
+
+import com.shaft.doctor.DoctorAiAnalysisRequest;
+import com.shaft.doctor.DoctorAnalysisRequest;
+import com.shaft.doctor.DoctorAnalyzer;
+import com.shaft.doctor.label.ConfirmedCauseLabelStore;
+import com.shaft.doctor.model.EvidenceBundle;
+import com.shaft.doctor.model.DoctorAnalysisResult;
+import com.shaft.doctor.model.DoctorAnalysisSummary;
+import com.shaft.doctor.model.Diagnosis;
+import com.shaft.doctor.repair.DoctorRepairAiRequest;
+import com.shaft.doctor.repair.DoctorRepairAiService;
+import com.shaft.doctor.repair.DoctorRepairPatchResult;
+import com.shaft.doctor.repair.DoctorRepairProposalResult;
+import com.shaft.doctor.repair.DoctorRepairPublicationRequest;
+import com.shaft.doctor.repair.DoctorRepairRequest;
+import com.shaft.doctor.repair.DoctorRepairService;
+import com.shaft.doctor.repair.HealingLocatorProposal;
+import com.shaft.doctor.repair.HealingLocatorProposalRequest;
+import com.shaft.doctor.repair.HealingLocatorProposalService;
+import com.shaft.doctor.repair.RepairPublicationResult;
+import com.shaft.ai.local.ManagedLocalAiService;
+import com.shaft.ai.local.ManagedLocalAiSnapshot;
+import com.shaft.pilot.ai.ApprovalPolicy;
+import com.shaft.pilot.ai.EvidenceCategory;
+import com.shaft.pilot.config.PilotConfiguration;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import com.shaft.capture.generate.CaptureGenerator.CodegenBackend;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.EnumSet;
+import java.util.Objects;
+import java.util.function.Supplier;
+
+/**
+ * MCP adapter for deterministic SHAFT Doctor analysis with optional configured provider advisory.
+ */
+@Service
+public class DoctorService {
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private final McpWorkspacePolicy workspacePolicy;
+    private final McpDoctorRemediationService remediationService;
+    private final Supplier<ManagedLocalAiSnapshot> managedLocalAiStatus;
+
+    /**
+     * Creates the default local MCP Doctor service.
+     */
+    public DoctorService() {
+        this(McpWorkspacePolicy.current(), new McpDoctorRemediationService(),
+                () -> new ManagedLocalAiService().inspect());
+    }
+
+    DoctorService(McpWorkspacePolicy workspacePolicy, McpDoctorRemediationService remediationService) {
+        this(workspacePolicy, remediationService, () -> new ManagedLocalAiService().inspect());
+    }
+
+    DoctorService(McpWorkspacePolicy workspacePolicy, McpDoctorRemediationService remediationService,
+                  Supplier<ManagedLocalAiSnapshot> managedLocalAiStatus) {
+        this.workspacePolicy = workspacePolicy;
+        this.remediationService = remediationService;
+        this.managedLocalAiStatus = Objects.requireNonNull(managedLocalAiStatus, "managedLocalAiStatus");
+    }
+
+    /**
+     * Returns the effective, credential-free managed local AI lifecycle status without provisioning or inference.
+     *
+     * @return a privacy-safe projection of the shared lifecycle snapshot
+     */
+    @Tool(name = "doctor_managed_local_ai_status",
+            description = "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics")
+    /**
+     * Reports the status of SHAFT's managed local AI runtime.
+     */
+    public McpManagedLocalAiStatus managedLocalAiStatus() {
+        return McpManagedLocalAiStatus.from(
+                Objects.requireNonNull(managedLocalAiStatus.get(), "managed local AI status"));
+    }
+
+    /**
+     * Analyzes failed Allure evidence and returns deterministic remediation plus optional AI advisory snippets.
+     *
+     * @param allureResultPaths Allure result directories or files inside the MCP workspace
+     * @param historicalBundlePaths optional older Doctor bundles inside the MCP workspace
+     * @param outputDirectory output directory inside the MCP workspace
+     * @param includeScreenshots explicit approval to retain local screenshot evidence
+     * @param includePageSnapshots explicit approval to retain local page-snapshot evidence
+     * @param minimumAllureResults minimum populated Allure result count
+     * @param repositoryRoot optional repository root inside the MCP workspace
+     * @param allowedSourcePaths optional repository-relative source paths approved for AI SOURCE evidence
+     * @param useAi whether to request optional provider snippet fallback
+     * @param allowLocalAi local provider consent for this request
+     * @param allowRemoteAi remote provider consent for this request
+     * @param driverVariableName Java driver variable name used in snippets
+     * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
+     */
+    @Tool(name = "doctor_analyze_failed_allure",
+            description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; "
+                    + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
+                    + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
+                    + "evidence found in the workspace; optional backend (web|playwright, defaults to web) selects "
+                    + "the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
+    /**
+     * Analyzes failed Allure results and groups failures by likely cause.
+     */
+    public McpAnalysisReport analyzeFailedAllure(
+            List<String> allureResultPaths,
+            List<String> historicalBundlePaths,
+            String outputDirectory,
+            boolean includeScreenshots,
+            boolean includePageSnapshots,
+            int minimumAllureResults,
+            String repositoryRoot,
+            List<String> allowedSourcePaths,
+            boolean useAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName,
+            @ToolParam(required = false) String backend) {
+        Path repository = repositoryRoot == null || repositoryRoot.isBlank()
+                ? null
+                : workspacePolicy.existing(repositoryRoot, "Repository root");
+        List<String> sourceAllowlist = repository == null
+                ? List.of()
+                : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
+        DoctorAnalysisRequest request = new DoctorAnalysisRequest(
+                effectiveAllureResultPaths(allureResultPaths),
+                workspacePolicy.existingList(historicalBundlePaths, "Historical Doctor bundle path"),
+                List.of(workspacePolicy.root()),
+                outputDirectory == null || outputDirectory.isBlank()
+                        ? workspacePolicy.output("target/shaft-doctor", "Doctor output directory")
+                        : workspacePolicy.output(outputDirectory, "Doctor output directory"),
+                includeScreenshots,
+                includePageSnapshots,
+                minimumAllureResults <= 0 ? 1 : minimumAllureResults,
+                DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
+        DoctorAnalysisResult result = new DoctorAnalyzer().analyze(request);
+        return isPlaywrightBackend(backend)
+                ? remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName,
+                        CodegenBackend.PLAYWRIGHT)
+                : remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName);
+    }
+
+    /**
+     * Resolves whether a codegen backend override string requests the Playwright engine (design doc
+     * Decision 2 absorption of the {@code playwright_doctor_*}/{@code playwright_healer_*} twins).
+     *
+     * @param backend explicit override ("web"/"playwright"), or blank for the web default
+     * @return true when the caller requested the Playwright engine
+     */
+    static boolean isPlaywrightBackend(String backend) {
+        return backend != null && backend.trim().equalsIgnoreCase("playwright");
+    }
+
+    /**
+     * Users rarely know where Allure wrote its results; an empty request must analyze the most
+     * recent results in the workspace instead of failing. Discovery is bounded (depth and heavy
+     * directories) so it stays cheap even in large projects.
+     */
+    private List<Path> effectiveAllureResultPaths(List<String> allureResultPaths) {
+        if (allureResultPaths != null && !allureResultPaths.isEmpty()) {
+            return workspacePolicy.existingList(allureResultPaths, "Allure result path");
+        }
+        Path latest = McpAllureResultsLocator.latestEvidence(workspacePolicy.root()).orElse(null);
+        if (latest == null) {
+            throw new IllegalArgumentException("No Allure results were found in this workspace ("
+                    + workspacePolicy.root() + "). Run the failing test with SHAFT reporting enabled first, "
+                    + "or pass allureResultPaths explicitly.");
+        }
+        return List.of(latest);
+    }
+
+    /**
+     * Rebuilds MCP remediation actions and code blocks from an existing Doctor JSON report.
+     *
+     * @param jsonReportPath Doctor JSON report path inside the MCP workspace
+     * @param repositoryRoot optional repository root inside the MCP workspace
+     * @param allowedSourcePaths optional repository-relative source paths approved for AI SOURCE evidence
+     * @param useAi whether to request optional provider snippet fallback
+     * @param allowLocalAi local provider consent for this request
+     * @param allowRemoteAi remote provider consent for this request
+     * @param driverVariableName Java driver variable name used in snippets
+     * @param backend optional codegen target ("web" default | "playwright"); absorbs playwright_doctor_suggest_fix
+     * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
+     */
+
+    /**
+     * Confirms or suggests a persisted Doctor defect label keyed by historical signature
+     * (issue #5971 / S3-05). Local gitignored workspace store; no cloud ML. Evidence paths
+     * are redacted and never written. Override replaces the stored label.
+     *
+     * @param action {@code confirm} to persist, {@code suggest} to look up
+     * @param signature Doctor historical-signature / clusterFingerprint key
+     * @param causeCategory PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING (confirm)
+     * @param evidencePath optional evidence path — ignored/redacted, never stored
+     * @return confirm or suggest projection
+     */
+    @Tool(name = "doctor_cause_label",
+            description = "confirms or suggests persisted Doctor defect labels keyed by signature "
+                    + "(PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; "
+                    + "override replaces; evidence paths redacted; no cloud ML")
+    /**
+     * Lists, sets or clears the cause label of a failure signature.
+     */
+    public McpCauseLabelResult causeLabel(
+            String action,
+            String signature,
+            @ToolParam(required = false) String causeCategory,
+            @ToolParam(required = false) String evidencePath) {
+        Path workspace = workspacePolicy.root();
+        String normalizedAction = action == null ? "" : action.trim().toLowerCase();
+        if ("suggest".equals(normalizedAction)) {
+            return McpCauseLabelResult.fromSuggest(
+                    ConfirmedCauseLabelStore.suggest(workspace, signature));
+        }
+        if ("confirm".equals(normalizedAction)) {
+            return McpCauseLabelResult.fromConfirm(
+                    ConfirmedCauseLabelStore.confirm(workspace, signature, causeCategory, evidencePath));
+        }
+        return new McpCauseLabelResult(
+                McpCauseLabelResult.CURRENT_SCHEMA_VERSION,
+                normalizedAction.isBlank() ? "unknown" : normalizedAction,
+                "error",
+                "action must be confirm or suggest.",
+                signature == null ? "" : signature.trim(),
+                com.shaft.doctor.model.CauseCategory.UNKNOWN,
+                "",
+                false,
+                false,
+                ConfirmedCauseLabelStore.storePath(workspace).toString(),
+                List.of());
+    }
+
+    @Tool(name = "doctor_suggest_fix",
+            description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; "
+                    + "optional backend (web|playwright, defaults to web) selects the generated snippets' engine, "
+                    + "absorbing playwright_doctor_suggest_fix")
+    /**
+     * Suggests source fixes for an analysis report, optionally using AI.
+     */
+    public McpAnalysisReport suggestFix(
+            String jsonReportPath,
+            String repositoryRoot,
+            List<String> allowedSourcePaths,
+            boolean useAi,
+            boolean allowLocalAi,
+            boolean allowRemoteAi,
+            String driverVariableName,
+            @ToolParam(required = false) String backend) {
+        Path report = workspacePolicy.existing(jsonReportPath, "Doctor JSON report");
+        Path repository = repositoryRoot == null || repositoryRoot.isBlank()
+                ? null
+                : workspacePolicy.existing(repositoryRoot, "Repository root");
+        List<String> sourceAllowlist = repository == null
+                ? List.of()
+                : workspacePolicy.sourceAllowlist(repository, allowedSourcePaths);
+        DoctorAnalysisResult result = readReport(report);
+        return isPlaywrightBackend(backend)
+                ? remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName,
+                        CodegenBackend.PLAYWRIGHT)
+                : remediationService.build(
+                        result,
+                        repository,
+                        sourceAllowlist,
+                        useAi,
+                        approvalPolicy(allowLocalAi || useAi, allowRemoteAi || useAi, !sourceAllowlist.isEmpty()),
+                        driverVariableName);
+    }
+
+    /**
+     * Analyzes explicitly allowed local evidence and optionally appends a configured provider advisory.
+     *
+     * @param inputPaths explicit evidence files or directories
+     * @param historicalBundlePaths optional older Doctor bundle files
+     * @param allowedRoots roots that all readable inputs must remain within
+     * @param outputDirectory report destination inside an allowed root
+     * @param includeScreenshots explicit screenshot retention approval
+     * @param includePageSnapshots explicit page-source or snapshot retention approval
+     * @param minimumAllureResults minimum valid Allure result count expected
+     * @return deterministic diagnosis and local report paths
+     */
+    public DoctorAnalysisSummary analyze(
+            List<String> inputPaths,
+            List<String> historicalBundlePaths,
+            List<String> allowedRoots,
+            String outputDirectory,
+            boolean includeScreenshots,
+            boolean includePageSnapshots,
+            int minimumAllureResults) {
+        List<Path> inputs = paths(inputPaths);
+        List<Path> history = paths(historicalBundlePaths);
+        List<Path> roots = paths(allowedRoots);
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? Path.of("target", "shaft-doctor")
+                : Path.of(outputDirectory);
+        DoctorAnalysisRequest request = new DoctorAnalysisRequest(
+                inputs,
+                history,
+                roots,
+                output,
+                includeScreenshots,
+                includePageSnapshots,
+                minimumAllureResults <= 0 ? 1 : minimumAllureResults,
+                DoctorAnalysisRequest.DEFAULT_MAX_ITEM_BYTES,
+                DoctorAnalysisRequest.DEFAULT_MAX_BUNDLE_BYTES,
+                true);
+        DoctorAnalyzer analyzer = new DoctorAnalyzer();
+        DoctorAnalysisResult result;
+        PilotConfiguration configuration = currentConfiguration();
+        if (configuration != null && configuration.enabled()) {
+            result = analyzer.analyzeWithAi(
+                    request,
+                    DoctorAiAnalysisRequest.defaults(configuration.approvalPolicy()))
+                    .deterministic();
+        } else {
+            result = analyzer.analyze(request);
+        }
+        return DoctorAnalysisSummary.from(result);
+    }
+
+    /**
+     * Creates a repair proposal in an isolated worktree without writing to GitHub.
+     *
+     * @param repositoryRoot approved Git repository root
+     * @param baseSha exact approved base commit
+     * @param diagnosisPath Doctor diagnosis or combined report JSON
+     * @param evidenceBundlePath optional evidence bundle
+     * @param issueReference linked issue or session
+     * @param allowedPaths approved repository-relative repair scope
+     * @param patches reviewed structured patches
+     * @param validationCommands tokenized Maven validation commands
+     * @param networkValidationApproved whether Maven validation may use the network
+     * @param outputDirectory proposal manifest directory
+     * @param useAi whether to request an optional provider-generated patch instead
+     * @return complete proposal and optional provider status
+     */
+    public DoctorRepairProposalResult proposeFix(
+            String repositoryRoot,
+            String baseSha,
+            String diagnosisPath,
+            String evidenceBundlePath,
+            String issueReference,
+            List<String> allowedPaths,
+            List<DoctorRepairRequest.FilePatch> patches,
+            List<List<String>> validationCommands,
+            boolean networkValidationApproved,
+            String outputDirectory,
+            boolean useAi) {
+        List<DoctorRepairRequest.FilePatch> resolvedPatches =
+                patches == null ? List.of() : List.copyOf(patches);
+        DoctorRepairPatchResult providerPatch = null;
+        if (useAi) {
+            PilotConfiguration configuration = currentConfiguration();
+            providerPatch = new DoctorRepairAiService().generate(
+                    Path.of(repositoryRoot),
+                    readDiagnosis(Path.of(diagnosisPath)),
+                    allowedPaths,
+                    DoctorRepairAiRequest.defaults(configuration == null
+                            ? com.shaft.pilot.ai.ApprovalPolicy.denyAll()
+                            : configuration.approvalPolicy()));
+            if (!providerPatch.successful()) {
+                return new DoctorRepairProposalResult(null, providerPatch);
+            }
+            resolvedPatches = providerPatch.patches();
+        }
+        DoctorRepairRequest request = new DoctorRepairRequest(
+                Path.of(repositoryRoot),
+                baseSha,
+                Path.of(diagnosisPath),
+                evidenceBundlePath == null || evidenceBundlePath.isBlank()
+                        ? null : Path.of(evidenceBundlePath),
+                issueReference,
+                allowedPaths,
+                resolvedPatches,
+                validationCommands == null ? List.of() : validationCommands.stream()
+                        .map(DoctorRepairRequest.ValidationCommand::new)
+                        .toList(),
+                networkValidationApproved,
+                outputDirectory == null || outputDirectory.isBlank()
+                        ? Path.of("target", "shaft-doctor", "repairs")
+                        : Path.of(outputDirectory),
+                DoctorRepairRequest.DEFAULT_MAX_PATCH_BYTES,
+                DoctorRepairRequest.DEFAULT_COMMAND_TIMEOUT);
+        return new DoctorRepairProposalResult(
+                new DoctorRepairService().propose(request), providerPatch);
+    }
+
+    /**
+     * Creates a proposal-only locator patch from a verified SHAFT Heal report.
+     *
+     * @param repositoryRoot approved Git repository root
+     * @param healingReportPath verified SHAFT Heal report JSON
+     * @param sourcePath repository-relative Java source file
+     * @param sourcePatchConsent explicit proposal consent
+     * @param outputDirectory proposal artifact directory
+     * @return reviewable locator proposal and structured Doctor patch
+     */
+    @Tool(name = "doctor_propose_healed_locator",
+            description = "maps a verified SHAFT Heal report to one reviewable locator patch"
+                    + " without editing source or publishing")
+    /**
+     * Proposes a healed locator from a healing report, optionally patching the source.
+     */
+    public HealingLocatorProposal proposeHealedLocator(
+            String repositoryRoot,
+            String healingReportPath,
+            String sourcePath,
+            boolean sourcePatchConsent,
+            String outputDirectory) {
+        Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
+        Path healingReport = workspacePolicy.existing(healingReportPath, "Healing report path");
+        String approvedSourcePath = workspacePolicy.sourceAllowlist(repository, List.of(sourcePath)).getFirst();
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("target/shaft-doctor/healing-proposals",
+                        "Doctor healing proposal output directory")
+                : workspacePolicy.output(outputDirectory, "Doctor healing proposal output directory");
+        return new HealingLocatorProposalService().propose(new HealingLocatorProposalRequest(
+                repository,
+                healingReport,
+                approvedSourcePath,
+                sourcePatchConsent,
+                output));
+    }
+
+    /**
+     * Creates an advisory-only, unconfirmed locator patch proposal from a low-trust
+     * ({@code BELOW_THRESHOLD}) SHAFT Heal report (issue #4194).
+     *
+     * <p>Unlike {@link #proposeHealedLocator}, this never requires a confirmed recovery -- a
+     * low-confidence best candidate is exactly the signal this exists for. The resulting patch
+     * only adds a review comment; it never replaces the existing locator.</p>
+     *
+     * @param repositoryRoot approved Git repository root
+     * @param healingReportPath low-trust SHAFT Heal report JSON
+     * @param sourcePath repository-relative Java source file
+     * @param sourcePatchConsent explicit proposal consent
+     * @param outputDirectory proposal artifact directory
+     * @return reviewable advisory proposal and structured Doctor patch
+     */
+    @Tool(name = "doctor_propose_advisory_locator",
+            description = "maps a low-trust SHAFT Heal report to one reviewable advisory locator"
+                    + " comment proposal without editing, replacing, or publishing")
+    /**
+     * Proposes an advisory locator from a healing report without asserting it is the fix.
+     */
+    public HealingLocatorProposal proposeAdvisoryLocator(
+            String repositoryRoot,
+            String healingReportPath,
+            String sourcePath,
+            boolean sourcePatchConsent,
+            String outputDirectory) {
+        Path repository = workspacePolicy.existing(repositoryRoot, "Repository root");
+        Path healingReport = workspacePolicy.existing(healingReportPath, "Healing report path");
+        String approvedSourcePath = workspacePolicy.sourceAllowlist(repository, List.of(sourcePath)).getFirst();
+        Path output = outputDirectory == null || outputDirectory.isBlank()
+                ? workspacePolicy.output("target/shaft-doctor/healing-proposals",
+                        "Doctor healing proposal output directory")
+                : workspacePolicy.output(outputDirectory, "Doctor healing proposal output directory");
+        return new HealingLocatorProposalService().proposeAdvisory(new HealingLocatorProposalRequest(
+                repository,
+                healingReport,
+                approvedSourcePath,
+                sourcePatchConsent,
+                output));
+    }
+
+    /**
+     * Publishes an approved proposal as a draft pull request only.
+     *
+     * @param manifestPath persisted proposal manifest
+     * @param approved explicit publication approval
+     * @param approvalToken exact proposal token
+     * @param overrideFailedValidation explicit failed-validation override
+     * @param overrideRationale required override rationale
+     * @param title optional draft pull-request title
+     * @return draft publication details
+     */
+    public RepairPublicationResult publishDraftPr(
+            String manifestPath,
+            boolean approved,
+            String approvalToken,
+            boolean overrideFailedValidation,
+            String overrideRationale,
+            String title) {
+        return new DoctorRepairService().publishDraft(new DoctorRepairPublicationRequest(
+                Path.of(manifestPath),
+                approved,
+                approvalToken,
+                overrideFailedValidation,
+                overrideRationale,
+                title));
+    }
+
+    private static List<Path> paths(List<String> values) {
+        return values == null ? List.of() : values.stream().map(Path::of).toList();
+    }
+
+    private static ApprovalPolicy approvalPolicy(boolean allowLocalAi, boolean allowRemoteAi, boolean sourceEvidence) {
+        EnumSet<EvidenceCategory> categories = EnumSet.of(EvidenceCategory.TEXT);
+        if (sourceEvidence) {
+            categories.add(EvidenceCategory.SOURCE);
+        }
+        return new ApprovalPolicy(allowLocalAi, allowRemoteAi, categories);
+    }
+
+    private static PilotConfiguration currentConfiguration() {
+        try {
+            return PilotConfiguration.current();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Diagnosis readDiagnosis(Path path) {
+        try {
+            var root = JSON.readTree(Files.readString(path, StandardCharsets.UTF_8));
+            return JSON.treeToValue(root.has("diagnosis") ? root.path("diagnosis") : root, Diagnosis.class);
+        } catch (IOException | JacksonException exception) {
+            throw new IllegalArgumentException("Doctor diagnosis could not be read.", exception);
+        }
+    }
+
+    private static DoctorAnalysisResult readReport(Path path) {
+        try {
+            var root = JSON.readTree(Files.readString(path, StandardCharsets.UTF_8));
+            EvidenceBundle bundle = JSON.treeToValue(root.path("bundle"), EvidenceBundle.class);
+            Diagnosis diagnosis = JSON.treeToValue(root.path("diagnosis"), Diagnosis.class);
+            Path parent = path.toAbsolutePath().normalize().getParent();
+            String bundlePath = parent == null
+                    ? ""
+                    : parent.resolve("doctor-evidence.json").toString();
+            return new DoctorAnalysisResult(
+                    bundle,
+                    diagnosis,
+                    bundlePath,
+                    path.toString(),
+                    parent == null ? "" : parent.resolve("doctor-report.md").toString());
+        } catch (IOException | JacksonException exception) {
+            throw new IllegalArgumentException("Doctor report could not be read.", exception);
+        }
+    }
+}

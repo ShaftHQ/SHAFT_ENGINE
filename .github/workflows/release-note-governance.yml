@@ -1,0 +1,54 @@
+name: Release-note governance
+
+# Issue #6190: release-note classification reads PR labels, so it has to run on
+# label and body edits. It used to live in pr-gate.yml, which made every label
+# change restart the whole gate (35% of PR Gate runs were an extra run on an
+# unchanged SHA). This tiny workflow now owns those events; PR Gate no longer
+# triggers on labeled/unlabeled.
+#
+# Required-check contract: no paths filter and no job-level `if`, so the one
+# job named exactly "Release-note governance" reports a conclusion on every
+# pull request event and never leaves a required check pending. On
+# `merge_group` (#6990 phase 4) the job reports success after the unit tests:
+# the PR's labels were already validated on the pull_request event.
+#
+# Issue #6300: adding or removing a classification label (breaking-change, bug,
+# enhancement, skip-release-notes) must start a new run. Label events do not
+# cancel an in-progress governance run, so a corrected label is not dropped
+# when a second label edit arrives before the first correction finishes.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  merge_group:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# Every run gets its own concurrency group and nothing is cancelled. A shared
+# group allows only one *pending* run, so a burst of events (opened + labeled +
+# edited) cancelled the queued run and left the required check "cancelled",
+# which blocks the merge queue. The job is tiny (<1 min); the newest run on a
+# head SHA is the one GitHub reports, so letting older runs finish is harmless.
+concurrency:
+  group: release-note-governance-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  release-governance:
+    name: Release-note governance
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test and validate release-note governance
+        run: |
+          python3 -m unittest tests.scripts.test_validate_release_notes tests.scripts.test_render_release_notes -v
+          if [ "$GITHUB_EVENT_NAME" = "merge_group" ]; then exit 0; fi
+          python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}

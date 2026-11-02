@@ -1,0 +1,134 @@
+package com.shaft.intellij.settings;
+
+import com.intellij.ide.plugins.cl.PluginAwareClassLoader;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.startup.ProjectActivity;
+import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.ui.firstrun.WizardMessages;
+import kotlin.Unit;
+import kotlin.coroutines.Continuation;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Detects a plugin version upgrade once per IDE session. On upgrade, drops a stale
+ * {@code mcpCommand} so an old shaft-mcp is not launched, clears stored credentials and tool
+ * approvals, and preserves Assistant chat. A completed first-run wizard stays complete, the tool
+ * window stays on the main view, and one update notice is shown.
+ *
+ * <p>{@link com.intellij.openapi.startup.ProjectActivity} fires once per opened project, but the
+ * version compare-and-reset must run exactly once per IDE session; {@link #CHECKED} guards that,
+ * mirroring the process-wide {@code AtomicBoolean} pattern used by
+ * {@link com.shaft.intellij.ui.ShaftRecordingActivity#active()}.
+ *
+ * <p>{@code execute} itself only schedules the check on a pooled thread (never the EDT, #6426) rather than running
+ * it inline: the platform invokes {@code ProjectActivity.execute} on its shared background
+ * coroutine dispatcher, and the actual work (settings I/O, credential/tool-approval reset) has no
+ * reason to hold that thread once scheduling is possible -- returning immediately keeps this
+ * activity's footprint on the platform's startup coroutine dispatcher as small as possible.
+ */
+public final class ShaftPluginUpgradeActivity implements ProjectActivity {
+    private static final AtomicBoolean CHECKED = new AtomicBoolean();
+
+    /** Outcome of comparing the stored last-seen version against the running version. */
+    enum UpgradeDecision {
+        /** No version was ever stored: a fresh install, not an upgrade -- no reset. */
+        FRESH_INSTALL,
+        /** Stored version differs from the running version: an upgrade -- reset required. */
+        UPGRADED,
+        /** Stored version matches the running version: nothing to do. */
+        UNCHANGED
+    }
+
+    @Nullable
+    @Override
+    public Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation) {
+        if (CHECKED.compareAndSet(false, true)) {
+            schedule(() -> {
+                String version = runningPluginVersion();
+                ShaftSettingsState settingsState = ShaftSettingsState.getInstance();
+                UpgradeDecision decision = checkForUpgrade(version, settingsState, ShaftPluginResetService.getInstance());
+                if (decision == UpgradeDecision.UPGRADED && settingsState.getState().firstRunWizardCompleted) {
+                    ShaftNotifier.info(project, WizardMessages.get("wizard.upgrade.title"),
+                            WizardMessages.format("wizard.upgrade.notice", version));
+                }
+            });
+        }
+        return Unit.INSTANCE;
+    }
+
+    /**
+     * Runs the upgrade check on a pooled thread so settings and credential I/O never block the EDT (#6426).
+     *
+     * @param check the upgrade check
+     * @return the pending check
+     */
+    static java.util.concurrent.Future<?> schedule(@NotNull Runnable check) {
+        return ApplicationManager.getApplication().executeOnPooledThread(check);
+    }
+
+    /**
+     * Compares the running plugin version against the last-seen version stored in
+     * {@code settingsState}, resetting via {@code resetService} on an upgrade and persisting the
+     * running version afterward (issue: plugin-upgrade auto-reset). A no-op when the running
+     * version could not be resolved.
+     *
+     * @param runningVersion the currently running plugin version, or {@code null} if unresolved
+     * @param settingsState  the application settings state holding {@code lastSeenPluginVersion}
+     * @param resetService   the service used to reset stale state on an upgrade
+     */
+    static UpgradeDecision checkForUpgrade(@Nullable String runningVersion,
+                                           @NotNull ShaftSettingsState settingsState,
+                                           @NotNull ShaftPluginResetService resetService) {
+        if (runningVersion == null || runningVersion.isBlank()) {
+            return null;
+        }
+        ShaftSettingsState.Settings settings = settingsState.getState();
+        UpgradeDecision decision = shouldResetForUpgrade(settings.lastSeenPluginVersion, runningVersion);
+        if (decision == UpgradeDecision.UPGRADED) {
+            resetService.resetForUpgrade();
+            settings.lastUpgradeNoticeVersion = runningVersion;
+        }
+        if (decision != UpgradeDecision.UNCHANGED) {
+            // getState() always returns the same live Settings instance (loadState() copies field
+            // values onto it via XmlSerializerUtil.copyBean rather than swapping the reference), so
+            // this write lands after resetForUpgrade()'s factory-defaults reset above and survives it,
+            // exactly as required: lastSeenPluginVersion must reflect the running version once this
+            // method returns, whether or not a reset happened.
+            settings.lastSeenPluginVersion = runningVersion;
+        }
+        return decision;
+    }
+
+    /**
+     * Decides what to do given the stored (last-seen) and running plugin versions. Extracted as a
+     * pure function so the decision is unit-testable without a running IDE / real
+     * {@link ProjectActivity}.
+     *
+     * @param storedVersion  the last-seen version persisted in settings; blank or {@code null}
+     *                       means no version has ever been recorded
+     * @param runningVersion the currently running plugin version (assumed non-blank)
+     * @return the resulting decision
+     */
+    static UpgradeDecision shouldResetForUpgrade(@Nullable String storedVersion, @NotNull String runningVersion) {
+        if (storedVersion == null || storedVersion.isBlank()) {
+            return UpgradeDecision.FRESH_INSTALL;
+        }
+        return storedVersion.equals(runningVersion) ? UpgradeDecision.UNCHANGED : UpgradeDecision.UPGRADED;
+    }
+
+    @Nullable
+    private static String runningPluginVersion() {
+        // PluginManagerCore#getPlugin(PluginId) is @ApiStatus.Internal on recent platform versions
+        // and fails shaft-intellij's INTERNAL_API_USAGES verifyPlugin gate; PluginAwareClassLoader's
+        // getPluginDescriptor()/getVersion() resolve this plugin's own version without it.
+        ClassLoader classLoader = ShaftPluginUpgradeActivity.class.getClassLoader();
+        if (classLoader instanceof PluginAwareClassLoader pluginAwareClassLoader) {
+            return pluginAwareClassLoader.getPluginDescriptor().getVersion();
+        }
+        return null;
+    }
+}

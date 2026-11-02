@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/aider-history-cited-path-checks-must-ignore-windows-abs-paths-and-ollama-chat-model-ids.md",
+  "content_hash": "sha256:6d4956cd87ed1b6e175857deb6f5d3df77ea0d00167c7c914b3852b362827ca6",
+  "created_at": "2026-08-17T23:09:44+03:00",
+  "evidence": [
+    {
+      "id": "384c8b7ca3bbfe2498cb2b8f880858214105a3a5",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5065",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.aider-history-cited-path-checks-must-ignore-windows-abs-paths-and-ollama-chat-model-ids",
+  "source": {
+    "kind": "agent",
+    "task": "Record two gotchas proven on the #5065 live shaft-architect run after PR 5069 merged."
+  },
+  "status": "active",
+  "tags": [
+    "local-coding-agent",
+    "aider",
+    "cited-path",
+    "5065"
+  ],
+  "title": "Aider history cited-path checks must ignore Windows abs paths and ollama_chat model ids",
+  "type": "gotcha",
+  "updated_at": "2026-08-17T23:09:44+03:00"
+}

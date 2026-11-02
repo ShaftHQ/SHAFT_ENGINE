@@ -1,0 +1,36 @@
+{
+  "body_path": "memory/gotchas/intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home.md",
+  "content_hash": "sha256:97d642e9a443d642a99c2696abd503efa4d60e2dfa389d87997c8bca31963f18",
+  "created_at": "2026-08-12T14:01:11+03:00",
+  "evidence": [
+    {
+      "id": "762b5a1f1b7f117e29e41248a4bc6ff8cfa933e0",
+      "kind": "commit"
+    },
+    {
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4783",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.intellij-instrumented-gradle-testkit-tests-must-bind-the-gradle-runtime-and-reuse-the-outer-gradle-home",
+  "origin": {
+    "captured_at": "2026-08-12T14:00:00+03:00",
+    "kind": "file",
+    "locator": "shaft-intellij/build.gradle.kts"
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Route the durable IntelliJ Gradle TestKit gotcha discovered while fixing issue #4783."
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "gradle",
+    "testkit",
+    "windows",
+    "testing"
+  ],
+  "title": "IntelliJ-instrumented Gradle TestKit tests must bind the Gradle runtime and reuse the outer Gradle home",
+  "type": "gotcha",
+  "updated_at": "2026-08-12T14:01:11+03:00"
+}

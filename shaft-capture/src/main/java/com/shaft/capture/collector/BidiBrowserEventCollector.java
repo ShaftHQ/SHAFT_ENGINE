@@ -1,0 +1,216 @@
+package com.shaft.capture.collector;
+
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.bidi.browsingcontext.BrowsingContextInfo;
+import org.openqa.selenium.bidi.module.BrowsingContextInspector;
+import org.openqa.selenium.bidi.module.Script;
+import org.openqa.selenium.bidi.script.ChannelValue;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+/**
+ * WebDriver BiDi collector using preload scripts for immediate cross-context signals.
+ */
+public final class BidiBrowserEventCollector implements BrowserEventCollector {
+    private static final String CHANNEL = "shaft-capture";
+
+    private final WebDriver driver;
+    private final List<String> testIdAttributes;
+    private final String stepsEndpoint;
+    private final String stepsToken;
+    private final String eventEndpoint;
+    private final String eventToken;
+    private final Map<String, String> promptTypes = new ConcurrentHashMap<>();
+    // A subframe URL change is never a user navigation step (ads and embeds navigate on their
+    // own); only top-level contexts may produce navigation signals. Child contexts are tracked
+    // from their creation events, which BiDi delivers before any navigation within them.
+    private final Set<String> childContexts = ConcurrentHashMap.newKeySet();
+    private Script script;
+    private BrowsingContextInspector contexts;
+    private String preloadId;
+
+    /**
+     * Creates a BiDi collector.
+     *
+     * @param driver BiDi-capable driver
+     */
+    public BidiBrowserEventCollector(WebDriver driver) {
+        this(driver, List.of());
+    }
+
+    /**
+     * Creates a BiDi collector.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     */
+    public BidiBrowserEventCollector(WebDriver driver, List<String> testIdAttributes) {
+        this(driver, testIdAttributes, "", "");
+    }
+
+    /**
+     * Creates a BiDi collector with a steps-rehydration endpoint so the recorder UI can source its
+     * step list from the server-side session store across navigations, including cross-origin
+     * ones, instead of page-scoped storage.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     * @param stepsEndpoint optional loopback steps query endpoint
+     * @param stepsToken optional loopback steps query token
+     */
+    public BidiBrowserEventCollector(
+            WebDriver driver,
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken) {
+        this(driver, testIdAttributes, stepsEndpoint, stepsToken, "", "");
+    }
+
+    /**
+     * Creates a BiDi collector whose preload script also posts every signal to the loopback
+     * event sink, so preload-installed recorder instances have two delivery channels (the BiDi
+     * script channel and the HTTP sink). Single-channel preload delivery lost signals from
+     * back/forward-cache restored pages.
+     *
+     * @param driver BiDi-capable driver
+     * @param testIdAttributes locator test-id attributes
+     * @param stepsEndpoint optional loopback steps query endpoint
+     * @param stepsToken optional loopback steps query token
+     * @param eventEndpoint optional loopback event endpoint
+     * @param eventToken optional loopback event token
+     */
+    public BidiBrowserEventCollector(
+            WebDriver driver,
+            List<String> testIdAttributes,
+            String stepsEndpoint,
+            String stepsToken,
+            String eventEndpoint,
+            String eventToken) {
+        if (driver == null) {
+            throw new IllegalArgumentException("Capture WebDriver is required.");
+        }
+        this.driver = driver;
+        this.testIdAttributes = testIdAttributes == null ? List.of() : List.copyOf(testIdAttributes);
+        this.stepsEndpoint = stepsEndpoint == null ? "" : stepsEndpoint;
+        this.stepsToken = stepsToken == null ? "" : stepsToken;
+        this.eventEndpoint = eventEndpoint == null ? "" : eventEndpoint;
+        this.eventToken = eventToken == null ? "" : eventToken;
+    }
+
+    @Override
+    public void start(Consumer<BrowserSignal> signalConsumer, Consumer<String> warningConsumer) {
+        if (signalConsumer == null || warningConsumer == null) {
+            throw new IllegalArgumentException("Capture signal and warning consumers are required.");
+        }
+        script = new Script(driver);
+        script.onMessage(message -> {
+            if (!CHANNEL.equals(message.getChannel())) {
+                return;
+            }
+            Object value = message.getData().getValue().orElse("");
+            String contextId = message.getSource().getBrowsingContext().orElse("");
+            try {
+                signalConsumer.accept(BrowserSignal.fromJson(String.valueOf(value), contextId));
+            } catch (RuntimeException exception) {
+                warningConsumer.accept("A malformed browser interaction signal was ignored.");
+            }
+        });
+        preloadId = script.addPreloadScript(
+                BrowserEventScript.preloadFunction(
+                        testIdAttributes, stepsEndpoint, stepsToken, eventEndpoint, eventToken),
+                List.of(new ChannelValue(CHANNEL)));
+
+        contexts = new BrowsingContextInspector(driver);
+        contexts.onNavigationCommitted(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN")));
+        });
+        contexts.onHistoryUpdated(info -> {
+            if (childContexts.contains(info.getBrowsingContextId())) {
+                return;
+            }
+            // pushState/replaceState rewrites are tagged so the pipeline can keep the current
+            // URL fresh without ever recording them as user navigation steps.
+            signalConsumer.accept(BrowserSignal.generated(
+                    "navigation",
+                    info.getBrowsingContextId(),
+                    Map.of("url", info.getUrl()),
+                    Map.of("action", "OPEN", "navigationSource", "history")));
+        });
+        contexts.onBrowsingContextCreated(info -> {
+            if (isTopLevel(info)) {
+                signalConsumer.accept(BrowserSignal.generated(
+                        "window_open",
+                        info.getId(),
+                        Map.of("url", info.getUrl()),
+                        Map.of()));
+            } else {
+                childContexts.add(info.getId());
+            }
+        });
+        contexts.onBrowsingContextDestroyed(info -> {
+            if (isTopLevel(info)) {
+                signalConsumer.accept(BrowserSignal.generated(
+                        "window_close",
+                        info.getId(),
+                        Map.of("url", info.getUrl()),
+                        Map.of()));
+            } else {
+                childContexts.remove(info.getId());
+            }
+        });
+        contexts.onUserPromptOpened(prompt ->
+                promptTypes.put(prompt.getBrowsingContextId(), prompt.getType().toString()));
+        contexts.onUserPromptClosed(prompt -> {
+            String promptType = promptTypes.remove(prompt.getBrowsingContextId());
+            signalConsumer.accept(BrowserSignal.generated(
+                    "alert",
+                    prompt.getBrowsingContextId(),
+                    Map.of(),
+                    Map.of(
+                            "accepted", prompt.getAccepted(),
+                            "promptType", promptType == null ? "" : promptType,
+                            "text", prompt.getUserText().orElse(""))));
+        });
+    }
+
+    @Override
+    public void close() {
+        if (script != null && preloadId != null) {
+            try {
+                script.removePreloadScript(preloadId);
+            } catch (RuntimeException ignored) {
+                // The browser may already have crashed or closed.
+            }
+        }
+        if (contexts != null) {
+            try {
+                contexts.close();
+            } catch (RuntimeException ignored) {
+                // Best-effort protocol cleanup.
+            }
+        }
+        if (script != null) {
+            try {
+                script.close();
+            } catch (RuntimeException ignored) {
+                // Best-effort protocol cleanup.
+            }
+        }
+    }
+
+    private static boolean isTopLevel(BrowsingContextInfo context) {
+        return context.getParentBrowsingContext() == null
+                || context.getParentBrowsingContext().isBlank();
+    }
+}

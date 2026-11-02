@@ -1,0 +1,418 @@
+{
+  "limit_sources": {
+    "max_always_loaded_body_chars": "Legacy key name: measured as LF-normalized UTF-8 bytes. ChaosEngine caps aggregate always-loaded guidance at 16 KiB across every supported host.",
+    "max_skill_listing_chars": "Codex renders its skill listing within a small fixed character budget and drops entries on overflow; Claude Code allots roughly 1 percent of the context window. 4000 is a conservative floor across both. NOT a quoted constant -- treat as this repository's own ceiling, re-derive if a host publishes an exact figure.",
+    "max_description_chars": "Agent Skills spec caps description at 1024 characters. Capped far tighter at 220 because descriptions are always resident for every skill on every task, and the longest description in this repository is 197 characters.",
+    "max_skill_md_bytes": "Agent Skills spec recommends a SKILL.md body under 5000 tokens. Tokens are not directly measurable here, so this is a deliberately coarse character proxy and max_skill_md_lines below is the primary gate.",
+    "max_skill_md_lines": "Agent Skills spec, quoted: keep SKILL.md under 500 lines. This is the exact published limit and the primary body gate.",
+    "measurement": "Use the documented unit: UTF-8 bytes, characters, or lines. Where only a token limit exists (max_skill_md_bytes) the character figure is an explicit coarse proxy, not a measurement. Text counts are LF-normalized via read_text().",
+    "file_budgets": "A key may be a literal path or a glob; a glob binds each matched file on its own and never their sum. The references cap is 16384 bytes per on-demand file; it remains deliberately independent from the always-loaded ceiling. A task loads SEVERAL references, not one -- routing.md itself sends every dispatch through delegation.md and roles.md -- so this bounds the worst single file rather than a session total. #4458 decided against a pool spanning that surface, because under a pool the only way to fund one file's growth is deleting unrelated prose that no session loads. Under a per-file cap the file that grew is the file that pays and the fix is to split it, though a split half is usually reached from the other. Incentive locality is the whole claim; do not read a session total into it. The cap does not limit aggregate reference growth, so many files can grow together without failure. #3745 item 2 designated references/ the UNCOUNTED relief valve for oversized skill bodies; it is counted now, but per file and at a ceiling no skill body would hit, so the valve stays open."
+  },
+  "max_always_loaded_body_chars": 16384,
+  "max_skill_listing_chars": 4000,
+  "file_budgets": {
+    "AGENTS.md": {
+      "max_bytes": 6528
+    },
+    "CLAUDE.md": {
+      "max_bytes": 1536,
+      "max_lines": 40
+    },
+    ".github/copilot-instructions.md": {
+      "max_chars": 1500
+    },
+    ".github/instructions/framework-source.instructions.md": {
+      "max_chars": 3999
+    },
+    ".github/instructions/java-tests.instructions.md": {
+      "max_chars": 3999
+    },
+    "shaft-mcp/.github/copilot-instructions.md": {
+      "max_chars": 1500
+    },
+    "shaft-skills/ce-pack/references/**/*.md": {
+      "max_bytes": 16384
+    },
+    "chaos-engine/references/*.md": {
+      "max_bytes": 16384
+    }
+  },
+  "host_contexts": {
+    "codex": [
+      "AGENTS.md"
+    ],
+    "claude": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "grok": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "gemini": [
+      "AGENTS.md"
+    ],
+    "copilot": [
+      "AGENTS.md",
+      ".github/copilot-instructions.md",
+      ".github/instructions/framework-source.instructions.md",
+      ".github/instructions/java-tests.instructions.md"
+    ]
+  },
+  "host_skill_metadata_globs": {
+    "codex": [
+      "chaos-engine/skills/*/SKILL.md",
+      "chaos-engine/plugin-adapters/*/SKILL.md",
+      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+    ],
+    "claude": [
+      "chaos-engine/skills/*/SKILL.md",
+      "chaos-engine/plugin-adapters/*/SKILL.md",
+      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+    ],
+    "grok": [
+      "chaos-engine/skills/*/SKILL.md"
+    ],
+    "gemini": [
+      "chaos-engine/skills/*/SKILL.md"
+    ],
+    "copilot": [
+      ".github/instructions/*.instructions.md"
+    ]
+  },
+  "routing_bridges": {
+    "source": "shaft-skills/ce-pack/references/routing.md",
+    "skill_roots": [
+      "chaos-engine/skills",
+      "shaft-skills"
+    ],
+    "required_names": [
+      "shaft-developer"
+    ]
+  },
+  "active_guidance_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents/skills/README.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-agency/references/*.md",
+    "chaos-engine/references/*.md",
+    "shaft-skills/ce-pack/**/*.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md"
+  ],
+  "total_guidance_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents/skills/README.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-agency/SKILL.md",
+    "chaos-engine/skills/local-coding-delegate/SKILL.md",
+    "chaos-engine/skills/local-openai-compat/SKILL.md",
+    "chaos-engine/skills/omniroute/SKILL.md",
+    "chaos-engine/skills/freetoken/SKILL.md",
+    "chaos-engine/skills/colibri/SKILL.md",
+    "chaos-engine/skills/work-item/SKILL.md",
+    "chaos-engine/skills/self-improve/SKILL.md",
+    "chaos-engine/references/*.md",
+    "shaft-skills/ce-pack/**/*.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md"
+  ],
+  "expected_skill_names": {
+    "chaos-engine/skills": [
+      "architect",
+      "chaos-engine",
+      "ci-cd",
+      "colibri",
+      "freetoken",
+      "git-cleanup",
+      "kanban",
+      "local-agency",
+      "local-coding-delegate",
+      "local-openai-compat",
+      "local-runtimes",
+      "omniroute",
+      "pre-done-self-review",
+      "self-improve",
+      "technical-presentations",
+      "work-item"
+    ]
+  },
+  "skill_budgets": {
+    ".agents/skills": {
+      "max_description_chars": 220,
+      "max_skill_md_bytes": 20000,
+      "max_skill_md_lines": 500
+    },
+    "chaos-engine/skills": {
+      "max_description_chars": 220,
+      "max_skill_md_bytes": 20000,
+      "max_skill_md_lines": 500
+    }
+  },
+  "harness_reachability": {
+    "notes": "Owner directive behind #4485: an agent that loads the entrypoint must reach the whole harness from it, so every tracked harness element is reachable or carries a stated exemption. Two reachability mechanisms cover both halves. Inside deployable_root every element is a real markdown link -- a backtick mention does not count there, per #4489. Outside it, elements are named as exact path tokens in a link-reachable file and each token must resolve -- which keeps the rule from failing open when a path moves (#4481). A wildcard cannot fail because it re-derives itself from the tree it checks; wildcards remain legal prose but satisfy nothing. A file under a templates path segment is reached by an incoming link, and its outgoing links are workspace examples, not repository links; a file only those links name stays unreachable. A path token also resolves when an ancestor of the naming file holds that relative file. A wildcard does not use that ancestor rule, and a same-named file outside those ancestors does not count.",
+    "entrypoint": ".agents/skills/README.md",
+    "deployable_root": "chaos-engine",
+    "boundary": "The union of every boundary anyone has drawn for this, because narrowing one silently is the failure this whole check exists to stop. #4485 measured 71 files: guidance, adapters, roles, hooks and the checks that police them. A second pass added the enforcement tests, scripts/ci/local_gate.py and .claude-plugin/marketplace.json. An adversarial review then refuted two exclusions and both are now in. .github/skills/** is agent guidance: its SKILL.md files are redirects structurally identical to the .claude/skills ones that were already counted, expected_skill_names checks their presence rather than their reachability, and pr-gate.yml already lists .github/skills/** under its agent_guidance path filter -- the repository had classified them before this check did. .github/workflows/pr-gate.yml is in as an exact path rather than the earlier agent|skill|guard regex over the workflow directory: that regex matched no file, and the one workflow it needed to match is the one that decides whether this check runs at all. A boundary drawn so that the thing running the gate falls outside the gate is convenient rather than honest.",
+    "element_globs": [
+      ".agents/**",
+      "chaos-engine/**",
+      "shaft-skills/ce-pack/**",
+      ".claude-plugin/*.json",
+      ".claude/agents/*.md",
+      ".claude/settings.json",
+      ".claude/skills/*/SKILL.md",
+      ".claude/user-harness/*",
+      "scripts/agents/user-harness/*",
+      ".codex/agents/*.toml",
+      ".codex/config.toml",
+      ".codex/hooks.json",
+      ".github/copilot-instructions.md",
+      ".github/instructions/*.instructions.md",
+      ".github/skills/*/SKILL.md",
+      ".github/skills/README.md",
+      ".github/workflows/pr-gate.yml",
+      ".mcp.json",
+      ".memory/config.json",
+      ".memory/schema/*",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "mempalace.yaml",
+      "scripts/agents/*.py",
+      "scripts/ci/agent_guidance_budget.json",
+      "scripts/ci/agent_harness_parity.json",
+      "scripts/ci/local_gate.py",
+      "scripts/ci/validate_agent_guidance.py",
+      "scripts/ci/validate_agent_plugins.py",
+      "scripts/ci/assemble_chaos_engine_plugin.py",
+      "scripts/ci/assemble_shaft_skills_plugin.py",
+      "scripts/ci/validate_agent_setup.py",
+      "scripts/ci/validate_skills.py",
+      "scripts/ci/watch_pr_checks.py",
+      "scripts/ci/worktree_hygiene.py",
+      "tools/repository-map/resolve_graph_out.py",
+      "tools/repository-map/resolve_mempalace.py",
+      "tests/scripts/test_agent_*.py",
+      "tests/scripts/test_chaos_engine_portable_core.py",
+      "tests/scripts/test_chaos_engine_installer.py",
+      "tests/scripts/test_chaos_engine_dependencies.py",
+      "tests/scripts/test_chaos_engine_hosts.py",
+      "tests/scripts/test_copilot_cli_hook.py",
+      "tests/scripts/test_chaos_engine_learning.py",
+      "tests/scripts/test_chaos_engine_research.py",
+      "chaos-engine/bootstrap.py",
+      "tests/scripts/test_chaos_engine_bootstrap.py",
+      "tests/scripts/test_assemble_chaos_engine_plugin.py",
+      "tests/scripts/test_repository_context.py",
+      "tests/scripts/test_watch_pr_checks.py",
+      "tests/scripts/test_chaos_engine_runtime.py",
+      "tests/scripts/test_assemble_shaft_skills_plugin.py",
+      "tests/scripts/test_guard_*.py",
+      "tests/scripts/test_shaft_skill*.py",
+      "tests/scripts/test_sync_user_harness.py",
+      "tests/scripts/test_validate_agent_*.py",
+      "tests/scripts/test_validate_skills.py",
+      "tests/scripts/test_worktree_hygiene.py",
+      "tests/scripts/test_resolve_graph_out.py",
+      "tests/scripts/test_resolve_mempalace.py",
+      "tests/scripts/test_knowledge_stores.py",
+      "shaft-skills/*/SKILL.md",
+      "shaft-skills/INVENTORY.md",
+      "scripts/mobile/*.py",
+      "scripts/ci/merge_queue_awaiting_checks_heal.py",
+      "scripts/ci/ce_version.py",
+      "scripts/ci/flutter_emulator_preflight.sh",
+      "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh"
+    ],
+    "exemptions_note": "Empty, and that is the result rather than a placeholder. #4488 asked for a deliberate decision on the enforcement layer and the inbound adapters, the two categories with a real case for exemption; both were made reachable instead, so no category needs one. The mechanism stays because the next element may not be reachable, and it is exercised by a fixture in tests/scripts/test_agent_harness_reachability.py rather than by live data -- an exemption list is the one place a number can be made to look good without doing the work.",
+    "exemptions": [],
+    "memory_store_note": "The store splits into a contract and its data, and only the contract is an element. .memory/config.json and .memory/schema/* define what the store is and validate every write, so they are named in routing.md and reachable like any other instrument. The 736 objects under .memory/memory/** and .memory/relations/** are data the memory CLI owns: they are reached on demand by `memory query` followed by targeted `memory inspect`, never by SessionStart. They are deliberately not elements. Requiring 736 markdown links would be noise, and an exemption entry would be worse: an empty exemption list is the healthy end state, not a symptom (gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened). Note that .memory/** was already inside pr-gate.yml's agent_guidance path filter -- the repository classified the store as agent guidance before this boundary did, the same argument that brought .github/skills/** in."
+  },
+  "reference_scan_globs": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    ".agents/skills/README.md",
+    "chaos-engine/skills/chaos-engine/SKILL.md",
+    "chaos-engine/skills/local-agency/SKILL.md",
+    "chaos-engine/skills/local-coding-delegate/SKILL.md",
+    "chaos-engine/skills/local-openai-compat/SKILL.md",
+    "chaos-engine/skills/omniroute/SKILL.md",
+    "chaos-engine/skills/freetoken/SKILL.md",
+    "chaos-engine/skills/colibri/SKILL.md",
+    "chaos-engine/skills/work-item/SKILL.md",
+    "chaos-engine/skills/self-improve/SKILL.md",
+    "chaos-engine/references/*.md",
+    "shaft-skills/ce-pack/**/*.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md",
+    ".github/pull_request_template.md"
+  ],
+  "scope_files": [
+    ".github/instructions/framework-source.instructions.md",
+    ".github/instructions/java-tests.instructions.md"
+  ],
+  "skills_roots": [
+    "chaos-engine/skills"
+  ],
+  "duplicate_paragraph_min_chars": 180,
+  "forbidden_patterns": [
+    {
+      "pattern": "(?i)at least three (?:full )?pdca",
+      "message": "mandatory repeated PDCA cycles"
+    },
+    {
+      "pattern": "(?i)minimum 3[- ]iteration",
+      "message": "mandatory repeated implementation iterations"
+    },
+    {
+      "pattern": "(?i)before every commit",
+      "message": "per-commit validation ceremony"
+    },
+    {
+      "pattern": "(?i)capture screenshots? of (?:test|passing)",
+      "message": "routine screenshot evidence"
+    },
+    {
+      "pattern": "(?i)mandatory for non-trivial sessions",
+      "message": "automatic session-memory updates"
+    },
+    {
+      "pattern": "(?i)open a draft pr before",
+      "message": "automatic remote PR creation"
+    },
+    {
+      "pattern": "(?i)\\b(?:sonnet|haiku|opus|fable|gemini-(?:[0-9][\\w.-]*|pro|flash)|gemma|deepseek|qwen|llama|mistral|codex-[\\w.]+|gpt-?[0-9][\\w.]*|grok-?[0-9][\\w.]*|o[1-9][\\w.]*-(?:mini|preview))\\b",
+      "message": "named model or product instead of a capability level"
+    }
+  ],
+  "stale_references": [
+    ".github/copilot-memory.md",
+    "COPILOT_SETUP_VERIFICATION.md",
+    "docs/AGENT_KNOWLEDGE_MIGRATION.md",
+    "scripts/ai/orchestrate_models.py",
+    "tests/scripts/test_orchestrate_models.py",
+    ".github/skills/github-copilot/",
+    ".github/skills/google-gemma/",
+    ".github/skills/claude-code/",
+    ".github/skills/deepseek/",
+    ".github/skills/qwen/",
+    ".agents/routing-bridges.txt",
+    "references/caveman.md",
+    "references/ponytail.md",
+    "references/test-driven-development.md",
+    "references/tdd/",
+    "playbooks/README.md",
+    "shaft-ui-design-standards.md",
+    "references/shaft-mastery.md"
+  ],
+  "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Ceilings are derived from documented host limits and measured in characters -- see limit_sources. Always-loaded body counts the mandatory fronts plus the entrypoint; the skill listing counts discovery metadata only. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks.",
+  "host_skill_metadata_exemptions": {},
+  "host_skill_metadata_note": "#4531 gap 3. Vendors are enumerated rather than generalised: each host reads guidance at paths only that host knows, and no pattern discovers them. The enumeration is therefore enforced instead of assumed -- tests/scripts/test_validate_agent_guidance.py::VendorEnumerationIsEnforcedTest fails when a host_contexts entry has no glob list here and no exemption with a stated reason, so a fourth vendor dropping in an adapter is loud rather than silently uncovered. copilot was exactly that gap: .github/skills ships 11 SKILL.md files and had no listing budget while claude, codex and grok did. exemptions is empty and that is the healthy end state, not a placeholder -- see gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened.",
+  "mandated_chain": {
+    "notes": "#6176: bytes every host must load before any task, measured end to end: host pointer files, the router core card, identity, the selected profile entrypoint, and (hook hosts) the SessionStart cap. max_always_loaded_body_chars only counts pointer files; this bounds the whole chain.",
+    "max_bytes": 24576,
+    "session_start_bytes": 4096,
+    "session_start_hosts": [
+      "claude",
+      "codex",
+      "copilot",
+      "gemini",
+      "grok"
+    ],
+    "common": [
+      "chaos-engine/skills/chaos-engine/SKILL.md",
+      "chaos-engine/identity.md",
+      "shaft-skills/ce-pack/entrypoint.md"
+    ],
+    "hosts": {
+      "claude": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "codex": [
+        "AGENTS.md"
+      ],
+      "copilot": [
+        "AGENTS.md",
+        ".github/copilot-instructions.md"
+      ],
+      "gemini": [
+        "GEMINI.md",
+        "AGENTS.md"
+      ],
+      "grok": [
+        "AGENTS.md"
+      ],
+      "antigravity": [
+        "AGENTS.md"
+      ],
+      "opencode": [
+        "AGENTS.md"
+      ],
+      "cursor": [
+        "AGENTS.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/references/bot-entry.md"
+      ]
+    }
+  },
+  "lean_chain": {
+    "notes": "Epic #6342: bytes a host carries on the implement path (pointer files + core card + identity + selected profile + companion cards + measured SessionStart) and on the orchestrate path (+ kanban + delegate card). Links before the router's Route section may only target files listed here.",
+    "implement_max_bytes": 16384,
+    "orchestrate_max_bytes": 32768,
+    "session_start_max_bytes": 600,
+    "common": [
+      "chaos-engine/skills/chaos-engine/SKILL.md",
+      "chaos-engine/identity.md",
+      "chaos-engine/companions/caveman-ultra.md",
+      "chaos-engine/companions/ponytail-ultra.md"
+    ],
+    "profile": "shaft-skills/ce-pack/entrypoint.md",
+    "orchestrate": [
+      "chaos-engine/skills/kanban/SKILL.md",
+      "chaos-engine/references/delegate-card.md"
+    ],
+    "on_trigger": [
+      "chaos-engine/skills/self-improve/SKILL.md",
+      "chaos-engine/references/retrieve-first.md",
+      "chaos-engine/references/bot-entry.md",
+      "chaos-engine/companions/ethics-card.md"
+    ],
+    "hosts": {
+      "claude": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "codex": [
+        "AGENTS.md"
+      ],
+      "copilot": [
+        "AGENTS.md",
+        ".github/copilot-instructions.md"
+      ],
+      "gemini": [
+        "GEMINI.md",
+        "AGENTS.md"
+      ],
+      "grok": [
+        "AGENTS.md"
+      ],
+      "antigravity": [
+        "AGENTS.md"
+      ],
+      "opencode": [
+        "AGENTS.md"
+      ],
+      "cursor": [
+        "AGENTS.md"
+      ],
+      "grok-bot": [
+        "AGENTS.md"
+      ]
+    }
+  }
+}

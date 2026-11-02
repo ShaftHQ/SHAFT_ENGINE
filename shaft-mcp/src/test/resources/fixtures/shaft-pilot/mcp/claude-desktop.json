@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "shaft-mcp": {
+      "command": "java",
+      "args": ["@/absolute/path/shaft-mcp.args"]
+    }
+  }
+}

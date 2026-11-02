@@ -1,0 +1,1 @@
+Flutter locator factory methods landed with E2E coverage and a docs guide under the public Flutter testing docs path (PR #5639 / issue #5638). Keep the guide aligned with GUI Locator flutter factory methods. Follow-up issue #5646.

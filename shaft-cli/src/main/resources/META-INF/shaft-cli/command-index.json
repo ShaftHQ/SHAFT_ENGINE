@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0",
+  "commands": [
+    {
+      "name": "browser",
+      "description": "Browser shortcuts: navigate | screenshot | dom | url."
+    },
+    {
+      "name": "call",
+      "description": "Invoke any shaft-mcp tool by name."
+    },
+    {
+      "name": "capture",
+      "description": "Capture shortcuts: start | stop | status | code | step-delete | step-reorder. Start auth reuse: loadStoragePath / saveStoragePath / userDataDirectory (CLI --load-storage / --save-storage / --user-data-dir)."
+    },
+    {
+      "name": "codegen",
+      "description": "Generate SHAFT fluent Java only from a capture recording (deterministic, no MCP session; --target is metadata only)."
+    },
+    {
+      "name": "design",
+      "description": "Design shortcuts: ingest | analyze | gherkin | examples | lexicon | coverage | lint | gap-map | readiness | handoff."
+    },
+    {
+      "name": "doctor",
+      "description": "Doctor shortcuts: analyze | suggest | local-ai-status | cause-label."
+    },
+    {
+      "name": "element",
+      "description": "Element shortcuts: click | type | hover."
+    },
+    {
+      "name": "guide",
+      "description": "Guide shortcut: search."
+    },
+    {
+      "name": "help",
+      "description": "When no COMMAND is given, the usage help for the main command is displayed. If a COMMAND is specified, the help for that command is shown."
+    },
+    {
+      "name": "report",
+      "description": "Reporting shortcuts: open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes."
+    },
+    {
+      "name": "session",
+      "description": "Manage the shaft-mcp daemon session (start | status | stop)."
+    },
+    {
+      "name": "setup",
+      "description": "Plan and manage SHAFT-owned local infrastructure."
+    },
+    {
+      "name": "tools",
+      "description": "List the tools exposed by shaft-mcp."
+    }
+  ]
+}

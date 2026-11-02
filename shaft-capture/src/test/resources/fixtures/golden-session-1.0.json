@@ -1,0 +1,25 @@
+{
+  "schemaVersion" : "1.0",
+  "sessionId" : "golden-session",
+  "status" : "INCOMPLETE",
+  "startedAt" : "2026-01-02T03:04:05Z",
+  "browser" : {
+    "browserName" : "chrome",
+    "browserVersion" : "137",
+    "platform" : "Windows 11",
+    "logicalSessionId" : "browser-1",
+    "capabilities" : {
+      "browsername" : "chrome"
+    }
+  },
+  "events" : [ ],
+  "checkpoints" : [ ],
+  "dataReferences" : [ ],
+  "redactionSummary" : {
+    "redactedValueCount" : 0,
+    "removedAttributeCount" : 0,
+    "redactedUrlParameterCount" : 0,
+    "appliedRules" : [ ]
+  },
+  "extensions" : { }
+}

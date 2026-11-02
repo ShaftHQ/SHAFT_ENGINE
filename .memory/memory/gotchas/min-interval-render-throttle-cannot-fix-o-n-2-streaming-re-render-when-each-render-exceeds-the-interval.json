@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/gotchas/min-interval-render-throttle-cannot-fix-o-n-2-streaming-re-render-when-each-render-exceeds-the-interval.md",
+  "content_hash": "sha256:576efa8204dffe0c5231743a7381ece7f21c386e4426780eba73490eff1d1050",
+  "created_at": "2026-07-19T11:59:34+03:00",
+  "evidence": [
+    {
+      "id": "31c69fa32bd360e67e7474f9f075ee5d35f2dee0",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.min-interval-render-throttle-cannot-fix-o-n-2-streaming-re-render-when-each-render-exceeds-the-interval",
+  "source": {
+    "kind": "agent",
+    "task": "IntelliJ streaming perf (#3751 part 2) + docs revamp phase 1 (#822)"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "performance",
+    "swing",
+    "streaming"
+  ],
+  "title": "Min-interval render throttle cannot fix O(N^2) streaming re-render when each render exceeds the interval",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

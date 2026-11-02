@@ -1,0 +1,45 @@
+name: Code Coverage Failure Notifier
+
+on:
+  workflow_run:
+    workflows:
+      - E2E Tests
+      - Local E2E Tests
+      - LambdaTest E2E Tests
+      - PR Gate
+      - Live Tools Nightly E2E
+      - Guided Workflows Live E2E
+      - Maven Central Continuous Delivery
+      - shaft-mcp
+      - SHAFT Pilot Release Candidate
+      - Publish IntelliJ Plugin
+    types: [ completed ]
+
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: code-coverage-failure-notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    if: github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File or update the code coverage tracking issue
+        continue-on-error: true
+        uses: ./.github/actions/notify-codecoverage-failure
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          workflow-name: ${{ github.event.workflow_run.name }}

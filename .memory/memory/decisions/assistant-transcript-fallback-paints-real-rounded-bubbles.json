@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/decisions/assistant-transcript-fallback-paints-real-rounded-bubbles.md",
+  "content_hash": "sha256:268275822c5819016b8cca7d54f3ffb0eec524892263e3e6c687bdb06a7ed826",
+  "created_at": "2026-07-02T23:32:22+03:00",
+  "evidence": [
+    {
+      "id": "08241ae741fa84adf61603f2617a09de530c7e0e",
+      "kind": "commit"
+    }
+  ],
+  "id": "decision.assistant-transcript-fallback-paints-real-rounded-bubbles",
+  "source": {
+    "kind": "agent",
+    "task": "Enforce SHAFT-only generated code in IntelliJ Assistant"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "assistant",
+    "markdown",
+    "ui"
+  ],
+  "title": "Assistant transcript fallback paints real rounded bubbles",
+  "type": "decision",
+  "updated_at": "2026-08-01T21:40:42+03:00"
+}

@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/gotchas/adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync.md",
+  "content_hash": "sha256:622b2bb67a08fc1b54b674d1692f17e200b98b10caf279b82d648d15b60d66d6",
+  "created_at": "2026-07-14T12:45:52+03:00",
+  "evidence": [
+    {
+      "id": "6bba7439dfd308d8f4c081cc5d50904e91348ff2",
+      "kind": "commit"
+    },
+    {
+      "id": "5a1872dfc41bef98c14d6344fa00cd74438878d1",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.adding-a-shaft-mcp-tool-requires-manifest-skills-catalog-count-sync",
+  "source": {
+    "kind": "agent",
+    "task": "Close-all-open-issues loop session 2026-07-14: durable lessons"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-mcp",
+    "ci",
+    "mcp-tools",
+    "manifest"
+  ],
+  "title": "Adding a shaft-mcp @Tool requires manifest + skills-catalog + count sync",
+  "type": "gotcha",
+  "updated_at": "2026-07-29T16:45:37+03:00"
+}

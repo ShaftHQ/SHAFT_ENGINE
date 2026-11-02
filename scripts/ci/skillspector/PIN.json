@@ -1,0 +1,13 @@
+{
+  "tool": "NVIDIA/SkillSpector",
+  "version": "2.12.0",
+  "commit": "9adb1a607ab0749e4377e0aba1c834b72f948107",
+  "mode": "static --no-llm",
+  "gate": {
+    "max_score": 50,
+    "block_severities": [
+      "HIGH",
+      "CRITICAL"
+    ]
+  }
+}

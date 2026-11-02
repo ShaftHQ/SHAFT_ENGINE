@@ -1,0 +1,1 @@
+gh pr create --base main fails with 'No commits between main and branch' in the docs repo; the default branch is master. SHAFT_ENGINE uses main. Check defaultBranchRef before opening cross-repo PRs.

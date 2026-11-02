@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Lazy Loading Fixture</title>
+    <style>
+        body { font-family: sans-serif; }
+        .spacer { height: 1400px; }
+        .lazy-section { border: 1px solid #ccc; padding: 12px; min-height: 80px; }
+        #infinite-list-sentinel { height: 40px; }
+    </style>
+</head>
+<body>
+<!-- (d) static element present immediately, no waiting/scrolling/network required -->
+<div id="immediately-present">Immediately present content</div>
+
+<!-- (a) in-viewport IntersectionObserver hydration: already visible on load, so this exercises
+     DOM-mutation-only hydration (no network signal) that lazyLoadingDomStabilityQuietWindowMillis
+     is meant to hold the readiness wait for -->
+<div id="hero-section" class="lazy-section" data-hydrate-delay-ms="0">Hero placeholder (hydrating...)</div>
+
+<div class="spacer"></div>
+
+<!-- (a) below-the-fold IntersectionObserver hydration: only intersects once scrolled into view -->
+<div id="lazy-section-1" class="lazy-section" data-hydrate-delay-ms="0">Lazy section 1 placeholder</div>
+
+<div class="spacer"></div>
+
+<!-- (c) bounded infinite list: appends a batch of items each time the sentinel scrolls into view -->
+<ul id="infinite-list"></ul>
+<div id="infinite-list-sentinel">Loading more…</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // (a) IntersectionObserver-driven lazy sections: each .lazy-section element hydrates once,
+    // after its configured delay, the first time it intersects the viewport (immediately for
+    // sections already in the initial viewport, or once scrolled into view otherwise).
+    document.querySelectorAll('.lazy-section').forEach(function (section) {
+        var hydrateDelayMs = Number(section.getAttribute('data-hydrate-delay-ms') || '0');
+        var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+                observer.unobserve(entry.target);
+                setTimeout(function () {
+                    var content = document.createElement('div');
+                    content.className = 'lazy-section-content';
+                    content.id = entry.target.id + '-content';
+                    content.textContent = 'Hydrated: ' + entry.target.id;
+                    entry.target.appendChild(content);
+                    entry.target.setAttribute('data-hydrated', 'true');
+                }, hydrateDelayMs);
+            });
+        }, {threshold: 0.1});
+        observer.observe(section);
+    });
+
+    // (b) delayed fetch kicked off on load: a real same-origin XHR/fetch round trip that this
+    // test page server (see TestPageServer#applyRequestedDelay) holds open for ~1s before
+    // responding, so the request is genuinely in-flight -- observable by SHAFT's network
+    // instrumentation -- for the whole duration, not resolved via a JS-only timer trick.
+    //
+    // The fetch is scheduled a beat (100ms) after 'load' rather than issued synchronously from
+    // the listener: SHAFT's readiness wait only installs its network instrumentation (both the JS
+    // fetch/XHR monkey-patch and the BiDi network listener) once it starts polling, which happens
+    // after navigate().to() already returns -- i.e. after 'load' already fired. A fetch issued in
+    // the same tick as 'load' can race ahead of that instrumentation actually being wired up; a
+    // small scheduling delay reliably avoids that race without changing what's being proven (the
+    // request is still "kicked off on load", just not synchronously within the event callback).
+    window.addEventListener('load', function () {
+        setTimeout(function () {
+            fetch(window.location.pathname + '?delayMs=1000').then(function () {
+                var marker = document.createElement('div');
+                marker.id = 'delayed-api-result';
+                marker.textContent = 'delayed-api-result';
+                document.body.appendChild(marker);
+            });
+        }, 100);
+    });
+
+    // (c) bounded infinite list: appends a batch of items each time the sentinel scrolls into
+    // view, up to MAX_BATCHES, then disconnects and marks itself complete.
+    var MAX_BATCHES = 4;
+    var BATCH_SIZE = 5;
+    var batchesLoaded = 0;
+    var list = document.getElementById('infinite-list');
+    var sentinel = document.getElementById('infinite-list-sentinel');
+
+    function appendBatch() {
+        batchesLoaded += 1;
+        for (var i = 0; i < BATCH_SIZE; i++) {
+            var item = document.createElement('li');
+            item.className = 'infinite-list-item';
+            item.textContent = 'Item ' + ((batchesLoaded - 1) * BATCH_SIZE + i + 1);
+            list.appendChild(item);
+        }
+        if (batchesLoaded >= MAX_BATCHES) {
+            listObserver.disconnect();
+            var complete = document.createElement('div');
+            complete.id = 'infinite-list-complete';
+            complete.setAttribute('data-batches-loaded', String(batchesLoaded));
+            sentinel.insertAdjacentElement('afterend', complete);
+        }
+    }
+
+    var listObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                appendBatch();
+            }
+        });
+    }, {threshold: 0.1});
+    listObserver.observe(sentinel);
+})();
+</script>
+</body>
+</html>

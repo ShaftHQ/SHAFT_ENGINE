@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT Locator Design"
+  short_description: "Choose resilient SHAFT locators"
+  default_prompt: "Use $shaft-locator-design to inspect, rank, and verify locators for these elements."

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT SSE/WS Lazy Loading Fixture</title>
+</head>
+<body>
+<div id="sse-ws-ready">ready</div>
+<script>
+(function () {
+    try {
+        new EventSource('/__sse');
+    } catch (ignored) {
+    }
+    try {
+        new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/__ws');
+    } catch (ignored) {
+    }
+})();
+</script>
+</body>
+</html>

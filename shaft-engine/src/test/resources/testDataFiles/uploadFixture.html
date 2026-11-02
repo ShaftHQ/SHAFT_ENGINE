@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SHAFT Upload Fixture</title>
+    <style>
+        #drop-zone {
+            border: 2px dashed #777;
+            min-height: 120px;
+            padding: 24px;
+        }
+    </style>
+    <script>
+        function selectedFileCount(files) {
+            return files && files.length ? files.length + ' selected file' : 'No selected file';
+        }
+
+        function onFileInputChange(input) {
+            document.getElementById('selected-count').textContent = selectedFileCount(input.files);
+        }
+
+        function onAjaxUpload(input) {
+            var fileName = input.files && input.files.length ? input.files[0].name : '';
+            document.getElementById('ImageList').innerHTML = '<img alt="Uploaded image" src="' + fileName + '">';
+        }
+
+        function markUploaded() {
+            document.getElementById('upload-message').hidden = false;
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            var dropZone = document.getElementById('drop-zone');
+            dropZone.addEventListener('dragenter', function (event) {
+                event.preventDefault();
+            });
+            dropZone.addEventListener('dragover', function (event) {
+                event.preventDefault();
+            });
+            dropZone.addEventListener('drop', function (event) {
+                event.preventDefault();
+                document.getElementById('selected-count').textContent = selectedFileCount(event.dataTransfer.files);
+            });
+        });
+    </script>
+</head>
+<body>
+<label for="file-upload">Upload file</label>
+<input id="file-upload" type="file" onchange="onFileInputChange(this)">
+<button id="file-submit" type="button" onclick="markUploaded()">Upload</button>
+<h3 id="upload-message" hidden>File Uploaded!</h3>
+
+<div id="drop-zone">
+    <label for="upload-file">Drop files here</label>
+    <input id="upload-file" type="file" hidden onchange="onFileInputChange(this)">
+    <span id="selected-count">No selected file</span>
+</div>
+
+<label for="ajaxUpload">Ajax upload</label>
+<input id="ajaxUpload" type="file" onchange="onAjaxUpload(this)">
+<div id="ImageList"></div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/ticket-text-can-omit-real-architectural-nuances-verify-against-the-actual-code-before-implementing-a-restore-focus-after-decision-style-feature.md",
+  "content_hash": "sha256:2b2a9b50b7403c956d64f85d676316ea0e7060392d4d04f5161d48ae1bb67b2d",
+  "created_at": "2026-07-17T05:03:33+03:00",
+  "evidence": [
+    {
+      "id": "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftAssistantPanel.java",
+      "kind": "file"
+    }
+  ],
+  "id": "gotcha.ticket-text-can-omit-real-architectural-nuances-verify-against-the-actual-code-before-implementing-a-restore-focus-after-decision-style-feature",
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij issue #3631 save transcript to file and #3632 approval prompt keyboard focus"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing",
+    "focus",
+    "concurrency",
+    "ticket-verification"
+  ],
+  "title": "Ticket text can omit real architectural nuances -- verify against the actual code before implementing a 'restore focus after decision' style feature",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T22:00:11+03:00"
+}

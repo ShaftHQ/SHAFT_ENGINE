@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aictx.dev/schemas/v5/patch.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "changes"],
+  "properties": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["agent", "user", "cli", "mcp", "system"]
+        },
+        "task": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/createObject"
+          },
+          {
+            "$ref": "#/$defs/updateObject"
+          },
+          {
+            "$ref": "#/$defs/markStale"
+          },
+          {
+            "$ref": "#/$defs/supersedeObject"
+          },
+          {
+            "$ref": "#/$defs/deleteObject"
+          },
+          {
+            "$ref": "#/$defs/createRelation"
+          },
+          {
+            "$ref": "#/$defs/updateRelation"
+          },
+          {
+            "$ref": "#/$defs/deleteRelation"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "objectId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z0-9][a-z0-9-]*$"
+    },
+    "relationId": {
+      "type": "string",
+      "pattern": "^rel\\.[a-z0-9][a-z0-9-]*$"
+    },
+    "stage": {
+      "enum": ["idea", "building", "shipped", "paused", "dead"]
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "enum": ["agent", "user", "cli", "mcp", "system"]
+        },
+        "task": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "locator"],
+      "properties": {
+        "kind": {
+          "enum": ["file", "url", "user", "external"]
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "captured_at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id"],
+        "properties": {
+          "kind": {
+            "enum": ["memory", "relation", "file", "commit", "task", "source"]
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "createObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "type", "title", "body"],
+      "properties": {
+        "op": {
+          "const": "create_object"
+        },
+        "id": {
+          "$ref": "#/$defs/objectId"
+        },
+        "type": {
+          "enum": ["project", "feature", "decision", "gotcha", "question"]
+        },
+        "status": {
+          "enum": ["active", "stale", "superseded", "open", "closed"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "anchors": {
+          "$ref": "#/$defs/anchors"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        }
+      }
+    },
+    "updateObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id"],
+      "properties": {
+        "op": {
+          "const": "update_object"
+        },
+        "id": {
+          "$ref": "#/$defs/objectId"
+        },
+        "status": {
+          "enum": ["active", "stale", "superseded", "open", "closed"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "$ref": "#/$defs/stage"
+        },
+        "anchors": {
+          "$ref": "#/$defs/anchors"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/objectId"
+        }
+      }
+    },
+    "markStale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id", "reason"],
+      "properties": {
+        "op": {
+          "const": "mark_stale"
+        },
+        "id": {
+          "$ref": "#/$defs/objectId"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "supersedeObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id", "superseded_by", "reason"],
+      "properties": {
+        "op": {
+          "const": "supersede_object"
+        },
+        "id": {
+          "$ref": "#/$defs/objectId"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/objectId"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "deleteObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id"],
+      "properties": {
+        "op": {
+          "const": "delete_object"
+        },
+        "id": {
+          "$ref": "#/$defs/objectId"
+        }
+      }
+    },
+    "createRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "from", "predicate", "to"],
+      "properties": {
+        "op": {
+          "const": "create_relation"
+        },
+        "id": {
+          "$ref": "#/$defs/relationId"
+        },
+        "from": {
+          "$ref": "#/$defs/objectId"
+        },
+        "predicate": {
+          "enum": ["affects", "depends_on", "supersedes", "related_to"]
+        },
+        "to": {
+          "$ref": "#/$defs/objectId"
+        },
+        "status": {
+          "enum": ["active", "stale", "rejected"]
+        },
+        "confidence": {
+          "enum": ["low", "medium", "high"]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "updateRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id"],
+      "properties": {
+        "op": {
+          "const": "update_relation"
+        },
+        "id": {
+          "$ref": "#/$defs/relationId"
+        },
+        "status": {
+          "enum": ["active", "stale", "rejected"]
+        },
+        "confidence": {
+          "enum": ["low", "medium", "high"]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "deleteRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "id"],
+      "properties": {
+        "op": {
+          "const": "delete_relation"
+        },
+        "id": {
+          "$ref": "#/$defs/relationId"
+        }
+      }
+    }
+  }
+}

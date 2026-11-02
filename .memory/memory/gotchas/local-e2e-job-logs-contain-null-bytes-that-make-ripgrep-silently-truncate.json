@@ -1,0 +1,27 @@
+{
+  "body_path": "memory/gotchas/local-e2e-job-logs-contain-null-bytes-that-make-ripgrep-silently-truncate.md",
+  "content_hash": "sha256:33298de9487258bde2ca9a19ced8711f73f7c431e19aca6bc080b5c20c5a7e24",
+  "created_at": "2026-07-20T03:48:27+03:00",
+  "evidence": [
+    {
+      "id": "issue #3807",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.local-e2e-job-logs-contain-null-bytes-that-make-ripgrep-silently-truncate",
+  "source": {
+    "kind": "agent",
+    "task": "Nightly E2E campaign + CI overhaul session 2026-07-20: durable gotchas from forensics and fixes"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "forensics",
+    "logs",
+    "ripgrep",
+    "windows"
+  ],
+  "title": "Local E2E job logs contain null bytes that make ripgrep silently truncate",
+  "type": "gotcha",
+  "updated_at": "2026-08-01T21:02:05+03:00"
+}

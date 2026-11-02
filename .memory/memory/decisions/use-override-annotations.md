@@ -1,0 +1,1 @@
+When SHAFT classes implement interfaces or override superclass methods, add @Override wherever applicable. Code quality review explicitly expects these annotations on GUI driver contracts, action facades, and assertion/verification adapters.

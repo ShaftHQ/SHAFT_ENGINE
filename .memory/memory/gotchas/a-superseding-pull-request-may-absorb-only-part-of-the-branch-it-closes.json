@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes.md",
+  "content_hash": "sha256:8b4dc87c854cdf919ed33afc83fea3dc0cf53e828e3e0acd5be813eb1de1a491",
+  "created_at": "2026-08-04T10:15:43+03:00",
+  "evidence": [
+    {
+      "id": "4442",
+      "kind": "task"
+    },
+    {
+      "id": "8df53689c4",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.a-superseding-pull-request-may-absorb-only-part-of-the-branch-it-closes",
+  "source": {
+    "kind": "agent",
+    "task": "Record what the #4437/#4441 superseding collision cost, for the next agent"
+  },
+  "status": "active",
+  "tags": [
+    "github",
+    "worktree",
+    "collision",
+    "codacy",
+    "review"
+  ],
+  "title": "A superseding pull request may absorb only part of the branch it closes",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T10:15:43+03:00"
+}

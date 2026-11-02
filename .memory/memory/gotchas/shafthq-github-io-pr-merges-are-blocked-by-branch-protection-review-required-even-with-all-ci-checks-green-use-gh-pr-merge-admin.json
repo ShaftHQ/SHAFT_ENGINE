@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin.md",
+  "content_hash": "sha256:d383b0a318e6adbc61f7e898fab37e444963e90aee6f59db8d6174770d52d5d5",
+  "created_at": "2026-08-01T21:46:42+03:00",
+  "evidence": [
+    {
+      "id": "ec7ad279aae36b55908ecbfa7554055747a88794",
+      "kind": "commit"
+    },
+    {
+      "id": "https://api.github.com/repos/ShaftHQ/shafthq.github.io/branches/master/protection",
+      "kind": "source"
+    }
+  ],
+  "id": "gotcha.shafthq-github-io-pr-merges-are-blocked-by-branch-protection-review-required-even-with-all-ci-checks-green-use-gh-pr-merge-admin",
+  "source": {
+    "kind": "agent",
+    "task": "work-github issue #797 (shafthq.github.io docs audit) sub-issues 784-796"
+  },
+  "status": "stale",
+  "tags": [
+    "shafthq-github-io",
+    "github",
+    "branch-protection",
+    "gh-pr-merge",
+    "work-github"
+  ],
+  "title": "shafthq-github-io PR merges are blocked by branch protection (REVIEW_REQUIRED) even with all CI checks green -- use gh pr merge --admin",
+  "type": "gotcha",
+  "updated_at": "2026-08-11T10:30:04+03:00"
+}

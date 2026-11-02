@@ -1,0 +1,17 @@
+{
+  "title": "JSONFileManager Unit Test Data",
+  "version": 1,
+  "active": true,
+  "tags": ["java", "testing", "shaft"],
+  "config": {
+    "timeout": 30,
+    "retries": 3,
+    "baseUrl": "https://example.com"
+  },
+  "users": [
+    {"id": 1, "name": "Alice"},
+    {"id": 2, "name": "Bob"}
+  ],
+  "emptyList": [],
+  "scores": [10, 20, 30]
+}

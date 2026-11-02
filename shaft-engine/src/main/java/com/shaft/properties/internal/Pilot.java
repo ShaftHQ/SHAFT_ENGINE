@@ -1,0 +1,548 @@
+package com.shaft.properties.internal;
+
+import org.aeonbits.owner.Config.Sources;
+import org.aeonbits.owner.ConfigFactory;
+
+/**
+ * Configuration for optional SHAFT Pilot AI providers.
+ *
+ * <p>AI is disabled by default. Credentials are never configured here; providers
+ * resolve them from the named environment variables only after the caller has
+ * explicitly enabled AI and approved the relevant processing location.</p>
+ */
+@SuppressWarnings("unused")
+@Sources({"system:properties",
+        "file:src/main/resources/properties/custom.properties",
+        "file:src/main/resources/properties/default/custom.properties",
+        "classpath:custom.properties"})
+public interface Pilot extends EngineProperties<Pilot> {
+    private static void setProperty(String key, String value) {
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.pilotOverride.set(ConfigFactory.create(Pilot.class, ThreadLocalPropertiesManager.getOverrides()));
+        EngineProperties.logPropertyUpdate(key, value);
+    }
+
+    /** @return whether optional AI execution is enabled */
+    @Key("pilot.ai.enabled")
+    @DefaultValue("false")
+    boolean enabled();
+
+    /** @return selected provider identifier */
+    @Key("pilot.ai.provider")
+    @DefaultValue("none")
+    String provider();
+
+    /** @return whether local inference is approved */
+    @Key("pilot.ai.consent.local")
+    @DefaultValue("false")
+    boolean localConsent();
+
+    /** @return whether explicitly classified on-prem inference is approved */
+    @Key("pilot.ai.consent.onPrem")
+    @DefaultValue("false")
+    boolean onPremConsent();
+
+    /** @return whether remote inference is approved */
+    @Key("pilot.ai.consent.remote")
+    @DefaultValue("false")
+    boolean remoteConsent();
+
+    /** @return comma-separated approved evidence categories */
+    @Key("pilot.ai.allowedEvidenceCategories")
+    @DefaultValue("")
+    String allowedEvidenceCategories();
+
+    /** @return whether optional external telemetry is enabled */
+    @Key("pilot.ai.telemetry.enabled")
+    @DefaultValue("false")
+    boolean telemetryEnabled();
+
+    /**
+     * @return maximum provider timeout in seconds
+     *
+     * <p>Raised from 30 (issue #4361): autobot_provider_chat has declared a 300-second
+     * per-request timeout since its introduction, but this global ceiling -- left at its
+     * original default -- silently clamped every request back down to 30 seconds
+     * (AiExecutionService#effectiveTimeout takes {@code min(requested, this value)}, and
+     * AbstractHttpAiProvider applies the result as the HTTP request timeout). Once #4113 let
+     * the full 8,000-token output budget reach the wire, reasoning-model code generation
+     * legitimately runs past 30 seconds, surfacing as status=TIMEOUT ("Provider request timed
+     * out.") in the live Gemini E2E. 300 lets the already-declared per-call timeout actually
+     * take effect; callers that request less (or nothing -- AiRequest defaults to 30 seconds)
+     * are unaffected because the ceiling only ever lowers a request's own timeout. Callers
+     * that deliberately request the configured ceiling itself (PilotNaturalActionPlanner)
+     * inherit the raise; set this property lower to restore a tighter bound everywhere.</p>
+     */
+    @Key("pilot.ai.timeoutSeconds")
+    @DefaultValue("300")
+    int timeoutSeconds();
+
+    /** @return maximum serialized request size */
+    @Key("pilot.ai.maxRequestBytes")
+    @DefaultValue("1048576")
+    int maxRequestBytes();
+
+    /** @return maximum estimated input tokens */
+    @Key("pilot.ai.maxInputTokens")
+    @DefaultValue("16000")
+    int maxInputTokens();
+
+    /**
+     * @return maximum output tokens
+     *
+     * <p>Raised from 2,000 (issue #4113): autobot_provider_chat has requested an 8,000-token
+     * per-call budget since #3371, but this global ceiling -- left at its original default --
+     * silently clamped every request back down to 2,000 (outputTokenLimit() and
+     * AiExecutionService#inheritedLimit both take {@code min(requested, this value)}). Reasoning
+     * models spend thinking tokens from the same budget, so 2,000 routinely truncated a full
+     * generated test class before the answer JSON completed (finishReason=MAX_TOKENS). 8,000
+     * lets the already-declared per-call budget actually reach the wire, with wide margin
+     * below Gemini 3.5 Flash's documented 65,000-token output ceiling.</p>
+     */
+    @Key("pilot.ai.maxOutputTokens")
+    @DefaultValue("8000")
+    int maxOutputTokens();
+
+    /** @return maximum accepted provider-reported cost in USD */
+    @Key("pilot.ai.maxCostUsd")
+    @DefaultValue("0")
+    String maxCostUsd();
+
+    /** @return maximum provider execution attempts */
+    @Key("pilot.ai.retryMaxAttempts")
+    @DefaultValue("2")
+    int retryMaxAttempts();
+
+    /** @return maximum concurrent calls per provider */
+    @Key("pilot.ai.maxConcurrency")
+    @DefaultValue("2")
+    int maxConcurrency();
+
+    /** @return failures required to open the circuit */
+    @Key("pilot.ai.circuitBreaker.failureThreshold")
+    @DefaultValue("3")
+    int circuitBreakerFailureThreshold();
+
+    /** @return circuit-open cooldown in seconds */
+    @Key("pilot.ai.circuitBreaker.cooldownSeconds")
+    @DefaultValue("60")
+    int circuitBreakerCooldownSeconds();
+
+    /** @return comma-separated CSS selectors to redact */
+    @Key("pilot.ai.redaction.selectors")
+    @DefaultValue("input[type=password],[autocomplete=current-password],[autocomplete=new-password]")
+    String redactionSelectors();
+
+    /** @return comma-separated structured or DOM attributes to redact */
+    @Key("pilot.ai.redaction.attributes")
+    @DefaultValue("authorization,cookie,set-cookie,password,passwd,secret,token,api-key,apikey,access-key")
+    String redactionAttributes();
+
+    /** @return double-semicolon-separated custom regular expressions */
+    @Key("pilot.ai.redaction.patterns")
+    @DefaultValue("")
+    String redactionPatterns();
+
+    /** @return OpenAI Responses endpoint */
+    @Key("pilot.ai.openai.endpoint")
+    @DefaultValue("https://api.openai.com/v1/responses")
+    String openAiEndpoint();
+
+    /** @return configured OpenAI model */
+    @Key("pilot.ai.openai.model")
+    @DefaultValue("")
+    String openAiModel();
+
+    /** @return environment variable containing the OpenAI credential */
+    @Key("pilot.ai.openai.apiKeyEnvironmentVariable")
+    @DefaultValue("OPENAI_API_KEY")
+    String openAiApiKeyEnvironmentVariable();
+
+    /** @return explicit OpenAI endpoint processing location */
+    @Key("pilot.ai.openai.processingLocation")
+    @DefaultValue("remote")
+    String openAiProcessingLocation();
+
+    /** @return Anthropic Messages endpoint */
+    @Key("pilot.ai.anthropic.endpoint")
+    @DefaultValue("https://api.anthropic.com/v1/messages")
+    String anthropicEndpoint();
+
+    /** @return configured Anthropic model */
+    @Key("pilot.ai.anthropic.model")
+    @DefaultValue("")
+    String anthropicModel();
+
+    /** @return environment variable containing the Anthropic credential */
+    @Key("pilot.ai.anthropic.apiKeyEnvironmentVariable")
+    @DefaultValue("ANTHROPIC_API_KEY")
+    String anthropicApiKeyEnvironmentVariable();
+
+    /** @return explicit Anthropic endpoint processing location */
+    @Key("pilot.ai.anthropic.processingLocation")
+    @DefaultValue("remote")
+    String anthropicProcessingLocation();
+
+    /** @return Anthropic API contract version */
+    @Key("pilot.ai.anthropic.version")
+    @DefaultValue("2023-06-01")
+    String anthropicVersion();
+
+    /** @return Gemini models endpoint */
+    @Key("pilot.ai.gemini.endpoint")
+    @DefaultValue("https://generativelanguage.googleapis.com/v1beta/models")
+    String geminiEndpoint();
+
+    /** @return configured Gemini model */
+    @Key("pilot.ai.gemini.model")
+    @DefaultValue("gemini-3.5-flash")
+    String geminiModel();
+
+    /** @return environment variable containing the Gemini credential */
+    @Key("pilot.ai.gemini.apiKeyEnvironmentVariable")
+    @DefaultValue("GEMINI_API_KEY")
+    String geminiApiKeyEnvironmentVariable();
+
+    /** @return explicit Gemini endpoint processing location */
+    @Key("pilot.ai.gemini.processingLocation")
+    @DefaultValue("remote")
+    String geminiProcessingLocation();
+
+    /** @return GitHub Models chat-completions endpoint */
+    @Key("pilot.ai.github.endpoint")
+    @DefaultValue("https://models.github.ai/inference/chat/completions")
+    String githubEndpoint();
+
+    /** @return configured GitHub Models model */
+    @Key("pilot.ai.github.model")
+    @DefaultValue("")
+    String githubModel();
+
+    /** @return environment variable containing the GitHub credential */
+    @Key("pilot.ai.github.apiKeyEnvironmentVariable")
+    @DefaultValue("GITHUB_TOKEN")
+    String githubApiKeyEnvironmentVariable();
+
+    /** @return explicit GitHub Models endpoint processing location */
+    @Key("pilot.ai.github.processingLocation")
+    @DefaultValue("remote")
+    String githubProcessingLocation();
+
+    /** @return Ollama chat endpoint */
+    @Key("pilot.ai.ollama.endpoint")
+    @DefaultValue("http://127.0.0.1:11434/api/chat")
+    String ollamaEndpoint();
+
+    /** @return configured Ollama model */
+    @Key("pilot.ai.ollama.model")
+    @DefaultValue("")
+    String ollamaModel();
+
+    /** @return explicit Ollama endpoint processing location */
+    @Key("pilot.ai.ollama.processingLocation")
+    @DefaultValue("local")
+    String ollamaProcessingLocation();
+
+    /** @return optional environment variable containing an on-prem Ollama gateway credential */
+    @Key("pilot.ai.ollama.apiKeyEnvironmentVariable")
+    @DefaultValue("")
+    String ollamaApiKeyEnvironmentVariable();
+
+    /** @return optional Ollama gateway credential header */
+    @Key("pilot.ai.ollama.apiKeyHeader")
+    @DefaultValue("Authorization")
+    String ollamaApiKeyHeader();
+
+    /** @return optional Ollama gateway credential prefix */
+    @Key("pilot.ai.ollama.apiKeyPrefix")
+    @DefaultValue("Bearer ")
+    String ollamaApiKeyPrefix();
+
+    /** @return LM Studio OpenAI-compatible Responses endpoint */
+    @Key("pilot.ai.lmstudio.endpoint")
+    @DefaultValue("http://127.0.0.1:1234/v1/responses")
+    String lmStudioEndpoint();
+
+    /** @return configured LM Studio model */
+    @Key("pilot.ai.lmstudio.model")
+    @DefaultValue("")
+    String lmStudioModel();
+
+    /** @return optional LM Studio gateway credential environment variable */
+    @Key("pilot.ai.lmstudio.apiKeyEnvironmentVariable")
+    @DefaultValue("")
+    String lmStudioApiKeyEnvironmentVariable();
+
+    /**
+     * Returns a fluent builder for current-thread overrides.
+     *
+     * @return current-thread property builder
+     */
+    default SetProperty set() {
+        return new SetProperty();
+    }
+
+    /**
+     * Fluent current-thread overrides for Pilot configuration.
+     */
+    class SetProperty implements EngineProperties.SetProperty {
+        /** @param value enabled state @return this builder */
+        public SetProperty enabled(boolean value) {
+            setProperty("pilot.ai.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value provider identifier @return this builder */
+        public SetProperty provider(String value) {
+            setProperty("pilot.ai.provider", value);
+            return this;
+        }
+
+        /** @param value local consent state @return this builder */
+        public SetProperty localConsent(boolean value) {
+            setProperty("pilot.ai.consent.local", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value on-prem consent state @return this builder */
+        public SetProperty onPremConsent(boolean value) {
+            setProperty("pilot.ai.consent.onPrem", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value remote consent state @return this builder */
+        public SetProperty remoteConsent(boolean value) {
+            setProperty("pilot.ai.consent.remote", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value approved category list @return this builder */
+        public SetProperty allowedEvidenceCategories(String value) {
+            setProperty("pilot.ai.allowedEvidenceCategories", value);
+            return this;
+        }
+
+        /** @param value telemetry state @return this builder */
+        public SetProperty telemetryEnabled(boolean value) {
+            setProperty("pilot.ai.telemetry.enabled", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value timeout seconds @return this builder */
+        public SetProperty timeoutSeconds(int value) {
+            setProperty("pilot.ai.timeoutSeconds", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value maximum request bytes @return this builder */
+        public SetProperty maxRequestBytes(int value) {
+            setProperty("pilot.ai.maxRequestBytes", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value maximum input tokens @return this builder */
+        public SetProperty maxInputTokens(int value) {
+            setProperty("pilot.ai.maxInputTokens", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value maximum output tokens @return this builder */
+        public SetProperty maxOutputTokens(int value) {
+            setProperty("pilot.ai.maxOutputTokens", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value maximum cost in USD @return this builder */
+        public SetProperty maxCostUsd(String value) {
+            setProperty("pilot.ai.maxCostUsd", value);
+            return this;
+        }
+
+        /** @param value maximum attempts @return this builder */
+        public SetProperty retryMaxAttempts(int value) {
+            setProperty("pilot.ai.retryMaxAttempts", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value maximum concurrency @return this builder */
+        public SetProperty maxConcurrency(int value) {
+            setProperty("pilot.ai.maxConcurrency", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value failure threshold @return this builder */
+        public SetProperty circuitBreakerFailureThreshold(int value) {
+            setProperty("pilot.ai.circuitBreaker.failureThreshold", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value cooldown seconds @return this builder */
+        public SetProperty circuitBreakerCooldownSeconds(int value) {
+            setProperty("pilot.ai.circuitBreaker.cooldownSeconds", String.valueOf(value));
+            return this;
+        }
+
+        /** @param value selector list @return this builder */
+        public SetProperty redactionSelectors(String value) {
+            setProperty("pilot.ai.redaction.selectors", value);
+            return this;
+        }
+
+        /** @param value attribute list @return this builder */
+        public SetProperty redactionAttributes(String value) {
+            setProperty("pilot.ai.redaction.attributes", value);
+            return this;
+        }
+
+        /** @param value custom pattern list @return this builder */
+        public SetProperty redactionPatterns(String value) {
+            setProperty("pilot.ai.redaction.patterns", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty openAiEndpoint(String value) {
+            setProperty("pilot.ai.openai.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty openAiModel(String value) {
+            setProperty("pilot.ai.openai.model", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty openAiApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.openai.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty openAiProcessingLocation(String value) {
+            setProperty("pilot.ai.openai.processingLocation", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty anthropicEndpoint(String value) {
+            setProperty("pilot.ai.anthropic.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty anthropicModel(String value) {
+            setProperty("pilot.ai.anthropic.model", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty anthropicApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.anthropic.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty anthropicProcessingLocation(String value) {
+            setProperty("pilot.ai.anthropic.processingLocation", value);
+            return this;
+        }
+
+        /** @param value Anthropic API contract version @return this builder */
+        public SetProperty anthropicVersion(String value) {
+            setProperty("pilot.ai.anthropic.version", value);
+            return this;
+        }
+
+        /** @param value base endpoint URL @return this builder */
+        public SetProperty geminiEndpoint(String value) {
+            setProperty("pilot.ai.gemini.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty geminiModel(String value) {
+            setProperty("pilot.ai.gemini.model", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty geminiApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.gemini.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty geminiProcessingLocation(String value) {
+            setProperty("pilot.ai.gemini.processingLocation", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty githubEndpoint(String value) {
+            setProperty("pilot.ai.github.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty githubModel(String value) {
+            setProperty("pilot.ai.github.model", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty githubApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.github.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty githubProcessingLocation(String value) {
+            setProperty("pilot.ai.github.processingLocation", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty ollamaEndpoint(String value) {
+            setProperty("pilot.ai.ollama.endpoint", value);
+            return this;
+        }
+
+        /** @param value model identifier @return this builder */
+        public SetProperty ollamaModel(String value) {
+            setProperty("pilot.ai.ollama.model", value);
+            return this;
+        }
+
+        /** @param value processing location @return this builder */
+        public SetProperty ollamaProcessingLocation(String value) {
+            setProperty("pilot.ai.ollama.processingLocation", value);
+            return this;
+        }
+
+        /** @param value environment variable name @return this builder */
+        public SetProperty ollamaApiKeyEnvironmentVariable(String value) {
+            setProperty("pilot.ai.ollama.apiKeyEnvironmentVariable", value);
+            return this;
+        }
+
+        /** @param value credential header @return this builder */
+        public SetProperty ollamaApiKeyHeader(String value) {
+            setProperty("pilot.ai.ollama.apiKeyHeader", value);
+            return this;
+        }
+
+        /** @param value credential prefix @return this builder */
+        public SetProperty ollamaApiKeyPrefix(String value) {
+            setProperty("pilot.ai.ollama.apiKeyPrefix", value);
+            return this;
+        }
+
+        /** @param value endpoint URL @return this builder */
+        public SetProperty lmStudioEndpoint(String value) { setProperty("pilot.ai.lmstudio.endpoint", value); return this; }
+        /** @param value model identifier @return this builder */
+        public SetProperty lmStudioModel(String value) { setProperty("pilot.ai.lmstudio.model", value); return this; }
+        /** @param value environment variable name @return this builder */
+        public SetProperty lmStudioApiKeyEnvironmentVariable(String value) { setProperty("pilot.ai.lmstudio.apiKeyEnvironmentVariable", value); return this; }
+    }
+}

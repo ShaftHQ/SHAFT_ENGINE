@@ -1,0 +1,2 @@
+{"uuid":"launch-rh-1","name":"RH #1","timestamp":1700001000000,"testResults":{"hist-retry-only":{"name":"retryOnly","fullName":"demo.RetryOnly.retryOnly","status":"passed","duration":100,"historyId":"hist-retry-only"}}}
+{"uuid":"launch-rh-2","name":"RH #2","timestamp":1700001100000,"testResults":{"hist-retry-only":{"name":"retryOnly","fullName":"demo.RetryOnly.retryOnly","status":"passed","duration":110,"historyId":"hist-retry-only"}}}

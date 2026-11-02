@@ -1,0 +1,26 @@
+{
+  "body_path": "memory/facts/shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget.md",
+  "content_hash": "sha256:52f47217c8e53fbe4e10c5b7e9aaf71bbb4e2e79b6e5744e9d97821dfb113ff3",
+  "created_at": "2026-07-15T10:08:58+03:00",
+  "evidence": [
+    {
+      "id": "4bc83d3408b8e2ffb51265d17f6649d2d4a6808e",
+      "kind": "commit"
+    }
+  ],
+  "id": "gotcha.shaft-ci-facts-no-pr-blocking-test-gate-codacy-quirks-installer-verification-guidance-budget",
+  "source": {
+    "kind": "agent",
+    "task": "Centralize durable personal memory into the repo .memory store (dedup + migrate gaps)"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "codacy",
+    "validation",
+    "guidance"
+  ],
+  "title": "SHAFT CI facts: no PR-blocking test gate, Codacy quirks, installer verification, guidance budget",
+  "type": "gotcha",
+  "updated_at": "2026-08-04T14:32:23+03:00"
+}

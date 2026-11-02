@@ -1,0 +1,1 @@
+{"schemaVersion": 1, "sessionId": "fix-6411", "events": [{"channel": "cloud", "runtimeClass": "host-session", "promptTokens": 1500, "completionTokens": 500}], "totals": {"localPromptTokens": 0, "localCompletionTokens": 0, "cloudPromptTokens": 1500, "cloudCompletionTokens": 500}}

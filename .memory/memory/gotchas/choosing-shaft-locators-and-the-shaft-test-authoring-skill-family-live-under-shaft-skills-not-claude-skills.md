@@ -1,0 +1,1 @@
+The SHAFT-project-facing test-authoring skill family lives under `shaft-skills/`, including `shaft-skills/choosing-shaft-locators/SKILL.md`; it is not part of a host-specific skill tree. Harness-side locator internals live at `.agents/skills/act-as-mohab/references/shaft-mastery/locator-healing.md`. Verify actual files before trusting ticket line citations.

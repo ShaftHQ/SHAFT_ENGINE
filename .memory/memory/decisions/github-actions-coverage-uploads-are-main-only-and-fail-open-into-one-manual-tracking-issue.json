@@ -1,0 +1,42 @@
+{
+  "body_path": "memory/decisions/github-actions-coverage-uploads-are-main-only-and-fail-open-into-one-manual-tracking-issue.md",
+  "content_hash": "sha256:ce32b3437332b983af653d5178095817dd9c000bb45e0add06544b96eaa23448",
+  "created_at": "2026-08-11T13:22:17+03:00",
+  "evidence": [
+    {
+      "id": ".github/actions/upload-jacoco-coverage/action.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/actions/notify-codecoverage-failure/action.yml",
+      "kind": "file"
+    },
+    {
+      "id": ".github/workflows/codecoverage-failure-notifier.yml",
+      "kind": "file"
+    },
+    {
+      "id": "scripts/ci/validate_quality_configuration.py",
+      "kind": "file"
+    }
+  ],
+  "id": "decision.github-actions-coverage-uploads-are-main-only-and-fail-open-into-one-manual-tracking-issue",
+  "origin": {
+    "kind": "user",
+    "locator": "task conversation 2026-08-11"
+  },
+  "source": {
+    "kind": "agent",
+    "task": "Record the durable GitHub Actions JaCoCo and Codecov reporting policy chosen by the repository owner."
+  },
+  "status": "active",
+  "tags": [
+    "jacoco",
+    "codecov",
+    "github-actions",
+    "coverage"
+  ],
+  "title": "GitHub Actions coverage uploads are main-only and fail open into one manual tracking issue",
+  "type": "decision",
+  "updated_at": "2026-08-11T13:22:17+03:00"
+}

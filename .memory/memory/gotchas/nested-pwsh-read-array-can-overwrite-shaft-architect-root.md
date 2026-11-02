@@ -1,0 +1,1 @@
+Calling pwsh -File shaft-architect.ps1 -Read @(a,b,c) from another PowerShell expands the array into extra positional arguments. Before PositionalBinding=$false, the last extra path bound to -Root, so Ollama was sought at OllamaProvider.java\ollama\ollama.exe. Invoke in-process with -Root D:\AI -Read $array, or keep PositionalBinding=$false. Fixed in merged PR 5069.

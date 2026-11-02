@@ -1,0 +1,21 @@
+{
+  "body_path": "memory/workflows/swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles.md",
+  "content_hash": "sha256:17dbc22a839ab8cca70db802be75dcfe98fb9972bc1a80dd37d9c30175bc882f",
+  "created_at": "2026-07-17T04:30:07+03:00",
+  "evidence": [],
+  "id": "feature.swing-test-helper-a-findbuttonbytext-that-ignores-isvisible-silently-passes-for-always-present-but-hidden-toggles",
+  "source": {
+    "kind": "agent",
+    "task": "shaft-intellij issue #3629 collapsible long assistant transcript outputs"
+  },
+  "status": "active",
+  "tags": [
+    "shaft-intellij",
+    "swing",
+    "testing",
+    "junit"
+  ],
+  "title": "Swing test helper: a findButtonByText that ignores isVisible() silently passes for always-present-but-hidden toggles",
+  "type": "feature",
+  "updated_at": "2026-07-17T04:30:07+03:00"
+}

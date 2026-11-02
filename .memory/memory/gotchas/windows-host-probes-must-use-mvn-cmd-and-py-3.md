@@ -1,0 +1,1 @@
+On Windows, ProcessBuilder cannot launch mvn.exe or python.exe when those names are not on PATH. The native launchers are mvn.cmd (Maven wrapper/cmd shim) and py -3 (Python launcher). Host-prerequisite probes in AgentTools must use those commands. Bound on #5052 by DefaultAgentToolsToolchainOperations Windows probe tests.

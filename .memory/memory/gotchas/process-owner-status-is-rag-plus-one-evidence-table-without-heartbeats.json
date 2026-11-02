@@ -1,0 +1,31 @@
+{
+  "body_path": "memory/gotchas/process-owner-status-is-rag-plus-one-evidence-table-without-heartbeats.md",
+  "content_hash": "sha256:bca398f3cde397644b4f701432c6fbb2e68b0e467a64525c9b5dd6ec7b749463",
+  "created_at": "2026-09-15T21:50:47+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5803",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5839",
+      "kind": "task"
+    }
+  ],
+  "id": "gotcha.process-owner-status-is-rag-plus-one-evidence-table-without-heartbeats",
+  "source": {
+    "kind": "agent",
+    "task": "G3 Learning Session residual pack 5803-5847 token and status lessons"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "process-owner",
+    "token-optimization",
+    "status",
+    "permanent"
+  ],
+  "title": "Process-owner status is RAG plus one evidence table without heartbeats",
+  "type": "gotcha",
+  "updated_at": "2026-09-15T21:50:47+03:00"
+}

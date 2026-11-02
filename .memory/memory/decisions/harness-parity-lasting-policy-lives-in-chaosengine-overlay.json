@@ -1,0 +1,30 @@
+{
+  "body_path": "memory/decisions/harness-parity-lasting-policy-lives-in-chaosengine-overlay.md",
+  "content_hash": "sha256:f97007e063149c21aa70585270fcab7193b22dde93f6b7dc3043411f276552b0",
+  "created_at": "2026-09-08T00:00:42+03:00",
+  "evidence": [
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5641",
+      "kind": "task"
+    },
+    {
+      "id": "ShaftHQ/SHAFT_ENGINE#5645",
+      "kind": "task"
+    }
+  ],
+  "id": "decision.harness-parity-lasting-policy-lives-in-chaosengine-overlay",
+  "source": {
+    "kind": "agent",
+    "task": "Learning Session catch-up for #5638 / CE self-improve and Flutter deliveries"
+  },
+  "status": "active",
+  "tags": [
+    "chaos-engine",
+    "harness-parity",
+    "learning-session",
+    "hooks"
+  ],
+  "title": "Harness parity: lasting policy lives in ChaosEngine overlay",
+  "type": "decision",
+  "updated_at": "2026-09-08T00:00:42+03:00"
+}
