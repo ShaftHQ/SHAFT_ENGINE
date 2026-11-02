@@ -78,6 +78,6 @@ visual or gate change is coming. It pairs with
 
 ## Sources
 
-- [FFmpeg framemd5 muxer](https://ffmpeg.org/ffmpeg-formats.html#framemd5)
+- [FFmpeg framemd5 muxer](https://github.com/FFmpeg/FFmpeg/blob/master/doc/muxers.texi)
 - [Martin Fowler: feature toggles](https://martinfowler.com/articles/feature-toggles.html)
 - Field lessons from one talk-Shorts batch.

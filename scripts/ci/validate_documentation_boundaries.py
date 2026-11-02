@@ -83,6 +83,8 @@ ALLOWED_EXACT = {
     "chaos-engine/INSTALL.md",
     "chaos-engine/identity.md",
     "chaos-engine/THIRD_PARTY_NOTICES.md",
+    # Internal mega-PR throughput lesson (agent ops); not a public product guide.
+    "scripts/ci/mega-pr-throughput-20261102.md",
 }
 ALLOWED_NESTED_READMES = {
     path for path in ALLOWED_EXACT

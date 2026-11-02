@@ -70,6 +70,18 @@ class WaiverReceipt:
     expires_at: datetime
 
 
+# Protected installer acceptance must stay inside the harness budget
+# (CI run 41444465079: 1200s wall / ~5600s sum_check when design modules
+# were duplicated here and in design-skills-contract). Keep this list
+# installer-focused; design cards live under design-skills-contract.
+MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES = 16
+PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED = frozenset(
+    {
+        "tests.scripts.test_ce_design_craft",
+        "tests.scripts.test_ce_design_lessons",
+    }
+)
+
 PROTECTED_IDS = frozenset(
     {
         "protected-security",
@@ -160,7 +172,18 @@ CHECKS = {
     "guidance-reachability-contract": Check(
         "guidance-reachability-contract",
         "guidance",
-        ("tests.scripts.test_agent_harness_reachability", "tests.scripts.test_agent_entry_reachability"),
+        (
+            "tests.scripts.test_agent_harness_reachability",
+            "tests.scripts.test_agent_entry_reachability",
+            "tests.scripts.test_ce_entry_coverage",
+            "tests.scripts.test_android_apk_select",
+            "tests.scripts.test_ios_ipa_acceptance",
+            "tests.scripts.test_flutter_preflight_retry",
+            "tests.scripts.test_merge_queue_awaiting_checks_heal",
+            "tests.scripts.test_ce_lessons_2026_11_02",
+            "tests.scripts.test_ce_lessons_repeat_failure_pdca",
+            "tests.scripts.test_harness_isolated_imports",
+        ),
     ),
     "plugin-contract": Check(
         "plugin-contract",
@@ -201,6 +224,10 @@ CHECKS = {
             "tests.scripts.test_repo_state_guard",
             # #6543: build wrappers stay executable; workflows call them via bash.
             "tests.scripts.test_wrapper_scripts_executable_6543",
+            "tests.scripts.test_pitest_argline_guard",
+            "tests.scripts.test_dependabot_auto_merge_workflow",
+            "tests.scripts.test_guard_split",
+            "tests.scripts.test_ce_addons",
         ),
     ),
     "setup-aggregator-contract": Check(
@@ -300,8 +327,6 @@ CHECKS = {
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_policy_overlay_repair",
-            "tests.scripts.test_ce_design_craft",
-            "tests.scripts.test_ce_design_lessons",
             "tests.scripts.test_learning_session_readme_7117",
             "tests.scripts.test_chaos_engine_dependencies",
             "tests.scripts.test_chaos_engine_java_pinned_fallback",
@@ -332,6 +357,7 @@ CHECKS = {
             "tests.scripts.test_publish_shaft_mcp_release_guard",
             "tests.scripts.test_validation_manifest_imports",
             "tests.scripts.test_code_quality_preflight",
+            "tests.scripts.test_mega_pr_throughput_gates",
             "tests.scripts.test_branded_installer_ce_standard",
         ),
     ),
@@ -569,10 +595,6 @@ CHECKS = {
             "tests.scripts.test_ce_design_batch3",
             "tests.scripts.test_ce_design_decks",
             "tests.scripts.test_ce_memory_abstraction_phase1",
-            "tests.scripts.test_dependabot_auto_merge_workflow",
-            "tests.scripts.test_harness_isolated_imports",
-            "tests.scripts.test_guard_split",
-            "tests.scripts.test_ce_addons",
             "tests.scripts.test_ce_design_craft",
         ),
     ),
@@ -836,6 +858,18 @@ SURFACE_PATTERNS = {
         "scripts/ci/no_push_guard.py",
         "scripts/ci/mobile_retro_live.py",
         "scripts/ci/mobile_retro_runtime.py",
+        "tests/scripts/test_ce_entry_coverage.py",
+        "tests/scripts/test_android_apk_select.py",
+        "tests/scripts/test_ios_ipa_acceptance.py",
+        "tests/scripts/test_flutter_preflight_retry.py",
+        "tests/scripts/test_merge_queue_awaiting_checks_heal.py",
+        "tests/scripts/test_ce_lessons_2026_11_02.py",
+        "tests/scripts/test_ce_lessons_repeat_failure_pdca.py",
+        "tests/scripts/test_harness_isolated_imports.py",
+        "chaos-engine/references/bot-entry.md",
+        "chaos-engine/always-loaded-budget.json",
+        ".agents/skills/README.md",
+
     ),
     "plugins": (
         "agent-plugins/*",
@@ -895,6 +929,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/conftest.py",
         "tests/scripts/repo_state_guard.py",
         "tests/scripts/test_repo_state_guard.py",
+        "tests/scripts/test_pitest_argline_guard.py",
+        "tests/scripts/test_dependabot_auto_merge_workflow.py",
+        "tests/scripts/test_guard_split.py",
+        "tests/scripts/test_ce_addons.py",
+
     ),
     "documentation": (
         "chaos-engine/README.md",
@@ -948,6 +987,9 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_workflow_template_sync.py",
         "tests/scripts/test_validation_manifest_imports.py",
         "tests/scripts/test_code_quality_preflight.py",
+        "tests/scripts/test_mega_pr_throughput_gates.py",
+        "scripts/ci/validate_pr_closing_keywords.py",
+        "scripts/ci/mega-pr-throughput-20261102.md",
         "tests/scripts/test_branded_installer_ce_standard.py",
     ),
     "token-economy": (
@@ -1210,6 +1252,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_design_decks.py",
         "tests/scripts/test_ce_memory_abstraction_phase1.py",
         "tests/scripts/test_dependabot_auto_merge_workflow.py",
+        "tests/scripts/test_pitest_argline_guard.py",
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (

@@ -2,7 +2,7 @@
 
 Learning science: Mayer, *Multimedia Learning* and the
 [Cambridge Handbook ch. 12](https://www.cambridge.org/core/books/abs/cambridge-handbook-of-multimedia-learning/principles-for-reducing-extraneous-processing-in-multimedia-learning-coherence-signaling-redundancy-spatial-contiguity-and-temporal-contiguity-principles/CD5B7AE1279A9AB81F8EEBB53DBEC86E),
-[NYU 12 principles](https://www.nyu.edu/content/dam/nyu/facultyResources/documents/ESMITS/12PrinciplesofMultimedia.pdf),
+[Mayer multimedia learning principles](https://en.wikipedia.org/wiki/Multimedia_learning),
 [cognitive load and slides](https://my.chartered.college/impact_article/using-cognitive-load-theory-to-improve-slideshow-presentations/).
 
 Slide structure: [assertion-evidence guidelines](https://www.writing.engr.psu.edu/guidelines_AE_slides.pdf),
@@ -16,7 +16,7 @@ Design and story: [Duarte glance test](https://www.duarte.com/resources/guides-t
 ABT framework (abtframework.com, certificate expired; cited by name),
 [MIT scientific storytelling](https://mitcommlab.mit.edu/cee/commkit/scientific-storytelling/).
 
-Technical content: [code on slides](http://chapeau.freevariable.com/2023/03/code-on-slides.html),
+Technical content: [code on slides](https://web.archive.org/web/20230315000000/http://chapeau.freevariable.com/2023/03/code-on-slides.html),
 [Storytelling with Data](https://www.storytellingwithdata.com/blog/is-your-point-clear),
 [Holman, slide design for developers](https://zachholman.com/posts/slide-design-for-developers/),
 [Hanselman, technical presentations](https://www.hanselman.com/blog/11-top-tips-for-a-successful-technical-presentation).

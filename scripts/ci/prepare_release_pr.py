@@ -15,7 +15,9 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
-RELEASE_VERSION = re.compile(r"(?P<major>\d+)\.(?P<quarter>[1-4])\.(?P<date>\d{8})")
+RELEASE_VERSION = re.compile(r"(?P<major>\d+)\.(?P<quarter>[1-4])\.(?P<date>\d{8})(?:\.(?P<hotfix>[1-9]\d*))?")
+# Owner rule (#7700): "today" is the Africa/Cairo calendar day; never cut a future-dated release.
+RELEASE_TIMEZONE = "Africa/Cairo"
 SHAFT_VERSION_PROPERTY = re.compile(r"(<shaft\.version>)[^<]+(</shaft\.version>)")
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone|snapshot)")
@@ -44,38 +46,85 @@ def root_version(root: Path = ROOT) -> str:
     return version
 
 
+def today_in_release_timezone(now: dt.datetime | None = None) -> dt.date:
+    """Return the Africa/Cairo calendar day used for release dating (#7700)."""
+    from zoneinfo import ZoneInfo
+
+    moment = now or dt.datetime.now(dt.timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=dt.timezone.utc)
+    return moment.astimezone(ZoneInfo(RELEASE_TIMEZONE)).date()
+
+
 def target_version(current_version: str, release_date: str) -> str:
+    """Return the next dated version; a second cut on the same day gets a ``.N`` hotfix suffix (#7700)."""
     current = RELEASE_VERSION.fullmatch(current_version)
     if not current:
         raise ValueError(f"current version is not a dated SHAFT release: {current_version!r}")
     date = dt.date.fromisoformat(release_date)
     quarter = ((date.month - 1) // 3) + 1
-    return f"{current.group('major')}.{quarter}.{date:%Y%m%d}"
+    base = f"{current.group('major')}.{quarter}.{date:%Y%m%d}"
+    if current.group("date") == f"{date:%Y%m%d}":
+        return f"{base}.{int(current.group('hotfix') or 0) + 1}"
+    return base
+
+
+def guard_not_future(release_date: str, *, today: dt.date | None = None) -> str:
+    """Refuse a release date after today in Africa/Cairo (#7700: never future-dated releases)."""
+    candidate = dt.date.fromisoformat(release_date)
+    limit = today or today_in_release_timezone()
+    if candidate > limit:
+        raise ValueError(
+            f"release date {candidate.isoformat()} is after today ({limit.isoformat()} {RELEASE_TIMEZONE}); "
+            "SHAFT never ships future-dated releases - cut a same-day .N hotfix instead"
+        )
+    return candidate.isoformat()
 
 
 def dry_run_release_date(current_version: str, candidate_date: str) -> str:
-    """Return ``candidate_date`` or, if it would not bump ``current_version``, the day after its date.
+    """Return the dry-run date: never after ``candidate_date`` (#7700).
 
-    The release-prep dry run uses "tomorrow" UTC; on a release PR that already
-    sets tomorrow's version that is not newer, so it must move one day past it.
+    Same-day re-cuts now resolve to a ``.N`` hotfix version instead of inventing
+    tomorrow's date, so the candidate date is used as-is.
     """
-    candidate = dt.date.fromisoformat(candidate_date)
-    if _version_key(target_version(current_version, candidate_date)) > _version_key(current_version):
-        return candidate.isoformat()
-    current_date = dt.datetime.strptime(str(_version_key(current_version)[2]), "%Y%m%d").date()
-    return (current_date + dt.timedelta(days=1)).isoformat()
+    return dt.date.fromisoformat(candidate_date).isoformat()
 
 
 def resolve_release_date(release_date: str, current_version: str, *, after_current: bool) -> str:
-    """Apply ``--after-current`` to the requested release date."""
+    """Apply ``--after-current`` (kept for compatibility; now a no-op that never moves the date forward)."""
     return dry_run_release_date(current_version, release_date) if after_current else release_date
 
 
+def _quarter_from_yyyymmdd(date_int: int) -> int:
+    """Calendar quarter 1-4 derived from a YYYYMMDD stamp."""
+    month = (date_int // 100) % 100
+    if not 1 <= month <= 12:
+        raise ValueError(f"invalid month in date stamp {date_int}")
+    return (month - 1) // 3 + 1
+
+
 def _version_key(version: str) -> tuple[int, int, int]:
+    """Comparable key (major, date, hotfix); quarter derived from the date.
+
+    Ordering by date (not the quarter field) keeps 10.4 → 10.1 year rollover
+    correct: ``10.4.20261231`` < ``10.1.20270101``.
+    """
     match = RELEASE_VERSION.fullmatch(version)
     if not match:
         raise ValueError(f"version is not a dated SHAFT release: {version!r}")
-    return int(match.group("major")), int(match.group("quarter")), int(match.group("date"))
+    date_int = int(match.group("date"))
+    declared = int(match.group("quarter"))
+    derived = _quarter_from_yyyymmdd(date_int)
+    if declared != derived:
+        raise ValueError(
+            f"SHAFT version {version!r} quarter {declared} does not match date "
+            f"(expected {derived})"
+        )
+    return (
+        int(match.group("major")),
+        date_int,
+        int(match.group("hotfix") or 0),
+    )
 
 
 def _semver_key(version: str) -> tuple[int, int, int]:
@@ -295,13 +344,13 @@ def main() -> int:
     parser.add_argument(
         "--after-current",
         action="store_true",
-        help="Dry runs only: if the date would not bump the current version, use the day after it",
+        help="Compatibility no-op: same-day re-cuts become .N hotfixes; the date never moves forward (#7700)",
     )
     args = parser.parse_args()
 
     try:
-        release_date = resolve_release_date(
-            args.release_date, root_version(args.root), after_current=args.after_current
+        release_date = guard_not_future(
+            resolve_release_date(args.release_date, root_version(args.root), after_current=args.after_current)
         )
         old_version, release_version, changed = prepare_release(args.root, release_date)
     except ValueError as error:

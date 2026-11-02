@@ -1,0 +1,4 @@
+interface:
+  display_name: "SHAFT iOS IPA Acceptance"
+  short_description: "Gate device IPAs before cloud upload"
+  default_prompt: "Use $shaft-ios-ipa-acceptance to gate this iOS IPA before upload."

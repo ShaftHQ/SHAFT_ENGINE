@@ -12,6 +12,10 @@ at it directly.
 **If you are an agent:** do not work from this file. It is a map, not the
 territory. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it.
 
+Coverage of rules, hooks, specialist skills, and CI/mobile tools is owned by
+[bot-entry Entry coverage](../../chaos-engine/references/bot-entry.md#entry-coverage-rules-skills-tools)
+and gated by `tests/scripts/test_ce_entry_coverage.py`.
+
 **If you are a contributor:** tell your coding agent to read
 `chaos-engine/skills/chaos-engine/SKILL.md` before it touches anything. Most agents
 find it on their own — see [Importing these skills](#importing-these-skills).
@@ -179,7 +183,7 @@ sends you there; the rest by
 - [CE rules 2026.10.31.8 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
 - [CE rules 2026.10.31.11 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
 - [CE rules 2026.10.31.12 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
-- [CE rules 2026.10.31.13 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
+- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.quarter.YYYYMMDD.n, #7702)](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
@@ -497,3 +501,35 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
 
 <!-- HARNESS-INDEX:END -->
+- [CE lessons 2026-11-02 SPEC](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer
+
+## Specialist skill inventory (entry coverage)
+
+Reachability gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory:
+[`shaft-skills/INVENTORY.md`](../../shaft-skills/INVENTORY.md).
+
+New mobile / hygiene specialists (also listed in the inventory):
+[shaft-mobile-env](../../shaft-skills/shaft-mobile-env/SKILL.md),
+[shaft-browserstack-native](../../shaft-skills/shaft-browserstack-native/SKILL.md),
+[shaft-ios-ipa-acceptance](../../shaft-skills/shaft-ios-ipa-acceptance/SKILL.md),
+[shaft-android-apk-select](../../shaft-skills/shaft-android-apk-select/SKILL.md),
+[shaft-docs-hygiene](../../shaft-skills/shaft-docs-hygiene/SKILL.md),
+[shaft-mobile-retest-hygiene](../../shaft-skills/shaft-mobile-retest-hygiene/SKILL.md).
+
+## Tool path routes (entry coverage)
+
+Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage.py`):
+[android_apk_select.py](../../scripts/mobile/android_apk_select.py),
+[ios_ipa_acceptance.py](../../scripts/mobile/ios_ipa_acceptance.py),
+[scripts/mobile/__init__.py](../../scripts/mobile/__init__.py),
+[merge_queue_awaiting_checks_heal.py](../../scripts/ci/merge_queue_awaiting_checks_heal.py),
+[ce_version.py](../../scripts/ci/ce_version.py),
+[flutter_emulator_preflight.sh](../../scripts/ci/flutter_emulator_preflight.sh),
+[run_ubuntu_flutter_emulator_e2e.sh](../../scripts/ci/run_ubuntu_flutter_emulator_e2e.sh),
+[lessons_2026_11_02.py](../../chaos-engine/rules/lessons_2026_11_02.py),
+[lessons_repeat_failure_pdca.py](../../chaos-engine/rules/lessons_repeat_failure_pdca.py),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/references/ce-repeat-failure-pdca-SPEC.md),
+[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/guides/ce-repeat-failure-pdca-SPEC.md),
+[repeat-failure-pdca.md](../../chaos-engine/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
+[ce-lessons-2026-11-02-SPEC.md](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md).
+

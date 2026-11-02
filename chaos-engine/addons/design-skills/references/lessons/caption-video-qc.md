@@ -98,4 +98,4 @@ and [L03](talk-edit-and-layers.md).
 ## Sources
 
 - Field lessons from one talk-Shorts batch, verified on rendered frames.
-- [FFmpeg select filter](https://ffmpeg.org/ffmpeg-filters.html#select_002c-aselect)
+- [FFmpeg select filter](https://github.com/FFmpeg/FFmpeg/blob/master/doc/filters.texi)

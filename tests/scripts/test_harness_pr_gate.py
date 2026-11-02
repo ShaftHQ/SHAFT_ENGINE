@@ -20,6 +20,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
 from scripts.ci.harness_pr_gate import (
     CHECKS,
+    MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES,
+    PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED,
     SURFACE_CHECKS,
     SURFACE_PATTERNS,
     UNGATED_TEST_ALLOWLIST,
@@ -205,6 +207,25 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("protected-rollback", protected)
         self.assertIn("tests.scripts.test_chaos_engine_bootstrap", plan.test_modules)
         self.assertIn("tests.scripts.test_chaos_engine_dependencies", plan.test_modules)
+
+    def test_protected_installer_acceptance_module_list_is_bounded(self) -> None:
+        """Design craft/lessons belong in design-skills-contract, not the protected suite.
+
+        CI run 41444465079 timed out the protected check (1200s budget, ~5600s
+        sum_check) while those modules were duplicated here.
+        """
+        check = CHECKS["protected-installer-acceptance"]
+        modules = set(check.modules)
+        self.assertLessEqual(
+            len(check.modules),
+            MAX_PROTECTED_INSTALLER_ACCEPTANCE_MODULES,
+            check.modules,
+        )
+        overlap = modules & PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED
+        self.assertFalse(overlap, overlap)
+        design = CHECKS["design-skills-contract"].modules
+        for excluded in PROTECTED_INSTALLER_ACCEPTANCE_EXCLUDED:
+            self.assertIn(excluded, design)
 
     def test_dependency_manifest_change_closes_readme_and_account_version_proofs(self) -> None:
         plan = classify_paths(["chaos-engine/dependencies.json"])

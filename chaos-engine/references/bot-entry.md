@@ -77,7 +77,11 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 [progress-log](progress-log.md) ([`progress_log.py`](../progress_log.py));
 [moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py));
 [doc-claim-review](doc-claim-review.md); [gate-fail-closed](gate-fail-closed.md).
-SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-2026-10-31-7-SPEC.md](ce-rules-2026-10-31-7-SPEC.md) (WoW + L66–L77); [ce-rules-2026-10-31-8-SPEC.md](ce-rules-2026-10-31-8-SPEC.md) (L78–L81 + dump/install harden; full under `guides/`); [ce-rules-2026-10-31-11-SPEC.md](ce-rules-2026-10-31-11-SPEC.md) (L94 installer self-provision; full under `guides/`); [ce-rules-2026-10-31-12-SPEC.md](ce-rules-2026-10-31-12-SPEC.md) (L82–L97 mega batch + Windows hook-field fix; full under `guides/`); [ce-rules-2026-10-31-13-SPEC.md](ce-rules-2026-10-31-13-SPEC.md) (L98+ retro; full under `guides/`).
+SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-2026-10-31-7-SPEC.md](ce-rules-2026-10-31-7-SPEC.md) (WoW + L66–L77); [ce-rules-2026-10-31-8-SPEC.md](ce-rules-2026-10-31-8-SPEC.md) (L78–L81 + dump/install harden; full under `guides/`); [ce-rules-2026-10-31-11-SPEC.md](ce-rules-2026-10-31-11-SPEC.md) (L94 installer self-provision; full under `guides/`); [ce-rules-2026-10-31-12-SPEC.md](ce-rules-2026-10-31-12-SPEC.md) (L82–L97 mega batch + Windows hook-field fix; full under `guides/`); [ce-rules-2026-10-31-13-SPEC.md](ce-rules-2026-10-31-13-SPEC.md) (L98+ retro; full under `guides/`); [ce-lessons-2026-11-02-SPEC.md](ce-lessons-2026-11-02-SPEC.md) (orchestrator/media/harness issue 7692–7721; full under `guides/`); [ce-repeat-failure-pdca-SPEC.md](ce-repeat-failure-pdca-SPEC.md).
+
+## Entry coverage (rules, skills, tools)
+
+Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [ChaosEngine skill](../skills/chaos-engine/SKILL.md), [harness map](harness-map.md), [README](../README.md). Host specialist + tool routes live in the harness entrypoint `.agents/skills/README.md` (markdown links, not tokens-only).
 
 ## Token economy
 
@@ -141,6 +145,16 @@ SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-
   6. **Freshly generated assets** (renders, encodes, contact sheets): checkpoint
      or commit them in the same turn they appear (L54).
 
+
+## Repeat-failure PDCA
+
+Two fails on one stage/gate, budget overrun, or distinct fails on one stage:
+**STOP** → note in `.chaos-engine-state/repeat-failure-pdca/` → one change →
+check. No fix-after-fail.
+[rule](../rules/lessons_repeat_failure_pdca.py) ·
+[card](details/ce-repeat-failure-pdca/repeat-failure-pdca.md) ·
+[SPEC](ce-repeat-failure-pdca-SPEC.md) ·
+[guides](../guides/ce-repeat-failure-pdca-SPEC.md).
 
 ## Delivery ledger
 

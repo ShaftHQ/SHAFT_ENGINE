@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MAP = "references/harness-map.md"
-WIDTH = 70
+WIDTH = 68
 SCOPES = (
     ("Core", ("identity.md",)),
     ("Companions", ("companions/*.md",)),
@@ -65,7 +65,7 @@ def summary(path: Path) -> str:
 def render(root: Path = HERE) -> str:
     rows = mapped_files(root)
     intro = (
-        "By [harness_map.py](../harness_map.py); `--check`."
+        "By [harness_map.py](../harness_map.py)."
     )
     out = ["# Harness map", "", intro, ""]
     group = None

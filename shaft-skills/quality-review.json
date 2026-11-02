@@ -6,7 +6,7 @@
   ],
   "context_budget": {
     "max_description_chars": 180,
-    "max_total_description_chars": 4800,
+    "max_total_description_chars": 5600,
     "max_skill_md_lines": 50
   },
   "skills": {
@@ -164,6 +164,38 @@
       "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
       "confusion_with": ["shaft-mobile-actions", "shaft-fluent-api"],
       "notes": "Browser navigation and interaction primitives are specific despite fluent API overlap."
+
+    },
+    "shaft-mobile-env": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
+      "confusion_with": ["shaft-test-environment", "shaft-browserstack-native"],
+      "notes": "Local JDK/Appium/SDK/emulator doctor loop is distinct from cloud BrowserStack setup."
+    },
+    "shaft-browserstack-native": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
+      "confusion_with": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"],
+      "notes": "App Automate secrets, device pins, and bs:// app ids bound cloud native runs."
+    },
+    "shaft-ios-ipa-acceptance": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 5},
+      "confusion_with": ["shaft-browserstack-native", "shaft-android-apk-select"],
+      "notes": "iphoneos Info.plist gate before upload is narrower than general BrowserStack config."
+    },
+    "shaft-android-apk-select": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 5},
+      "confusion_with": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"],
+      "notes": "ABI vs universal APK choice for emulator versus arm64 cloud is a crisp artifact decision."
+    },
+    "shaft-docs-hygiene": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 3, "context_cost": 4},
+      "confusion_with": ["shaft-test-completion", "shaft-stakeholder-reporting"],
+      "notes": "SoT trio, three-status vocabulary, and hours math are docs process, not cycle closure reports."
+    },
+    "shaft-mobile-retest-hygiene": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
+      "confusion_with": ["shaft-failure-analysis", "shaft-mobile-actions"],
+      "notes": "Map no-op triage, picker probes, and mixed-bytecode journals specialize mobile retest analysis."
     }
   }
 }
+

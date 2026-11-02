@@ -32,6 +32,7 @@ import re
 import shutil
 import subprocess  # nosec B404 - fixed git argv only.
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 MAX_COMPLEXITY = 15
@@ -242,26 +243,43 @@ def file_findings(path: Path, lines: set[int], display: str) -> list[str]:
     return findings
 
 
+def _findings_for_changed_file(
+    root: Path, name: str, lines: set[int], merge_base: str
+) -> list[str]:
+    """Findings for one changed path; safe to call from a worker thread."""
+    if name.replace("\\", "/").startswith("chaos-engine/vendor/"):
+        return []
+    path = root / name
+    if not path.is_file():
+        return []
+    if name.endswith(".java") and merge_base:
+        baseline = _git(root, "show", f"{merge_base}:{name}")
+        return java_findings(path, lines, name, baseline)
+    return file_findings(path, lines, name)
+
+
 def preflight_findings(root: Path, changed: dict[str, set[int]] | None = None,
                        base: str = "origin/main") -> list[str]:
+    """Scan changed Python/Java lines; parallelize per-file work when many files change."""
     diffed = changed is None
     changed = changed_python_lines(root, base) if diffed else changed
     merge_base = (_git(root, "merge-base", base, "HEAD") or "").strip() if diffed else ""
-    findings: list[str] = []
-    for name in sorted(changed):
-        # Upstream companion blobs must keep matching upstream. Restyling them
-        # to satisfy this gate would fork the pin.
-        if name.replace("\\", "/").startswith("chaos-engine/vendor/"):
-            continue
-        path = root / name
-        if not path.is_file():
-            continue
-        if name.endswith(".java") and merge_base:
-            baseline = _git(root, "show", f"{merge_base}:{name}")
-            findings.extend(java_findings(path, changed[name], name, baseline))
-        else:
-            findings.extend(file_findings(path, changed[name], name))
+    names = sorted(changed)
+    if len(names) < 4:
+        findings: list[str] = []
+        for name in names:
+            findings.extend(_findings_for_changed_file(root, name, changed[name], merge_base))
+        return findings
+    findings = []
+    with ThreadPoolExecutor(max_workers=min(8, len(names))) as pool:
+        futures = [
+            pool.submit(_findings_for_changed_file, root, name, changed[name], merge_base)
+            for name in names
+        ]
+        for future in futures:
+            findings.extend(future.result())
     return findings
+
 
 
 def main(argv: list[str] | None = None) -> int:

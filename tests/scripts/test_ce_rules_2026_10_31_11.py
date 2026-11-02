@@ -20,11 +20,21 @@ from tests.scripts.test_chaos_engine_installer import MODULE  # noqa: E402
 CE = Path(__file__).resolve().parents[2] / "chaos-engine"
 
 
+
+def _ce_key(value: str):
+    import importlib.util as _u
+    from pathlib import Path as _P
+
+    spec = _u.spec_from_file_location("ce_version", _P(__file__).resolve().parents[2] / "scripts/ci/ce_version.py")
+    mod = _u.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.version_key(value)
+
 class VersionFloorTest(TestCase):
     def test_version_at_least_2026_10_31_11(self) -> None:
         version = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        floor = tuple(int(p) for p in "2026.10.31.11".split("."))
-        self.assertGreaterEqual(tuple(int(p) for p in version.split(".")), floor)
+        floor = _ce_key("2026.10.31.11")
+        self.assertGreaterEqual(_ce_key(version), floor)
 
 
 class L94InstallerSelfProvisionTest(TestCase):

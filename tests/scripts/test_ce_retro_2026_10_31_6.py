@@ -34,6 +34,16 @@ def run_design(*argv: str) -> tuple[int, dict]:
     return proc.returncode, payload
 
 
+
+def _ce_key(value: str):
+    import importlib.util as _u
+    from pathlib import Path as _P
+
+    spec = _u.spec_from_file_location("ce_version", _P(__file__).resolve().parents[2] / "scripts/ci/ce_version.py")
+    mod = _u.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.version_key(value)
+
 class VersionBumpGateTest(unittest.TestCase):
     def test_requires_version_when_ce_changes(self) -> None:
         sys.path.insert(0, str(ROOT))
@@ -358,8 +368,8 @@ class DocAndCardPresenceTest(unittest.TestCase):
     def test_cards_and_docs(self) -> None:
         version = (ROOT / "chaos-engine/VERSION").read_text(encoding="utf-8").strip()
         # Soft floor: later CE rules PRs bump VERSION; keep .6 artifacts present.
-        floor = tuple(int(p) for p in "2026.10.31.6".split("."))
-        self.assertGreaterEqual(tuple(int(p) for p in version.split(".")), floor)
+        floor = _ce_key("2026.10.31.6")
+        self.assertGreaterEqual(_ce_key(version), floor)
         for rel in (
             "chaos-engine/references/radio-silence.md",
             "chaos-engine/references/gate-fail-closed.md",

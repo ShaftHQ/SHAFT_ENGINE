@@ -3,5 +3,9 @@
   "private": true,
   "dependencies": {
     "allure": "3.20.1"
+  },
+  "overrides": {
+    "glob": "14.0.3",
+    "minimatch": "11.0.1"
   }
 }

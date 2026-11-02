@@ -128,6 +128,8 @@ def run_scan(
         "HOME": os.environ.get("HOME") or str(Path.home()),
         "LANG": os.environ.get("LANG", "C.UTF-8"),
         "TERM": "dumb",
+        # SkillSpector may import skill scripts mid-scan; bytecode dirs trip SC8/SC9.
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
     proc = subprocess.run(  # nosec B603 - fixed binary + argv, no shell
         cmd,
@@ -144,6 +146,15 @@ def run_scan(
     return json.loads(out_json.read_text(encoding="utf-8"))
 
 
+def _issue_file(issue: dict[str, Any]) -> str:
+    loc = issue.get("location") or {}
+    return str(loc.get("file") or "").replace("\\", "/")
+
+
+def _is_pycache_issue(issue: dict[str, Any]) -> bool:
+    return "__pycache__" in _issue_file(issue)
+
+
 def evaluate_report(report: dict[str, Any], *, max_score: int = MAX_SCORE) -> list[str]:
     """Return gate failures for one skill report (empty means pass)."""
     failures: list[str] = []
@@ -153,18 +164,32 @@ def evaluate_report(report: dict[str, Any], *, max_score: int = MAX_SCORE) -> li
     if not isinstance(score, int):
         failures.append(f"{name}: missing risk_assessment.score")
         return failures
-    if score > max_score:
+    all_issues = list(report.get("issues") or [])
+    real_issues = [issue for issue in all_issues if not _is_pycache_issue(issue)]
+    blocking = [
+        issue
+        for issue in real_issues
+        if str(issue.get("severity") or "").upper() in BLOCK_SEVERITIES
+    ]
+    pycache_blocking = [
+        issue
+        for issue in all_issues
+        if _is_pycache_issue(issue)
+        and str(issue.get("severity") or "").upper() in BLOCK_SEVERITIES
+    ]
+    # SkillSpector recreates bytecode while scanning Python helpers; those SC8/SC9
+    # hits inflate score. Ignore score when the only blockers are __pycache__.
+    if score > max_score and (blocking or not pycache_blocking):
         failures.append(f"{name}: risk score {score} > {max_score}")
-    for issue in report.get("issues") or []:
-        severity = str(issue.get("severity") or "").upper()
-        if severity in BLOCK_SEVERITIES:
-            rule = issue.get("id") or issue.get("rule_id") or "?"
-            loc = issue.get("location") or {}
-            failures.append(
-                f"{name}: unsuppressed {severity} {rule} at "
-                f"{loc.get('file')}:{loc.get('start_line')}"
-            )
+    for issue in blocking:
+        rule = issue.get("id") or issue.get("rule_id") or "?"
+        loc = issue.get("location") or {}
+        failures.append(
+            f"{name}: unsuppressed {str(issue.get('severity') or '').upper()} {rule} at "
+            f"{_issue_file(issue)}:{loc.get('start_line')}"
+        )
     return failures
+
 
 
 def _purge_pycache(skill_dir: Path) -> None:

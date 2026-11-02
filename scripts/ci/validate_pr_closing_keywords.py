@@ -238,23 +238,134 @@ def git_show_diff(sha: str) -> str | None:
     return completed.stdout if completed.returncode == 0 else None
 
 
-def fetch_issue_labels(numbers: list[str]) -> dict[str, list[str]]:
-    """Return {number: label names} for the issues ``gh`` can read; fail open on any lookup problem (#6777)."""
-    repository = os.environ.get("GITHUB_REPOSITORY", "")
+GH_ISSUE_LABEL_TIMEOUT_SECONDS = 10
+GH_ISSUE_LABEL_WORKERS = 8
+
+
+def _github_owner_repo() -> tuple[str, str] | None:
+    """Parse owner/name from GITHUB_REPOSITORY or return None."""
+    repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if "/" not in repository:
+        return None
+    owner, _, name = repository.partition("/")
+    owner, name = owner.strip(), name.strip()
+    return (owner, name) if owner and name else None
+
+
+def _fetch_issue_labels_graphql(numbers: list[str]) -> dict[str, list[str]] | None:
+    """One GraphQL round-trip for every issue's labels; None means fall back."""
+    owner_repo = _github_owner_repo()
+    if not owner_repo or not numbers:
+        return None
+    owner, name = owner_repo
+    fields = []
+    for number in numbers:
+        if not str(number).isdigit():
+            return None
+        fields.append(
+            f"i{number}: issue(number: {number}) "
+            "{ number labels(first: 20) { nodes { name } } }"
+        )
+    # owner/name are GraphQL variables (not string-interpolated) so special
+    # characters in a fork name cannot break or inject into the query document.
+    query = (
+        "query($owner: String!, $name: String!) { "
+        f"repository(owner: $owner, name: $name) {{ {' '.join(fields)} }} }}"
+    )
+    try:
+        completed = subprocess.run(  # nosec B603 B607
+            [
+                "gh",
+                "api",
+                "graphql",
+                "-f",
+                f"query={query}",
+                "-F",
+                f"owner={owner}",
+                "-F",
+                f"name={name}",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GH_ISSUE_LABEL_TIMEOUT_SECONDS * 2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0 or not (completed.stdout or "").strip():
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+        repository = (payload.get("data") or {}).get("repository") or {}
+    except (TypeError, ValueError, AttributeError):
+        return None
+    if not isinstance(repository, dict):
+        return None
     labels: dict[str, list[str]] = {}
     for number in numbers:
-        command = ["gh", "issue", "view", number, "--json", "labels", "--jq", "[.labels[].name]"]
-        if repository:
-            command += ["--repo", repository]
-        try:
-            completed = subprocess.run(  # nosec B603 B607
-                command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, timeout=30
-            )
-            if completed.returncode == 0:
-                labels[number] = list(json.loads(completed.stdout or "[]"))
-        except (OSError, subprocess.SubprocessError, ValueError):
+        entry = repository.get(f"i{number}")
+        if not isinstance(entry, dict):
             continue
+        nodes = ((entry.get("labels") or {}).get("nodes")) or []
+        labels[number] = [str(node.get("name")) for node in nodes if isinstance(node, dict) and node.get("name")]
     return labels
+
+
+def _fetch_one_issue_labels(number: str, repository: str) -> tuple[str, list[str] | None]:
+    """Return (number, labels) or (number, None) when the lookup fails open."""
+    command = ["gh", "issue", "view", number, "--json", "labels", "--jq", "[.labels[].name]"]
+    if repository:
+        command += ["--repo", repository]
+    try:
+        completed = subprocess.run(  # nosec B603 B607
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GH_ISSUE_LABEL_TIMEOUT_SECONDS,
+        )
+        if completed.returncode == 0:
+            return number, list(json.loads(completed.stdout or "[]"))
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return number, None
+    return number, None
+
+
+def _fetch_issue_labels_parallel(numbers: list[str]) -> dict[str, list[str]]:
+    """Serial-safe parallel REST fallback when GraphQL is unavailable."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    labels: dict[str, list[str]] = {}
+    workers = min(GH_ISSUE_LABEL_WORKERS, max(1, len(numbers)))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_fetch_one_issue_labels, number, repository) for number in numbers]
+        for future in as_completed(futures):
+            try:
+                number, names = future.result()
+            except (OSError, subprocess.SubprocessError, ValueError):
+                continue
+            if names is not None:
+                labels[number] = names
+    return labels
+
+
+def fetch_issue_labels(numbers: list[str]) -> dict[str, list[str]]:
+    """Return {number: label names} for the issues ``gh`` can read; fail open on any lookup problem (#6777).
+
+    Empty ``numbers`` skips the network. Prefer one GraphQL round-trip; fall back
+    to parallel REST ``gh issue view`` calls with a short per-call timeout.
+    """
+    if not numbers:
+        return {}
+    batched = _fetch_issue_labels_graphql(numbers)
+    if batched is not None:
+        return batched
+    return _fetch_issue_labels_parallel(numbers)
 
 
 def closing_issue_numbers(body: str) -> list[str]:
@@ -377,7 +488,10 @@ def main() -> int:
     commits = parse_commits_json(commits_json)
     errors = find_negated_autocloses(body)
     errors.extend(find_negated_autocloses_in_commits(commits))
-    errors.extend(find_nightly_tracker_closes(body, fetch_issue_labels(closing_issue_numbers(body))))
+    closing_numbers = closing_issue_numbers(body)
+    # Skip the gh network round-trip entirely when the body has no closing keyword.
+    if closing_numbers:
+        errors.extend(find_nightly_tracker_closes(body, fetch_issue_labels(closing_numbers)))
     errors.extend(mindset_body_errors(body))
     # Advisory, never a gate. Three independent reasons, all measured (#4567):
     # a commit message is immutable once pushed and this repository blocks the
