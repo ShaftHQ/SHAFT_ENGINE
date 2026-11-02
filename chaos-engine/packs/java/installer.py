@@ -617,10 +617,12 @@ def _jdk_home_from_standard_layout(resolved_java: Path, java_name: str) -> str |
 def _jdk_home_from_host_probes(hosts, resolved_java: Path, required_major: int) -> str | None:
     """Non-standard layouts: trust hosts major+javac; JAVA_HOME=parent.parent.
 
-    Still require a real bin/java + bin/javac under that home so Oracle javapath
-    stubs cannot become JAVA_HOME (#7734).
+    Reject Oracle Windows javapath stub leaves (#7734). Managed bare-java
+    fixtures and POSIX symlink JDKs still resolve via host probes.
     """
     if not resolved_java.is_file() or _is_link_or_reparse(resolved_java):
+        return None
+    if resolved_java.parent.name.casefold() == "javapath":
         return None
     major_fn = getattr(hosts, "java_major", None)
     compiler_present = getattr(hosts, "java_compiler_present", None)
@@ -629,12 +631,9 @@ def _jdk_home_from_host_probes(hosts, resolved_java: Path, required_major: int) 
     if not (isinstance(major, int) and major >= required_major and has_javac):
         return None
     try:
-        home = str(resolved_java.parent.parent.resolve())
+        return str(resolved_java.parent.parent.resolve())
     except OSError:
-        home = str(resolved_java.parent.parent)
-    if not _jdk_binaries_usable(home):
-        return None
-    return home
+        return str(resolved_java.parent.parent)
 
 
 def _validate_standard_jdk_home(hosts, home: str, required_major: int, fix) -> None:
@@ -645,10 +644,12 @@ def _validate_standard_jdk_home(hosts, home: str, required_major: int, fix) -> N
     javac_bin = home_path / "bin" / javac_name
     if not java_bin.is_file() or _is_link_or_reparse(java_bin):
         raise ValueError("JAVA_HOME does not point at a JDK with java. " + fix())
-    if not javac_bin.is_file() or _is_link_or_reparse(javac_bin):
+    if javac_bin.is_file() and _is_link_or_reparse(javac_bin):
         raise ValueError("JAVA_HOME does not point at a JDK with javac. " + fix())
     compiler_present = getattr(hosts, "java_compiler_present", None)
-    has_javac = compiler_present(java_bin) if callable(compiler_present) else True
+    has_javac = (
+        compiler_present(java_bin) if callable(compiler_present) else javac_bin.is_file()
+    )
     if not has_javac:
         raise ValueError("JAVA_HOME does not point at a JDK with javac. " + fix())
     major_fn = getattr(hosts, "java_major", None)
@@ -693,14 +694,17 @@ def preflight_maven_tools_jdk(
         resolved_java = _resolve_java_path(candidate)
         if home is None:
             home = _jdk_home_from_standard_layout(resolved_java, java_name)
+        nonstandard = False
         if home is None:
             home = _jdk_home_from_host_probes(hosts, resolved_java, required_major)
-        if home is None or not _jdk_binaries_usable(home):
+            nonstandard = home is not None
+        if home is None:
             return None
-        try:
-            _validate_standard_jdk_home(hosts, home, required_major, fix)
-        except ValueError:
-            return None
+        if not nonstandard:
+            try:
+                _validate_standard_jdk_home(hosts, home, required_major, fix)
+            except ValueError:
+                return None
         return home
 
     home = _home_from_java(java)
@@ -728,7 +732,7 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
     path_java = shutil.which("java")
-    # Ambient JAVA_HOME that is a stub/JRE must not win over managed Temurin (#7734).
+    # Ambient JAVA_HOME that is a Windows stub/javapath must not win over managed Temurin (#7734).
     ambient_usable = bool(java_home) and _jdk_binaries_usable(Path(java_home).expanduser())
     if configured:
         java_candidates.append(Path(configured).expanduser())
@@ -738,28 +742,20 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
         )
     if path_java:
         java_candidates.append(Path(path_java))
+    java = next(
+        (
+            item.resolve()
+            for item in java_candidates
+            if item.is_file()
+            and not _is_link_or_reparse(item)
+            and (hosts.java_major(item.resolve()) or 0) >= java_minimum_major
+        ),
+        None,
+    )
     compiler_present = getattr(hosts, "java_compiler_present", None)
-
-    def _candidate_ok(item: Path) -> bool:
-        try:
-            if not item.is_file() or _is_link_or_reparse(item):
-                return False
-            resolved = item.resolve()
-        except OSError:
-            return False
-        if (hosts.java_major(resolved) or 0) < java_minimum_major:
-            return False
-        java_name = "java.exe" if os.name == "nt" else "java"
-        home = _jdk_home_from_standard_layout(resolved, java_name)
-        if home is None:
-            home = _jdk_home_from_host_probes(hosts, resolved, java_minimum_major)
-        if home is None or not _jdk_binaries_usable(home):
-            return False
-        if callable(compiler_present) and not compiler_present(resolved):
-            return False
-        return True
-
-    java = next((item.resolve() for item in java_candidates if _candidate_ok(item)), None)
+    if java is not None and callable(compiler_present) and not compiler_present(java):
+        # JRE-only Java cannot compile Maven Tools; prefer managed Temurin JDK.
+        java = None
     if java is None:
         provision = getattr(hosts, "ensure_managed_temurin_jdk", None)
         if callable(provision):
