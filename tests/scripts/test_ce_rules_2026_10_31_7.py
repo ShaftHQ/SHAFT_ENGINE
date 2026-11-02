@@ -418,10 +418,7 @@ class VersionPinFloorTest(unittest.TestCase):
 
     def test_floor_still_soft(self) -> None:
         floor = _ce_key("2026.10.31.5")
-        current = tuple(
-            int(p)
-            for p in (CE / "VERSION").read_text(encoding="utf-8").strip().split(".")
-        )
+        current = _ce_key((CE / "VERSION").read_text(encoding="utf-8").strip())
         self.assertGreaterEqual(current, floor)
 
 
