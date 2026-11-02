@@ -562,6 +562,8 @@ CHECKS = {
             "tests.scripts.test_ce_rules_2026_10_31_8",
             "tests.scripts.test_ce_maven_tools_java_preflight",
             "tests.scripts.test_ce_rules_2026_10_31_11",
+            "tests.scripts.test_ce_rules_2026_10_31_12",
+            "tests.scripts.test_ce_rules_2026_10_31_13",
             "tests.scripts.test_ce_retro_2026_10_31_5",
             "tests.scripts.test_ce_design_video_signoff_l39",
             "tests.scripts.test_ce_design_batch3",

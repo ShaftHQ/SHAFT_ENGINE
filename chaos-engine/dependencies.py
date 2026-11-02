@@ -1853,14 +1853,46 @@ def set_aside_mempalace_index(project: Path) -> Path | None:
     palace = mempalace_project_palace(project)
     present = [palace / name for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal",
                                           "sqlite_exact.sqlite3-shm", ".mined")
-               if (palace / name).is_file()]
+               if (palace / name).is_file() or (
+                   name == ".mined" and (palace / name).is_dir()
+               )]
     if not present:
+        # L84: never leave empty previous-* dirs from a prior aborted repair.
+        _remove_empty_mempalace_previous(palace.parent)
         return None
     aside = palace.with_name(f"{palace.name}.previous-{time.strftime('%Y%m%d%H%M%S')}")
     aside.mkdir(parents=True, exist_ok=False)
     for path in present:
-        path.replace(aside / path.name)
+        dest = aside / path.name
+        path.replace(dest)
+    # L84: if move left the aside empty, remove it; also prune other empty previous-* dirs.
+    try:
+        if aside.is_dir() and not any(aside.iterdir()):
+            aside.rmdir()
+            aside = None
+    except OSError:
+        # Best-effort cleanup; a busy aside must not fail the full mine.
+        pass
+    _remove_empty_mempalace_previous(palace.parent)
     return aside
+
+
+def _remove_empty_mempalace_previous(parent: Path) -> list[str]:
+    """L84: delete empty mempalace.previous-* directories left by aborted repair."""
+    removed: list[str] = []
+    if not parent.is_dir():
+        return removed
+    for child in list(parent.iterdir()):
+        if not child.is_dir() or not child.name.startswith("mempalace.previous-"):
+            continue
+        try:
+            if not any(child.iterdir()):
+                child.rmdir()
+                removed.append(child.name)
+        except OSError:
+            # Skip unreadable previous-* dirs; doctor will still flag leftovers.
+            continue
+    return removed
 
 
 def apply_nested_repository_excludes(project: Path) -> list[str]:

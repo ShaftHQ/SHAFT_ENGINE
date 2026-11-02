@@ -1,4 +1,4 @@
-# CI status economy (babysit, digest, one channel)
+# CI status economy
 
 Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
 

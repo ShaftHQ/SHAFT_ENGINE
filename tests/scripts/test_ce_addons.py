@@ -708,8 +708,20 @@ class DesignLessonTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             script = self.write(temporary, "s.txt", "Codex installs the core")
             heard = self.write(temporary, "h.txt", "codecs installs the core")
+            tokens = self.write(temporary, "tok.txt", "Codex installs the core")
+            # Missing tokens/language_id must fail closed (L93).
             self.assertEqual(1, self.run_qc("tts", script, heard)[0])
-            code, payload = self.run_qc("tts", script, heard, "--fold", "codecs=codex")
+            self.assertEqual(
+                1,
+                self.run_qc(
+                    "tts", script, heard, "--fold", "codecs=codex",
+                    "--tokens", tokens,
+                )[0],
+            )
+            code, payload = self.run_qc(
+                "tts", script, heard, "--fold", "codecs=codex",
+                "--tokens", tokens, "--language-id", "en",
+            )
             self.assertEqual((0, 0.0, 0.25), (code, payload["wer"], payload["raw_wer"]))
 
     def test_static_spans_ignore_change_and_honour_allow(self):

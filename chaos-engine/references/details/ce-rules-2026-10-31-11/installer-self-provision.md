@@ -17,3 +17,8 @@ Fail only when auto-provision is truly unfixable (download/verify impossible).
 
 Diagnostics (cause, fix-next, filesystem, status/doctor) stay in the handoff
 and issue form — never dumped as extra stderr noise to the user.
+
+## L95 residuals
+
+POSIX user env persists via ChaosEngine user-data `env.sh` only (no shell-profile
+rewrite). See [installer-posix-env](../ce-rules-2026-10-31-12/installer-posix-env.md).

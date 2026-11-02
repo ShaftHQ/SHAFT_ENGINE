@@ -268,11 +268,14 @@ class CopilotRepositoryHookTest(unittest.TestCase):
             self.skipTest("a shell is required")
 
     def _run(self, shell: str, payload: dict[str, object], temporary: str) -> subprocess.CompletedProcess[str]:
-        command = HOSTS.copilot_launcher_command("preToolUse")
-        if Path(shell).stem == "sh":
-            command = HOSTS.chaos_guard_locator_command(
-                windows=False, host="copilot", event="PreToolUse"
-            )
+        # #7678: Copilot document has separate bash/powershell fields. Drive the
+        # matching field for the shell under test — never feed the Unix `&&`
+        # launcher to Windows PowerShell (parse error on 5.1; wrong fail path on 7).
+        stem = Path(shell).stem.lower()
+        windows = stem not in {"sh", "bash", "dash", "zsh"}
+        command = HOSTS.chaos_guard_locator_command(
+            windows=windows, host="copilot", event="PreToolUse"
+        )
         environment = _env(temporary)
         environment.pop("CLAUDE_PROJECT_DIR", None)
         _seed_launch(Path(temporary))

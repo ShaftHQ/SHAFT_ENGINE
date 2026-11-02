@@ -178,6 +178,8 @@ sends you there; the rest by
 - [CE rules 2026.10.31.7 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-7-SPEC.md): WoW + memory dump + L66–L77 pointer
 - [CE rules 2026.10.31.8 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
 - [CE rules 2026.10.31.11 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
+- [CE rules 2026.10.31.12 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
+- [CE rules 2026.10.31.13 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized

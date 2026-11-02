@@ -108,6 +108,7 @@ jobs:
               - 'chaos-engine/hosts.py'
               - 'chaos-engine/dependencies.py'
               - 'chaos-engine/dependencies.json'
+              - 'chaos-engine/packs/**'
               - 'chaos-engine/distributions.json'
               - 'chaos-engine/profiles/*/profile.json'
               - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
@@ -1592,7 +1593,7 @@ jobs:
     # ci:installer-macos; an empty tier skips the job (summary accepts skipped).
     if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:

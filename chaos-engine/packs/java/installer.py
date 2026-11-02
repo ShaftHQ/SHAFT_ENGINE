@@ -480,12 +480,22 @@ def _persist_windows_user_jdk(java_home: str, bin_dir: str) -> None:
 
 
 def _persist_posix_user_jdk(java_home: str, bin_dir: str) -> None:
+    """
+    Persist JDK env for POSIX users via ChaosEngine user-data ``env.sh`` (L95).
+
+    Matches ``dependencies.publish_user_tool_paths``: we do **not** rewrite
+    ``~/.profile`` / ``bashrc`` / ``zshrc``. New shells source the file when
+    doctor/status print the `source <env.sh>` hint, or the user adds that one
+    line themselves.
+    """
     root = _chaos_user_data_dir()
     try:
         root.mkdir(parents=True, exist_ok=True)
         env_file = root / "env.sh"
         env_file.write_text(
-            "# Managed by ChaosEngine installer (L94). Do not put secrets here.\n"
+            "# Managed by ChaosEngine installer (L94/L95). Do not put secrets here.\n"
+            "# Source from your shell profile if you want this JDK outside CE sessions:\n"
+            f"#   source {env_file}\n"
             f'export JAVA_HOME="{java_home}"\n'
             f'export PATH="{bin_dir}:$PATH"\n',
             encoding="utf-8",
@@ -606,7 +616,6 @@ def preflight_maven_tools_jdk(
     java: Path,
     *,
     required_major: int,
-    wrapper: Path | None = None,
     specification: dict[str, object] | None = None,
     opener=None,
     reporter=None,
@@ -616,15 +625,11 @@ def preflight_maven_tools_jdk(
     Validate the JDK home used for Maven Tools before `mvn package`.
 
     When the candidate is unusable, auto-provision managed Temurin (L94) and
-    re-validate. Wrapper absence is handled by ``resolve_maven_tools_build_cli``.
+    re-validate. Wrapper / Maven CLI resolution is
+    ``resolve_maven_tools_build_cli`` (L95: no dead wrapper soft-pass here).
     Returns the usable JAVA_HOME string.
     """
     fix = lambda: maven_tools_unfixable_fix_next(required_major=required_major)
-    # Wrapper check kept for callers that still pass it; prefer managed Maven fallback.
-    if wrapper is not None and not wrapper.is_file():
-        # Soft signal only when caller has not yet resolved a CLI; build path
-        # uses resolve_maven_tools_build_cli instead of failing here.
-        pass
     java_name = "java.exe" if os.name == "nt" else "java"
 
     def _home_from_java(candidate: Path) -> str | None:

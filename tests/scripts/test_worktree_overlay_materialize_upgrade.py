@@ -72,6 +72,32 @@ class MaterializeUpgradeTest(unittest.TestCase):
             with self.assertRaises(overlay.OverlayLocalEditError):
                 overlay.materialize(primary, session)
 
+
+    def test_l92_version_mismatch_after_upgrade_fails(self) -> None:
+        overlay = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            primary = base / "primary"
+            session = base / "session"
+            router = primary / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            router.parent.mkdir(parents=True)
+            router.write_text("v1\n", encoding="utf-8")
+            (primary / ".chaos-engine/hooks").mkdir(parents=True)
+            (primary / ".chaos-engine/hooks/guard.py").write_text("# g\n", encoding="utf-8")
+            (primary / ".chaos-engine/VERSION").write_text("2026.10.31.11\n", encoding="utf-8")
+            overlay.materialize(primary, session)
+            (primary / ".chaos-engine/VERSION").write_text("2026.10.31.12\n", encoding="utf-8")
+            real_sync = overlay._sync_file
+
+            def skip_version(src, dest, **kwargs):
+                if Path(dest).name == "VERSION":
+                    return None
+                return real_sync(src, dest, **kwargs)
+
+            overlay._sync_file = skip_version  # type: ignore[method-assign]
+            with self.assertRaisesRegex(overlay.OverlayLocalEditError, "L92 CE VERSION mismatch"):
+                overlay.materialize(primary, session)
+
     def test_timing_budget_constant_documented(self) -> None:
         overlay = load()
         self.assertLessEqual(overlay.MATERIALIZE_BUDGET_S_PER_WORKTREE, 5.0)

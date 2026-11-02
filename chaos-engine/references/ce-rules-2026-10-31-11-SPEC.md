@@ -1,4 +1,4 @@
-# CE .31.11 L94 (pointer)
+# CE .31.11
 
 Full SPEC + cards: [guides/ce-rules-2026-10-31-11-SPEC.md](../guides/ce-rules-2026-10-31-11-SPEC.md).
 

@@ -17,6 +17,7 @@ Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?label=maven%20central&color=0969da)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
 [![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE?label=coverage&logo=codecov)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
+[![SkillSpector](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/skillspector.yml?branch=main&label=skillspector)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/skillspector.yml)
 
 [![GitHub stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=flat&label=stars)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
 
