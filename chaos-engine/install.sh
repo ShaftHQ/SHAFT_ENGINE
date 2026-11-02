@@ -168,7 +168,7 @@ assert_maven_tools_jdk_preflight() {
   if [ -n "$managed" ]; then
     export JAVA_HOME="$managed"
     export PATH="$managed/bin:$PATH"
-    echo "ChaosEngine: ambient JAVA_HOME was not a JDK (no bin/javac); using managed JDK at $managed for this install." >&2
+    echo "ChaosEngine: ambient JAVA_HOME was not a usable JDK (missing javac or */javapath stub); using managed JDK at $managed for this install." >&2
     return 0
   fi
   fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."

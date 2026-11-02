@@ -256,6 +256,9 @@ class MavenToolsJavaPreflightTest(TestCase):
             (javapath / ("java.exe" if os.name == "nt" else "java")).write_text(
                 "stub\n", encoding="utf-8"
             )
+            # Assert against the javapath home itself (missing javac) and, when a
+            # symlink stub can be built, the Windows-only reparse/symlink gate.
+            self.assertFalse(MODULE._jdk_binaries_usable(javapath))
             self.assertFalse(MODULE._jdk_binaries_usable(stub))
             hosts = SimpleNamespace(
                 java_major=lambda path: 25,

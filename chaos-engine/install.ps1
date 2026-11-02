@@ -104,7 +104,7 @@ function Assert-ChaosEngineMavenToolsJdkPreflight {
     if (-not [string]::IsNullOrWhiteSpace($managed)) {
         $env:JAVA_HOME = $managed
         $env:Path = (Join-Path $managed "bin") + ";" + $env:Path
-        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME='$jdkHome' is not a JDK (no bin\javac.exe); using managed JDK at $managed for this install.")
+        [Console]::Error.WriteLine("ChaosEngine: JAVA_HOME='$jdkHome' is not a usable JDK (missing javac or Oracle javapath/reparse stub); using managed JDK at $managed for this install.")
         return
     }
     throw "CE-INSTALL-FAILED: JAVA_HOME='$jdkHome' is not a JDK with bin\java.exe and bin\javac.exe. fix-next: `$jdk='<Adoptium-JDK-25-home>'; [Environment]::SetEnvironmentVariable('JAVA_HOME',$jdk,'User'); `$env:JAVA_HOME=$jdk; `$p=[Environment]::GetEnvironmentVariable('Path','User'); if (`$p -notlike ('*'+$jdk+'\bin*')) { [Environment]::SetEnvironmentVariable('Path', (`$p.TrimEnd(';')+';'+$jdk+'\bin'),'User') }; open a new PowerShell; verify echo `$env:JAVA_HOME; java -version; javac -version; rerun install."
