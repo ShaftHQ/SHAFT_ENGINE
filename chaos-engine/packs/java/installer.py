@@ -68,6 +68,9 @@ __all__ = (
     "apply_jdk_environment",
     "resolve_maven_tools_build_cli",
     "_resolve_java_path",
+    "_is_link_or_reparse",
+    "_is_windows_stub_binary",
+    "_jdk_binaries_usable",
     "_jdk_home_from_standard_layout",
     "_jdk_home_from_host_probes",
     "_validate_standard_jdk_home",
@@ -553,6 +556,46 @@ def resolve_maven_tools_build_cli(
     )
 
 
+def _is_windows_stub_binary(path: Path) -> bool:
+    """True for Windows Oracle javapath-style stub/reparse binaries (#7734).
+
+    POSIX Homebrew/alternatives layouts use ordinary symlinks to real JDK
+    binaries; those must remain usable. Only Windows reparse/symlink stubs are
+    rejected here.
+    """
+    if os.name != "nt":
+        return False
+    if path.is_symlink():
+        return True
+    try:
+        attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+    except FileNotFoundError:
+        return False
+    # FILE_ATTRIBUTE_REPARSE_POINT
+    return bool(attributes & 0x400)
+
+
+# Backward-compatible alias used by older call sites / tests.
+_is_link_or_reparse = _is_windows_stub_binary
+
+
+def _jdk_binaries_usable(home: str | Path) -> bool:
+    """True when home/bin has java+javac; reject Windows stub/reparse (#7734)."""
+    home_path = Path(home)
+    java_name = "java.exe" if os.name == "nt" else "java"
+    javac_name = "javac.exe" if os.name == "nt" else "javac"
+    java_bin = home_path / "bin" / java_name
+    javac_bin = home_path / "bin" / javac_name
+    try:
+        if not java_bin.is_file() or not javac_bin.is_file():
+            return False
+        if _is_link_or_reparse(java_bin) or _is_link_or_reparse(javac_bin):
+            return False
+    except OSError:
+        return False
+    return True
+
+
 def _resolve_java_path(java: Path) -> Path:
     try:
         return Path(java).resolve()
@@ -572,8 +615,14 @@ def _jdk_home_from_standard_layout(resolved_java: Path, java_name: str) -> str |
 
 
 def _jdk_home_from_host_probes(hosts, resolved_java: Path, required_major: int) -> str | None:
-    """Non-standard layouts: trust hosts major+javac; JAVA_HOME=parent.parent."""
-    if not resolved_java.is_file():
+    """Non-standard layouts: trust hosts major+javac; JAVA_HOME=parent.parent.
+
+    Reject Oracle Windows javapath stub leaves (#7734). Managed bare-java
+    fixtures and POSIX symlink JDKs still resolve via host probes.
+    """
+    if not resolved_java.is_file() or _is_link_or_reparse(resolved_java):
+        return None
+    if resolved_java.parent.name.casefold() == "javapath":
         return None
     major_fn = getattr(hosts, "java_major", None)
     compiler_present = getattr(hosts, "java_compiler_present", None)
@@ -593,8 +642,10 @@ def _validate_standard_jdk_home(hosts, home: str, required_major: int, fix) -> N
     home_path = Path(home)
     java_bin = home_path / "bin" / java_name
     javac_bin = home_path / "bin" / javac_name
-    if not java_bin.is_file():
+    if not java_bin.is_file() or _is_link_or_reparse(java_bin):
         raise ValueError("JAVA_HOME does not point at a JDK with java. " + fix())
+    if javac_bin.is_file() and _is_link_or_reparse(javac_bin):
+        raise ValueError("JAVA_HOME does not point at a JDK with javac. " + fix())
     compiler_present = getattr(hosts, "java_compiler_present", None)
     has_javac = (
         compiler_present(java_bin) if callable(compiler_present) else javac_bin.is_file()
@@ -681,10 +732,14 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
     configured = os.environ.get("CHAOSENGINE_JAVA")
     java_home = os.environ.get("JAVA_HOME")
     path_java = shutil.which("java")
+    # Ambient JAVA_HOME that is a Windows stub/javapath must not win over managed Temurin (#7734).
+    ambient_usable = bool(java_home) and _jdk_binaries_usable(Path(java_home).expanduser())
     if configured:
         java_candidates.append(Path(configured).expanduser())
-    if java_home:
-        java_candidates.append(Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java"))
+    if ambient_usable:
+        java_candidates.append(
+            Path(java_home).expanduser() / "bin" / ("java.exe" if os.name == "nt" else "java")
+        )
     if path_java:
         java_candidates.append(Path(path_java))
     java = next(
@@ -692,6 +747,7 @@ def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer
             item.resolve()
             for item in java_candidates
             if item.is_file()
+            and not _is_link_or_reparse(item)
             and (hosts.java_major(item.resolve()) or 0) >= java_minimum_major
         ),
         None,
@@ -782,14 +838,32 @@ def _build_and_publish_maven_tools(
                 timeout=900,
             )
         except subprocess.CalledProcessError as error:
-            detail = ((error.stderr or error.stdout or "") + " " + str(error)).casefold()
-            if "environment variable" in detail or "java_home" in detail:
-                raise ValueError(
-                    "Maven Tools build failed because JAVA_HOME is missing or unusable "
-                    "after auto-provision. "
+            maven_out = ((error.stderr or "") + chr(10) + (error.stdout or "")).strip()
+            detail_cf = maven_out.casefold()
+            # Opaque empty Maven logs are the Windows stub/JAVA_HOME failure mode (#7734).
+            # Non-JDK build failures (compile/deps/network) keep CalledProcessError.
+            java_home_related = (
+                not maven_out
+                or "environment variable" in detail_cf
+                or "java_home" in detail_cf
+            )
+            if not java_home_related:
+                raise
+            tail = (
+                chr(10).join(maven_out.splitlines()[-30:])
+                if maven_out
+                else "(no maven output captured)"
+            )
+            raise ValueError(
+                (
+                    f"Maven Tools build failed (exit {error.returncode}) with "
+                    f"JAVA_HOME={java_home!r}. Last output:"
+                    + chr(10)
+                    + tail
+                    + chr(10)
                     + maven_tools_unfixable_fix_next(required_major=required_major)
-                ) from error
-            raise
+                )
+            ) from error
         built = source / f"target/maven-tools-mcp-{version}.jar"
         if not built.is_file() or built.stat().st_size == 0:
             raise ValueError("Maven Tools build did not produce the pinned JAR")

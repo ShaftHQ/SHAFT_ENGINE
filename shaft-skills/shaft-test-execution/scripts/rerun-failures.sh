@@ -52,13 +52,19 @@ for suite in "${SUITES[@]}"; do
   green=0
   for attempt in $(seq 1 "$ATTEMPTS"); do
     if [ "$attempt" -gt 1 ]; then
-      # #7495: stop rebuild when last log is a backend-gated Blocked signature
+      # #7495: stop rebuild when last log is a backend-gated Blocked signature.
+      # Resolve mobile_retro from the git root when present; skip when unavailable
+      # (consumer projects / unit stubs without scripts/ci).
       last_log="target/attempts/$(basename "$suite" .xml)-$((attempt-1)).log"
       if [ -f "$last_log" ]; then
         sig=$(tr '\n' ' ' <"$last_log" | head -c 4000)
-        if ! python3 scripts/ci/mobile_retro_runtime.py classify-before-rebuild --signature "$sig"; then
-          echo "$suite rebuild stopped: backend Blocked (see $last_log)"
-          exit 2
+        repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+        mobile_retro="${repo_root:+$repo_root/}scripts/ci/mobile_retro_runtime.py"
+        if [ -n "$repo_root" ] && [ -f "$mobile_retro" ]; then
+          if ! python3 "$mobile_retro" classify-before-rebuild --signature "$sig"; then
+            echo "$suite rebuild stopped: backend Blocked (see $last_log)"
+            exit 2
+          fi
         fi
       fi
     fi
@@ -76,7 +82,11 @@ for suite in "${SUITES[@]}"; do
     if [ "$bad" = 0 ]; then
       green=1
       # #7494: freeze green allure-results snapshot
-      python3 scripts/ci/mobile_retro_runtime.py after-green-allure --results allure-results --green || true
+      repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+      mobile_retro="${repo_root:+$repo_root/}scripts/ci/mobile_retro_runtime.py"
+      if [ -n "$repo_root" ] && [ -f "$mobile_retro" ]; then
+        python3 "$mobile_retro" after-green-allure --results allure-results --green || true
+      fi
       break
     fi
   done

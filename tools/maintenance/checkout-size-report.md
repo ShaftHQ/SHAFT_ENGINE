@@ -1,6 +1,6 @@
 # SHAFT_ENGINE checkout size report
 
-_Measured 2026-11-02 08:53 EET (Africa/Cairo) on commit `f2e7c9857`._
+_Measured 2026-11-02 17:46 EET (Africa/Cairo) on commit `2f8118ad4ca` (post-#7731 main tip)._
 
 Issue: [#7547](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7547).
 This report is measurement-only. **No history rewrite** was performed.
@@ -11,16 +11,15 @@ This report is measurement-only. **No history rewrite** was performed.
 | --- | --- |
 | Shared object DB (`git rev-parse --git-common-dir`) | `/workspace/SHAFT_ENGINE-main/.git` |
 | Shared `.git` on disk | 1.3G |
-| This worktree (excluding `.git`) | 86M |
-| `git count-objects` `count` | 1311 |
-| `git count-objects` `size` | 8.64 MiB |
+| This worktree (tracked-ish tree, excluding `.git` / runtime overlays) | ~45M |
+| `git count-objects` `count` | 1872 |
+| `git count-objects` `size` | 11.95 MiB |
 | `git count-objects` `size-pack` | 394.34 MiB |
-| `git count-objects` `prune-packable` | 45 |
+| `git count-objects` `prune-packable` | 47 |
 | `git count-objects` `garbage` | 1 |
 | `git count-objects` `size-garbage` | 4.00 KiB |
 
 ## Largest blobs still reachable in history
-
 
 | Size (MiB) | Object | Path (at some revision) |
 | ---: | --- | --- |
@@ -45,9 +44,24 @@ This report is measurement-only. **No history rewrite** was performed.
 | 23.73 | `fff67a316f76` | `graphify-out/graph.json` |
 | 23.65 | `f2a8c5d99e59` | `graphify-out/graph.json` |
 
+## Options (non-destructive defaults first)
+
+| Option | Approx. size impact | Effort | Breakage risk | Recommendation |
+| --- | ---: | --- | --- | --- |
+| Partial clone (`git clone --filter=blob:none`) + shared worktrees | Avoids downloading historical blobs until needed; pack still shared | Low | Low (agents already use blobless + worktrees) | **Default on shared boxes** |
+| Keep `graphify-out/` and runtime indexes outside the checkout / untracked | Stops new graph.json blobs from landing in history | Low | Low if CI already generates on demand | **Default**; already in bot-entry |
+| Externalize large test apps (ipa/apk) behind LFS or download-on-demand | ~100 MiB of the top three blobs | Medium | Medium (tests need fetch step) | Plan next; no rewrite |
+| `git filter-repo` / BFG history rewrite | Pack could drop well below 400 MiB | High | High (force-push, forks, SHAs) | **Blocked** until Mohab signs off |
+
+## Recommended next step
+
+1. Keep measuring after each mega PR (this file).
+2. Do **not** rewrite history in this PR.
+3. When Mohab approves a non-destructive plan that fully satisfies #7547 (or an approved rewrite), close the issue with that plan. Until then leave #7547 open and link this report.
+
 ## Notes
 
 - Sizes come from `git count-objects -vH` and `git rev-list --objects --all` piped through `git cat-file --batch-check`.
 - This checkout is a linked worktree; pack size is measured on the shared object database, not the per-worktree `.git` private dir.
 - Paths are the name recorded with the blob at some reachable commit; they may no longer exist on `HEAD`.
-- Reducing checkout size further would require a history rewrite (filter-repo / BFGs). That remains out of scope until the owner explicitly approves a rewrite plan that preserves contributor attribution.
+- Reducing checkout size further via rewrite remains out of scope until the owner explicitly approves a rewrite plan that preserves contributor attribution.

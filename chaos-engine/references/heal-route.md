@@ -44,3 +44,20 @@ already uses `GITHUB_TOKEN`, `GH_TOKEN`, or a signed-in `gh`; otherwise run
 
 - Auto-merge skill mutations
 - Pretending exit-2 hard-blocks on GAP-EXIT2 hosts (see host-parity checklist)
+
+## Distribution id mismatch
+
+When doctor/install refuses because the on-disk distribution id does not match
+the source you are installing from: **uninstall the portable overlay, then
+install** from the matching `--source` / commit. Do not re-run the bootstrap
+one-liner over a broken or foreign install (INSTALL.md; bot-entry repair
+order).
+
+## Session overlay vs primary doctor
+
+`worktree_overlay.py upgrade-session` can write session-local tools/mempalace
+that still report `recovery-required` while the **primary** checkout doctor
+passes. Use the primary for install health; repair session components with
+`install.py repair --project <session-wt> --component <id>`. Do not treat a
+session overlay doctor failure as proof the primary install is broken.
+

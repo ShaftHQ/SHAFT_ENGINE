@@ -990,6 +990,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_mega_pr_throughput_gates.py",
         "scripts/ci/validate_pr_closing_keywords.py",
         "scripts/ci/mega-pr-throughput-20261102.md",
+        "scripts/ci/mega-pr-throughput-20261102b.md",
         "tests/scripts/test_branded_installer_ce_standard.py",
     ),
     "token-economy": (

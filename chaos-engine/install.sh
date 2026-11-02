@@ -113,25 +113,65 @@ for argument in "$@"; do
 done
 
 
+find_chaos_engine_managed_jdk_home() {
+  # Prefer an already-provisioned managed JDK when ambient JAVA_HOME is unusable (#7734).
+  roots=
+  if [ -n "${HOME:-}" ]; then
+    roots="$roots ${HOME}/.local/share/chaos-engine/java"
+  fi
+  if [ -n "${XDG_DATA_HOME:-}" ]; then
+    roots="$roots ${XDG_DATA_HOME}/ChaosEngine/tools/temurin"
+  elif [ -n "${HOME:-}" ]; then
+    roots="$roots ${HOME}/.local/share/ChaosEngine/tools/temurin"
+  fi
+  for root in $roots; do
+    [ -d "$root" ] || continue
+    # Avoid word-splitting ls output; newest-first via find -printf when available.
+    while IFS= read -r candidate; do
+      [ -d "$candidate" ] || continue
+      if [ -x "$candidate/bin/java" ] && [ -x "$candidate/bin/javac" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done <<EOF
+$(find "$root" -mindepth 1 -maxdepth 2 -type d 2>/dev/null | sort -r)
+EOF
+  done
+  return 1
+}
+
 assert_maven_tools_jdk_preflight() {
-  # Fail closed before bootstrap when the tools pack was explicitly requested and
-  # JAVA_HOME is unusable. Auto project detection stays in Python (lean core: no
-  # ecosystem terms here). Unset JAVA_HOME is allowed: Python may provision Temurin.
+  # When JAVA_HOME is set but not a real JDK, heal to a managed JDK for this
+  # process or fail closed with a clear message. Runs whenever JAVA_HOME is set
+  # — including tools auto-detected later in Python (#7734).
   maven_tools_mode=${1:-native}
   with_maven_tools=${2:-}
   if [ "$maven_tools_mode" = "docker" ]; then
     return 0
   fi
-  if [ -z "$with_maven_tools" ]; then
-    return 0
-  fi
   if [ -z "${JAVA_HOME:-}" ]; then
-    echo "ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package." >&2
+    if [ -n "$with_maven_tools" ]; then
+      echo "ChaosEngine: JAVA_HOME unset; tools-pack JDK preflight will validate before package." >&2
+    fi
     return 0
   fi
-  if [ ! -x "$JAVA_HOME/bin/java" ] || [ ! -x "$JAVA_HOME/bin/javac" ]; then
-    fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
+  # Reject Oracle-style */javapath homes even when stub leaves exist (#7734).
+  case "$JAVA_HOME" in
+    */javapath|*/javapath/) ;;
+    *)
+      if [ -x "$JAVA_HOME/bin/java" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
+        return 0
+      fi
+      ;;
+  esac
+  managed=$(find_chaos_engine_managed_jdk_home || true)
+  if [ -n "$managed" ]; then
+    export JAVA_HOME="$managed"
+    export PATH="$managed/bin:$PATH"
+    echo "ChaosEngine: ambient JAVA_HOME was not a usable JDK (missing javac or */javapath stub); using managed JDK at $managed for this install." >&2
+    return 0
   fi
+  fail "CE-INSTALL-FAILED: JAVA_HOME='$JAVA_HOME' is not a JDK with bin/java and bin/javac. fix-next: export JAVA_HOME='<jdk-home>'; export PATH=\"\$JAVA_HOME/bin:\$PATH\"; reopen shell; verify java -version / javac -version; rerun install."
 }
 
 assert_maven_tools_jdk_preflight "$maven_tools_mode" "$with_maven_tools"
