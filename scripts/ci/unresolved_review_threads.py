@@ -17,7 +17,6 @@ import argparse
 import json
 import shutil
 import subprocess  # nosec B404 - fixed gh argv only.
-import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 

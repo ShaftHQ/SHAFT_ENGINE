@@ -86,6 +86,7 @@ ALLOWED_EXACT = {
     # Internal mega-PR throughput lesson (agent ops); not a public product guide.
     "scripts/ci/mega-pr-throughput-20261102.md",
     "scripts/ci/mega-pr-throughput-20261102b.md",
+    "scripts/ci/mega-pr-throughput-20261102c.md",
 }
 ALLOWED_NESTED_READMES = {
     path for path in ALLOWED_EXACT
