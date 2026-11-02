@@ -73,6 +73,7 @@
 <li><a href="#enableTrueNativeMode(boolean)" tabindex="0">enableTrueNativeMode(boolean)</a></li>
 <li><a href="#handleNonSelectDropDown(boolean)" tabindex="0">handleNonSelectDropDown(boolean)</a></li>
 <li><a href="#validateSwipeToElement(boolean)" tabindex="0">validateSwipeToElement(boolean)</a></li>
+<li><a href="#iosObserveBlankHittableTapEffect(boolean)" tabindex="0">iosObserveBlankHittableTapEffect(boolean)</a></li>
 <li><a href="#disableSslCertificateCheck(boolean)" tabindex="0">disableSslCertificateCheck(boolean)</a></li>
 <li><a href="#telemetryEnabled(boolean)" tabindex="0">telemetryEnabled(boolean)</a></li>
 </ol>
@@ -205,46 +206,51 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="block">Overrides the <code>hideKeyboardAfterTyping</code> property at runtime.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#maximumPerformanceMode(int)" class="member-name-link">maximumPerformanceMode</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#iosObserveBlankHittableTapEffect(boolean)" class="member-name-link">iosObserveBlankHittableTapEffect</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>iosObserveBlankHittableTapEffect</code> property at runtime.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#maximumPerformanceMode(int)" class="member-name-link">maximumPerformanceMode</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>maximumPerformanceMode</code> property at runtime. 0 → Disabled, 1 → Without
 Headless Execution, 2 → With Headless Execution Enabling maximumPerformanceMode will disable all
 complementary features to ensure the fastest execution possible with a 400% calculated
 performance boost.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#respectBuiltInWaitsInNativeMode(boolean)" class="member-name-link">respectBuiltInWaitsInNativeMode</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#respectBuiltInWaitsInNativeMode(boolean)" class="member-name-link">respectBuiltInWaitsInNativeMode</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>respectBuiltInWaitsInNativeMode</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#retryMaximumNumberOfAttempts(int)" class="member-name-link">retryMaximumNumberOfAttempts</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#retryMaximumNumberOfAttempts(int)" class="member-name-link">retryMaximumNumberOfAttempts</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>retryMaximumNumberOfAttempts</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reuseBrowserSession(boolean)" class="member-name-link">reuseBrowserSession</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reuseBrowserSession(boolean)" class="member-name-link">reuseBrowserSession</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>reuseBrowserSession</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollingMode(java.lang.String)" class="member-name-link">scrollingMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollingMode(java.lang.String)" class="member-name-link">scrollingMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>scrollingMode</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#skipTestsWithLinkedIssues(boolean)" class="member-name-link">skipTestsWithLinkedIssues</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#skipTestsWithLinkedIssues(boolean)" class="member-name-link">skipTestsWithLinkedIssues</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>skipTestsWithLinkedIssues</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#telemetryEnabled(boolean)" class="member-name-link">telemetryEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#telemetryEnabled(boolean)" class="member-name-link">telemetryEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>telemetry.enabled</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#validateSwipeToElement(boolean)" class="member-name-link">validateSwipeToElement</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#validateSwipeToElement(boolean)" class="member-name-link">validateSwipeToElement</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>validateSwipeToElement</code> property at runtime.</div>
 </div>
 </div>
@@ -649,6 +655,22 @@ action on mobile.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - the new value of <code>validateSwipeToElement</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal"><code>Flags.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="iosObserveBlankHittableTapEffect(boolean)">
+<h3>iosObserveBlankHittableTapEffect</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></span>&nbsp;<span class="element-name">iosObserveBlankHittableTapEffect</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>iosObserveBlankHittableTapEffect</code> property at runtime. When true on
+iOS XCUITest, blank/absent <code>hittable</code> triggers the post-click effect guard (#7706).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>iosObserveBlankHittableTapEffect</code></dd>
 <dt>Returns:</dt>
 <dd>this <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal"><code>Flags.SetProperty</code></a> instance for chaining</dd>
 </dl>

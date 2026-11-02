@@ -91,6 +91,9 @@ Screen-only taps without an element rectangle are not used. Unreadable page sour
 after <code>mobile: tap</code> fails closed with no further tap. When neither recovery
 changes the page source, the action fails instead of returning success.
 
+<p>Blank/absent <code>hittable</code> is ignored unless
+<code>iosObserveBlankHittableTapEffect</code> is enabled (#7706).
+
 <p>Element id resolution prefers <code>AppiumWebElement.getId()</code> (Appium java-client
 11) and falls back to <code>RemoteWebElement.getId()</code>.</div>
 </div>

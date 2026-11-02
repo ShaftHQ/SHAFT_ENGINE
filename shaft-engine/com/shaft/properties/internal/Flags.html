@@ -73,6 +73,7 @@
 <li><a href="#enableTrueNativeMode()" tabindex="0">enableTrueNativeMode()</a></li>
 <li><a href="#handleNonSelectDropDown()" tabindex="0">handleNonSelectDropDown()</a></li>
 <li><a href="#validateSwipeToElement()" tabindex="0">validateSwipeToElement()</a></li>
+<li><a href="#iosObserveBlankHittableTapEffect()" tabindex="0">iosObserveBlankHittableTapEffect()</a></li>
 <li><a href="#disableSslCertificateCheck()" tabindex="0">disableSslCertificateCheck()</a></li>
 <li><a href="#telemetryEnabled()" tabindex="0">telemetryEnabled()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
@@ -229,57 +230,64 @@ value/text with the expected typed text.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">When true, hide the native soft keyboard after a successful mobile-native <code>type()</code>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#maximumPerformanceMode()" class="member-name-link">maximumPerformanceMode</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#iosObserveBlankHittableTapEffect()" class="member-name-link">iosObserveBlankHittableTapEffect</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">When true on iOS XCUITest, treat a blank/absent <code>hittable</code> attribute the same as
+explicit <code>hittable=false</code>: run the post-click effect check / recovery and fail loud
+when the page is unchanged (#7706).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#maximumPerformanceMode()" class="member-name-link">maximumPerformanceMode</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">0 → Disabled, 1 → Without Headless Execution, 2 → With Headless Execution Enabling
 maximumPerformanceMode will disable all complementary features to ensure the fastest execution
 possible with a 400% calculated performance boost.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#respectBuiltInWaitsInNativeMode()" class="member-name-link">respectBuiltInWaitsInNativeMode</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#respectBuiltInWaitsInNativeMode()" class="member-name-link">respectBuiltInWaitsInNativeMode</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Respect built-in waits when using native mode.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retryMaximumNumberOfAttempts()" class="member-name-link">retryMaximumNumberOfAttempts</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#retryMaximumNumberOfAttempts()" class="member-name-link">retryMaximumNumberOfAttempts</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Maximum number of retry attempts after the first failed execution.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reuseBrowserSession()" class="member-name-link">reuseBrowserSession</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reuseBrowserSession()" class="member-name-link">reuseBrowserSession</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Reuse one browser per thread within a test class.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scrollingMode()" class="member-name-link">scrollingMode</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scrollingMode()" class="member-name-link">scrollingMode</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Mode for scrolling to elements.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Starts a fluent, engine-global override of these flags.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#setForCurrentThread()" class="member-name-link">setForCurrentThread</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#setForCurrentThread()" class="member-name-link">setForCurrentThread</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Starts a fluent override of these flags for the current thread only.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">It is recommended to leave this feature disabled unless you explicitly want to skip any tests
 that have the @Issue or @Issues annotation.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Enable telemetry data collection for SHAFT usage analytics.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validate swipe to element action on mobile.</div>
 </div>
 </div>
@@ -709,6 +717,25 @@ Default false preserves historical behavior; iOS hideKeyboard can be unreliable.
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>validateSwipeToElement</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="iosObserveBlankHittableTapEffect()">
+<h3>iosObserveBlankHittableTapEffect</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("iosObserveBlankHittableTapEffect")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">iosObserveBlankHittableTapEffect</span>()</div>
+<div class="block">When true on iOS XCUITest, treat a blank/absent <code>hittable</code> attribute the same as
+explicit <code>hittable=false</code>: run the post-click effect check / recovery and fail loud
+when the page is unchanged (#7706). Default off until false-positive rate is measured.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>iosObserveBlankHittableTapEffect</code></dd>
 </dl>
 </div>
 </section>
