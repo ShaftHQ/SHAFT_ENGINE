@@ -46,6 +46,9 @@ class MavenToolsJavaPreflightTest(TestCase):
         # #7734: invalid JAVA_HOME is checked even when -WithMavenTools was not passed.
         self.assertNotIn("if (-not $WithMavenTools) { return }", body)
         self.assertIn("Get-ChaosEngineManagedJdkHome", body)
+        self.assertIn("javapath", body)
+        self.assertIn("ReparsePoint", body)
+        self.assertIn("javapath", sh)
         # Lean core: wrappers must not introduce Maven/Java/pom.xml ecosystem terms.
         import re
         ecosystem = re.compile(r"\bMaven\b|\bJava\b|pom\.xml")
@@ -322,6 +325,101 @@ class MavenToolsJavaPreflightTest(TestCase):
             self.assertIn("JAVA_HOME=", message)
             self.assertIn("fix-next:", message.casefold())
             self.assertIn("exit 1", message)
+
+
+    def test_posix_symlink_jdk_binaries_remain_usable(self) -> None:
+        """Homebrew-style symlinked bin/java+javac must stay usable on POSIX (#7734)."""
+        if os.name == "nt":
+            self.skipTest("POSIX symlink layout")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            real = root / "temurin-25"
+            (real / "bin").mkdir(parents=True)
+            (real / "bin" / "java").write_text("java\n", encoding="utf-8")
+            (real / "bin" / "javac").write_text("javac\n", encoding="utf-8")
+            home = root / "Homebrew" / "opt" / "openjdk"
+            (home / "bin").mkdir(parents=True)
+            (home / "bin" / "java").symlink_to(real / "bin" / "java")
+            (home / "bin" / "javac").symlink_to(real / "bin" / "javac")
+            self.assertTrue(MODULE._jdk_binaries_usable(home))
+            self.assertFalse(MODULE._is_windows_stub_binary(home / "bin" / "java"))
+
+    def test_windows_stub_helper_rejects_symlink_only_on_nt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "real-java"
+            target.write_text("java\n", encoding="utf-8")
+            link = root / "java"
+            try:
+                link.symlink_to(target)
+            except OSError:
+                self.skipTest("symlinks unavailable")
+            import types
+            posix = types.SimpleNamespace(name="posix", lstat=os.lstat)
+            nt = types.SimpleNamespace(name="nt", lstat=os.lstat)
+            with mock.patch.dict(MODULE._is_windows_stub_binary.__globals__, {"os": posix}):
+                self.assertFalse(MODULE._is_windows_stub_binary(link))
+            with mock.patch.dict(MODULE._is_windows_stub_binary.__globals__, {"os": nt}):
+                self.assertTrue(MODULE._is_windows_stub_binary(link))
+
+    def test_build_preserves_non_java_home_package_failure(self) -> None:
+        """Compile/deps failures must not be rewritten as JAVA_HOME unusable (#7734)."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cache = root / "cache"
+            cache.mkdir()
+            home = root / "jdk"
+            java = home / "bin" / ("java.exe" if os.name == "nt" else "java")
+            java.parent.mkdir(parents=True)
+            java.write_text("java\n", encoding="utf-8")
+            (java.parent / ("javac.exe" if os.name == "nt" else "javac")).write_text(
+                "javac\n", encoding="utf-8"
+            )
+
+            def runner(command, **kwargs):
+                if "clone" in command:
+                    source = Path(command[-1])
+                    source.mkdir(parents=True)
+                    wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
+                    wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+                    (source / "pom.xml").write_text(
+                        "<project><properties><jdk.version>25</jdk.version></properties></project>\n",
+                        encoding="utf-8",
+                    )
+                    return mock.Mock(stdout="", stderr="", returncode=0)
+                if "rev-parse" in command:
+                    return mock.Mock(stdout=("c" * 40) + "\n", stderr="", returncode=0)
+                if command[-4:] == ["clean", "package", "-Pci", "-DskipTests"]:
+                    raise subprocess.CalledProcessError(
+                        1,
+                        command,
+                        output="Compilation failure: cannot find symbol",
+                        stderr="BUILD FAILURE",
+                    )
+                raise AssertionError(f"unexpected command {command}")
+
+            hosts = SimpleNamespace(
+                maven_tools_cache_root=lambda: cache,
+                java_major=lambda path: 25,
+                java_compiler_present=lambda path: True,
+                MAVEN_TOOLS_MCP_RECEIPT="install-receipt.json",
+                publish_maven_tools_cache=mock.Mock(
+                    side_effect=AssertionError("must not publish")
+                ),
+            )
+            with self.assertRaises(subprocess.CalledProcessError):
+                MODULE._build_and_publish_maven_tools(
+                    hosts,
+                    runner,
+                    java,
+                    "3.2.4",
+                    "v3.2.4",
+                    confirmer=None,
+                    reporter=None,
+                    specification={
+                        "dependencies": {"java": {"minimumVersion": "25.0.0"}}
+                    },
+                )
 
 
 if __name__ == "__main__":

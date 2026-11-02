@@ -69,6 +69,7 @@ __all__ = (
     "resolve_maven_tools_build_cli",
     "_resolve_java_path",
     "_is_link_or_reparse",
+    "_is_windows_stub_binary",
     "_jdk_binaries_usable",
     "_jdk_home_from_standard_layout",
     "_jdk_home_from_host_probes",
@@ -555,19 +556,31 @@ def resolve_maven_tools_build_cli(
     )
 
 
-def _is_link_or_reparse(path: Path) -> bool:
-    """True for symlinks and Windows reparse points (Oracle javapath stubs)."""
+def _is_windows_stub_binary(path: Path) -> bool:
+    """True for Windows Oracle javapath-style stub/reparse binaries (#7734).
+
+    POSIX Homebrew/alternatives layouts use ordinary symlinks to real JDK
+    binaries; those must remain usable. Only Windows reparse/symlink stubs are
+    rejected here.
+    """
+    if os.name != "nt":
+        return False
     if path.is_symlink():
         return True
     try:
         attributes = getattr(os.lstat(path), "st_file_attributes", 0)
     except FileNotFoundError:
         return False
+    # FILE_ATTRIBUTE_REPARSE_POINT
     return bool(attributes & 0x400)
 
 
+# Backward-compatible alias used by older call sites / tests.
+_is_link_or_reparse = _is_windows_stub_binary
+
+
 def _jdk_binaries_usable(home: str | Path) -> bool:
-    """True when home/bin has real (non-reparse) java and javac (#7734)."""
+    """True when home/bin has java+javac; reject Windows stub/reparse (#7734)."""
     home_path = Path(home)
     java_name = "java.exe" if os.name == "nt" else "java"
     javac_name = "javac.exe" if os.name == "nt" else "javac"
@@ -829,16 +842,20 @@ def _build_and_publish_maven_tools(
                 timeout=900,
             )
         except subprocess.CalledProcessError as error:
-            detail = (
-                (error.stderr or "")
-                + chr(10)
-                + (error.stdout or "")
-                + chr(10)
-                + str(error)
-            ).strip()
+            maven_out = ((error.stderr or "") + chr(10) + (error.stdout or "")).strip()
+            detail_cf = maven_out.casefold()
+            # Opaque empty Maven logs are the Windows stub/JAVA_HOME failure mode (#7734).
+            # Non-JDK build failures (compile/deps/network) keep CalledProcessError.
+            java_home_related = (
+                not maven_out
+                or "environment variable" in detail_cf
+                or "java_home" in detail_cf
+            )
+            if not java_home_related:
+                raise
             tail = (
-                chr(10).join(detail.splitlines()[-30:])
-                if detail
+                chr(10).join(maven_out.splitlines()[-30:])
+                if maven_out
                 else "(no maven output captured)"
             )
             raise ValueError(

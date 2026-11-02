@@ -126,15 +126,16 @@ find_chaos_engine_managed_jdk_home() {
   fi
   for root in $roots; do
     [ -d "$root" ] || continue
-    for dir in $(ls -1 "$root" 2>/dev/null | sort -r); do
-      for candidate in "$root/$dir" "$root/$dir"/*; do
-        [ -d "$candidate" ] || continue
-        if [ -x "$candidate/bin/java" ] && [ -x "$candidate/bin/javac" ]; then
-          printf '%s\n' "$candidate"
-          return 0
-        fi
-      done
-    done
+    # Avoid word-splitting ls output; newest-first via find -printf when available.
+    while IFS= read -r candidate; do
+      [ -d "$candidate" ] || continue
+      if [ -x "$candidate/bin/java" ] && [ -x "$candidate/bin/javac" ]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done <<EOF
+$(find "$root" -mindepth 1 -maxdepth 2 -type d 2>/dev/null | sort -r)
+EOF
   done
   return 1
 }
@@ -154,9 +155,15 @@ assert_maven_tools_jdk_preflight() {
     fi
     return 0
   fi
-  if [ -x "$JAVA_HOME/bin/java" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
-    return 0
-  fi
+  # Reject Oracle-style */javapath homes even when stub leaves exist (#7734).
+  case "$JAVA_HOME" in
+    */javapath|*/javapath/) ;;
+    *)
+      if [ -x "$JAVA_HOME/bin/java" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
+        return 0
+      fi
+      ;;
+  esac
   managed=$(find_chaos_engine_managed_jdk_home || true)
   if [ -n "$managed" ]; then
     export JAVA_HOME="$managed"

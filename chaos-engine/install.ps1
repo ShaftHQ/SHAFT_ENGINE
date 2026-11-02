@@ -84,7 +84,20 @@ function Assert-ChaosEngineMavenToolsJdkPreflight {
     }
     $java = Join-Path $jdkHome "bin\java.exe"
     $javac = Join-Path $jdkHome "bin\javac.exe"
+    $usable = $false
     if ((Test-Path -LiteralPath $java -PathType Leaf) -and (Test-Path -LiteralPath $javac -PathType Leaf)) {
+        $usable = $true
+        # Oracle javapath stubs expose leaf names but are reparse points / javapath homes (#7734).
+        if ($jdkHome -match '(?i)[\\/]javapath$') { $usable = $false }
+        foreach ($leaf in @($java, $javac)) {
+            $item = Get-Item -LiteralPath $leaf -Force -ErrorAction SilentlyContinue
+            if ($null -ne $item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                $usable = $false
+                break
+            }
+        }
+    }
+    if ($usable) {
         return
     }
     $managed = Get-ChaosEngineManagedJdkHome
