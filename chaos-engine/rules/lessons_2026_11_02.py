@@ -22,7 +22,8 @@ def _result(hits: list[str], error: str) -> dict[str, Any]:
 def _load_sibling(name: str):
     path = Path(__file__).resolve().parent / f"{name}.py"
     spec = importlib.util.spec_from_file_location(f"ce_{name}", path)
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load sibling module {name!r} from {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -262,9 +263,7 @@ def evaluate_egyptian_colloquial_vo(
     dial = (dialect or "").lower()
     if dial and dial not in {"egyptian_colloquial", "egyptian", "arz", "egy_colloquial"}:
         return _result([], "")  # gate inactive for other dialects
-    if not dial:
-        # when unlabeled, still run if caller used this evaluator intentionally
-        dial = "egyptian_colloquial"
+    # unlabeled dialect: still run when this evaluator was called intentionally
     pairs = lexicon or list(_DEFAULT_MSA_LEXICON)
     prior = _load_sibling("lessons_2026_11_01")
     hits.extend(prior.evaluate_ar_vo_script(text)["hits"])
