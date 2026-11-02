@@ -132,15 +132,15 @@ function Install-ChaosEngineUv([string]$Work) {
     $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     if ($architecture -eq "X64") {
         $target = "x86_64-pc-windows-msvc"
-        $digest = "a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a"
+        $digest = "a2a8820d5eea32f08ef467ef3b7f66883a9b076d5737a2fc2fbb5f458d1bb50f"
     }
     elseif ($architecture -eq "Arm64") {
         $target = "aarch64-pc-windows-msvc"
-        $digest = "09f47edf90726084a70f9426f6e3ca4f46e9bf7cbf23b1716ec64d60b055fae3"
+        $digest = "c2426c0c8e28b53d8c440e47a18d96ad4db51e159866c0e81435b196d7f0081c"
     }
     else { throw "Unsupported ChaosEngine platform: Windows/$architecture" }
     $archive = Join-Path $Work "uv.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-$target.zip" -OutFile $archive
+    Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/astral-sh/uv/releases/download/0.13.6/uv-$target.zip" -OutFile $archive
     $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
     if ($actual -ne $digest) { throw "uv download checksum verification failed" }
     Expand-Archive -LiteralPath $archive -DestinationPath $Work
