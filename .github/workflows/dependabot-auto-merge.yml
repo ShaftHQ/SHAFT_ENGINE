@@ -166,9 +166,8 @@ jobs:
             state="$(printf '%s' "$row" | cut -f5)"
             entry_json="$tmpdir/entry-$number.json"
             runs_json="$tmpdir/runs-$number.json"
-            printf '%s
-' "{"state":"$state","number":$number}" >"$entry_json"
-            gh api -R "$repo"               "repos/${repo}/actions/runs?event=merge_group&head_sha=${head_sha}&per_page=50"               --jq '[.workflow_runs[]? | {name, event, head_sha, status, conclusion}]'               >"$runs_json" 2>/dev/null || echo '[]' >"$runs_json"
+            python3 -c 'import json,sys; json.dump({"state":sys.argv[1],"number":int(sys.argv[2])}, open(sys.argv[3],"w"), sort_keys=True)'               "$state" "$number" "$entry_json"
+            gh api               "repos/${repo}/actions/runs?event=merge_group&head_sha=${head_sha}&per_page=50"               --jq '[.workflow_runs[]? | {name, event, head_sha, status, conclusion}]'               >"$runs_json" 2>/dev/null || echo '[]' >"$runs_json"
             if ! python3 "$heal_py" predict --entry-json "$entry_json" --runs-json "$runs_json"; then
               echo "Skipping #$number: stall predicate false (required merge_group runs present)."
               continue
