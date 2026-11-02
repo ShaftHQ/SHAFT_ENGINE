@@ -137,7 +137,7 @@ class Lessons20261102GatesTest(TestCase):
                 {
                     "sent_to_owner": True,
                     "leading_silence_or_garbage": True,
-                    "human_likeness_pass": False,
+                    "human_likeness_pass": False,  # nosec B105 - gate flag, not a secret
                 }
             )["ok"]
         )
@@ -145,7 +145,7 @@ class Lessons20261102GatesTest(TestCase):
             self.mod.evaluate_owner_media_gate(
                 {
                     "sent_to_owner": True,
-                    "human_likeness_pass": True,
+                    "human_likeness_pass": True,  # nosec B105 - gate flag, not a secret
                     "dialect_mismatch": False,
                 }
             )["ok"]
@@ -281,19 +281,24 @@ class Lessons20261102GatesTest(TestCase):
                     "owner_avatar_signoff": True,
                     "artifact_sha": "deadbeef",
                     "ai_labeled": True,
-                    "l56_blind_pass": True,
+                    "l56_blind_pass": True,  # nosec B105 - gate flag, not a secret
                 }
             )["ok"]
         )
 
     def test_7708_voice_clone(self) -> None:
         bad = self.mod.evaluate_voice_clone(
-            {"speaker_pass": True, "wer": 0.4, "language": "en", "unk_frac": 0.2}
+            {
+                "speaker_pass": True,  # nosec B105 - gate flag, not a secret
+                "wer": 0.4,
+                "language": "en",
+                "unk_frac": 0.2,
+            }
         )
         self.assertFalse(bad["ok"], bad)
         good = self.mod.evaluate_voice_clone(
             {
-                "speaker_pass": True,
+                "speaker_pass": True,  # nosec B105 - gate flag, not a secret
                 "wer": 0.05,
                 "language": "en",
                 "unk_frac": 0.01,
@@ -307,7 +312,7 @@ class Lessons20261102GatesTest(TestCase):
             self.mod.evaluate_adversarial_pass_sha(
                 {
                     "merge_or_enqueue": True,
-                    "adversarial_pass_sha": "aaa",
+                    "adversarial_pass_sha": "aaa",  # nosec B105 - fixture sha token, not a secret
                     "head_sha": "bbb",
                 }
             )["ok"]
@@ -316,7 +321,7 @@ class Lessons20261102GatesTest(TestCase):
             self.mod.evaluate_adversarial_pass_sha(
                 {
                     "merge_or_enqueue": True,
-                    "adversarial_pass_sha": "aaa",
+                    "adversarial_pass_sha": "aaa",  # nosec B105 - fixture sha token, not a secret
                     "head_sha": "aaa",
                 }
             )["ok"]
@@ -557,7 +562,7 @@ class Lessons20261102GatesTest(TestCase):
                     "owner_tz": "Africa/Cairo",
                     "picker_tz": "America/Los_Angeles",
                     "utc_instant": "2026-11-03T16:00:00Z",
-                    "proof_path": "/tmp/proof.png",
+                    "proof_path": "proof-artifacts/proof.png",  # nosec B108 - fixture path token, not a real temp file
                     "converted_via_utc": True,
                 }
             )["ok"]
