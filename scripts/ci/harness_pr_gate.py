@@ -667,7 +667,7 @@ CHECKS = {
     "upstream-watch-contract": Check(
         "upstream-watch-contract",
         "installer",
-        ("tests.scripts.test_watch_upstream_pins",),
+        ("tests.scripts.test_watch_upstream_pins", "tests.scripts.test_watch_upstream_pins_coverage_7738"),
     ),
 }
 
@@ -804,6 +804,7 @@ SURFACE_PATTERNS = {
     "upstream-watch": (
         "scripts/ci/watch_upstream_pins.py",
         "tests/scripts/test_watch_upstream_pins.py",
+        "tests/scripts/test_watch_upstream_pins_coverage_7738.py",
         ".github/workflows/upstream-watch.yml",
     ),
     "hosts": (
