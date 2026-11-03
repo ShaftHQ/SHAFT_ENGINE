@@ -19,4 +19,9 @@ class OpenShaftToolWindowActionTest {
     void nullProjectIsNotShaftProject() {
         assertFalse(OpenShaftToolWindowAction.isShaftProject(null));
     }
+
+    @Test
+    void showExistingToolWindowNoopsForNull() {
+        assertFalse(OpenShaftToolWindowAction.showExistingToolWindow(null));
+    }
 }

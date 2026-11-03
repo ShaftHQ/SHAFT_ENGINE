@@ -92,8 +92,14 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
 
     @Override
     public @Nullable Module commitModule(@NotNull Project project, @Nullable ModifiableModuleModel model) {
-        Module module = super.commitModule(project, model);
-        if (shouldOpenAssistant(module, settings)) {
+        return afterCommit(project, super.commitModule(project, model), settings);
+    }
+
+    /** Package-visible for tests: opens Assistant tool window when the create flag is on. */
+    static @Nullable Module afterCommit(@NotNull Project project,
+                                        @Nullable Module module,
+                                        @NotNull ShaftMavenProjectSettings projectSettings) {
+        if (shouldOpenAssistant(module, projectSettings)) {
             showShaftToolWindow(project);
         }
         return module;
@@ -105,12 +111,16 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
 
     static void showShaftToolWindow(@NotNull Project project) {
         ToolWindowManager manager = ToolWindowManager.getInstance(project);
-        manager.invokeLater(() -> {
-            ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);
-            if (toolWindow != null) {
-                toolWindow.show();
-            }
-        });
+        manager.invokeLater(() -> showExistingToolWindow(manager.getToolWindow(TOOL_WINDOW_ID)));
+    }
+
+    /** Package-visible for tests: shows when the stripe exists, no-ops when null. */
+    static boolean showExistingToolWindow(@Nullable ToolWindow toolWindow) {
+        if (toolWindow == null) {
+            return false;
+        }
+        toolWindow.show();
+        return true;
     }
 
     private static final class ShaftMavenWizardStep extends ModuleWizardStep {

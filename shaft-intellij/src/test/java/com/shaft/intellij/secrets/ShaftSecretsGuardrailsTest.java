@@ -47,4 +47,21 @@ class ShaftSecretsGuardrailsTest {
         assertEquals("targetAddress=https://example",
                 ShaftSecretsGuardrails.maskPropertiesLine("targetAddress=https://example"));
     }
+
+    @Test
+    void appendsToExistingGitignoreWithoutSecretEntries(@TempDir Path root) throws Exception {
+        Files.writeString(root.resolve(".gitignore"), "target/\n");
+        assertTrue(ShaftSecretsGuardrails.ensureGitignoreIgnoresSecrets(root));
+        String body = Files.readString(root.resolve(".gitignore"));
+        assertTrue(body.contains("target/"));
+        assertTrue(body.contains("secrets.properties"));
+    }
+
+    @Test
+    void findsSecretDotPropertiesName(@TempDir Path root) throws Exception {
+        Path resources = root.resolve("src/main/resources");
+        Files.createDirectories(resources);
+        Files.writeString(resources.resolve("secret.properties"), "api_key=x\n");
+        assertEquals(1, ShaftSecretsGuardrails.findSecretsFiles(root).size());
+    }
 }

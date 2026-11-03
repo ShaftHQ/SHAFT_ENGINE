@@ -88,4 +88,18 @@ class ShaftMavenModuleBuilderTest {
         settings.setOpenAssistantAfterCreate(false);
         assertFalse(ShaftMavenModuleBuilder.shouldOpenAssistant(null, settings));
     }
+
+    @Test
+    void writeScaffoldForContentPathWrapsIoErrors(@TempDir Path root) throws Exception {
+        Path blocked = root.resolve("not-a-directory");
+        Files.writeString(blocked, "file");
+        ShaftMavenProjectSettings settings = new ShaftMavenProjectSettings();
+        assertThrows(ConfigurationException.class,
+                () -> ShaftMavenModuleBuilder.writeScaffoldForContentPath(blocked.toString(), settings));
+    }
+
+    @Test
+    void showExistingToolWindowNoopsForNull() {
+        assertFalse(ShaftMavenModuleBuilder.showExistingToolWindow(null));
+    }
 }

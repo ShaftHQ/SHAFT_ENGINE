@@ -10,6 +10,7 @@ import com.intellij.openapi.wm.ToolWindowManager;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import com.shaft.intellij.ui.ShaftIcons;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Opens the SHAFT tool window.
@@ -48,11 +49,15 @@ public final class OpenShaftToolWindowAction extends AnAction implements DumbAwa
 
     static void showToolWindow(@NotNull Project project) {
         ToolWindowManager manager = ToolWindowManager.getInstance(project);
-        manager.invokeLater(() -> {
-            ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);
-            if (toolWindow != null) {
-                toolWindow.show();
-            }
-        });
+        manager.invokeLater(() -> showExistingToolWindow(manager.getToolWindow(TOOL_WINDOW_ID)));
+    }
+
+    /** Package-visible for tests: shows when the stripe exists, no-ops when null. */
+    static boolean showExistingToolWindow(@Nullable ToolWindow toolWindow) {
+        if (toolWindow == null) {
+            return false;
+        }
+        toolWindow.show();
+        return true;
     }
 }
