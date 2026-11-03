@@ -115,7 +115,7 @@ class UvToolLockTest(unittest.TestCase):
                     )
                 return subprocess.CompletedProcess(command, 0, "", "")
 
-            cmd = ["uv", "tool", "install", "--force", "graphifyy==0.9.97"]
+            cmd = ["uv", "tool", "install", "--force", "graphifyy==0.9.100"]
             with unittest.mock.patch.object(deps, "default_uv_tools_dir", return_value=tools):
                 result = deps.run_uv_tool_install_with_lock(
                     cmd, Path(temporary), run_command=flaky
