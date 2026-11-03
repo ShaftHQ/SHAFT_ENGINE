@@ -75,6 +75,11 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_root_contributor_credits(self):
+        self.write("CONTRIBUTORS.md", "# Contributors\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_cucumber_adapter_orientation_readme(self):
         self.write(
             "allure-cucumber8-jvm/README.md",
