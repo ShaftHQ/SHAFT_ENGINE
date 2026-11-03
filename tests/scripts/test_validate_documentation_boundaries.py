@@ -75,6 +75,11 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_root_contributor_credits(self):
+        self.write("CONTRIBUTORS.md", "# Contributors\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_cucumber_adapter_orientation_readme(self):
         self.write(
             "allure-cucumber8-jvm/README.md",
@@ -634,11 +639,13 @@ flowchart LR
             "(https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)\n"
             "[![Maven](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine)]"
             "(https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)\n"
+            "[![Issues](https://img.shields.io/github/issues/ShaftHQ/SHAFT_ENGINE)]"
+            "(https://github.com/ShaftHQ/SHAFT_ENGINE/issues)\n"
         )
         self.write("README.md", extra + self.valid_readme)
 
         self.assertIn(
-            "README.md exceeds the 4-badge budget above the first section",
+            "README.md exceeds the 5-badge budget above the first section",
             validate_repository(self.root),
         )
 

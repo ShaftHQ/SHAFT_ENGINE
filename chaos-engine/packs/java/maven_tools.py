@@ -113,13 +113,13 @@ __all__ = (
 
 # #6216: branch-agnostic fallback; the tool's own fix-next names the resolved branch.
 # Account-relative jar location (the account root varies per machine).
-MAVEN_TOOLS_JAR_SUFFIX = "ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar"
+MAVEN_TOOLS_JAR_SUFFIX = "ChaosEngine/tools/maven-tools-mcp/3.2.4/maven-tools-mcp-3.2.4.jar"
 
 
-MAVEN_TOOLS_MCP_VERSION = "3.2.0"
+MAVEN_TOOLS_MCP_VERSION = "3.2.4"
 
 
-MAVEN_TOOLS_MCP_COMMIT = "41c786b6a7440dec09d7c70f294e22533b88faa4"
+MAVEN_TOOLS_MCP_COMMIT = "78ed17446c6f50b454b3741359f57dddce70f687"
 
 
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
@@ -147,7 +147,7 @@ TEMURIN_REPAIR_HINT = "repair --component tools"
 
 LEGACY_MAVEN_TOOLS_SERVER = {
     "command": "docker",
-    "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"],
+    "args": ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.4"],
 }
 
 

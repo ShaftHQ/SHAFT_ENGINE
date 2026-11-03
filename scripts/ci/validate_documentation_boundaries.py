@@ -24,6 +24,8 @@ ALLOWED_EXACT = {
     "CLAUDE.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
+    # Contributor credits carried over from the archived pre-rewrite history (#7741).
+    "CONTRIBUTORS.md",
     "SECURITY.md",
     ".github/copilot-instructions.md",
     ".github/pull_request_template.md",

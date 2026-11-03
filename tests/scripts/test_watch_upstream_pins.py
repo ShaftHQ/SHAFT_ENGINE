@@ -13,6 +13,7 @@ from pathlib import Path
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.validate_quality_configuration import validate_workflow_readme_inventory
 from scripts.ci.watch_upstream_pins import (
+    _VERSION_KINDS,
     CAVEMAN_OVERLAY,
     Pin,
     Stable,
@@ -592,10 +593,12 @@ class LinkedPinSyncTest(unittest.TestCase):
         spec["dependencies"]["mempalace"] = {"stableChannel": MEMPALACE_URL}
         spec["dependencies"]["graphify"] = {"stableChannel": GRAPHIFY_URL}
         spec["tools"]["graphify"] = {"package": "graphifyy==0.9.88"}
+        # #7738: every runtime pin must be watched, so the fixture names uv's channel.
+        spec["dependencies"]["uv"] = {"stableChannel": "https://api.github.com/repos/astral-sh/uv/releases/latest"}
         (chaos / "dependencies.json").write_text(json.dumps(spec), encoding="utf-8")
 
         def fetch(pin: Pin) -> Stable:
-            if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
+            if pin.kind in _VERSION_KINDS:
                 return Stable(version=pin.current)
             return Stable(release_commit=pin.current)
 
