@@ -53,25 +53,6 @@ final class ShaftRunConfigurationOverridesPanel extends JPanel {
         deviceOsField.setToolTipText("Device/OS for mobile (ANDROID, iOS, or a cloud device name). Leave blank for Web.");
         appAliasField.setToolTipText("Cloud app alias from the registry. Required for cloud Android/iOS.");
 
-        platformCombo.setRenderer((list, value, index, isSelected, cellHasFocus) -> {
-            JLabel label = new JLabel(value == null ? "" : value.label());
-            if (isSelected) {
-                label.setOpaque(true);
-                label.setBackground(list.getSelectionBackground());
-                label.setForeground(list.getSelectionForeground());
-            }
-            return label;
-        });
-        executionCombo.setRenderer((list, value, index, isSelected, cellHasFocus) -> {
-            JLabel label = new JLabel(value == null ? "" : value.label());
-            if (isSelected) {
-                label.setOpaque(true);
-                label.setBackground(list.getSelectionBackground());
-                label.setForeground(list.getSelectionForeground());
-            }
-            return label;
-        });
-
         JPanel fields = new JPanel(new GridLayout(0, 1, 4, 4));
         fields.add(row("Browser", browserComboBox));
         fields.add(headlessCheckBox);

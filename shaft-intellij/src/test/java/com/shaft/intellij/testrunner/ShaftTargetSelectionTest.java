@@ -106,4 +106,11 @@ class ShaftTargetSelectionTest {
         assertEquals("BrowserStack", ShaftTargetSelection.Execution.BROWSERSTACK.label());
         assertEquals(ShaftTargetSelection.INHERIT, ShaftTargetSelection.INHERIT);
     }
+
+
+    @Test
+    void toStringUsesLabel() {
+        assertEquals(ShaftTargetSelection.Platform.WEB.label(), ShaftTargetSelection.Platform.WEB.toString());
+        assertEquals(ShaftTargetSelection.Execution.LOCAL.label(), ShaftTargetSelection.Execution.LOCAL.toString());
+    }
 }

@@ -29,6 +29,11 @@ public final class ShaftTargetSelection {
         public String label() {
             return label;
         }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     public enum Execution {
@@ -45,6 +50,11 @@ public final class ShaftTargetSelection {
         }
 
         public String label() {
+            return label;
+        }
+
+        @Override
+        public String toString() {
             return label;
         }
     }
