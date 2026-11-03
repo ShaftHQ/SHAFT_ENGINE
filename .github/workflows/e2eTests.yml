@@ -144,7 +144,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*DatabaseActions.*], %regex[.*DB.*], %regex[.*Db.*], %regex[.*db.*]' }}"
@@ -174,7 +174,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*API.*], %regex[.*Api.*], %regex[.*PathParamTest.*], %regex[.*SwaggerContractTest.*], %regex[.*uestBuilder.*], %regex[.*Rest.*], %regex[.*Json.*], %regex[.*JSON.*], %regex[.*json.*], %regex[.*YAML.*], %regex[.*Yaml.*], %regex[.*yaml.*], %regex[.*CLIWizard.*], %regex[.*TerminalActions.*], %regex[.*properties.Mobile.*], %regex[.*CSVFileManagerUnitTest.*], %regex[.*PdfFileManager.*], %regex[.*ExcelFileManager.*]' }}"
@@ -204,7 +204,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run visual module tests
         continue-on-error: true
         run: mvn -pl shaft-visual -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'ImageProcessingActionsUnitTest' }}"
@@ -235,7 +235,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run desktop video module tests
         continue-on-error: true
         run: mvn -pl shaft-video -am -e test "-DretryMaximumNumberOfAttempts=1" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'DesktopVideoRecordingProviderRegistrationTest' }}"
@@ -275,7 +275,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Check running containers
         run: docker ps
       # Wrapped because this step, not `Run tests`, is where a cold cache pays:
@@ -321,7 +321,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Check running containers
         run: docker ps
       # Wrapped because this step, not `Run tests`, is where a cold cache pays:
@@ -367,7 +367,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Check running containers
         run: docker ps
       # Wrapped because this step, not `Run tests`, is where a cold cache pays:
@@ -411,7 +411,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Install Playwright Chrome
         shell: bash
         run: >-
@@ -448,7 +448,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Cache Playwright host dependency packages
         uses: ./.github/actions/apt-package-cache
         with:
@@ -489,7 +489,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Package setup CLI
         shell: bash
         run: >-
@@ -537,7 +537,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Package setup CLI
         shell: bash
         run: >-
@@ -576,7 +576,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Package setup CLI
         shell: bash
         run: >-
@@ -615,7 +615,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Package setup CLI
         shell: bash
         run: >-
@@ -660,8 +660,8 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          java-version: '17'
-          node-version: '20'
+          java-version: '17'  # held: Flutter 3.22.1 Gradle needs Java 17 (#7753)
+          node-version: '26'
       - name: Setup Flutter 3.22.1
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
@@ -720,7 +720,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
@@ -786,7 +786,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Mirror Android_Native: Flutter_Demo_App_Build is continue-on-error, so a
@@ -834,7 +834,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Install visual and OCR test runtimes
         shell: bash
         run: >-
@@ -894,7 +894,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Fetch provider-compatible iOS sample app
         run: |
           app_path="shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
@@ -962,7 +962,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Run Android recording acceptance
         continue-on-error: true
         timeout-minutes: 25
@@ -999,7 +999,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Fetch provider-compatible iOS sample app
         run: |
           app_path="shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
@@ -1044,7 +1044,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Run Android evidence acceptance
         continue-on-error: true
         timeout-minutes: 25
@@ -1081,7 +1081,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          node-version: '20'
+          node-version: '26'
       - name: Fetch provider-compatible iOS sample app
         run: |
           app_path="shaft-engine/src/test/resources/testDataFiles/apps/BStackSampleApp.ipa"
@@ -1125,7 +1125,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=iOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-DbrowserName=safari" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*MobileWebTest.*], %regex[.*IOSBasicInteractionsTest.*]' }}"
@@ -1155,7 +1155,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=android" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-DbrowserName=chrome" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*MobileWebTest.*]' }}"
@@ -1185,7 +1185,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
       - name: Run tests
         continue-on-error: true
         run: mvn -pl shaft-browserstack -am -e test "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Sonoma" "-DbrowserStack.browserVersion=17.0" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*BrowserActionsTests.*], %regex[.*BigPageActionsTest.*], %regex[.*BrowserStackPropertiesUnitTest.*], %regex[.*BrowserStackHelperUnitTest.*], %regex[.*BrowserStackSdkHelperCoverageUnitTest.*]' }}"
@@ -1387,7 +1387,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          node-version: '20'
+          node-version: '26'
 
       - name: Enable JUnit Test Runtime
         shell: bash

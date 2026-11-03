@@ -53,10 +53,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run setup lock pin unit tests
         run: python3 -m unittest tests.scripts.test_refresh_setup_lock_pins -v
       - name: Check setup pins match the bundled manifests, lockfiles and tarballs
@@ -82,10 +82,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           path: head
           persist-credentials: false
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Refresh pins with the base script
         run: python3 base/scripts/ci/refresh_setup_lock_pins.py --root head --write
       - name: Write pin patch

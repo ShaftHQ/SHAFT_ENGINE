@@ -7,9 +7,12 @@ import unittest
 from pathlib import Path
 
 import sys as _sys; _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+from unittest import mock  # noqa: E402
+
+import scripts.ci.watch_upstream_pins as wup  # noqa: E402
 from scripts.ci.watch_upstream_pins import (  # noqa: E402
-    runtime_pins,
     COVERAGE_EXEMPT,
+    runtime_pins,
     Pin,
     Stable,
     compare_pin,
@@ -27,7 +30,7 @@ class FullCoverageTest(unittest.TestCase):
     def test_repository_spec_is_fully_covered(self):
         pins = load_pins(ROOT)
         names = {pin.name for pin in pins}
-        for required in ("java-feature", "python", "runtime-python", "maven", "deja", "node", "uv"):
+        for required in ("java-feature", "python", "maven", "deja", "node", "uv"):
             self.assertIn(required, names)
 
     def test_new_unwatched_pin_fails_loudly(self):
@@ -62,7 +65,7 @@ class FullCoverageTest(unittest.TestCase):
         self.assertFalse(compare_pin(pin, Stable(version="25")).behind)
         python = Pin("python", "series-python", "3.14", "x")
         self.assertFalse(compare_pin(python, Stable(version="3.14.2")).behind)
-        self.assertTrue(compare_pin(python, Stable(version="3.15.0")).behind)
+        self.assertTrue(compare_pin(python, Stable(version="3.16.0")).behind)
         node = Pin("ci-node@24", "series-node", "24", "x")
         self.assertTrue(compare_pin(node, Stable(version="26.13.0")).behind)
 
@@ -77,18 +80,64 @@ class FullCoverageTest(unittest.TestCase):
         self.assertEqual(newest_maven_version(xml), "3.10.0")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class PythonSeriesPinTest(unittest.TestCase):
-    def test_project_python_max_series_is_watched_separately(self) -> None:
+    def test_project_python_max_series_is_watched(self) -> None:
         spec = {"dependencies": {"python": {"maximumSeries": "3.14"}}, "runtimes": {"python": {"version": "3.11"}}}
         pins = {p.name: p for p in runtime_pins(spec)}
         self.assertEqual(pins["python"].current, "3.14")
-        self.assertEqual(pins["runtime-python"].current, "3.11")
+        self.assertNotIn("runtime-python", pins)  # 3.11 is a launch floor, exempted with a reason
 
-    def test_runtime_python_not_satisfied_by_project_pin(self) -> None:
-        spec = {"dependencies": {}, "runtimes": {"python": {"version": "3.11"}}}
-        with self.assertRaises(ValueError):
-            require_full_coverage(spec, [Pin("python", "series-python", "3.14", "x")])
+    def test_runtime_python_floor_is_exempt_with_reason(self) -> None:
+        self.assertIn("floor", COVERAGE_EXEMPT["runtimes.python"])
+
+
+class LtsAndHeldBackTest(unittest.TestCase):
+    def test_java_series_targets_lts_not_feature(self) -> None:
+        payload = {"most_recent_lts": 25, "most_recent_feature_release": 27}
+        with mock.patch.object(wup, "_request_json", return_value=(200, payload)):
+            self.assertEqual("25", wup.fetch_java_feature("u").version)
+
+    def test_node_series_targets_lts_not_current(self) -> None:
+        index = [{"version": "v27.1.0", "lts": False}, {"version": "v26.13.0", "lts": "Krypton"}]
+        with mock.patch.object(wup, "_request_json", return_value=(200, index)):
+            self.assertEqual("26.13.0", wup.fetch_newest_node("u").version)
+
+    def test_held_back_only_holds_the_exact_ticketed_release(self) -> None:
+        pin = Pin("python", "series-python", "3.14", "u")
+        self.assertFalse(wup.compare_pin(pin, wup.Stable(version="3.15.0")).behind)
+        self.assertTrue(wup.compare_pin(pin, wup.Stable(version="3.16.0")).behind)
+
+    def test_ci_maven_version_is_watched(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            wf = Path(tmp, ".github", "workflows")
+            wf.mkdir(parents=True)
+            (wf / "a.yml").write_text("      maven-version: 3.9.12\n", encoding="utf-8")
+            pins = repository_runtime_pins(Path(tmp))
+        self.assertEqual(["maven-central"], [p.kind for p in pins])
+
+
+
+class ReviewFollowUpTest(unittest.TestCase):
+    def test_hold_does_not_hide_a_regressed_pin(self) -> None:
+        pin = Pin("python", "series-python", "3.12", "u")
+        self.assertTrue(wup.compare_pin(pin, wup.Stable(version="3.15.0")).behind)
+
+    def test_composite_action_default_is_watched(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            act = Path(tmp, ".github", "actions", "env")
+            act.mkdir(parents=True)
+            (act / "action.yml").write_text("inputs:\n  node-version:\n    default: '25'\n", encoding="utf-8")
+            pins = repository_runtime_pins(Path(tmp))
+        self.assertEqual(["25"], [p.current for p in pins])
+
+
+
+class AheadOfLtsTest(unittest.TestCase):
+    def test_series_pin_ahead_of_lts_is_drift(self) -> None:
+        pin = Pin("ci-java@26", "series-java", "26", "u")
+        self.assertTrue(wup.compare_pin(pin, wup.Stable(version="25")).behind)
+
+
+if __name__ == "__main__":
+    unittest.main()

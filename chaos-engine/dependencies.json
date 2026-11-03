@@ -239,63 +239,63 @@
       }
     },
     "deja": {
-      "version": "0.21.2",
+      "version": "0.23.4",
       "artifacts": {
         "windows-x64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_windows_amd64.zip",
-          "sha256": "a2e71c2a889bde77e5f0c838585c3e40a04694a2c985e811552bdeee1de447f6"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_windows_amd64.zip",
+          "sha256": "6af46ee214305587d117ad9f233ef820d7cb081c8beef5d82cfe8385e633cd58"
         },
         "windows-arm64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_windows_arm64.zip",
-          "sha256": "595859506a8c77eea76ef40b3a3f911f937525cb95c3480363435f4cb5f05810"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_windows_arm64.zip",
+          "sha256": "3f3e4d5a2441254940cb9ffdd9b8da111413994463d44ebd9954c03dcc5f2cbf"
         },
         "linux-x64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_linux_amd64.tar.gz",
-          "sha256": "e508551088b5b693d1017391e9bbad6c10a118a2f06e3771d0fdd70bb61230e9"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_linux_amd64.tar.gz",
+          "sha256": "510413f3e44238861927f64e41983751b8221224e80ab235675d4228907c1594"
         },
         "linux-arm64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_linux_arm64.tar.gz",
-          "sha256": "e42ebb007531c4ba7302226e1fb68d747b603bd3dc7909e2d5bd7519c8fff97a"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_linux_arm64.tar.gz",
+          "sha256": "74d16a25c9926e2db485950d8734e8acbc2fd39496207e5cfd64d28fb857836f"
         },
         "macos-x64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_darwin_amd64.tar.gz",
-          "sha256": "b0291255ffa9f9aa3109b795074cbdf4334a389a250dc0418a9b530f8a95c7ad"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_darwin_amd64.tar.gz",
+          "sha256": "47296c87a5366f90dd298f3ef1754707a699712adf023bd6ba3cfbc20e9a5e67"
         },
         "macos-arm64": {
-          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_darwin_arm64.tar.gz",
-          "sha256": "d75bcaab006d16b4054c993dab99bf6c298b437cffab0f77eeebff005afeceb2"
+          "url": "https://github.com/vshulcz/deja-vu/releases/download/v0.23.4/deja-vu_0.23.4_darwin_arm64.tar.gz",
+          "sha256": "626a3864fd98c45619acb35268cb5fbf062e50f04dcacce18620ff6d67efc3cb"
         }
       }
     },
     "maven": {
-      "version": "3.9.12",
+      "version": "3.10.0",
       "minimumVersion": "3.9.0",
       "artifacts": {
         "windows-x64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip",
-          "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef"
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.zip",
+          "sha256": "1f6d9909266510f039f59aa0e13dcd2c66da85f043e56276e41f2918f8bddaff"
         },
         "windows-arm64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip",
-          "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef",
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.zip",
+          "sha256": "1f6d9909266510f039f59aa0e13dcd2c66da85f043e56276e41f2918f8bddaff",
           "artifactArchitecture": "x64",
           "emulated": true
         },
         "linux-x64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz",
-          "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz",
+          "sha256": "a46cc51bc74fa23fd267c7a0b9132b146dcf526da60d31aa5174e565632e9e0e"
         },
         "linux-arm64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz",
-          "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz",
+          "sha256": "a46cc51bc74fa23fd267c7a0b9132b146dcf526da60d31aa5174e565632e9e0e"
         },
         "macos-x64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz",
-          "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz",
+          "sha256": "a46cc51bc74fa23fd267c7a0b9132b146dcf526da60d31aa5174e565632e9e0e"
         },
         "macos-arm64": {
-          "url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz",
-          "sha256": "fa2c9948729296c23afd18fd01a90f62cdda09a46191b54a8bc3764c2eee812e"
+          "url": "https://archive.apache.org/dist/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz",
+          "sha256": "a46cc51bc74fa23fd267c7a0b9132b146dcf526da60d31aa5174e565632e9e0e"
         }
       }
     }
