@@ -4,7 +4,12 @@ import com.intellij.ide.util.projectWizard.ModuleBuilder;
 import com.intellij.ide.util.projectWizard.ModuleWizardStep;
 import com.intellij.ide.util.projectWizard.WizardContext;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.module.ModifiableModuleModel;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleType;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.roots.ModifiableRootModel;
 import com.shaft.intellij.ui.ShaftIcons;
@@ -76,6 +81,21 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
     @Override
     public @Nullable ModuleWizardStep getCustomOptionsStep(WizardContext context, Disposable parentDisposable) {
         return new ShaftMavenWizardStep(settings);
+    }
+
+
+    @Override
+    public @Nullable Module commitModule(@NotNull Project project, @Nullable ModifiableModuleModel model) {
+        Module module = super.commitModule(project, model);
+        if (module != null && settings.isOpenAssistantAfterCreate()) {
+            ToolWindowManager.getInstance(project).invokeLater(() -> {
+                ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
+                if (toolWindow != null) {
+                    toolWindow.show();
+                }
+            });
+        }
+        return module;
     }
 
     ShaftMavenProjectSettings settings() {
