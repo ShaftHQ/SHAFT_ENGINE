@@ -23,7 +23,7 @@ import java.awt.GridLayout;
  */
 final class ShaftRunConfigurationOverridesPanel extends JPanel {
     /** Selecting this combo item means "inherit from custom.properties" (blank/null browser). */
-    static final String INHERIT_BROWSER = "(inherit from custom.properties)";
+    static final String INHERIT_BROWSER = ShaftRunOverridesLabels.PROJECT_DEFAULT;
     private static final String[] BROWSERS = {INHERIT_BROWSER, "chrome", "firefox", "edge", "safari"};
 
     private final JBCheckBox enabledCheckBox =
@@ -52,7 +52,12 @@ final class ShaftRunConfigurationOverridesPanel extends JPanel {
         enabledCheckBox.addItemListener(event -> updateFieldsEnabled());
         updateFieldsEnabled();
 
-        add(enabledCheckBox, BorderLayout.NORTH);
+        JLabel hint = new JLabel("Unset fields use " + ShaftRunOverridesLabels.projectDefaultLabel());
+        hint.setBorder(JBUI.Borders.emptyBottom(4));
+        JPanel north = new JPanel(new BorderLayout());
+        north.add(enabledCheckBox, BorderLayout.NORTH);
+        north.add(hint, BorderLayout.SOUTH);
+        add(north, BorderLayout.NORTH);
         add(fields, BorderLayout.CENTER);
     }
 

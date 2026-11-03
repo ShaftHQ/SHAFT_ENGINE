@@ -6,13 +6,21 @@ import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
+import com.shaft.intellij.project.ShaftProjectDetector;
 import com.shaft.intellij.ui.ShaftToolWindowPanel;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Creates the SHAFT tool window lazily when the user opens it.
+ *
+ * <p>W1.7: {@link #shouldBeAvailable(Project)} hides the tool window stripe on non-SHAFT projects.
  */
 public final class ShaftToolWindowFactory implements ToolWindowFactory, DumbAware {
+    @Override
+    public boolean shouldBeAvailable(@NotNull Project project) {
+        return ShaftProjectDetector.isShaftProject(project);
+    }
+
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
         ShaftToolWindowPanel panel = new ShaftToolWindowPanel(project);

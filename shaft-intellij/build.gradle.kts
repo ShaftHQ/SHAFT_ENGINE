@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
@@ -7,6 +8,7 @@ import org.gradle.process.CommandLineArgumentProvider
 plugins {
     java
     jacoco
+    kotlin("jvm") version "2.1.20"
     id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
@@ -56,6 +58,10 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
 }
 
 // A SHAFT test run regenerates src/test/resources/META-INF/services/ from scratch (Allure and
@@ -278,6 +284,8 @@ tasks {
         finalizedBy(jacocoTestReport)
         useJUnitPlatform()
         systemProperty("java.awt.headless", "true")
+        systemProperty("headlessExecution", "true")
+        systemProperty("allure.automaticallyOpen", "false")
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
         systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
         systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))

@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.CliTerminalSupport;
 import org.jetbrains.annotations.NotNull;
 
@@ -21,6 +22,10 @@ import org.jetbrains.annotations.NotNull;
  * binary found on {@code PATH} -- nothing is bundled or redistributed.
  */
 public final class OpenCopilotCliTerminalAction extends AnAction implements DumbAware {
+    public OpenCopilotCliTerminalAction() {
+        getTemplatePresentation().setIcon(ShaftIcons.TERMINAL_COPILOT);
+    }
+
     private static final String EXECUTABLE = "copilot";
     private static final String TAB_NAME = "Copilot CLI";
     private static final String NOTIFICATION_TITLE = "Copilot CLI terminal";

@@ -1,0 +1,38 @@
+package com.shaft.intellij.secrets;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ShaftSecretsGuardrailsTest {
+    @Test
+    void findsSecretsAndEnsuresGitignore(@TempDir Path root) throws Exception {
+        Path resources = root.resolve("src/main/resources");
+        Files.createDirectories(resources);
+        Files.writeString(resources.resolve("secrets.properties"), "cloud.accessKey=super-secret-value\n");
+        List<Path> found = ShaftSecretsGuardrails.findSecretsFiles(root);
+        assertEquals(1, found.size());
+        assertFalse(ShaftSecretsGuardrails.gitignoreMentionsSecrets(root));
+        assertTrue(ShaftSecretsGuardrails.ensureGitignoreIgnoresSecrets(root));
+        assertTrue(ShaftSecretsGuardrails.gitignoreMentionsSecrets(root));
+        assertFalse(ShaftSecretsGuardrails.ensureGitignoreIgnoresSecrets(root));
+        Path example = ShaftSecretsGuardrails.writeExampleFile(root);
+        assertTrue(Files.isRegularFile(example));
+    }
+
+    @Test
+    void masksSecretKeys() {
+        assertTrue(ShaftSecretsGuardrails.looksLikeSecretKey("cloud.accessKey"));
+        assertEquals("su****ue", ShaftSecretsGuardrails.maskValue("super-secret-value"));
+        assertEquals("api.key=ab****yz", ShaftSecretsGuardrails.maskPropertiesLine("api.key=abcdyz"));
+        assertEquals("targetAddress=https://example",
+                ShaftSecretsGuardrails.maskPropertiesLine("targetAddress=https://example"));
+    }
+}

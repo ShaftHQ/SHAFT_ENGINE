@@ -46,8 +46,8 @@ final class MessageStyleRegistry {
     static MessageStyle styleFor(String kind) {
         return switch (kind == null ? "" : kind) {
             case ShaftAssistantChatState.KIND_USER -> new MessageStyle(
-                    color("Panel.selectionBackground", new Color(0x2563EB)),
-                    color("Panel.selectionForeground", Color.WHITE),
+                    color("Panel.selectionBackground", new Color(0x2563EB), new Color(0x3574F0)),
+                    color("Panel.selectionForeground", Color.WHITE, Color.WHITE),
                     null);
             case ShaftAssistantChatState.KIND_ERROR -> errorStyle();
             case ShaftAssistantChatState.KIND_MILESTONE -> milestoneStyle();
@@ -60,9 +60,9 @@ final class MessageStyleRegistry {
 
     private static MessageStyle defaultAssistantStyle() {
         return new MessageStyle(
-                color("Panel.background", new Color(0xF6F8FA)),
-                color("TextArea.foreground", new Color(0x202020)),
-                color("Component.borderColor", new Color(0xD0D7DE)));
+                color("Panel.background", new Color(0xF6F8FA), new Color(0x2B2D30)),
+                color("TextArea.foreground", new Color(0x202020), new Color(0xDFE1E5)),
+                color("Component.borderColor", new Color(0xD0D7DE), new Color(0x43454A)));
     }
 
     /**
@@ -73,9 +73,9 @@ final class MessageStyleRegistry {
      */
     private static MessageStyle errorStyle() {
         return new MessageStyle(
-                color("Notification.errorBackground", new Color(0xFDECEA)),
-                color("Notification.errorForeground", new Color(0x8B1D1D)),
-                color("Notification.errorBorderColor", new Color(0xE5484D)));
+                color("Notification.errorBackground", new Color(0xFDECEA), new Color(0x4B1515)),
+                color("Notification.errorForeground", new Color(0x8B1D1D), new Color(0xFF8A80)),
+                color("Notification.errorBorderColor", new Color(0xE5484D), new Color(0xE5484D)));
     }
 
     /**
@@ -85,14 +85,13 @@ final class MessageStyleRegistry {
      */
     private static MessageStyle milestoneStyle() {
         return new MessageStyle(
-                color("Panel.background", new Color(0xF6F8FA)),
-                color("Label.disabledForeground", new Color(0x6B7280)),
-                color("Component.borderColor", new Color(0xD0D7DE)));
+                color("Panel.background", new Color(0xF6F8FA), new Color(0x2B2D30)),
+                color("Label.disabledForeground", new Color(0x6B7280), new Color(0x9AA0A6)),
+                color("Component.borderColor", new Color(0xD0D7DE), new Color(0x43454A)));
     }
 
-    private static Color color(String uiKey, Color fallback) {
-        Color resolved = JBColor.namedColor(uiKey, fallback);
-        return resolved == null ? fallback : resolved;
+    private static Color color(String uiKey, Color lightFallback, Color darkFallback) {
+        return JBColor.namedColor(uiKey, new JBColor(lightFallback, darkFallback));
     }
 
     /**
