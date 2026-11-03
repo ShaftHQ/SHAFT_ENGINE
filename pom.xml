@@ -87,7 +87,7 @@
              dependencyConvergence on. -->
         <!-- Selenium 4.52.0 wants byte-buddy 1.18.15; Appium java-client 11.0.0
              still pulls 1.18.14. Manage the higher version for dependencyConvergence. -->
-        <byte.buddy.version>1.18.15</byte.buddy.version>
+        <byte.buddy.version>1.18.16</byte.buddy.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <playwright.version>1.64.0</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
