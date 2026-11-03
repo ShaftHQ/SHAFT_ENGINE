@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.CliTerminalSupport;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,6 +17,10 @@ import org.jetbrains.annotations.NotNull;
  * {@code codex} binary found on {@code PATH} -- nothing is bundled or redistributed.
  */
 public final class OpenCodexTerminalAction extends AnAction implements DumbAware {
+    public OpenCodexTerminalAction() {
+        getTemplatePresentation().setIcon(ShaftIcons.TERMINAL_CODEX);
+    }
+
     private static final String EXECUTABLE = "codex";
     private static final String TAB_NAME = "Codex";
     private static final String NOTIFICATION_TITLE = "Codex terminal";

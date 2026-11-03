@@ -205,7 +205,7 @@ class AssistantMarkdownTest {
 
         assertAll(
                 () -> assertTrue(markdown.contains("Use `mvn test` for the focused check.")),
-                () -> assertTrue(markdown.contains("**⚠️ Warnings**")),
+                () -> assertTrue(markdown.contains("**WARN Warnings**")),
                 () -> assertTrue(markdown.contains("Codex returned a non-zero exit code.")),
                 () -> assertTrue(markdown.contains("```text")),
                 () -> assertFalse(markdown.contains("\"stdout\"")));
@@ -292,7 +292,7 @@ class AssistantMarkdownTest {
 
         assertAll(
                 () -> assertTrue(markdown.contains("**State:** COMPLETED")),
-                () -> assertTrue(markdown.contains("✅ READY")),
+                () -> assertTrue(markdown.contains("OK READY")),
                 () -> assertFalse(markdown.contains("nothing was lost")),
                 () -> assertTrue(markdown.contains("**Output:** `recordings/intellij-capture.json`")),
                 () -> assertTrue(markdown.contains("Generate code next — send:")),
@@ -484,7 +484,7 @@ class AssistantMarkdownTest {
         String active = AssistantMarkdown.fromMcpOutput("mobile_api_record_status", mcpText("""
                 {
                   "active": true,
-                  "sessionId": "mobile-api-20260714-030000",
+                  "sessionId": "mobile-api-fixture-session",
                   "proxyPort": 51099,
                   "caCertificatePem": "-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----",
                   "transactionCount": 5,
@@ -496,7 +496,7 @@ class AssistantMarkdownTest {
         String stopped = AssistantMarkdown.fromMcpOutput("mobile_api_record_stop", mcpText("""
                 {
                   "active": false,
-                  "sessionId": "mobile-api-20260714-030000",
+                  "sessionId": "mobile-api-fixture-session",
                   "proxyPort": 0,
                   "caCertificatePem": "-----BEGIN CERTIFICATE-----\\nMIIB\\n-----END CERTIFICATE-----",
                   "transactionCount": 5,

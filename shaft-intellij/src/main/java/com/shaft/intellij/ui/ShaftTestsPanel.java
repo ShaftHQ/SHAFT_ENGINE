@@ -211,6 +211,9 @@ final class ShaftTestsPanel extends JPanel {
         tree.setRootVisible(false);
         tree.setShowsRootHandles(true);
         tree.getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
+        tree.getEmptyText().setText("No SHAFT tests discovered yet");
+        tree.getEmptyText().appendLine("Open a SHAFT Maven/Gradle project, then click Refresh");
+        tree.getEmptyText().appendLine("Or use Tools → SHAFT → Tool Window after New Project wizard");
         tree.setCellRenderer(new DefaultTreeCellRenderer() {
             @Override
             public Component getTreeCellRendererComponent(JTree treeComponent, Object value, boolean selected,

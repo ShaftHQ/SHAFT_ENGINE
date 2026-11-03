@@ -504,6 +504,11 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .getPanel();
         panel.setBorder(JBUI.Borders.empty(8));
         reset();
+        JComponent groupsChrome = ShaftSettingsGroupsForm.createChrome();
+        JPanel composed = new JPanel(new BorderLayout());
+        composed.add(groupsChrome, BorderLayout.NORTH);
+        composed.add(panel, BorderLayout.CENTER);
+        panel = composed;
         return panel;
     }
 

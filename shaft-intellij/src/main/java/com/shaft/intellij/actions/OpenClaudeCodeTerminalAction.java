@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.CliTerminalSupport;
 import org.jetbrains.annotations.NotNull;
 
@@ -17,6 +18,10 @@ import org.jetbrains.annotations.NotNull;
  * redistributed.
  */
 public final class OpenClaudeCodeTerminalAction extends AnAction implements DumbAware {
+    public OpenClaudeCodeTerminalAction() {
+        getTemplatePresentation().setIcon(ShaftIcons.TERMINAL_CLAUDE);
+    }
+
     private static final String EXECUTABLE = "claude";
     private static final String TAB_NAME = "Claude Code";
     private static final String NOTIFICATION_TITLE = "Claude Code terminal";

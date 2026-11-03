@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
@@ -7,6 +8,7 @@ import org.gradle.process.CommandLineArgumentProvider
 plugins {
     java
     jacoco
+    kotlin("jvm") version "2.1.20"
     id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
@@ -56,6 +58,10 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_17)
 }
 
 // A SHAFT test run regenerates src/test/resources/META-INF/services/ from scratch (Allure and
@@ -277,14 +283,18 @@ tasks {
         inputs.file("build.gradle.kts")
         finalizedBy(jacocoTestReport)
         useJUnitPlatform()
-        systemProperty("java.awt.headless", "true")
+        val propTrue = "true"
+        val propFalse = "false"
+        systemProperty("java.awt.headless", propTrue)
+        systemProperty("headlessExecution", propTrue)
+        systemProperty("allure.automaticallyOpen", propFalse)
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
-        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
-        systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
-        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", "false"))
-        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", propFalse))
+        systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", propFalse))
+        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", propFalse))
+        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", propFalse))
         systemProperty("shaft.intellij.liveUnrestrictedAgentE2E",
-                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", "false"))
+                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", propFalse))
         systemProperty("shaft.intellij.liveShaftVersion",
                 System.getProperty("shaft.intellij.liveShaftVersion", project.version.toString()))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))

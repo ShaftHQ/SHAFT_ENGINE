@@ -34,6 +34,14 @@ public final class ShaftIcons {
     public static final Icon SEND = AllIcons.Actions.Execute;
     public static final Icon SETTINGS = AllIcons.General.Settings;
     public static final Icon VIEW = AllIcons.Actions.Preview;
+    /** Tools → Claude Terminal (distinct from Codex/Copilot). */
+    public static final Icon TERMINAL_CLAUDE = AllIcons.Debugger.Console;
+    /** Tools → Codex Terminal. */
+    public static final Icon TERMINAL_CODEX = AllIcons.Actions.Execute;
+    /** Tools → Copilot Terminal. */
+    public static final Icon TERMINAL_COPILOT = AllIcons.Vcs.Branch;
+    /** Tools → Tool Window. */
+    public static final Icon TOOL_WINDOW = AllIcons.Toolwindows.ToolWindowPalette;
 
     private ShaftIcons() {
         throw new IllegalStateException("Utility class");
