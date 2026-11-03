@@ -25,13 +25,25 @@ class ShaftSecretsGuardrailsTest {
         assertFalse(ShaftSecretsGuardrails.ensureGitignoreIgnoresSecrets(root));
         Path example = ShaftSecretsGuardrails.writeExampleFile(root);
         assertTrue(Files.isRegularFile(example));
+        // second write is idempotent
+        assertEquals(example, ShaftSecretsGuardrails.writeExampleFile(root));
+    }
+
+    @Test
+    void findsRootLevelCredentialFiles(@TempDir Path root) throws Exception {
+        Files.writeString(root.resolve("credentials.properties"), "token=abc\n");
+        assertEquals(1, ShaftSecretsGuardrails.findSecretsFiles(root).size());
     }
 
     @Test
     void masksSecretKeys() {
         assertTrue(ShaftSecretsGuardrails.looksLikeSecretKey("cloud.accessKey"));
+        assertTrue(ShaftSecretsGuardrails.looksLikeSecretKey("api_key"));
         assertEquals("su****ue", ShaftSecretsGuardrails.maskValue("super-secret-value"));
+        assertEquals("****", ShaftSecretsGuardrails.maskValue("ab"));
+        assertEquals("", ShaftSecretsGuardrails.maskValue("   "));
         assertEquals("api.key=ab****yz", ShaftSecretsGuardrails.maskPropertiesLine("api.key=abcdyz"));
+        assertEquals("no-equals", ShaftSecretsGuardrails.maskPropertiesLine("no-equals"));
         assertEquals("targetAddress=https://example",
                 ShaftSecretsGuardrails.maskPropertiesLine("targetAddress=https://example"));
     }

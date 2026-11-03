@@ -68,16 +68,21 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
 
     @Override
     public void setupRootModel(@NotNull ModifiableRootModel modifiableRootModel) throws ConfigurationException {
-        String contentPath = getContentEntryPath();
+        writeScaffoldForContentPath(getContentEntryPath(), settings);
+        doAddContentEntry(modifiableRootModel);
+    }
+
+    static void writeScaffoldForContentPath(@Nullable String contentPath,
+                                            @NotNull ShaftMavenProjectSettings projectSettings)
+            throws ConfigurationException {
         if (contentPath == null) {
             throw new ConfigurationException("Project path is missing");
         }
         try {
-            ShaftMavenProjectScaffold.write(Path.of(contentPath), settings);
+            ShaftMavenProjectScaffold.write(Path.of(contentPath), projectSettings);
         } catch (IOException error) {
             throw new ConfigurationException("Could not create SHAFT project files: " + error.getMessage());
         }
-        doAddContentEntry(modifiableRootModel);
     }
 
     @Override

@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftStatusPresentationNoEmojiTest {
@@ -16,5 +18,17 @@ class ShaftStatusPresentationNoEmojiTest {
             assertFalse(value.codePoints().anyMatch(cp -> cp > 0x7F), name + " must be ASCII, was: " + value);
             assertTrue(value.length() >= 2, name + " should be a readable marker");
         }
+    }
+
+    @Test
+    void dualLegColorsArePresent() {
+        assertNotNull(ShaftStatusPresentation.success());
+        assertNotNull(ShaftStatusPresentation.error());
+                assertNotNull(ShaftStatusPresentation.pending());
+        assertNotNull(ShaftStatusPresentation.progress());
+        assertNotNull(ShaftStatusPresentation.disconnected());
+        assertEquals("12 ms", ShaftStatusPresentation.formatElapsed(12));
+        assertNotNull(ShaftStatusPresentation.tint(
+                ShaftStatusPresentation.success(), ShaftStatusPresentation.error(), 0.5));
     }
 }
