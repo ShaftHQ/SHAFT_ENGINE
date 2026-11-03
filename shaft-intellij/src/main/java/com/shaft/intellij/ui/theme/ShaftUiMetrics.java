@@ -12,13 +12,13 @@ import java.awt.Insets;
  * Spacing and typography tokens that respect Appearance font scaling (W1.4 / Carl F08–F09).
  */
 public final class ShaftUiMetrics {
-    private ShaftUiMetrics() {
-        throw new IllegalStateException("Utility class");
-    }
-
     public static final int PAD_SM = 4;
     public static final int PAD_MD = 8;
     public static final int PAD_LG = 16;
+
+    private ShaftUiMetrics() {
+        throw new IllegalStateException("Utility class");
+    }
 
     public static @NotNull Insets insetsSm() {
         return JBUI.insets(PAD_SM);

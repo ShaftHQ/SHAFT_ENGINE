@@ -4,6 +4,7 @@ package com.shaft.intellij.testrunner
 object ShaftRunOverridesLabels {
     const val PROJECT_DEFAULT: String = "Project default"
 
+    /** Returns the empty-override sentinel shown in override combo boxes. */
     @JvmStatic
     fun projectDefaultLabel(): String = PROJECT_DEFAULT
 }

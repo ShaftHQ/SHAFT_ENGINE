@@ -28,22 +28,21 @@ public final class ShaftSecretsGuardrails {
 
     public static @NotNull List<Path> findSecretsFiles(@NotNull Path projectRoot) throws IOException {
         List<Path> found = new ArrayList<>();
-        Path resources = projectRoot.resolve("src/main/resources");
-        if (Files.isDirectory(resources)) {
-            for (String name : SECRET_FILE_NAMES) {
-                Path candidate = resources.resolve(name);
-                if (Files.isRegularFile(candidate)) {
-                    found.add(candidate);
-                }
-            }
+        collectNamedSecrets(projectRoot.resolve("src/main/resources"), found);
+        collectNamedSecrets(projectRoot, found);
+        return List.copyOf(found);
+    }
+
+    private static void collectNamedSecrets(@NotNull Path directory, @NotNull List<Path> found) {
+        if (!Files.isDirectory(directory)) {
+            return;
         }
         for (String name : SECRET_FILE_NAMES) {
-            Path candidate = projectRoot.resolve(name);
+            Path candidate = directory.resolve(name);
             if (Files.isRegularFile(candidate)) {
                 found.add(candidate);
             }
         }
-        return List.copyOf(found);
     }
 
     public static boolean gitignoreMentionsSecrets(@NotNull Path projectRoot) throws IOException {

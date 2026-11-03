@@ -283,16 +283,18 @@ tasks {
         inputs.file("build.gradle.kts")
         finalizedBy(jacocoTestReport)
         useJUnitPlatform()
-        systemProperty("java.awt.headless", "true")
-        systemProperty("headlessExecution", "true")
-        systemProperty("allure.automaticallyOpen", "false")
+        val propTrue = "true"
+        val propFalse = "false"
+        systemProperty("java.awt.headless", propTrue)
+        systemProperty("headlessExecution", propTrue)
+        systemProperty("allure.automaticallyOpen", propFalse)
         systemProperty("shaft.intellij.screenshotDir", System.getProperty("shaft.intellij.screenshotDir", ""))
-        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", "false"))
-        systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", "false"))
-        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", "false"))
-        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", "false"))
+        systemProperty("shaft.intellij.liveGemini", System.getProperty("shaft.intellij.liveGemini", propFalse))
+        systemProperty("shaft.intellij.liveWorkflows", System.getProperty("shaft.intellij.liveWorkflows", propFalse))
+        systemProperty("shaft.intellij.liveToolE2E", System.getProperty("shaft.intellij.liveToolE2E", propFalse))
+        systemProperty("shaft.intellij.liveAgentE2E", System.getProperty("shaft.intellij.liveAgentE2E", propFalse))
         systemProperty("shaft.intellij.liveUnrestrictedAgentE2E",
-                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", "false"))
+                System.getProperty("shaft.intellij.liveUnrestrictedAgentE2E", propFalse))
         systemProperty("shaft.intellij.liveShaftVersion",
                 System.getProperty("shaft.intellij.liveShaftVersion", project.version.toString()))
         systemProperty("shaft.intellij.liveMcpCommand", System.getProperty("shaft.intellij.liveMcpCommand", ""))

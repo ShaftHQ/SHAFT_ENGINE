@@ -7,11 +7,11 @@ import com.intellij.openapi.Disposable;
 import com.intellij.openapi.module.ModifiableModuleModel;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleType;
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ModifiableRootModel;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
-import com.intellij.openapi.options.ConfigurationException;
-import com.intellij.openapi.roots.ModifiableRootModel;
 import com.shaft.intellij.ui.ShaftIcons;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +32,8 @@ import java.nio.file.Path;
  * New Project / Module wizard builder for SHAFT Maven TestNG projects (W2.1).
  */
 public final class ShaftMavenModuleBuilder extends ModuleBuilder {
+    private static final String TOOL_WINDOW_ID = "SHAFT";
+
     private final ShaftMavenProjectSettings settings = new ShaftMavenProjectSettings();
 
     @Override
@@ -83,23 +85,23 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
         return new ShaftMavenWizardStep(settings);
     }
 
-
     @Override
     public @Nullable Module commitModule(@NotNull Project project, @Nullable ModifiableModuleModel model) {
         Module module = super.commitModule(project, model);
         if (module != null && settings.isOpenAssistantAfterCreate()) {
-            ToolWindowManager.getInstance(project).invokeLater(() -> {
-                ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
-                if (toolWindow != null) {
-                    toolWindow.show();
-                }
-            });
+            showShaftToolWindow(project);
         }
         return module;
     }
 
-    ShaftMavenProjectSettings settings() {
-        return settings;
+    private static void showShaftToolWindow(@NotNull Project project) {
+        ToolWindowManager manager = ToolWindowManager.getInstance(project);
+        manager.invokeLater(() -> {
+            ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);
+            if (toolWindow != null) {
+                toolWindow.show();
+            }
+        });
     }
 
     private static final class ShaftMavenWizardStep extends ModuleWizardStep {
@@ -116,38 +118,38 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
             artifactId.setText(settings.getArtifactId());
             version.setText(settings.getVersion());
             openAssistant.setSelected(settings.isOpenAssistantAfterCreate());
-            GridBagConstraints c = new GridBagConstraints();
-            c.insets = new Insets(4, 4, 4, 4);
-            c.anchor = GridBagConstraints.WEST;
-            c.gridx = 0;
-            c.gridy = 0;
-            panel.add(new JLabel("GroupId"), c);
-            c.gridx = 1;
-            c.fill = GridBagConstraints.HORIZONTAL;
-            c.weightx = 1;
-            panel.add(groupId, c);
-            c.gridx = 0;
-            c.gridy = 1;
-            c.weightx = 0;
-            c.fill = GridBagConstraints.NONE;
-            panel.add(new JLabel("ArtifactId"), c);
-            c.gridx = 1;
-            c.fill = GridBagConstraints.HORIZONTAL;
-            c.weightx = 1;
-            panel.add(artifactId, c);
-            c.gridx = 0;
-            c.gridy = 2;
-            c.weightx = 0;
-            c.fill = GridBagConstraints.NONE;
-            panel.add(new JLabel("Version"), c);
-            c.gridx = 1;
-            c.fill = GridBagConstraints.HORIZONTAL;
-            c.weightx = 1;
-            panel.add(version, c);
-            c.gridx = 0;
-            c.gridy = 3;
-            c.gridwidth = 2;
-            panel.add(openAssistant, c);
+            buildForm();
+        }
+
+        private void buildForm() {
+            addLabeledField(0, "GroupId", groupId);
+            addLabeledField(1, "ArtifactId", artifactId);
+            addLabeledField(2, "Version", version);
+            GridBagConstraints checkboxConstraints = baseConstraints();
+            checkboxConstraints.gridx = 0;
+            checkboxConstraints.gridy = 3;
+            checkboxConstraints.gridwidth = 2;
+            panel.add(openAssistant, checkboxConstraints);
+        }
+
+        private void addLabeledField(int row, @NotNull String label, @NotNull JComponent field) {
+            GridBagConstraints labelConstraints = baseConstraints();
+            labelConstraints.gridx = 0;
+            labelConstraints.gridy = row;
+            panel.add(new JLabel(label), labelConstraints);
+            GridBagConstraints fieldConstraints = baseConstraints();
+            fieldConstraints.gridx = 1;
+            fieldConstraints.gridy = row;
+            fieldConstraints.fill = GridBagConstraints.HORIZONTAL;
+            fieldConstraints.weightx = 1;
+            panel.add(field, fieldConstraints);
+        }
+
+        private static @NotNull GridBagConstraints baseConstraints() {
+            GridBagConstraints constraints = new GridBagConstraints();
+            constraints.insets = new Insets(4, 4, 4, 4);
+            constraints.anchor = GridBagConstraints.WEST;
+            return constraints;
         }
 
         @Override

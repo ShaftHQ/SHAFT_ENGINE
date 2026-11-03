@@ -10,6 +10,7 @@ import javax.swing.JComponent
  * Password Safe wiring and SearchableConfigurable id `shaft.settings`.
  */
 object ShaftSettingsGroupsForm {
+    /** Builds the Agent / MCP / Keys section chrome composited NORTH of FormBuilder. */
     @JvmStatic
     fun createChrome(): JComponent = panel {
         group("Agent") {

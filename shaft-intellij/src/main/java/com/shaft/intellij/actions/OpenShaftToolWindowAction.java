@@ -17,6 +17,8 @@ import org.jetbrains.annotations.NotNull;
  * <p>W1.7: visible only in SHAFT projects so Tools → SHAFT → Open does not appear elsewhere.
  */
 public final class OpenShaftToolWindowAction extends AnAction implements DumbAware {
+    private static final String TOOL_WINDOW_ID = "SHAFT";
+
     public OpenShaftToolWindowAction() {
         getTemplatePresentation().setIcon(ShaftIcons.TOOL_WINDOW);
     }
@@ -28,19 +30,26 @@ public final class OpenShaftToolWindowAction extends AnAction implements DumbAwa
 
     @Override
     public void update(@NotNull AnActionEvent event) {
-        Project project = event.getProject();
-        boolean visible = project != null && ShaftProjectDetector.isShaftProject(project);
-        event.getPresentation().setEnabledAndVisible(visible);
+        event.getPresentation().setEnabledAndVisible(isShaftProject(event.getProject()));
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getProject();
-        if (project == null || !ShaftProjectDetector.isShaftProject(project)) {
+        if (!isShaftProject(project)) {
             return;
         }
-        ToolWindowManager.getInstance(project).invokeLater(() -> {
-            ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");
+        showToolWindow(project);
+    }
+
+    private static boolean isShaftProject(Project project) {
+        return project != null && ShaftProjectDetector.isShaftProject(project);
+    }
+
+    private static void showToolWindow(@NotNull Project project) {
+        ToolWindowManager manager = ToolWindowManager.getInstance(project);
+        manager.invokeLater(() -> {
+            ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);
             if (toolWindow != null) {
                 toolWindow.show();
             }

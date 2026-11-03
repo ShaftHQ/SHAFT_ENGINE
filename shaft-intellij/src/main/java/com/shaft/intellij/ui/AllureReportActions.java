@@ -41,10 +41,7 @@ public final class AllureReportActions {
         try (Stream<Path> walk = Files.walk(results, 3)) {
             return walk
                     .filter(Files::isRegularFile)
-                    .filter(path -> {
-                        String name = path.getFileName().toString().toLowerCase();
-                        return name.endsWith(".png") || name.endsWith(".jpg");
-                    })
+                    .filter(AllureReportActions::isImageFile)
                     .max(Comparator.comparingLong(path -> path.toFile().lastModified()))
                     .orElse(null);
         }
@@ -60,5 +57,10 @@ public final class AllureReportActions {
         ShaftNotifier.info(project, "SHAFT evidence",
                 "Allure results ready at " + projectRoot.relativize(results)
                         + ". Open the folder or run Doctor from the failure notification — Doctor is optional, not the first wall.");
+    }
+
+    private static boolean isImageFile(@NotNull Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        return name.endsWith(".png") || name.endsWith(".jpg");
     }
 }
