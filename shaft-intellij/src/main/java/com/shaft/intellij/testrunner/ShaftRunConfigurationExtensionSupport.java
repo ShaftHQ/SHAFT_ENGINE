@@ -6,6 +6,7 @@ import com.intellij.execution.configurations.SimpleJavaParameters;
 import com.intellij.execution.configurations.ParametersList;
 import com.intellij.execution.configurations.RunConfigurationBase;
 import com.intellij.openapi.options.SettingsEditor;
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.util.Key;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jdom.Element;
@@ -43,6 +44,11 @@ final class ShaftRunConfigurationExtensionSupport {
     private static final String BROWSER_ATTRIBUTE = "browser";
     private static final String HEADLESS_ATTRIBUTE = "headless";
     private static final String EXTRA_VM_ARGS_ATTRIBUTE = "extraVmArgs";
+    private static final String PLATFORM_ATTRIBUTE = "platform";
+    private static final String EXECUTION_ATTRIBUTE = "execution";
+    private static final String DEVICE_OS_ATTRIBUTE = "deviceOs";
+    private static final String APP_ALIAS_ATTRIBUTE = "appAlias";
+    private static final String RETRY_ATTRIBUTE = "retryCount";
 
     // custom.properties keys these overrides patch (shaft-engine/src/main/resources/properties/custom.properties).
     private static final String BROWSER_PROPERTY = "targetBrowserName";
@@ -84,6 +90,17 @@ final class ShaftRunConfigurationExtensionSupport {
         overrides.setBrowser(element.getAttributeValue(BROWSER_ATTRIBUTE, ""));
         overrides.setHeadless(Boolean.parseBoolean(element.getAttributeValue(HEADLESS_ATTRIBUTE, "false")));
         overrides.setExtraVmArgs(element.getAttributeValue(EXTRA_VM_ARGS_ATTRIBUTE, ""));
+        ShaftTargetSelection target = new ShaftTargetSelection();
+        target.setPlatform(parsePlatform(element.getAttributeValue(PLATFORM_ATTRIBUTE)));
+        target.setExecution(parseExecution(element.getAttributeValue(EXECUTION_ATTRIBUTE)));
+        target.setDeviceOs(element.getAttributeValue(DEVICE_OS_ATTRIBUTE, ""));
+        target.setAppAlias(element.getAttributeValue(APP_ALIAS_ATTRIBUTE, ""));
+        try {
+            target.setRetryCount(Integer.parseInt(element.getAttributeValue(RETRY_ATTRIBUTE, "0")));
+        } catch (NumberFormatException ignored) {
+            target.setRetryCount(0);
+        }
+        overrides.setTarget(target);
         configuration.putCopyableUserData(OVERRIDES_KEY, overrides);
     }
 
@@ -97,6 +114,12 @@ final class ShaftRunConfigurationExtensionSupport {
         element.setAttribute(BROWSER_ATTRIBUTE, nullToEmpty(overrides.getBrowser()));
         element.setAttribute(HEADLESS_ATTRIBUTE, String.valueOf(overrides.isHeadless()));
         element.setAttribute(EXTRA_VM_ARGS_ATTRIBUTE, nullToEmpty(overrides.getExtraVmArgs()));
+        ShaftTargetSelection target = overrides.getTarget();
+        element.setAttribute(PLATFORM_ATTRIBUTE, target.getPlatform().name());
+        element.setAttribute(EXECUTION_ATTRIBUTE, target.getExecution().name());
+        element.setAttribute(DEVICE_OS_ATTRIBUTE, nullToEmpty(target.getDeviceOs()));
+        element.setAttribute(APP_ALIAS_ATTRIBUTE, nullToEmpty(target.getAppAlias()));
+        element.setAttribute(RETRY_ATTRIBUTE, String.valueOf(target.getRetryCount()));
     }
 
     /** Shared apply routine for {@code patchCommandLine} (raw process command-line arguments). */
@@ -109,6 +132,12 @@ final class ShaftRunConfigurationExtensionSupport {
             commandLine.addParameter(systemProperty(BROWSER_PROPERTY, overrides.getBrowser()));
         }
         commandLine.addParameter(systemProperty(HEADLESS_PROPERTY, String.valueOf(overrides.isHeadless())));
+        // Invalid combos are blocked in the editor; skip target args rather than crash the run config pipeline.
+        if (overrides.getTarget().isValid()) {
+            for (String token : overrides.getTarget().toVmArgs()) {
+                commandLine.addParameter(token);
+            }
+        }
         if (!isBlank(overrides.getExtraVmArgs())) {
             for (String token : ParametersList.parse(overrides.getExtraVmArgs())) {
                 commandLine.addParameter(token);
@@ -127,6 +156,16 @@ final class ShaftRunConfigurationExtensionSupport {
             vmParametersList.addProperty(BROWSER_PROPERTY, overrides.getBrowser());
         }
         vmParametersList.addProperty(HEADLESS_PROPERTY, String.valueOf(overrides.isHeadless()));
+        if (overrides.getTarget().isValid()) {
+            for (String token : overrides.getTarget().toVmArgs()) {
+                if (token.startsWith("-D") && token.contains("=")) {
+                    int eq = token.indexOf('=');
+                    vmParametersList.addProperty(token.substring(2, eq), token.substring(eq + 1));
+                } else {
+                    vmParametersList.add(token);
+                }
+            }
+        }
         if (!isBlank(overrides.getExtraVmArgs())) {
             vmParametersList.addParametersString(overrides.getExtraVmArgs());
         }
@@ -144,6 +183,34 @@ final class ShaftRunConfigurationExtensionSupport {
         return value == null ? "" : value;
     }
 
+    private static ShaftTargetSelection.Platform parsePlatform(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return ShaftTargetSelection.Platform.INHERIT_PLATFORM;
+        }
+        try {
+            return ShaftTargetSelection.Platform.valueOf(raw);
+        } catch (IllegalArgumentException ex) {
+            return ShaftTargetSelection.Platform.INHERIT_PLATFORM;
+        }
+    }
+
+    private static ShaftTargetSelection.Execution parseExecution(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return ShaftTargetSelection.Execution.INHERIT_EXECUTION;
+        }
+        try {
+            return ShaftTargetSelection.Execution.valueOf(raw);
+        } catch (IllegalArgumentException ex) {
+            return ShaftTargetSelection.Execution.INHERIT_EXECUTION;
+        }
+    }
+
+    static void validateForApply(ShaftRunConfigurationOverrides state) throws ConfigurationException {
+        if (state != null && state.isEnabled() && !state.getTarget().isValid()) {
+            throw new ConfigurationException(String.join(" ", state.getTarget().validationErrors()));
+        }
+    }
+
     /**
      * Backs both extensions' {@code createEditor}. A private nested class (rather than a sixth
      * source file) since it is pure wiring around {@link ShaftRunConfigurationOverridesPanel} with
@@ -159,8 +226,9 @@ final class ShaftRunConfigurationExtensionSupport {
         }
 
         @Override
-        protected void applyEditorTo(RunConfigurationBase configuration) {
+        protected void applyEditorTo(RunConfigurationBase configuration) throws ConfigurationException {
             ShaftRunConfigurationOverrides state = panel.getState();
+            validateForApply(state);
             configuration.putCopyableUserData(OVERRIDES_KEY, state.isEnabled() ? state : null);
         }
 

@@ -1,0 +1,11 @@
+Shaft.GeneratePageObjectFromCapture
+Shaft.GoToLastFailure
+Shaft.OpenClaudeCodeTerminal
+Shaft.OpenCodexTerminal
+Shaft.OpenCopilotCliTerminal
+Shaft.OpenToolWindow
+Shaft.PickLocatorAtCaret
+Shaft.RecordApiMobile
+Shaft.RecordApiWeb
+Shaft.RecordJavaTarget
+Shaft.ShowTraceViewer

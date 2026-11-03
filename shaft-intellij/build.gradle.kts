@@ -49,6 +49,7 @@ dependencies {
     }
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    testImplementation("org.mockito:mockito-core:5.14.2")
     testImplementation(gradleTestKit())
     testImplementation("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
@@ -72,9 +73,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 sourceSets["test"].resources.srcDir("src/test/junit-extensions")
 
 intellijPlatform {
-    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows.
-    // The plugin verifier still validates the built ZIP; track re-enabling this task separately.
-    buildSearchableOptions = false
+    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows (#7603).
+    // Enable on Linux/macOS so Settings search finds SHAFT keys; keep disabled on Windows hosts.
+    buildSearchableOptions = !System.getProperty("os.name", "").lowercase().contains("windows")
     instrumentCode = true
 
     pluginConfiguration {

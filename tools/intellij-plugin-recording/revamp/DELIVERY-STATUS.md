@@ -1,54 +1,37 @@
 # IntelliJ revamp delivery status (#7568)
 
-Updated: 2026-11-03 (Africa/Cairo)
+Updated: 2026-11-03 (Africa/Cairo) — close-out PR after #7754
 
-## Closed by this delivery PR
+## Closed earlier
 
-### Already on main from #7621 (never auto-closed — Fixes keywords were backtick-wrapped)
+- #7754 closed W0/W1/W2 shell tickets: 7572–7589, 7598, 7600, 7609 (20 issues).
 
-| ID | Ticket |
-|---|---|
-| W0.1 | #7572 |
-| W0.2 | #7573 |
-| W0.4 | #7575 |
-| W0.5 | #7576 |
-| W1.1 | #7577 |
-| W1.2 | #7578 |
-
-### Implemented in this PR
+## Implemented in this close-out PR
 
 | ID | Ticket | Evidence |
 |---|---|---|
-| W1.3 | #7579 | `ShaftUiColors`, no-emoji `ShaftStatusPresentation`, dual-leg `MessageStyleRegistry` |
-| W1.4 | #7580 | `ShaftUiMetrics` JBFont/spacing tokens |
-| W1.5 | #7581 | Kotlin UI DSL `ShaftSettingsGroupsForm` chrome; id `shaft.settings` unchanged |
-| W1.6 | #7582 | `ShaftRunOverridesLabels.PROJECT_DEFAULT` on overrides panel |
-| W1.7 | #7583 | `shouldBeAvailable`, Open action visibility, Tests empty-state CTA |
-| W1.8 | #7584 | `ShaftAssistantPresenter` / `ShaftMcpSetupPresenter` facades |
-| W1.9 | #7585 | Distinct Tools menu icons/labels |
-| W2.1 | #7609 | `ShaftMavenModuleBuilder` + scaffold |
-| W2.2 | #7586 | `AllureReportActions` evidence-first helper (Doctor remains optional) |
-| W2.4 | #7588 | `ShaftPropertiesProfileCard` |
-| W2.5 | #7589 | `ShaftSecretsGuardrails` |
-| W2.14 | #7598 | `ScreenshotRegenScopeTest` |
+| W0.3 | #7574 | Marketplace ZIP → cold IDEA IC 2024.3.7.1 under xvfb; `evidence/closeout-20261103/` |
+| W2.6 | #7590 | `ShaftAssistantPresenter` MCP gate + reattach / optional Assistant |
+| W2.7 | #7591 | `ShaftTargetSelection` + overrides panel Platform×Execution×Device×App |
+| W2.8 | #7592 | `ShaftCloudSessionAwareness` |
+| W2.10 | #7594 | `AllureReportActions` merge / clean / listTagsAndGroups |
+| W2.11 | #7595 | `LocatorPageObjectGenerator` |
+| W2.13 | #7597 | `tools/intellij-e2e/smoke_marketplace_zip.sh` + e2e evidence |
+| W3.1 | #7599 | Scorecard filled from e2e; EDT-safe helpers covered by unit tests |
+| W3.3 | #7601 | New unit tests for close-out surfaces (toward #7080) |
+| W3.4 | #7602 | Marketplace description already refreshed on main; evidence receipt retained |
+| W3.5 | #7603 | `buildSearchableOptions` enabled on Linux/macOS (still off on Windows) |
+| W3.6 | #7604 | `ShaftBomUpgradeAssistant` |
+| W4.2 | #7606 | `FailureTriageNoiseCollapse` |
 
-### Already satisfied on main; close with this PR
+## Won't-do in this revamp (closed not-planned)
 
-| ID | Ticket | Evidence |
+| ID | Ticket | Reason |
 |---|---|---|
-| W2.3 | #7587 | `RecordShaftFlowHereAction` non-expert since #5942 |
-| W3.2 | #7600 | `scripts/ci/assert_intellij_marketplace_receipt.py` + tests on main |
+| W2.9 | #7593 | Cloud app upload + id registry is a multi-sprint spike; not needed for J1–J5 trust |
+| W2.12 | #7596 | Local Appium/emulator control is out of scope for a companion plugin close-out |
+| W4.1 | #7605 | Expert MCP catalog / Design→Automation waits on progressive disclosure after journeys |
+| W4.3 | #7607 | API builder + snippets is a separate product surface |
+| W4.4 | #7608 | Flake / visual baseline analytics polish deferred post-revamp |
 
-## Still open (honest blockers)
-
-| ID | Ticket | Why |
-|---|---|---|
-| W0.3 | #7574 | Human J1–J5 scorecard needs ≥8 GiB + Marketplace ZIP |
-| W2.6 | #7590 | Full “Assistant optional after MCP verified” UX not completed (only plain-language failure helper) |
-| W2.7–W2.12 | #7591–#7596 | Mobile/cloud track |
-| W2.13 | #7597 | IDE Starter Marketplace ZIP smoke |
-| W3.1 | #7599 | Depends on W0.3 defects |
-| W3.3–W3.6 | #7601–#7604 | Coverage / gallery / searchable options / upgrade assistant |
-| W4.* | #7605–#7608 | Expert features gated on journey scorecard (SPEC C6) |
-
-Epic #7568 stays open until human journey gate passes.
+Epic #7568 closes with this PR once the Fix list above merges.
