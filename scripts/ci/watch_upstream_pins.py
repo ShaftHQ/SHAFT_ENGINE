@@ -128,13 +128,20 @@ def _stable_identity(pin: Pin, stable: Stable) -> str:
     return latest
 
 
-_VERSION_KINDS = frozenset({"pypi", "npm", "github-tag", "node-index", "adoptium"})
+_SERIES_KINDS = frozenset({"series-node", "series-java", "series-python"})
+_VERSION_KINDS = frozenset(
+    {"pypi", "npm", "github-tag", "node-index", "adoptium", "maven-central", "python-org"}
+) | _SERIES_KINDS
 _COMMIT_KINDS = frozenset({"git", "release"})
 
 
 def compare_pin(pin: Pin, stable: Stable) -> Verdict:
     latest = _stable_identity(pin, stable)
-    if pin.kind in _VERSION_KINDS:
+    if pin.kind in _SERIES_KINDS:
+        # A series pin ("25", "3.13") is behind when the newest stable series is newer.
+        latest = ".".join(latest.split("+", 1)[0].split(".")[: len(pin.current.split("."))])
+        behind = _version_key(pin.current) < _version_key(latest)
+    elif pin.kind in _VERSION_KINDS:
         behind = _version_key(pin.current) < _version_key(latest)
     elif pin.kind in _COMMIT_KINDS:
         # #7432: a pin equal to the default-branch tip is current even when that
@@ -190,6 +197,9 @@ def load_pins(root: Path) -> tuple[Pin, ...]:
                 overlay=CAVEMAN_OVERLAY if name == "caveman" else "",
             )
         )
+    pins.extend(runtime_pins(spec))
+    pins.extend(repository_runtime_pins(root))
+    require_full_coverage(spec, pins)
     return tuple(pins)
 
 
@@ -528,6 +538,8 @@ def fetch_stable(pin: Pin) -> Stable:
         return fetch_adoptium(pin.upstream_url)
     if pin.kind in _COMMIT_KINDS:
         return fetch_git(pin.repository)
+    if pin.kind in _EXTRA_FETCHERS:
+        return _EXTRA_FETCHERS[pin.kind](pin.upstream_url)
     raise UpstreamError(f"unknown pin kind for {pin.name}")
 
 
@@ -862,6 +874,175 @@ def format_report(verdicts: Sequence[Verdict]) -> str:
         for verdict in verdicts
     ]
     return json.dumps(rows, indent=2, sort_keys=True) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Full coverage (#7738): every pin is watched against the latest stable
+# upstream, or carries an explicit exemption reason. A new pin that is neither
+# makes load_pins fail, so drift can never go silent.
+# ---------------------------------------------------------------------------
+
+NODE_INDEX_URL = "https://nodejs.org/dist/index.json"
+ADOPTIUM_RELEASES_URL = "https://api.adoptium.net/v3/info/available_releases"
+PYTHON_RELEASES_URL = "https://www.python.org/api/v2/downloads/release/?is_published=true"
+MAVEN_METADATA_URL = (
+    "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml"
+)
+
+# Pins that intentionally have no version to watch. The reason is required.
+COVERAGE_EXEMPT: dict[str, str] = {
+    "dependencies.context7": "no version pin; installs the registry latest tag",
+    "dependencies.chrome-devtools-mcp": "no version pin; npx resolves the registry latest tag",
+    "dependencies.deja": "watched through runtimes.deja",
+    "dependencies.python": "watched through runtimes.python",
+    "runtimes.maven-tools-source": "watched through dependencies.maven-tools-mcp",
+    "runtimes.temurin": "watched through dependencies.java and java-feature",
+}
+
+_SETUP_KEYS = {"node-version": "node", "java-version": "java", "python-version": "python"}
+_SETUP_LINE = re.compile(r"^\s*(node-version|java-version|python-version)\s*:\s*['\"]?([^'\"\s#]+)")
+_POM_JDK = re.compile(r"<jdk\.version>\s*(\d+)\s*</jdk\.version>")
+_SERIES_URL = {
+    "node": ("series-node", NODE_INDEX_URL),
+    "java": ("series-java", ADOPTIUM_RELEASES_URL),
+    "python": ("series-python", PYTHON_RELEASES_URL),
+}
+
+
+def runtime_pins(spec: Mapping[str, Any]) -> list[Pin]:
+    """Runtimes the dependency contract does not already watch."""
+    runtimes = spec.get("runtimes") if isinstance(spec.get("runtimes"), dict) else {}
+    pins: list[Pin] = []
+    python = runtimes.get("python") if isinstance(runtimes, dict) else None
+    if isinstance(python, dict) and _STABLE_VERSION.fullmatch(str(python.get("version") or "")):
+        pins.append(Pin("python", "series-python", str(python["version"]), PYTHON_RELEASES_URL))
+    maven = runtimes.get("maven") if isinstance(runtimes, dict) else None
+    if isinstance(maven, dict) and maven.get("version"):
+        pins.append(Pin("maven", "maven-central", str(maven["version"]), MAVEN_METADATA_URL))
+    deja = runtimes.get("deja") if isinstance(runtimes, dict) else None
+    if isinstance(deja, dict) and deja.get("version"):
+        url = next(iter((deja.get("artifacts") or {}).values()), {}).get("url", "")
+        match = re.match(r"https://github\.com/([^/]+/[^/]+)/releases/", str(url))
+        if match:
+            latest = f"https://api.github.com/repos/{match.group(1)}/releases/latest"
+            pins.append(Pin("deja", "github-tag", str(deja["version"]), latest))
+    temurin = runtimes.get("temurin") if isinstance(runtimes, dict) else None
+    if isinstance(temurin, dict) and temurin.get("version"):
+        feature = str(temurin["version"]).split(".", 1)[0].split("+", 1)[0]
+        pins.append(Pin("java-feature", "series-java", feature, ADOPTIUM_RELEASES_URL))
+    return pins
+
+
+def repository_runtime_pins(root: Path) -> list[Pin]:
+    """Literal runtime versions in CI workflows and the build, one pin per distinct value."""
+    found: dict[tuple[str, str], set[str]] = {}
+    workflows = root / ".github" / "workflows"
+    for path in sorted(workflows.glob("*.y*ml")) if workflows.is_dir() else ():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = _SETUP_LINE.match(line)
+            if not match or not _STABLE_VERSION.fullmatch(match.group(2)):
+                continue  # expressions and aliases such as lts/* track upstream already
+            runtime = _SETUP_KEYS[match.group(1)]
+            found.setdefault((runtime, match.group(2)), set()).add(path.relative_to(root).as_posix())
+    pom = root / "pom.xml"
+    if pom.is_file():
+        for match in _POM_JDK.finditer(pom.read_text(encoding="utf-8")):
+            found.setdefault(("java", match.group(1)), set()).add("pom.xml")
+    pins: list[Pin] = []
+    for (runtime, value), files in sorted(found.items()):
+        kind, url = _SERIES_URL[runtime]
+        name = f"ci-{runtime}@{value} ({', '.join(sorted(files))})"
+        pins.append(Pin(name, kind, value, url))
+    return pins
+
+
+def require_full_coverage(spec: Mapping[str, Any], pins: Sequence[Pin]) -> None:
+    watched = {pin.name for pin in pins}
+    alias = {"temurin": "java", "maven-tools-source": "maven-tools-mcp"}
+    missing: list[str] = []
+    for section in ("dependencies", "runtimes"):
+        entries = spec.get(section) if isinstance(spec.get(section), dict) else {}
+        for name in entries:
+            key = f"{section}.{name}"
+            if key in COVERAGE_EXEMPT:
+                continue
+            if name in watched or alias.get(name) in watched:
+                continue
+            missing.append(key)
+    if missing:
+        raise ValueError(
+            "unwatched pins (watch them or add a COVERAGE_EXEMPT reason): " + ", ".join(sorted(missing))
+        )
+
+
+def newest_python_version(payload: object) -> str:
+    if not isinstance(payload, list):
+        raise UpstreamError("python.org release list is not a list")
+    versions = []
+    for item in payload:
+        if not isinstance(item, dict) or item.get("pre_release") or not item.get("is_published", True):
+            continue
+        raw = str(item.get("name") or "").removeprefix("Python ").strip()
+        if raw.startswith("3.") and _STABLE_VERSION.fullmatch(raw):
+            versions.append(raw)
+    if not versions:
+        raise UpstreamError("python.org has no stable release")
+    return max(versions, key=_version_key)
+
+
+def fetch_python_org(url: str) -> Stable:
+    status, payload = _request_json(url, github=False)
+    if status != 200:
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    return Stable(version=newest_python_version(payload))
+
+
+def fetch_newest_node(url: str) -> Stable:
+    """Newest stable Node line, LTS or Current: a series pin targets the newest major."""
+    status, payload = _request_json(url, github=False)
+    if status != 200 or not isinstance(payload, list):
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    versions = [
+        str(item.get("version") or "").lstrip("v")
+        for item in payload
+        if isinstance(item, dict) and _STABLE_VERSION.fullmatch(str(item.get("version") or "").lstrip("v"))
+    ]
+    if not versions:
+        raise UpstreamError(f"{url} has no stable Node version")
+    return Stable(version=max(versions, key=_version_key))
+
+
+def fetch_java_feature(url: str) -> Stable:
+    status, payload = _request_json(url, github=False)
+    feature = payload.get("most_recent_feature_release") if isinstance(payload, dict) else None
+    if status != 200 or not isinstance(feature, int):
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    return Stable(version=str(feature))
+
+
+def newest_maven_version(xml: str) -> str:
+    versions = [v for v in re.findall(r"<version>([^<]+)</version>", xml) if _STABLE_VERSION.fullmatch(v)]
+    if not versions:
+        raise UpstreamError("maven metadata has no stable version")
+    return max(versions, key=_version_key)
+
+
+def fetch_maven_central(url: str) -> Stable:
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL
+            return Stable(version=newest_maven_version(response.read().decode("utf-8")))
+    except OSError as error:
+        raise UpstreamError(f"{url} could not be read: {error}") from error
+
+
+_EXTRA_FETCHERS: dict[str, Callable[[str], Stable]] = {
+    "python-org": fetch_python_org,
+    "series-python": fetch_python_org,
+    "series-node": fetch_newest_node,
+    "series-java": fetch_java_feature,
+    "maven-central": fetch_maven_central,
+}
 
 
 def main(
