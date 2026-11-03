@@ -27,26 +27,46 @@ public final class FailureTriageNoiseCollapse {
             return "";
         }
         String[] lines = log.split("\\R");
+        String matched = matchExceptionOrAssertion(lines);
+        if (!matched.isEmpty()) {
+            return matched;
+        }
+        return firstNonNoiseLine(lines);
+    }
+
+    private static @NotNull String matchExceptionOrAssertion(@NotNull String[] lines) {
         for (String line : lines) {
-            if (NOISE.matcher(line).find()) {
+            if (isNoise(line)) {
                 continue;
             }
             Matcher m = EXCEPTION_LINE.matcher(line);
             if (m.find()) {
                 return m.group(1).trim();
             }
-            String lower = line.toLowerCase(Locale.ROOT);
-            if (lower.contains("assertion") || lower.contains("expected:") || lower.contains("but was:")) {
+            if (looksLikeAssertion(line)) {
                 return line.trim();
             }
         }
+        return "";
+    }
+
+    private static @NotNull String firstNonNoiseLine(@NotNull String[] lines) {
         for (String line : lines) {
             String trimmed = line.trim();
-            if (!trimmed.isEmpty() && !NOISE.matcher(trimmed).find()) {
+            if (!trimmed.isEmpty() && !isNoise(trimmed)) {
                 return trimmed;
             }
         }
         return "";
+    }
+
+    private static boolean isNoise(@NotNull String line) {
+        return NOISE.matcher(line).find();
+    }
+
+    private static boolean looksLikeAssertion(@NotNull String line) {
+        String lower = line.toLowerCase(Locale.ROOT);
+        return lower.contains("assertion") || lower.contains("expected:") || lower.contains("but was:");
     }
 
     public static @NotNull List<String> collapse(@Nullable String log, int maxLines) {
@@ -58,18 +78,20 @@ public final class FailureTriageNoiseCollapse {
         if (!first.isEmpty()) {
             kept.add("FIRST_ERROR: " + first);
         }
+        int limit = Math.max(1, maxLines);
         for (String line : log.split("\\R")) {
-            if (NOISE.matcher(line).find()) {
+            if (kept.size() >= limit || isNoise(line)) {
+                if (kept.size() >= limit) {
+                    break;
+                }
                 continue;
             }
             String trimmed = line.trim();
             if (trimmed.isEmpty()) {
                 continue;
             }
-            if (kept.size() >= Math.max(1, maxLines)) {
-                break;
-            }
-            if (!kept.contains(trimmed) && !(kept.size() == 1 && ("FIRST_ERROR: " + trimmed).equals(kept.get(0)))) {
+            boolean duplicateFirst = kept.size() == 1 && ("FIRST_ERROR: " + trimmed).equals(kept.get(0));
+            if (!kept.contains(trimmed) && !duplicateFirst) {
                 kept.add(trimmed);
             }
         }

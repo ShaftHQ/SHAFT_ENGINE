@@ -100,27 +100,40 @@ public final class ShaftTargetSelection {
      */
     public @NotNull List<String> validationErrors() {
         List<String> errors = new ArrayList<>();
-        boolean mobile = platform == Platform.ANDROID || platform == Platform.IOS;
-        boolean cloud = execution == Execution.BROWSERSTACK
-                || execution == Execution.LAMBDATEST
-                || execution == Execution.SAUCELABS;
-        if (platform == Platform.WEB && !deviceOs.isBlank()
-                && looksLikeMobileOs(deviceOs)) {
-            errors.add("Web platform cannot use a mobile device/OS (" + deviceOs + ").");
-        }
-        if (mobile && execution == Execution.LOCAL && deviceOs.isBlank()) {
-            errors.add("Local " + platform.label() + " runs need a Device/OS (for example ANDROID or iOS).");
-        }
-        if (cloud && mobile && appAlias.isBlank()) {
-            errors.add("Cloud " + platform.label() + " runs need an App alias from the registry (or a temporary id).");
-        }
-        if (platform == Platform.WEB && !appAlias.isBlank()) {
-            errors.add("Web platform does not use an App alias; clear App or switch to Android/iOS.");
-        }
+        addWebPlatformErrors(errors);
+        addMobilePlatformErrors(errors);
         if (retryCount < 0) {
             errors.add("Retry count cannot be negative.");
         }
         return errors;
+    }
+
+    private void addWebPlatformErrors(@NotNull List<String> errors) {
+        if (platform != Platform.WEB) {
+            return;
+        }
+        if (!deviceOs.isBlank() && looksLikeMobileOs(deviceOs)) {
+            errors.add("Web platform cannot use a mobile device/OS (" + deviceOs + ").");
+        }
+        if (!appAlias.isBlank()) {
+            errors.add("Web platform does not use an App alias; clear App or switch to Android/iOS.");
+        }
+    }
+
+    private void addMobilePlatformErrors(@NotNull List<String> errors) {
+        boolean mobile = platform == Platform.ANDROID || platform == Platform.IOS;
+        if (!mobile) {
+            return;
+        }
+        boolean cloud = execution == Execution.BROWSERSTACK
+                || execution == Execution.LAMBDATEST
+                || execution == Execution.SAUCELABS;
+        if (execution == Execution.LOCAL && deviceOs.isBlank()) {
+            errors.add("Local " + platform.label() + " runs need a Device/OS (for example ANDROID or iOS).");
+        }
+        if (cloud && appAlias.isBlank()) {
+            errors.add("Cloud " + platform.label() + " runs need an App alias from the registry (or a temporary id).");
+        }
     }
 
     public boolean isValid() {
