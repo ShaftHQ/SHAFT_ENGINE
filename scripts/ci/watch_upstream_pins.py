@@ -894,7 +894,6 @@ COVERAGE_EXEMPT: dict[str, str] = {
     "dependencies.context7": "no version pin; installs the registry latest tag",
     "dependencies.chrome-devtools-mcp": "no version pin; npx resolves the registry latest tag",
     "dependencies.deja": "watched through runtimes.deja",
-    "dependencies.python": "watched through runtimes.python",
     "runtimes.maven-tools-source": "watched through dependencies.maven-tools-mcp",
     "runtimes.temurin": "watched through dependencies.java and java-feature",
 }
@@ -915,7 +914,12 @@ def runtime_pins(spec: Mapping[str, Any]) -> list[Pin]:
     pins: list[Pin] = []
     python = runtimes.get("python") if isinstance(runtimes, dict) else None
     if isinstance(python, dict) and _STABLE_VERSION.fullmatch(str(python.get("version") or "")):
-        pins.append(Pin("python", "series-python", str(python["version"]), PYTHON_RELEASES_URL))
+        pins.append(Pin("runtime-python", "series-python", str(python["version"]), PYTHON_RELEASES_URL))
+    deps = spec.get("dependencies") if isinstance(spec.get("dependencies"), dict) else {}
+    project_python = deps.get("python") if isinstance(deps, dict) else None
+    series = project_python.get("maximumSeries") if isinstance(project_python, dict) else None
+    if isinstance(series, str) and _STABLE_VERSION.fullmatch(series):
+        pins.append(Pin("python", "series-python", series, PYTHON_RELEASES_URL))
     maven = runtimes.get("maven") if isinstance(runtimes, dict) else None
     if isinstance(maven, dict) and maven.get("version"):
         pins.append(Pin("maven", "maven-central", str(maven["version"]), MAVEN_METADATA_URL))
@@ -965,6 +969,11 @@ def require_full_coverage(spec: Mapping[str, Any], pins: Sequence[Pin]) -> None:
         for name in entries:
             key = f"{section}.{name}"
             if key in COVERAGE_EXEMPT:
+                continue
+            if section == "runtimes" and f"runtime-{name}" in watched:
+                continue
+            if section == "runtimes" and name == "python":
+                missing.append(key)  # never satisfied by the project-runtime pin
                 continue
             if name in watched or alias.get(name) in watched:
                 continue

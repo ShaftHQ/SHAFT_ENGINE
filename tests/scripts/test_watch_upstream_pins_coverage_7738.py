@@ -8,6 +8,7 @@ from pathlib import Path
 
 import sys as _sys; _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.watch_upstream_pins import (  # noqa: E402
+    runtime_pins,
     COVERAGE_EXEMPT,
     Pin,
     Stable,
@@ -26,7 +27,7 @@ class FullCoverageTest(unittest.TestCase):
     def test_repository_spec_is_fully_covered(self):
         pins = load_pins(ROOT)
         names = {pin.name for pin in pins}
-        for required in ("java-feature", "python", "maven", "deja", "node", "uv"):
+        for required in ("java-feature", "python", "runtime-python", "maven", "deja", "node", "uv"):
             self.assertIn(required, names)
 
     def test_new_unwatched_pin_fails_loudly(self):
@@ -78,3 +79,16 @@ class FullCoverageTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PythonSeriesPinTest(unittest.TestCase):
+    def test_project_python_max_series_is_watched_separately(self) -> None:
+        spec = {"dependencies": {"python": {"maximumSeries": "3.14"}}, "runtimes": {"python": {"version": "3.11"}}}
+        pins = {p.name: p for p in runtime_pins(spec)}
+        self.assertEqual(pins["python"].current, "3.14")
+        self.assertEqual(pins["runtime-python"].current, "3.11")
+
+    def test_runtime_python_not_satisfied_by_project_pin(self) -> None:
+        spec = {"dependencies": {}, "runtimes": {"python": {"version": "3.11"}}}
+        with self.assertRaises(ValueError):
+            require_full_coverage(spec, [Pin("python", "series-python", "3.14", "x")])
