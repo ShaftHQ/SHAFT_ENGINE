@@ -39,4 +39,31 @@ class FailureTriageNoiseCollapseTest {
         assertTrue(FailureTriageNoiseCollapse.collapse(null, 5).isEmpty());
         assertTrue(FailureTriageNoiseCollapse.collapse("  ", 5).isEmpty());
     }
+
+
+    @Test
+    void coversNoiseAssertionAndCollapseEdges() throws Exception {
+        assertEquals("", FailureTriageNoiseCollapse.firstRealError(null));
+        assertEquals("", FailureTriageNoiseCollapse.firstRealError("   "));
+        assertTrue(FailureTriageNoiseCollapse.collapse(null, 5).isEmpty());
+        assertTrue(FailureTriageNoiseCollapse.collapse("  ", 5).isEmpty());
+        String noiseOnly = "[INFO] hi\nDownload https://x\nSLF4J: warn";
+        assertEquals("", FailureTriageNoiseCollapse.firstRealError(noiseOnly));
+        String assertion = "[DEBUG] skip\nExpected: 1 but was: 2\nmore";
+        assertTrue(FailureTriageNoiseCollapse.firstRealError(assertion).toLowerCase().contains("expected"));
+        String plain = "[INFO] n\n\nactual failure detail\n";
+        assertEquals("actual failure detail", FailureTriageNoiseCollapse.firstRealError(plain));
+        var collapsed = FailureTriageNoiseCollapse.collapse(
+                "java.lang.RuntimeException: boom\n[INFO] noise\nboom\nsecond", 2);
+        assertEquals(2, collapsed.size());
+        assertTrue(collapsed.get(0).startsWith("FIRST_ERROR:"));
+        var ctor = FailureTriageNoiseCollapse.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        try {
+            ctor.newInstance();
+            org.junit.jupiter.api.Assertions.fail();
+        } catch (Exception ex) {
+            assertTrue(ex.getCause() instanceof IllegalStateException);
+        }
+    }
 }

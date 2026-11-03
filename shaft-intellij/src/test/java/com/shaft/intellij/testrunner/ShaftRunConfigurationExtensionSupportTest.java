@@ -14,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -143,5 +144,20 @@ class ShaftRunConfigurationExtensionSupportTest {
         // browser/headless still applied; target tokens skipped when invalid
         assertTrue(cl2.getParametersList().getList().stream()
                 .anyMatch(s -> s.contains("targetBrowserName")));
+    }
+
+
+    @Test
+    void blankPlatformExecutionAndCreateEditor() {
+        Element element = new Element("shaft");
+        element.setAttribute("enabled", "true");
+        element.setAttribute("platform", "  ");
+        element.setAttribute("execution", "");
+        ShaftRunConfigurationExtensionSupportAccess.readExternal(configuration, element);
+        Element written = new Element("shaft");
+        ShaftRunConfigurationExtensionSupportAccess.writeExternal(configuration, written);
+        assertEquals(ShaftTargetSelection.Platform.INHERIT_PLATFORM.name(), written.getAttributeValue("platform"));
+        assertEquals(ShaftTargetSelection.Execution.INHERIT_EXECUTION.name(), written.getAttributeValue("execution"));
+        assertNotNull(ShaftRunConfigurationExtensionSupportAccess.createEditor());
     }
 }

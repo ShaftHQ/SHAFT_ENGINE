@@ -33,4 +33,9 @@ public final class ShaftRunConfigurationExtensionSupportAccess {
     public static boolean isApplicableFor(RunConfigurationBase<?> configuration) {
         return ShaftRunConfigurationExtensionSupport.isApplicableFor(configuration);
     }
+
+    @SuppressWarnings("rawtypes")
+    public static com.intellij.openapi.options.SettingsEditor createEditor() {
+        return ShaftRunConfigurationExtensionSupport.createEditor();
+    }
 }

@@ -60,4 +60,24 @@ class ShaftRunConfigurationOverridesPanelTest {
         assertEquals("app-1", roundTrip.getTarget().getAppAlias());
         assertEquals(1, roundTrip.getTarget().getRetryCount());
     }
+
+
+    @Test
+    void coversBrowserVariantsAndDisabled() {
+        ShaftRunConfigurationOverridesPanel panel = new ShaftRunConfigurationOverridesPanel();
+        for (String browser : new String[] {"chrome", "firefox", "edge", "safari", ""}) {
+            ShaftRunConfigurationOverrides o = new ShaftRunConfigurationOverrides();
+            o.setEnabled(true);
+            o.setBrowser(browser);
+            o.setHeadless(false);
+            o.setExtraVmArgs("");
+            panel.setState(o);
+            assertEquals(browser, panel.getState().getBrowser());
+        }
+        ShaftRunConfigurationOverrides off = new ShaftRunConfigurationOverrides();
+        off.setEnabled(false);
+        off.setBrowser("chrome");
+        panel.setState(off);
+        assertFalse(panel.getState().isEnabled());
+    }
 }

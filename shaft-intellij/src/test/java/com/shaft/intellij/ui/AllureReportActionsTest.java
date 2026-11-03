@@ -94,4 +94,29 @@ class AllureReportActionsTest {
         assertTrue(jsonCount >= 2);
         assertTrue(AllureReportActions.listTagsAndGroups(root.resolve("nope")).isEmpty());
     }
+
+
+    @Test
+    void findResultsAndScreenshot(@TempDir Path root) throws Exception {
+        assertEquals(null, AllureReportActions.findAllureResults(root));
+        Path results = root.resolve("allure-results");
+        Files.createDirectories(results);
+        assertEquals(results, AllureReportActions.findAllureResults(root));
+        Path shotDir = results.resolve("attachments");
+        Files.createDirectories(shotDir);
+        Path older = shotDir.resolve("a.png");
+        Path newer = shotDir.resolve("b.png");
+        Files.writeString(older, "old");
+        Thread.sleep(10);
+        Files.writeString(newer, "new");
+        Path found = AllureReportActions.findLatestScreenshot(root);
+        assertTrue(found != null && found.getFileName().toString().endsWith(".png"));
+        assertTrue(AllureReportActions.evidenceMessage(root).contains("Allure results ready"));
+        assertTrue(AllureReportActions.evidenceMessage(root.resolve("missing-proj")).contains("No Allure"));
+        assertTrue(AllureReportActions.listTagsAndGroups(results).isEmpty());
+        Files.writeString(results.resolve("x-result.json"),
+                "{\"labels\":[{\"name\":\"tag\",\"value\":\"smoke\"},{\"name\":\"epic\",\"value\":\"e1\"}]}");
+        var labels = AllureReportActions.listTagsAndGroups(results);
+        assertTrue(labels.stream().anyMatch(l -> l.contains("smoke")));
+    }
 }

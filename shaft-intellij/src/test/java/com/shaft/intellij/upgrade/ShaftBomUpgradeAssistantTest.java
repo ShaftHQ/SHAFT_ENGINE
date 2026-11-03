@@ -71,4 +71,26 @@ class ShaftBomUpgradeAssistantTest {
         var withDefaultDiff = ShaftBomUpgradeAssistant.suggest(pom.replace("9.5.0", "9.0.0"), "9.5.0", null);
         assertTrue(withDefaultDiff.orElseThrow().summary().contains("changelog"));
     }
+
+
+    @Test
+    void unevenVersionPartsAndNonNumeric() {
+        assertTrue(ShaftBomUpgradeAssistant.compareVersions("10", "9.9.9") > 0);
+        assertTrue(ShaftBomUpgradeAssistant.compareVersions("1.2.3", "1.2") > 0);
+        assertEquals(0, ShaftBomUpgradeAssistant.compareVersions("1.x", "1.0"));
+        assertEquals(0, ShaftBomUpgradeAssistant.compareVersions("abc", "0"));
+        assertTrue(ShaftBomUpgradeAssistant.compareVersions("2rc1", "1") > 0);
+    }
+
+    @Test
+    void utilityConstructorIsPrivate() throws Exception {
+        var c = ShaftBomUpgradeAssistant.class.getDeclaredConstructor();
+        c.setAccessible(true);
+        try {
+            c.newInstance();
+            org.junit.jupiter.api.Assertions.fail("expected");
+        } catch (java.lang.reflect.InvocationTargetException ex) {
+            assertTrue(ex.getCause() instanceof IllegalStateException);
+        }
+    }
 }
