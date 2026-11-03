@@ -132,5 +132,12 @@ class ReviewFollowUpTest(unittest.TestCase):
         self.assertEqual(["25"], [p.current for p in pins])
 
 
+
+class AheadOfLtsTest(unittest.TestCase):
+    def test_series_pin_ahead_of_lts_is_drift(self) -> None:
+        pin = Pin("ci-java@26", "series-java", "26", "u")
+        self.assertTrue(wup.compare_pin(pin, wup.Stable(version="25")).behind)
+
+
 if __name__ == "__main__":
     unittest.main()

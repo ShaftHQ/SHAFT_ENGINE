@@ -160,7 +160,8 @@ def _compare_pin(pin: Pin, stable: Stable) -> Verdict:
     if pin.kind in _SERIES_KINDS:
         # A series pin ("25", "3.13") is behind when the newest stable series is newer.
         latest = ".".join(latest.split("+", 1)[0].split(".")[: len(pin.current.split("."))])
-        behind = _version_key(pin.current) < _version_key(latest)
+        # Ahead of the latest stable LTS series (e.g. a Current/feature release) is drift too.
+        behind = pin.current != latest
     elif pin.kind in _VERSION_KINDS:
         behind = _version_key(pin.current) < _version_key(latest)
     elif pin.kind in _COMMIT_KINDS:
