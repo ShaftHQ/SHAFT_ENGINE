@@ -97,17 +97,31 @@ def leftover_report_server_blockers(
 def stop_leftover_report_servers(
     servers: Sequence[dict] | None = None,
     *,
+    owned_path_substrings: Sequence[str] | None = None,
     kill: Callable[[int, int], None] | None = None,
     sig: int = signal.SIGTERM,
 ) -> list[dict]:
     """SIGTERM leftover report servers. Returns the rows signalled.
 
     Injectable ``kill`` for tests. Never targets non-headless profile browsers.
+
+    When ``owned_path_substrings`` is provided (ownership-ledger paths), only
+    processes whose cmdline contains one of those substrings are signalled —
+    so a shared-box bot cannot SIGTERM another bot's report server.
+    When omitted, this helper is report-only (returns [] and signals nothing).
     """
     rows = list(servers) if servers is not None else list_leftover_report_servers()
+    if owned_path_substrings is None:
+        return []
+    needles = [str(s).strip() for s in owned_path_substrings if str(s).strip()]
+    if not needles:
+        return []
     sender = kill or os.kill
     signalled: list[dict] = []
     for row in rows:
+        cmdline = str(row.get("cmdline") or "")
+        if not any(n in cmdline for n in needles):
+            continue
         pid = int(row["pid"])
         try:
             sender(pid, sig)

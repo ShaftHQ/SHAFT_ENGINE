@@ -56,7 +56,7 @@
    Chrome/Chromium or HTML report server `serve` processes before the item can close
    (issue 7755). MERGED via `gh` is enough to remove an owned worktree even when
    the remote branch is gone or the default upstream branch was rewritten
-   (`branch-not-upstream` is skipped when MERGED).
+   (`branch-not-upstream` is skipped when MERGED). Report-server SIGTERM requires ownership-ledger path substrings in the process cmdline (shared-box safe; otherwise list-only).
 10. **Self-created cleanup:** workers record every path they create via the
     tool into an HMAC-bound per-session manifest under a scoped temp dir
     (`CHAOS_SESSION_CREATED_MANIFEST` + outside-tree secret). `delete-check`

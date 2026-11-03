@@ -65,12 +65,24 @@ class ReportServerMatchTests(unittest.TestCase):
 
     def test_stop_signals_matched_pids(self) -> None:
         sent: list[tuple[int, int]] = []
-        rows = [{"pid": 42, "kind": "allure-serve", "cmdline": "allure serve x"}]
+        rows = [
+            {"pid": 42, "kind": "allure-serve", "cmdline": "allure serve /workspace/wt-mine/results"},
+            {"pid": 43, "kind": "allure-serve", "cmdline": "allure serve /workspace/wt-other/results"},
+        ]
         out = delivery_cleanup.stop_leftover_report_servers(
-            rows, kill=lambda pid, sig: sent.append((pid, sig))
+            rows,
+            owned_path_substrings=["/workspace/wt-mine"],
+            kill=lambda pid, sig: sent.append((pid, sig)),
         )
         self.assertEqual([(42, delivery_cleanup.signal.SIGTERM)], sent)
         self.assertEqual(1, len(out))
+        # Without owned substrings, report-only (no signals).
+        sent.clear()
+        out2 = delivery_cleanup.stop_leftover_report_servers(
+            rows, kill=lambda pid, sig: sent.append((pid, sig))
+        )
+        self.assertEqual([], sent)
+        self.assertEqual([], out2)
 
 
 class DeliveryCloseGateTests(unittest.TestCase):
