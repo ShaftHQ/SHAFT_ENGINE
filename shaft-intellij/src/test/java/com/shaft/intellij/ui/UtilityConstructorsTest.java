@@ -31,7 +31,7 @@ class UtilityConstructorsTest {
 
     private static void assertUtility(Class<?> type) throws Exception {
         Constructor<?> constructor = type.getDeclaredConstructor();
-        constructor.setAccessible(true);
+        constructor.setAccessible(true); // NOPMD - test-only private utility constructor coverage
         InvocationTargetException thrown = assertThrows(InvocationTargetException.class, constructor::newInstance);
         assertTrue(thrown.getCause() instanceof IllegalStateException);
     }
