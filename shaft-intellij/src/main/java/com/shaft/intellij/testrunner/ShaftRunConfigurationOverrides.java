@@ -1,21 +1,17 @@
 package com.shaft.intellij.testrunner;
 
 /**
- * Plain per-run-configuration state for SHAFT execution property overrides (issue #3659): whether
- * an individual TestNG/JUnit run configuration overrides the project's {@code custom.properties}
- * {@code targetBrowserName}/{@code headlessExecution} settings, and any extra {@code -D} VM-arg
- * overrides. A pure state holder -- no SDK imports -- so {@link ShaftRunConfigurationOverridesPanel}
- * and {@link ShaftRunConfigurationExtensionSupport} (shared by both the JUnit and TestNG
- * extensions) can all depend on it without pulling in either optional SDK dependency.
- * <p>
- * Default state ({@code enabled == false}) means "untouched, inherits {@code custom.properties}"
- * -- the required default for every run configuration that never opts in.
+ * Plain per-run-configuration state for SHAFT execution property overrides (issue #3659 / #7591):
+ * whether an individual TestNG/JUnit run configuration overrides the project's {@code custom.properties}
+ * settings, browser/headless, target picker (Platform/Execution/Device/App), and any extra {@code -D}
+ * VM-arg overrides. A pure state holder -- no SDK imports.
  */
 public final class ShaftRunConfigurationOverrides {
     private boolean enabled;
     private String browser;
     private boolean headless;
     private String extraVmArgs;
+    private ShaftTargetSelection target = new ShaftTargetSelection();
 
     public boolean isEnabled() {
         return enabled;
@@ -49,5 +45,16 @@ public final class ShaftRunConfigurationOverrides {
 
     public void setExtraVmArgs(String extraVmArgs) {
         this.extraVmArgs = extraVmArgs;
+    }
+
+    public ShaftTargetSelection getTarget() {
+        if (target == null) {
+            target = new ShaftTargetSelection();
+        }
+        return target;
+    }
+
+    public void setTarget(ShaftTargetSelection target) {
+        this.target = target == null ? new ShaftTargetSelection() : target;
     }
 }

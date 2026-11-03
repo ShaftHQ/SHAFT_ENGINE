@@ -5,6 +5,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -50,5 +51,28 @@ class AllureReportActionsTest {
         String ready = AllureReportActions.evidenceMessage(root);
         assertTrue(ready.contains("Allure results ready"));
         assertTrue(ready.contains("allure-results"));
+    }
+
+    @Test
+    void mergesCleansAndListsTags(@TempDir Path root) throws Exception {
+        Path android = root.resolve("android");
+        Path ios = root.resolve("ios");
+        Files.createDirectories(android);
+        Files.createDirectories(ios);
+        Files.writeString(android.resolve("a-result.json"),
+                "{\"labels\":[{\"name\":\"tag\",\"value\":\"android\"},{\"name\":\"suite\",\"value\":\"smoke\"}]}");
+        Files.writeString(ios.resolve("b-result.json"),
+                "{\"labels\":[{\"name\":\"tag\",\"value\":\"ios\"}]}");
+        Path merged = AllureReportActions.mergeResults(root.resolve("merged"), List.of(android, ios));
+        assertTrue(Files.isRegularFile(merged.resolve("a-result.json")));
+        assertTrue(Files.isRegularFile(merged.resolve("b-result.json")));
+        var labels = AllureReportActions.listTagsAndGroups(merged);
+        assertTrue(labels.stream().anyMatch(l -> l.contains("android")));
+        Path project = root.resolve("proj");
+        Files.createDirectories(project.resolve("allure-results"));
+        Files.writeString(project.resolve("allure-results/x.txt"), "x");
+        var deleted = AllureReportActions.cleanResults(project);
+        assertTrue(deleted.stream().anyMatch(p -> p.endsWith("allure-results")));
+        assertTrue(Files.notExists(project.resolve("allure-results")));
     }
 }

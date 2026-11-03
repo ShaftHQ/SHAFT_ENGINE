@@ -19,6 +19,10 @@ class ShaftRunConfigurationOverridesPanelTest {
         enabled.setBrowser("firefox");
         enabled.setHeadless(true);
         enabled.setExtraVmArgs("-Dfoo=bar");
+        ShaftTargetSelection target = new ShaftTargetSelection();
+        target.setPlatform(ShaftTargetSelection.Platform.WEB);
+        target.setExecution(ShaftTargetSelection.Execution.LOCAL);
+        enabled.setTarget(target);
         panel.setState(enabled);
 
         ShaftRunConfigurationOverrides roundTrip = panel.getState();
@@ -26,6 +30,7 @@ class ShaftRunConfigurationOverridesPanelTest {
         assertEquals("firefox", roundTrip.getBrowser());
         assertTrue(roundTrip.isHeadless());
         assertEquals("-Dfoo=bar", roundTrip.getExtraVmArgs());
+        assertEquals(ShaftTargetSelection.Platform.WEB, roundTrip.getTarget().getPlatform());
 
         panel.setState(null);
         ShaftRunConfigurationOverrides cleared = panel.getState();

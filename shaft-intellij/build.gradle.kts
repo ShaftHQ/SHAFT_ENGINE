@@ -72,9 +72,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 sourceSets["test"].resources.srcDir("src/test/junit-extensions")
 
 intellijPlatform {
-    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows.
-    // The plugin verifier still validates the built ZIP; track re-enabling this task separately.
-    buildSearchableOptions = false
+    // IntelliJ's traverseUI searchable-options process hangs after emitting JSON on Windows (#7603).
+    // Enable on Linux/macOS so Settings search finds SHAFT keys; keep disabled on Windows hosts.
+    buildSearchableOptions = !System.getProperty("os.name", "").lowercase().contains("windows")
     instrumentCode = true
 
     pluginConfiguration {
