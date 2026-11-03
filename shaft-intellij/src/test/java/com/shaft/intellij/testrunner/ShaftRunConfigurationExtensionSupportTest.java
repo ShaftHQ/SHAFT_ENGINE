@@ -4,6 +4,7 @@ import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.configurations.RunConfigurationBase;
 import com.intellij.execution.configurations.SimpleJavaParameters;
 import com.intellij.openapi.util.Key;
+import com.intellij.openapi.options.ConfigurationException;
 import org.jdom.Element;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -159,5 +161,50 @@ class ShaftRunConfigurationExtensionSupportTest {
         assertEquals(ShaftTargetSelection.Platform.INHERIT_PLATFORM.name(), written.getAttributeValue("platform"));
         assertEquals(ShaftTargetSelection.Execution.INHERIT_EXECUTION.name(), written.getAttributeValue("execution"));
         assertNotNull(ShaftRunConfigurationExtensionSupportAccess.createEditor());
+    }
+
+
+    @Test
+    void appliesExtraVmArgsOnJavaParametersWhenBlankBrowser() {
+        ShaftRunConfigurationOverrides overrides = new ShaftRunConfigurationOverrides();
+        overrides.setEnabled(true);
+        overrides.setBrowser("  ");
+        overrides.setHeadless(false);
+        overrides.setExtraVmArgs("-ea -Dfoo=bar");
+        ShaftTargetSelection target = new ShaftTargetSelection();
+        target.setPlatform(ShaftTargetSelection.Platform.WEB);
+        target.setExecution(ShaftTargetSelection.Execution.LOCAL);
+        overrides.setTarget(target);
+        ShaftRunConfigurationExtensionSupportAccess.installOverrides(configuration, overrides);
+        SimpleJavaParameters parameters = new SimpleJavaParameters();
+        ShaftRunConfigurationExtensionSupportAccess.applyOverrides(configuration, parameters);
+        assertTrue(parameters.getVMParametersList().getList().stream().anyMatch(s -> s.contains("foo") || s.equals("bar") || s.contains("-ea") || s.equals("-ea")));
+        GeneralCommandLine cl = new GeneralCommandLine("java");
+        ShaftRunConfigurationExtensionSupportAccess.applyOverrides(configuration, cl);
+        assertFalse(cl.getParametersList().getList().isEmpty());
+    }
+
+
+    @Test
+    void validateForApplyRejectsInvalidTarget() throws ConfigurationException {
+        ShaftRunConfigurationExtensionSupportAccess.validateForApply(null);
+        ShaftRunConfigurationOverrides disabled = new ShaftRunConfigurationOverrides();
+        disabled.setEnabled(false);
+        ShaftRunConfigurationExtensionSupportAccess.validateForApply(disabled);
+        ShaftRunConfigurationOverrides bad = new ShaftRunConfigurationOverrides();
+        bad.setEnabled(true);
+        ShaftTargetSelection target = new ShaftTargetSelection();
+        target.setPlatform(ShaftTargetSelection.Platform.ANDROID);
+        target.setExecution(ShaftTargetSelection.Execution.LOCAL);
+        bad.setTarget(target);
+        assertThrows(ConfigurationException.class,
+                () -> ShaftRunConfigurationExtensionSupportAccess.validateForApply(bad));
+        ShaftRunConfigurationOverrides good = new ShaftRunConfigurationOverrides();
+        good.setEnabled(true);
+        ShaftTargetSelection ok = new ShaftTargetSelection();
+        ok.setPlatform(ShaftTargetSelection.Platform.WEB);
+        ok.setExecution(ShaftTargetSelection.Execution.LOCAL);
+        good.setTarget(ok);
+        ShaftRunConfigurationExtensionSupportAccess.validateForApply(good);
     }
 }

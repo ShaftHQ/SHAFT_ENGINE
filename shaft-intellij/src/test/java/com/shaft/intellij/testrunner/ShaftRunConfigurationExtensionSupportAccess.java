@@ -1,6 +1,7 @@
 package com.shaft.intellij.testrunner;
 
 import com.intellij.execution.configurations.GeneralCommandLine;
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.execution.configurations.RunConfigurationBase;
 import com.intellij.execution.configurations.SimpleJavaParameters;
 import org.jdom.Element;
@@ -37,5 +38,9 @@ public final class ShaftRunConfigurationExtensionSupportAccess {
     @SuppressWarnings("rawtypes")
     public static com.intellij.openapi.options.SettingsEditor createEditor() {
         return ShaftRunConfigurationExtensionSupport.createEditor();
+    }
+
+    public static void validateForApply(ShaftRunConfigurationOverrides state) throws ConfigurationException {
+        ShaftRunConfigurationExtensionSupport.validateForApply(state);
     }
 }

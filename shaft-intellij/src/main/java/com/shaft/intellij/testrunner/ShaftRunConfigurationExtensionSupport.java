@@ -205,6 +205,12 @@ final class ShaftRunConfigurationExtensionSupport {
         }
     }
 
+    static void validateForApply(ShaftRunConfigurationOverrides state) throws ConfigurationException {
+        if (state != null && state.isEnabled() && !state.getTarget().isValid()) {
+            throw new ConfigurationException(String.join(" ", state.getTarget().validationErrors()));
+        }
+    }
+
     /**
      * Backs both extensions' {@code createEditor}. A private nested class (rather than a sixth
      * source file) since it is pure wiring around {@link ShaftRunConfigurationOverridesPanel} with
@@ -222,9 +228,7 @@ final class ShaftRunConfigurationExtensionSupport {
         @Override
         protected void applyEditorTo(RunConfigurationBase configuration) throws ConfigurationException {
             ShaftRunConfigurationOverrides state = panel.getState();
-            if (state.isEnabled() && !state.getTarget().isValid()) {
-                throw new ConfigurationException(String.join(" ", state.getTarget().validationErrors()));
-            }
+            validateForApply(state);
             configuration.putCopyableUserData(OVERRIDES_KEY, state.isEnabled() ? state : null);
         }
 

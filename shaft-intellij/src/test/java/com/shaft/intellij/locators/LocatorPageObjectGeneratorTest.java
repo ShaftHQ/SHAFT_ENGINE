@@ -35,4 +35,18 @@ class LocatorPageObjectGeneratorTest {
         assertTrue(po.contains("class GeneratedPage") || po.contains("class "));
         assertTrue(po.contains("element123bad") || po.contains("123bad"));
     }
+
+
+    @Test
+    void sanitizeEdgesAndWarnings() {
+        String gen = LocatorPageObjectGenerator.generate("@@@", List.of(
+                new LocatorPageObjectGenerator.LocatorRow("123bad", "SHAFT.GUI.Locator.builder().build()", true, true, true, 2),
+                new LocatorPageObjectGenerator.LocatorRow("_x", "SHAFT.GUI.Locator.builder().build()", false, false, false, 1)
+        ));
+        assertTrue(gen.contains("class GeneratedPage"));
+        assertTrue(gen.contains("element123bad") || gen.contains("element"));
+        assertTrue(gen.contains("WARNING"));
+        assertTrue(LocatorPageObjectGenerator.generate("   ", List.of()).contains("GeneratedPage"));
+        assertTrue(LocatorPageObjectGenerator.crossPlatformPairFields(" a ", " b ").contains("android=a"));
+    }
 }

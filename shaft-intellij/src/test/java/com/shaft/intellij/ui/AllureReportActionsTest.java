@@ -107,8 +107,9 @@ class AllureReportActionsTest {
         Path older = shotDir.resolve("a.png");
         Path newer = shotDir.resolve("b.png");
         Files.writeString(older, "old");
-        Thread.sleep(10);
         Files.writeString(newer, "new");
+        Files.setLastModifiedTime(older, java.nio.file.attribute.FileTime.fromMillis(1_000));
+        Files.setLastModifiedTime(newer, java.nio.file.attribute.FileTime.fromMillis(2_000));
         Path found = AllureReportActions.findLatestScreenshot(root);
         assertTrue(found != null && found.getFileName().toString().endsWith(".png"));
         assertTrue(AllureReportActions.evidenceMessage(root).contains("Allure results ready"));
@@ -118,5 +119,28 @@ class AllureReportActionsTest {
                 "{\"labels\":[{\"name\":\"tag\",\"value\":\"smoke\"},{\"name\":\"epic\",\"value\":\"e1\"}]}");
         var labels = AllureReportActions.listTagsAndGroups(results);
         assertTrue(labels.stream().anyMatch(l -> l.contains("smoke")));
+    }
+
+
+    @Test
+    void coversLabelExtractAndCleanReportDirs(@TempDir Path root) throws Exception {
+        Path results = root.resolve("target/allure-results");
+        Files.createDirectories(results);
+        assertEquals(results, AllureReportActions.findAllureResults(root));
+        Files.writeString(results.resolve("a-result.json"),
+                "{\"labels\":[{\"name\":\"suite\",\"value\":\"s1\"},{\"name\":\"story\",\"value\":\"st\"},{\"name\":\"package\",\"value\":\"p\"},{\"name\":\"tag\",\"value\":\"\"},{\"name\":\"tag\"}]}");
+        var labels = AllureReportActions.listTagsAndGroups(results);
+        assertTrue(labels.stream().anyMatch(l -> l.startsWith("suite:")));
+        assertTrue(labels.stream().anyMatch(l -> l.startsWith("story:")));
+        Path report = root.resolve("allure-report");
+        Files.createDirectories(report.resolve("x"));
+        Files.writeString(report.resolve("x/f.txt"), "z");
+        var deleted = AllureReportActions.cleanResults(root);
+        assertTrue(deleted.stream().anyMatch(p -> p.getFileName().toString().contains("allure")));
+        Path results2 = root.resolve("build/allure-results");
+        Files.createDirectories(results2);
+        Files.writeString(results2.resolve("shot.jpg"), "j");
+        Path shot = AllureReportActions.findLatestScreenshot(root);
+        assertTrue(shot != null && shot.toString().endsWith(".jpg"));
     }
 }

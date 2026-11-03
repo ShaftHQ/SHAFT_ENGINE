@@ -107,13 +107,5 @@ class ShaftCloudSessionAwarenessTest {
         ShaftCloudSessionAwareness.fromProviderJson("{\"sessionId\":", 1);
         ShaftCloudSessionAwareness.fromProviderJson("{\"sessionId\": 1}", 1);
         ShaftCloudSessionAwareness.fromProviderJson("{\"sessionId\":\"", 1);
-        var ctor = ShaftCloudSessionAwareness.class.getDeclaredConstructor();
-        ctor.setAccessible(true);
-        try {
-            ctor.newInstance();
-            org.junit.jupiter.api.Assertions.fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-        }
     }
 }

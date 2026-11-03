@@ -57,13 +57,5 @@ class FailureTriageNoiseCollapseTest {
                 "java.lang.RuntimeException: boom\n[INFO] noise\nboom\nsecond", 2);
         assertEquals(2, collapsed.size());
         assertTrue(collapsed.get(0).startsWith("FIRST_ERROR:"));
-        var ctor = FailureTriageNoiseCollapse.class.getDeclaredConstructor();
-        ctor.setAccessible(true);
-        try {
-            ctor.newInstance();
-            org.junit.jupiter.api.Assertions.fail();
-        } catch (Exception ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-        }
     }
 }

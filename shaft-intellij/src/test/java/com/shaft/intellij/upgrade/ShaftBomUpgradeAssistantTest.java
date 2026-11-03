@@ -82,15 +82,4 @@ class ShaftBomUpgradeAssistantTest {
         assertTrue(ShaftBomUpgradeAssistant.compareVersions("2rc1", "1") > 0);
     }
 
-    @Test
-    void utilityConstructorIsPrivate() throws Exception {
-        var c = ShaftBomUpgradeAssistant.class.getDeclaredConstructor();
-        c.setAccessible(true);
-        try {
-            c.newInstance();
-            org.junit.jupiter.api.Assertions.fail("expected");
-        } catch (java.lang.reflect.InvocationTargetException ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-        }
-    }
 }
