@@ -872,10 +872,18 @@ def _cleanup_delivery_blockers(
     expected_diff_sha256: str, actual_diff_sha256: str,
     pull_request_state: str, is_ancestor: bool,
 ) -> list[str]:
+    """
+    Delivery proofs for task-owned cleanup.
+
+    When GitHub proves MERGED, skip the ancestor check. Remote branches are
+    often deleted after merge, and a rewritten default upstream branch can drop the
+    old tip from ancestry even though the PR merged (issue 7755).
+    """
     blockers: list[str] = []
-    if pull_request_state != "MERGED":
+    merged = pull_request_state == "MERGED"
+    if not merged:
         blockers.append("pull-request-not-merged")
-    if not is_ancestor:
+    if not is_ancestor and not merged:
         blockers.append("branch-not-upstream")
     if not expected_head or actual_head != expected_head:
         blockers.append("head-mismatch")
@@ -1273,7 +1281,6 @@ def task_ownership_manifest_matches(
 
 def run_task_cleanup_cli(args: argparse.Namespace, resolved_root: Path) -> int:
     """Dispatch opt-in post-merge own cleanup flags; return process exit code."""
-
     if args.cleanup_task_worktree is not None:
         required = (
             args.owned_branch, args.expected_head, args.expected_diff_sha256,

@@ -654,6 +654,9 @@ def item_close_blockers(
     created_files: Sequence[str] | None = None,
     created_files_accounted: bool = False,
     session_logs_cleared: bool = True,
+    leftover_merged_worktrees: Sequence[str] | None = None,
+    leftover_registered_artifacts: Sequence[str] | None = None,
+    leftover_report_servers: Sequence[str] | None = None,
 ) -> list[str]:
     """
         Cleanup-at-close gate: clean git status plus accounted created-files list.
@@ -662,6 +665,13 @@ def item_close_blockers(
     worker created. ``created_files_accounted`` means each entry was deleted,
     archived, or explicitly retained as a final. Session logs under the shared workspace root
     must be cleared or moved to scoped temp.
+
+    #7755 extras (fail closed at delivery):
+    - ``leftover_merged_worktrees``: own linked worktrees whose PR is MERGED
+      (or tip already on origin) that were not removed.
+    - ``leftover_registered_artifacts``: ownership-ledger paths still on disk.
+    - ``leftover_report_servers``: leftover headless Chrome/Chromium or Allure
+      serve processes the task left running.
     """
     blockers: list[str] = []
     if not git_status_clean:
@@ -671,6 +681,15 @@ def item_close_blockers(
         blockers.append("created-files-unaccounted")
     if not session_logs_cleared:
         blockers.append("session-logs-remain")
+    merged_left = [str(p) for p in (leftover_merged_worktrees or []) if str(p).strip()]
+    if merged_left:
+        blockers.append(f"merged-worktrees-remain:{len(merged_left)}")
+    arts = [str(p) for p in (leftover_registered_artifacts or []) if str(p).strip()]
+    if arts:
+        blockers.append(f"registered-artifacts-remain:{len(arts)}")
+    servers = [str(p) for p in (leftover_report_servers or []) if str(p).strip()]
+    if servers:
+        blockers.append(f"report-servers-remain:{len(servers)}")
     return blockers
 
 
@@ -690,7 +709,7 @@ def post_merge_dod_required() -> Mapping[str, str]:
         "shared_venv": SHARED_VENV_ROOT,
         "live_status": "verify_live_item_state_before_status (gh at write time)",
         "doctor_dirt": "commit through PR or revert before close; no dirty tree",
-        "close_gate": "item_close_blockers (git clean + created files accounted)",
+        "close_gate": "item_close_blockers (git clean + created files accounted + no merged worktrees/artifacts/report servers)",
         "session_logs": "remove or move shared-workspace session logs to scoped temp at close",
     }
 
