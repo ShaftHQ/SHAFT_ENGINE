@@ -875,8 +875,8 @@ def _cleanup_delivery_blockers(
     """Delivery proofs for task-owned cleanup.
 
     When GitHub proves MERGED, skip the ancestor check. Remote branches are
-    often deleted after merge, and a rewritten ``origin/main`` can drop the
-    old tip from ancestry even though the PR merged (#7755).
+    often deleted after merge, and a rewritten default upstream branch can drop the
+    old tip from ancestry even though the PR merged (issue 7755).
     """
     blockers: list[str] = []
     merged = pull_request_state == "MERGED"

@@ -53,9 +53,9 @@
 9. **Close gate:** `item_close_blockers` / `delivery_cleanup.delivery_close_blockers`
    require a clean `git status`, an accounted ownership-ledger list, **no**
    leftover own worktrees whose PR is MERGED, and **no** leftover headless
-   Chrome/Chromium or Allure `serve` processes before the item can close
-   (#7755). MERGED via `gh` is enough to remove an owned worktree even when
-   the remote branch is gone or `origin/main` was rewritten
+   Chrome/Chromium or HTML report server `serve` processes before the item can close
+   (issue 7755). MERGED via `gh` is enough to remove an owned worktree even when
+   the remote branch is gone or the default upstream branch was rewritten
    (`branch-not-upstream` is skipped when MERGED).
 10. **Self-created cleanup:** workers record every path they create via the
     tool into an HMAC-bound per-session manifest under a scoped temp dir
@@ -103,7 +103,7 @@ finals retained until upload verified. Pre-heavy: `disk_level` → ok / warn /
 block and `blocked_infra_reasons` (includes `disk-used-pct-ge-80`).
 BLOCKED-INFRA board row when warn, block, or ≥80% used. Close gate: clean git status + accounted created-files (`item_close_blockers`). Live board writes call `verify_live_item_state_before_status`. Unit:
 `tests/scripts/test_box_disk_guard.py` classifiers, percent gate, close blockers, live-status gate;
-`tests/scripts/test_delivery_cleanup.py` ledger remnants, MERGED ancestor skip, report-server match.
+`tests/scripts/test_delivery_cleanup.py` ledger remnants, MERGED ancestor skip, report-server match (issue 7755).
 
 ## Follow-up
 

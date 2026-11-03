@@ -541,6 +541,7 @@ CHECKS = {
             "tests.scripts.test_multi_agent_pdca",
             "tests.scripts.test_parallel_streams",
             "tests.scripts.test_box_disk_guard",
+            "tests.scripts.test_delivery_cleanup",
             "tests.scripts.test_pre_done_review",
         ),
     ),
@@ -1204,6 +1205,10 @@ SURFACE_PATTERNS = {
         "scripts/ci/worktree_hygiene.py",
         "tests/scripts/test_parallel_streams.py",
         "tests/scripts/test_box_disk_guard.py",
+        "scripts/ci/delivery_cleanup.py",
+        "scripts/ci/worker_ownership.py",
+        "tests/scripts/test_delivery_cleanup.py",
+        "chaos-engine/references/cleanup-at-close.md",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (
