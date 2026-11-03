@@ -14,6 +14,16 @@ from typing import Any
 
 SCHEMA = 1
 ENV_MANIFEST = "CHAOS_WORKER_OWNERSHIP_MANIFEST"
+# Temporary artifacts a task may register for cleanup-at-close (#7755).
+ARTIFACT_KINDS = frozenset({
+    "worktree",
+    "clone",
+    "venv",
+    "build_output",
+    "report_server",
+    "browser",
+    "scratch",
+})
 
 
 def default_manifest_path(
@@ -67,6 +77,10 @@ def record(
     checkpoints_dir: Path | str | None = None,
 ) -> Path:
     """Append ``path`` to the task ownership manifest (deduped)."""
+    kind_norm = (kind or "worktree").strip()
+    if kind_norm not in ARTIFACT_KINDS:
+        raise ValueError(f"unknown artifact kind: {kind!r}; expected one of {sorted(ARTIFACT_KINDS)}")
+    kind = kind_norm
     target = (
         Path(manifest_path)
         if manifest_path is not None
@@ -98,3 +112,54 @@ def allows_cleanup(manifest_path: Path | str, path: Path | str) -> bool:
     """True only when ``path`` is an exact recorded entry."""
     abs_path = str(Path(path).resolve())
     return abs_path in listed_paths(manifest_path)
+
+def mark_accounted(
+    manifest_path: Path | str,
+    path: Path | str,
+    *,
+    disposition: str = "removed",
+) -> None:
+    """Mark a recorded path accounted (removed / archived / retained-final)."""
+    target = Path(manifest_path)
+    data = load(target)
+    abs_path = str(Path(path).resolve())
+    updated = False
+    for entry in data.get("paths", []):
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("path")) != abs_path:
+            continue
+        entry["accounted"] = True
+        entry["disposition"] = disposition
+        entry["accounted_at"] = datetime.now(timezone.utc).isoformat()
+        updated = True
+    if not updated:
+        raise KeyError(f"path not in ownership manifest: {abs_path}")
+    target.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def remaining_artifacts(manifest_path: Path | str) -> list[dict]:
+    """Return recorded entries that still exist on disk and are not accounted."""
+    data = load(manifest_path)
+    leftover: list[dict] = []
+    for entry in data.get("paths", []):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("accounted"):
+            continue
+        raw = str(entry.get("path") or "").strip()
+        if not raw:
+            continue
+        if Path(raw).exists():
+            leftover.append(dict(entry))
+    return leftover
+
+
+def remaining_artifact_blockers(manifest_path: Path | str) -> list[str]:
+    """Close-gate blockers for unaccounted registered artifacts that still exist."""
+    leftover = remaining_artifacts(manifest_path)
+    if not leftover:
+        return []
+    kinds = sorted({str(e.get("kind") or "worktree") for e in leftover})
+    return [f"registered-artifacts-remain:{len(leftover)}:{','.join(kinds)}"]
+

@@ -50,9 +50,13 @@
    leave a dirty tree. Session logs under the shared workspace root must be removed or
    moved into a scoped temp dir at close (record paths in the session
    created-paths manifest).
-9. **Close gate:** `item_close_blockers` requires a clean `git status` plus an
-   accounted list of created files (session manifest) before the item can
-   close.
+9. **Close gate:** `item_close_blockers` / `delivery_cleanup.delivery_close_blockers`
+   require a clean `git status`, an accounted ownership-ledger list, **no**
+   leftover own worktrees whose PR is MERGED, and **no** leftover headless
+   Chrome/Chromium or Allure `serve` processes before the item can close
+   (#7755). MERGED via `gh` is enough to remove an owned worktree even when
+   the remote branch is gone or `origin/main` was rewritten
+   (`branch-not-upstream` is skipped when MERGED).
 10. **Self-created cleanup:** workers record every path they create via the
     tool into an HMAC-bound per-session manifest under a scoped temp dir
     (`CHAOS_SESSION_CREATED_MANIFEST` + outside-tree secret). `delete-check`
@@ -98,9 +102,11 @@ Post-merge: worktree hygiene proofs (own, merged, clean); intermediates gone;
 finals retained until upload verified. Pre-heavy: `disk_level` → ok / warn /
 block and `blocked_infra_reasons` (includes `disk-used-pct-ge-80`).
 BLOCKED-INFRA board row when warn, block, or ≥80% used. Close gate: clean git status + accounted created-files (`item_close_blockers`). Live board writes call `verify_live_item_state_before_status`. Unit:
-`tests/scripts/test_box_disk_guard.py` classifiers, percent gate, close blockers, live-status gate.
+`tests/scripts/test_box_disk_guard.py` classifiers, percent gate, close blockers, live-status gate;
+`tests/scripts/test_delivery_cleanup.py` ledger remnants, MERGED ancestor skip, report-server match.
 
 ## Follow-up
 
 [cleanup scopes](cleanup-scopes.md), [delete-check discipline](delete-check-discipline.md),
-`scripts/ci/box_disk_guard.py`, `scripts/ci/worktree_hygiene.py`.
+`scripts/ci/box_disk_guard.py`, `scripts/ci/worktree_hygiene.py`,
+`scripts/ci/worker_ownership.py`, `scripts/ci/delivery_cleanup.py`.

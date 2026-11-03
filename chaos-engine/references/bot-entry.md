@@ -179,8 +179,12 @@ manifest, conflict check, disk gate, no force-push under review).
 
 After every final delivery (owner approval, completed publish, or final
 merge), DoD in order: [post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup)
-(mandatory; hygiene proofs; own items only), disk/cache inventory via
-`box_disk_guard`, Learning Session after every final delivery per the
+(mandatory; hygiene proofs; own items only — MERGED via `gh` unlocks remove
+even when the remote branch is gone; see [cleanup-at-close](cleanup-at-close.md)
+and `scripts/ci/delivery_cleanup.py` #7755), sweep the worker ownership ledger
+and stop leftover headless Chrome/Allure servers (close gate fails if any
+remain), disk/cache inventory via `box_disk_guard`, Learning Session after
+every final delivery per the
 [router contract](router-contract.md#learning-session), then
 `python3 .chaos-engine/tool.py maintain` before the next task.
 

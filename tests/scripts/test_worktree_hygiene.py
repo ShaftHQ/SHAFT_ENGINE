@@ -156,6 +156,13 @@ class WorktreeHygieneTest(unittest.TestCase):
         }
         self.assertEqual([], task_cleanup_blockers(entry, **evidence))
 
+        # #7755: MERGED via gh allows cleanup even when tip is not an ancestor
+        # of origin/main (deleted remote branch / rewritten main).
+        self.assertEqual(
+            [],
+            task_cleanup_blockers(entry, **{**evidence, "is_ancestor": False}),
+        )
+
         unsafe = (
             ({"uncommitted_files": 1}, {}, "dirty-worktree"),
             ({"locked": True}, {}, "locked-worktree"),
@@ -164,7 +171,7 @@ class WorktreeHygieneTest(unittest.TestCase):
             ({"prunable": True}, {}, "prunable-worktree"),
             ({}, {"owned_branch": "gh-pages"}, "protected-branch"),
             ({}, {"pull_request_state": "OPEN"}, "pull-request-not-merged"),
-            ({}, {"is_ancestor": False}, "branch-not-upstream"),
+            ({}, {"is_ancestor": False, "pull_request_state": "OPEN"}, "branch-not-upstream"),
             ({}, {"actual_head": "b" * 40}, "head-mismatch"),
             ({}, {"actual_branch_head": "b" * 40}, "branch-head-mismatch"),
             ({}, {"actual_diff_sha256": "b" * 64}, "diff-mismatch"),

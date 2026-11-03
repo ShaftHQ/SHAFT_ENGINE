@@ -872,10 +872,17 @@ def _cleanup_delivery_blockers(
     expected_diff_sha256: str, actual_diff_sha256: str,
     pull_request_state: str, is_ancestor: bool,
 ) -> list[str]:
+    """Delivery proofs for task-owned cleanup.
+
+    When GitHub proves MERGED, skip the ancestor check. Remote branches are
+    often deleted after merge, and a rewritten ``origin/main`` can drop the
+    old tip from ancestry even though the PR merged (#7755).
+    """
     blockers: list[str] = []
-    if pull_request_state != "MERGED":
+    merged = pull_request_state == "MERGED"
+    if not merged:
         blockers.append("pull-request-not-merged")
-    if not is_ancestor:
+    if not is_ancestor and not merged:
         blockers.append("branch-not-upstream")
     if not expected_head or actual_head != expected_head:
         blockers.append("head-mismatch")
