@@ -6,9 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci import delivery_cleanup, worker_ownership
-from scripts.ci.box_disk_guard import item_close_blockers
-from scripts.ci.worktree_hygiene import task_cleanup_blockers
+import sys as _sys
+from pathlib import Path as _Path
+
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+
+from scripts.ci import delivery_cleanup, worker_ownership  # noqa: E402
+from scripts.ci.box_disk_guard import item_close_blockers  # noqa: E402
+from scripts.ci.worktree_hygiene import task_cleanup_blockers  # noqa: E402
 
 
 class WorkerOwnershipLedgerTests(unittest.TestCase):
