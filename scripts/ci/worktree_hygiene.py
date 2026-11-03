@@ -873,7 +873,6 @@ def _cleanup_delivery_blockers(
     pull_request_state: str, is_ancestor: bool,
 ) -> list[str]:
     """
-
     Delivery proofs for task-owned cleanup.
 
     When GitHub proves MERGED, skip the ancestor check. Remote branches are
@@ -1282,7 +1281,6 @@ def task_ownership_manifest_matches(
 
 def run_task_cleanup_cli(args: argparse.Namespace, resolved_root: Path) -> int:
     """Dispatch opt-in post-merge own cleanup flags; return process exit code."""
-
     if args.cleanup_task_worktree is not None:
         required = (
             args.owned_branch, args.expected_head, args.expected_diff_sha256,
