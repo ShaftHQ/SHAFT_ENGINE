@@ -4,11 +4,11 @@ inputs:
   java-version:
     description: 'Java version to install'
     required: false
-    default: '25'
+    default: '26'
   node-version:
     description: 'Node.js version to install (set to empty string to skip).'
     required: false
-    default: '25'
+    default: '26'
   mobile-apps:
     description: 'Fetch pinned mobile test apk/ipa fixtures (#7547).'
     required: false

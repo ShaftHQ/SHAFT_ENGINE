@@ -137,18 +137,20 @@ _VERSION_KINDS = frozenset(
 _COMMIT_KINDS = frozenset({"git", "release"})
 
 
-# Drift that cannot land yet: pin name -> (exact latest value held, tracking ticket).
-# Only that exact latest is held; any newer upstream release reports drift again.
-HELD_BACK: dict[str, tuple[str, str]] = {
-    "python": ("3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
-    "ci-python@3.14": ("3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
+# Drift that cannot land yet: pin name -> (allowed current, exact latest held, ticket).
+# Held only while the pin is exactly the allowed current and upstream is exactly the
+# held latest; a regressed pin or any newer upstream release reports drift again.
+HELD_BACK: dict[str, tuple[str, str, str]] = {
+    "python": ("3.14", "3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
+    "ci-python@3.14": ("3.14", "3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
+    "ci-java@17": ("17", "25", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7753"),
 }
 
 
 def compare_pin(pin: Pin, stable: Stable) -> Verdict:
     verdict = _compare_pin(pin, stable)
     held = HELD_BACK.get(pin.name) or HELD_BACK.get(pin.name.split(" ", 1)[0])
-    if verdict.behind and held and verdict.latest == held[0]:
+    if verdict.behind and held and (verdict.current, verdict.latest) == held[:2]:
         return dataclasses.replace(verdict, behind=False)
     return verdict
 
@@ -971,6 +973,23 @@ def repository_runtime_pins(root: Path) -> list[Pin]:
                 continue  # expressions and aliases such as lts/* track upstream already
             runtime = _SETUP_KEYS[match.group(1)]
             found.setdefault((runtime, match.group(2)), set()).add(path.relative_to(root).as_posix())
+    actions = root / ".github" / "actions"
+    for path in sorted(actions.glob("*/action.y*ml")) if actions.is_dir() else ():
+        current_input = None
+        for line in path.read_text(encoding="utf-8").splitlines():
+            key = re.match(r"^\s{2}([a-z-]+):\s*$", line)
+            if key:
+                current_input = key.group(1)
+                continue
+            default = re.match(r"^\s+default:\s*['\"]?([^'\"\s#]+)", line)
+            if default and current_input in _SETUP_KEYS and _STABLE_VERSION.fullmatch(default.group(1)):
+                runtime = _SETUP_KEYS[current_input]
+                found.setdefault((runtime, default.group(1)), set()).add(path.relative_to(root).as_posix())
+    sdkman = root / ".sdkmanrc"
+    if sdkman.is_file():
+        for match in re.finditer(r"^(java|maven)=(\d+(?:\.\d+)*)", sdkman.read_text(encoding="utf-8"), re.M):
+            value = match.group(2).split(".", 1)[0] if match.group(1) == "java" else match.group(2)
+            found.setdefault((match.group(1), value), set()).add(".sdkmanrc")
     pom = root / "pom.xml"
     if pom.is_file():
         for match in _POM_JDK.finditer(pom.read_text(encoding="utf-8")):

@@ -13,7 +13,6 @@ import scripts.ci.watch_upstream_pins as wup  # noqa: E402
 from scripts.ci.watch_upstream_pins import (  # noqa: E402
     COVERAGE_EXEMPT,
     runtime_pins,
-    COVERAGE_EXEMPT,
     Pin,
     Stable,
     compare_pin,
@@ -81,9 +80,6 @@ class FullCoverageTest(unittest.TestCase):
         self.assertEqual(newest_maven_version(xml), "3.10.0")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class PythonSeriesPinTest(unittest.TestCase):
     def test_project_python_max_series_is_watched(self) -> None:
@@ -119,3 +115,22 @@ class LtsAndHeldBackTest(unittest.TestCase):
             (wf / "a.yml").write_text("      maven-version: 3.9.12\n", encoding="utf-8")
             pins = repository_runtime_pins(Path(tmp))
         self.assertEqual(["maven-central"], [p.kind for p in pins])
+
+
+
+class ReviewFollowUpTest(unittest.TestCase):
+    def test_hold_does_not_hide_a_regressed_pin(self) -> None:
+        pin = Pin("python", "series-python", "3.12", "u")
+        self.assertTrue(wup.compare_pin(pin, wup.Stable(version="3.15.0")).behind)
+
+    def test_composite_action_default_is_watched(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            act = Path(tmp, ".github", "actions", "env")
+            act.mkdir(parents=True)
+            (act / "action.yml").write_text("inputs:\n  node-version:\n    default: '25'\n", encoding="utf-8")
+            pins = repository_runtime_pins(Path(tmp))
+        self.assertEqual(["25"], [p.current for p in pins])
+
+
+if __name__ == "__main__":
+    unittest.main()

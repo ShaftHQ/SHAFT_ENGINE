@@ -670,7 +670,7 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
-          java-version: '25'
+          java-version: '17'  # held: Flutter 3.22.1 Gradle needs Java 17 (#7753)
           node-version: '26'
       - name: Setup Flutter 3.22.1
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
