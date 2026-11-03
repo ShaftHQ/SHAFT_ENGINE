@@ -1028,9 +1028,11 @@ def newest_maven_version(xml: str) -> str:
 
 
 def fetch_maven_central(url: str) -> Stable:
+    if not url.startswith("https://"):
+        raise UpstreamError(f"{url} is not an https URL")
     request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https URL
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310 - https enforced above.
             return Stable(version=newest_maven_version(response.read().decode("utf-8")))
     except OSError as error:
         raise UpstreamError(f"{url} could not be read: {error}") from error
