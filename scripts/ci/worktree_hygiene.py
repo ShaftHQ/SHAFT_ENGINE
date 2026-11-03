@@ -872,7 +872,9 @@ def _cleanup_delivery_blockers(
     expected_diff_sha256: str, actual_diff_sha256: str,
     pull_request_state: str, is_ancestor: bool,
 ) -> list[str]:
-    """Delivery proofs for task-owned cleanup.
+    """
+
+    Delivery proofs for task-owned cleanup.
 
     When GitHub proves MERGED, skip the ancestor check. Remote branches are
     often deleted after merge, and a rewritten default upstream branch can drop the

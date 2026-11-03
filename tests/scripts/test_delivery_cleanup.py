@@ -120,32 +120,35 @@ class DeliveryCloseGateTests(unittest.TestCase):
 
 class MergedAncestorSkipTests(unittest.TestCase):
     def test_merged_skips_ancestor_requirement(self) -> None:
-        entry = {
-            "path": "/tmp/owned",
-            "branch": "ChaosEngine/owned-task",
-            "is_current": False,
-            "is_main": False,
-            "locked": False,
-            "prunable": False,
-            "uncommitted_files": 0,
-        }
-        evidence = {
-            "owned_path": Path("/tmp/owned"),
-            "owned_branch": "ChaosEngine/owned-task",
-            "expected_head": "a" * 40,
-            "actual_head": "a" * 40,
-            "actual_branch_head": "a" * 40,
-            "expected_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "actual_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "pull_request_state": "MERGED",
-            "is_ancestor": False,
-            "active_operations": [],
-            "ownership_verified": True,
-        }
-        self.assertEqual([], task_cleanup_blockers(entry, **evidence))
-        evidence_open = {**evidence, "pull_request_state": "OPEN"}
-        self.assertIn("branch-not-upstream", task_cleanup_blockers(entry, **evidence_open))
-        self.assertIn("pull-request-not-merged", task_cleanup_blockers(entry, **evidence_open))
+        with tempfile.TemporaryDirectory() as tmp:
+            owned = Path(tmp) / "owned"
+            owned.mkdir()
+            entry = {
+                "path": owned.resolve().as_posix(),
+                "branch": "ChaosEngine/owned-task",
+                "is_current": False,
+                "is_main": False,
+                "locked": False,
+                "prunable": False,
+                "uncommitted_files": 0,
+            }
+            evidence = {
+                "owned_path": owned,
+                "owned_branch": "ChaosEngine/owned-task",
+                "expected_head": "a" * 40,
+                "actual_head": "a" * 40,
+                "actual_branch_head": "a" * 40,
+                "expected_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "actual_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "pull_request_state": "MERGED",
+                "is_ancestor": False,
+                "active_operations": [],
+                "ownership_verified": True,
+            }
+            self.assertEqual([], task_cleanup_blockers(entry, **evidence))
+            evidence_open = {**evidence, "pull_request_state": "OPEN"}
+            self.assertIn("branch-not-upstream", task_cleanup_blockers(entry, **evidence_open))
+            self.assertIn("pull-request-not-merged", task_cleanup_blockers(entry, **evidence_open))
 
 
 if __name__ == "__main__":

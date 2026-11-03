@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Delivery cleanup helpers for cleanup-at-close (#7755).
+"""
+
+Delivery cleanup helpers for cleanup-at-close (#7755).
 
 After a PR merges (or a task closes), bots must:
 1. Sweep the worker ownership ledger (registered worktrees/clones/venvs/…).
@@ -45,7 +47,9 @@ def list_leftover_report_servers(
     read_cmdline: Callable[[int], str] | None = None,
     uid: int | None = None,
 ) -> list[dict]:
-    """Return leftover headless Chrome/Chromium or Allure serve processes.
+    """
+
+    Return leftover headless Chrome/Chromium or Allure serve processes.
 
     ``proc_pids`` / ``read_cmdline`` are injectable for unit tests. When omitted,
     scans ``/proc`` for the current uid.
@@ -101,7 +105,9 @@ def stop_leftover_report_servers(
     kill: Callable[[int, int], None] | None = None,
     sig: int = signal.SIGTERM,
 ) -> list[dict]:
-    """SIGTERM leftover report servers. Returns the rows signalled.
+    """
+
+    SIGTERM leftover report servers. Returns the rows signalled.
 
     Injectable ``kill`` for tests. Never targets non-headless profile browsers.
 
@@ -139,7 +145,10 @@ def delivery_close_blockers(
     leftover_report_servers: Sequence[dict] | str | None = None,
     session_logs_cleared: bool = True,
 ) -> list[str]:
-    """Compose close-gate blockers for a delivered task (#7755)."""
+    """
+
+    Compose close-gate blockers for a delivered task (#7755).
+    """
     from scripts.ci.box_disk_guard import item_close_blockers
 
     created: list[str] = []
