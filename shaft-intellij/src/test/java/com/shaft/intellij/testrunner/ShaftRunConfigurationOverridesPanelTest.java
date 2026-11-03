@@ -39,4 +39,25 @@ class ShaftRunConfigurationOverridesPanelTest {
         assertEquals(ShaftRunConfigurationOverridesPanel.INHERIT_BROWSER,
                 ShaftRunOverridesLabels.PROJECT_DEFAULT);
     }
+
+    @Test
+    void roundTripsMobileTarget() {
+        ShaftRunConfigurationOverridesPanel panel = new ShaftRunConfigurationOverridesPanel();
+        ShaftRunConfigurationOverrides enabled = new ShaftRunConfigurationOverrides();
+        enabled.setEnabled(true);
+        ShaftTargetSelection target = new ShaftTargetSelection();
+        target.setPlatform(ShaftTargetSelection.Platform.ANDROID);
+        target.setExecution(ShaftTargetSelection.Execution.BROWSERSTACK);
+        target.setDeviceOs("ANDROID");
+        target.setAppAlias("app-1");
+        target.setRetryCount(1);
+        enabled.setTarget(target);
+        panel.setState(enabled);
+        ShaftRunConfigurationOverrides roundTrip = panel.getState();
+        assertEquals(ShaftTargetSelection.Platform.ANDROID, roundTrip.getTarget().getPlatform());
+        assertEquals(ShaftTargetSelection.Execution.BROWSERSTACK, roundTrip.getTarget().getExecution());
+        assertEquals("ANDROID", roundTrip.getTarget().getDeviceOs());
+        assertEquals("app-1", roundTrip.getTarget().getAppAlias());
+        assertEquals(1, roundTrip.getTarget().getRetryCount());
+    }
 }

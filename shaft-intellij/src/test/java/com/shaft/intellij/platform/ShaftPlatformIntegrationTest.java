@@ -119,10 +119,20 @@ public class ShaftPlatformIntegrationTest extends LightJavaCodeInsightFixtureTes
         element.setAttribute("enabled", "true");
         element.setAttribute("browser", "firefox");
         element.setAttribute("headless", "true");
+        element.setAttribute("platform", "WEB");
+        element.setAttribute("execution", "LOCAL");
+        element.setAttribute("retryCount", "1");
         com.shaft.intellij.testrunner.ShaftRunConfigurationExtensionSupportAccess.readExternal(configuration, element);
         SimpleJavaParameters parameters = new SimpleJavaParameters();
         extension.updateVMParameters(configuration, parameters, null, DefaultRunExecutor.getRunExecutorInstance());
         assertTrue(parameters.getVMParametersList().getList().contains("-DtargetBrowserName=firefox"));
         assertTrue(parameters.getVMParametersList().getList().contains("-DheadlessExecution=true"));
+        assertTrue(parameters.getVMParametersList().getList().contains("-DretryCount=1"));
+
+        Element written = new Element("shaft");
+        com.shaft.intellij.testrunner.ShaftRunConfigurationExtensionSupportAccess.writeExternal(configuration, written);
+        assertEquals("true", written.getAttributeValue("enabled"));
+        assertEquals("WEB", written.getAttributeValue("platform"));
+        assertEquals("LOCAL", written.getAttributeValue("execution"));
     }
 }

@@ -6,6 +6,7 @@ import com.intellij.execution.configurations.SimpleJavaParameters;
 import com.intellij.execution.configurations.ParametersList;
 import com.intellij.execution.configurations.RunConfigurationBase;
 import com.intellij.openapi.options.SettingsEditor;
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.util.Key;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jdom.Element;
@@ -219,10 +220,10 @@ final class ShaftRunConfigurationExtensionSupport {
         }
 
         @Override
-        protected void applyEditorTo(RunConfigurationBase configuration) {
+        protected void applyEditorTo(RunConfigurationBase configuration) throws ConfigurationException {
             ShaftRunConfigurationOverrides state = panel.getState();
             if (state.isEnabled() && !state.getTarget().isValid()) {
-                throw new RuntimeException(String.join(" ", state.getTarget().validationErrors()));
+                throw new ConfigurationException(String.join(" ", state.getTarget().validationErrors()));
             }
             configuration.putCopyableUserData(OVERRIDES_KEY, state.isEnabled() ? state : null);
         }

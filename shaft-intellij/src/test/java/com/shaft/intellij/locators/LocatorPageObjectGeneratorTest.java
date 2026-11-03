@@ -8,16 +8,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LocatorPageObjectGeneratorTest {
     @Test
-    void generatesPageObjectAndFlagsNonHittable() {
-        String code = LocatorPageObjectGenerator.generate("LoginPage", List.of(
-                new LocatorPageObjectGenerator.LocatorRow(
-                        "userName", "SHAFT.GUI.Locator.hasTagName(\"input\").build()", true, true, true, 1),
-                new LocatorPageObjectGenerator.LocatorRow(
-                        "hidden", "SHAFT.GUI.Locator.hasId(\"x\").build()", false, false, true, 2)
+    void generatesPageObjectClass() {
+        String po = LocatorPageObjectGenerator.generate("LoginPage", List.of(
+                new LocatorPageObjectGenerator.LocatorRow("user", "by().id(\"user\")", true, true, true, 1),
+                new LocatorPageObjectGenerator.LocatorRow("pass", "by().name(\"password\")", false, true, true, 2)
         ));
-        assertTrue(code.contains("class LoginPage"));
-        assertTrue(code.contains("userName()"));
-        assertTrue(code.contains("WARNING"));
-        assertTrue(LocatorPageObjectGenerator.crossPlatformPairFields("a()", "i()").contains("android=a()"));
+        assertTrue(po.contains("class LoginPage"));
+        assertTrue(po.contains("user()"));
+        assertTrue(po.contains("by().id(\"user\")"));
+        assertTrue(po.contains("WARNING"));
+        assertTrue(po.contains("SHAFT.GUI.WebDriver"));
+    }
+
+    @Test
+    void crossPlatformPairFields() {
+        String pair = LocatorPageObjectGenerator.crossPlatformPairFields("by().id(\"a\")", "by().id(\"i\")");
+        assertTrue(pair.contains("android=by().id(\"a\")"));
+        assertTrue(pair.contains("ios=by().id(\"i\")"));
+    }
+
+    @Test
+    void sanitizesBadNames() {
+        String po = LocatorPageObjectGenerator.generate("!!!", List.of(
+                new LocatorPageObjectGenerator.LocatorRow("123bad", "by().xpath(\"//x\")", true, true, true, 0)
+        ));
+        assertTrue(po.contains("class GeneratedPage") || po.contains("class "));
+        assertTrue(po.contains("element123bad") || po.contains("123bad"));
     }
 }

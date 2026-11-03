@@ -75,4 +75,23 @@ class AllureReportActionsTest {
         assertTrue(deleted.stream().anyMatch(p -> p.endsWith("allure-results")));
         assertTrue(Files.notExists(project.resolve("allure-results")));
     }
+
+    @Test
+    void mergeRequiresSourcesAndSkipsMissing(@TempDir Path root) throws Exception {
+        Path dest = root.resolve("out");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> AllureReportActions.mergeResults(dest, List.of()));
+        Path only = root.resolve("only");
+        Files.createDirectories(only);
+        Files.writeString(only.resolve("a.json"), "{}");
+        Path merged = AllureReportActions.mergeResults(dest, java.util.Arrays.asList(only, root.resolve("missing"), null));
+        assertTrue(Files.isRegularFile(merged.resolve("a.json")));
+        // collision suffix
+        Files.writeString(only.resolve("a.json"), "{\"n\":2}");
+        AllureReportActions.mergeResults(dest, List.of(only));
+        assertTrue(Files.exists(dest.resolve("a.json")));
+        long jsonCount = Files.list(dest).filter(f -> f.getFileName().toString().startsWith("a")).count();
+        assertTrue(jsonCount >= 2);
+        assertTrue(AllureReportActions.listTagsAndGroups(root.resolve("nope")).isEmpty());
+    }
 }
