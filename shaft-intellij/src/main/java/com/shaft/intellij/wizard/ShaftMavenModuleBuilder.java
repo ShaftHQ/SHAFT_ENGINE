@@ -93,13 +93,17 @@ public final class ShaftMavenModuleBuilder extends ModuleBuilder {
     @Override
     public @Nullable Module commitModule(@NotNull Project project, @Nullable ModifiableModuleModel model) {
         Module module = super.commitModule(project, model);
-        if (module != null && settings.isOpenAssistantAfterCreate()) {
+        if (shouldOpenAssistant(module, settings)) {
             showShaftToolWindow(project);
         }
         return module;
     }
 
-    private static void showShaftToolWindow(@NotNull Project project) {
+    static boolean shouldOpenAssistant(@Nullable Module module, @NotNull ShaftMavenProjectSettings projectSettings) {
+        return module != null && projectSettings.isOpenAssistantAfterCreate();
+    }
+
+    static void showShaftToolWindow(@NotNull Project project) {
         ToolWindowManager manager = ToolWindowManager.getInstance(project);
         manager.invokeLater(() -> {
             ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);

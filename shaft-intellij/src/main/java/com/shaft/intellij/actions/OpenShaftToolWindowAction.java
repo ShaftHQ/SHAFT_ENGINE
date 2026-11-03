@@ -42,11 +42,11 @@ public final class OpenShaftToolWindowAction extends AnAction implements DumbAwa
         showToolWindow(project);
     }
 
-    private static boolean isShaftProject(Project project) {
+    static boolean isShaftProject(Project project) {
         return project != null && ShaftProjectDetector.isShaftProject(project);
     }
 
-    private static void showToolWindow(@NotNull Project project) {
+    static void showToolWindow(@NotNull Project project) {
         ToolWindowManager manager = ToolWindowManager.getInstance(project);
         manager.invokeLater(() -> {
             ToolWindow toolWindow = manager.getToolWindow(TOOL_WINDOW_ID);

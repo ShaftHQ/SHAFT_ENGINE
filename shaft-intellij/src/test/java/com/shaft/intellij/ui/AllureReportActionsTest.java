@@ -40,4 +40,15 @@ class AllureReportActionsTest {
         Files.writeString(newer, "new");
         assertEquals(newer, AllureReportActions.findLatestScreenshot(root));
     }
+
+    @Test
+    void evidenceMessageCoversMissingAndPresentResults(@TempDir Path root) throws Exception {
+        String missing = AllureReportActions.evidenceMessage(root);
+        assertTrue(missing.contains("No Allure results"));
+        Path results = root.resolve("allure-results");
+        Files.createDirectories(results);
+        String ready = AllureReportActions.evidenceMessage(root);
+        assertTrue(ready.contains("Allure results ready"));
+        assertTrue(ready.contains("allure-results"));
+    }
 }

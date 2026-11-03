@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class OpenShaftToolWindowActionTest {
@@ -12,5 +13,10 @@ class OpenShaftToolWindowActionTest {
         OpenShaftToolWindowAction action = new OpenShaftToolWindowAction();
         assertEquals(ActionUpdateThread.BGT, action.getActionUpdateThread());
         assertNotNull(action.getTemplatePresentation().getIcon());
+    }
+
+    @Test
+    void nullProjectIsNotShaftProject() {
+        assertFalse(OpenShaftToolWindowAction.isShaftProject(null));
     }
 }

@@ -48,15 +48,16 @@ public final class AllureReportActions {
     }
 
     public static void notifyEvidenceOrDoctor(@NotNull Project project, @NotNull Path projectRoot) {
+        ShaftNotifier.info(project, "SHAFT evidence", evidenceMessage(projectRoot));
+    }
+
+    static @NotNull String evidenceMessage(@NotNull Path projectRoot) {
         Path results = findAllureResults(projectRoot);
         if (results == null) {
-            ShaftNotifier.info(project, "SHAFT evidence",
-                    "No Allure results yet. Re-run the failed test, then open evidence or Doctor from the Tests panel.");
-            return;
+            return "No Allure results yet. Re-run the failed test, then open evidence or Doctor from the Tests panel.";
         }
-        ShaftNotifier.info(project, "SHAFT evidence",
-                "Allure results ready at " + projectRoot.relativize(results)
-                        + ". Open the folder or run Doctor from the failure notification — Doctor is optional, not the first wall.");
+        return "Allure results ready at " + projectRoot.relativize(results)
+                + ". Open the folder or run Doctor from the failure notification — Doctor is optional, not the first wall.";
     }
 
     private static boolean isImageFile(@NotNull Path path) {

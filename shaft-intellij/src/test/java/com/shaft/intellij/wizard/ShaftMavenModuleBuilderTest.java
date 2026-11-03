@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.intellij.openapi.options.ConfigurationException;
 
@@ -78,4 +79,13 @@ class ShaftMavenModuleBuilderTest {
                 () -> ShaftMavenModuleBuilder.writeScaffoldForContentPath(null, new ShaftMavenProjectSettings()));
     }
 
+
+    @Test
+    void shouldOpenAssistantRequiresModuleAndFlag() {
+        ShaftMavenProjectSettings settings = new ShaftMavenProjectSettings();
+        settings.setOpenAssistantAfterCreate(true);
+        assertFalse(ShaftMavenModuleBuilder.shouldOpenAssistant(null, settings));
+        settings.setOpenAssistantAfterCreate(false);
+        assertFalse(ShaftMavenModuleBuilder.shouldOpenAssistant(null, settings));
+    }
 }

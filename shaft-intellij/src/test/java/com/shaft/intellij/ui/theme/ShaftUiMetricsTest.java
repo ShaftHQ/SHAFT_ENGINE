@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftUiMetricsTest {
     @Test
@@ -18,7 +17,7 @@ class ShaftUiMetricsTest {
         assertNotNull(ShaftUiMetrics.insetsSm());
         assertNotNull(ShaftUiMetrics.insetsMd());
         assertEquals(4, ShaftUiMetrics.PAD_SM);
-        assertTrue(ShaftUiMetrics.PAD_MD > 0);
-        assertTrue(ShaftUiMetrics.PAD_LG > ShaftUiMetrics.PAD_MD);
+        assertEquals(8, ShaftUiMetrics.PAD_MD);
+        assertEquals(16, ShaftUiMetrics.PAD_LG);
     }
 }
