@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-test-env
         with:
-          node-version: "20"
+          node-version: "26"
       - name: Install reactor modules locally
         # Sibling modules (e.g. allure-cucumber8-jvm) share the reactor version and are
         # not always on Maven Central yet after a release bump; install them before
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-test-env
         with:
-          node-version: "20"
+          node-version: "26"
       # Both CLIs live under ~/.m2/repository, which setup-test-env restores and saves, so they are
       # downloaded once per cache and the Allure acceptance tests run instead of skipping (#6752).
       - name: Install reactor modules locally

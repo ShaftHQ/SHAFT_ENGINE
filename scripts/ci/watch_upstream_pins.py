@@ -20,6 +20,8 @@ Report-only unless ``--write``. ``--write`` opens or updates one issue titled
 
 from __future__ import annotations
 
+import dataclasses
+
 import argparse
 import copy
 import json
@@ -135,7 +137,23 @@ _VERSION_KINDS = frozenset(
 _COMMIT_KINDS = frozenset({"git", "release"})
 
 
+# Drift that cannot land yet: pin name -> (exact latest value held, tracking ticket).
+# Only that exact latest is held; any newer upstream release reports drift again.
+HELD_BACK: dict[str, tuple[str, str]] = {
+    "python": ("3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
+    "ci-python@3.14": ("3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
+}
+
+
 def compare_pin(pin: Pin, stable: Stable) -> Verdict:
+    verdict = _compare_pin(pin, stable)
+    held = HELD_BACK.get(pin.name) or HELD_BACK.get(pin.name.split(" ", 1)[0])
+    if verdict.behind and held and verdict.latest == held[0]:
+        return dataclasses.replace(verdict, behind=False)
+    return verdict
+
+
+def _compare_pin(pin: Pin, stable: Stable) -> Verdict:
     latest = _stable_identity(pin, stable)
     if pin.kind in _SERIES_KINDS:
         # A series pin ("25", "3.13") is behind when the newest stable series is newer.
@@ -894,17 +912,24 @@ COVERAGE_EXEMPT: dict[str, str] = {
     "dependencies.context7": "no version pin; installs the registry latest tag",
     "dependencies.chrome-devtools-mcp": "no version pin; npx resolves the registry latest tag",
     "dependencies.deja": "watched through runtimes.deja",
+    "runtimes.python": "compatibility floor for hook launch (Python 3.11+), not an installed pin",
     "runtimes.maven-tools-source": "watched through dependencies.maven-tools-mcp",
     "runtimes.temurin": "watched through dependencies.java and java-feature",
 }
 
-_SETUP_KEYS = {"node-version": "node", "java-version": "java", "python-version": "python"}
-_SETUP_LINE = re.compile(r"^\s*(node-version|java-version|python-version)\s*:\s*['\"]?([^'\"\s#]+)")
+_SETUP_KEYS = {
+    "node-version": "node",
+    "java-version": "java",
+    "python-version": "python",
+    "maven-version": "maven",
+}
+_SETUP_LINE = re.compile(r"^\s*(node-version|java-version|python-version|maven-version)\s*:\s*['\"]?([^'\"\s#]+)")
 _POM_JDK = re.compile(r"<jdk\.version>\s*(\d+)\s*</jdk\.version>")
 _SERIES_URL = {
     "node": ("series-node", NODE_INDEX_URL),
     "java": ("series-java", ADOPTIUM_RELEASES_URL),
     "python": ("series-python", PYTHON_RELEASES_URL),
+    "maven": ("maven-central", MAVEN_METADATA_URL),
 }
 
 
@@ -913,8 +938,6 @@ def runtime_pins(spec: Mapping[str, Any]) -> list[Pin]:
     runtimes = spec.get("runtimes") if isinstance(spec.get("runtimes"), dict) else {}
     pins: list[Pin] = []
     python = runtimes.get("python") if isinstance(runtimes, dict) else None
-    if isinstance(python, dict) and _STABLE_VERSION.fullmatch(str(python.get("version") or "")):
-        pins.append(Pin("runtime-python", "series-python", str(python["version"]), PYTHON_RELEASES_URL))
     deps = spec.get("dependencies") if isinstance(spec.get("dependencies"), dict) else {}
     project_python = deps.get("python") if isinstance(deps, dict) else None
     series = project_python.get("maximumSeries") if isinstance(project_python, dict) else None
@@ -1007,23 +1030,16 @@ def fetch_python_org(url: str) -> Stable:
 
 
 def fetch_newest_node(url: str) -> Stable:
-    """Newest stable Node line, LTS or Current: a series pin targets the newest major."""
+    """Newest Node LTS: series pins target the latest stable LTS line, never Current (#7750)."""
     status, payload = _request_json(url, github=False)
-    if status != 200 or not isinstance(payload, list):
+    if status != 200:
         raise UpstreamError(f"{url} returned HTTP {status}")
-    versions = [
-        str(item.get("version") or "").lstrip("v")
-        for item in payload
-        if isinstance(item, dict) and _STABLE_VERSION.fullmatch(str(item.get("version") or "").lstrip("v"))
-    ]
-    if not versions:
-        raise UpstreamError(f"{url} has no stable Node version")
-    return Stable(version=max(versions, key=_version_key))
+    return Stable(version=newest_node_version(payload))
 
 
 def fetch_java_feature(url: str) -> Stable:
     status, payload = _request_json(url, github=False)
-    feature = payload.get("most_recent_feature_release") if isinstance(payload, dict) else None
+    feature = payload.get("most_recent_lts") if isinstance(payload, dict) else None  # LTS only (#7750)
     if status != 200 or not isinstance(feature, int):
         raise UpstreamError(f"{url} returned HTTP {status}")
     return Stable(version=str(feature))

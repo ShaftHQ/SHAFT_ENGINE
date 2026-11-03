@@ -573,7 +573,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install managed CI Python dependencies
         run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Run ChaosGauge contracts
@@ -614,7 +614,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Fetch immutable pull-request review records
@@ -686,7 +686,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Set up JDK 25
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
@@ -1045,7 +1045,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.9.12
+          maven-version: 3.10.0
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Run template-coupled shaft-mcp tests
@@ -1089,7 +1089,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install actionlint and zizmor (pinned)
         run: |
           curl -sSfL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
@@ -1273,7 +1273,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Install managed CI Python dependencies
         run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       # #6990 lesson: Codecov silently ignores an invalid codecov.yml.
@@ -1345,7 +1345,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run Javadoc coverage unit tests
         run: python3 -m unittest tests.scripts.test_validate_javadoc_coverage tests.scripts.test_validate_test_reference_coverage -v
       - name: Enforce the Javadoc coverage baseline
@@ -1365,7 +1365,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run pilot module boundary tests
         run: >-
           python3 -m unittest
@@ -1404,7 +1404,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run diff-scoped static analysis
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
@@ -1422,7 +1422,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run orphaned suite file guard unit tests
         run: python3 -m unittest tests.scripts.test_validate_orphaned_suite_files -v
       - name: Validate no TestNG suite XML file is orphaned
@@ -1470,7 +1470,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Fetch PR commit messages
         id: pr-commits
         env:
@@ -1563,7 +1563,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run fresh-install acceptance
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -1609,7 +1609,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: Run installer UX contracts
         run: >-
           python -m unittest
@@ -1813,7 +1813,7 @@ jobs:
       - name: Set up Python 3.13
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - name: File, update, or close ci-main-red issues
         env:
           GH_TOKEN: ${{ github.token }}
