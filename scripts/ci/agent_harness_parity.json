@@ -1598,6 +1598,40 @@
         "chaos-engine/skills/pre-done-self-review/SKILL.md"
       ],
       "note": "Pre-done self-review: one source, on demand via the level-1 catalog and the done/handoff path."
+    },
+    {
+      "id": "job_apply_skill",
+      "owner": "chaos-engine/skills/job-apply/SKILL.md",
+      "check": "tests/scripts/test_job_apply_skill.py::test_every_host_reaches_the_skill",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/job-apply/SKILL.md"
+      ],
+      "note": "Job apply: one source, on demand via the level-1 catalog; draft never send; abstraction grep gate."
     }
   ]
 }
