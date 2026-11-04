@@ -1,9 +1,9 @@
 ---
 name: job-apply
 description: >-
-  Use whenever anyone wants to apply for a job: open the posting, classify the
-  apply route, gather required inputs once, draft (never send) a researched
-  cover email with a verified CV, and pass the gate checklist. On demand only.
+  Use when anyone wants to apply for a job: classify the posting, gather inputs
+  once, draft (never send) a researched cover email with a verified CV, and pass
+  the gate checklist. On demand only.
 license: MIT
 permissions:
   - bash

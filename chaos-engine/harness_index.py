@@ -81,9 +81,9 @@ SKILLS = (
      "rules, cite rule and alternative for each gap, check views. On demand only.", "on-demand"),
     # On demand only: reached through the level-1 catalog when applying for a job.
     ("job-apply", "portable", "skills/job-apply/SKILL.md",
-     "Use whenever anyone wants to apply for a job: open the posting, classify the apply route, "
-     "gather required inputs once, draft (never send) a researched cover email with a verified CV, "
-     "and pass the gate checklist. On demand only.", "on-demand"),
+     "Use when anyone wants to apply for a job: classify the posting, gather inputs once, "
+     "draft (never send) a researched cover email with a verified CV, and pass the gate "
+     "checklist. On demand only.", "on-demand"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
