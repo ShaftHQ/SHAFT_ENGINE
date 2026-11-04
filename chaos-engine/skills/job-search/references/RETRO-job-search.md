@@ -8,12 +8,12 @@ Date: 2026-11-04. Scope: finding ~10 senior/lead IC roles in test automation / A
 - Lesson: treat the guest API as a seed list only. Budget for a second channel (recruiter posts search) from the start, and filter early on stated eligible countries rather than the `remote` flag.
 
 ## 2. "Hybrid" vs "Remote" mismatch between listing card and job page
-- At least one role showed "fully remote in eligible locations" in an earlier listing/snippet but "Hybrid, <city>" on the current job page.
+- At least one role showed "fully remote in eligible locations" in an earlier listing/snippet but "Hybrid, {city}" on the current job page.
 - Lesson: the job detail page (and ideally the employer's external apply page) is the source of truth. Record work mode as "unverified" when sources disagree, and never claim remote eligibility in a tracker or cover letter until the employer page confirms it.
 
 ## 3. Posts search needs permalinks via the Activity tab
 - Recruiter posts ("hiring, send CV to ...") are where email-apply roles live, but the posts search results do not expose stable permalinks directly.
-- Lesson: open the poster's profile -> Activity -> Posts, then use the post's "Copy link to post" to get the `posts/<slug>-share-<id>` permalink. Store that permalink in the tracker; `lnkd.in` short links are fine as secondary references.
+- Lesson: open the poster's profile -> Activity -> Posts, then use the post's "Copy link to post" to get the `posts/{slug}-share-{id}` permalink. Store that permalink in the tracker; `lnkd.in` short links are fine as secondary references.
 
 ## 4. Mouse-wheel scrolling hangs the browser; use the End key
 - In the remote desktop browser, repeated mouse-wheel scroll on LinkedIn feeds/search caused the browser to hang (infinite-scroll + heavy DOM).

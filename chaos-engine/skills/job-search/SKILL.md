@@ -33,10 +33,10 @@ python3 .chaos-engine/tool.py retrieve --store graphify "job search guest API re
 python3 .chaos-engine/tool.py retrieve --store mempalace "job search guest API recruiter posts"
 ```
 
-Record `retrieve: used|skipped(<reason>)` in the task receipt. Then run the
-abstraction self-check
-([check_abstraction.sh](scripts/check_abstraction.sh) →
-[check_abstraction.py](scripts/check_abstraction.py)):
+Record `retrieve: used|skipped(<reason>)` on the search receipt. Then run this
+skill's abstraction self-check
+([check_abstraction.sh](scripts/check_abstraction.sh) wrapping
+[check_abstraction.py](scripts/check_abstraction.py) before searching):
 
 ```bash
 bash chaos-engine/skills/job-search/scripts/check_abstraction.sh
@@ -54,7 +54,7 @@ bash chaos-engine/skills/job-search/scripts/check_abstraction.sh
    - **Channel B — recruiter posts:** email-apply and external-apply roles
      often live in hiring posts. Posts search results rarely expose stable
      permalinks. Open the poster's profile → **Activity → Posts**, then use
-     **Copy link to post** for a `posts/<slug>-share-<id>` permalink. Store
+     **Copy link to post** for a `posts/{slug}-share-{id}` permalink. Store
      that permalink as the primary tracker URL; short links (for example
      lnkd.in) are secondary references only.
 2. **Eligibility-first filter.** Extract nationality / residency / country-list
@@ -99,4 +99,4 @@ Detail cards: [channels](references/channels.md),
 - Never invent eligibility or remote status; quote Fit Flags; mark unverified.
 - Never put applicant identity, contacts, employers, or personal stats into this
   skill tree; private per-user store only.
-- Run [check_abstraction.sh](scripts/check_abstraction.sh) (wraps [check_abstraction.py](scripts/check_abstraction.py)) before claiming the skill content is clean.
+- Before claiming this skill tree is clean, run [check_abstraction.sh](scripts/check_abstraction.sh), which wraps [check_abstraction.py](scripts/check_abstraction.py).

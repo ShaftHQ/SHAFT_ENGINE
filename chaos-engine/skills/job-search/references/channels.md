@@ -15,7 +15,7 @@
   roles live.
 - Posts search UI does not reliably expose stable permalinks.
 - Permalink path: poster profile → Activity → Posts → Copy link to post →
-  `posts/<slug>-share-<id>`.
+  `posts/{slug}-share-{id}`.
 - Tracker primary URL = that permalink; short links are secondary.
 
 ## Order of work
