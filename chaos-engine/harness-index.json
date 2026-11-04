@@ -127,6 +127,24 @@
       "path": "skills/pre-done-self-review/SKILL.md"
     },
     {
+      "description": "Use when anyone wants to apply for a job: classify the posting, gather inputs once, draft (never send) a researched cover email with a verified CV, and pass the gate checklist. On demand only.",
+      "family": "on-demand",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "job-apply",
+      "path": "skills/job-apply/SKILL.md"
+    },
+    {
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {

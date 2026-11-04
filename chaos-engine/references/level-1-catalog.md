@@ -36,6 +36,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Appium driver npm recover | Appium npm null-package; uninstall then install --source=npm | [`appium-driver-npm-recover.md`](appium-driver-npm-recover.md) |
 | Technical presentations | Plan, build, refactor, or review a technical talk or training deck; never remove slide content | [`../skills/technical-presentations/SKILL.md`](../skills/technical-presentations/SKILL.md) |
 | Pre-done self-review | Before Done, sign-off, or handoff: rules reconciled, gaps cite rule + alternative, views match the table | [`../skills/pre-done-self-review/SKILL.md`](../skills/pre-done-self-review/SKILL.md) |
+| Job apply | Apply for a job: classify posting, draft never send, research-backed cover email, gate checklist | [`../skills/job-apply/SKILL.md`](../skills/job-apply/SKILL.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |
 | Public landing | Calling card or product landing page for humans, search, and agents; not a second policy | [`public-landing.md`](public-landing.md) |
