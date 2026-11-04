@@ -67,6 +67,10 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
    line in `.chaos-engine-state/lesson-notes.log` (`record_lesson_note`), not
    a pull request. Zero-trigger rule retirement is
    [rule-retirement](../../references/rule-retirement.md).
+6b. When the lessons PR (or any ChaosEngine improvement PR born from a
+   reflection) lands, attach the **full detailed markdown lessons file**
+   (safe-to-share) in-tree or in the PR body — not a compressed summary. See
+   [reflection-checkpoints](../../references/reflection-checkpoints.md).
 7. Refine this protocol when traces show skipped Learning Sessions, local
    writers reviewing their own diffs, or queue-only lessons that never became
    issues. Self-development has no cap.

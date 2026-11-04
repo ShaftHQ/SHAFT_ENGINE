@@ -543,7 +543,7 @@ CHECKS = {
             "tests.scripts.test_box_disk_guard",
             "tests.scripts.test_delivery_cleanup",
             "tests.scripts.test_pre_done_review",
-            "tests.scripts.test_job_apply_skill",
+            "tests.scripts.test_job_apply_skill", "tests.scripts.test_job_search_skill",
         ),
     ),
     "ce-h2-gates-contract": Check(
@@ -1198,6 +1198,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/skills/pre-done-self-review/SKILL.md",
         "tests/scripts/test_pre_done_review.py",
         "tests/scripts/test_job_apply_skill.py",
+        "tests/scripts/test_job_search_skill.py",
         "chaos-engine/references/bot-entry.md",
         "tests/scripts/test_multi_agent_pdca.py",
         "chaos-engine/references/parallel-streams.md",
