@@ -37,6 +37,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Technical presentations | Plan, build, refactor, or review a technical talk or training deck; never remove slide content | [`../skills/technical-presentations/SKILL.md`](../skills/technical-presentations/SKILL.md) |
 | Pre-done self-review | Before Done, sign-off, or handoff: rules reconciled, gaps cite rule + alternative, views match the table | [`../skills/pre-done-self-review/SKILL.md`](../skills/pre-done-self-review/SKILL.md) |
 | Job apply | Apply for a job: classify posting, draft never send, research-backed cover email, gate checklist | [`../skills/job-apply/SKILL.md`](../skills/job-apply/SKILL.md) |
+| Job search | Search for jobs: two-channel discovery, eligibility filter, End-key scroll, share-profile gate | [`../skills/job-search/SKILL.md`](../skills/job-search/SKILL.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |
 | Public landing | Calling card or product landing page for humans, search, and agents; not a second policy | [`public-landing.md`](public-landing.md) |

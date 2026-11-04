@@ -487,6 +487,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [technical-presentations](../../chaos-engine/skills/technical-presentations/SKILL.md) (portable)
 - [pre-done-self-review](../../chaos-engine/skills/pre-done-self-review/SKILL.md) (portable)
 - [job-apply](../../chaos-engine/skills/job-apply/SKILL.md) (portable)
+- [job-search](../../chaos-engine/skills/job-search/SKILL.md) (portable)
 - [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
 - [ci-cd](../../chaos-engine/skills/ci-cd/SKILL.md) (portable)
 - [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)

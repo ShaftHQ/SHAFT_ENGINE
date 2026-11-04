@@ -108,3 +108,14 @@ rather than a caller-supplied list reconstructed at the end.
 Each registered main or delegate must have dispositions for its incidents or a
 no-learning attestation. Only an unreachable delegate may use an explicit
 unavailable attestation; absence is never treated as no learning.
+
+## Lessons markdown on ChaosEngine improvement PRs
+
+After a reflection or retrospective that motivates a ChaosEngine improvement
+PR (skills, hooks, installer, roles, identity, companions, or overlay
+references), attach the **full detailed markdown lessons file** to that PR —
+committed in-tree or linked from the PR body with the complete safe-to-share
+text. A compressed summary is not enough: reviewers need the reasoning,
+evidence, and the concrete rule changes. Strip personal data, credentials,
+client names, and prices before attaching.
+

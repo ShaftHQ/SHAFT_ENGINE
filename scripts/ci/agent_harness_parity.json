@@ -1632,6 +1632,40 @@
         "chaos-engine/skills/job-apply/SKILL.md"
       ],
       "note": "Job apply: one source, on demand via the level-1 catalog; draft never send; abstraction grep gate."
+    },
+    {
+      "id": "job_search_skill",
+      "owner": "chaos-engine/skills/job-search/SKILL.md",
+      "check": "tests/scripts/test_job_search_skill.py::test_every_host_reaches_the_skill",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/job-search/SKILL.md"
+      ],
+      "note": "Job search: one source, on demand via the level-1 catalog; End-key scroll; share-profile approval gate; full RETRO attached."
     }
   ]
 }

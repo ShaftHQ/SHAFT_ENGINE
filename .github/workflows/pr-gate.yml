@@ -208,6 +208,7 @@ jobs:
               - 'tests/scripts/test_technical_presentations_skill_parity.py'
               - 'tests/scripts/test_pre_done_review.py'
               - 'tests/scripts/test_job_apply_skill.py'
+              - 'tests/scripts/test_job_search_skill.py'
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'
