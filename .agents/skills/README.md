@@ -217,6 +217,7 @@ sends you there; the rest by
 - [shaft profile: self improve research synthesis](../../shaft-skills/ce-pack/references/self-improve-research-synthesis.md)
 - [research receipt](../../chaos-engine/references/research-receipt.md)
 - [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
+- [bigger picture first](../../chaos-engine/references/bigger-picture-first.md): name the goal, the context, and what a local hotfix would miss before retrieve
 - [harness maintenance](../../chaos-engine/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
 - [delete guard](../../chaos-engine/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
 - [delete-check discipline](../../chaos-engine/references/delete-check-discipline.md): install+doctor delete-guard, tool.py delete-check before every delete, owner code only

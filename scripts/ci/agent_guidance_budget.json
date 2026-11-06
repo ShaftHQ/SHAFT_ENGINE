@@ -382,6 +382,7 @@
     "on_trigger": [
       "chaos-engine/skills/self-improve/SKILL.md",
       "chaos-engine/references/retrieve-first.md",
+      "chaos-engine/references/bigger-picture-first.md",
       "chaos-engine/references/bot-entry.md",
       "chaos-engine/companions/ethics-card.md"
     ],

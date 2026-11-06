@@ -54,7 +54,8 @@ class GrokBotTest(unittest.TestCase):
     def test_bot_entry_names_every_startup_step(self):
         body = (ROOT / BOT_ENTRY).read_text(encoding="utf-8")
         for needle in ("tool.py entry", "skills/chaos-engine/SKILL.md", "caveman-ultra.md",
-                       "ponytail-ultra.md", "tool.py retrieve", "Grok Bot", "GPT"):
+                       "ponytail-ultra.md", "tool.py retrieve", "bigger-picture-first.md",
+                       "Grok Bot", "GPT"):
             self.assertIn(needle, body)
 
     def test_entry_bundle_carries_core_and_companions(self):

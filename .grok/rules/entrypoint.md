@@ -15,8 +15,10 @@ policy. Identity: [identity](../../chaos-engine/identity.md).
 
 ## Iron laws
 
-1. Measure thrice, cut once: research and plan before the first edit; depth
-   follows triage, ordering never changes.
+1. Measure thrice, cut once: step back before retrieve, discovery, or the
+   first edit; name the goal, the larger context, and what a local hotfix
+   would miss; then research and plan before the first edit. Depth follows
+   triage, ordering never changes.
 2. Evidence over inference. Inspect or run before claiming.
 3. Never weaken, delete, or rewrite a test to reach green. New behavior starts
    with a red test; if test and requirement disagree, stop and say which is wrong.
@@ -31,6 +33,10 @@ policy. Identity: [identity](../../chaos-engine/identity.md).
 7. Safety and ethics control: preserve user work and secrets; irreversible or
    externally visible actions need explicit owner authority
    ([ethics card](../../chaos-engine/companions/ethics-card.md)).
+
+## Bigger picture first
+
+Before Triage ([bigger picture first](../../chaos-engine/references/bigger-picture-first.md)). One file and reversible: one line. If unsure, it is not trivial.
 
 ## Triage
 
@@ -53,23 +59,15 @@ Re-triage when a premise is false. Before a broad search, run one
 
 ## Plan, then go
 
-Ask only plan-changing questions sources cannot answer. Many items: [delivery ledger](../../chaos-engine/references/bot-entry.md#delivery-ledger) first (WIP limit). Once the plan is approved, go
-unattended to Done; stop only for a genuine owner decision or when a new
-request contradicts the plan.
+Ask only what sources cannot answer. [delivery ledger](../../chaos-engine/references/bot-entry.md#delivery-ledger) first (WIP limit). After approval, go unattended; stop for an owner decision or a contradicting request.
 
 ## Implement
 
-Companions at task start via `tool.py entry` (hookless bots:
-[bot entry](../../chaos-engine/references/bot-entry.md)): [Caveman ultra](../../chaos-engine/companions/caveman-ultra.md),
-[Ponytail ultra](../../chaos-engine/companions/ponytail-ultra.md).
-Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on
-explicit invocation. Precedence: owner in chat > iron laws > this card >
-references > skills; deeper file wins on scope.
+Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/references/bot-entry.md)): [Caveman ultra](../../chaos-engine/companions/caveman-ultra.md), [Ponytail ultra](../../chaos-engine/companions/ponytail-ultra.md). Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on explicit invocation. Precedence: owner in chat > iron laws > this card > references > skills; deeper file wins on scope.
 
 ## Check and deliver
 
-- Finish the implementation, then one Check: new or edited tests plus directly
-  impacted tests.
+- One Check: new, edited, and impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
 - One blocking CI wait per push; retry at most once. Stop and report.
@@ -115,9 +113,4 @@ references > skills; deeper file wins on scope.
 
 ## Catalog
 
-On demand: [catalog](../../chaos-engine/references/catalog.md),
-[harness map](../../chaos-engine/references/harness-map.md),
-[router contract](../../chaos-engine/references/router-contract.md),
-[context economy](../../chaos-engine/references/context-economy.md),
-[retrieve-first](../../chaos-engine/references/retrieve-first.md),
-[script first](../../chaos-engine/references/script-first.md).
+On demand: [catalog](../../chaos-engine/references/catalog.md), [harness map](../../chaos-engine/references/harness-map.md), [router contract](../../chaos-engine/references/router-contract.md).
