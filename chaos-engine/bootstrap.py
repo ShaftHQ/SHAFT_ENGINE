@@ -2143,7 +2143,7 @@ def infer_read_purpose(url: str, purpose: str | None) -> str:
     if host in {"raw.githubusercontent.com", "codeload.github.com"}:
         return "download"
     if (
-        "/git/trees/" in path
+        "git/trees/" in path
         or "/tarball/" in path
         or "/tar.gz/" in path
         or path.endswith(".tar.gz")
@@ -2162,7 +2162,7 @@ def upstream_read_failure_message(
     path = urllib.parse.urlsplit(url).path.casefold()
     label = (
         "tree"
-        if "/git/trees/" in path or "/tarball/" in path or "/tar.gz/" in path or path.endswith(".tar.gz")
+        if "git/trees/" in path or "/tarball/" in path or "/tar.gz/" in path or path.endswith(".tar.gz")
         else "file"
     )
     status_text = f"HTTP {status} " if isinstance(status, int) else ""
