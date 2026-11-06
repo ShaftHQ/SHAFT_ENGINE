@@ -810,6 +810,132 @@ class QueueSnapshotTest(TestCase):
         self.assertEqual("RED", kind)
         self.assertEqual("blocked-merge-state", rows[0]["name"])
 
+    def test_failed_group_check_is_not_masked(self) -> None:
+        watch = _load("ce_watch_queue_mixed_1106", ROOT / "scripts/agents/watch_pr_checks.py")
+
+        def check(
+            name: str,
+            status: str,
+            started: str,
+            completed: str | None = None,
+            conclusion: str | None = None,
+            event: str = "merge_group",
+        ) -> dict:
+            item = {
+                "name": name,
+                "startedAt": started,
+                "status": status,
+                "checkSuite": {"workflowRun": {"event": event}},
+            }
+            if completed:
+                item["completedAt"] = completed
+            if conclusion:
+                item["conclusion"] = conclusion
+            return item
+
+        def node(checks: list[dict]) -> dict:
+            return {
+                "state": "OPEN",
+                "mergedAt": None,
+                "mergeStateStatus": "CLEAN",
+                "isInMergeQueue": True,
+                "autoMergeRequest": None,
+                "mergeQueueEntry": {
+                    "position": 1,
+                    "enqueuedAt": "2026-11-06T00:00:00Z",
+                    "headCommit": {
+                        "oid": "groupsha",
+                        "statusCheckRollup": {"contexts": {"nodes": checks}},
+                    },
+                },
+                "commits": {
+                    "nodes": [
+                        {
+                            "commit": {
+                                "oid": "tipsha",
+                                "statusCheckRollup": {
+                                    "contexts": {
+                                        "nodes": [
+                                            check(
+                                                "pull tip",
+                                                "IN_PROGRESS",
+                                                "2026-11-06T00:00:00Z",
+                                                event="pull_request",
+                                            )
+                                        ]
+                                    }
+                                },
+                            }
+                        }
+                    ]
+                },
+            }
+
+        now = dt.datetime(2026, 11, 6, 2, 0, tzinfo=dt.timezone.utc)
+        green = [{"name": "unit", "state": "SUCCESS", "link": ""}]
+        failed = check("gate", "COMPLETED", "2026-11-06T01:00:00Z", "2026-11-06T01:10:00Z", "FAILURE")
+        later_ok = check("lint", "COMPLETED", "2026-11-06T01:50:00Z", "2026-11-06T01:58:00Z", "SUCCESS")
+        later_run = check("docs", "IN_PROGRESS", "2026-11-06T01:55:00Z")
+
+        def assert_wakes(checks: list[dict]) -> None:
+            payload_node = node(checks)
+            view = watch.apply_queue_snapshot(payload_node, now=now)
+            self.assertEqual("failed", view["mergeGroupState"])
+            self.assertEqual("groupsha", view["mergeGroupSha"])
+            self.assertNotEqual(view["prTipOid"], view["mergeGroupSha"])
+            self.assertEqual("stuck-queue-head", watch.stuck_queue_head(view))
+            kind, rows = watch.classify_unattended(green, view)
+            self.assertEqual("RED", kind)
+            self.assertEqual("stuck-queue-head", rows[0]["name"])
+
+            class _Proc:
+                returncode = 0
+                stdout = json.dumps({"data": {"repository": {"pullRequest": payload_node}}})
+                stderr = ""
+
+            import unittest.mock
+
+            with unittest.mock.patch.object(watch, "run_gh", return_value=_Proc()):
+                fetched = watch.fetch_pull("gh", Path("."), "owner/name", 9, now=now)
+            self.assertEqual("failed", fetched["mergeGroupState"])
+            fetched_kind, fetched_rows = watch.classify_unattended(green, fetched)
+            self.assertEqual("RED", fetched_kind)
+            self.assertEqual("stuck-queue-head", fetched_rows[0]["name"])
+
+        assert_wakes([failed, later_ok])
+        assert_wakes([later_ok, failed])
+        assert_wakes([failed, later_run])
+        assert_wakes([later_run, failed])
+        for conclusion in ("CANCELLED", "TIMED_OUT", "ACTION_REQUIRED"):
+            terminal = check("gate", "COMPLETED", "2026-11-06T01:00:00Z", "2026-11-06T01:10:00Z", conclusion)
+            assert_wakes([later_ok, terminal])
+        same = "2026-11-06T01:40:00Z"
+        tie_fail = check("gate", "COMPLETED", same, same, "FAILURE")
+        tie_ok = check("lint", "COMPLETED", same, same, "SUCCESS")
+        assert_wakes([tie_fail, tie_ok])
+        assert_wakes([tie_ok, tie_fail])
+        tie_same_fail = check("gate", "COMPLETED", same, same, "FAILURE")
+        tie_same_ok = check("gate", "COMPLETED", same, same, "SUCCESS")
+        assert_wakes([tie_same_fail, tie_same_ok])
+        assert_wakes([tie_same_ok, tie_same_fail])
+        retry_fail = check("gate", "COMPLETED", "2026-11-06T01:00:00Z", "2026-11-06T01:10:00Z", "FAILURE")
+        retry_run = check("gate", "IN_PROGRESS", "2026-11-06T01:55:00Z")
+        assert_wakes([retry_fail, retry_run])
+        assert_wakes([retry_run, retry_fail])
+        retry_ok = check("gate", "COMPLETED", "2026-11-06T01:50:00Z", "2026-11-06T01:58:00Z", "SUCCESS")
+        for order in ([retry_fail, retry_ok], [retry_ok, retry_fail]):
+            superseded = watch.apply_queue_snapshot(node(order), now=now)
+            self.assertEqual("passed", superseded["mergeGroupState"])
+            self.assertIsNone(watch.stuck_queue_head(superseded))
+            self.assertNotEqual("stuck-queue-head", watch.classify_unattended(green, superseded)[1][0]["name"] if watch.classify_unattended(green, superseded)[1] else "")
+        healthy = watch.apply_queue_snapshot(
+            node([check("gate", "IN_PROGRESS", "2026-11-06T01:55:00Z")]),
+            now=now,
+        )
+        self.assertEqual("running", healthy["mergeGroupState"])
+        self.assertIsNone(watch.stuck_queue_head(healthy))
+        self.assertNotEqual("RED", watch.classify_unattended(green, healthy)[0])
+
     def test_main_runs_unbounded_preflight_before_polling(self) -> None:
         watch = _load("ce_watch_preflight_1106", ROOT / "scripts/agents/watch_pr_checks.py")
         import unittest.mock
@@ -873,18 +999,18 @@ class OperationBoundaryTest(TestCase):
             self.assertIn("relayed-delete-code", deleted)
             secret = root / "status.md"
             secret.write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
-            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
-            subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=root, check=True)
-            subprocess.run(["git", "config", "user.name", "Dev"], cwd=root, check=True)
-            subprocess.run(["git", "add", "status.md"], cwd=root, check=True)
-            subprocess.run(["git", "commit", "-m", "status"], cwd=root, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
+            subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "config", "user.name", "Dev"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "add", "status.md"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "commit", "-m", "status"], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
             secret.write_text("clean\n", encoding="utf-8")
             self.assertNotIn("ghp_", secret.read_text(encoding="utf-8"))
             file_hits = boundary.disk_blocks(root, ["status.md"])
             self.assertTrue(any(item.startswith("secret-in-commit") for item in file_hits))
             staged = root / "notes.md"
             staged.write_text("github_pat_abcdefghij\n", encoding="utf-8")
-            subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
+            subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)  # nosec B603 B607
             staged.write_text("clean\n", encoding="utf-8")
             staged_hits = boundary.committed_secret_failures(root)
             self.assertTrue(any(item.startswith("secret-in-commit") for item in staged_hits))
@@ -918,6 +1044,83 @@ class OperationBoundaryTest(TestCase):
             watcher.write_text("while True:\n    poll()\n", encoding="utf-8")
             loops = boundary.disk_blocks(root, ["scripts/agents/watch_pr_checks.py"])
             self.assertIn("watcher:unbounded-loop", loops)
+
+    def test_failure_hook_events_reach_the_pre_push_consumer(self) -> None:
+        overlay = _load("ce_overlay_failure_hook_1106", ROOT / "scripts/ci/overlay_pre_push.py")
+        guard = _load("ce_guard_failure_hook_1106", CE / "hooks/guard.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            command = ("python3 -m unittest tests.sample",)
+            missing_code = {
+                "hook_event_name": "PostToolUseFailure",
+                "cwd": str(root),
+                "tool_response": {"stdout": "FAIL\n", "stderr": ""},
+            }
+            alternate_result = {
+                "hook_event_name": "PostToolUseFailure",
+                "cwd": str(root),
+                "tool_result": {"output": "still failing\n"},
+            }
+            for event in (missing_code, alternate_result):
+                recorded = guard._command_guard_state(
+                    event,
+                    "PostToolUseFailure",
+                    command,
+                    "Shell",
+                    {"command": command[0]},
+                    "",
+                    "",
+                    "session",
+                )
+                self.assertEqual("", recorded[2])
+            pushed = overlay._operation_disk_failures(root, [])
+            self.assertTrue(any(item == "push-without-rca:test" or item.endswith("push-without-rca:test") for item in pushed))
+            secret_root = Path(temporary) / "secret output"
+            secret_root.mkdir()
+            leaked = {
+                "hook_event_name": "PostToolUseFailure",
+                "cwd": str(secret_root),
+                "tool_response": {"stdout": "ghp_abcdefghij123456\n"},
+            }
+            reason = guard._command_guard_state(
+                leaked,
+                "PostToolUseFailure",
+                ("python3 -c \"print(1)\"",),
+                "Shell",
+                {"command": "python3 -c \"print(1)\""},
+                "",
+                "",
+                "session",
+            )[2]
+            self.assertIn("secret-in-output", reason)
+            self.assertNotIn("ghp_", reason)
+
+    def test_removed_outgoing_secret_still_fails_closed(self) -> None:
+        boundary = _load("ce_operation_history_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            secret = root / "status.md"
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
+            subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "config", "user.name", "Dev"], cwd=root, check=True)  # nosec B603 B607
+            secret.write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
+            subprocess.run(["git", "add", "status.md"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "commit", "-m", "add status"], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
+            secret.write_text("clean\n", encoding="utf-8")
+            subprocess.run(["git", "add", "status.md"], cwd=root, check=True)  # nosec B603 B607
+            subprocess.run(["git", "commit", "-m", "remove status"], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
+            net = subprocess.run(  # nosec B603 B607 - fixed git diff of the temp repo.
+                ["git", "diff", "--no-color", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", "HEAD"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotIn("ghp_", net.stdout)
+            self.assertNotIn("ghp_", secret.read_text(encoding="utf-8"))
+            hits = boundary.disk_blocks(root, ["status.md"])
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
+            self.assertFalse(any("ghp_" in item for item in hits))
 
 
 class AdversarialEvidenceTest(TestCase):
@@ -1005,7 +1208,7 @@ class AdversarialEvidenceTest(TestCase):
 
     def test_merge_claim_without_verdicts_fails(self) -> None:
         result = self.mod.evaluate_adversarial_pass_sha(
-            {"merge_or_enqueue": True, "head_sha": "H", "adversarial_pass_sha": "H"}
+            {"merge_or_enqueue": True, "head_sha": "H", "adversarial_pass_sha": "H"}  # nosec B105 - fixture sha, not a secret
         )
         self.assertFalse(result["ok"])
         self.assertIn("missing-second-verdict", result["hits"])
@@ -1027,7 +1230,7 @@ class AdversarialEvidenceTest(TestCase):
         hits = self._hits(
             {
                 "head_sha": "abc",
-                "adversarial_pass_sha": "abc",
+                "adversarial_pass_sha": "abc",  # nosec B105 - fixture sha, not a secret
                 "verdicts": [
                     {"worker": "a", "reviewer": "same", "verdict": "PASS", "sha": "abc"},
                     {"worker": "b", "reviewer": "same", "verdict": "PASS", "sha": "abc"},

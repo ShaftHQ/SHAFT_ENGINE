@@ -476,7 +476,10 @@ def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
     return ""
 
 
-def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict) -> str:
+_OBSERVED_TOOL_EVENTS = frozenset({"PostToolUse", "PostToolUseFailure"})
+
+
+def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict, event_name: str) -> str:
     """Record the tool's real result and scan its stdout/stderr."""
     script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
     if not script.is_file():
@@ -490,7 +493,9 @@ def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict) -
     secret = module.output_secret_block(result)
     if secret:
         return "operation boundary: " + secret
-    problem = module.observe_commands(project, commands, failed=_tool_result_failed("PostToolUse", result))
+    problem = module.observe_commands(
+        project, commands, failed=_tool_result_failed(event_name, result),
+    )
     if problem:
         return "operation boundary: " + problem
     return ""
@@ -1371,9 +1376,9 @@ def _command_guard_state(
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
         )
     )
-    if event_name == "PostToolUse" and not receipt_command:
+    if event_name in _OBSERVED_TOOL_EVENTS and not receipt_command:
         project = Path(str(event.get("cwd") or Path.cwd()))
-        post_block = _post_tool_boundary(project, commands, event)
+        post_block = _post_tool_boundary(project, commands, event, event_name)
         if post_block:
             return receipt_command, mutation, post_block
     checkpoint = reflection.pending_checkpoint(session_id)

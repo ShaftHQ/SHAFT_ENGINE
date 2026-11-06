@@ -430,24 +430,82 @@ def _clock_kind(item: dict) -> str:
     return "running"
 
 
-def _merge_group_clock(node: dict, now: datetime) -> tuple[str, float | None]:
-    """Activity of the merge-group head commit. Absent means no group run exists."""
-    checks = _group_checks(node)
-    if not checks:
-        return "absent", None
+def _check_moment(item: dict) -> datetime | None:
+    return _parse_github_time(item.get("completedAt") or item.get("startedAt"))
+
+
+def _failing_attempt(left: tuple, right: tuple) -> tuple:
+    """A tie keeps a terminal failure. List order does not choose the winner."""
+    if _clock_kind(left[2]) == "failed":
+        return left
+    if _clock_kind(right[2]) == "failed":
+        return right
+    return left
+
+
+def _prefer_attempt(left: tuple, right: tuple) -> tuple:
+    """Newer attempt of the same check replaces an older one. A tie stays failed."""
+    left_time, right_time = left[0], right[0]
+    if left_time is None or right_time is None:
+        if left_time is None and right_time is None:
+            return _failing_attempt(left, right)
+        return right if left_time is None else left
+    if right_time != left_time:
+        return right if right_time > left_time else left
+    return _failing_attempt(left, right)
+
+
+def _current_attempt(attempts: list[tuple]) -> tuple:
+    """The newest attempt. A rerun still in progress does not erase a terminal failure."""
+    best = attempts[0]
+    for candidate in attempts[1:]:
+        best = _prefer_attempt(best, candidate)
+    if _clock_kind(best[2]) != "running":
+        return best
+    for candidate in attempts:
+        if _clock_kind(candidate[2]) == "failed":
+            return candidate
+    return best
+
+
+def _effective_attempts(checks: list[dict]) -> list[dict]:
+    """One current result per check name. A later other check does not replace it."""
+    grouped: dict[str, list[tuple]] = {}
+    for index, item in enumerate(checks):
+        name = str(item.get("name") or "").strip() or f"#{index}"
+        grouped.setdefault(name, []).append((_check_moment(item), index, item))
+    return [_current_attempt(attempts)[2] for attempts in grouped.values()]
+
+
+def _any_failed(checks: list[dict]) -> bool:
+    for item in checks:
+        if _clock_kind(item) == "failed":
+            return True
+    return False
+
+
+def _progress_clock(checks: list[dict], now: datetime) -> tuple[str, float | None]:
     newest: datetime | None = None
     kind = "running"
     for item in checks:
-        moment = _parse_github_time(item.get("completedAt") or item.get("startedAt"))
-        if moment is not None and (newest is None or moment > newest):
+        moment = _check_moment(item)
+        if moment is not None and (newest is None or moment >= newest):
             newest = moment
             kind = _clock_kind(item)
-    if kind == "failed":
-        return "failed", 0.0
     if newest is None:
         return "absent", None
     age = (now - newest).total_seconds() / 60.0
     return ("passed" if kind == "passed" else "running"), age
+
+
+def _merge_group_clock(node: dict, now: datetime) -> tuple[str, float | None]:
+    """Group health. Any current terminal failure wins over later unrelated activity."""
+    checks = _effective_attempts(_group_checks(node))
+    if not checks:
+        return "absent", None
+    if _any_failed(checks):
+        return "failed", 0.0
+    return _progress_clock(checks, now)
 
 
 def _head_activity(

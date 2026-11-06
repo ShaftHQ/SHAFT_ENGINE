@@ -106,7 +106,7 @@ def execute_installed_shim(cmd_path: str, args: list[str], env: dict[str, str]):
     if os.name == "nt":
         child = dict(env)
         child["PATH"] = os.path.dirname(cmd_path)
-        return subprocess.run(  # nosec B603 - cmd /d /c py, PATH is only the shim dir.
+        return subprocess.run(  # nosec B603 B607 - cmd /d /c py, PATH is only the shim dir.
             ["cmd", "/d", "/c", "py", *args],
             env=child,
             capture_output=True,

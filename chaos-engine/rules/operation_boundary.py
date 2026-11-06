@@ -194,11 +194,15 @@ def committed_secret_failures(root: Path) -> list[str]:
     if not base:
         return []
     exclude = [".", ":(exclude)tests", ":(exclude)tests/**"]
-    diff = _git(Path(root), ["diff", "--no-color", f"{base}..HEAD", "--", *exclude])
+    # Every outgoing commit, not the net tree. A later removal must not hide an introduced secret.
+    history = _git(Path(root), ["log", "-p", "--no-color", f"{base}..HEAD", "--", *exclude])
+    head = _git(Path(root), ["diff", "--no-color", f"{base}..HEAD", "--", *exclude])
     staged = _git(Path(root), ["diff", "--cached", "--no-color", "--", *exclude])
-    if diff is None or staged is None or diff.returncode != 0 or staged.returncode != 0:
+    scans = (history, head, staged)
+    if any(item is None or item.returncode != 0 for item in scans):
         return ["outgoing-diff-unavailable"]
-    return secret_failures((diff.stdout or "") + "\n" + (staged.stdout or ""), kind="commit")
+    text = "\n".join(item.stdout or "" for item in scans)
+    return secret_failures(text, kind="commit")
 
 
 def pdca_push_failures(root: Path) -> list[str]:
