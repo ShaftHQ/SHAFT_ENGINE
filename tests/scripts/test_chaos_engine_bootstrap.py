@@ -910,14 +910,18 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertEqual(COMMIT_TWO, updated["commit"])
 
             before = (project / ".chaos-engine/manifest.json").read_bytes()
-            with self.assertRaisesRegex(RuntimeError, "resolve latest ChaosEngine"):
-                module.install_latest(
+            with mock.patch.object(module.time, "sleep"):
+                deferred = module.install_latest(
                     project,
                     repository="ShaftHQ/SHAFT_ENGINE",
                     branch="main",
                     skip_tools=True,
                     opener=mock.Mock(side_effect=OSError("offline")),
                 )
+            self.assertEqual("upgrade-skipped", deferred["status"])
+            self.assertEqual("CE-UPGRADE-DEFERRED", deferred["error"])
+            self.assertEqual(COMMIT_TWO, deferred["commit"])
+            self.assertNotEqual("CE-INSTALL-FAILED", deferred["error"])
             self.assertEqual(before, (project / ".chaos-engine/manifest.json").read_bytes())
 
     def test_public_default_path_installs_healthy_hosts_and_local_tools(self):
@@ -1657,6 +1661,288 @@ class InstallSummaryMatchesDoctorTest(unittest.TestCase):
         self.assertEqual(set(summary["components"]), set(gate["components"]))
         downloaded.doctor_with_dependencies.assert_called_once_with(Path(temporary), verify_clients=False)
         self.assertEqual({"components": {"core": {}}}, fallback)
+
+
+def _http_504(url: str) -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(url, 504, "Gateway Timeout", {}, None)
+
+
+def _request_url(request) -> str:
+    return str(request.full_url if hasattr(request, "full_url") else request)
+
+
+def _gzip_tarball(members: dict[str, bytes]) -> bytes:
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, payload in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(payload)
+            archive.addfile(info, io.BytesIO(payload))
+    return buffer.getvalue()
+
+
+class InstallerPhase0DownloadTest(unittest.TestCase):
+    """#7771: accurate download failures, and no hard fail when a core is already installed."""
+
+    def _core(self, project: Path, commit: str = COMMIT_ONE) -> dict[str, bytes]:
+        core = project / ".chaos-engine"
+        core.mkdir()
+        (core / "manifest.json").write_text(
+            json.dumps({"source": {"commit": commit}}) + "\n", encoding="utf-8"
+        )
+        (core / "install.py").write_text(
+            "def doctor_with_dependencies(project, verify_clients=True, probe_retrieve=False):\n"
+            f"    return {{'status': 'healthy', 'commit': {commit!r}, "
+            "'components': {'kernel': {'status': 'healthy'}}}\n",
+            encoding="utf-8",
+        )
+        (core / "marker.txt").write_text("keep\n", encoding="utf-8")
+        return {
+            path.relative_to(core).as_posix(): path.read_bytes()
+            for path in core.rglob("*")
+            if path.is_file()
+        }
+
+    def _snapshot(self, project: Path) -> dict[str, bytes]:
+        core = project / ".chaos-engine"
+        return {
+            path.relative_to(core).as_posix(): path.read_bytes()
+            for path in core.rglob("*")
+            if path.is_file()
+        }
+
+    def _opener_504_after_resolve(self, commit: str = COMMIT_ONE):
+        def open_url(request, timeout=0):
+            del timeout
+            url = _request_url(request)
+            if "/commits/" in url:
+                return Response(json.dumps({"sha": commit}).encode())
+            raise _http_504(url)
+
+        return open_url
+
+    def test_download_504_with_existing_core_is_soft_and_leaves_core(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            before = self._core(project, COMMIT_ONE)
+            stream = io.StringIO()
+            reporter = module.InstallReporter(stream=stream)
+            with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                module, "resolve_local_clone", return_value=None
+            ):
+                result = module.install_latest(
+                    project,
+                    repository="ShaftHQ/SHAFT_ENGINE",
+                    branch="main",
+                    skip_tools=True,
+                    opener=self._opener_504_after_resolve(),
+                    reporter=reporter,
+                )
+            self.assertEqual(before, self._snapshot(project))
+            self.assertFalse((project / ".chaos-engine.backup").exists())
+            self.assertEqual("upgrade-skipped", result["status"])
+            self.assertEqual("CE-UPGRADE-DEFERRED", result["error"])
+            self.assertEqual(COMMIT_ONE, result["commit"])
+            self.assertEqual("healthy", result["doctor"]["status"])
+            self.assertEqual("healthy", result["components"]["kernel"]["status"])
+            self.assertNotIn("unable to resolve latest", result["cause"])
+            self.assertIn("HTTP 504", result["cause"])
+            self.assertIn("4 attempts", result["cause"])
+            deferred = stream.getvalue().split("CE-UPGRADE-DEFERRED", 1)[1]
+            self.assertIn("unchanged and working", deferred)
+            self.assertIn("HTTP 504", deferred)
+            self.assertIn("Rerun the installer later", deferred)
+            self.assertNotIn(str(project), deferred)
+            self.assertNotIn("CE-INSTALL-FAILED", stream.getvalue())
+            trace = "\n".join(message for _offset, message in reporter.traces)
+            self.assertIn("upstream failed path=/", trace)
+            self.assertNotIn(str(project), trace)
+            self.assertNotRegex(trace, r"(?i)(token|secret|password)=")
+
+    def test_download_504_with_existing_core_exits_zero(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            before = self._core(project, COMMIT_ONE)
+            stderr = io.StringIO()
+            stdout = io.StringIO()
+            argv = [
+                "bootstrap.py",
+                "--project",
+                str(project),
+                "--repository",
+                "ShaftHQ/SHAFT_ENGINE",
+                "--branch",
+                "main",
+                "--skip-tools",
+            ]
+            real_install_latest = module.install_latest
+
+            def install_latest_with_opener(*args, **kwargs):
+                kwargs.setdefault("opener", self._opener_504_after_resolve())
+                return real_install_latest(*args, **kwargs)
+
+            with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                module, "resolve_local_clone", return_value=None
+            ), mock.patch.object(
+                module, "install_latest", install_latest_with_opener
+            ), mock.patch.object(module.sys, "argv", argv), mock.patch.object(
+                module.sys, "stderr", stderr
+            ), mock.patch.object(module.sys, "stdout", stdout):
+                self.assertEqual(0, module.main())
+            self.assertEqual(before, self._snapshot(project))
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual("upgrade-skipped", payload["status"])
+            self.assertEqual("CE-UPGRADE-DEFERRED", payload["error"])
+            self.assertIn("unchanged and working", stderr.getvalue())
+            self.assertNotIn("Installation failed", stderr.getvalue())
+            self.assertNotIn("CE-INSTALL-FAILED", stderr.getvalue())
+
+    def test_download_504_on_fresh_install_is_a_hard_download_failure(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            stderr = io.StringIO()
+            stdout = io.StringIO()
+            argv = [
+                "bootstrap.py",
+                "--project",
+                str(project),
+                "--repository",
+                "ShaftHQ/SHAFT_ENGINE",
+                "--branch",
+                "main",
+                "--skip-tools",
+            ]
+            real_install_latest = module.install_latest
+
+            def install_latest_with_opener(*args, **kwargs):
+                kwargs.setdefault("opener", self._opener_504_after_resolve())
+                return real_install_latest(*args, **kwargs)
+
+            with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                module, "resolve_local_clone", return_value=None
+            ), mock.patch.object(
+                module, "install_latest", install_latest_with_opener
+            ), mock.patch.object(module.sys, "argv", argv), mock.patch.object(
+                module.sys, "stderr", stderr
+            ), mock.patch.object(module.sys, "stdout", stdout):
+                self.assertEqual(1, module.main())
+            self.assertFalse((project / ".chaos-engine").exists())
+            self.assertIn("Installation failed", stderr.getvalue())
+            self.assertNotIn("CE-UPGRADE-DEFERRED", stderr.getvalue())
+            trace_path = project / ".chaos-engine-state" / "install-trace.json"
+            document = json.loads(trace_path.read_text(encoding="utf-8"))
+            cause = document["result"]["cause"]
+            self.assertEqual("failed", document["result"]["status"])
+            self.assertEqual("CE-INSTALL-FAILED", document["result"]["error"])
+            self.assertIn("unable to download", cause)
+            self.assertIn("HTTP 504", cause)
+            self.assertIn("4 attempts", cause)
+            self.assertNotIn("unable to resolve latest", cause)
+            trace = "\n".join(item[1] for item in document["trace"])
+            self.assertIn("upstream failed path=/", trace)
+            self.assertNotIn(str(project), trace)
+            self.assertNotIn(str(project), cause)
+            self.assertNotRegex(trace + cause, r"(?i)(token|secret|password)=")
+
+    def test_download_requests_chaos_engine_subtree_not_whole_repo(self):
+        module = load()
+        skill = b"skill"
+        subtree_sha = "a" * 40
+        root = {
+            "truncated": False,
+            "tree": [
+                {"path": "chaos-engine", "mode": "040000", "type": "tree", "sha": subtree_sha},
+                {"path": "shaft-engine", "mode": "040000", "type": "tree", "sha": "b" * 40},
+            ],
+        }
+        subtree = {
+            "truncated": False,
+            "tree": [blob_tree_entry("skills/chaos-engine/SKILL.md", skill)],
+        }
+        urls: list[str] = []
+
+        def opener(request, timeout=0):
+            del timeout
+            url = _request_url(request)
+            urls.append(url)
+            if url.endswith(f"/git/trees/{COMMIT_ONE}"):
+                return Response(json.dumps(root).encode())
+            if f"/git/trees/{subtree_sha}?recursive=1" in url:
+                return Response(json.dumps(subtree).encode())
+            if url.endswith("SKILL.md"):
+                return Response(skill)
+            raise AssertionError(url)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = module.download_source(
+                "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, Path(temporary), opener=opener
+            )
+            self.assertEqual(skill, (source / "skills/chaos-engine/SKILL.md").read_bytes())
+            self.assertFalse((Path(temporary) / "shaft-engine").exists())
+        self.assertTrue(any(url.endswith(f"/git/trees/{COMMIT_ONE}") for url in urls))
+        self.assertFalse(any(f"/git/trees/{COMMIT_ONE}?recursive=1" in url for url in urls))
+        self.assertTrue(any(f"/git/trees/{subtree_sha}?recursive=1" in url for url in urls))
+        self.assertFalse(any("b" * 40 in url for url in urls))
+
+    def test_tarball_fallback_keeps_only_chaos_engine_and_checks_blob_sha(self):
+        module = load()
+        skill = b"skill-from-tar"
+        entry = blob_tree_entry("chaos-engine/skills/chaos-engine/SKILL.md", skill)
+        tree = {"truncated": False, "tree": [entry]}
+        prefix = f"SHAFT_ENGINE-{COMMIT_ONE}"
+        good = _gzip_tarball(
+            {
+                f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": skill,
+                f"{prefix}/shaft-engine/pom.xml": b"<project/>",
+            }
+        )
+        bad = _gzip_tarball(
+            {
+                f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": b"not-the-tree",
+                f"{prefix}/shaft-engine/pom.xml": b"<project/>",
+            }
+        )
+
+        def opener(archive: bytes):
+            def open_url(request, timeout=0):
+                del timeout
+                url = _request_url(request)
+                if "/git/trees/" in url:
+                    return Response(json.dumps(tree).encode())
+                if "codeload.github.com" in url and url.endswith(f"/tar.gz/{COMMIT_ONE}"):
+                    return Response(archive)
+                raise _http_504(url)
+
+            return open_url
+
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            with mock.patch.object(module.time, "sleep"):
+                source = module.download_source(
+                    "ShaftHQ/SHAFT_ENGINE",
+                    COMMIT_ONE,
+                    destination,
+                    opener=opener(good),
+                )
+            self.assertEqual(skill, (source / "skills/chaos-engine/SKILL.md").read_bytes())
+            self.assertFalse((destination / "shaft-engine").exists())
+            self.assertFalse((destination / "outside.txt").exists())
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                module, "resolve_local_clone", return_value=None
+            ), self.assertRaisesRegex(ValueError, "does not match"):
+                module.download_source(
+                    "ShaftHQ/SHAFT_ENGINE",
+                    COMMIT_ONE,
+                    Path(temporary),
+                    opener=opener(bad),
+                )
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 import email.utils
 import hashlib
+import io
 import json
 import os
 import platform
@@ -20,6 +21,7 @@ import shutil
 import ssl
 import subprocess  # nosec B404 - fixed `gh auth token` argv, never a shell.
 import sys
+import tarfile
 import tempfile
 import textwrap
 import threading
@@ -87,6 +89,10 @@ COMMIT = re.compile(r"[0-9a-f]{40}")
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_FILE_BYTES = 2 * 1024 * 1024
+# Whole-repo source tarball (compressed). Extract still keeps only chaos-engine/
+# and still enforces MAX_SOURCE_BYTES / MAX_FILES on that subset.
+MAX_TARBALL_BYTES = 80 * 1024 * 1024
+MAX_TARBALL_MEMBERS = 100_000
 MAX_FILES = 2000
 DOWNLOAD_WORKERS = 8
 MAX_READ_ATTEMPTS = 4
@@ -2105,6 +2111,68 @@ def retry_delay(error: BaseException, attempt: int) -> float | None:
     return RETRY_BASE_SECONDS * (2**attempt)
 
 
+class UpstreamReadError(RuntimeError):
+    """A bounded upstream read failed. ``url_path`` is the path only, never a secret."""
+
+    def __init__(self, message: str, *, url_path: str, http_status: int | None) -> None:
+        super().__init__(message)
+        self.url_path = url_path
+        self.http_status = http_status
+
+
+def safe_url_path(url: str) -> str:
+    """Path of ``url`` with query, fragment, and userinfo removed."""
+    path = urllib.parse.urlsplit(url).path or "/"
+    if ".." in path.split("/"):
+        return "/"
+    path = re.sub(
+        r"(?i)(token|secret|password|api_key)(=|/)[^/]+",
+        r"\1\2<redacted>",
+        path,
+    )
+    return path[:400]
+
+
+def infer_read_purpose(url: str, purpose: str | None) -> str:
+    """``download`` for source fetches; everything else stays a resolve read."""
+    if purpose in {"download", "resolve"}:
+        return purpose
+    split = urllib.parse.urlsplit(url)
+    host = (split.hostname or "").casefold()
+    path = split.path.casefold()
+    if host in {"raw.githubusercontent.com", "codeload.github.com"}:
+        return "download"
+    if (
+        "/git/trees/" in path
+        or "/tarball/" in path
+        or "/tar.gz/" in path
+        or path.endswith(".tar.gz")
+    ):
+        return "download"
+    return "resolve"
+
+
+def upstream_read_failure_message(
+    url: str, error: BaseException, attempts: int, purpose: str | None
+) -> str:
+    """Phase-specific cause. Resolve keeps the historical string; download names the HTTP status."""
+    if infer_read_purpose(url, purpose) != "download":
+        return "unable to resolve latest ChaosEngine from the configured upstream"
+    status = error.code if isinstance(error, urllib.error.HTTPError) else None
+    path = urllib.parse.urlsplit(url).path.casefold()
+    label = (
+        "tree"
+        if "/git/trees/" in path or "/tarball/" in path or "/tar.gz/" in path or path.endswith(".tar.gz")
+        else "file"
+    )
+    status_text = f"HTTP {status} " if isinstance(status, int) else ""
+    noun = "attempt" if attempts == 1 else "attempts"
+    return (
+        f"unable to download ChaosEngine source {label} "
+        f"({status_text}after {attempts} {noun}): {safe_url_path(url)}"
+    )
+
+
 def read_response(
     opener,
     url: str,
@@ -2112,6 +2180,7 @@ def read_response(
     limit: int = MAX_RESPONSE_BYTES,
     sleeper=None,
     progress=None,
+    purpose: str | None = None,
 ) -> bytes:
     sleeper = time.sleep if sleeper is None else sleeper
     for attempt in range(MAX_READ_ATTEMPTS):
@@ -2138,8 +2207,11 @@ def read_response(
                 limited = rate_limit_failure(error, url)
                 if limited is not None:
                     raise RuntimeError(limited) from error
-                raise RuntimeError(
-                    "unable to resolve latest ChaosEngine from the configured upstream"
+                status = error.code if isinstance(error, urllib.error.HTTPError) else None
+                raise UpstreamReadError(
+                    upstream_read_failure_message(url, error, attempt + 1, purpose),
+                    url_path=safe_url_path(url),
+                    http_status=status if isinstance(status, int) else None,
                 ) from error
             sleeper(delay)
     if len(value) > limit:
@@ -2169,6 +2241,7 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
         repository_document = read_response(
             opener,
             f"https://api.github.com/repos/{repository}",
+            purpose="resolve",
         )
         try:
             repository_value = json.loads(repository_document)
@@ -2185,6 +2258,7 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
     document = read_response(
         opener,
         f"https://api.github.com/repos/{repository}/commits/{encoded_branch}",
+        purpose="resolve",
     )
     try:
         value = json.loads(document)
@@ -2276,7 +2350,9 @@ def download_addon_files(
         return 0
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     document = read_response(
-        opener, f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1"
+        opener,
+        f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1",
+        purpose="download",
     )
     value = json.loads(document)
     if not isinstance(value, dict) or value.get("truncated") is not False:
@@ -2290,6 +2366,7 @@ def download_addon_files(
             opener,
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
             limit=MAX_FILE_BYTES,
+            purpose="download",
         )
         target = destination.joinpath(*path.parts)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -2323,6 +2400,14 @@ def git_blob_sha1(content: bytes) -> str:
     digest.update(content)
     return digest.hexdigest()
 
+
+
+def omitted_source_relative(relative: PurePosixPath) -> bool:
+    """Brand masters and research notes are not part of the portable core."""
+    return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+        "RESEARCH.md",
+        "STANDALONE.md",
+    }
 
 
 def _select_source_blobs(
@@ -2363,10 +2448,7 @@ def _select_source_blobs(
         relative = PurePosixPath(*path.parts[1:])
         if not relative.parts:
             raise ValueError("ChaosEngine source tree has an unexpected layout")
-        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
-            "RESEARCH.md",
-            "STANDALONE.md",
-        }:
+        if omitted_source_relative(relative):
             continue
         selected.append((path, size, sha))
         total += size
@@ -2440,7 +2522,7 @@ def copy_source_from_local_clone(
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError("local ChaosEngine clone is incomplete")
     if reporter is not None:
-        reporter.trace(f"local-clone fallback from {local_root}")
+        reporter.trace("local-clone fallback")
     return source
 
 
@@ -2468,33 +2550,18 @@ def download_source(
         )
         if not networkish:
             raise
+        trace_upstream_failure(reporter, error)
         root = resolve_local_clone(local_clone)
         if root is None:
             raise
         if reporter is not None:
             reporter.trace(
-                f"download failed ({type(error).__name__}); "
-                f"falling back to local clone {root}"
+                f"download failed ({type(error).__name__}); falling back to local clone"
             )
         return copy_source_from_local_clone(root, destination, reporter=reporter)
 
 
-def download_source_remote(
-    repository: str,
-    commit: str,
-    destination: Path,
-    *,
-    opener=urllib.request.urlopen,
-    reporter: InstallReporter | None = None,
-) -> Path:
-    """Download only the bounded ChaosEngine subtree, never the whole repository."""
-    encoded_repository = "/".join(
-        urllib.parse.quote(part, safe="") for part in repository.split("/")
-    )
-    document = read_response(
-        opener,
-        f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1",
-    )
+def _parse_git_tree(document: bytes) -> list:
     try:
         value = json.loads(document)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -2504,18 +2571,225 @@ def download_source_remote(
     tree = value.get("tree")
     if not isinstance(tree, list):
         raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+    return tree
 
-    selected, total, executable = _select_source_blobs(tree)
-    if not selected:
+
+def _tree_lists_chaos_engine_paths(tree: list) -> bool:
+    """True when paths are already repository-relative (fixture or expanded tree).
+
+    A non-recursive root listing names ``chaos-engine`` itself as a tree and is not expanded.
+    """
+    for entry in tree:
+        if not isinstance(entry, dict):
+            continue
+        path = entry.get("path")
+        if not isinstance(path, str):
+            continue
+        if path == "chaos-engine" and entry.get("type") == "tree":
+            continue
+        if path == "chaos-engine" or path.startswith("chaos-engine/"):
+            return True
+    return False
+
+
+def _prefix_subtree(tree: list) -> list:
+    """Prefix a chaos-engine subtree so selectors keep repository-relative paths."""
+    prefixed = []
+    for entry in tree:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+        path = entry["path"]
+        copied = dict(entry)
+        if path == "chaos-engine" or path.startswith("chaos-engine/"):
+            copied["path"] = path
+        else:
+            copied["path"] = f"chaos-engine/{path}" if path else "chaos-engine"
+        prefixed.append(copied)
+    return prefixed
+
+
+def fetch_chaos_engine_tree(encoded_repository: str, commit: str, opener) -> list:
+    """ChaosEngine blobs only. Never ``git/trees/<commit>?recursive=1`` (whole repo)."""
+    root_url = f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}"
+    root = _parse_git_tree(read_response(opener, root_url, purpose="download"))
+    if _tree_lists_chaos_engine_paths(root):
+        return root
+    entry = next(
+        (
+            item
+            for item in root
+            if isinstance(item, dict)
+            and item.get("path") == "chaos-engine"
+            and item.get("type") == "tree"
+        ),
+        None,
+    )
+    sha = entry.get("sha") if isinstance(entry, dict) else None
+    if not isinstance(sha, str) or COMMIT.fullmatch(sha) is None:
         raise ValueError("ChaosEngine source tree has an unexpected layout")
-    if len(selected) > MAX_FILES:
-        raise ValueError("ChaosEngine source tree contains too many files")
-    if total > MAX_SOURCE_BYTES:
-        raise ValueError("ChaosEngine source tree exceeds the download limit")
+    subtree_url = (
+        f"https://api.github.com/repos/{encoded_repository}/git/trees/{sha}?recursive=1"
+    )
+    return _prefix_subtree(_parse_git_tree(read_response(opener, subtree_url, purpose="download")))
+
+
+def _tarball_fallback_allowed(error: BaseException) -> bool:
+    """Transient read failures can use the commit tarball. Integrity and tree-shape errors cannot."""
+    if RATE_LIMIT_FAILURE in str(error):
+        return False
+    return isinstance(error, (UpstreamReadError, OSError, TimeoutError, urllib.error.URLError))
+
+
+def chaos_engine_tar_relative(name: str) -> PurePosixPath | None:
+    """``chaos-engine/`` path inside a GitHub tarball, or None when the member is outside it."""
+    if not isinstance(name, str) or not name or name.startswith(("/", "\\")) or "\\" in name:
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    parts = PurePosixPath(name).parts
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    if len(parts) < 3 or parts[1] != "chaos-engine":
+        return None
+    relative = PurePosixPath(*parts[2:])
+    if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    return relative
+
+
+def extract_chaos_engine_tarball(
+    payload: bytes,
+    destination: Path,
+    *,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+) -> Path:
+    """Write ``chaos-engine/`` from a commit tarball. Verify blob SHAs when the tree was resolved."""
+    try:
+        archive = tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz")  # nosec B202 - members are filtered, never extractall
+    except (tarfile.TarError, EOFError, OSError) as error:
+        raise ValueError("ChaosEngine source tarball is invalid") from error
+    expected_by_rel: dict[PurePosixPath, tuple[int, str]] | None = None
+    executable_rel: set[PurePosixPath] = set()
+    if expected is not None:
+        expected_by_rel = {}
+        for path, size, sha in expected:
+            if not path.parts or path.parts[0] != "chaos-engine":
+                continue
+            expected_by_rel[PurePosixPath(*path.parts[1:])] = (size, sha)
+        if executable is not None:
+            executable_rel = {
+                PurePosixPath(*path.parts[1:])
+                for path in executable
+                if path.parts and path.parts[0] == "chaos-engine"
+            }
+    source = destination / "chaos-engine"
+    source.mkdir()
+    seen: set[PurePosixPath] = set()
+    total = 0
+    prefix: str | None = None
+    inspected = 0
+    try:
+        for member in archive:
+            inspected += 1
+            if inspected > MAX_TARBALL_MEMBERS:
+                raise ValueError("ChaosEngine source tarball contains too many files")
+            name = member.name
+            relative = chaos_engine_tar_relative(name)
+            if relative is None:
+                continue
+            member_prefix = PurePosixPath(name).parts[0]
+            if prefix is None:
+                prefix = member_prefix
+            elif member_prefix != prefix:
+                raise ValueError("ChaosEngine source tarball has an unexpected layout")
+            if not member.isfile() or member.issym() or member.islnk():
+                continue
+            if omitted_source_relative(relative):
+                continue
+            size = member.size
+            if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+                raise ValueError("ChaosEngine source file exceeds the download limit")
+            total += size
+            if total > MAX_SOURCE_BYTES or len(seen) >= MAX_FILES:
+                raise ValueError("ChaosEngine source tree exceeds the download limit")
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                raise ValueError("ChaosEngine source tarball is invalid")
+            content = extracted.read(MAX_FILE_BYTES + 1)
+            if len(content) != size:
+                raise ValueError("ChaosEngine source file does not match the resolved tree")
+            if expected_by_rel is not None:
+                spec = expected_by_rel.get(relative)
+                if spec is None or spec[0] != len(content) or git_blob_sha1(content).casefold() != spec[1].casefold():
+                    raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+            target = source.joinpath(*relative.parts)
+            if not _path_is_inside(target, source):
+                raise ValueError("ChaosEngine source tarball contains an unsafe path")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+            if expected_by_rel is not None:
+                if relative in executable_rel:
+                    mark_executable(target)
+            elif member.mode & 0o111:
+                mark_executable(target)
+            seen.add(relative)
+    finally:
+        archive.close()
+    if expected_by_rel:
+        missing = [rel.as_posix() for rel in expected_by_rel if rel not in seen]
+        if missing:
+            raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+    if not (source / "skills/chaos-engine/SKILL.md").is_file():
+        raise ValueError("ChaosEngine source tree is incomplete")
+    return source
+
+
+def download_source_tarball(
+    encoded_repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener,
+    reporter: InstallReporter | None,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+) -> Path:
+    """Verified fallback: codeload tarball, then the GitHub tarball API. chaos-engine/ only."""
+    if COMMIT.fullmatch(commit) is None:
+        raise ValueError("GitHub returned an invalid ChaosEngine revision")
+    urls = (
+        f"https://codeload.github.com/{encoded_repository}/tar.gz/{commit}",
+        f"https://api.github.com/repos/{encoded_repository}/tarball/{commit}",
+    )
+    last: BaseException | None = None
+    for url in urls:
+        try:
+            payload = read_response(opener, url, limit=MAX_TARBALL_BYTES, purpose="download")
+        except (UpstreamReadError, OSError, TimeoutError, urllib.error.URLError, RuntimeError) as error:
+            trace_upstream_failure(reporter, error)
+            last = error
+            continue
+        return extract_chaos_engine_tarball(
+            payload, destination, expected=expected, executable=executable
+        )
+    if last is not None:
+        raise last
+    raise RuntimeError("unable to download ChaosEngine source tree (after 0 attempts): /")
+
+
+def _write_selected_blobs(
+    selected: list[tuple[PurePosixPath, int, str]],
+    total: int,
+    executable: set[PurePosixPath],
+    *,
+    encoded_repository: str,
+    commit: str,
+    destination: Path,
+    opener,
+    reporter: InstallReporter | None,
+) -> Path:
     if reporter is not None:
         reporter.begin_download(total, detail=f"{len(selected)} source files")
         reporter.trace(f"download {len(selected)} files ({total} bytes)")
-
     source = destination / "chaos-engine"
     source.mkdir()
     mkdir_lock = threading.Lock()
@@ -2528,14 +2802,13 @@ def download_source_remote(
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
             limit=MAX_FILE_BYTES,
             progress=None if reporter is None else reporter.downloaded,
+            purpose="download",
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
         actual_sha = git_blob_sha1(content)
         if actual_sha.casefold() != expected_sha.casefold():
-            raise ValueError(
-                "ChaosEngine source file hash does not match the resolved tree"
-            )
+            raise ValueError("ChaosEngine source file hash does not match the resolved tree")
         target = destination.joinpath(*repository_path.parts)
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -2553,6 +2826,65 @@ def download_source_remote(
     return source
 
 
+def download_source_remote(
+    repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener=urllib.request.urlopen,
+    reporter: InstallReporter | None = None,
+) -> Path:
+    """Download the chaos-engine subtree. On a transient failure, use the commit tarball."""
+    encoded_repository = "/".join(
+        urllib.parse.quote(part, safe="") for part in repository.split("/")
+    )
+    expected: list[tuple[PurePosixPath, int, str]] | None = None
+    executable: set[PurePosixPath] | None = None
+    try:
+        tree = fetch_chaos_engine_tree(encoded_repository, commit, opener)
+        selected, total, executable = _select_source_blobs(tree)
+        if not selected:
+            raise ValueError("ChaosEngine source tree has an unexpected layout")
+        if len(selected) > MAX_FILES:
+            raise ValueError("ChaosEngine source tree contains too many files")
+        if total > MAX_SOURCE_BYTES:
+            raise ValueError("ChaosEngine source tree exceeds the download limit")
+        expected = selected
+        return _write_selected_blobs(
+            selected,
+            total,
+            executable,
+            encoded_repository=encoded_repository,
+            commit=commit,
+            destination=destination,
+            opener=opener,
+            reporter=reporter,
+        )
+    except (RuntimeError, OSError, urllib.error.URLError, ValueError) as error:
+        if not _tarball_fallback_allowed(error):
+            raise
+        trace_upstream_failure(reporter, error)
+        if reporter is not None:
+            reporter.trace("download falling back to source tarball")
+        partial = destination / "chaos-engine"
+        if partial.exists():
+            shutil.rmtree(partial)
+        try:
+            return download_source_tarball(
+                encoded_repository,
+                commit,
+                destination,
+                opener=opener,
+                reporter=reporter,
+                expected=expected,
+                executable=executable,
+            )
+        except (RuntimeError, OSError, urllib.error.URLError, ValueError):
+            if partial.exists():
+                shutil.rmtree(partial, ignore_errors=True)
+            raise
+
+
 def load_installer(source: Path):
     path = source / "install.py"
     return types.SimpleNamespace(**runpy.run_path(str(path)))
@@ -2567,6 +2899,148 @@ def resolve_distribution(installer, project: Path, source: Path, requested: str 
         if isinstance(guessed, str) and guessed.strip():
             return guessed.strip()
     return "portable"
+
+
+def _walk_upstream(error: BaseException):
+    current: BaseException | None = error
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen and len(seen) < 8:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def upstream_url_path(error: BaseException) -> str | None:
+    """First recorded URL path on this failure. Path only; no query, userinfo, or local path."""
+    for item in _walk_upstream(error):
+        path = getattr(item, "url_path", None)
+        if isinstance(path, str) and path.startswith("/") and ".." not in path.split("/"):
+            return path[:400]
+    return None
+
+
+def upstream_http_status(error: BaseException) -> int | None:
+    for item in _walk_upstream(error):
+        status = getattr(item, "http_status", None)
+        if isinstance(status, int):
+            return status
+    return None
+
+
+def trace_upstream_failure(reporter: InstallReporter | None, error: BaseException) -> None:
+    if reporter is None:
+        return
+    path = upstream_url_path(error)
+    if path is None:
+        return
+    message = f"upstream failed path={path}"
+    if any(item[1] == message for item in reporter.traces):
+        return
+    reporter.trace(message)
+
+
+def _failure_before_install_core(reporter: InstallReporter) -> bool:
+    if reporter.current_operation == "Install core":
+        return False
+    if "Install core" in reporter.completed_operations or "Install core" in reporter._in_flight:
+        return False
+    return True
+
+
+def _defer_installed_upgrade(
+    prior_install: bool, reporter: InstallReporter, error: BaseException
+) -> bool:
+    """A transient resolve/download failure must not hard-fail a core that is already installed."""
+    if not prior_install or isinstance(error, (KeyboardInterrupt, SystemExit, InstallCancelled)):
+        return False
+    return _failure_before_install_core(reporter)
+
+
+def _redact_report_value(value: object) -> object:
+    if isinstance(value, str):
+        return redact_report_text(value)
+    if isinstance(value, dict):
+        return {str(key): _redact_report_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_report_value(item) for item in value]
+    return value
+
+
+def _bounded_doctor(doctor: dict) -> dict[str, object]:
+    wrapped = RuntimeError("doctor")
+    wrapped.doctor = doctor  # type: ignore[attr-defined]
+    report = doctor_failure_payload(wrapped)
+    redacted = _redact_report_value(report)
+    return redacted if isinstance(redacted, dict) else {}
+
+
+def existing_core_doctor(project: Path) -> dict[str, object]:
+    """Run the installed core's doctor. A doctor failure leaves that core in place."""
+    commit = installed_core_commit(project)
+    fallback: dict[str, object] = {"status": "unknown", "commit": commit, "components": {}}
+    run = installed_core_doctor(project / ".chaos-engine")
+    if not callable(run):
+        return fallback
+    try:
+        document = run(project, verify_clients=False)
+    except Exception:
+        return fallback
+    if not isinstance(document, dict):
+        return fallback
+    report = _bounded_doctor(document)
+    if not isinstance(report.get("commit"), str):
+        report["commit"] = commit
+    if not isinstance(report.get("components"), dict):
+        report["components"] = {}
+    if not isinstance(report.get("status"), str) or not report.get("status"):
+        report["status"] = "unknown"
+    return report
+
+
+def emit_upgrade_deferred(
+    reporter: InstallReporter, report: dict[str, object], error: BaseException
+) -> None:
+    commit = report.get("commit") if isinstance(report.get("commit"), str) else None
+    status = report.get("status") if isinstance(report.get("status"), str) else "unknown"
+    components = report.get("components") if isinstance(report.get("components"), dict) else {}
+    names = ", ".join(sorted(str(name) for name in components)) or "none"
+    http_status = upstream_http_status(error)
+    reason = f"GitHub returned HTTP {http_status}" if http_status is not None else "the upgrade could not be downloaded"
+    subject = f"ChaosEngine {commit}" if commit else "ChaosEngine"
+    if status == "healthy" and commit:
+        state = f"Your installed {subject} is unchanged and working."
+    else:
+        state = f"Your installed {subject} is unchanged."
+    reporter.stream.write(
+        "\n".join(
+            (
+                "CE-UPGRADE-DEFERRED",
+                state,
+                f"{reason}. Rerun the installer later.",
+                f"Doctor status {status}; commit {commit or 'unknown'}; components {names}.",
+                "",
+            )
+        )
+    )
+    reporter.stream.flush()
+    reporter.trace("upgrade deferred CE-UPGRADE-DEFERRED")
+
+
+def installed_upgrade_deferred(
+    project: Path, reporter: InstallReporter, error: BaseException
+) -> dict[str, object]:
+    report = existing_core_doctor(project)
+    emit_upgrade_deferred(reporter, report, error)
+    commit = report.get("commit") if isinstance(report.get("commit"), str) else None
+    return {
+        "status": "upgrade-skipped",
+        "error": "CE-UPGRADE-DEFERRED",
+        "cause": one_line_cause(error),
+        "commit": commit,
+        "components": report.get("components") if isinstance(report.get("components"), dict) else {},
+        "doctor": report,
+        "root": ".chaos-engine",
+    }
 
 
 def install_latest(
@@ -2725,12 +3199,16 @@ def install_latest(
             replaced = not legacy_layout(project / ".chaos-engine")
             print(installer.hard_cut_message(legacy_packs, replaced=replaced), file=sys.stderr)
         temporary.cleanup()
-    except BaseException:
+    except BaseException as error:
+        trace_upstream_failure(reporter, error)
+        defer = _defer_installed_upgrade(prior_install, reporter, error)
         reporter.close()
         if temporary is not None:
             temporary.cleanup()
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
+        if defer:
+            return installed_upgrade_deferred(project, reporter, error)
         raise
     if skip_tools or provisioner is not None:
         if terminal_context is not None:
@@ -3305,7 +3783,9 @@ def run_pack_post_install(
     """Download the pack's installer from the same commit and run it in the project."""
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     content = read_response(
-        opener, f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{entry['script']}"
+        opener,
+        f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{entry['script']}",
+        purpose="download",
     )
     with tempfile.TemporaryDirectory(prefix="ce-pack-post-install-") as temporary:
         script = Path(temporary) / Path(entry["script"]).name
@@ -3412,7 +3892,9 @@ def main() -> int:
         )
         return 1
     reporter.close()
-    post_install_code = post_install_packs(args, result) if isinstance(result, dict) else 0
+    post_install_code = 0
+    if isinstance(result, dict) and result.get("status") != "upgrade-skipped":
+        post_install_code = post_install_packs(args, result)
     if not getattr(sys.stdout, "isatty", lambda: False)():
         print(json.dumps(result, sort_keys=True))
     return 1 if post_install_code else 0
