@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MAP = "references/harness-map.md"
-WIDTH = 68
+WIDTH = 60
 SCOPES = (
     ("Core", ("identity.md",)),
     ("Companions", ("companions/*.md",)),

@@ -383,7 +383,7 @@ class ExtendedGatesTest(TestCase):
         self.assertTrue(self.mod.evaluate_public_issue_text("hello", reviewed=True)["ok"])
         self.assertFalse(self.mod.evaluate_email_resend({"resend": True})["ok"])
         self.assertFalse(self.mod.evaluate_gate_seeded_defect({"new_gate": True})["ok"])
-        self.assertFalse(self.mod.evaluate_bot_test_run({"headless": False, "allure_serve": True})["ok"])
+        self.assertFalse(self.mod.evaluate_bot_test_run({"headless": False, "report_serve": True})["ok"])
         push = self.pdca.evaluate_repeat_failure_pdca(
             {"stage": "unit", "consecutive_failures": [], "push_attempted": True, "consecutive_failure_count": 2}
         )

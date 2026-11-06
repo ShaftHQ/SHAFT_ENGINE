@@ -39,4 +39,4 @@ A delete-guard change lands on the upstream branch first. Do not treat the guard
 
 A review claim cites the head SHA it read. A review of an older SHA is not a review of the current head. Re-read after every new commit.
 
-Enforced by [`lessons_2026_11_06.py`](../../rules/lessons_2026_11_06.py) (`evaluate_docs_hygiene`). The closed ticket this skill completes is #7726; do not refile it.
+Enforced by [`lessons_2026_11_06.py`](../../rules/lessons_2026_11_06.py) (`evaluate_docs_hygiene`). The closed ticket this skill completes stays closed; do not refile it.

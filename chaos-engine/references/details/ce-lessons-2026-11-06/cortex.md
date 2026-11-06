@@ -62,7 +62,7 @@ Destination key: chaosengine | brain | mempalace | graphify
 1. Title: Tokens restored means reply, then pause
 2. What happened: Work stopped when tokens ran low. When tokens returned, the human still wanted status first and an explicit pause before anyone resumed or started tasks.
 3. Root cause: "We can work again" was easy to confuse with "resume your plate".
-4. Rule: Token restoration authorizes a reply, not a resume. Resume only on "proceed with #<id>" or a named phase in the shared file.
+4. Rule: Token restoration authorizes a reply, not a resume. Resume only on "proceed with N" or a named phase in the shared file.
 5. Acceptance: After a token-restore status cycle, no frozen or planned item starts unless its ID was named.
 6. Destination: chaosengine
 

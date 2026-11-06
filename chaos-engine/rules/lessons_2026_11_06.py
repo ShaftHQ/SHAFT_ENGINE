@@ -313,8 +313,8 @@ def evaluate_bot_test_run(record: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(record, dict):
         return _result(["record"], "bot-test-defaults gate failed")
     hits: list[str] = []
-    if record.get("allure_auto_open") or record.get("allure_serve"):
-        hits.append("allure-auto-open")
+    if record.get("report_auto_open") or record.get("report_serve"):
+        hits.append("report-auto-open")
     if record.get("headless") is False:
         hits.append("not-headless")
     return _result(hits, "bot-test-defaults gate failed")
