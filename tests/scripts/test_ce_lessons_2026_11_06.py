@@ -33,7 +33,7 @@ class LessonsLedgerTest(TestCase):
         "cortex.md",
         "hrsd.md",
         "chaos-analysis.md",
-        "README.md",
+        "ledger.md",
     )
 
     def test_full_markdown_present_and_abstract(self) -> None:

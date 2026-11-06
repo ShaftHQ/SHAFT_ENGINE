@@ -38,35 +38,39 @@ _RETRIEVE = re.compile(
 _FOUNDER = re.compile(r"\b(?:co-)?founder\b|\bceo\b", re.I)
 
 
-# ----- #7767 delegation cycle -----
-def evaluate_delegation_cycle(record: dict[str, Any]) -> dict[str, Any]:
-    """Shared instruction file, radio silence, one writer, lessons mega-PR cycle."""
-    if not isinstance(record, dict):
-        return _result(["record"], "#7767 delegation-cycle gate failed")
+def _delegation_order_hits(record: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    if record.get("multi_agent_order"):
-        if not record.get("shared_instruction_file"):
-            hits.append("missing-shared-instruction-file")
-        message = str(record.get("peer_message") or "")
-        if record.get("peer_message") is not None and record.get("shared_instruction_file"):
-            path = str(record.get("shared_instruction_file"))
-            if path and path not in message:
-                hits.append("peer-message-missing-file-pointer")
-            if len(message) > 400 and record.get("essay_in_chat"):
-                hits.append("details-in-chat")
-    if record.get("owner_status_requested") and not record.get("fresh_poll_complete"):
-        hits.append("missing-fresh-poll")
-    if record.get("radio_silence") and record.get("messaged_human") and not record.get("human_asked"):
-        hits.append("broke-radio-silence")
-    if record.get("lessons_cycle"):
-        if not record.get("one_ce_pr"):
-            hits.append("lessons-not-one-ce-pr")
-        if record.get("pr_merged") and not record.get("installed_before_cleanup"):
-            hits.append("cleanup-before-install")
-        if record.get("cleanup_started") and not record.get("router_cleanup_signal"):
-            hits.append("cleanup-without-router-signal")
-        if record.get("sent_done") and not record.get("every_cleanup_reported"):
-            hits.append("done-before-cleanup-reports")
+    if not record.get("multi_agent_order"):
+        return hits
+    if not record.get("shared_instruction_file"):
+        hits.append("missing-shared-instruction-file")
+    message = str(record.get("peer_message") or "")
+    if record.get("peer_message") is not None and record.get("shared_instruction_file"):
+        path = str(record.get("shared_instruction_file"))
+        if path and path not in message:
+            hits.append("peer-message-missing-file-pointer")
+        if len(message) > 400 and record.get("essay_in_chat"):
+            hits.append("details-in-chat")
+    return hits
+
+
+def _delegation_lessons_hits(record: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    if not record.get("lessons_cycle"):
+        return hits
+    if not record.get("one_ce_pr"):
+        hits.append("lessons-not-one-ce-pr")
+    if record.get("pr_merged") and not record.get("installed_before_cleanup"):
+        hits.append("cleanup-before-install")
+    if record.get("cleanup_started") and not record.get("router_cleanup_signal"):
+        hits.append("cleanup-without-router-signal")
+    if record.get("sent_done") and not record.get("every_cleanup_reported"):
+        hits.append("done-before-cleanup-reports")
+    return hits
+
+
+def _delegation_writer_hits(record: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
     writers = record.get("writers_per_file") or {}
     if isinstance(writers, dict):
         for path, names in writers.items():
@@ -74,6 +78,22 @@ def evaluate_delegation_cycle(record: dict[str, Any]) -> dict[str, Any]:
                 hits.append(f"two-writers:{path}")
     if record.get("same_file_parallel_edit"):
         hits.append("two-writers")
+    return hits
+
+
+# ----- #7767 delegation cycle -----
+def evaluate_delegation_cycle(record: dict[str, Any]) -> dict[str, Any]:
+    """Shared instruction file, radio silence, one writer, lessons mega-PR cycle."""
+    if not isinstance(record, dict):
+        return _result(["record"], "#7767 delegation-cycle gate failed")
+    hits: list[str] = []
+    hits.extend(_delegation_order_hits(record))
+    if record.get("owner_status_requested") and not record.get("fresh_poll_complete"):
+        hits.append("missing-fresh-poll")
+    if record.get("radio_silence") and record.get("messaged_human") and not record.get("human_asked"):
+        hits.append("broke-radio-silence")
+    hits.extend(_delegation_lessons_hits(record))
+    hits.extend(_delegation_writer_hits(record))
     return _result(hits, "#7767 delegation-cycle gate failed")
 
 
@@ -137,14 +157,8 @@ def evaluate_external_contribution(record: dict[str, Any]) -> dict[str, Any]:
     return _result(hits, "external-contribution gate failed")
 
 
-# ----- job-apply record (abstract; no profile data) -----
-def evaluate_job_apply(record: dict[str, Any]) -> dict[str, Any]:
-    if not isinstance(record, dict):
-        return _result(["record"], "job-apply gate failed")
+def _job_apply_channel_hits(record: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    if record.get("confirm_before_send") and record.get("standing_order_recorded"):
-        if record.get("within_named_scope") and record.get("blocked_on_confirm"):
-            hits.append("standing-order-outranked")
     contacts = record.get("contacts") or []
     if isinstance(contacts, list) and len(contacts) > 1 and record.get("single_application"):
         hits.append("distinct-contacts-collapsed")
@@ -153,6 +167,11 @@ def evaluate_job_apply(record: dict[str, Any]) -> dict[str, Any]:
         body = str(record.get("body") or "")
         if "remote" not in subject.casefold() or "remote" not in body.casefold():
             hits.append("remote-ask-missing")
+    return hits
+
+
+def _job_apply_send_hits(record: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
     if record.get("sending"):
         reviewers = record.get("reviewers") or []
         if not isinstance(reviewers, list) or len(set(reviewers)) < 2:
@@ -168,6 +187,19 @@ def evaluate_job_apply(record: dict[str, Any]) -> dict[str, Any]:
             hits.append("share-not-confirmed-this-turn")
     if record.get("ats_identical_errors", 0) >= 2 and not record.get("switched_channel"):
         hits.append("ats-errors-without-next-channel")
+    return hits
+
+
+# ----- job-apply record (abstract; no profile data) -----
+def evaluate_job_apply(record: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        return _result(["record"], "job-apply gate failed")
+    hits: list[str] = []
+    if record.get("confirm_before_send") and record.get("standing_order_recorded"):
+        if record.get("within_named_scope") and record.get("blocked_on_confirm"):
+            hits.append("standing-order-outranked")
+    hits.extend(_job_apply_channel_hits(record))
+    hits.extend(_job_apply_send_hits(record))
     if record.get("tracker_write") and not record.get("tracker_readback"):
         hits.append("tracker-write-without-readback")
     if record.get("treated_ledger_as_source"):

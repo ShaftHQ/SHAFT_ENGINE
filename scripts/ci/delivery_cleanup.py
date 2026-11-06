@@ -134,6 +134,49 @@ def stop_leftover_report_servers(
     return signalled
 
 
+def _publish_media_blockers(
+    *,
+    live_publish: bool,
+    coach_accept: dict | None,
+    publish_package: dict | None,
+    media_delivery: dict | None,
+    dirty_unpushed_worktrees: Sequence[str] | None,
+    leftover_browsers: Sequence[str] | None,
+    allure_serve: bool,
+) -> list[str]:
+    """Close blockers added by the 2026-11-06 publish, media, and leftover gates."""
+    blockers: list[str] = []
+    if live_publish:
+        accepted = isinstance(coach_accept, dict) and (
+            coach_accept.get("accepted") is True or coach_accept.get("coach_gate_pass") is True
+        )
+        if not accepted:
+            blockers.append("live-publish-without-coach-accept")
+        elif not coach_accept.get("facts_checked"):
+            blockers.append("coach-accept-missing-facts")
+    if isinstance(publish_package, dict):
+        if not publish_package.get("render_390"):
+            blockers.append("missing-390px-render")
+        if not publish_package.get("render_desktop"):
+            blockers.append("missing-desktop-render")
+        if not publish_package.get("contrast_note"):
+            blockers.append("missing-contrast-note")
+    if isinstance(media_delivery, dict):
+        start = media_delivery.get("human_listen_start") or media_delivery.get("human_look_start")
+        end = media_delivery.get("human_listen_end") or media_delivery.get("human_look_end")
+        if not start or not end:
+            blockers.append("media-missing-human-listen")
+    dirty = [str(p) for p in (dirty_unpushed_worktrees or []) if str(p).strip()]
+    if dirty:
+        blockers.append(f"dirty-unpushed-worktrees:{len(dirty)}")
+    browsers = [str(p) for p in (leftover_browsers or []) if str(p).strip()]
+    if browsers:
+        blockers.append(f"leftover-browsers:{len(browsers)}")
+    if allure_serve:
+        blockers.append("allure-serve-running")
+    return blockers
+
+
 def delivery_close_blockers(
     *,
     git_status_clean: bool,
@@ -182,34 +225,17 @@ def delivery_close_blockers(
         leftover_registered_artifacts=artifact_paths,
         leftover_report_servers=server_labels,
     )
-    if live_publish:
-        accepted = isinstance(coach_accept, dict) and (
-            coach_accept.get("accepted") is True or coach_accept.get("coach_gate_pass") is True
+    blockers.extend(
+        _publish_media_blockers(
+            live_publish=live_publish,
+            coach_accept=coach_accept,
+            publish_package=publish_package,
+            media_delivery=media_delivery,
+            dirty_unpushed_worktrees=dirty_unpushed_worktrees,
+            leftover_browsers=leftover_browsers,
+            allure_serve=allure_serve,
         )
-        if not accepted:
-            blockers.append("live-publish-without-coach-accept")
-        elif not coach_accept.get("facts_checked"):
-            blockers.append("coach-accept-missing-facts")
-    if isinstance(publish_package, dict):
-        if not publish_package.get("render_390"):
-            blockers.append("missing-390px-render")
-        if not publish_package.get("render_desktop"):
-            blockers.append("missing-desktop-render")
-        if not publish_package.get("contrast_note"):
-            blockers.append("missing-contrast-note")
-    if isinstance(media_delivery, dict):
-        start = media_delivery.get("human_listen_start") or media_delivery.get("human_look_start")
-        end = media_delivery.get("human_listen_end") or media_delivery.get("human_look_end")
-        if not start or not end:
-            blockers.append("media-missing-human-listen")
-    dirty = [str(p) for p in (dirty_unpushed_worktrees or []) if str(p).strip()]
-    if dirty:
-        blockers.append(f"dirty-unpushed-worktrees:{len(dirty)}")
-    browsers = [str(p) for p in (leftover_browsers or []) if str(p).strip()]
-    if browsers:
-        blockers.append(f"leftover-browsers:{len(browsers)}")
-    if allure_serve:
-        blockers.append("allure-serve-running")
+    )
     return blockers
 
 

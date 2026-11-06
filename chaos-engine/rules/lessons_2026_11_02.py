@@ -434,6 +434,45 @@ def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
     return _result(hits, "#7708 voice-clone gate failed")
 
 
+def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
+    """Two independent methods or workers at the head SHA, plus a CLI fallback reason."""
+    hits: list[str] = []
+    if not record.get("external_cli_failed"):
+        return hits
+    if not str(record.get("fallback_reason") or "").strip():
+        hits.append("missing-fallback-reason")
+    verdicts = record.get("verdicts") or []
+    if not isinstance(verdicts, list) or len(verdicts) < 2:
+        hits.append("missing-second-verdict")
+        return hits
+    methods = {
+        str(v.get("method") or v.get("worker") or "")
+        for v in verdicts
+        if isinstance(v, dict)
+    }
+    methods.discard("")
+    if len(methods) < 2:
+        hits.append("verdicts-not-independent")
+    head = record.get("head_sha")
+    for verdict in verdicts:
+        if isinstance(verdict, dict) and head and verdict.get("sha") and verdict.get("sha") != head:
+            hits.append("verdict-sha-mismatch")
+    return hits
+
+
+def _adversarial_designer_hits(record: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    if not record.get("designer_generated"):
+        return hits
+    designer = record.get("designer")
+    reviewer = record.get("reviewer")
+    if designer and reviewer and designer == reviewer:
+        hits.append("designer-reviewed-own-work")
+    elif record.get("independent_review") is not True:
+        hits.append("missing-independent-review")
+    return hits
+
+
 # ----- #7709 adversarial PASS SHA-bound -----
 def evaluate_adversarial_pass_sha(record: dict[str, Any]) -> dict[str, Any]:
     hits: list[str] = []
@@ -449,33 +488,8 @@ def evaluate_adversarial_pass_sha(record: dict[str, Any]) -> dict[str, Any]:
                 hits.append("pass-sha-stale-needs-reack")
     if record.get("commits_after_pass") and not record.get("reack_after_commit"):
         hits.append("post-pass-commits-without-reack")
-    # Two independent methods or workers at the head SHA; record why a CLI fallback ran.
-    if record.get("external_cli_failed"):
-        if not str(record.get("fallback_reason") or "").strip():
-            hits.append("missing-fallback-reason")
-        verdicts = record.get("verdicts") or []
-        if not isinstance(verdicts, list) or len(verdicts) < 2:
-            hits.append("missing-second-verdict")
-        else:
-            methods = {
-                str(v.get("method") or v.get("worker") or "")
-                for v in verdicts
-                if isinstance(v, dict)
-            }
-            methods.discard("")
-            if len(methods) < 2:
-                hits.append("verdicts-not-independent")
-            head = record.get("head_sha")
-            for verdict in verdicts:
-                if isinstance(verdict, dict) and head and verdict.get("sha") and verdict.get("sha") != head:
-                    hits.append("verdict-sha-mismatch")
-    if record.get("designer_generated"):
-        designer = record.get("designer")
-        reviewer = record.get("reviewer")
-        if designer and reviewer and designer == reviewer:
-            hits.append("designer-reviewed-own-work")
-        elif record.get("independent_review") is not True:
-            hits.append("missing-independent-review")
+    hits.extend(_adversarial_fallback_hits(record))
+    hits.extend(_adversarial_designer_hits(record))
     return _result(hits, "#7709 adversarial-pass-sha gate failed")
 
 

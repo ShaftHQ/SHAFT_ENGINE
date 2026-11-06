@@ -784,6 +784,23 @@ def clamp_interval(requested: int) -> int:
     return clamped
 
 
+def _note_queue_position(pull: dict | None) -> None:
+    """Log merge-queue position when the pull payload reports one."""
+    if not isinstance(pull, dict):
+        return
+    position = pull.get("queuePosition")
+    if position in (None, ""):
+        return
+    length = pull.get("queueLength")
+    print(
+        queue_position_line(
+            int(position),
+            int(length) if length not in (None, "") else None,
+        ),
+        file=sys.stderr,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI."""
     args = build_parser().parse_args(argv)
@@ -845,15 +862,7 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.until_merged:
             bucket, failing = classify_unattended(checks, pull)
-            if isinstance(pull, dict) and pull.get("queuePosition") not in (None, ""):
-                length = pull.get("queueLength")
-                print(
-                    queue_position_line(
-                        int(pull["queuePosition"]),
-                        int(length) if length not in (None, "") else None,
-                    ),
-                    file=sys.stderr,
-                )
+            _note_queue_position(pull)
         else:
             grace = time.monotonic() - started < REGISTRATION_GRACE_SECONDS and not args.poll_once
             bucket, failing = classify_checks(checks, registration_grace=grace)
