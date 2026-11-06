@@ -71,7 +71,7 @@ Destination key: chaosengine | brain | mempalace | graphify
 1. Title: Leading-garbage and dialect/register gate
 2. What happened: An Arabic voice sample that passed numeric gates started with gibberish and used formal Arabic rather than Egyptian. The human rejected it and asked to focus on English, which they judged closer.
 3. Root cause: Automated scores (speaker similarity, error rate) do not catch leading artifacts or the wrong register. A language pivot happened without an explicit cost/likelihood escalation.
-4. Rule: Before any media is shared upward, listen to the start and end. Gate dialect and register against the stated target (Egyptian colloquial for Arabic; correct "Mohie" and "Automatest" for English). Escalate a language or strategy pivot instead of pivoting silently.
+4. Rule: Before any media is shared upward, listen to the start and end. Gate dialect and register against the stated target (`<profile.dialect>` for Arabic; `<profile.spoken_name>` and `<profile.organization_pronunciation>` for English). Escalate a language or strategy pivot instead of pivoting silently.
 5. Acceptance: A sample with non-speech at the head, or the wrong dialect/register, cannot be marked passing regardless of scores.
 6. Destination: chaosengine (issue 7694)
 

@@ -134,6 +134,43 @@ def stop_leftover_report_servers(
     return signalled
 
 
+_VISUAL_KINDS = {"visual", "web", "publish", "page"}
+_MEDIA_KINDS = {"media", "audio", "video"}
+
+
+def _as_evidence_dict(value: object, *, required: bool, missing_hit: str) -> tuple[dict, list[str]]:
+    """Omitted, None, and non-dict evidence fail when the delivery kind requires it."""
+    if isinstance(value, dict):
+        return value, []
+    if not required:
+        return {}, []
+    return {}, [missing_hit]
+
+
+def _render_blockers(package: object, *, required: bool) -> list[str]:
+    view, hits = _as_evidence_dict(package, required=required, missing_hit="missing-publish-package")
+    if not required and not isinstance(package, dict):
+        return []
+    if not view.get("render_390"):
+        hits.append("missing-390px-render")
+    if not view.get("render_desktop"):
+        hits.append("missing-desktop-render")
+    if not view.get("contrast_note"):
+        hits.append("missing-contrast-note")
+    return hits
+
+
+def _listen_blockers(media: object, *, required: bool) -> list[str]:
+    view, hits = _as_evidence_dict(media, required=required, missing_hit="missing-media-evidence")
+    if not required and not isinstance(media, dict):
+        return []
+    start = view.get("human_listen_start") or view.get("human_look_start")
+    end = view.get("human_listen_end") or view.get("human_look_end")
+    if not start or not end:
+        hits.append("media-missing-human-listen")
+    return hits
+
+
 def _publish_media_blockers(
     *,
     live_publish: bool,
@@ -143,9 +180,11 @@ def _publish_media_blockers(
     dirty_unpushed_worktrees: Sequence[str] | None,
     leftover_browsers: Sequence[str] | None,
     allure_serve: bool,
+    delivery_kind: str | None = None,
 ) -> list[str]:
     """Close blockers added by the 2026-11-06 publish, media, and leftover gates."""
     blockers: list[str] = []
+    kind = str(delivery_kind or "").strip().lower()
     if live_publish:
         accepted = isinstance(coach_accept, dict) and (
             coach_accept.get("accepted") is True or coach_accept.get("coach_gate_pass") is True
@@ -154,18 +193,10 @@ def _publish_media_blockers(
             blockers.append("live-publish-without-coach-accept")
         elif not coach_accept.get("facts_checked"):
             blockers.append("coach-accept-missing-facts")
-    if isinstance(publish_package, dict):
-        if not publish_package.get("render_390"):
-            blockers.append("missing-390px-render")
-        if not publish_package.get("render_desktop"):
-            blockers.append("missing-desktop-render")
-        if not publish_package.get("contrast_note"):
-            blockers.append("missing-contrast-note")
-    if isinstance(media_delivery, dict):
-        start = media_delivery.get("human_listen_start") or media_delivery.get("human_look_start")
-        end = media_delivery.get("human_listen_end") or media_delivery.get("human_look_end")
-        if not start or not end:
-            blockers.append("media-missing-human-listen")
+    blockers.extend(
+        _render_blockers(publish_package, required=live_publish or kind in _VISUAL_KINDS)
+    )
+    blockers.extend(_listen_blockers(media_delivery, required=kind in _MEDIA_KINDS))
     dirty = [str(p) for p in (dirty_unpushed_worktrees or []) if str(p).strip()]
     if dirty:
         blockers.append(f"dirty-unpushed-worktrees:{len(dirty)}")
@@ -191,6 +222,7 @@ def delivery_close_blockers(
     dirty_unpushed_worktrees: Sequence[str] | None = None,
     leftover_browsers: Sequence[str] | None = None,
     allure_serve: bool = False,
+    delivery_kind: str | None = None,
 ) -> list[str]:
     """
     Compose close-gate blockers for a delivered task (issue 7755).
@@ -234,6 +266,7 @@ def delivery_close_blockers(
             dirty_unpushed_worktrees=dirty_unpushed_worktrees,
             leftover_browsers=leftover_browsers,
             allure_serve=allure_serve,
+            delivery_kind=delivery_kind,
         )
     )
     return blockers

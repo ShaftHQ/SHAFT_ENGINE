@@ -205,10 +205,10 @@ PR body closing keywords: `Closes #7766`, `Closes #7767`. Reference `#7726` (clo
     - Sent-folder search before any resend (L5)
     - an explicit "no link or file = not Done" check in the board schema (L6, folded with #7767)
 21. **job-apply skill update on top of #7764 (Coach L13, L15, L16, L17, L18):**
-    - a recorded standing order outranks confirm-before-send within its named scope
-    - distinct contacts or channels are separate applications
+    - a recorded standing order changes which drafts are produced inside `<profile.standing_order_scope>`; it does not authorize a send
+    - distinct contacts or channels are separate drafts
     - the remote ask goes in the subject and body
-    - two independent reviewers, then send from the connector with Sent read-back and a single signature
+    - two independent PASS reviews, excluding the writer, then the human sends; Sent read-back and a single signature are evidence, not agent authority
     - public-by-link happens through the share dialog and is confirmed this turn
     - after two identical ATS verification errors, stop and use the next channel
     - the ledger is a cache and the tracker is read back after every write

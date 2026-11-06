@@ -15,4 +15,11 @@ against `origin/main` at `5c0ce78f`.
 | [chaos-analysis.md](chaos-analysis.md) | Checklist used to implement this cycle |
 
 Standing-order scope, signature text, identity strings, and tracker sheet
-locations stay out of this tree. Version for this cycle: `chaos-engine/VERSION`.
+locations stay out of this tree. Profile fields are named
+(`<profile.title>`, `<profile.trainee_count>`, `<profile.founding_year>`,
+`<profile.spoken_name>`, `<profile.organization_pronunciation>`,
+`<profile.standing_order_scope>`), not copied.
+Version for this cycle: `chaos-engine/VERSION`.
+`retrieve: skipped(no installed .chaos-engine/tool.py)` — entry and memory
+retrieve had no local tool to call, so this ledger records the skip instead
+of an empty receipt.

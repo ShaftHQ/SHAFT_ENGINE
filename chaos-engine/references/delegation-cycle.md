@@ -10,7 +10,7 @@ The router writes one shared instruction file from the human's words plus refine
 
 ## Status
 
-An explicit status request always triggers a fresh poll of every registered agent. Cached reports do not build the board. Missing agents are `unknown`, not omitted. The board uses four tables: in progress (including token-interrupted work), planned (including frozen items), blocked (only after a this-turn live check), and done. Every row has an owner, a link or attachment path, a priority, and a stable incrementing numeric id. Rows are grouped by status and ordered by priority.
+An explicit status request always triggers a fresh poll of every registered agent. Cached reports do not build the board. Missing agents are `unknown`, not omitted. The board uses four tables: in progress (including token-interrupted work), planned (including frozen items), blocked (only after a this-turn live check), and done. Every row has an owner, a link or attachment path, and a priority. Numbered ids are opt-in: when the board sets them, every row has a stable incrementing numeric id. Rows are grouped by status and ordered by priority.
 
 A row marked done with no link and no file is not Done.
 

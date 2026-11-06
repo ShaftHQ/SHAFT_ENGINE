@@ -4,7 +4,7 @@
 # AGENTS.md bans unbounded Stop-hook looping on Windows (no ``ralph-loop``,
 # Maven fork-storm risk); this script's termination safety is by
 # construction, not by convention: the poll loop is a plain ``for`` over
-# ``range(max_polls)`` (never ``while True``), and ``max_polls`` is
+# ``range(max_polls)`` (never an uncapped poll loop), and ``max_polls`` is
 # hard-clamped to ``HARD_MAX_POLLS`` even when a caller asks for more.
 #
 # WHAT IT DOES:
@@ -63,6 +63,7 @@ import json
 import os
 import re
 import shutil
+from datetime import datetime, timezone
 # subprocess is used only for read-only `gh`/`git` invocations below, always
 # as a list of args (never shell=True) with the executable resolved to an
 # absolute path via shutil.which.
@@ -168,8 +169,10 @@ def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, lis
     bucket, failing = classify_checks(checks)
     # Green but BLOCKED by unresolved review threads never merges on its own.
     unresolved = int(view.get("unresolvedReviewThreads") or 0)
-    if bucket == "GREEN" and merge_state == "BLOCKED" and unresolved:
-        return "RED", [{"name": "unresolved-review-threads", "link": str(unresolved)}]
+    if bucket == "GREEN" and merge_state == "BLOCKED":
+        if unresolved:
+            return "RED", [{"name": "unresolved-review-threads", "link": str(unresolved)}]
+        return "RED", [{"name": "blocked-merge-state", "link": "0"}]
     stuck = stuck_queue_head(view)
     if stuck:
         return "RED", [{"name": stuck, "link": "merge_group"}]
@@ -225,8 +228,8 @@ def dequeue_wake(pull: dict | None) -> str | None:
 
 
 def preflight_unbounded_loops(source: str) -> list[str]:
-    """Warn when a watcher source contains ``while True`` without a poll cap."""
-    text = source or ""
+    """Warn when watcher code contains an uncapped poll loop without a poll cap."""
+    text = "\n".join(line.split("#", 1)[0] for line in (source or "").splitlines())
     if _UNBOUNDED_LOOP.search(text) and "max_polls" not in text and "HARD_MAX" not in text:
         return ["unbounded-loop"]
     return []
@@ -353,34 +356,145 @@ def poll_via_check_runs_api(gh_executable: str, root: Path, repo: str, pr: int) 
     )
 
 
-def fetch_pull(gh_executable: str, root: Path, repo: str, pr: int) -> dict:
-    """Read merge state inside the same watch. Not a second status channel."""
-    proc = run_gh(
-        gh_executable,
-        [
-            "pr",
-            "view",
-            str(pr),
-            "--repo",
-            repo,
-            "--json",
-            "state,mergedAt,autoMergeRequest,mergeStateStatus",
-        ],
-        root,
-    )
+_QUEUE_QUERY = (
+    "query($owner:String!,$name:String!,$number:Int!){"
+    "repository(owner:$owner,name:$name){pullRequest(number:$number){"
+    "state mergedAt mergeStateStatus isInMergeQueue "
+    "autoMergeRequest{enabledAt} "
+    "mergeQueueEntry{position enqueuedAt} "
+    "commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){"
+    "nodes{... on CheckRun{name startedAt completedAt status "
+    "checkSuite{workflowRun{event}}}}}}}}}}}}"
+)
+
+
+def _parse_github_time(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _check_nodes(node: dict) -> list[dict]:
+    commits = (node.get("commits") or {}).get("nodes") or []
+    if not commits or not isinstance(commits[0], dict):
+        return []
+    commit = commits[0].get("commit") or {}
+    rollup = commit.get("statusCheckRollup") or {}
+    contexts = (rollup.get("contexts") or {}).get("nodes") or []
+    return [item for item in contexts if isinstance(item, dict)]
+
+
+def _merge_group_idle_minutes(node: dict, now: datetime) -> float | None:
+    """Minutes since the newest merge_group run, else since the queue entry."""
+    started: list[datetime] = []
+    for item in _check_nodes(node):
+        suite = item.get("checkSuite") or {}
+        run = suite.get("workflowRun") or {}
+        if run.get("event") != "merge_group":
+            continue
+        parsed = _parse_github_time(item.get("startedAt") or item.get("completedAt"))
+        if parsed is not None:
+            started.append(parsed)
+    if started:
+        return (now - max(started)).total_seconds() / 60.0
+    entry = node.get("mergeQueueEntry")
+    if not isinstance(entry, dict):
+        return None
+    enqueued_at = _parse_github_time(entry.get("enqueuedAt"))
+    if enqueued_at is None:
+        return None
+    return (now - enqueued_at).total_seconds() / 60.0
+
+
+def apply_queue_snapshot(
+    node: dict,
+    previous: dict | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """Map a pull-request GraphQL node into the classifier view."""
+    if not isinstance(node, dict):
+        raise CheckWatchError("pull request payload is not an object")
+    moment = now or datetime.now(timezone.utc)
+    entry = node.get("mergeQueueEntry") if isinstance(node.get("mergeQueueEntry"), dict) else None
+    position = entry.get("position") if entry else None
+    enqueued = bool(node.get("isInMergeQueue")) or entry is not None
+    prior = previous or {}
+    was_queued = bool(prior.get("enqueued") or prior.get("inMergeQueue") or prior.get("isInMergeQueue"))
+    state = str(node.get("state") or "")
+    dequeued = bool(was_queued and not enqueued and state.upper() != "MERGED" and not node.get("mergedAt"))
+    return {
+        "state": state,
+        "mergedAt": node.get("mergedAt"),
+        "mergeStateStatus": node.get("mergeStateStatus"),
+        "autoMergeRequest": node.get("autoMergeRequest"),
+        "enqueued": enqueued,
+        "inMergeQueue": enqueued,
+        "isInMergeQueue": enqueued,
+        "queuePosition": position,
+        "isMergeQueueHead": position == 1,
+        "minutes_since_merge_group": _merge_group_idle_minutes(node, moment) if enqueued else None,
+        "dequeued": dequeued,
+    }
+
+
+def _graphql_pull_node(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise CheckWatchError("gh api graphql returned a non-object payload")
+    if payload.get("errors"):
+        raise CheckWatchError(f"gh api graphql failed: {payload['errors']}")
+    data = payload.get("data") or {}
+    repository = data.get("repository") if isinstance(data, dict) else None
+    node = repository.get("pullRequest") if isinstance(repository, dict) else None
+    if not isinstance(node, dict):
+        raise CheckWatchError("gh api graphql returned no pull request")
+    return node
+
+
+def _queue_query_args(repo: str, pr: int) -> list[str]:
+    owner, _, name = repo.partition("/")
+    return [
+        "api",
+        "graphql",
+        "-f",
+        f"query={_QUEUE_QUERY}",
+        "-f",
+        f"owner={owner}",
+        "-f",
+        f"name={name}",
+        "-F",
+        f"number={pr}",
+    ]
+
+
+def fetch_pull(
+    gh_executable: str,
+    root: Path,
+    repo: str,
+    pr: int,
+    previous: dict | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """Read merge state, queue entry, and merge-group runs inside the same watch."""
+    proc = run_gh(gh_executable, _queue_query_args(repo, pr), root)
     if proc.returncode != 0:
         raise CheckWatchError(
-            f"gh pr view failed: {proc.stderr.strip() or proc.stdout.strip()}"
+            f"gh api graphql failed: {proc.stderr.strip() or proc.stdout.strip()}"
         )
     try:
         payload = json.loads(proc.stdout or "{}")
     except json.JSONDecodeError as error:
-        raise CheckWatchError(f"gh pr view returned unparseable JSON: {error}") from error
-    if not isinstance(payload, dict):
-        raise CheckWatchError("gh pr view returned a non-object payload")
-    if str(payload.get("mergeStateStatus") or "").upper() == "BLOCKED":
-        payload["unresolvedReviewThreads"] = count_unresolved_threads(gh_executable, root, repo, pr)
-    return payload
+        raise CheckWatchError(f"gh api graphql returned unparseable JSON: {error}") from error
+    node = _graphql_pull_node(payload)
+    view = apply_queue_snapshot(node, previous, now)
+    if str(view.get("mergeStateStatus") or "").upper() == "BLOCKED":
+        view["unresolvedReviewThreads"] = count_unresolved_threads(gh_executable, root, repo, pr)
+    return view
 
 
 def count_unresolved_threads(gh_executable: str, root: Path, repo: str, pr: int) -> int:
@@ -801,9 +915,21 @@ def _note_queue_position(pull: dict | None) -> None:
     )
 
 
+def _unbounded_exit() -> int:
+    """Refuse to poll when this file contains an uncapped loop."""
+    if preflight_unbounded_loops(Path(__file__).read_text(encoding="utf-8")):
+        print("watch_pr_checks: unbounded-loop", file=sys.stderr)
+        return 2
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI."""
     args = build_parser().parse_args(argv)
+    return _unbounded_exit() or _watch(args)
+
+
+def _watch(args: argparse.Namespace) -> int:
     root = args.root.resolve()
 
     interval = clamp_interval(args.interval)
@@ -845,14 +971,20 @@ def main(argv: list[str] | None = None) -> int:
         reject_repeated_status_table("\n".join(transcript))
         print(line)
 
-    # THE bounded loop: a plain `for` over a fixed range, never `while True`.
+    # THE bounded loop: a plain `for` over a fixed range, never an uncapped poll loop.
     # There is no path through this function that can iterate more than
     # `poll_budget` (<= HARD_MAX_POLLS) times. Pending polls print nothing.
     last_bucket = None
+    previous_pull: dict | None = None
     for attempt in range(poll_budget):
         try:
             checks = poll_once(gh_executable, root, repo, pr)
-            pull = fetch_pull(gh_executable, root, repo, pr) if args.until_merged else None
+            pull = (
+                fetch_pull(gh_executable, root, repo, pr, previous=previous_pull)
+                if args.until_merged
+                else None
+            )
+            previous_pull = pull if pull is not None else previous_pull
         except CheckWatchError as error:
             print(f"watch_pr_checks: {error}", file=sys.stderr)
             if is_transient_github_http_error(error) and attempt < poll_budget - 1:

@@ -459,6 +459,23 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
     return ""
 
 
+def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
+    """Force-push, private-remote, relayed-delete, and secret checks on the real command."""
+    script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
+    if not script.is_file():
+        return ""
+    spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary", script)
+    if spec is None or spec.loader is None:
+        return "operation boundary failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for command in commands:
+        hits = module.command_blocks(project, command)
+        if hits:
+            return "operation boundary: " + str(hits[0])
+    return ""
+
+
 def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
@@ -1336,6 +1353,11 @@ def _command_guard_state(
     )
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
+    if event_name == "PreToolUse":
+        project = Path(str(event.get("cwd") or Path.cwd()))
+        boundary_block = _operation_boundary_block(commands, project)
+        if boundary_block:
+            return receipt_command, mutation, boundary_block
     push_block = (_overlay_push_block(commands) or _pr_body_block(commands)) if event_name == "PreToolUse" else ""
     if push_block:
         return receipt_command, mutation, push_block

@@ -159,11 +159,15 @@ function Install-ChaosEngineManagedPython([string]$Uv) {
     $shimDir = Join-Path $env:LOCALAPPDATA "chaos-engine\bin"
     New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
     $quoted = $interpreter.Replace('"', '""')
+    $shimPy = Join-Path $shimDir "windows_py_shim.py"
+    $sourceShim = Join-Path $project "chaos-engine\windows_py_shim.py"
+    if (-not (Test-Path -LiteralPath $sourceShim)) { throw "windows py shim source is missing" }
+    Copy-Item -LiteralPath $sourceShim -Destination $shimPy -Force
+    $shimQuoted = $shimPy.Replace('"', '""')
+    # %* is the original argument list. A launcher-only -3 must reach the shim script, not CPython.
     @"
 @echo off
-setlocal
-if /I "%~1"=="-3" shift
-"$quoted" %*
+"$quoted" "$shimQuoted" "$quoted" %*
 "@ | Set-Content -LiteralPath (Join-Path $shimDir "py.cmd") -Encoding ascii
     @"
 @echo off

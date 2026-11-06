@@ -40,18 +40,18 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
     try:
-        lock = full_scripts_unittest_lock(ROOT, blocking=False)
+        with full_scripts_unittest_lock(ROOT, blocking=False):
+            # Re-exec under the same interpreter so unittest sees a clean argv.
+            # The lock fd is inheritable, so it is held across os.execvpe.
+            # flock runs when this with-statement is entered, inside the try.
+            os.execvpe(
+                sys.executable,
+                [sys.executable, "-m", "unittest", *args],
+                env,
+            )
     except BlockingIOError:
         print("refusing a second full-suite run; one copy at a time", file=sys.stderr)
         return 2
-    with lock:
-        # Re-exec under the same interpreter so unittest sees a clean argv.
-        # The lock fd is inheritable, so it is held across os.execvpe.
-        os.execvpe(
-            sys.executable,
-            [sys.executable, "-m", "unittest", *args],
-            env,
-        )
     return 0  # pragma: no cover — execvpe does not return
 
 

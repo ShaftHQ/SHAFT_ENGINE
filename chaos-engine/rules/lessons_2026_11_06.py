@@ -170,16 +170,55 @@ def _job_apply_channel_hits(record: dict[str, Any]) -> list[str]:
     return hits
 
 
-def _job_apply_send_hits(record: dict[str, Any]) -> list[str]:
+def _review_hits(record: dict[str, Any]) -> list[str]:
+    """PASS reviews from two people, excluding the writer. Names alone do not pass."""
     hits: list[str] = []
-    if record.get("sending"):
-        reviewers = record.get("reviewers") or []
-        if not isinstance(reviewers, list) or len(set(reviewers)) < 2:
-            hits.append("missing-two-reviewers")
-        if not record.get("sent_readback"):
-            hits.append("missing-sent-readback")
-        if record.get("signature_count") not in (None, 1) and int(record.get("signature_count") or 0) != 1:
-            hits.append("signature-not-single")
+    reviews = record.get("reviews")
+    if not isinstance(reviews, list) or len(reviews) < 2:
+        return ["missing-two-reviewers"]
+    writer = str(record.get("writer") or "").strip()
+    seen: set[str] = set()
+    for review in reviews:
+        if not isinstance(review, dict):
+            hits.append("review-missing-pass")
+            continue
+        reviewer = str(review.get("reviewer") or "").strip()
+        verdict = str(review.get("verdict") or "").strip().upper()
+        if verdict != "PASS" or not reviewer:
+            hits.append("review-missing-pass")
+        if review.get("writer") is True or (writer and reviewer == writer):
+            hits.append("writer-reviewed-own-draft")
+        if reviewer:
+            seen.add(reviewer)
+    if len(seen) < 2:
+        hits.append("reviewers-not-independent")
+    return hits
+
+
+def _handoff_hits(record: dict[str, Any]) -> list[str]:
+    """A recorded handoff needs authorization, reviews, and one signature."""
+    if not (record.get("sending") or record.get("draft_ready")):
+        return []
+    hits: list[str] = []
+    if record.get("agent_sends") or record.get("connector_send"):
+        hits.append("agent-must-not-send")
+    authorization = record.get("authorization_record")
+    if not isinstance(authorization, str) or not authorization.strip():
+        hits.append("missing-authorization")
+    hits.extend(_review_hits(record))
+    if record.get("sending") and not record.get("sent_readback"):
+        hits.append("missing-sent-readback")
+    if record.get("signature_count") != 1:
+        hits.append("signature-not-single")
+    return hits
+
+
+def _job_apply_send_hits(record: dict[str, Any]) -> list[str]:
+    hits = _handoff_hits(record)
+    if (record.get("agent_sends") or record.get("connector_send")) and "agent-must-not-send" not in hits:
+        hits.append("agent-must-not-send")
+    if record.get("standing_order_recorded") and (record.get("agent_sends") or record.get("connector_send")):
+        hits.append("standing-order-does-not-authorize-send")
     if record.get("public_by_link"):
         if not record.get("share_dialog"):
             hits.append("public-by-link-without-share-dialog")
@@ -195,9 +234,6 @@ def evaluate_job_apply(record: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(record, dict):
         return _result(["record"], "job-apply gate failed")
     hits: list[str] = []
-    if record.get("confirm_before_send") and record.get("standing_order_recorded"):
-        if record.get("within_named_scope") and record.get("blocked_on_confirm"):
-            hits.append("standing-order-outranked")
     hits.extend(_job_apply_channel_hits(record))
     hits.extend(_job_apply_send_hits(record))
     if record.get("tracker_write") and not record.get("tracker_readback"):
@@ -249,11 +285,24 @@ def evaluate_secrets_text(text: str, *, kind: str = "lessons") -> dict[str, Any]
     return _result(hits, "secrets gate failed")
 
 
-def evaluate_force_push(command: str, *, approved: bool = False) -> dict[str, Any]:
-    text = command or ""
-    if "--force" in text or "--force-with-lease" in text:
-        if not approved:
-            return _result(["force-push-without-approval"], "force-push gate failed")
+def evaluate_force_push(command: str, *, root: Path | None = None) -> dict[str, Any]:
+    """Force push is allowed only when the approval file contains the command.
+
+    A caller-supplied boolean is not approval. The file is the evidence.
+    """
+    text = " ".join((command or "").split())
+    if "--force" not in text and "--force-with-lease" not in text and not re.search(r"(?:^|\s)-f(?:\s|$)", text):
+        return _result([], "force-push gate failed")
+    if "git push" not in text and not text.startswith("git "):
+        return _result([], "force-push gate failed")
+    if root is None:
+        return _result(["force-push-without-approval"], "force-push gate failed")
+    path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
+    if not path.is_file():
+        return _result(["force-push-without-approval"], "force-push gate failed")
+    recorded = {line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()}
+    if text not in recorded:
+        return _result(["force-push-without-approval"], "force-push gate failed")
     return _result([], "force-push gate failed")
 
 

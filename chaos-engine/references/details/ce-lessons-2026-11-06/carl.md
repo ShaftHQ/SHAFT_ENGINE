@@ -119,8 +119,8 @@ Related write-ups already on disk: `/workspace/dm-v5/retro/RETRO-20261101.md`, `
 1. Title: Canonical public identity facts
 2. What happened: Public copy drifted on title, trainee count, and founding year.
 3. Root cause: Facts lived in many documents without a single enforced source.
-4. Enforceable rule: Title is Founder and CEO (not Co-Founder, not title-only Founder). Trainee count is “600+ trainees” (Arabic: أكثر من 600 متدرب), never a lower retired figure. Organization founding year is 2014; a later year on a third-party profile is not copied into owned surfaces.
-5. Acceptance: A facts checker fails any draft that uses the banned title, the retired count, or a founding year other than 2014.
+4. Enforceable rule: Public copy uses only `<profile.title>`, `<profile.trainee_count>`, and `<profile.founding_year>` from the private profile. A later year or a shortened title on a third-party page is not copied into owned surfaces.
+5. Acceptance: A facts checker fails any draft whose title, count, or founding year does not match the private profile.
 6. Destination: `brain` (also `mempalace` / `graphify` so retrieval returns the same facts)
 
 ## L14 — Do not ask the subject for new recordings when archives exist

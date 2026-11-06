@@ -587,7 +587,9 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("RED", bucket)
         self.assertEqual([{"name": "unresolved-review-threads", "link": "3"}], failing)
         pull["unresolvedReviewThreads"] = 0
-        self.assertEqual("GREEN", watch_pr_checks.classify_unattended(checks, pull)[0])
+        blocked, blocked_rows = watch_pr_checks.classify_unattended(checks, pull)
+        self.assertEqual("RED", blocked)
+        self.assertEqual("blocked-merge-state", blocked_rows[0]["name"])
 
     def test_unattended_command_is_one_blocking_watch(self):
         command = watch_pr_checks.unattended_watch_command(9, repo="ShaftHQ/SHAFT_ENGINE")

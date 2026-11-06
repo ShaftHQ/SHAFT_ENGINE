@@ -12,7 +12,7 @@ Scope: work since about 2026-10-31, plus job-search and job-apply work on 2026-1
 - **Destination:** chaosengine (gate), brain (who owns the fact-gate)
 
 ## L2. Canonical identity facts stay in one private store
-- **What happened:** Public copy drifted: a company page said the wrong founding year; copy used a lower trainee count than the approved figure; titles were shortened or prefixed incorrectly (for example treating the human as a co-founder, or dropping part of the approved title).
+- **What happened:** Public copy drifted: a company page said the wrong founding year; copy used a lower trainee count than the approved figure; titles were shortened or prefixed with a variant the private profile bans.
 - **Root cause:** Figures and titles were copied from stale pages instead of from the private source of truth, and there was no lint against the approved strings.
 - **Rule/gate:** Public copy uses only the approved identity strings stored in the private applicant/brain profile. Trainee count, title, and founding year are never inferred from a third-party page. Cover letters omit founder/CEO titles even when forms may use the full title. Claimed product figures (users, stars, releases) come from a live official source opened this turn, not from memory.
 - **Acceptance:** A fact-gate fixture fails if copy contains a banned title variant, a stale trainee count, or a founding year that does not match the private profile. A cover-letter lint fails if it contains founder/CEO wording.
@@ -88,11 +88,11 @@ Scope: work since about 2026-10-31, plus job-search and job-apply work on 2026-1
 - **Acceptance:** A read-only job lookup that confirms the share dialog fails the playbook.
 - **Destination:** chaosengine
 
-## L13. Standing apply rules override generic "ask first" skills
-- **What happened:** Early playbooks flagged onsite Gulf roles and skipped a second email for what looked like the same role. The human later ordered: apply to every distinct email or channel even when the role looks the same; apply when a remote possibility is mentioned even if the home country is not listed; apply to onsite or hybrid roles if the subject and body clearly say the candidate seeks a remote role; submit automatically and do not hand submissions back to the human.
-- **Root cause:** Generic job-search skills still tell the helper to shortlist and wait for a yes on every send. That conflicts with an explicit standing order.
-- **Rule/gate:** A recorded standing order from the human outranks the generic skill's confirm-before-send step for the scope the human named. Distinct contact emails and distinct channels are separate applications. Onsite or hybrid roles are still applied to when the standing order says so, with the remote ask in both the subject and the body, and with the candidate's base country stated for any role outside that country. Do not invent a second phone number or other contact detail; if a required phone field will not accept the real international number, treat that posting as not applicable. Optional demographic questions are still left to the human unless a recorded answer already exists.
-- **Acceptance:** A second distinct contact for the same-looking role is sent, not skipped. An onsite role applied under this standing order has "seeking a remote role" in the subject and near the top of the body. A helper that asks the human to press Send after a standing auto-submit order fails the playbook.
+## L13. Standing apply rules change which drafts are produced
+- **What happened:** Early playbooks skipped a second contact for what looked like the same role, and they ignored a recorded standing order whose text lives only in the private profile (`<profile.standing_order_scope>`).
+- **Root cause:** Generic job-search skills still tell the helper to shortlist and wait before drafting. That conflicts with an explicit standing order about which drafts to produce. It does not authorize the helper to send.
+- **Rule/gate:** A recorded standing order changes which drafts are produced, inside `<profile.standing_order_scope>`. The scope text stays in the private store. Distinct contacts and distinct channels are separate drafts. When that scope includes a remote ask, the ask goes in the subject and the body. Do not invent a contact field the profile does not contain. Optional demographic questions stay with the human unless a recorded answer already exists. The helper still does not send.
+- **Acceptance:** A second distinct contact for the same-looking role is drafted, not skipped. A helper that sends mail or submits a form on the strength of the standing order fails the playbook.
 - **Destination:** chaosengine (job-apply skill update on top of #7764), brain (standing orders stay private)
 
 ## L14. Never invent qualifications or form answers
@@ -102,11 +102,11 @@ Scope: work since about 2026-10-31, plus job-search and job-apply work on 2026-1
 - **Acceptance:** A cover-letter lint fails on client names and on any tool claim that is not in the allowed source list. Each quantified figure cites the live source checked this turn.
 - **Destination:** chaosengine, brain (private applicant profile; never copy personal contact data into a shared skill)
 
-## L15. Two independent reviewers, then send from the mail connector
-- **What happened:** Unreviewed drafts leaked a client name, overstated a skill, or duplicated a signature. Leaving mail in Drafts also stalled delivery after the human had asked for send-not-draft.
+## L15. Two independent reviewers, then the human sends
+- **What happened:** Unreviewed drafts leaked a client name, overstated a skill, or duplicated a signature.
 - **Root cause:** The writer self-reviewed, and the mail client's default signature stacked on the body signature.
-- **Rule/gate:** Two independent adversarial reviewers optimize each application email before it is sent. Send it from the connected personal mailbox with the CV attached, then read back the Sent thread. Keep the body signature once, with the approved cover-letter title, and keep the mailbox signature empty so it does not duplicate. Lead with the achievements the human ranked first (hands-on contributions to the named open-source projects, the two engines created, and the approved trainee count).
-- **Acceptance:** A send without two recorded reviewer passes fails the playbook. A sent message whose body lacks the remote-and-base-country lines on an abroad role fails the fact-gate. Sent-folder read-back is stored in the tracker.
+- **Rule/gate:** Two independent reviewers each record PASS on the current draft, and neither reviewer is the writer. The body keeps a single signature (`<profile.signature>` stays in the private store). Lead with the priorities stored in the private profile (`<profile.lead_priorities>`). The human sends from their own mailbox. The helper reads the Sent folder back only after that human send. The helper does not send.
+- **Acceptance:** A handoff without two PASS reviews, or with a writer reviewing their own draft, or without a single signature, fails the playbook. Sent-folder read-back is stored in the tracker after the human sends.
 - **Destination:** chaosengine (job-apply), brain (signature and lead-with order)
 
 ## L16. Public file links are a browser share step, not a files-API default
@@ -119,8 +119,8 @@ Scope: work since about 2026-10-31, plus job-search and job-apply work on 2026-1
 ## L17. Some ATS hosts reject automated submits; use the next real channel
 - **What happened:** An employer form accepted every required field and a human-check widget, then returned a verification error and reset the form on repeat submits. The fallback that reached a person was a recruiter message on the professional network, with the public CV link.
 - **Root cause:** Some applicant-tracking hosts treat automated browsers as unverified even after a solved widget. Retrying the same submit does not fix it.
-- **Rule/gate:** After two failed submits with the same verification error, stop retrying that form. Apply through the next distinct channel the standing order allows (recruiter message, InMail, or listed email) and record both the form failure and the fallback in the tracker. Do not invent answers to get past a form.
-- **Acceptance:** A third identical failed submit to the same form fails the playbook. The tracker row names the fallback channel and the confirmation that it was sent.
+- **Rule/gate:** After two failed submits with the same verification error, stop retrying that form. Draft the next distinct channel `<profile.standing_order_scope>` allows and record both the form failure and the fallback in the tracker. Do not invent answers to get past a form. The helper does not submit the fallback.
+- **Acceptance:** A third identical failed submit to the same form fails the playbook. The tracker row names the fallback channel. The helper has not sent it.
 - **Destination:** chaosengine (job-apply)
 
 ## L18. Tracker and ledger hygiene

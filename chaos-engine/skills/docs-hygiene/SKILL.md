@@ -22,7 +22,7 @@ Status cells use exactly one of: **Done**, **In progress**, **Not started**. Do 
 
 ## Hours
 
-Done hours equal planned hours. The cells are live formulas, not pasted numbers. A hand-typed total that can drift from the plan is a failure.
+For every Done row, completed hours equal planned hours. In progress and Not started rows are not forced to that equality. The cells are live formulas, not pasted numbers. A hand-typed total that can drift from the plan is a failure.
 
 ## Journey maps
 
@@ -30,7 +30,7 @@ Journey maps agree with each other and with the source-of-truth status. Do not m
 
 ## Delete-guard upstream
 
-A delete-guard change lands on the upstream branch first. Do not treat the guard as shipped in a downstream tree before that branch has the change.
+If a delete-guard requires an upstream, push a start commit first, then delete in a follow-up. That is an allowed exception to a single push. Never use `--no-verify`, and never edit allowlists to bypass the guard.
 
 ## SHA-bound review
 

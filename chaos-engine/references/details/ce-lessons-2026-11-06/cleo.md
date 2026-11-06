@@ -1,10 +1,10 @@
 # Lessons — Cleo — 2026-11-06
 Scope: growth/delivery work from about 2026-10-31 through 2026-11-06 (SEO/AEO/GEO, social and YouTube metadata, CV and profile facts, status reporting, Learning Session filing). Facts are abstracted; no secrets, tokens, delete codes, or private personal data.
 
-Public facts that belong in brain / mempalace (do not paraphrase):
-- Title: Founder and CEO (never Co-Founder and CEO, never Founder alone)
-- Trainee count: `600+ trainees` / Arabic `أكتر من 600 متدرب` (never 484; drop any "verified attendance since 2019" qualifier that was tied to 484)
-- Organization founding year: 2014 (never 2018)
+Public facts that belong in brain / mempalace (do not paraphrase, and do not copy the values into this tree):
+- Title: `<profile.title>` (reject the banned variants listed in the private profile)
+- Trainee count: `<profile.trainee_count>` (reject a retired count and any qualifier tied to that retired count)
+- Organization founding year: `<profile.founding_year>` (reject a different year copied from a third-party profile)
 
 ## Already filed ChaosEngine issues (verified 2026-11-06: all CLOSED)
 These were opened as the 2026-11-02 Learning Session tracker. They are closed now; treat them as already submitted, not as new tickets.
@@ -62,16 +62,16 @@ Note: #7720 being closed does not mean apt updates work. On 2026-11-06 `sudo apt
 1. Title: YouTube and social metadata lint
 2. What happened: Chapter lists built from a script's beat table can include spans under the platform minimum (chapters must start at 0:00 and each run at least 10 seconds). Titles, tags, and bio facts can drift when drafted by hand.
 3. Root cause: No mechanical check before handoff.
-4. Enforceable rule: Lint before handoff: first chapter at 0:00, every chapter ≥10s, title length within platform limits, tags under the platform cap, and bio facts equal the locked wording (Founder and CEO; 600+ trainees; founded 2014). If a deep-link URL is unconfirmed, use the site root and flag the exact page as missing.
+4. Enforceable rule: Lint before handoff: first chapter at 0:00, every chapter ≥10s, title length within platform limits, tags under the platform cap, and bio facts equal `<profile.title>`, `<profile.trainee_count>`, and `<profile.founding_year>`. If a deep-link URL is unconfirmed, use the site root and flag the exact page as missing.
 5. Acceptance: A sample description with a 6-second chapter or paraphrased trainee wording fails the lint; a merged ≥10s chapter list with locked facts passes.
 6. Suggested destination: `chaosengine` (already tracked in closed #7719; keep the gate)
 
 ### 7. Locked public facts must be copied, not paraphrased
 1. Title: Fact lock for identity and counts
-2. What happened: Draft copy paraphrased the trainee claim ("trained N engineers") and older packs still said 484. Public pages, CVs, and profiles drifted until each surface was updated separately.
+2. What happened: Draft copy paraphrased the trainee claim and older packs still used a retired count. Public pages, CVs, and profiles drifted until each surface was updated separately.
 3. Root cause: The fact lived in chat memory, not in a single enforced lexicon consulted at write time.
-4. Enforceable rule: When writing public or paste-ready copy, consult the locked lexicon. Reject Co-Founder, Founder-only, 484, and "verified since 2019" attached to the old count. Prefer `600+ trainees` over synonyms.
-5. Acceptance: A linter or review bot fails any draft containing 484, Co-Founder, or Founded 2018 in these contexts.
+4. Enforceable rule: When writing public or paste-ready copy, consult the locked lexicon in the private profile. Reject banned title variants, a retired count, and a founding year other than `<profile.founding_year>`. Do not paraphrase `<profile.trainee_count>`.
+5. Acceptance: A linter or review bot fails any draft whose title, count, or founding year disagrees with the private profile.
 6. Suggested destination: `brain` (facts) and `chaosengine` (gate)
 
 ### 8. Status reports need a template and a this-turn verify

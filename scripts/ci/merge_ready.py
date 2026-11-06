@@ -14,6 +14,26 @@ from collections import defaultdict
 from typing import Any
 
 
+def _thread_author(thread: dict[str, Any]) -> str:
+    """Flat author, or the login on the first GraphQL comment node."""
+    direct = thread.get("author") or thread.get("authorLogin")
+    if isinstance(direct, dict):
+        direct = direct.get("login")
+    if direct:
+        return str(direct)
+    comments = thread.get("comments") or {}
+    nodes = comments.get("nodes") if isinstance(comments, dict) else comments
+    if isinstance(nodes, list):
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            author = node.get("author") or {}
+            login = author.get("login") if isinstance(author, dict) else author
+            if login:
+                return str(login)
+    return "unknown"
+
+
 def unresolved_threads_by_author(threads: list[dict[str, Any]] | None) -> dict[str, list[str]]:
     """Group unresolved threads, including code-quality bots, by author login."""
     grouped: dict[str, list[str]] = defaultdict(list)
@@ -22,7 +42,7 @@ def unresolved_threads_by_author(threads: list[dict[str, Any]] | None) -> dict[s
             continue
         if thread.get("isResolved") or thread.get("resolved"):
             continue
-        author = str(thread.get("author") or thread.get("authorLogin") or "unknown")
+        author = _thread_author(thread)
         label = str(thread.get("title") or thread.get("path") or thread.get("id") or "thread")
         grouped[author].append(label)
     return dict(grouped)

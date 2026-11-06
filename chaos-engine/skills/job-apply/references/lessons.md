@@ -8,9 +8,9 @@
 - Forms: screenshot → explicit yes → submit once → capture confirmation + ID. One browser worker at a time; queue links; keep half-filled form tabs open.
 - Keep an application ledger (role | source | route | fit | status | draft/app id | date); update after every state change.
 - First drafts often lack research-backed structure; run the top-10 research up front.
-- Agents must not send email; a draft the human can edit and send keeps trust. Form submit only after explicit yes.
+- Agents must not send email; a draft the human can edit and send keeps trust. Form submit only after explicit yes. A standing order does not create a send exception.
 - Applicant profile stays in a private per-user store — never in this shared skill.
-- A recorded standing order outranks confirm-before-send only inside the scope that order names. Distinct contacts are separate applications. The remote ask is in the subject and the body.
-- Two independent reviewers, then send from the connector, then Sent read-back, one signature. Public-by-link is a share-dialog step confirmed this turn.
+- A recorded standing order changes which drafts are produced inside the scope that order names. Distinct contacts are separate drafts. The remote ask is in the subject and the body.
+- Two independent reviewers each record PASS, excluding the writer, then the human sends. Sent read-back and one signature are evidence. Public-by-link is a share-dialog step confirmed this turn. The agent does not publish.
 - After two identical ATS verification errors, stop and use the next channel.
 - The ledger is a cache. Read the tracker back after every write. Search Sent before a resend.

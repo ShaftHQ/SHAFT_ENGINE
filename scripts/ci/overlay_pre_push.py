@@ -912,7 +912,21 @@ def overlay_pre_push_failures(
             f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
             for item in stale_template_actions(root)
         )
+    failures.extend(_operation_disk_failures(root, changed))
     return failures
+
+
+def _operation_disk_failures(root: Path, changed: list[str]) -> list[str]:
+    """PDCA notes, secret-bearing files, and watcher loop caps at push time."""
+    script = Path(__file__).resolve().parents[2] / "chaos-engine" / "rules" / "operation_boundary.py"
+    if not script.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary", script)
+    if spec is None or spec.loader is None:
+        return ["operation boundary failed: checker unavailable"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return [f"operation boundary: {item}" for item in module.disk_blocks(root, changed)]
 
 
 def main(argv: list[str] | None = None) -> int:

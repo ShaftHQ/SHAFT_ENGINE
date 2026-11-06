@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import json
+import os
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -40,6 +43,17 @@ class LessonsLedgerTest(TestCase):
         email = re.compile(r"(?<![<\w])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
         phone = re.compile(r"(?:\+|00)\d[\d().\s-]{7,}\d")
         secret = re.compile(r"\b(?:ghp_|github_pat_|sk-|xox[baprs]-|AKIA)[A-Za-z0-9_\-]{8,}")
+        # Structural detectors. They do not embed a standing-order paragraph or a biography.
+        scope_or_identity = (
+            re.compile(r"\b\d{2,}\+\s*trainees\b", re.I),
+            re.compile(r"(?i)found(?:ing|ed)\b[^\n]{0,60}\b(?:19|20)\d{2}\b"),
+            re.compile(r"(?i)submit\s+automatically"),
+            re.compile(r"(?i)hand submissions back"),
+            re.compile(r"(?i)home country is not listed"),
+            re.compile(r"(?i)\bfounder and ceo\b"),
+            re.compile(r'correct\s+"'),
+            re.compile(r"[\u0600-\u06FF]"),
+        )
         for name in self.REQUIRED:
             path = DETAIL / name
             self.assertTrue(path.is_file(), name)
@@ -48,8 +62,14 @@ class LessonsLedgerTest(TestCase):
             self.assertIsNone(email.search(text), name)
             self.assertIsNone(phone.search(text), name)
             self.assertIsNone(secret.search(text), name)
+            for pattern in scope_or_identity:
+                self.assertIsNone(pattern.search(text), f"{name} matched {pattern.pattern}")
+            if name in {"coach.md", "carl.md", "cleo.md", "cortex.md"}:
+                self.assertIn("<profile.", text, name)
         version = (CE / "VERSION").read_text(encoding="utf-8").strip()
-        self.assertEqual("0.4.20261106.1", version)
+        versions = _load("ce_version_ledger_1106", ROOT / "scripts/ci/ce_version.py")
+        self.assertRegex(version, r"^0\.\d+\.\d{8}\.\d+$")
+        self.assertIsNone(versions.future_version_error(version, dt.date.today()))
 
 
 class VersionFutureLintTest(TestCase):
@@ -248,7 +268,12 @@ class ExtendedGatesTest(TestCase):
                 "subject": "Remote application",
                 "body": "I am seeking a remote role.",
                 "sending": True,
-                "reviewers": ["a", "b"],
+                "writer": "author",
+                "authorization_record": "human-auth-1",
+                "reviews": [
+                    {"reviewer": "a", "verdict": "PASS"},
+                    {"reviewer": "b", "verdict": "PASS"},
+                ],
                 "sent_readback": True,
                 "signature_count": 1,
                 "ats_identical_errors": 2,
@@ -276,7 +301,16 @@ class ExtendedGatesTest(TestCase):
         self.assertTrue(clean["ok"], clean)
         self.assertFalse(self.mod.evaluate_secrets_text("token ghp_abcdefghij123456", kind="lessons")["ok"])
         self.assertFalse(self.mod.evaluate_force_push("git push --force origin HEAD")["ok"])
-        self.assertTrue(self.mod.evaluate_force_push("git push --force origin HEAD", approved=True)["ok"])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            approval = root / ".chaos-engine-state"
+            approval.mkdir()
+            (approval / "force-push-approval.txt").write_text(
+                "git push --force origin HEAD\n", encoding="utf-8"
+            )
+            self.assertTrue(
+                self.mod.evaluate_force_push("git push --force origin HEAD", root=root)["ok"]
+            )
         self.assertFalse(
             self.mod.evaluate_private_remote({"private_working_copy": True, "adding_remote": True})["ok"]
         )
@@ -340,8 +374,8 @@ class ExtendedGatesTest(TestCase):
                 "fallback_reason": "cli missing",
                 "head_sha": "abc",
                 "verdicts": [
-                    {"method": "cli", "worker": "a", "sha": "abc"},
-                    {"method": "reader", "worker": "b", "sha": "abc"},
+                    {"method": "cli", "worker": "a", "reviewer": "a", "verdict": "PASS", "sha": "abc"},
+                    {"method": "reader", "worker": "b", "reviewer": "b", "verdict": "PASS", "sha": "abc"},
                 ],
                 "designer_generated": True,
                 "designer": "d",
@@ -418,10 +452,16 @@ class WatcherSuiteAndMergeTest(TestCase):
                 {"author": "bot", "resolved": False, "path": "a.py"},
                 {"author": "bot", "isResolved": True, "path": "gone"},
                 {"authorLogin": "reviewer", "title": "nit"},
+                {
+                    "isResolved": False,
+                    "path": "g.py",
+                    "comments": {"nodes": [{"author": {"login": "graphql-author"}}]},
+                },
             ]
         )
         self.assertEqual(["a.py"], grouped["bot"])
         self.assertIn("reviewer", grouped)
+        self.assertEqual(["g.py"], grouped["graphql-author"])
         command = ready.merge_command(12, "abc123")
         self.assertIn("--match-head-commit abc123", command)
         with self.assertRaises(ValueError):
@@ -526,6 +566,377 @@ class CloseBlockersTest(TestCase):
             leftover_report_servers=[],
         )
         self.assertEqual([], clear)
+
+    def test_omitted_none_and_wrong_type_evidence_fail_closed(self) -> None:
+        cleanup = _load("ce_delivery_cleanup_absent", ROOT / "scripts/ci/delivery_cleanup.py")
+        omitted = cleanup.delivery_close_blockers(
+            git_status_clean=True,
+            live_publish=True,
+            delivery_kind="video",
+            leftover_report_servers=[],
+        )
+        self.assertIn("missing-publish-package", omitted)
+        self.assertIn("missing-390px-render", omitted)
+        self.assertIn("missing-media-evidence", omitted)
+        self.assertIn("media-missing-human-listen", omitted)
+        none_package = cleanup.delivery_close_blockers(
+            git_status_clean=True,
+            live_publish=True,
+            publish_package=None,
+            delivery_kind="visual",
+            leftover_report_servers=[],
+        )
+        self.assertIn("missing-publish-package", none_package)
+        self.assertIn("missing-contrast-note", none_package)
+        wrong = cleanup.delivery_close_blockers(
+            git_status_clean=True,
+            live_publish=True,
+            publish_package="not-a-package",
+            media_delivery="not-a-record",
+            delivery_kind="audio",
+            leftover_report_servers=[],
+        )
+        self.assertIn("missing-publish-package", wrong)
+        self.assertIn("missing-media-evidence", wrong)
+        media_only = cleanup.delivery_close_blockers(
+            git_status_clean=True,
+            delivery_kind="video",
+            leftover_report_servers=[],
+        )
+        self.assertIn("missing-media-evidence", media_only)
+        self.assertNotIn("missing-publish-package", media_only)
+
+
+class WindowsPyShimTest(TestCase):
+    def test_hook_runs_through_shim_without_a_launcher_flag(self) -> None:
+        shim_mod = _load("ce_windows_py_shim", CE / "windows_py_shim.py")
+        installer = (CE / "install.ps1").read_text(encoding="utf-8")
+        self.assertIn('"$quoted" "$shimQuoted" "$quoted" %*', installer)
+        self.assertNotIn('if /I "%~1"=="-3"', installer)
+        with tempfile.TemporaryDirectory() as temporary:
+            space = Path(temporary) / "dir with spaces"
+            space.mkdir()
+            interpreter = space / "python3"
+            interpreter.symlink_to(sys.executable)
+            hook = space / "launch.py"
+            record = space / "record.txt"
+            hook.write_text(
+                "import os, sys\nfrom pathlib import Path\n"
+                "Path(os.environ['SHIM_RECORD']).write_text('\\n'.join(sys.argv))\n",
+                encoding="utf-8",
+            )
+            shim = space / "windows_py_shim.py"
+            shim.write_text((CE / "windows_py_shim.py").read_text(encoding="utf-8"), encoding="utf-8")
+            cmd = shim_mod.render_py_cmd(str(interpreter), str(shim))
+            (space / "py.cmd").write_text(cmd, encoding="utf-8")
+            self.assertNotIn("shift", cmd.lower())
+            tokens = re.findall(r'"([^"]*)"', cmd)
+            self.assertEqual([str(interpreter), str(shim), str(interpreter)], tokens)
+            env = os.environ.copy()
+            env["SHIM_RECORD"] = str(record)
+            env["PATH"] = str(space)
+            completed = subprocess.run(  # nosec B603 - test executes the generated shim command line
+                [tokens[0], tokens[1], tokens[2], "-3", str(hook), "grok"],
+                check=False,
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            recorded = record.read_text(encoding="utf-8").splitlines()
+            self.assertNotIn("-3", recorded)
+            self.assertEqual(str(hook), recorded[0])
+            self.assertIn("grok", recorded)
+            self.assertIn("dir with spaces", recorded[0])
+
+
+class QueueSnapshotTest(TestCase):
+    def test_graphql_fetch_populates_classifier_fields(self) -> None:
+        watch = _load("ce_watch_queue_1106", ROOT / "scripts/agents/watch_pr_checks.py")
+        node = {
+            "state": "OPEN",
+            "mergedAt": None,
+            "mergeStateStatus": "CLEAN",
+            "isInMergeQueue": True,
+            "autoMergeRequest": None,
+            "mergeQueueEntry": {"position": 1, "enqueuedAt": "2026-11-06T00:00:00Z"},
+            "commits": {
+                "nodes": [
+                    {
+                        "commit": {
+                            "statusCheckRollup": {
+                                "contexts": {
+                                    "nodes": [
+                                        {
+                                            "name": "merge",
+                                            "startedAt": "2026-11-06T00:00:00Z",
+                                            "status": "IN_PROGRESS",
+                                            "checkSuite": {"workflowRun": {"event": "merge_group"}},
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+        }
+        now = dt.datetime(2026, 11, 6, 0, 30, tzinfo=dt.timezone.utc)
+        green = [{"name": "unit", "state": "SUCCESS", "link": ""}]
+        view = watch.apply_queue_snapshot(node, now=now)
+        self.assertEqual(1, view["queuePosition"])
+        self.assertNotIn("queuePosition", node)
+        bucket, failing = watch.classify_unattended(green, view)
+        self.assertEqual("RED", bucket)
+        self.assertEqual("stuck-queue-head", failing[0]["name"])
+        left = dict(node)
+        left["isInMergeQueue"] = False
+        left["mergeQueueEntry"] = None
+        departed = watch.apply_queue_snapshot(left, previous=view, now=now)
+        self.assertTrue(departed["dequeued"])
+        self.assertEqual("dequeued", watch.classify_unattended(green, departed)[1][0]["name"])
+        payload = json.dumps({"data": {"repository": {"pullRequest": node}}})
+
+        class _Proc:
+            returncode = 0
+            stdout = payload
+            stderr = ""
+
+        import unittest.mock
+
+        with unittest.mock.patch.object(watch, "run_gh", return_value=_Proc()) as run:
+            fetched = watch.fetch_pull("gh", Path("."), "owner/name", 9, now=now)
+        self.assertIn("graphql", run.call_args[0][1])
+        self.assertEqual(1, fetched["queuePosition"])
+        self.assertGreaterEqual(fetched["minutes_since_merge_group"], 20)
+        blocked = {
+            "state": "OPEN",
+            "mergedAt": None,
+            "mergeStateStatus": "BLOCKED",
+            "isInMergeQueue": False,
+            "mergeQueueEntry": None,
+            "commits": {"nodes": []},
+        }
+        blocked_proc = _Proc()
+        blocked_proc.stdout = json.dumps({"data": {"repository": {"pullRequest": blocked}}})
+        with (
+            unittest.mock.patch.object(watch, "run_gh", return_value=blocked_proc),
+            unittest.mock.patch.object(watch, "count_unresolved_threads", return_value=0),
+        ):
+            fetched_blocked = watch.fetch_pull("gh", Path("."), "owner/name", 9, now=now)
+        self.assertEqual(0, fetched_blocked["unresolvedReviewThreads"])
+        kind, rows = watch.classify_unattended(green, fetched_blocked)
+        self.assertEqual("RED", kind)
+        self.assertEqual("blocked-merge-state", rows[0]["name"])
+
+    def test_main_runs_unbounded_preflight_before_polling(self) -> None:
+        watch = _load("ce_watch_preflight_1106", ROOT / "scripts/agents/watch_pr_checks.py")
+        import unittest.mock
+
+        with unittest.mock.patch.object(watch, "preflight_unbounded_loops", return_value=["unbounded-loop"]):
+            self.assertEqual(2, watch.main(["--poll-once", "--pr", "1"]))
+
+
+class OperationBoundaryTest(TestCase):
+    def test_push_force_remote_delete_and_secrets_use_disk_evidence(self) -> None:
+        boundary = _load("ce_operation_boundary_1106", CE / "rules/operation_boundary.py")
+        overlay = _load("ce_overlay_boundary_1106", ROOT / "scripts/ci/overlay_pre_push.py")
+        guard = _load("ce_guard_boundary_1106", CE / "hooks/guard.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / ".chaos-engine-state" / "repeat-failure-pdca"
+            state.mkdir(parents=True)
+            (state / "failures.json").write_text(json.dumps({"stages": {"unit": 2}}), encoding="utf-8")
+            pushed = overlay._operation_disk_failures(root, [])
+            self.assertTrue(any("push-without-rca:unit" in item for item in pushed))
+            note = {
+                "stage": "unit",
+                "failures": ["a", "b"],
+                "hypothesis": "same stage failed twice",
+                "evidence": "log",
+                "plan": "one change",
+            }
+            (state / "unit.json").write_text(json.dumps(note), encoding="utf-8")
+            cleared = overlay._operation_disk_failures(root, [])
+            self.assertFalse(any("push-without-rca" in item for item in cleared))
+            command = "git push --force origin HEAD"
+            self.assertIn("force-push-without-approval", guard._operation_boundary_block((command,), root))
+            approval = root / ".chaos-engine-state"
+            (approval / "force-push-approval.txt").write_text(command + "\n", encoding="utf-8")
+            self.assertEqual("", guard._operation_boundary_block((command,), root))
+            (approval / "private-working-copy").write_text("private\n", encoding="utf-8")
+            remote = boundary.command_blocks(root, "git remote add origin https://example.invalid/private.git")
+            self.assertIn("remote-on-private-copy", remote)
+            deleted = boundary.command_blocks(root, "cleanup --delete-code 123456")
+            self.assertIn("relayed-delete-code", deleted)
+            secret = root / "status.md"
+            secret.write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
+            file_hits = boundary.disk_blocks(root, ["status.md"])
+            self.assertTrue(any(item.startswith("secret-in-file") for item in file_hits))
+            command_hits = boundary.command_blocks(root, "echo ghp_abcdefghij123456")
+            self.assertTrue(any(item.startswith("secret-in-command") for item in command_hits))
+            watcher = root / "scripts" / "agents" / "watch_pr_checks.py"
+            watcher.parent.mkdir(parents=True)
+            watcher.write_text("while True:\n    poll()\n", encoding="utf-8")
+            loops = boundary.disk_blocks(root, ["scripts/agents/watch_pr_checks.py"])
+            self.assertIn("watcher:unbounded-loop", loops)
+
+
+class AdversarialEvidenceTest(TestCase):
+    def setUp(self) -> None:
+        self.mod = _load("ce_lessons_0206_adv", CE / "rules/lessons_2026_11_02.py")
+
+    def _hits(self, record: dict) -> list[str]:
+        return self.mod.evaluate_adversarial_pass_sha(record)["hits"]
+
+    def test_missing_sha_fails(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "verdicts": [
+                    {"worker": "a", "reviewer": "a", "verdict": "PASS", "method": "cli"},
+                    {"worker": "b", "reviewer": "b", "verdict": "PASS", "method": "reader", "sha": "abc"},
+                ],
+            }
+        )
+        self.assertIn("verdict-missing-sha", hits)
+
+    def test_missing_verdict_value_fails(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "verdicts": [
+                    {"worker": "a", "reviewer": "a", "method": "cli", "sha": "abc"},
+                    {"worker": "b", "reviewer": "b", "method": "reader", "sha": "abc"},
+                ],
+            }
+        )
+        self.assertIn("verdict-not-pass", hits)
+
+    def test_same_worker_different_method_fails(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "verdicts": [
+                    {"worker": "same", "reviewer": "same", "verdict": "PASS", "method": "cli", "sha": "abc"},
+                    {"worker": "same", "reviewer": "same", "verdict": "PASS", "method": "reader", "sha": "abc"},
+                ],
+            }
+        )
+        self.assertIn("verdicts-not-independent", hits)
+
+    def test_self_review_fails(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "designer": "d",
+                "designer_generated": True,
+                "reviewer": "r",
+                "verdicts": [
+                    {"worker": "d", "reviewer": "d", "verdict": "PASS", "sha": "abc"},
+                    {"worker": "b", "reviewer": "b", "verdict": "PASS", "sha": "abc"},
+                ],
+            }
+        )
+        self.assertIn("self-review", hits)
+
+    def test_missing_identities_do_not_pass_on_a_flag(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "designer_generated": True,
+                "independent_review": True,
+            }
+        )
+        self.assertIn("missing-producer-or-reviewer", hits)
+        self.assertIn("missing-second-verdict", hits)
+
+    def test_two_verdicts_required_without_a_cli_failure(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "verdicts": [
+                    {"method": "cli"},
+                    {"method": "reader"},
+                ],
+            }
+        )
+        self.assertIn("verdict-not-pass", hits)
+        self.assertIn("verdict-missing-sha", hits)
+        self.assertNotIn("missing-fallback-reason", hits)
+
+
+class JobApplyEvidenceTest(TestCase):
+    def setUp(self) -> None:
+        self.mod = _load("ce_job_apply_1106", CE / "rules/lessons_2026_11_06.py")
+
+    def test_authorization_bool_and_missing_signature_fail(self) -> None:
+        denied = self.mod.evaluate_job_apply(
+            {"sending": True, "authorization_record": True, "signature_count": None}
+        )
+        self.assertIn("missing-authorization", denied["hits"])
+        self.assertIn("signature-not-single", denied["hits"])
+        allowed = self.mod.evaluate_job_apply(
+            {
+                "draft_ready": True,
+                "authorization_record": "human-auth-1",
+                "writer": "author",
+                "reviews": [
+                    {"reviewer": "a", "verdict": "PASS"},
+                    {"reviewer": "b", "verdict": "PASS"},
+                ],
+                "signature_count": 1,
+            }
+        )
+        self.assertTrue(allowed["ok"], allowed)
+
+    def test_standing_order_does_not_authorize_send(self) -> None:
+        hits = self.mod.evaluate_job_apply(
+            {"standing_order_recorded": True, "agent_sends": True, "within_named_scope": True}
+        )["hits"]
+        self.assertIn("standing-order-does-not-authorize-send", hits)
+        self.assertIn("agent-must-not-send", hits)
+
+    def test_reviewer_must_pass_and_must_not_be_the_writer(self) -> None:
+        named_only = self.mod.evaluate_job_apply(
+            {
+                "draft_ready": True,
+                "authorization_record": "human-auth-1",
+                "reviews": ["a", "b"],
+                "signature_count": 1,
+            }
+        )
+        self.assertIn("review-missing-pass", named_only["hits"])
+        writer = self.mod.evaluate_job_apply(
+            {
+                "draft_ready": True,
+                "authorization_record": "human-auth-1",
+                "writer": "a",
+                "reviews": [
+                    {"reviewer": "a", "verdict": "PASS"},
+                    {"reviewer": "b", "verdict": "PASS"},
+                ],
+                "signature_count": 1,
+            }
+        )
+        self.assertIn("writer-reviewed-own-draft", writer["hits"])
+
+    def test_public_share_ats_stop_and_tracker_readback(self) -> None:
+        public = self.mod.evaluate_job_apply({"public_by_link": True})
+        self.assertIn("public-by-link-without-share-dialog", public["hits"])
+        self.assertIn("share-not-confirmed-this-turn", public["hits"])
+        shared = self.mod.evaluate_job_apply(
+            {"public_by_link": True, "share_dialog": True, "confirmed_this_turn": True}
+        )
+        self.assertTrue(shared["ok"], shared)
+        ats = self.mod.evaluate_job_apply({"ats_identical_errors": 2})
+        self.assertIn("ats-errors-without-next-channel", ats["hits"])
+        stopped = self.mod.evaluate_job_apply({"ats_identical_errors": 2, "switched_channel": True})
+        self.assertTrue(stopped["ok"], stopped)
+        tracker = self.mod.evaluate_job_apply({"tracker_write": True})
+        self.assertIn("tracker-write-without-readback", tracker["hits"])
+        read_back = self.mod.evaluate_job_apply({"tracker_write": True, "tracker_readback": True})
+        self.assertTrue(read_back["ok"], read_back)
 
 
 if __name__ == "__main__":

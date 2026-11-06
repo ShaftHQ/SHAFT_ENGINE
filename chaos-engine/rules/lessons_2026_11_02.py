@@ -445,43 +445,77 @@ def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
     return _result(hits, "#7708 voice-clone gate failed")
 
 
-def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
-    """Two independent methods or workers at the head SHA, plus a CLI fallback reason."""
+def _verdict_required(record: dict[str, Any]) -> bool:
+    """Two verdicts apply whenever a pass, a fallback, or a review is claimed."""
+    if record.get("external_cli_failed") or record.get("designer_generated"):
+        return True
+    if "verdicts" in record or record.get("independent_review") is not None:
+        return True
+    return False
+
+
+def _one_verdict_hits(verdict: Any, head: str, producer: str) -> list[str]:
+    if not isinstance(verdict, dict):
+        return ["verdict-not-a-record"]
     hits: list[str] = []
-    if not record.get("external_cli_failed"):
-        return hits
-    if not str(record.get("fallback_reason") or "").strip():
+    if str(verdict.get("verdict") or "").strip().upper() != "PASS":
+        hits.append("verdict-not-pass")
+    sha = str(verdict.get("sha") or "").strip()
+    if not sha or (head and sha != head):
+        hits.append("verdict-missing-sha" if not sha else "verdict-sha-mismatch")
+    worker = str(verdict.get("worker") or "").strip()
+    reviewer = str(verdict.get("reviewer") or "").strip()
+    if not worker:
+        hits.append("verdict-missing-worker")
+    if not reviewer:
+        hits.append("verdict-missing-reviewer")
+    if producer and (reviewer == producer or worker == producer):
+        hits.append("self-review")
+    return hits
+
+
+def _worker_identity_hits(verdicts: list[Any]) -> list[str]:
+    """Method labels do not make one worker into two reviewers."""
+    workers = {
+        str(item.get("worker") or "").strip()
+        for item in verdicts
+        if isinstance(item, dict)
+    }
+    workers.discard("")
+    if len(workers) < 2:
+        return ["verdicts-not-independent"]
+    return []
+
+
+def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
+    """Successful verdicts bound to the head, from two workers. Not method labels."""
+    if not _verdict_required(record):
+        return []
+    hits: list[str] = []
+    if record.get("external_cli_failed") and not str(record.get("fallback_reason") or "").strip():
         hits.append("missing-fallback-reason")
     verdicts = record.get("verdicts") or []
     if not isinstance(verdicts, list) or len(verdicts) < 2:
         hits.append("missing-second-verdict")
         return hits
-    methods = {
-        str(v.get("method") or v.get("worker") or "")
-        for v in verdicts
-        if isinstance(v, dict)
-    }
-    methods.discard("")
-    if len(methods) < 2:
-        hits.append("verdicts-not-independent")
-    head = record.get("head_sha")
+    head = str(record.get("head_sha") or "").strip()
+    producer = str(record.get("designer") or record.get("producer") or "").strip()
     for verdict in verdicts:
-        if isinstance(verdict, dict) and head and verdict.get("sha") and verdict.get("sha") != head:
-            hits.append("verdict-sha-mismatch")
+        hits.extend(_one_verdict_hits(verdict, head, producer))
+    hits.extend(_worker_identity_hits(verdicts))
     return hits
 
 
 def _adversarial_designer_hits(record: dict[str, Any]) -> list[str]:
-    hits: list[str] = []
     if not record.get("designer_generated"):
-        return hits
-    designer = record.get("designer")
-    reviewer = record.get("reviewer")
-    if designer and reviewer and designer == reviewer:
-        hits.append("designer-reviewed-own-work")
-    elif record.get("independent_review") is not True:
-        hits.append("missing-independent-review")
-    return hits
+        return []
+    designer = str(record.get("designer") or "").strip()
+    reviewer = str(record.get("reviewer") or "").strip()
+    if not designer or not reviewer:
+        return ["missing-producer-or-reviewer"]
+    if designer == reviewer:
+        return ["designer-reviewed-own-work"]
+    return []
 
 
 # ----- #7709 adversarial PASS SHA-bound -----
