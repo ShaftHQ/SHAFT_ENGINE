@@ -73,7 +73,7 @@ ANDROID_JSON_ARTIFACT = "android-json"
 ALLURE_GROUP = "io.qameta.allure"
 ALLURE_COMMONS_ARTIFACT = "allure-java-commons"
 # Keep in sync with root pom.xml property allure.bom.version.
-SHAFT_ALLURE_BOM_VERSION = "3.0.0"
+SHAFT_ALLURE_BOM_VERSION = "3.1.1"
 ALLURE_ADAPTER_ARTIFACTS = frozenset(
     {
         "allure-testng",

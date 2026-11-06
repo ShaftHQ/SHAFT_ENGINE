@@ -157,11 +157,11 @@
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
         </dependency>
-        <!-- Cucumber 8 adapter. Published at the shaft-engine version on Maven Central. -->
+        <!-- Official Cucumber 8 adapter, version from allure-bom (3.1.1).
+             Compiled against Cucumber 8.0.4, the same BOM SHAFT imports. -->
         <dependency>
-            <groupId>io.github.shafthq</groupId>
+            <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber8-jvm</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>

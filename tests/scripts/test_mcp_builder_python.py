@@ -1,10 +1,8 @@
 """
 shaft-mcp Maven builder images must have python3 before they run Maven.
 
-allure-cucumber8-jvm stages its adapter with <executable>python3</executable>.
-The maven:eclipse-temurin builder does not ship python3, so the image build
-fails in that module after unit tests have already passed. That is an
-environment failure. Removing the exec step would hide the staging contract.
+The maven:eclipse-temurin builder does not ship python3. Installing it
+before mvn keeps reactor exec steps from failing after unit tests passed.
 """
 
 import re

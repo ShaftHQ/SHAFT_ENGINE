@@ -660,12 +660,12 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
-          java-version: '17'  # held: Flutter 3.22.1 Gradle needs Java 17 (#7753)
+          java-version: '25'
           node-version: '26'
-      - name: Setup Flutter 3.22.1
+      - name: Setup Flutter 3.47.9
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
-          flutter-version: 3.22.1
+          flutter-version: 3.47.9
           channel: stable
       - name: Setup Android SDK
         # Default packages include deprecated `tools`, which Google stopped
@@ -689,6 +689,7 @@ jobs:
         run: |
           set -euo pipefail
           cd appium-flutter-server/demo-app
+          bash "$GITHUB_WORKSPACE/scripts/ci/prepare_flutter_demo_android.sh" .
           dart pub global activate rps --version 0.8.0
           flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"

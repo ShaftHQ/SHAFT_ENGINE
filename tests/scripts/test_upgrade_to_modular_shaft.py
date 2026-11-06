@@ -1577,7 +1577,8 @@ class AllureAdapterAlignmentTests(unittest.TestCase):
             )
             analysis = upgrade.analyze_project(root)
             self.assertEqual(analysis.allure_plan.action, "align")
-            self.assertEqual(analysis.allure_plan.target_version, "3.0.0")
+            self.assertEqual(upgrade.SHAFT_ALLURE_BOM_VERSION, "3.1.1")
+            self.assertEqual(analysis.allure_plan.target_version, "3.1.1")
             transformed = upgrade.transform_pom_bytes(
                 pom.read_bytes(),
                 "10.4.20261006",
@@ -1586,7 +1587,7 @@ class AllureAdapterAlignmentTests(unittest.TestCase):
                 analysis.allure_plan,
             ).decode("utf-8")
             self.assertIn("<artifactId>allure-testng</artifactId>", transformed)
-            self.assertIn("<version>3.0.0</version>", transformed)
+            self.assertIn("<version>3.1.1</version>", transformed)
 
 
 class AgentCliRepairTests(unittest.TestCase):

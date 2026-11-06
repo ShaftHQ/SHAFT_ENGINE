@@ -60,9 +60,10 @@ jobs:
         with:
           node-version: "26"
       - name: Install reactor modules locally
-        # Sibling modules (e.g. allure-cucumber8-jvm) share the reactor version and are
-        # not always on Maven Central yet after a release bump; install them before
-        # resolving shaft-engine alone.
+        # Sibling reactor modules share the reactor version and are not always on
+        # Maven Central yet after a release bump; install them before resolving
+        # shaft-engine alone. The Cucumber 8 adapter is the official
+        # io.qameta.allure artifact from allure-bom, not a sibling module.
         run: >-
           mvn -pl shaft-engine -am install -DskipTests -Dgpg.skip
           -Dallure.automaticallyOpen=false

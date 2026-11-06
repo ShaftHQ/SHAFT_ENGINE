@@ -80,13 +80,15 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
-    def test_allows_cucumber_adapter_orientation_readme(self):
+    def test_rejects_retired_cucumber_adapter_readme(self):
         self.write(
             "allure-cucumber8-jvm/README.md",
             "# allure-cucumber8-jvm\n\n**Purpose:** adapter orientation\n",
         )
 
-        self.assertEqual(validate_repository(self.root), [])
+        errors = validate_repository(self.root)
+        self.assertIn("public or unapproved Markdown remains: allure-cucumber8-jvm/README.md", errors)
+        self.assertIn("non-root README is prohibited: allure-cucumber8-jvm/README.md", errors)
 
     def test_allows_repository_map_readme(self):
         self.write("tools/repository-map/README.md", "# Repository Map\n")

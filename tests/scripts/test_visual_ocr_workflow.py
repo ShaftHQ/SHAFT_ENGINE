@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 import shlex
+import subprocess
 import tempfile
 import unittest
 
@@ -143,11 +144,12 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertEqual("platform-tools", setup.get("with", {}).get("packages"))
         self.assertNotIn("tools", (setup.get("with", {}).get("packages") or "").split())
 
-    def test_flutter_emulator_keeps_jdk17_for_apk_and_jdk25_for_maven(self):
+    def test_flutter_emulator_builds_apk_and_maven_on_java_25(self):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
         env_step = next(step for step in steps if step.get("name") == "Setup Test Environment")
-        self.assertEqual("17", env_step["with"]["java-version"])
+        self.assertEqual("25", env_step["with"]["java-version"])
+        self.assertNotIn("17", str(env_step["with"].get("java-version")))
         maven_jdk = next(step for step in steps if step.get("name") == "Set up JDK 25 for Maven")
         self.assertEqual("25", maven_jdk["with"]["java-version"])
         names = [step.get("name") for step in steps]
@@ -157,6 +159,84 @@ class VisualOcrWorkflowTest(unittest.TestCase):
                         names.index("Install engine dependencies for FlutterTest"))
         self.assertLess(names.index("Flutter emulator preflight"),
                         names.index("Boot emulator, open Flutter session, run FlutterTest tap/type/text"))
+
+    def test_flutter_demo_jobs_use_java_25_and_flutter_347_toolchain(self):
+        for workflow_path, job_name in (
+                (WORKFLOW, "Flutter_Demo_App_Build"),
+                (LOCAL_WORKFLOW, "Ubuntu_Flutter_Emulator_Local"),
+        ):
+            workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+            job = workflow["jobs"][job_name]
+            text = workflow_path.read_text(encoding="utf-8")
+            env_step = next(step for step in job["steps"] if step.get("name") == "Setup Test Environment")
+            self.assertEqual("25", env_step["with"]["java-version"])
+            flutter = next(step for step in job["steps"] if step.get("name") == "Setup Flutter 3.47.9")
+            self.assertEqual("3.47.9", flutter["with"]["flutter-version"])
+            self.assertEqual("stable", flutter["with"]["channel"])
+            build = next(step["run"] for step in job["steps"] if "prepare_flutter_demo_android.sh" in step.get("run", ""))
+            self.assertIn("prepare_flutter_demo_android.sh", build)
+            self.assertLess(build.find("prepare_flutter_demo_android.sh"), build.find("flutter build apk"))
+            self.assertNotIn("flutter-version: 3.22.1", text)
+            self.assertNotIn("java-version: '17'", text)
+
+    def test_prepare_flutter_demo_android_writes_java25_toolchain(self):
+        script = ROOT / "scripts" / "ci" / "prepare_flutter_demo_android.sh"
+        with tempfile.TemporaryDirectory() as tmp:
+            android = Path(tmp) / "android"
+            (android / "app").mkdir(parents=True)
+            (android / "gradle" / "wrapper").mkdir(parents=True)
+            (android / "app" / "build.gradle").write_text(
+                'namespace "com.example.appium_testing_app"\n'
+                'applicationId "com.example.appium_testing_app"\n',
+                encoding="utf-8",
+            )
+            (android / "build.gradle").write_text("classpath 'com.android.tools.build:gradle:7.3.0'\n", encoding="utf-8")
+            (android / "settings.gradle").write_text("include ':app'\n", encoding="utf-8")
+            (android / "gradle" / "wrapper" / "gradle-wrapper.properties").write_text(
+                "distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                ["bash", str(script), tmp],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, completed.returncode, completed.stderr)
+            wrapper = (android / "gradle" / "wrapper" / "gradle-wrapper.properties").read_text(encoding="utf-8")
+            settings = (android / "settings.gradle.kts").read_text(encoding="utf-8")
+            app = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+            properties = (android / "gradle.properties").read_text(encoding="utf-8")
+            self.assertIn("gradle-9.3.1-all.zip", wrapper)
+            self.assertIn('version "9.1.0"', settings)
+            self.assertIn('version "2.4.0"', settings)
+            self.assertIn('"$flutterSdkPath/packages/flutter_tools/gradle"', settings)
+            self.assertIn('applicationId = "com.example.appium_testing_app"', app)
+            self.assertIn('namespace = "com.example.appium_testing_app"', app)
+            root_build = (android / "build.gradle.kts").read_text(encoding="utf-8")
+            self.assertIn('removeAll(listOf("-Werror"))', root_build)
+            self.assertIn("forceCompileSdk", root_build)
+            self.assertIn("setter.invoke(android, 34)", root_build)
+            self.assertIn("current >= 34", root_build)
+            self.assertIn("compileSdk lift failed", root_build)
+            self.assertIn('name != "video_player_android"', root_build)
+            self.assertIn("Flutter 3.47.9 template cap", settings)
+            self.assertIn("android.builtInKotlin=false", properties)
+            self.assertIn("android.javaCompile.suppressSourceTargetDeprecationWarning=true", properties)
+            self.assertNotIn("enableJetifier", properties)
+            self.assertFalse((android / "settings.gradle").exists())
+            self.assertFalse((android / "build.gradle").exists())
+            self.assertFalse((android / "app" / "build.gradle").exists())
+            again = subprocess.run(
+                ["bash", str(script), tmp],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, again.returncode, again.stderr)
+            app_after = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+            self.assertIn('applicationId = "com.example.appium_testing_app"', app_after)
+            self.assertIn('namespace = "com.example.appium_testing_app"', app_after)
 
     def test_flutter_emulator_script_avoids_pipefail_under_dash(self):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
