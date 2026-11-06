@@ -80,6 +80,9 @@ def secret_failures(text: str, *, kind: str = "output") -> list[str]:
 _STAGE = re.compile(r"\b(?:pytest|unittest)\b|\bmvn\b[^\n]*\btest\b|\bnpm\b[^\n]*\btest\b")
 _STAGE_FLAG = re.compile(r"--stage(?:=|\s+)([A-Za-z0-9_.-]+)")
 _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+# #6216: origin/HEAD is the configured default. These names are only a fallback
+# when that symref was never written, which a fetch-only checkout often skips.
+_REMOTE_BRANCH_FALLBACKS = ("main", "master")
 
 
 def stage_of_command(command: str) -> str | None:
@@ -170,6 +173,7 @@ def _remote_candidates(root: Path) -> list[str] | None:
     if head.returncode == 0 and text:
         names.append(text)
     names.append("origin/HEAD")
+    names.extend(f"refs/remotes/origin/{name}" for name in _REMOTE_BRANCH_FALLBACKS)
     return names
 
 

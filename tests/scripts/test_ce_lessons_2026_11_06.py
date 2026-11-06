@@ -1223,6 +1223,11 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertNotIn("outgoing-diff-unavailable", hits)
             self.assertFalse(any("ghp_" in item for item in hits))
+            git("symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+            without_head = boundary.committed_secret_failures(root)
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in without_head))
+            self.assertNotIn("outgoing-diff-unavailable", without_head)
+            self.assertFalse(any("ghp_" in item for item in without_head))
 
 
 class AdversarialEvidenceTest(TestCase):
