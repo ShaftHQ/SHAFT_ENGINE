@@ -39,7 +39,7 @@ By [harness_map.py](../harness_map.py).
 
 - `references/addons.md`: Use when a task fits an optional add-on (design, video, or…
 - `references/appium-driver-npm-recover.md`: Use when Appium npm null-package; reinstall from catalog.
-- `references/automerge-rearm.md`: Auto-merge re-arm and scheduled soft-fail
+- `references/automerge-rearm.md`: Dependabot queue diagnostic; no re-arm; no scheduled soft-fail
 - `references/bigger-picture-first.md`: Bigger picture first
 - `references/bot-entry.md`: Bot entry
 - `references/catalog.md`: Catalog

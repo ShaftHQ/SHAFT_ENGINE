@@ -189,7 +189,7 @@ sends you there; the rest by
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
-- [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): re-arm after merge-queue eviction; scheduled soft-fail per item
+- [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): read-only queue diagnostic; no re-arm after eviction; no scheduled soft-fail
 - [mobile client automation](../../chaos-engine/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
 - [design review / video worker checklist](../../chaos-engine/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
 - [harness learn](../../chaos-engine/references/harness-learn.md)
