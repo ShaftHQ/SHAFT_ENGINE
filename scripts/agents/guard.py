@@ -6579,6 +6579,17 @@ def run_r9_worktree_self_test() -> int:
         reason is not None and "ChaosEngine/" in reason,
     )
 
+    reason = check_r9_worktree_add(
+        "git -c core.longpaths=true worktree add worktrees/x "
+        "-b cursor/night-cluster origin/main",
+        "Bash",
+    )
+    check("cursor/* branch via -b is denied", reason is not None)
+    check(
+        "cursor branch denial names ChaosEngine/",
+        reason is not None and "ChaosEngine/" in reason,
+    )
+
     # --- B3 also applies to -B (force-create/reset) and to PowerShell ---
     reason = check_r9_worktree_add(
         "git -c core.longpaths=true worktree add worktrees/x "

@@ -337,6 +337,42 @@ def skillspector_gate_failures(root: Path, paths: list[str]) -> list[str]:
     return [f"skillspector: {item}" if not item.startswith("skillspector") else item for item in raw]
 
 
+def head_branch_name(root: Path) -> str:
+    """Current branch, or empty when git cannot name it."""
+    git = shutil.which("git")
+    if git is None:
+        return ""
+    try:
+        completed = subprocess.run(  # nosec B603 - absolute git, fixed argv.
+            [git, "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=GH_PR_VIEW_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return (completed.stdout or "").strip()
+
+
+def cursor_branch_failures(root: Path) -> list[str]:
+    """Refuse a cursor/ branch even when no pull request is open yet."""
+    name = head_branch_name(root)
+    if name.startswith("cursor/"):
+        return [f"branch `{name}` must be ChaosEngine/<short-slug>, never cursor/"]
+    return []
+
+
+def _restore_env(key: str, previous: str | None) -> None:
+    if previous is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = previous
+
+
 def pr_body_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
     """Fail when the open PR body would fail CI's PR Body guard (#6995 miss).
 
@@ -360,15 +396,15 @@ def pr_body_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str
     except Exception:  # nosec B110 - an unloadable validator must not block a push.
         return []
     mindset_body_errors = module.mindset_body_errors
-    previous = os.environ.get("PR_TITLE")
+    previous_title = os.environ.get("PR_TITLE")
+    previous_head = os.environ.get("PR_HEAD_REF")
     os.environ["PR_TITLE"] = str(pr.get("title") or "")
+    os.environ["PR_HEAD_REF"] = head_branch_name(root)
     try:
         findings = mindset_body_errors(pr["body"])
     finally:
-        if previous is None:
-            os.environ.pop("PR_TITLE", None)
-        else:
-            os.environ["PR_TITLE"] = previous
+        _restore_env("PR_TITLE", previous_title)
+        _restore_env("PR_HEAD_REF", previous_head)
     number = pr.get("number") or "?"
     return [
         f"PR #{number} body would fail the PR Body guard: {item.get('message', item)}; "
@@ -872,6 +908,7 @@ def overlay_pre_push_failures(
         ("skillspector", lambda: skillspector_gate_failures(root, changed)),
         ("ce_version_bump", lambda: ce_version_bump_failures(root, changed)),
         ("remote_credential", lambda: remote_credential_failures(root)),
+        ("cursor_branch", lambda: cursor_branch_failures(root)),
     ]
     if paths is None:
         collectors.extend(

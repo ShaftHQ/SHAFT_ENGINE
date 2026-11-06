@@ -24,12 +24,20 @@ Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`)
    Without a shell: read those five files directly.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.
-3. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
+3. If `.chaos-engine/tool.py` is missing, install it and stop when install cannot run:
+   `python3 chaos-engine/install.py install --project <repo> --source <repo>/chaos-engine --commit <40-hex-sha>`.
+   Then one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
    before the first broad search or unnamed read
    ([retrieve-first](retrieve-first.md)).
+   A missing-overlay skip is a hard failure, not a receipt.
 4. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
    [research receipt](research-receipt.md).
-   Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
+   `exempt(harness)` is not a missing-overlay escape. Agentic work uses
+   branch `ChaosEngine/<short-slug>` (never `cursor/…`) and a ChaosEngine body
+   with no `CURSOR_AGENT_PR_BODY` or `cursor.com/agents` wrapper.
+   Coach, Carl, and Chaos write the code on this machine with Grok Build
+   (`grok`); do not hand it to a Cursor cloud agent
+   ([delegation cycle](delegation-cycle.md)).
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 5. Before any delete, `tool.py delete-check <paths>`; refusal: owner code
    only ([discipline](delete-check-discipline.md)).

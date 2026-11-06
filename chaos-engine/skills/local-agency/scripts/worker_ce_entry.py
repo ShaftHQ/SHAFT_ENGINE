@@ -27,6 +27,7 @@ ENTRY = re.compile(
     r"python3\s+\.chaos-engine/tool\.py\s+entry",
     re.I,
 )
+CURSOR_HANDOFF = re.compile(r"cursor cloud agent|cursor bot|launch a cursor", re.I)
 
 
 def lint_brief(text: str) -> list[str]:
@@ -35,6 +36,8 @@ def lint_brief(text: str) -> list[str]:
         failures.append("missing `ce_load: required` line")
     if ENTRY.search(text) is None:
         failures.append("missing ChaosEngine entry instruction (`tool.py entry`)")
+    if CURSOR_HANDOFF.search(text):
+        failures.append("do not route implementation to a Cursor cloud agent or the Cursor bot")
     return failures
 
 

@@ -389,6 +389,20 @@ class ExtendedGatesTest(TestCase):
     def test_pr_body_watchdog_plugin_issue_and_pdca_push(self) -> None:
         self.assertFalse(self.mod.evaluate_pr_body("## Plan\nno receipt")["ok"])
         self.assertTrue(self.mod.evaluate_pr_body("retrieve: skipped(read-only check)\n")["ok"])
+        overlay = self.mod.evaluate_pr_body("retrieve: skipped(no .chaos-engine overlay)\n")
+        self.assertFalse(overlay["ok"])
+        self.assertIn("overlay-skip-is-hard-failure", overlay["hits"])
+        tool = self.mod.evaluate_pr_body("retrieve: skipped(no installed .chaos-engine/tool.py)\n")
+        self.assertIn("overlay-skip-is-hard-failure", tool["hits"])
+        exempt = self.mod.evaluate_pr_body("retrieve: exempt(harness)\nno .chaos-engine overlay\n")
+        self.assertIn("overlay-skip-is-hard-failure", exempt["hits"])
+        prose = self.mod.evaluate_pr_body(
+            "retrieve: used\nThe notes mention no .chaos-engine overlay in prose only.\n"
+        )
+        self.assertNotIn("overlay-skip-is-hard-failure", prose["hits"])
+        self.assertTrue(prose["ok"])
+        chrome = self.mod.evaluate_pr_body("retrieve: used\nCURSOR_AGENT_PR_BODY_BEGIN\n")
+        self.assertIn("provider-chrome", chrome["hits"])
         self.assertFalse(
             self.mod.evaluate_long_task_watchdog({"expected_minutes": 45, "closed": True})["ok"]
         )

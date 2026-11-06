@@ -182,10 +182,27 @@ def session_start_locators(text: str) -> list[str]:
     return found
 
 
+_OVERLAY_EXCUSE = re.compile(
+    r"no\s+\.chaos-engine overlay|no installed \.chaos-engine/tool\.py",
+    re.IGNORECASE,
+)
+
+
 def retrieve_receipt_field(text: str) -> str | None:
-    """Instruction-only hosts record `retrieve: used|skipped(reason)|exempt(harness)`."""
+    """Instruction-only hosts record `retrieve: used|skipped(reason)|exempt(harness)`.
+
+    A missing-overlay skip is not a receipt. ``exempt(harness)`` is not one either
+    when the same text excuses a missing overlay.
+    """
     match = _RECEIPT_FIELD.search(text or "")
-    return match.group(1) if match else None
+    if match is None:
+        return None
+    field = match.group(1)
+    if _OVERLAY_EXCUSE.search(field):
+        return None
+    if field.casefold().startswith("exempt(") and _OVERLAY_EXCUSE.search(text or ""):
+        return None
+    return field
 
 
 def _graph_json(project: Path) -> Path:

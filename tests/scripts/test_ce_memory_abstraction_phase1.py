@@ -158,6 +158,15 @@ class WorkerCeEntryTest(unittest.TestCase):
         text = "ce_load: required\nRun: python3 .chaos-engine/tool.py entry\ngoal: x\n"
         self.assertEqual([], self.mod.lint_brief(text))
 
+    def test_lint_rejects_a_cursor_cloud_handoff(self) -> None:
+        text = (
+            "ce_load: required\n"
+            "Run: python3 .chaos-engine/tool.py entry\n"
+            "Launch a Cursor cloud agent for the patch.\n"
+        )
+        fails = self.mod.lint_brief(text)
+        self.assertTrue(any("Cursor" in item for item in fails))
+
     def test_cli_fail_and_pass(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "bad.md"

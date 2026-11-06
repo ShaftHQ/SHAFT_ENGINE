@@ -34,6 +34,7 @@ Skip it for harness files (everything in
 you named or that are already in the diff, and when the store is empty or
 degraded or has no project nodes for the path.
 In those cases record `skipped(<reason>)` once and continue.
+A missing overlay is not one of those skips. `retrieve: skipped(no .chaos-engine overlay)` and `retrieve: skipped(no installed .chaos-engine/tool.py)` are hard failures. Install with `python3 chaos-engine/install.py install --project <repo> --source <repo>/chaos-engine --commit <40-hex-sha>`, then retrieve. If install cannot run, stop. `retrieve: exempt(harness)` stays valid only after the overlay is present, or while editing installer files that cannot yet be installed.
 
 Hook hosts enforce this through the portable guard: running a script is not
 reading it, harness paths are exempt, the project root is walked up from the
