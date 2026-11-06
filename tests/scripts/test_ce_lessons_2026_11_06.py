@@ -1122,6 +1122,40 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertFalse(any("ghp_" in item for item in hits))
 
+    def test_deleting_a_base_password_line_is_not_a_new_commit(self) -> None:
+        boundary = _load("ce_operation_deleted_password_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo.
+                    ["git", *args], cwd=root, check=True, capture_output=True, text=True,
+                )
+                return completed.stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            workflow = root / ".github" / "workflows" / "publish.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text("          server-password: MAVEN_PASSWORD\n", encoding="utf-8")
+            git("add", ".github/workflows/publish.yml")
+            git("commit", "-m", "base workflow")
+            published = git("rev-parse", "HEAD")
+            git("update-ref", "refs/remotes/origin/main", published)
+            git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+            git("rm", ".github/workflows/publish.yml")
+            git("commit", "-m", "delete workflow")
+            hits = boundary.committed_secret_failures(root)
+            self.assertNotIn("password-in-commit", hits)
+            disk = boundary.disk_blocks(root, [".github/workflows/publish.yml"])
+            self.assertNotIn("password-in-commit", disk)
+            (root / "note.txt").write_text("password: hunter2\n", encoding="utf-8")
+            git("add", "note.txt")
+            git("commit", "-m", "add password")
+            leaked = boundary.committed_secret_failures(root)
+            self.assertIn("password-in-commit", leaked)
+
     def test_merge_resolution_secret_still_fails_closed(self) -> None:
         boundary = _load("ce_operation_merge_history_1106", CE / "rules/operation_boundary.py")
         with tempfile.TemporaryDirectory() as temporary:

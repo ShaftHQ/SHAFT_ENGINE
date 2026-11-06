@@ -223,6 +223,20 @@ def _outgoing_base(root: Path) -> str | None:
     return _EMPTY_TREE
 
 
+def _added_diff_text(patch: str) -> str:
+    """Text introduced by a patch. ``+++`` file headers are not additions.
+
+    Deletions of lines that already existed on the outgoing base are not new
+    commits. An add that a later commit removes stays visible in ``git log -p``.
+    """
+    added: list[str] = []
+    for line in (patch or "").splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        added.append(line[1:])
+    return "\n".join(added)
+
+
 def committed_secret_failures(root: Path) -> list[str]:
     """Scan outgoing commit and index blobs. A clean worktree does not clear a committed secret."""
     if not (Path(root) / ".git").exists():
@@ -235,7 +249,8 @@ def committed_secret_failures(root: Path) -> list[str]:
     exclude = [".", ":(exclude)tests", ":(exclude)tests/**"]
     # Every outgoing commit, including merge resolutions. Default `git log -p`
     # omits merge patches, so a secret that exists only in a merge commit would
-    # disappear after a later merge removes it.
+    # disappear after a later merge removes it. Only added lines count: deleting
+    # a line that already existed on the base is not a new secret.
     history = _git(
         Path(root),
         ["log", "-p", "--diff-merges=first-parent", "--no-color", f"{base}..HEAD", "--", *exclude],
@@ -245,7 +260,7 @@ def committed_secret_failures(root: Path) -> list[str]:
     scans = (history, head, staged)
     if any(item is None or item.returncode != 0 for item in scans):
         return ["outgoing-diff-unavailable"]
-    text = "\n".join(item.stdout or "" for item in scans)
+    text = "\n".join(_added_diff_text(item.stdout or "") for item in scans)
     return secret_failures(text, kind="commit")
 
 
