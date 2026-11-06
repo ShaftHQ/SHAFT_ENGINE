@@ -172,11 +172,13 @@ def _job_apply_channel_hits(record: dict[str, Any]) -> list[str]:
 
 def _review_hits(record: dict[str, Any]) -> list[str]:
     """PASS reviews from two people, excluding the writer. Names alone do not pass."""
+    writer = str(record.get("writer") or "").strip()
+    if not writer:
+        return ["missing-writer"]
     hits: list[str] = []
     reviews = record.get("reviews")
     if not isinstance(reviews, list) or len(reviews) < 2:
         return ["missing-two-reviewers"]
-    writer = str(record.get("writer") or "").strip()
     seen: set[str] = set()
     for review in reviews:
         if not isinstance(review, dict):

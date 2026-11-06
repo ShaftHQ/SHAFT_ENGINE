@@ -4,6 +4,7 @@
 [CmdletBinding()]
 param(
     [switch]$ParseOnly,
+    [switch]$ProvisionPythonShim,
     [switch]$WithMavenTools,
     [ValidateSet("native", "docker")][string]$MavenToolsMode = "native",
     [switch]$Interactive,
@@ -149,6 +150,46 @@ function Install-ChaosEngineUv([string]$Work) {
     return $uv
 }
 
+function Install-ChaosEnginePyShim([string]$Interpreter, [string]$ShimDir) {
+    # The launcher is embedded in this script. A fresh adopter project has no
+    # source checkout and no separate shim file to copy.
+    if ([string]::IsNullOrWhiteSpace($Interpreter)) { throw "py shim interpreter is missing" }
+    if ([string]::IsNullOrWhiteSpace($ShimDir)) { throw "py shim directory is missing" }
+    New-Item -ItemType Directory -Force -Path $ShimDir | Out-Null
+    $quoted = $Interpreter.Replace('"', '""')
+    $shimPy = Join-Path $ShimDir "windows_py_shim.py"
+    $shimQuoted = $shimPy.Replace('"', '""')
+    # SHIM-PY-START
+    $shimSource = @'
+import os
+import sys
+
+args = sys.argv[1:]
+if not args:
+    sys.stderr.write("py shim missing interpreter\n")
+    raise SystemExit(2)
+interpreter = args[0]
+user = args[1:]
+if user and user[0] == "-3":
+    user = user[1:]
+if os.name == "nt":
+    import subprocess
+    raise SystemExit(subprocess.run([interpreter, *user]).returncode)
+os.execv(interpreter, [interpreter, *user])
+'@
+    # SHIM-PY-END
+    Set-Content -LiteralPath $shimPy -Value $shimSource -Encoding ascii
+    # %* stays the original argument list. -3 is an argument of the shim, not of CPython.
+    @"
+@echo off
+"$quoted" "$shimQuoted" "$quoted" %*
+"@ | Set-Content -LiteralPath (Join-Path $ShimDir "py.cmd") -Encoding ascii
+    @"
+@echo off
+"$quoted" %*
+"@ | Set-Content -LiteralPath (Join-Path $ShimDir "python.cmd") -Encoding ascii
+}
+
 function Install-ChaosEngineManagedPython([string]$Uv) {
     # #7766: provision Python 3.11+ and a py shim before any lifecycle or download prompt.
     $env:UV_PYTHON_INSTALL_DIR = Join-Path $env:LOCALAPPDATA "chaos-engine\python"
@@ -157,22 +198,7 @@ function Install-ChaosEngineManagedPython([string]$Uv) {
     $interpreter = ((& $Uv python find 3.14) | Out-String).Trim()
     if ([string]::IsNullOrWhiteSpace($interpreter)) { throw "uv-managed Python was installed but not found" }
     $shimDir = Join-Path $env:LOCALAPPDATA "chaos-engine\bin"
-    New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
-    $quoted = $interpreter.Replace('"', '""')
-    $shimPy = Join-Path $shimDir "windows_py_shim.py"
-    $sourceShim = Join-Path $project "chaos-engine\windows_py_shim.py"
-    if (-not (Test-Path -LiteralPath $sourceShim)) { throw "windows py shim source is missing" }
-    Copy-Item -LiteralPath $sourceShim -Destination $shimPy -Force
-    $shimQuoted = $shimPy.Replace('"', '""')
-    # %* is the original argument list. A launcher-only -3 must reach the shim script, not CPython.
-    @"
-@echo off
-"$quoted" "$shimQuoted" "$quoted" %*
-"@ | Set-Content -LiteralPath (Join-Path $shimDir "py.cmd") -Encoding ascii
-    @"
-@echo off
-"$quoted" %*
-"@ | Set-Content -LiteralPath (Join-Path $shimDir "python.cmd") -Encoding ascii
+    Install-ChaosEnginePyShim $interpreter $shimDir
     if ($env:Path -notlike "*${shimDir}*") { $env:Path = "$shimDir;" + $env:Path }
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ($null -eq $userPath) { $userPath = "" }
@@ -370,6 +396,10 @@ function Read-ChaosEngineUrl([string]$Url) {
 }
 
 if ($ParseOnly) {
+    return
+}
+if ($ProvisionPythonShim) {
+    Install-ChaosEnginePyShim ([string]$env:CHAOS_ENGINE_SHIM_INTERPRETER) ([string]$env:CHAOS_ENGINE_SHIM_DIR)
     return
 }
 

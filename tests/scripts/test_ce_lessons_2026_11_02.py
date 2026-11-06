@@ -323,6 +323,10 @@ class Lessons20261102GatesTest(TestCase):
                     "merge_or_enqueue": True,
                     "adversarial_pass_sha": "aaa",  # nosec B105 - fixture sha token, not a secret
                     "head_sha": "aaa",
+                    "verdicts": [
+                        {"worker": "a", "reviewer": "a", "verdict": "PASS", "sha": "aaa"},
+                        {"worker": "b", "reviewer": "b", "verdict": "PASS", "sha": "aaa"},
+                    ],
                 }
             )["ok"]
         )

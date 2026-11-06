@@ -206,6 +206,8 @@ def stuck_queue_head(pull: dict | None, *, threshold: int = STUCK_QUEUE_HEAD_MIN
     head = view.get("isMergeQueueHead") is True or position in {1, "1"}
     if not head:
         return None
+    if str(view.get("mergeGroupState") or "") == "failed":
+        return "stuck-queue-head"
     age = view.get("minutes_since_merge_group", view.get("mergeGroupIdleMinutes"))
     if age is None:
         return None
@@ -361,10 +363,11 @@ _QUEUE_QUERY = (
     "repository(owner:$owner,name:$name){pullRequest(number:$number){"
     "state mergedAt mergeStateStatus isInMergeQueue "
     "autoMergeRequest{enabledAt} "
-    "mergeQueueEntry{position enqueuedAt} "
-    "commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100){"
-    "nodes{... on CheckRun{name startedAt completedAt status "
-    "checkSuite{workflowRun{event}}}}}}}}}}}}"
+    "mergeQueueEntry{position enqueuedAt headCommit{oid "
+    "statusCheckRollup{contexts(first:100){nodes{... on CheckRun{"
+    "name startedAt completedAt status conclusion "
+    "checkSuite{workflowRun{event}}}}}}}} "
+    "commits(last:1){nodes{commit{oid}}}}}}"
 )
 
 
@@ -380,36 +383,86 @@ def _parse_github_time(value: object) -> datetime | None:
     return parsed
 
 
-def _check_nodes(node: dict) -> list[dict]:
+_GROUP_OK = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+_GROUP_BAD = {"FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"}
+
+
+def _tip_oid(node: dict) -> str | None:
     commits = (node.get("commits") or {}).get("nodes") or []
     if not commits or not isinstance(commits[0], dict):
-        return []
-    commit = commits[0].get("commit") or {}
-    rollup = commit.get("statusCheckRollup") or {}
-    contexts = (rollup.get("contexts") or {}).get("nodes") or []
-    return [item for item in contexts if isinstance(item, dict)]
+        return None
+    oid = (commits[0].get("commit") or {}).get("oid")
+    return str(oid) if oid else None
 
 
-def _merge_group_idle_minutes(node: dict, now: datetime) -> float | None:
-    """Minutes since the newest merge_group run, else since the queue entry."""
-    started: list[datetime] = []
-    for item in _check_nodes(node):
-        suite = item.get("checkSuite") or {}
-        run = suite.get("workflowRun") or {}
-        if run.get("event") != "merge_group":
-            continue
-        parsed = _parse_github_time(item.get("startedAt") or item.get("completedAt"))
-        if parsed is not None:
-            started.append(parsed)
-    if started:
-        return (now - max(started)).total_seconds() / 60.0
+def _group_head(node: dict) -> dict | None:
     entry = node.get("mergeQueueEntry")
     if not isinstance(entry, dict):
         return None
-    enqueued_at = _parse_github_time(entry.get("enqueuedAt"))
+    head = entry.get("headCommit")
+    return head if isinstance(head, dict) else None
+
+
+def _group_checks(node: dict) -> list[dict]:
+    """Checks on the merge-group head. Pull-request tip checks are not this list."""
+    head = _group_head(node)
+    if not head:
+        return []
+    contexts = ((head.get("statusCheckRollup") or {}).get("contexts") or {}).get("nodes") or []
+    checks: list[dict] = []
+    for item in contexts:
+        if not isinstance(item, dict):
+            continue
+        event = ((item.get("checkSuite") or {}).get("workflowRun") or {}).get("event")
+        if event == "pull_request":
+            continue
+        checks.append(item)
+    return checks
+
+
+def _clock_kind(item: dict) -> str:
+    conclusion = str(item.get("conclusion") or "").upper()
+    status = str(item.get("status") or "").upper()
+    if conclusion in _GROUP_BAD or status in _GROUP_BAD:
+        return "failed"
+    if conclusion in _GROUP_OK:
+        return "passed"
+    return "running"
+
+
+def _merge_group_clock(node: dict, now: datetime) -> tuple[str, float | None]:
+    """Activity of the merge-group head commit. Absent means no group run exists."""
+    checks = _group_checks(node)
+    if not checks:
+        return "absent", None
+    newest: datetime | None = None
+    kind = "running"
+    for item in checks:
+        moment = _parse_github_time(item.get("completedAt") or item.get("startedAt"))
+        if moment is not None and (newest is None or moment > newest):
+            newest = moment
+            kind = _clock_kind(item)
+    if kind == "failed":
+        return "failed", 0.0
+    if newest is None:
+        return "absent", None
+    age = (now - newest).total_seconds() / 60.0
+    return ("passed" if kind == "passed" else "running"), age
+
+
+def _head_activity(
+    node: dict, now: datetime, entry: dict | None, position: object, enqueued: bool,
+) -> tuple[str, float | None]:
+    """Idle clock for the queue head. Enqueue age is used only when the group run is absent."""
+    if not enqueued or position != 1:
+        return "idle", None
+    state, age = _merge_group_clock(node, now)
+    if state != "absent":
+        return state, age
+    enqueued_at = _parse_github_time(entry.get("enqueuedAt")) if entry else None
     if enqueued_at is None:
-        return None
-    return (now - enqueued_at).total_seconds() / 60.0
+        return "absent", None
+    return "absent", (now - enqueued_at).total_seconds() / 60.0
 
 
 def apply_queue_snapshot(
@@ -428,6 +481,8 @@ def apply_queue_snapshot(
     was_queued = bool(prior.get("enqueued") or prior.get("inMergeQueue") or prior.get("isInMergeQueue"))
     state = str(node.get("state") or "")
     dequeued = bool(was_queued and not enqueued and state.upper() != "MERGED" and not node.get("mergedAt"))
+    group_state, group_age = _head_activity(node, moment, entry, position, enqueued)
+    head_commit = _group_head(node) or {}
     return {
         "state": state,
         "mergedAt": node.get("mergedAt"),
@@ -438,7 +493,10 @@ def apply_queue_snapshot(
         "isInMergeQueue": enqueued,
         "queuePosition": position,
         "isMergeQueueHead": position == 1,
-        "minutes_since_merge_group": _merge_group_idle_minutes(node, moment) if enqueued else None,
+        "prTipOid": _tip_oid(node),
+        "mergeGroupSha": head_commit.get("oid"),
+        "mergeGroupState": group_state,
+        "minutes_since_merge_group": group_age,
         "dequeued": dequeued,
     }
 

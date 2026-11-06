@@ -77,37 +77,156 @@ def secret_failures(text: str, *, kind: str = "output") -> list[str]:
     return list(result.get("hits") or [])
 
 
-def file_secret_failures(paths: list[Path]) -> list[str]:
-    hits: list[str] = []
-    for path in paths:
-        if not path.is_file():
+_STAGE = re.compile(r"\b(?:pytest|unittest)\b|\bmvn\b[^\n]*\btest\b|\bnpm\b[^\n]*\btest\b")
+_STAGE_FLAG = re.compile(r"--stage(?:=|\s+)([A-Za-z0-9_.-]+)")
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+def stage_of_command(command: str) -> str | None:
+    flagged = _STAGE_FLAG.search(command or "")
+    if flagged:
+        return flagged.group(1)
+    if _STAGE.search(command or ""):
+        return "test"
+    return None
+
+
+def _pdca_dir(root: Path) -> Path:
+    return Path(root) / ".chaos-engine-state" / "repeat-failure-pdca"
+
+
+def _replay_events(path: Path) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
             continue
-        posix = path.as_posix()
-        if "/tests/" in f"/{posix}" or posix.startswith("tests/"):
+        item = json.loads(line)
+        if not isinstance(item, dict):
             continue
-        try:
-            if path.stat().st_size > 1_000_000:
-                continue
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+        name = str(item.get("stage") or "").strip()
+        if not name:
             continue
-        hits.extend(secret_failures(text, kind="file"))
-    return hits
+        counts[name] = counts.get(name, 0) + 1 if item.get("failed") is True else 0
+    return counts
+
+
+def record_stage_event(root: Path, stage: str, *, failed: bool) -> str | None:
+    """Append one observed failure or reset. The events file is the source of truth."""
+    folder = _pdca_dir(root)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        events = folder / "events.jsonl"
+        with events.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"stage": stage, "failed": bool(failed)}) + "\n")
+        counts = _replay_events(events)
+        (folder / "failures.json").write_text(json.dumps({"stages": counts}), encoding="utf-8")
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return "pdca-state-unavailable"
+    return None
+
+
+def observe_commands(root: Path, commands: list[str] | tuple[str, ...], *, failed: bool) -> str | None:
+    """Persist a stage event for a command the host actually ran."""
+    for command in commands:
+        stage = stage_of_command(command)
+        if not stage:
+            continue
+        problem = record_stage_event(root, stage, failed=failed)
+        if problem:
+            return problem
+    return None
+
+
+def output_secret_block(result: object) -> str | None:
+    """Scan tool stdout/stderr/output. The command string is not this evidence."""
+    if not isinstance(result, dict):
+        return None
+    text = "\n".join(str(result.get(key) or "") for key in ("stdout", "stderr", "output"))
+    hits = secret_failures(text, kind="output") if text.strip() else []
+    return hits[0] if hits else None
+
+
+def _git(root: Path, args: list[str]):
+    import subprocess  # nosec B404 - fixed git argv, no shell.
+
+    try:
+        return subprocess.run(  # nosec B603 B607 - git from PATH, argument list, no shell.
+            ["git", *args],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+
+
+def _outgoing_base(root: Path) -> str | None:
+    """Commit range being published. ``None`` means the range cannot be read."""
+    upstream = _git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"])
+    if upstream is not None and upstream.returncode == 0 and (upstream.stdout or "").strip():
+        base = _git(root, ["merge-base", "HEAD", "@{upstream}"])
+        if base is not None and base.returncode == 0 and (base.stdout or "").strip():
+            return base.stdout.strip()
+        return None
+    inside = _git(root, ["rev-parse", "--is-inside-work-tree"])
+    if inside is None or inside.returncode != 0:
+        return ""
+    count = _git(root, ["rev-list", "--count", "HEAD"])
+    if count is None or count.returncode != 0:
+        return None
+    try:
+        commits = int((count.stdout or "0").strip() or "0")
+    except ValueError:
+        return None
+    if commits > 40:
+        return None
+    return _EMPTY_TREE
+
+
+def committed_secret_failures(root: Path) -> list[str]:
+    """Scan outgoing commit and index blobs. A clean worktree does not clear a committed secret."""
+    if not (Path(root) / ".git").exists():
+        return []
+    base = _outgoing_base(Path(root))
+    if base is None:
+        return ["outgoing-diff-unavailable"]
+    if not base:
+        return []
+    exclude = [".", ":(exclude)tests", ":(exclude)tests/**"]
+    diff = _git(Path(root), ["diff", "--no-color", f"{base}..HEAD", "--", *exclude])
+    staged = _git(Path(root), ["diff", "--cached", "--no-color", "--", *exclude])
+    if diff is None or staged is None or diff.returncode != 0 or staged.returncode != 0:
+        return ["outgoing-diff-unavailable"]
+    return secret_failures((diff.stdout or "") + "\n" + (staged.stdout or ""), kind="commit")
 
 
 def pdca_push_failures(root: Path) -> list[str]:
-    """A second consecutive stage failure blocks push until that stage's note exists."""
-    state = Path(root) / ".chaos-engine-state" / "repeat-failure-pdca" / "failures.json"
-    if not state.is_file():
+    """A second consecutive observed failure blocks push until that stage's note exists."""
+    folder = _pdca_dir(root)
+    events = folder / "events.jsonl"
+    summary = folder / "failures.json"
+    if not folder.exists() and not events.exists() and not summary.exists():
         return []
+    if events.exists():
+        try:
+            return _pdca_stage_hits(Path(root), _replay_events(events))
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            return ["pdca-state-unavailable"]
+    if summary.is_file():
+        return _summary_stage_hits(Path(root), summary)
+    return [] if folder.is_dir() else ["pdca-state-unavailable"]
+
+
+def _summary_stage_hits(root: Path, summary: Path) -> list[str]:
     try:
-        payload = json.loads(state.read_text(encoding="utf-8"))
+        payload = json.loads(summary.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return ["pdca-state-unreadable"]
+        return ["pdca-state-unavailable"]
     stages = payload.get("stages") if isinstance(payload, dict) else None
     if not isinstance(stages, dict):
-        return ["pdca-state-unreadable"]
-    return _pdca_stage_hits(Path(root), stages)
+        return ["pdca-state-unavailable"]
+    return _pdca_stage_hits(root, stages)
 
 
 def _pdca_stage_hits(root: Path, stages: dict[str, Any]) -> list[str]:
@@ -173,9 +292,8 @@ def _watcher_loop_failures(root: Path, changed: list[str]) -> list[str]:
 
 
 def disk_blocks(root: Path, changed: list[str] | None = None) -> list[str]:
-    """Push-time evidence: PDCA notes, secret-bearing files, bounded watcher loops."""
+    """Push-time evidence: PDCA events, outgoing blobs, bounded watcher loops."""
     hits = list(pdca_push_failures(root))
-    paths = [Path(root) / relative for relative in (changed or [])]
-    hits.extend(file_secret_failures(paths))
+    hits.extend(committed_secret_failures(root))
     hits.extend(_watcher_loop_failures(root, list(changed or [])))
     return hits

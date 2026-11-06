@@ -38,6 +38,111 @@ def render_py_cmd(interpreter: str, shim: str) -> str:
     )
 
 
+LAUNCHER_SOURCE = """import os
+import sys
+
+args = sys.argv[1:]
+if not args:
+    sys.stderr.write("py shim missing interpreter\\n")
+    raise SystemExit(2)
+interpreter = args[0]
+user = args[1:]
+if user and user[0] == "-3":
+    user = user[1:]
+if os.name == "nt":
+    import subprocess
+    raise SystemExit(subprocess.run([interpreter, *user]).returncode)
+os.execv(interpreter, [interpreter, *user])
+"""
+
+
+def payload_from_installer(text: str) -> str:
+    """Python launcher embedded in ``install.ps1``. No source-tree copy."""
+    import re
+
+    start = text.find("# SHIM-PY-START")
+    end = text.find("# SHIM-PY-END", start)
+    if start < 0 or end < 0:
+        raise ValueError("installer shim payload missing")
+    match = re.search(r"@'(.*?)'@", text[start:end], re.S)
+    if match is None:
+        raise ValueError("installer shim payload missing")
+    payload = match.group(1).replace("\r\n", "\n")
+    if payload.startswith("\n"):
+        payload = payload[1:]
+    if not payload.endswith("\n"):
+        payload += "\n"
+    return payload
+
+
+def provision_from_installer(installer: str, interpreter: str, shim_dir: str) -> str:
+    """Write the launcher from the installer payload into an empty target."""
+    import re
+
+    with open(installer, encoding="utf-8") as source:
+        text = source.read()
+    if re.search(r"Copy-Item[^\n]*windows_py_shim", text):
+        raise SystemExit("installer still copies the shim from a source checkout")
+    payload = payload_from_installer(text)
+    if payload != LAUNCHER_SOURCE:
+        raise SystemExit("installer payload drifted from the launcher")
+    destination = os.path.join(shim_dir, "windows_py_shim.py")
+    os.makedirs(shim_dir, exist_ok=True)
+    with open(destination, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(payload)
+    cmd_path = os.path.join(shim_dir, "py.cmd")
+    with open(cmd_path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(render_py_cmd(interpreter, destination))
+    quoted = '"' + interpreter.replace('"', '""') + '"'
+    with open(os.path.join(shim_dir, "python.cmd"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write("@echo off\r\n" + quoted + " %*\r\n")
+    return cmd_path
+
+
+def execute_installed_shim(cmd_path: str, args: list[str], env: dict[str, str]):
+    """Run the generated hook through the installed cmd shim."""
+    import subprocess  # nosec B404 - the installed cmd line, list argv, no shell.
+
+    if os.name == "nt":
+        child = dict(env)
+        child["PATH"] = os.path.dirname(cmd_path)
+        return subprocess.run(  # nosec B603 - cmd /d /c py, PATH is only the shim dir.
+            ["cmd", "/d", "/c", "py", *args],
+            env=child,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    with open(cmd_path, encoding="utf-8") as handle:
+        return _execute_cmd_text(handle.read(), args, env)
+
+
+def _execute_cmd_text(text: str, args: list[str], env: dict[str, str]):
+    """Cmd semantics: ``shift`` does not rewrite ``%*``."""
+    import re
+    import subprocess  # nosec B404
+
+    lines = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line and not line.lower().startswith("@echo") and not line.lower().startswith("rem"):
+            lines.append(line)
+    call = [line for line in lines if "%*" in line][-1]
+    tokens = re.findall(r'"([^"]*)"', call)
+    shifted = any(line.lower().startswith("shift") or " shift" in f" {line.lower()}" for line in lines)
+    forwarded = list(args)
+    command = [tokens[0], *forwarded] if shifted and len(tokens) < 3 else [*tokens, *forwarded]
+    return subprocess.run(command, env=env, capture_output=True, text=True, check=False)  # nosec B603
+
+
+def _apply_installer(argv: list[str]) -> int:
+    installer = argv[argv.index("--apply-installer") + 1]
+    interpreter = argv[argv.index("--interpreter") + 1]
+    shim_dir = argv[argv.index("--shim-dir") + 1]
+    provision_from_installer(installer, interpreter, shim_dir)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) < 1:
@@ -55,4 +160,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    if "--apply-installer" in sys.argv:
+        raise SystemExit(_apply_installer(sys.argv[1:]))
     raise SystemExit(main())

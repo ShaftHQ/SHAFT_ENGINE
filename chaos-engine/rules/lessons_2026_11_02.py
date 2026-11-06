@@ -446,7 +446,11 @@ def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _verdict_required(record: dict[str, Any]) -> bool:
-    """Two verdicts apply whenever a pass, a fallback, or a review is claimed."""
+    """Two verdicts apply for every merge, enqueue, or PASS claim."""
+    if record.get("merge_or_enqueue"):
+        return True
+    if str(record.get("adversarial_pass_sha") or "").strip():
+        return True
     if record.get("external_cli_failed") or record.get("designer_generated"):
         return True
     if "verdicts" in record or record.get("independent_review") is not None:
@@ -461,8 +465,13 @@ def _one_verdict_hits(verdict: Any, head: str, producer: str) -> list[str]:
     if str(verdict.get("verdict") or "").strip().upper() != "PASS":
         hits.append("verdict-not-pass")
     sha = str(verdict.get("sha") or "").strip()
-    if not sha or (head and sha != head):
-        hits.append("verdict-missing-sha" if not sha else "verdict-sha-mismatch")
+    if not sha:
+        hits.append("verdict-missing-sha")
+    elif not head:
+        hits.append("missing-head-sha")
+        hits.append("verdict-sha-mismatch")
+    elif sha != head:
+        hits.append("verdict-sha-mismatch")
     worker = str(verdict.get("worker") or "").strip()
     reviewer = str(verdict.get("reviewer") or "").strip()
     if not worker:
@@ -475,16 +484,24 @@ def _one_verdict_hits(verdict: Any, head: str, producer: str) -> list[str]:
 
 
 def _worker_identity_hits(verdicts: list[Any]) -> list[str]:
-    """Method labels do not make one worker into two reviewers."""
-    workers = {
-        str(item.get("worker") or "").strip()
-        for item in verdicts
-        if isinstance(item, dict)
-    }
-    workers.discard("")
+    """Workers and reviewers are each two distinct identities. Method labels are not."""
+    workers: set[str] = set()
+    reviewers: set[str] = set()
+    for item in verdicts:
+        if not isinstance(item, dict):
+            continue
+        worker = str(item.get("worker") or "").strip()
+        reviewer = str(item.get("reviewer") or "").strip()
+        if worker:
+            workers.add(worker)
+        if reviewer:
+            reviewers.add(reviewer)
+    hits: list[str] = []
     if len(workers) < 2:
-        return ["verdicts-not-independent"]
-    return []
+        hits.append("verdicts-not-independent")
+    if len(reviewers) < 2:
+        hits.append("reviewers-not-independent")
+    return hits
 
 
 def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
@@ -495,10 +512,12 @@ def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
     if record.get("external_cli_failed") and not str(record.get("fallback_reason") or "").strip():
         hits.append("missing-fallback-reason")
     verdicts = record.get("verdicts") or []
+    head = str(record.get("head_sha") or "").strip()
+    if not head:
+        hits.append("missing-head-sha")
     if not isinstance(verdicts, list) or len(verdicts) < 2:
         hits.append("missing-second-verdict")
         return hits
-    head = str(record.get("head_sha") or "").strip()
     producer = str(record.get("designer") or record.get("producer") or "").strip()
     for verdict in verdicts:
         hits.extend(_one_verdict_hits(verdict, head, producer))

@@ -476,6 +476,26 @@ def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
     return ""
 
 
+def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict) -> str:
+    """Record the tool's real result and scan its stdout/stderr."""
+    script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
+    if not script.is_file():
+        return ""
+    spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary_post", script)
+    if spec is None or spec.loader is None:
+        return "operation boundary failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = event.get("tool_response") or event.get("toolResponse") or event.get("tool_result")
+    secret = module.output_secret_block(result)
+    if secret:
+        return "operation boundary: " + secret
+    problem = module.observe_commands(project, commands, failed=_tool_result_failed("PostToolUse", result))
+    if problem:
+        return "operation boundary: " + problem
+    return ""
+
+
 def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
@@ -1351,6 +1371,11 @@ def _command_guard_state(
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
         )
     )
+    if event_name == "PostToolUse" and not receipt_command:
+        project = Path(str(event.get("cwd") or Path.cwd()))
+        post_block = _post_tool_boundary(project, commands, event)
+        if post_block:
+            return receipt_command, mutation, post_block
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
     if event_name == "PreToolUse":

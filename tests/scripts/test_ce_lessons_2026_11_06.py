@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -608,87 +609,161 @@ class CloseBlockersTest(TestCase):
 
 
 class WindowsPyShimTest(TestCase):
-    def test_hook_runs_through_shim_without_a_launcher_flag(self) -> None:
+    def test_fresh_install_runs_hook_through_the_cmd_shim(self) -> None:
+        installer = CE / "install.ps1"
+        installer_text = installer.read_text(encoding="utf-8")
+        self.assertIn('"$quoted" "$shimQuoted" "$quoted" %*', installer_text)
+        self.assertNotIn('if /I "%~1"=="-3"', installer_text)
+        self.assertNotRegex(installer_text, r"Copy-Item[^\n]*windows_py_shim")
+        self.assertNotIn("chaos-engine\\windows_py_shim.py", installer_text)
         shim_mod = _load("ce_windows_py_shim", CE / "windows_py_shim.py")
-        installer = (CE / "install.ps1").read_text(encoding="utf-8")
-        self.assertIn('"$quoted" "$shimQuoted" "$quoted" %*', installer)
-        self.assertNotIn('if /I "%~1"=="-3"', installer)
         with tempfile.TemporaryDirectory() as temporary:
-            space = Path(temporary) / "dir with spaces"
-            space.mkdir()
-            interpreter = space / "python3"
+            project = Path(temporary) / "adopter project"
+            project.mkdir()
+            self.assertEqual([], list(project.iterdir()))
+            interpreter = project / "py dir" / "python3"
+            interpreter.parent.mkdir()
             interpreter.symlink_to(sys.executable)
-            hook = space / "launch.py"
-            record = space / "record.txt"
+            hook = project / "hook dir" / "launch.py"
+            hook.parent.mkdir()
+            record = project / "record.txt"
             hook.write_text(
                 "import os, sys\nfrom pathlib import Path\n"
                 "Path(os.environ['SHIM_RECORD']).write_text('\\n'.join(sys.argv))\n",
                 encoding="utf-8",
             )
-            shim = space / "windows_py_shim.py"
-            shim.write_text((CE / "windows_py_shim.py").read_text(encoding="utf-8"), encoding="utf-8")
-            cmd = shim_mod.render_py_cmd(str(interpreter), str(shim))
-            (space / "py.cmd").write_text(cmd, encoding="utf-8")
-            self.assertNotIn("shift", cmd.lower())
-            tokens = re.findall(r'"([^"]*)"', cmd)
-            self.assertEqual([str(interpreter), str(shim), str(interpreter)], tokens)
+            shim_dir = project / "local bin"
             env = os.environ.copy()
+            env["CHAOS_ENGINE_SHIM_INTERPRETER"] = str(interpreter)
+            env["CHAOS_ENGINE_SHIM_DIR"] = str(shim_dir)
             env["SHIM_RECORD"] = str(record)
-            env["PATH"] = str(space)
-            completed = subprocess.run(  # nosec B603 - test executes the generated shim command line
-                [tokens[0], tokens[1], tokens[2], "-3", str(hook), "grok"],
-                check=False,
-                env=env,
-                capture_output=True,
-                text=True,
+            env["PATH"] = str(shim_dir)
+            powershell = shutil.which("powershell") or shutil.which("pwsh")
+            if sys.platform == "win32" and powershell:
+                completed = subprocess.run(  # nosec B603 - the real installer switch, list argv.
+                    [powershell, "-NoProfile", "-File", str(installer), "-ProvisionPythonShim"],
+                    cwd=project,
+                    env=env,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(0, completed.returncode, completed.stderr)
+            else:
+                completed = subprocess.run(  # nosec B603 - apply the embedded installer payload.
+                    [
+                        sys.executable,
+                        str(CE / "windows_py_shim.py"),
+                        "--apply-installer",
+                        str(installer),
+                        "--interpreter",
+                        str(interpreter),
+                        "--shim-dir",
+                        str(shim_dir),
+                    ],
+                    cwd=project,
+                    env=env,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertFalse((project / "chaos-engine").exists())
+            written = (shim_dir / "windows_py_shim.py").read_text(encoding="utf-8")
+            self.assertEqual(shim_mod.LAUNCHER_SOURCE, written)
+            self.assertNotIn("render_py_cmd", written)
+            ran = shim_mod.execute_installed_shim(
+                str(shim_dir / "py.cmd"),
+                ["-3", str(hook), "grok"],
+                env,
             )
-            self.assertEqual(0, completed.returncode, completed.stderr)
+            self.assertEqual(0, ran.returncode, ran.stderr)
             recorded = record.read_text(encoding="utf-8").splitlines()
             self.assertNotIn("-3", recorded)
             self.assertEqual(str(hook), recorded[0])
             self.assertIn("grok", recorded)
-            self.assertIn("dir with spaces", recorded[0])
+            self.assertIn("hook dir", recorded[0])
 
 
 class QueueSnapshotTest(TestCase):
     def test_graphql_fetch_populates_classifier_fields(self) -> None:
         watch = _load("ce_watch_queue_1106", ROOT / "scripts/agents/watch_pr_checks.py")
-        node = {
-            "state": "OPEN",
-            "mergedAt": None,
-            "mergeStateStatus": "CLEAN",
-            "isInMergeQueue": True,
-            "autoMergeRequest": None,
-            "mergeQueueEntry": {"position": 1, "enqueuedAt": "2026-11-06T00:00:00Z"},
-            "commits": {
-                "nodes": [
-                    {
-                        "commit": {
-                            "statusCheckRollup": {
-                                "contexts": {
-                                    "nodes": [
-                                        {
-                                            "name": "merge",
-                                            "startedAt": "2026-11-06T00:00:00Z",
-                                            "status": "IN_PROGRESS",
-                                            "checkSuite": {"workflowRun": {"event": "merge_group"}},
-                                        }
-                                    ]
-                                }
+
+        def check(event: str, status: str, started: str, completed: str | None = None, conclusion: str | None = None) -> dict:
+            item = {
+                "name": event,
+                "startedAt": started,
+                "status": status,
+                "checkSuite": {"workflowRun": {"event": event}},
+            }
+            if completed:
+                item["completedAt"] = completed
+            if conclusion:
+                item["conclusion"] = conclusion
+            return item
+
+        def node_for(enqueued_at: str, group_checks: list[dict] | None) -> dict:
+            head = None if group_checks is None else {
+                "oid": "groupsha",
+                "statusCheckRollup": {"contexts": {"nodes": group_checks}},
+            }
+            return {
+                "state": "OPEN",
+                "mergedAt": None,
+                "mergeStateStatus": "CLEAN",
+                "isInMergeQueue": True,
+                "autoMergeRequest": None,
+                "mergeQueueEntry": {"position": 1, "enqueuedAt": enqueued_at, "headCommit": head},
+                "commits": {
+                    "nodes": [
+                        {
+                            "commit": {
+                                "oid": "tipsha",
+                                "statusCheckRollup": {
+                                    "contexts": {
+                                        "nodes": [check("pull_request", "IN_PROGRESS", "2026-11-06T00:00:00Z")]
+                                    }
+                                },
                             }
                         }
-                    }
-                ]
-            },
-        }
-        now = dt.datetime(2026, 11, 6, 0, 30, tzinfo=dt.timezone.utc)
+                    ]
+                },
+            }
+
+        now = dt.datetime(2026, 11, 6, 2, 0, tzinfo=dt.timezone.utc)
         green = [{"name": "unit", "state": "SUCCESS", "link": ""}]
-        view = watch.apply_queue_snapshot(node, now=now)
+        healthy = node_for(
+            "2026-11-06T00:00:00Z",
+            [check("merge_group", "IN_PROGRESS", "2026-11-06T01:55:00Z")],
+        )
+        view = watch.apply_queue_snapshot(healthy, now=now)
         self.assertEqual(1, view["queuePosition"])
-        self.assertNotIn("queuePosition", node)
-        bucket, failing = watch.classify_unattended(green, view)
-        self.assertEqual("RED", bucket)
-        self.assertEqual("stuck-queue-head", failing[0]["name"])
+        self.assertNotIn("queuePosition", healthy)
+        self.assertEqual("tipsha", view["prTipOid"])
+        self.assertEqual("groupsha", view["mergeGroupSha"])
+        self.assertNotEqual(view["prTipOid"], view["mergeGroupSha"])
+        self.assertIsNone(watch.stuck_queue_head(view))
+        self.assertNotEqual("stuck-queue-head", watch.classify_unattended(green, view)[1][0]["name"] if watch.classify_unattended(green, view)[1] else "")
+        missing = node_for("2026-11-06T01:30:00Z", None)
+        missing_view = watch.apply_queue_snapshot(missing, now=now)
+        self.assertEqual("absent", missing_view["mergeGroupState"])
+        self.assertEqual("stuck-queue-head", watch.stuck_queue_head(missing_view))
+        stalled = node_for(
+            "2026-11-06T00:00:00Z",
+            [check("merge_group", "IN_PROGRESS", "2026-11-06T01:20:00Z")],
+        )
+        self.assertEqual("stuck-queue-head", watch.stuck_queue_head(watch.apply_queue_snapshot(stalled, now=now)))
+        passed = node_for(
+            "2026-11-06T00:00:00Z",
+            [check("merge_group", "COMPLETED", "2026-11-06T01:50:00Z", "2026-11-06T01:58:00Z", "SUCCESS")],
+        )
+        self.assertIsNone(watch.stuck_queue_head(watch.apply_queue_snapshot(passed, now=now)))
+        stale_pass = node_for(
+            "2026-11-06T00:00:00Z",
+            [check("merge_group", "COMPLETED", "2026-11-06T01:00:00Z", "2026-11-06T01:20:00Z", "SUCCESS")],
+        )
+        self.assertEqual("stuck-queue-head", watch.stuck_queue_head(watch.apply_queue_snapshot(stale_pass, now=now)))
+        node = healthy
         left = dict(node)
         left["isInMergeQueue"] = False
         left["mergeQueueEntry"] = None
@@ -706,9 +781,15 @@ class QueueSnapshotTest(TestCase):
 
         with unittest.mock.patch.object(watch, "run_gh", return_value=_Proc()) as run:
             fetched = watch.fetch_pull("gh", Path("."), "owner/name", 9, now=now)
-        self.assertIn("graphql", run.call_args[0][1])
+        query = " ".join(run.call_args[0][1])
+        self.assertIn("graphql", query)
+        self.assertIn("headCommit", query)
+        self.assertNotIn("commits(last:1){nodes{commit{statusCheckRollup", query)
         self.assertEqual(1, fetched["queuePosition"])
-        self.assertGreaterEqual(fetched["minutes_since_merge_group"], 20)
+        self.assertEqual("groupsha", fetched["mergeGroupSha"])
+        self.assertNotEqual(fetched["prTipOid"], fetched["mergeGroupSha"])
+        self.assertIsNone(watch.stuck_queue_head(fetched))
+        self.assertLess(fetched["minutes_since_merge_group"], 20)
         blocked = {
             "state": "OPEN",
             "mergedAt": None,
@@ -744,26 +825,47 @@ class OperationBoundaryTest(TestCase):
         guard = _load("ce_guard_boundary_1106", CE / "hooks/guard.py")
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            state = root / ".chaos-engine-state" / "repeat-failure-pdca"
-            state.mkdir(parents=True)
-            (state / "failures.json").write_text(json.dumps({"stages": {"unit": 2}}), encoding="utf-8")
+            failure = {
+                "hook_event_name": "PostToolUse",
+                "cwd": str(root),
+                "tool_response": {"exit_code": 1, "stdout": "FAIL\n", "stderr": ""},
+            }
+            command = ("python3 -m unittest tests.sample",)
+            for _ in range(2):
+                recorded = guard._command_guard_state(
+                    failure, "PostToolUse", command, "Shell", {"command": command[0]}, "", "", "session"
+                )
+                self.assertEqual("", recorded[2])
             pushed = overlay._operation_disk_failures(root, [])
-            self.assertTrue(any("push-without-rca:unit" in item for item in pushed))
+            self.assertTrue(any("push-without-rca:test" in item for item in pushed))
             note = {
-                "stage": "unit",
+                "stage": "test",
                 "failures": ["a", "b"],
                 "hypothesis": "same stage failed twice",
                 "evidence": "log",
                 "plan": "one change",
             }
-            (state / "unit.json").write_text(json.dumps(note), encoding="utf-8")
+            state = root / ".chaos-engine-state" / "repeat-failure-pdca"
+            (state / "test.json").write_text(json.dumps(note), encoding="utf-8")
             cleared = overlay._operation_disk_failures(root, [])
             self.assertFalse(any("push-without-rca" in item for item in cleared))
-            command = "git push --force origin HEAD"
-            self.assertIn("force-push-without-approval", guard._operation_boundary_block((command,), root))
+            reset = {
+                "hook_event_name": "PostToolUse",
+                "cwd": str(root),
+                "tool_response": {"exit_code": 0, "stdout": "ok\n", "stderr": ""},
+            }
+            guard._command_guard_state(
+                reset, "PostToolUse", command, "Shell", {"command": command[0]}, "", "", "session"
+            )
+            self.assertFalse(any("push-without-rca" in item for item in overlay._operation_disk_failures(root, [])))
+            (state / "events.jsonl").write_text("{", encoding="utf-8")
+            unavailable = overlay._operation_disk_failures(root, [])
+            self.assertTrue(any("pdca-state-unavailable" in item for item in unavailable))
+            push = "git push --force origin HEAD"
+            self.assertIn("force-push-without-approval", guard._operation_boundary_block((push,), root))
             approval = root / ".chaos-engine-state"
-            (approval / "force-push-approval.txt").write_text(command + "\n", encoding="utf-8")
-            self.assertEqual("", guard._operation_boundary_block((command,), root))
+            (approval / "force-push-approval.txt").write_text(push + "\n", encoding="utf-8")
+            self.assertEqual("", guard._operation_boundary_block((push,), root))
             (approval / "private-working-copy").write_text("private\n", encoding="utf-8")
             remote = boundary.command_blocks(root, "git remote add origin https://example.invalid/private.git")
             self.assertIn("remote-on-private-copy", remote)
@@ -771,8 +873,44 @@ class OperationBoundaryTest(TestCase):
             self.assertIn("relayed-delete-code", deleted)
             secret = root / "status.md"
             secret.write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True, text=True)
+            subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Dev"], cwd=root, check=True)
+            subprocess.run(["git", "add", "status.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "status"], cwd=root, check=True, capture_output=True, text=True)
+            secret.write_text("clean\n", encoding="utf-8")
+            self.assertNotIn("ghp_", secret.read_text(encoding="utf-8"))
             file_hits = boundary.disk_blocks(root, ["status.md"])
-            self.assertTrue(any(item.startswith("secret-in-file") for item in file_hits))
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in file_hits))
+            staged = root / "notes.md"
+            staged.write_text("github_pat_abcdefghij\n", encoding="utf-8")
+            subprocess.run(["git", "add", "notes.md"], cwd=root, check=True)
+            staged.write_text("clean\n", encoding="utf-8")
+            staged_hits = boundary.committed_secret_failures(root)
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in staged_hits))
+            leaked = {
+                "hook_event_name": "PostToolUse",
+                "cwd": str(root),
+                "tool_response": {"exit_code": 0, "stdout": "ghp_abcdefghij123456\n", "stderr": ""},
+            }
+            output_block = guard._command_guard_state(
+                leaked, "PostToolUse", ("python3 -c \"print(1)\"",), "Shell", {"command": "python3 -c \"print(1)\""}, "", "", "session"
+            )[2]
+            self.assertIn("secret-in-output", output_block)
+            blocked_state = root / "blocked-state"
+            blocked_state.mkdir()
+            (blocked_state / ".chaos-engine-state" / "repeat-failure-pdca").mkdir(parents=True)
+            (blocked_state / ".chaos-engine-state" / "repeat-failure-pdca" / "events.jsonl").mkdir()
+            self.assertIn("pdca-state-unavailable", guard._command_guard_state(
+                {**failure, "cwd": str(blocked_state)},
+                "PostToolUse",
+                command,
+                "Shell",
+                {"command": command[0]},
+                "",
+                "",
+                "session-2",
+            )[2])
             command_hits = boundary.command_blocks(root, "echo ghp_abcdefghij123456")
             self.assertTrue(any(item.startswith("secret-in-command") for item in command_hits))
             watcher = root / "scripts" / "agents" / "watch_pr_checks.py"
@@ -865,6 +1003,40 @@ class AdversarialEvidenceTest(TestCase):
         self.assertIn("verdict-missing-sha", hits)
         self.assertNotIn("missing-fallback-reason", hits)
 
+    def test_merge_claim_without_verdicts_fails(self) -> None:
+        result = self.mod.evaluate_adversarial_pass_sha(
+            {"merge_or_enqueue": True, "head_sha": "H", "adversarial_pass_sha": "H"}
+        )
+        self.assertFalse(result["ok"])
+        self.assertIn("missing-second-verdict", result["hits"])
+
+    def test_missing_head_rejects_unbound_verdicts(self) -> None:
+        hits = self._hits(
+            {
+                "merge_or_enqueue": True,
+                "verdicts": [
+                    {"worker": "a", "reviewer": "a", "verdict": "PASS", "sha": "abc"},
+                    {"worker": "b", "reviewer": "b", "verdict": "PASS", "sha": "def"},
+                ],
+            }
+        )
+        self.assertIn("missing-head-sha", hits)
+        self.assertIn("verdict-sha-mismatch", hits)
+
+    def test_repeated_reviewer_is_not_independent(self) -> None:
+        hits = self._hits(
+            {
+                "head_sha": "abc",
+                "adversarial_pass_sha": "abc",
+                "verdicts": [
+                    {"worker": "a", "reviewer": "same", "verdict": "PASS", "sha": "abc"},
+                    {"worker": "b", "reviewer": "same", "verdict": "PASS", "sha": "abc"},
+                ],
+            }
+        )
+        self.assertIn("reviewers-not-independent", hits)
+        self.assertNotIn("verdicts-not-independent", hits)
+
 
 class JobApplyEvidenceTest(TestCase):
     def setUp(self) -> None:
@@ -902,6 +1074,7 @@ class JobApplyEvidenceTest(TestCase):
             {
                 "draft_ready": True,
                 "authorization_record": "human-auth-1",
+                "writer": "author",
                 "reviews": ["a", "b"],
                 "signature_count": 1,
             }
@@ -920,6 +1093,22 @@ class JobApplyEvidenceTest(TestCase):
             }
         )
         self.assertIn("writer-reviewed-own-draft", writer["hits"])
+
+    def test_missing_writer_fails_otherwise_valid_evidence(self) -> None:
+        missing = self.mod.evaluate_job_apply(
+            {
+                "draft_ready": True,
+                "authorization_record": "human-auth-1",
+                "reviews": [
+                    {"reviewer": "a", "verdict": "PASS"},
+                    {"reviewer": "b", "verdict": "PASS"},
+                ],
+                "signature_count": 1,
+            }
+        )
+        self.assertFalse(missing["ok"])
+        self.assertIn("missing-writer", missing["hits"])
+        self.assertNotIn("review-missing-pass", missing["hits"])
 
     def test_public_share_ats_stop_and_tracker_readback(self) -> None:
         public = self.mod.evaluate_job_apply({"public_by_link": True})

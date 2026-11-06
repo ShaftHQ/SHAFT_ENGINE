@@ -163,6 +163,9 @@ check. No fix-after-fail.
 [card](details/ce-repeat-failure-pdca/repeat-failure-pdca.md) ·
 [SPEC](ce-repeat-failure-pdca-SPEC.md) ·
 [guides](../guides/ce-repeat-failure-pdca-SPEC.md).
+Push, remotes, deletes, and secret-bearing output use the
+[operation boundary](../rules/operation_boundary.py). The Windows `py -3`
+launcher is [windows_py_shim.py](../windows_py_shim.py).
 
 ## Delivery ledger
 
