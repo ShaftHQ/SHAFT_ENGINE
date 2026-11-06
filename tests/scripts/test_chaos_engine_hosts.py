@@ -1245,6 +1245,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             hook_environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
                 "hook_event_name": "PostToolUseFailure",
+                "cwd": str(project),
                 "tool_name": "PowerShell",
                 "tool_input": {"command": "py -3 -m unittest installed.focused"},
                 "session_id": "installed-reflection",

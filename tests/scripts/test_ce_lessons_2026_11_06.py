@@ -1188,6 +1188,42 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertFalse(any("ghp_" in item for item in hits))
 
+    def test_long_history_without_upstream_uses_remote_default_branch(self) -> None:
+        boundary = _load("ce_operation_remote_base_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo.
+                    ["git", *args], cwd=root, check=True, capture_output=True, text=True,
+                )
+                return completed.stdout.strip()
+
+            git("init")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            for index in range(41):
+                git("commit", "--allow-empty", "-m", f"base {index}")
+            self.assertEqual(["outgoing-diff-unavailable"], boundary.committed_secret_failures(root))
+            published = git("rev-parse", "HEAD")
+            git("checkout", "-b", "feature")
+            (root / "note.md").write_text("clean\n", encoding="utf-8")
+            git("add", "note.md")
+            git("commit", "-m", "note")
+            git("update-ref", "refs/remotes/origin/main", published)
+            git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+            self.assertEqual([], boundary.committed_secret_failures(root))
+            (root / "status.md").write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
+            git("add", "status.md")
+            git("commit", "-m", "secret")
+            (root / "status.md").write_text("clean\n", encoding="utf-8")
+            git("add", "status.md")
+            git("commit", "-m", "remove")
+            hits = boundary.committed_secret_failures(root)
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
+            self.assertNotIn("outgoing-diff-unavailable", hits)
+            self.assertFalse(any("ghp_" in item for item in hits))
+
 
 class AdversarialEvidenceTest(TestCase):
     def setUp(self) -> None:

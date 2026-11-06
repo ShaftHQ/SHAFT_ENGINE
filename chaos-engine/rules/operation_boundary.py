@@ -161,6 +161,36 @@ def _git(root: Path, args: list[str]):
         return None
 
 
+def _remote_candidates(root: Path) -> list[str] | None:
+    head = _git(root, ["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"])
+    if head is None:
+        return None
+    names: list[str] = []
+    text = (head.stdout or "").strip()
+    if head.returncode == 0 and text:
+        names.append(text)
+    names.append("origin/HEAD")
+    return names
+
+
+def _remote_base(root: Path) -> str | None:
+    """Merge base with the remote default branch. ``''`` means no such branch."""
+    names = _remote_candidates(root)
+    if names is None:
+        return None
+    for name in names:
+        verified = _git(root, ["rev-parse", "--verify", "--quiet", name])
+        if verified is None:
+            return None
+        if verified.returncode != 0 or not (verified.stdout or "").strip():
+            continue
+        merged = _git(root, ["merge-base", "HEAD", name])
+        if merged is None or merged.returncode != 0 or not (merged.stdout or "").strip():
+            return None
+        return merged.stdout.strip()
+    return ""
+
+
 def _outgoing_base(root: Path) -> str | None:
     """Commit range being published. ``None`` means the range cannot be read."""
     upstream = _git(root, ["rev-parse", "--verify", "--quiet", "@{upstream}"])
@@ -169,6 +199,11 @@ def _outgoing_base(root: Path) -> str | None:
         if base is not None and base.returncode == 0 and (base.stdout or "").strip():
             return base.stdout.strip()
         return None
+    remote = _remote_base(root)
+    if remote is None:
+        return None
+    if remote:
+        return remote
     inside = _git(root, ["rev-parse", "--is-inside-work-tree"])
     if inside is None or inside.returncode != 0:
         return ""
