@@ -16,21 +16,22 @@ doctor and `tool.py` use `.chaos-engine/install.py`. Tee install/doctor logs to
 
 Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`).
 
-1. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
+1. Bigger picture first ([bigger picture first](bigger-picture-first.md)), before retrieve, discovery, or a patch: name the goal, the larger context, and what a local hotfix would miss, then choose the approach. One file and reversible: one line. If unsure, it is not trivial. Do not skip this for a review comment, a CI failure, or "just hotfix it".
+2. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
    prints. It bundles `identity.md`, the core card
    (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
    (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
    Without a shell: read those five files directly.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.
-2. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
+3. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
    before the first broad search or unnamed read
    ([retrieve-first](retrieve-first.md)).
-3. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
+4. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
    [research receipt](research-receipt.md).
    Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
-4. Before any delete, `tool.py delete-check <paths>`; refusal: owner code
+5. Before any delete, `tool.py delete-check <paths>`; refusal: owner code
    only ([discipline](delete-check-discipline.md)).
    Lesson: backup dir = push.
 
@@ -95,20 +96,17 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   release-note label at create time (REST labels API when `gh pr edit` errors).
 - Filter test and CI logs to the verdict:
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
-  Never print a whole job log or assertion dump. Keep a known-failures list
-  instead of re-running the base commit to compare.
+  Never print a whole job log. Keep a known-failures list.
 - Before merge-queue enqueue: resolve every code-quality review thread
   (fix or short false-positive reply). Green checks alone are not enough;
   see [ci-status-economy](ci-status-economy.md) fingerprint `unresolved-review-threads`
   + `scripts/ci/unresolved_review_threads.py` (repo-only).
   Notes: `scripts/ci/mega-pr-throughput-20261102b.md`, `scripts/ci/mega-pr-throughput-20261102c.md`.
-- Babysit with ONE background loop per PR, not repeated poll calls: it exits on
-  merged, on the first `fail` (latest run per check name; a failed required
-  check exits 1 at once), or when the PR is green but not queued (then it
-  prints the `enqueuePullRequest` error, which names the blocker). Await it
-  once. `gh pr merge --auto --merge` may print a merge-queue message yet still
-  set auto-merge; confirm `autoMergeRequest`. Before it merges, read
-  non-blocking analysis and coverage reporters and fix them.
+- Babysit with ONE background loop per PR, not repeated poll calls. It exits on
+  merged, on the first `fail` (latest run per check name), or when green but
+  not queued (then it prints the `enqueuePullRequest` error). Await it once.
+  Confirm `autoMergeRequest` after `gh pr merge --auto --merge`. Before merge,
+  read non-blocking analysis and coverage reporters and fix them.
 - Bound each tool call to 60 s; run longer ones in the background.
 - Trust a green gate: no local re-check after CI passes.
 - Reports: deltas only (merged, next, blockers), <= 15 lines.
@@ -116,8 +114,7 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
   origin/HEAD -b "$BRANCH"`; never branch, stage, or install in another
   worker's clone. Prefer a single `git clone --filter=blob:none` (or bare /
   `--reference`) host checkout and worktrees over N full clones.
-  Empty `/workspace` or logged-out `gh` at start means the box is still
-  mounting: recheck, never clone over it. Keep `graphify-out/` and
+  Keep `graphify-out/` and
   `.chaos-engine-state/` untracked; do not rebuild a Graphify index per
   worktree on the same host when one shared index already exists.
 - Disk gate before a new worktree or clone: warn under 15 GiB free, block

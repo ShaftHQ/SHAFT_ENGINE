@@ -151,8 +151,8 @@ Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 
 ## Route notes
 
-Bound reads with [context economy](context-economy.md), prefer
-[script first](script-first.md), and retrieve through
+Bound reads with [context economy](context-economy.md) (`references/context-economy.md`), prefer
+[script first](script-first.md) (`references/script-first.md`), and retrieve through
 [retrieve-first](retrieve-first.md) when it pays.
 Routing also orders applicable knowledge retrieval before broad manual
 discovery. One bounded attempt is enough; never retry, repair, refresh, mine,

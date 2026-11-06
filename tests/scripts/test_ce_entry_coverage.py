@@ -135,6 +135,29 @@ class EntryCoverageTest(unittest.TestCase):
             f"token-only paths: {token_only}",
         )
 
+    def test_bigger_picture_first_is_the_first_bot_entry_step(self) -> None:
+        """The step-back rule is linked from both entries, ahead of retrieve."""
+        path = "chaos-engine/references/bigger-picture-first.md"
+        self.assertIn(path, self.report["by_link"])
+        for name in ("cli", "bot"):
+            self.assertIn(path, self.report["entry_reach"][name], name)
+        bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
+        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        section = bot.split("## Every task, before discovery", 1)[1].split("\n## ", 1)[0]
+        first = section.split("\n2. ", 1)[0]
+        self.assertIn("bigger-picture-first.md", first)
+        self.assertIn("goal", first)
+        self.assertIn("local hotfix", first)
+        self.assertLess(first.find("bigger-picture-first.md"), section.find("tool.py retrieve"))
+        self.assertIn("## Bigger picture first", skill)
+        self.assertIn("../../references/bigger-picture-first.md", skill)
+        self.assertIn("what a local hotfix", skill.split("## Triage", 1)[0])
+        worker = (
+            ROOT / "chaos-engine/skills/local-agency/scripts/worker_ce_entry.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("bigger-picture", worker)
+        self.assertNotIn("bigger_picture", worker)
+
     def test_required_hook_events_wired_on_each_platform(self) -> None:
         # Host hook configs under .claude/.codex/.grok are gitignored install
         # artifacts; assert the generated lifecycle documents instead.

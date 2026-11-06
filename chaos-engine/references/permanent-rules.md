@@ -13,6 +13,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | No traffic proxy of any kind (Headroom-style included); nothing installs one by default | [no-proxy](no-proxy.md) |
 | Token optimization is Kanban eliminate-waste | [eliminate-waste](eliminate-waste.md) |
 | Retrieve before read, once per task area; harness files are exempt | [retrieve-first](retrieve-first.md) |
+| Step back before retrieve or a patch: goal, context, and what a local hotfix would miss | [bigger picture first](bigger-picture-first.md) |
 | Prefer `gh` for GitHub; CLI over MCP; no GitHub MCP in defaults | [prefer-cli-over-mcp](prefer-cli-over-mcp.md) |
 | Static-analysis `ACTION_REQUIRED` is a hard blocker, never "pending" | [static-analysis gate](static-analysis-gate.md) |
 | One watch per PR, bounded polls, digest only, silence when unchanged | [CI status economy](ci-status-economy.md) |
