@@ -54,6 +54,8 @@ def summary(path: Path) -> str:
         match = re.search(r"^description:\s*>?-?\s*\n?((?:\s+.+\n?)+|.+)", text, re.M)
         if text.startswith("---") and match:
             line = " ".join(match.group(1).split())
+            if len(line) >= 2 and line[0] == line[-1] and line[0] in {'"', "'"}:
+                line = line[1:-1]
         else:
             heading = re.search(r"^#\s+(.+)$", text, re.M)
             line = heading.group(1).strip() if heading else ""
