@@ -103,6 +103,9 @@ class LtsAndHeldBackTest(unittest.TestCase):
         with mock.patch.object(wup, "_request_json", return_value=(200, index)):
             self.assertEqual("26.13.0", wup.fetch_newest_node("u").version)
 
+    def test_java_17_flutter_hold_is_gone(self) -> None:
+        self.assertNotIn("ci-java@17", wup.HELD_BACK)
+
     def test_held_back_only_holds_the_exact_ticketed_release(self) -> None:
         pin = Pin("python", "series-python", "3.14", "u")
         self.assertFalse(wup.compare_pin(pin, wup.Stable(version="3.15.0")).behind)

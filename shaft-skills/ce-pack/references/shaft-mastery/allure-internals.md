@@ -67,7 +67,7 @@ mvn -Pprovision-allure-cli-maven -pl shaft-engine -am initialize
 ```
 Engine bootstrap also unpacks a **local** Maven zip before falling back to npm.
 Root POM property `allure.cli.version` must stay aligned with `Internal.allure3Version()` and
-`allure-cli/pom.xml` (currently 3.17.0; independent of `allure-bom` 3.0.0 Java adapters).
+`allure-cli/pom.xml` (currently 3.17.0; independent of `allure-bom` 3.1.1 Java adapters).
 
 Overrides: `-Dallure.cli.cacheRoot=...`, `-Dallure.cli.mavenZip=...`, `-Dallure.cli.skipProvision=true`
 (engine bootstrap only).

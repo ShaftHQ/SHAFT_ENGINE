@@ -143,7 +143,6 @@ _COMMIT_KINDS = frozenset({"git", "release"})
 HELD_BACK: dict[str, tuple[str, str, str]] = {
     "python": ("3.14", "3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
     "ci-python@3.14": ("3.14", "3.15", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7751"),
-    "ci-java@17": ("17", "25", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7753"),
 }
 
 
