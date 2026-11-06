@@ -1,4 +1,4 @@
-"""SHAFT consumes the Cucumber 8 adapter jar and does not unpack it into shaft-engine."""
+"""SHAFT consumes the official Cucumber 8 adapter jar and does not unpack it into shaft-engine."""
 
 import unittest
 import zipfile
@@ -25,9 +25,13 @@ class ShaftEngineJarIncludesAdapterTest(unittest.TestCase):
     def test_adapter_jar_is_consumed_not_unpacked(self):
         pom = POM.read_text(encoding="utf-8")
         parent = (REPO_ROOT / "pom.xml").read_text(encoding="utf-8")
-        self.assertIn("<artifactId>allure-cucumber8-jvm</artifactId>", pom)
-        adapter = pom.split("<artifactId>allure-cucumber8-jvm</artifactId>", 1)[1].split("</dependency>", 1)[0]
-        self.assertIn("<version>${project.version}</version>", adapter)
+        start = pom.index("<artifactId>allure-cucumber8-jvm</artifactId>")
+        block_start = pom.rfind("<dependency>", 0, start)
+        block_end = pom.index("</dependency>", start)
+        adapter = pom[block_start:block_end]
+        self.assertIn("<groupId>io.qameta.allure</groupId>", adapter)
+        self.assertNotIn("<version>", adapter)
+        self.assertNotIn("io.github.shafthq", adapter)
         self.assertNotIn("<optional>", adapter)
         self.assertNotIn("a1df39ff", pom)
         self.assertNotIn("unpack-cucumber8-adapter", pom)
@@ -35,10 +39,9 @@ class ShaftEngineJarIncludesAdapterTest(unittest.TestCase):
         self.assertNotIn("jitpack.io", pom)
         self.assertNotIn("jitpack.io", parent)
         self.assertNotIn("<repositories>", parent)
+        self.assertNotIn("<module>allure-cucumber8-jvm</module>", parent)
         self.assertNotIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", parent)
-        module = (REPO_ROOT / "allure-cucumber8-jvm" / "pom.xml").read_text(encoding="utf-8")
-        self.assertIn("ace544ca18fa1839da535242a8150a0776198958f29ca242b75f3235ec34c36d", module)
-        self.assertNotIn("<repositories>", module)
+        self.assertFalse((REPO_ROOT / "allure-cucumber8-jvm").exists())
         self.assertFalse(VENDOR_SOURCE.exists())
         packaged = [
             path

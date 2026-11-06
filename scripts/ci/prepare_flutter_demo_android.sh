@@ -64,6 +64,7 @@ distributionUrl=https\\://services.gradle.org/distributions/gradle-${gradle_vers
 EOF
 
 cat >"$android/settings.gradle.kts" <<EOF
+// Flutter 3.47.9 template cap: Gradle ${gradle_version}, Android Gradle Plugin ${agp_version}, Kotlin ${kotlin_version}.
 pluginManagement {
     val flutterSdkPath =
         run {
@@ -123,14 +124,25 @@ fun forceCompileSdk(project: Project) {
     val android = project.extensions.findByName("android") ?: return
     val current = android.javaClass.methods.firstOrNull { method ->
         method.name == "getCompileSdkVersion" && method.parameterCount == 0
-    }?.invoke(android)?.toString()?.filter { it.isDigit() }?.toIntOrNull() ?: return
+    }?.invoke(android)?.toString()?.filter { it.isDigit() }?.toIntOrNull()
+    if (current == null) {
+        project.logger.warn("compileSdk lift skipped for ${project.path}: getCompileSdkVersion was not readable")
+        return
+    }
     if (current >= 34) {
         return
     }
     val setter = android.javaClass.methods.firstOrNull { method ->
         (method.name == "setCompileSdkVersion" || method.name == "compileSdkVersion") &&
             method.parameterTypes.singleOrNull() == Integer.TYPE
-    } ?: return
+    }
+    if (setter == null) {
+        project.logger.warn(
+            "compileSdk lift failed for ${project.path}: no int setCompileSdkVersion " +
+                "(current=$current, type=${android.javaClass.name})"
+        )
+        return
+    }
     setter.invoke(android, 34)
 }
 subprojects {
@@ -141,12 +153,15 @@ subprojects {
     }
 }
 
-// Pinned demo-app plugins such as video_player_android 2.5.2 compile Java 8
-// with -Werror. JDK 25 treats source/target 8 as a warning, and -Werror turns
-// that warning into a failed APK build. Drop -Werror after every project is
-// configured so the plugin's own compiler args are already present.
+// video_player_android 2.5.2 is the only plugin in the pinned demo resolution
+// whose own android/build.gradle adds -Werror (example apps are not on this
+// classpath). JDK 25 treats Java 8 source/target as a warning, and -Werror
+// fails that compile. Other JavaCompile tasks keep their own args.
 gradle.projectsEvaluated {
     subprojects {
+        if (name != "video_player_android") {
+            return@subprojects
+        }
         tasks.withType<JavaCompile>().configureEach {
             options.compilerArgs.removeAll(listOf("-Werror"))
         }

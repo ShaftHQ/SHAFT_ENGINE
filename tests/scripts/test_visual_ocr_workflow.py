@@ -218,6 +218,9 @@ class VisualOcrWorkflowTest(unittest.TestCase):
             self.assertIn("forceCompileSdk", root_build)
             self.assertIn("setter.invoke(android, 34)", root_build)
             self.assertIn("current >= 34", root_build)
+            self.assertIn("compileSdk lift failed", root_build)
+            self.assertIn('name != "video_player_android"', root_build)
+            self.assertIn("Flutter 3.47.9 template cap", settings)
             self.assertIn("android.builtInKotlin=false", properties)
             self.assertIn("android.javaCompile.suppressSourceTargetDeprecationWarning=true", properties)
             self.assertNotIn("enableJetifier", properties)
@@ -231,7 +234,9 @@ class VisualOcrWorkflowTest(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(0, again.returncode, again.stderr)
-            self.assertIn('applicationId = "com.example.appium_testing_app"', app)
+            app_after = (android / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+            self.assertIn('applicationId = "com.example.appium_testing_app"', app_after)
+            self.assertIn('namespace = "com.example.appium_testing_app"', app_after)
 
     def test_flutter_emulator_script_avoids_pipefail_under_dash(self):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))

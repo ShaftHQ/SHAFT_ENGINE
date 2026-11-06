@@ -16,8 +16,9 @@ import java.nio.charset.StandardCharsets;
 public class AllureCucumber8JunitPlatformExclusionTest {
     @Test
     public void junitPlatformSkipsCucumberEngineWhenCucumber8AdapterIsPresent() throws Exception {
-        Assert.assertNotNull(AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource(),
-                "Cucumber 8 adapter must be on the test classpath so the exclusion can see it");
+        String cucumberJar = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation().toString();
+        Assert.assertTrue(cucumberJar.contains("allure-cucumber8-jvm-3.1.1.jar"), cucumberJar);
+        Assert.assertFalse(cucumberJar.contains("io/github/shafthq"), cucumberJar);
 
         String junitPlatformJar = AllureJunitPlatform.class.getProtectionDomain().getCodeSource().getLocation().toString();
         Assert.assertTrue(junitPlatformJar.contains("allure-junit-platform-3.1.1.jar"), junitPlatformJar);

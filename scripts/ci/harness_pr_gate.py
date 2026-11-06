@@ -489,10 +489,7 @@ CHECKS = {
     "cucumber8-adapter-contract": Check(
         "cucumber8-adapter-contract",
         "cucumber8-adapter",
-        (
-            "tests.scripts.test_shaft_engine_jar_includes_adapter",
-            "tests.scripts.test_prepare_upstream_adapter",
-        ),
+        ("tests.scripts.test_shaft_engine_jar_includes_adapter",),
     ),
     "icm-architect-contract": Check(
         "icm-architect-contract",
@@ -1131,12 +1128,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_browserstack_module_boundary.py",
     ),
     "cucumber8-adapter": (
-        "allure-cucumber8-jvm/**",
-        ".github/workflows/publish-allure-cucumber8.yml",
         "pom.xml",
         "shaft-engine/pom.xml",
         "tests/scripts/test_shaft_engine_jar_includes_adapter.py",
-        "tests/scripts/test_prepare_upstream_adapter.py",
+        "shaft-engine/src/test/java/com/shaft/test/unittests/AllureCucumber8JunitPlatformExclusionTest.java",
     ),
     "icm-architect": (
         "chaos-engine/README.md",

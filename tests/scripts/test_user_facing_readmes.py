@@ -72,6 +72,7 @@ class UserFacingReadmeTest(unittest.TestCase):
         self.assertGreaterEqual(len(modules), 19)
         self.assertIn("shaft-engine", modules)
         self.assertIn("shaft-intellij", modules)
+        self.assertNotIn("allure-cucumber8-jvm", modules)
         for module in modules:
             readme = ROOT / module / "README.md"
             self.assertTrue(readme.is_file(), module)
@@ -90,7 +91,7 @@ class UserFacingReadmeTest(unittest.TestCase):
 
     def test_each_reactor_readme_is_an_approved_nested_readme(self) -> None:
         modules = reactor_readme_dirs()
-        self.assertIn("allure-cucumber8-jvm", modules)
+        self.assertNotIn("allure-cucumber8-jvm", modules)
         for module in modules:
             path = f"{module}/README.md"
             self.assertIn(path, ALLOWED_NESTED_READMES, path)

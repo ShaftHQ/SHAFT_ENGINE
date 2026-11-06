@@ -94,7 +94,6 @@ jobs:
             tests.scripts.test_assemble_chaos_engine_plugin
             tests.scripts.test_assemble_shaft_skills_plugin
             tests.scripts.test_build_retry
-            tests.scripts.test_adapter_selector_contract
             tests.scripts.test_grid_cdp_contract
             tests.scripts.test_mcp_builder_python
             tests.scripts.test_chaos_engine_bootstrap

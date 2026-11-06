@@ -66,14 +66,15 @@ class NonblockedLessonTests(unittest.TestCase):
         self.assertIn("org.testng.Assert.assertThrows` returns void", rules)
         self.assertIn("`expectThrows` returns the throwable", rules)
 
-    def test_adapter_publish_records_the_jitpack_single_module_coordinate(self):
-        script = read("allure-cucumber8-jvm/prepare_upstream_adapter.py")
-        self.assertIn("BUILD SUCCESSFUL", script)
+    def test_cucumber8_adapter_is_the_official_bom_artifact(self):
+        pom = read("shaft-engine/pom.xml")
         self.assertIn(
-            "com.github.MohabMohie:allure-java:a1df39fffb1389ecbce951d617b5da3c49bb1a3a",
-            script,
+            "<groupId>io.qameta.allure</groupId> <artifactId>allure-cucumber8-jvm</artifactId>",
+            pom,
         )
-        self.assertIn("does not add jitpack.io", script)
+        self.assertNotIn("a1df39ff", pom)
+        self.assertNotIn("jitpack.io", read("pom.xml"))
+        self.assertFalse((ROOT / "allure-cucumber8-jvm").exists())
 
 
 if __name__ == "__main__":
