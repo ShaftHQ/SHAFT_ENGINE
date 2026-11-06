@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 import email.utils
 import hashlib
+import io
 import json
 import os
 import platform
@@ -20,6 +21,7 @@ import shutil
 import ssl
 import subprocess  # nosec B404 - fixed `gh auth token` argv, never a shell.
 import sys
+import tarfile
 import tempfile
 import textwrap
 import threading
@@ -87,6 +89,10 @@ COMMIT = re.compile(r"[0-9a-f]{40}")
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
 MAX_FILE_BYTES = 2 * 1024 * 1024
+# Whole-repo source tarball (compressed). Extract still keeps only chaos-engine/
+# and still enforces MAX_SOURCE_BYTES / MAX_FILES on that subset.
+MAX_TARBALL_BYTES = 80 * 1024 * 1024
+MAX_TARBALL_MEMBERS = 100_000
 MAX_FILES = 2000
 DOWNLOAD_WORKERS = 8
 MAX_READ_ATTEMPTS = 4
@@ -2105,6 +2111,68 @@ def retry_delay(error: BaseException, attempt: int) -> float | None:
     return RETRY_BASE_SECONDS * (2**attempt)
 
 
+class UpstreamReadError(RuntimeError):
+    """A bounded upstream read failed. ``url_path`` is the path only, never a secret."""
+
+    def __init__(self, message: str, *, url_path: str, http_status: int | None) -> None:
+        super().__init__(message)
+        self.url_path = url_path
+        self.http_status = http_status
+
+
+def safe_url_path(url: str) -> str:
+    """Path of ``url`` with query, fragment, and userinfo removed."""
+    path = urllib.parse.urlsplit(url).path or "/"
+    if ".." in path.split("/"):
+        return "/"
+    path = re.sub(
+        r"(?i)(token|secret|password|api_key)(=|/)[^/]+",
+        r"\1\2<redacted>",
+        path,
+    )
+    return path[:400]
+
+
+def infer_read_purpose(url: str, purpose: str | None) -> str:
+    """``download`` for source fetches; everything else stays a resolve read."""
+    if purpose in {"download", "resolve"}:
+        return purpose
+    split = urllib.parse.urlsplit(url)
+    host = (split.hostname or "").casefold()
+    path = split.path.casefold()
+    if host in {"raw.githubusercontent.com", "codeload.github.com"}:
+        return "download"
+    if (
+        "git/trees/" in path
+        or "/tarball/" in path
+        or "/tar.gz/" in path
+        or path.endswith(".tar.gz")
+    ):
+        return "download"
+    return "resolve"
+
+
+def upstream_read_failure_message(
+    url: str, error: BaseException, attempts: int, purpose: str | None
+) -> str:
+    """Phase-specific cause. Resolve keeps the historical string; download names the HTTP status."""
+    if infer_read_purpose(url, purpose) != "download":
+        return "unable to resolve latest ChaosEngine from the configured upstream"
+    status = error.code if isinstance(error, urllib.error.HTTPError) else None
+    path = urllib.parse.urlsplit(url).path.casefold()
+    label = (
+        "tree"
+        if "git/trees/" in path or "/tarball/" in path or "/tar.gz/" in path or path.endswith(".tar.gz")
+        else "file"
+    )
+    status_text = f"HTTP {status} " if isinstance(status, int) else ""
+    noun = "attempt" if attempts == 1 else "attempts"
+    return (
+        f"unable to download ChaosEngine source {label} "
+        f"({status_text}after {attempts} {noun}): {safe_url_path(url)}"
+    )
+
+
 def read_response(
     opener,
     url: str,
@@ -2112,6 +2180,7 @@ def read_response(
     limit: int = MAX_RESPONSE_BYTES,
     sleeper=None,
     progress=None,
+    purpose: str | None = None,
 ) -> bytes:
     sleeper = time.sleep if sleeper is None else sleeper
     for attempt in range(MAX_READ_ATTEMPTS):
@@ -2138,8 +2207,11 @@ def read_response(
                 limited = rate_limit_failure(error, url)
                 if limited is not None:
                     raise RuntimeError(limited) from error
-                raise RuntimeError(
-                    "unable to resolve latest ChaosEngine from the configured upstream"
+                status = error.code if isinstance(error, urllib.error.HTTPError) else None
+                raise UpstreamReadError(
+                    upstream_read_failure_message(url, error, attempt + 1, purpose),
+                    url_path=safe_url_path(url),
+                    http_status=status if isinstance(status, int) else None,
                 ) from error
             sleeper(delay)
     if len(value) > limit:
@@ -2169,6 +2241,7 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
         repository_document = read_response(
             opener,
             f"https://api.github.com/repos/{repository}",
+            purpose="resolve",
         )
         try:
             repository_value = json.loads(repository_document)
@@ -2185,6 +2258,7 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
     document = read_response(
         opener,
         f"https://api.github.com/repos/{repository}/commits/{encoded_branch}",
+        purpose="resolve",
     )
     try:
         value = json.loads(document)
@@ -2276,7 +2350,9 @@ def download_addon_files(
         return 0
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     document = read_response(
-        opener, f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1"
+        opener,
+        f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1",
+        purpose="download",
     )
     value = json.loads(document)
     if not isinstance(value, dict) or value.get("truncated") is not False:
@@ -2290,6 +2366,7 @@ def download_addon_files(
             opener,
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
             limit=MAX_FILE_BYTES,
+            purpose="download",
         )
         target = destination.joinpath(*path.parts)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -2323,6 +2400,61 @@ def git_blob_sha1(content: bytes) -> str:
     digest.update(content)
     return digest.hexdigest()
 
+
+def git_tree_sha1(entries: list[tuple[str, str, str]]) -> str:
+    """Git tree oid. Each entry is ``(mode, name, hex_sha)``; directories use mode ``40000``."""
+
+    def sort_key(item: tuple[str, str, str]) -> str:
+        mode, name, _hexsha = item
+        return name + "/" if mode == "40000" else name
+
+    body = b"".join(
+        f"{mode} {name}".encode("utf-8") + b"\0" + bytes.fromhex(hexsha)
+        for mode, name, hexsha in sorted(entries, key=sort_key)
+    )
+    return hashlib.sha1(f"tree {len(body)}\0".encode("ascii") + body).hexdigest()
+
+
+def source_directory_tree_sha(files: dict[str, tuple[bytes, bool]]) -> str:
+    """Tree oid of one directory. Keys are relative posix paths; values are ``(bytes, executable)``."""
+    nested: dict = {}
+    for raw, (content, executable) in files.items():
+        parts = PurePosixPath(raw).parts
+        if not parts or any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("ChaosEngine source tree contains an unsafe path")
+        node = nested
+        for part in parts[:-1]:
+            child = node.get(part)
+            if child is None:
+                child = {}
+                node[part] = child
+            elif not isinstance(child, dict):
+                raise ValueError("ChaosEngine source tree has an unexpected layout")
+            node = child
+        if isinstance(node.get(parts[-1]), dict):
+            raise ValueError("ChaosEngine source tree has an unexpected layout")
+        node[parts[-1]] = (content, executable)
+    return _hash_source_tree(nested)
+
+
+def _hash_source_tree(node: dict) -> str:
+    entries: list[tuple[str, str, str]] = []
+    for name, value in node.items():
+        if isinstance(value, dict):
+            entries.append(("40000", name, _hash_source_tree(value)))
+        else:
+            content, executable = value
+            entries.append(("100755" if executable else "100644", name, git_blob_sha1(content)))
+    return git_tree_sha1(entries)
+
+
+
+def omitted_source_relative(relative: PurePosixPath) -> bool:
+    """Brand masters and research notes are not part of the portable core."""
+    return relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+        "RESEARCH.md",
+        "STANDALONE.md",
+    }
 
 
 def _select_source_blobs(
@@ -2363,10 +2495,7 @@ def _select_source_blobs(
         relative = PurePosixPath(*path.parts[1:])
         if not relative.parts:
             raise ValueError("ChaosEngine source tree has an unexpected layout")
-        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
-            "RESEARCH.md",
-            "STANDALONE.md",
-        }:
+        if omitted_source_relative(relative):
             continue
         selected.append((path, size, sha))
         total += size
@@ -2440,7 +2569,7 @@ def copy_source_from_local_clone(
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError("local ChaosEngine clone is incomplete")
     if reporter is not None:
-        reporter.trace(f"local-clone fallback from {local_root}")
+        reporter.trace("local-clone fallback")
     return source
 
 
@@ -2468,33 +2597,18 @@ def download_source(
         )
         if not networkish:
             raise
+        trace_upstream_failure(reporter, error)
         root = resolve_local_clone(local_clone)
         if root is None:
             raise
         if reporter is not None:
             reporter.trace(
-                f"download failed ({type(error).__name__}); "
-                f"falling back to local clone {root}"
+                f"download failed ({type(error).__name__}); falling back to local clone"
             )
         return copy_source_from_local_clone(root, destination, reporter=reporter)
 
 
-def download_source_remote(
-    repository: str,
-    commit: str,
-    destination: Path,
-    *,
-    opener=urllib.request.urlopen,
-    reporter: InstallReporter | None = None,
-) -> Path:
-    """Download only the bounded ChaosEngine subtree, never the whole repository."""
-    encoded_repository = "/".join(
-        urllib.parse.quote(part, safe="") for part in repository.split("/")
-    )
-    document = read_response(
-        opener,
-        f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1",
-    )
+def _parse_git_tree(document: bytes) -> list:
     try:
         value = json.loads(document)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -2504,18 +2618,494 @@ def download_source_remote(
     tree = value.get("tree")
     if not isinstance(tree, list):
         raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+    return tree
 
-    selected, total, executable = _select_source_blobs(tree)
-    if not selected:
+
+def _tree_lists_chaos_engine_paths(tree: list) -> bool:
+    """True when paths are already repository-relative (fixture or expanded tree).
+
+    A non-recursive root listing names ``chaos-engine`` itself as a tree and is not expanded.
+    """
+    for entry in tree:
+        if not isinstance(entry, dict):
+            continue
+        path = entry.get("path")
+        if not isinstance(path, str):
+            continue
+        if path == "chaos-engine" and entry.get("type") == "tree":
+            continue
+        if path == "chaos-engine" or path.startswith("chaos-engine/"):
+            return True
+    return False
+
+
+def _tree_sha(entry: dict | None) -> str | None:
+    if not isinstance(entry, dict):
+        return None
+    sha = entry.get("sha")
+    if isinstance(sha, str) and COMMIT.fullmatch(sha):
+        return sha
+    return None
+
+
+def _read_git_tree(opener, encoded_repository: str, sha: str, *, recursive: bool) -> list:
+    suffix = "?recursive=1" if recursive else ""
+    url = f"https://api.github.com/repos/{encoded_repository}/git/trees/{sha}{suffix}"
+    return _parse_git_tree(read_response(opener, url, purpose="download"))
+
+
+def _prefix_tree(tree: list, prefix: str) -> list:
+    """Prefix a subtree so selectors keep repository-relative paths."""
+    prefixed = []
+    for entry in tree:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+        path = entry["path"]
+        copied = dict(entry)
+        if path == prefix or path.startswith(prefix + "/"):
+            copied["path"] = path
+        else:
+            copied["path"] = f"{prefix}/{path}" if path else prefix
+        prefixed.append(copied)
+    return prefixed
+
+
+class ResolvedTreeUnavailable(Exception):
+    """A recursive fetch failed after pack discovery had already finished."""
+
+    def __init__(self, tree_shas: dict[str, str]):
+        super().__init__("ChaosEngine source tree listing failed")
+        self.tree_shas = dict(tree_shas)
+
+
+def _discover_pack_trees(root: list, opener, encoded_repository: str, tree_shas: dict[str, str]) -> None:
+    """Record ``<dir>/ce-pack`` and ``<dir>/ce-addons`` oids from one-level listings.
+
+    Only those two child trees are fetched recursively. The parent directory and
+    the rest of the repository are not.
+    """
+    for item in root:
+        if not isinstance(item, dict) or item.get("type") != "tree":
+            continue
+        name = item.get("path")
+        if not isinstance(name, str) or name == "chaos-engine" or "/" in name or name in {"", ".", ".."}:
+            continue
+        parent_sha = _tree_sha(item)
+        if parent_sha is None:
+            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+        children = _read_git_tree(opener, encoded_repository, parent_sha, recursive=False)
+        for child in children:
+            if not isinstance(child, dict) or child.get("type") != "tree":
+                continue
+            child_name = child.get("path")
+            if child_name not in {"ce-pack", "ce-addons"}:
+                continue
+            child_sha = _tree_sha(child)
+            if child_sha is None:
+                raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+            tree_shas[f"{name}/{child_name}"] = child_sha
+
+
+def fetch_chaos_engine_tree(
+    encoded_repository: str, commit: str, opener
+) -> tuple[list, dict[str, str]]:
+    """Core blobs plus sibling ce-pack/ce-addons. Never ``git/trees/<commit>?recursive=1``.
+
+    The map is complete before any recursive fetch: ``chaos-engine`` plus every
+    ``<dir>/ce-pack`` and ``<dir>/ce-addons`` the one-level scan found. An
+    already-expanded fixture returns an empty map. A recursive fetch of an
+    already-discovered tree keeps that complete map so the tarball can be
+    checked against every identity. A parent or pack listing that fails before
+    the scan finishes is the original download error, not a partial map.
+    """
+    root_url = f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}"
+    root = _parse_git_tree(read_response(opener, root_url, purpose="download"))
+    if _tree_lists_chaos_engine_paths(root):
+        return root, {}
+    core_sha = _tree_sha(
+        next(
+            (
+                item
+                for item in root
+                if isinstance(item, dict)
+                and item.get("path") == "chaos-engine"
+                and item.get("type") == "tree"
+            ),
+            None,
+        )
+    )
+    if core_sha is None:
         raise ValueError("ChaosEngine source tree has an unexpected layout")
-    if len(selected) > MAX_FILES:
-        raise ValueError("ChaosEngine source tree contains too many files")
-    if total > MAX_SOURCE_BYTES:
-        raise ValueError("ChaosEngine source tree exceeds the download limit")
+    tree_shas = {"chaos-engine": core_sha}
+    # Discovery must finish. A 504 here is a download failure, not a core-only tarball.
+    _discover_pack_trees(root, opener, encoded_repository, tree_shas)
+    try:
+        entries = _prefix_tree(
+            _read_git_tree(opener, encoded_repository, core_sha, recursive=True),
+            "chaos-engine",
+        )
+        for rel, sha in tree_shas.items():
+            if rel == "chaos-engine":
+                continue
+            entries.extend(
+                _prefix_tree(
+                    _read_git_tree(opener, encoded_repository, sha, recursive=True),
+                    rel,
+                )
+            )
+    except (UpstreamReadError, OSError, TimeoutError, urllib.error.URLError) as error:
+        raise ResolvedTreeUnavailable(tree_shas) from error
+    return entries, tree_shas
+
+
+def _tarball_fallback_allowed(error: BaseException) -> bool:
+    """Transient read failures can use the commit tarball. Integrity and tree-shape errors cannot."""
+    if RATE_LIMIT_FAILURE in str(error):
+        return False
+    return isinstance(error, (UpstreamReadError, OSError, TimeoutError, urllib.error.URLError))
+
+
+def source_tar_repo_path(name: str) -> PurePosixPath | None:
+    """Repo-relative path to keep, or None. Keeps ``chaos-engine/**`` and ``*/ce-pack|ce-addons/**``."""
+    if not isinstance(name, str) or not name or name.startswith(("/", "\\")) or "\\" in name:
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    parts = PurePosixPath(name).parts
+    if not parts or any(part in {"", ".", ".."} for part in parts):
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    if len(parts) < 3:
+        return None
+    repo = PurePosixPath(*parts[1:])
+    if repo.parts[0] == "chaos-engine" or is_pack_path(repo):
+        return repo
+    return None
+
+
+def _pack_root(path: PurePosixPath) -> str:
+    return f"{path.parts[0]}/{path.parts[1]}"
+
+
+def _accept_tarball_prefix(name: str, prefix: str | None) -> str:
+    member_prefix = PurePosixPath(name).parts[0]
+    if prefix is None:
+        return member_prefix
+    if member_prefix != prefix:
+        raise ValueError("ChaosEngine source tarball has an unexpected layout")
+    return prefix
+
+
+def _regular_tar_member(member: tarfile.TarInfo) -> bool:
+    return bool(member.isfile() and not member.issym() and not member.islnk())
+
+
+def _keep_source_member(
+    repo_path: PurePosixPath,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    expected_by_repo: dict[PurePosixPath, tuple[int, str]] | None,
+    identities: dict[str, str],
+) -> bool:
+    if repo_path.parts[0] == "chaos-engine":
+        return True
+    listed = expected_by_repo is not None and repo_path in expected_by_repo
+    identified = expected is None and _pack_root(repo_path) in identities
+    return listed or identified
+
+
+def _read_tar_member(archive: tarfile.TarFile, member: tarfile.TarInfo) -> tuple[bytes, bool]:
+    size = member.size
+    if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+        raise ValueError("ChaosEngine source file exceeds the download limit")
+    extracted = archive.extractfile(member)
+    if extracted is None:
+        raise ValueError("ChaosEngine source tarball is invalid")
+    content = extracted.read(MAX_FILE_BYTES + 1)
+    if len(content) != size:
+        raise ValueError("ChaosEngine source file does not match the resolved tree")
+    return content, bool(member.mode & 0o111)
+
+
+def _store_source_member(
+    repo_path: PurePosixPath,
+    content: bytes,
+    file_executable: bool,
+    core_files: dict[str, tuple[bytes, bool]],
+    pack_files: dict[str, dict[str, tuple[bytes, bool]]],
+) -> bool:
+    """Store one kept member. Return whether it counts toward the install limit."""
+    if repo_path.parts[0] == "chaos-engine":
+        relative = PurePosixPath(*repo_path.parts[1:])
+        if not relative.parts:
+            raise ValueError("ChaosEngine source tarball has an unexpected layout")
+        key = relative.as_posix()
+        if key in core_files:
+            raise ValueError("ChaosEngine source tarball has an unexpected layout")
+        core_files[key] = (content, file_executable)
+        return not omitted_source_relative(relative)
+    root_key = _pack_root(repo_path)
+    relative_key = PurePosixPath(*repo_path.parts[2:]).as_posix()
+    bucket = pack_files.setdefault(root_key, {})
+    if relative_key in bucket:
+        raise ValueError("ChaosEngine source tarball has an unexpected layout")
+    bucket[relative_key] = (content, file_executable)
+    return True
+
+
+def _collect_tarball_files(
+    archive: tarfile.TarFile,
+    *,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    expected_by_repo: dict[PurePosixPath, tuple[int, str]] | None,
+    identities: dict[str, str],
+) -> tuple[dict[str, tuple[bytes, bool]], dict[str, dict[str, tuple[bytes, bool]]]]:
+    core_files: dict[str, tuple[bytes, bool]] = {}
+    pack_files: dict[str, dict[str, tuple[bytes, bool]]] = {}
+    total = 0
+    kept = 0
+    prefix: str | None = None
+    inspected = 0
+    for member in archive:
+        inspected += 1
+        if inspected > MAX_TARBALL_MEMBERS:
+            raise ValueError("ChaosEngine source tarball contains too many files")
+        repo_path = source_tar_repo_path(member.name)
+        if repo_path is None:
+            continue
+        prefix = _accept_tarball_prefix(member.name, prefix)
+        if not _regular_tar_member(member):
+            continue
+        if not _keep_source_member(repo_path, expected, expected_by_repo, identities):
+            continue
+        content, file_executable = _read_tar_member(archive, member)
+        if not _store_source_member(repo_path, content, file_executable, core_files, pack_files):
+            continue
+        total += len(content)
+        kept += 1
+        if total > MAX_SOURCE_BYTES or kept > MAX_FILES:
+            raise ValueError("ChaosEngine source tree exceeds the download limit")
+    return core_files, pack_files
+
+
+def extract_chaos_engine_tarball(
+    payload: bytes,
+    destination: Path,
+    *,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+    tree_shas: dict[str, str] | None = None,
+) -> Path:
+    """Write the core and shipped packs from a commit tarball.
+
+    Blob SHAs are checked when the listing produced ``expected``. Otherwise the
+    archive must reproduce every resolved tree SHA (core, ce-pack, ce-addons),
+    including files the install itself omits. Bytes that lack either check are
+    not written.
+    """
+    identities = tree_shas or {}
+    if expected is None and "chaos-engine" not in identities:
+        raise ValueError("ChaosEngine source tarball cannot be verified")
+    try:
+        archive = tarfile.open(fileobj=io.BytesIO(payload), mode="r:gz")  # nosec B202 - members are filtered, never extractall
+    except (tarfile.TarError, EOFError, OSError) as error:
+        raise ValueError("ChaosEngine source tarball is invalid") from error
+    expected_by_repo = {path: (size, sha) for path, size, sha in expected} if expected is not None else None
+    try:
+        core_files, pack_files = _collect_tarball_files(
+            archive,
+            expected=expected,
+            expected_by_repo=expected_by_repo,
+            identities=identities,
+        )
+    finally:
+        archive.close()
+    if expected_by_repo is not None:
+        _verify_tarball_blobs(core_files, pack_files, expected_by_repo)
+    else:
+        _verify_tarball_trees(core_files, pack_files, identities)
+    return _write_verified_tarball(
+        destination,
+        core_files,
+        pack_files,
+        expected=expected,
+        executable=executable,
+    )
+
+
+def _verify_tarball_blobs(
+    core_files: dict[str, tuple[bytes, bool]],
+    pack_files: dict[str, dict[str, tuple[bytes, bool]]],
+    expected_by_repo: dict[PurePosixPath, tuple[int, str]],
+) -> None:
+    seen: set[PurePosixPath] = set()
+    for key, (content, _executable) in core_files.items():
+        relative = PurePosixPath(key)
+        if omitted_source_relative(relative):
+            continue
+        repo_path = PurePosixPath("chaos-engine", *relative.parts)
+        spec = expected_by_repo.get(repo_path)
+        if spec is None or spec[0] != len(content) or git_blob_sha1(content).casefold() != spec[1].casefold():
+            raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+        seen.add(repo_path)
+    for root_key, files in pack_files.items():
+        root = PurePosixPath(root_key)
+        for key, (content, _executable) in files.items():
+            repo_path = PurePosixPath(*root.parts, *PurePosixPath(key).parts)
+            spec = expected_by_repo.get(repo_path)
+            if spec is None or spec[0] != len(content) or git_blob_sha1(content).casefold() != spec[1].casefold():
+                raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+            seen.add(repo_path)
+    missing = [path.as_posix() for path in expected_by_repo if path not in seen]
+    if missing:
+        raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+
+
+def _verify_tarball_trees(
+    core_files: dict[str, tuple[bytes, bool]],
+    pack_files: dict[str, dict[str, tuple[bytes, bool]]],
+    tree_shas: dict[str, str],
+) -> None:
+    core_sha = tree_shas.get("chaos-engine")
+    if not isinstance(core_sha, str) or source_directory_tree_sha(core_files).casefold() != core_sha.casefold():
+        raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+    for key, sha in tree_shas.items():
+        if key == "chaos-engine":
+            continue
+        files = pack_files.get(key, {})
+        if source_directory_tree_sha(files).casefold() != sha.casefold():
+            raise ValueError("ChaosEngine source tarball does not match the resolved tree")
+
+
+def _write_verified_tarball(
+    destination: Path,
+    core_files: dict[str, tuple[bytes, bool]],
+    pack_files: dict[str, dict[str, tuple[bytes, bool]]],
+    *,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+) -> Path:
+    source = destination / "chaos-engine"
+    source.mkdir()
+    for key, (content, file_executable) in core_files.items():
+        relative = PurePosixPath(key)
+        if omitted_source_relative(relative):
+            continue
+        _write_verified_file(
+            source.joinpath(*relative.parts),
+            source,
+            content,
+            file_executable=file_executable,
+            repo_path=PurePosixPath("chaos-engine", *relative.parts),
+            expected=expected,
+            executable=executable,
+        )
+    for root_key, files in pack_files.items():
+        root = PurePosixPath(root_key)
+        for key, (content, file_executable) in files.items():
+            relative = PurePosixPath(key)
+            repo_path = PurePosixPath(*root.parts, *relative.parts)
+            _write_verified_file(
+                destination.joinpath(*repo_path.parts),
+                destination,
+                content,
+                file_executable=file_executable,
+                repo_path=repo_path,
+                expected=expected,
+                executable=executable,
+            )
+    if not (source / "skills/chaos-engine/SKILL.md").is_file():
+        raise ValueError("ChaosEngine source tree is incomplete")
+    return source
+
+
+def _write_verified_file(
+    target: Path,
+    parent: Path,
+    content: bytes,
+    *,
+    file_executable: bool,
+    repo_path: PurePosixPath,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+) -> None:
+    if not _path_is_inside(target, parent):
+        raise ValueError("ChaosEngine source tarball contains an unsafe path")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    if expected is not None:
+        if executable is not None and repo_path in executable:
+            mark_executable(target)
+    elif file_executable:
+        mark_executable(target)
+
+
+def download_source_tarball(
+    encoded_repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener,
+    reporter: InstallReporter | None,
+    expected: list[tuple[PurePosixPath, int, str]] | None,
+    executable: set[PurePosixPath] | None,
+    tree_shas: dict[str, str] | None = None,
+) -> Path:
+    """Verified fallback: codeload tarball, then the GitHub tarball API."""
+    if COMMIT.fullmatch(commit) is None:
+        raise ValueError("GitHub returned an invalid ChaosEngine revision")
+    if expected is None and (not tree_shas or "chaos-engine" not in tree_shas):
+        raise ValueError("ChaosEngine source tarball cannot be verified")
+    urls = (
+        f"https://codeload.github.com/{encoded_repository}/tar.gz/{commit}",
+        f"https://api.github.com/repos/{encoded_repository}/tarball/{commit}",
+    )
+    last: BaseException | None = None
+    for url in urls:
+        try:
+            payload = read_response(opener, url, limit=MAX_TARBALL_BYTES, purpose="download")
+        except (UpstreamReadError, OSError, TimeoutError, urllib.error.URLError, RuntimeError) as error:
+            trace_upstream_failure(reporter, error)
+            last = error
+            continue
+        return extract_chaos_engine_tarball(
+            payload,
+            destination,
+            expected=expected,
+            executable=executable,
+            tree_shas=tree_shas,
+        )
+    if last is not None:
+        raise last
+    raise RuntimeError("unable to download ChaosEngine source tree (after 0 attempts): /")
+
+
+def _clear_partial_source(destination: Path) -> None:
+    """Drop a half-written core and any sibling pack trees in the download directory."""
+    core = destination / "chaos-engine"
+    if core.exists():
+        shutil.rmtree(core, ignore_errors=True)
+    if not destination.is_dir():
+        return
+    for child in list(destination.iterdir()):
+        if not child.is_dir():
+            continue
+        for name in ("ce-pack", "ce-addons"):
+            pack = child / name
+            if pack.exists():
+                shutil.rmtree(pack, ignore_errors=True)
+
+
+def _write_selected_blobs(
+    selected: list[tuple[PurePosixPath, int, str]],
+    total: int,
+    executable: set[PurePosixPath],
+    *,
+    encoded_repository: str,
+    commit: str,
+    destination: Path,
+    opener,
+    reporter: InstallReporter | None,
+) -> Path:
     if reporter is not None:
         reporter.begin_download(total, detail=f"{len(selected)} source files")
         reporter.trace(f"download {len(selected)} files ({total} bytes)")
-
     source = destination / "chaos-engine"
     source.mkdir()
     mkdir_lock = threading.Lock()
@@ -2528,14 +3118,13 @@ def download_source_remote(
             f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
             limit=MAX_FILE_BYTES,
             progress=None if reporter is None else reporter.downloaded,
+            purpose="download",
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
         actual_sha = git_blob_sha1(content)
         if actual_sha.casefold() != expected_sha.casefold():
-            raise ValueError(
-                "ChaosEngine source file hash does not match the resolved tree"
-            )
+            raise ValueError("ChaosEngine source file hash does not match the resolved tree")
         target = destination.joinpath(*repository_path.parts)
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -2553,6 +3142,73 @@ def download_source_remote(
     return source
 
 
+def download_source_remote(
+    repository: str,
+    commit: str,
+    destination: Path,
+    *,
+    opener=urllib.request.urlopen,
+    reporter: InstallReporter | None = None,
+) -> Path:
+    """Download the core and sibling packs. A tarball is used only when its bytes are bound to a resolved tree."""
+    encoded_repository = "/".join(
+        urllib.parse.quote(part, safe="") for part in repository.split("/")
+    )
+    tree_shas: dict[str, str] = {}
+    expected: list[tuple[PurePosixPath, int, str]] | None = None
+    executable: set[PurePosixPath] | None = None
+    try:
+        try:
+            tree, tree_shas = fetch_chaos_engine_tree(encoded_repository, commit, opener)
+        except ResolvedTreeUnavailable as incomplete:
+            tree_shas = incomplete.tree_shas
+            cause = incomplete.__cause__
+            if cause is None:
+                raise
+            raise cause
+        selected, total, executable = _select_source_blobs(tree)
+        if not selected:
+            raise ValueError("ChaosEngine source tree has an unexpected layout")
+        if len(selected) > MAX_FILES:
+            raise ValueError("ChaosEngine source tree contains too many files")
+        if total > MAX_SOURCE_BYTES:
+            raise ValueError("ChaosEngine source tree exceeds the download limit")
+        expected = selected
+        return _write_selected_blobs(
+            selected,
+            total,
+            executable,
+            encoded_repository=encoded_repository,
+            commit=commit,
+            destination=destination,
+            opener=opener,
+            reporter=reporter,
+        )
+    except (RuntimeError, OSError, urllib.error.URLError, ValueError) as error:
+        if not _tarball_fallback_allowed(error):
+            raise
+        if expected is None and "chaos-engine" not in tree_shas:
+            raise
+        trace_upstream_failure(reporter, error)
+        if reporter is not None:
+            reporter.trace("download falling back to source tarball")
+        _clear_partial_source(destination)
+        try:
+            return download_source_tarball(
+                encoded_repository,
+                commit,
+                destination,
+                opener=opener,
+                reporter=reporter,
+                expected=expected,
+                executable=executable,
+                tree_shas=tree_shas if expected is None else None,
+            )
+        except (RuntimeError, OSError, urllib.error.URLError, ValueError):
+            _clear_partial_source(destination)
+            raise
+
+
 def load_installer(source: Path):
     path = source / "install.py"
     return types.SimpleNamespace(**runpy.run_path(str(path)))
@@ -2567,6 +3223,483 @@ def resolve_distribution(installer, project: Path, source: Path, requested: str 
         if isinstance(guessed, str) and guessed.strip():
             return guessed.strip()
     return "portable"
+
+
+def _walk_upstream(error: BaseException):
+    current: BaseException | None = error
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen and len(seen) < 8:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def upstream_url_path(error: BaseException) -> str | None:
+    """First recorded URL path on this failure. Path only; no query, userinfo, or local path."""
+    for item in _walk_upstream(error):
+        path = getattr(item, "url_path", None)
+        if isinstance(path, str) and path.startswith("/") and ".." not in path.split("/"):
+            return path[:400]
+    return None
+
+
+def upstream_http_status(error: BaseException) -> int | None:
+    for item in _walk_upstream(error):
+        status = getattr(item, "http_status", None)
+        if isinstance(status, int):
+            return status
+    return None
+
+
+def trace_upstream_failure(reporter: InstallReporter | None, error: BaseException) -> None:
+    if reporter is None:
+        return
+    path = upstream_url_path(error)
+    if path is None:
+        return
+    message = f"upstream failed path={path}"
+    if any(item[1] == message for item in reporter.traces):
+        return
+    reporter.trace(message)
+
+
+def _failure_before_install_core(reporter: InstallReporter) -> bool:
+    if reporter.current_operation == "Install core":
+        return False
+    if "Install core" in reporter.completed_operations or "Install core" in reporter._in_flight:
+        return False
+    return True
+
+
+def _defer_installed_upgrade(
+    prior_install: bool, reporter: InstallReporter, error: BaseException
+) -> bool:
+    """A transient resolve/download failure must not hard-fail a core that is already installed."""
+    if not prior_install or isinstance(error, (KeyboardInterrupt, SystemExit, InstallCancelled)):
+        return False
+    return _failure_before_install_core(reporter)
+
+
+def _redact_report_value(value: object) -> object:
+    if isinstance(value, str):
+        return redact_report_text(value)
+    if isinstance(value, dict):
+        return {str(key): _redact_report_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_report_value(item) for item in value]
+    return value
+
+
+def _bounded_doctor(doctor: dict) -> dict[str, object]:
+    wrapped = RuntimeError("doctor")
+    wrapped.doctor = doctor  # type: ignore[attr-defined]
+    report = doctor_failure_payload(wrapped)
+    redacted = _redact_report_value(report)
+    return redacted if isinstance(redacted, dict) else {}
+
+
+def existing_core_doctor(project: Path) -> dict[str, object]:
+    """Run the installed core's doctor. A doctor failure leaves that core in place."""
+    commit = installed_core_commit(project)
+    fallback: dict[str, object] = {"status": "unknown", "commit": commit, "components": {}}
+    run = installed_core_doctor(project / ".chaos-engine")
+    if not callable(run):
+        return fallback
+    try:
+        document = run(project, verify_clients=False)
+    except Exception:
+        return fallback
+    if not isinstance(document, dict):
+        return fallback
+    report = _bounded_doctor(document)
+    if not isinstance(report.get("commit"), str):
+        report["commit"] = commit
+    if not isinstance(report.get("components"), dict):
+        report["components"] = {}
+    if not isinstance(report.get("status"), str) or not report.get("status"):
+        report["status"] = "unknown"
+    return report
+
+
+def emit_upgrade_deferred(
+    reporter: InstallReporter, report: dict[str, object], error: BaseException
+) -> None:
+    commit = report.get("commit") if isinstance(report.get("commit"), str) else None
+    status = report.get("status") if isinstance(report.get("status"), str) else "unknown"
+    components = report.get("components") if isinstance(report.get("components"), dict) else {}
+    names = ", ".join(sorted(str(name) for name in components)) or "none"
+    http_status = upstream_http_status(error)
+    reason = f"GitHub returned HTTP {http_status}" if http_status is not None else "the upgrade could not be downloaded"
+    subject = f"ChaosEngine {commit}" if commit else "ChaosEngine"
+    if status == "healthy" and commit:
+        state = f"Your installed {subject} is unchanged and working."
+    else:
+        state = f"Your installed {subject} is unchanged."
+    reporter.stream.write(
+        "\n".join(
+            (
+                "CE-UPGRADE-DEFERRED",
+                state,
+                f"{reason}. Rerun the installer later.",
+                f"Doctor status {status}; commit {commit or 'unknown'}; components {names}.",
+                "",
+            )
+        )
+    )
+    reporter.stream.flush()
+    reporter.trace("upgrade deferred CE-UPGRADE-DEFERRED")
+
+
+def installed_upgrade_deferred(
+    project: Path, reporter: InstallReporter, error: BaseException
+) -> dict[str, object]:
+    report = existing_core_doctor(project)
+    emit_upgrade_deferred(reporter, report, error)
+    commit = report.get("commit") if isinstance(report.get("commit"), str) else None
+    return {
+        "status": "upgrade-skipped",
+        "error": "CE-UPGRADE-DEFERRED",
+        "cause": one_line_cause(error),
+        "commit": commit,
+        "components": report.get("components") if isinstance(report.get("components"), dict) else {},
+        "doctor": report,
+        "root": ".chaos-engine",
+    }
+
+
+def _open_install_terminal(interactive: bool, terminal_factory):
+    try:
+        terminal_context = terminal_factory() if interactive else None
+        if terminal_context is not None:
+            return terminal_context, terminal_context.__enter__()
+        return None, None
+    except OSError as error:
+        raise RuntimeError("interactive mode requires a usable controlling terminal") from error
+
+
+def _install_operations(skip_tools: bool, with_maven_tools: bool) -> list[str]:
+    operations = ["Resolve source", "Download source", "Install core"]
+    if not skip_tools:
+        operations.extend(("Provision dependencies", "Verify installation", "Activate clients"))
+    if with_maven_tools:
+        operations.insert(-2, "Install Maven Tools")
+    return operations
+
+
+def _run_core_install(
+    project: Path,
+    scratch: dict,
+    *,
+    repository: str,
+    branch: str | None,
+    skip_tools: bool,
+    with_maven_tools: bool,
+    maven_tools_mode: str,
+    distribution: str | None,
+    opener,
+    provisioner,
+    reporter: InstallReporter,
+    bundle_options: dict[str, bool] | None,
+    addons_requested: set[str] | None,
+    addons_removed: set[str] | None,
+    confirm,
+    remaining,
+) -> tuple[Path, str, object]:
+    confirm("Resolve source")
+    reporter.start("Resolve source", remaining=remaining("Resolve source"))
+    commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
+    reporter.complete("Resolve source", remaining=remaining("Resolve source"))
+    scratch["temporary"] = tempfile.TemporaryDirectory(
+        prefix="chaos-engine-bootstrap-", dir=disjoint_download_parent(project)
+    )
+    temporary = scratch["temporary"]
+    source_url = f"https://github.com/{repository}/tree/{commit}/chaos-engine"
+    confirm("Download source")
+    reporter.start("Download source", remaining=remaining("Download source"), detail=source_url)
+    source = download_source(
+        repository, commit, Path(temporary.name), opener=opener, reporter=reporter
+    )
+    reporter.complete("Download source", remaining=remaining("Download source"))
+    installer = load_installer(source)
+    addons: tuple[str, ...] = ()
+    plan = getattr(installer, "plan_install", None)
+    planned = plan(project, source, addons_requested or set(), addons_removed or set()) if callable(plan) else None
+    if isinstance(planned, tuple) and len(planned) == 2 and isinstance(planned[0], str):
+        distribution = distribution or planned[0]
+        addons = tuple(planned[1])
+        if addons:
+            download_addon_files(
+                repository, commit, Path(temporary.name), source, addons, opener=opener, reporter=reporter
+            )
+    elif addons_requested or addons_removed:
+        raise ValueError("this ChaosEngine revision does not support optional add-ons")
+    distribution = resolve_distribution(installer, project, source, distribution)
+    addon_options = {"addons": addons} if addons else {}
+    if distribution == "portable":
+        provenance = {
+            "kind": "git-digest",
+            "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
+            "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
+            "commit": commit,
+        }
+    else:
+        provenance = {
+            "kind": "git",
+            "repository": repository,
+            "branch": resolved_branch,
+            "commit": commit,
+        }
+    legacy_layout = getattr(installer, "legacy_profile_layout", None)
+    legacy_packs = legacy_layout(project / ".chaos-engine") if callable(legacy_layout) else []
+    confirm("Install core")
+    reporter.start("Install core", remaining=remaining("Install core"))
+    reporter.trace(f"install core commit={commit} distribution={distribution}")
+    if skip_tools:
+        target = installer.install(
+            project, source, commit, source_record=provenance, distribution=distribution,
+            **addon_options,
+        )
+        reporter.complete("Install core", remaining=remaining("Install core"))
+    else:
+        # Core and provision are sequential: install_with_dependencies completes
+        # "Install core" then starts "Provision dependencies" before deps work.
+        confirm("Provision dependencies")
+        if with_maven_tools:
+            confirm("Install Maven Tools")
+        target = installer.install_with_dependencies(
+            project,
+            source,
+            commit,
+            provisioner=provisioner,
+            source_record=provenance,
+            distribution=distribution,
+            with_maven_tools=with_maven_tools,
+            maven_tools_mode=maven_tools_mode,
+            reporter=reporter,
+            confirmer=confirm,
+            bundle_options=bundle_options,
+            **addon_options,
+        )
+        _complete_dependency_steps(reporter, remaining, with_maven_tools=with_maven_tools)
+    suggest = getattr(installer, "suggest_addons", None)
+    tips = suggest(project, source, addons) if callable(suggest) else []
+    if tips:
+        print(installer.addon_tip(tips), file=sys.stderr)
+    if legacy_packs:
+        # CE-10 hard cut: name the replaced profiles/<name> layout once.
+        replaced = not legacy_layout(project / ".chaos-engine")
+        print(installer.hard_cut_message(legacy_packs, replaced=replaced), file=sys.stderr)
+    return target, commit, installer
+
+
+def _complete_dependency_steps(reporter: InstallReporter, remaining, *, with_maven_tools: bool) -> None:
+    if with_maven_tools and "Install Maven Tools" in getattr(reporter, "_in_flight", ()):
+        reporter.complete("Install Maven Tools", remaining=remaining("Install Maven Tools"))
+    if "Provision dependencies" in getattr(reporter, "_in_flight", ()) or (
+        reporter.current_operation == "Provision dependencies"
+    ):
+        reporter.complete(
+            "Provision dependencies",
+            remaining=remaining("Provision dependencies"),
+        )
+    if "Install core" in getattr(reporter, "_in_flight", ()) or (
+        reporter.current_operation == "Install core"
+    ):
+        reporter.complete("Install core", remaining=remaining("Install core"))
+
+
+def _publish_heal_handoff(
+    project: Path,
+    *,
+    repository: str,
+    commit: str,
+    target: Path,
+    installer,
+    host_controller,
+    reporter: InstallReporter,
+    remaining,
+    confirm,
+    interactive: bool,
+    terminal_context,
+    doctor: dict,
+    health_error: BaseException,
+) -> dict[str, object]:
+    reporter.complete("Verify installation", remaining=remaining("Verify installation"))
+    try:
+        confirm("Activate clients")
+        reporter.start("Activate clients", remaining=remaining("Activate clients"))
+        if interactive:
+            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
+        else:
+            clients = host_controller.activate_detected_plugins(project)
+        reporter.complete("Activate clients", remaining=())
+    except Exception:
+        clients = {"clients": {}}
+    prefix = installer_cli_prefix(project) or "python3 .chaos-engine/install.py"
+    fields = installer_issue_fields(
+        "CE-INSTALL-FAILED",
+        health_error,
+        reporter,
+        project,
+        f"{prefix} status --project . --json",
+        f"{prefix} doctor --project . --json",
+    )
+    issue_url = publish_installer_issue(repository, "CE-INSTALL-FAILED", fields)
+    write_heal_handoff(project, fields, issue_url)
+    doctor["clients"] = clients.get("clients", {})
+    if terminal_context is not None:
+        terminal_context.__exit__(None, None, None)
+    reporter.success(
+        project,
+        doctor,
+        doctor["clients"],
+        repository=repository,
+        include_heal_handoff=True,
+    )
+    reporter.close()
+    return {
+        "status": "heal-handoff",
+        "root": str(target),
+        "commit": commit,
+        "clients": clients,
+        "doctor": doctor,
+        "issueUrl": issue_url,
+    }
+
+
+def _rollback_failed_verify(
+    project: Path,
+    error: BaseException,
+    *,
+    prior_install: bool,
+    installer,
+    commit: str,
+    terminal_context,
+) -> None:
+    if isinstance(error, InstallHealthError) and prior_install:
+        error.observed_upgrade_commit = error.observed_commit
+        error.observed_upgrade_components = error.observed_components
+        error.observed_upgrade_component_details = error.observed_component_details
+    if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
+        _rollback_replaced_core(project, error, prior_install=prior_install, installer=installer, commit=commit)
+    if terminal_context is not None:
+        terminal_context.__exit__(*sys.exc_info())
+    raise
+
+
+def _rollback_replaced_core(
+    project: Path,
+    error: BaseException,
+    *,
+    prior_install: bool,
+    installer,
+    commit: str,
+) -> None:
+    backup = project / ".chaos-engine.backup"
+    keep_core = False
+    if prior_install and backup.exists():
+        probe = getattr(installer, "account_rollback_has_exact_prior_host_receipt", None)
+        if callable(probe):
+            try:
+                keep_core = probe(project) is False
+            except (OSError, ValueError):
+                # A probe failure must not replace the verify error.
+                keep_core = True
+    if prior_install and backup.exists() and not keep_core:
+        _swap_back_previous_core(project, error, installer=installer, commit=commit)
+
+
+def _swap_back_previous_core(project: Path, error: BaseException, *, installer, commit: str) -> None:
+    core_marker = project / ".chaos-engine" / "install.py"
+    core_before = _regular_file_bytes(core_marker)
+    try:
+        installer.rollback(project)
+    except ValueError as rollback_error:
+        # A missing receipt raised before any swap keeps the new core.
+        # A swap that already replaced the core must stay visible.
+        core_unchanged = core_before is not None and _regular_file_bytes(core_marker) == core_before
+        if not (_inexact_prior_rollback(rollback_error) and core_unchanged):
+            raise
+    else:
+        # #6338: say which core is installed after the rollback.
+        restored = installed_core_commit(project)
+        if restored is not None:
+            error.rolled_back_to = restored  # type: ignore[attr-defined]
+            error.rolled_back_from = commit  # type: ignore[attr-defined]
+            record_install_rollback(project, commit, restored)
+
+
+def _verify_and_activate(
+    project: Path,
+    *,
+    repository: str,
+    commit: str,
+    target: Path,
+    installer,
+    reporter: InstallReporter,
+    remaining,
+    confirm,
+    interactive: bool,
+    prior_install: bool,
+    terminal_context,
+) -> dict[str, object]:
+    host_controller = installer.load_installed_controller(target, "hosts")
+    try:
+        reporter.start("Verify installation", remaining=remaining("Verify installation"))
+        migrate = getattr(host_controller, "migrate_legacy_memory_store", None)
+        if callable(migrate):
+            migrate(project)
+        doctor = verify_gate_doctor(installer, target, project)
+        if _required_install_unhealthy(doctor):
+            health_error = InstallHealthError("Verify installation", doctor)
+            if not prior_install and core_install_py(project):
+                return _publish_heal_handoff(
+                    project,
+                    repository=repository,
+                    commit=commit,
+                    target=target,
+                    installer=installer,
+                    host_controller=host_controller,
+                    reporter=reporter,
+                    remaining=remaining,
+                    confirm=confirm,
+                    interactive=interactive,
+                    terminal_context=terminal_context,
+                    doctor=doctor,
+                    health_error=health_error,
+                )
+            raise health_error
+        reporter.complete("Verify installation", remaining=remaining("Verify installation"))
+        confirm("Activate clients")
+        reporter.start("Activate clients", remaining=remaining("Activate clients"))
+        if interactive:
+            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
+        else:
+            clients = host_controller.activate_detected_plugins(project)
+        reporter.complete("Activate clients", remaining=())
+        doctor = final_install_doctor(target, project, doctor)
+        doctor["clients"] = clients.get("clients", {})
+    except BaseException as error:
+        reporter.close()
+        _rollback_failed_verify(
+            project,
+            error,
+            prior_install=prior_install,
+            installer=installer,
+            commit=commit,
+            terminal_context=terminal_context,
+        )
+    if terminal_context is not None:
+        terminal_context.__exit__(None, None, None)
+    reporter.success(project, doctor, doctor["clients"], repository=repository)
+    reporter.close()
+    return {
+        "status": "installed",
+        "root": str(target),
+        "commit": commit,
+        "clients": clients,
+        "doctor": doctor,
+    }
 
 
 def install_latest(
@@ -2597,14 +3730,7 @@ def install_latest(
     )
     reporter = reporter or InstallReporter()
     reporter.announce(project, repository, branch or "default")
-    try:
-        terminal_context = terminal_factory() if interactive else None
-        if terminal_context is not None:
-            terminal_input = terminal_context.__enter__()
-        else:
-            terminal_input = None
-    except OSError as error:
-        raise RuntimeError("interactive mode requires a usable controlling terminal") from error
+    terminal_context, terminal_input = _open_install_terminal(interactive, terminal_factory)
     if terminal_input is not None:
         run_first_run_wizard(
             project=project,
@@ -2613,256 +3739,64 @@ def install_latest(
             input_stream=terminal_input,
             output=reporter.stream,
         )
+
     def confirm(name: str) -> None:
         if terminal_input is not None:
             confirm_operation(name, input_stream=terminal_input, output=reporter.stream)
-    operations = ["Resolve source", "Download source", "Install core"]
-    if not skip_tools:
-        operations.extend(("Provision dependencies", "Verify installation", "Activate clients"))
-    if with_maven_tools:
-        operations.insert(-2, "Install Maven Tools")
+
+    operations = _install_operations(skip_tools, with_maven_tools)
     remaining = lambda name: tuple(operations[operations.index(name) + 1 :])
     prior_install = (project / ".chaos-engine").exists()
-    temporary = None
+    scratch: dict = {"temporary": None}
     try:
-        confirm("Resolve source")
-        reporter.start("Resolve source", remaining=remaining("Resolve source"))
-        commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
-        reporter.complete("Resolve source", remaining=remaining("Resolve source"))
-        temporary = tempfile.TemporaryDirectory(
-            prefix="chaos-engine-bootstrap-", dir=disjoint_download_parent(project)
+        target, commit, installer = _run_core_install(
+            project,
+            scratch,
+            repository=repository,
+            branch=branch,
+            skip_tools=skip_tools,
+            with_maven_tools=with_maven_tools,
+            maven_tools_mode=maven_tools_mode,
+            distribution=distribution,
+            opener=opener,
+            provisioner=provisioner,
+            reporter=reporter,
+            bundle_options=bundle_options,
+            addons_requested=addons_requested,
+            addons_removed=addons_removed,
+            confirm=confirm,
+            remaining=remaining,
         )
-        source_url = f"https://github.com/{repository}/tree/{commit}/chaos-engine"
-        confirm("Download source")
-        reporter.start("Download source", remaining=remaining("Download source"), detail=source_url)
-        source = download_source(
-            repository, commit, Path(temporary.name), opener=opener, reporter=reporter
-        )
-        reporter.complete("Download source", remaining=remaining("Download source"))
-        installer = load_installer(source)
-        addons: tuple[str, ...] = ()
-        plan = getattr(installer, "plan_install", None)
-        planned = plan(project, source, addons_requested or set(), addons_removed or set()) if callable(plan) else None
-        if isinstance(planned, tuple) and len(planned) == 2 and isinstance(planned[0], str):
-            distribution = distribution or planned[0]
-            addons = tuple(planned[1])
-            if addons:
-                download_addon_files(
-                    repository, commit, Path(temporary.name), source, addons, opener=opener, reporter=reporter
-                )
-        elif addons_requested or addons_removed:
-            raise ValueError("this ChaosEngine revision does not support optional add-ons")
-        distribution = resolve_distribution(installer, project, source, distribution)
-        addon_options = {"addons": addons} if addons else {}
-        if distribution == "portable":
-            provenance = {
-                "kind": "git-digest",
-                "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
-                "branchSha256": hashlib.sha256(resolved_branch.encode()).hexdigest(),
-                "commit": commit,
-            }
-        else:
-            provenance = {
-                "kind": "git",
-                "repository": repository,
-                "branch": resolved_branch,
-                "commit": commit,
-            }
-        legacy_layout = getattr(installer, "legacy_profile_layout", None)
-        legacy_packs = legacy_layout(project / ".chaos-engine") if callable(legacy_layout) else []
-        confirm("Install core")
-        reporter.start("Install core", remaining=remaining("Install core"))
-        reporter.trace(f"install core commit={commit} distribution={distribution}")
-        if skip_tools:
-            target = installer.install(
-                project, source, commit, source_record=provenance, distribution=distribution,
-                **addon_options,
-            )
-            reporter.complete("Install core", remaining=remaining("Install core"))
-        else:
-            # Core and provision are sequential: install_with_dependencies completes
-            # "Install core" then starts "Provision dependencies" before deps work.
-            confirm("Provision dependencies")
-            if with_maven_tools:
-                confirm("Install Maven Tools")
-            target = installer.install_with_dependencies(
-                project,
-                source,
-                commit,
-                provisioner=provisioner,
-                source_record=provenance,
-                distribution=distribution,
-                with_maven_tools=with_maven_tools,
-                maven_tools_mode=maven_tools_mode,
-                reporter=reporter,
-                confirmer=confirm,
-                bundle_options=bundle_options,
-                **addon_options,
-            )
-            if with_maven_tools and "Install Maven Tools" in getattr(
-                reporter, "_in_flight", ()
-            ):
-                reporter.complete(
-                    "Install Maven Tools", remaining=remaining("Install Maven Tools")
-                )
-            if "Provision dependencies" in getattr(reporter, "_in_flight", ()) or (
-                reporter.current_operation == "Provision dependencies"
-            ):
-                reporter.complete(
-                    "Provision dependencies",
-                    remaining=remaining("Provision dependencies"),
-                )
-            if "Install core" in getattr(reporter, "_in_flight", ()) or (
-                reporter.current_operation == "Install core"
-            ):
-                reporter.complete("Install core", remaining=remaining("Install core"))
-        suggest = getattr(installer, "suggest_addons", None)
-        tips = suggest(project, source, addons) if callable(suggest) else []
-        if tips:
-            print(installer.addon_tip(tips), file=sys.stderr)
-        if legacy_packs:
-            # CE-10 hard cut: name the replaced profiles/<name> layout once.
-            replaced = not legacy_layout(project / ".chaos-engine")
-            print(installer.hard_cut_message(legacy_packs, replaced=replaced), file=sys.stderr)
-        temporary.cleanup()
-    except BaseException:
+        scratch["temporary"].cleanup()
+    except BaseException as error:
+        trace_upstream_failure(reporter, error)
+        defer = _defer_installed_upgrade(prior_install, reporter, error)
         reporter.close()
-        if temporary is not None:
-            temporary.cleanup()
+        if scratch["temporary"] is not None:
+            scratch["temporary"].cleanup()
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
+        if defer:
+            return installed_upgrade_deferred(project, reporter, error)
         raise
     if skip_tools or provisioner is not None:
         if terminal_context is not None:
             terminal_context.__exit__(None, None, None)
         reporter.close()
         return {"status": "installed", "root": str(target), "commit": commit}
-    host_controller = installer.load_installed_controller(target, "hosts")
-    try:
-        reporter.start("Verify installation", remaining=remaining("Verify installation"))
-        migrate = getattr(host_controller, "migrate_legacy_memory_store", None)
-        if callable(migrate):
-            migrate(project)
-        doctor = verify_gate_doctor(installer, target, project)
-        if _required_install_unhealthy(doctor):
-            health_error = InstallHealthError("Verify installation", doctor)
-            if not prior_install and core_install_py(project):
-                reporter.complete(
-                    "Verify installation", remaining=remaining("Verify installation")
-                )
-                try:
-                    confirm("Activate clients")
-                    reporter.start(
-                        "Activate clients", remaining=remaining("Activate clients")
-                    )
-                    if interactive:
-                        clients = host_controller.activate_detected_plugins(
-                            project, confirmer=confirm
-                        )
-                    else:
-                        clients = host_controller.activate_detected_plugins(project)
-                    reporter.complete("Activate clients", remaining=())
-                except Exception:
-                    clients = {"clients": {}}
-                prefix = installer_cli_prefix(project) or "python3 .chaos-engine/install.py"
-                fields = installer_issue_fields(
-                    "CE-INSTALL-FAILED",
-                    health_error,
-                    reporter,
-                    project,
-                    f"{prefix} status --project . --json",
-                    f"{prefix} doctor --project . --json",
-                )
-                issue_url = publish_installer_issue(
-                    repository, "CE-INSTALL-FAILED", fields
-                )
-                write_heal_handoff(project, fields, issue_url)
-                doctor["clients"] = clients.get("clients", {})
-                if terminal_context is not None:
-                    terminal_context.__exit__(None, None, None)
-                reporter.success(
-                    project,
-                    doctor,
-                    doctor["clients"],
-                    repository=repository,
-                    include_heal_handoff=True,
-                )
-                reporter.close()
-                return {
-                    "status": "heal-handoff",
-                    "root": str(target),
-                    "commit": commit,
-                    "clients": clients,
-                    "doctor": doctor,
-                    "issueUrl": issue_url,
-                }
-            raise health_error
-        reporter.complete(
-            "Verify installation", remaining=remaining("Verify installation")
-        )
-        confirm("Activate clients")
-        reporter.start("Activate clients", remaining=remaining("Activate clients"))
-        if interactive:
-            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
-        else:
-            clients = host_controller.activate_detected_plugins(project)
-        reporter.complete("Activate clients", remaining=())
-        doctor = final_install_doctor(target, project, doctor)
-        doctor["clients"] = clients.get("clients", {})
-    except BaseException as error:
-        reporter.close()
-        if isinstance(error, InstallHealthError) and prior_install:
-            error.observed_upgrade_commit = error.observed_commit
-            error.observed_upgrade_components = error.observed_components
-            error.observed_upgrade_component_details = error.observed_component_details
-        if not isinstance(error, (KeyboardInterrupt, InstallCancelled)):
-            backup = project / ".chaos-engine.backup"
-            keep_core = False
-            if prior_install and backup.exists():
-                probe = getattr(
-                    installer, "account_rollback_has_exact_prior_host_receipt", None
-                )
-                if callable(probe):
-                    try:
-                        keep_core = probe(project) is False
-                    except (OSError, ValueError):
-                        # A probe failure must not replace the verify error.
-                        keep_core = True
-            if prior_install and backup.exists() and not keep_core:
-                core_marker = project / ".chaos-engine" / "install.py"
-                core_before = _regular_file_bytes(core_marker)
-                try:
-                    installer.rollback(project)
-                except ValueError as rollback_error:
-                    # A missing receipt raised before any swap keeps the new core.
-                    # A swap that already replaced the core must stay visible.
-                    core_unchanged = (
-                        core_before is not None
-                        and _regular_file_bytes(core_marker) == core_before
-                    )
-                    if not (_inexact_prior_rollback(rollback_error) and core_unchanged):
-                        raise
-                else:
-                    # #6338: say which core is installed after the rollback.
-                    restored = installed_core_commit(project)
-                    if restored is not None:
-                        error.rolled_back_to = restored  # type: ignore[attr-defined]
-                        error.rolled_back_from = commit  # type: ignore[attr-defined]
-                        record_install_rollback(project, commit, restored)
-        if terminal_context is not None:
-            terminal_context.__exit__(*sys.exc_info())
-        raise
-    if terminal_context is not None:
-        terminal_context.__exit__(None, None, None)
-    reporter.success(project, doctor, doctor["clients"], repository=repository)
-    reporter.close()
-    return {
-        "status": "installed",
-        "root": str(target),
-        "commit": commit,
-        "clients": clients,
-        "doctor": doctor,
-    }
+    return _verify_and_activate(
+        project,
+        repository=repository,
+        commit=commit,
+        target=target,
+        installer=installer,
+        reporter=reporter,
+        remaining=remaining,
+        confirm=confirm,
+        interactive=interactive,
+        prior_install=prior_install,
+        terminal_context=terminal_context,
+    )
 
 
 def parser() -> argparse.ArgumentParser:
@@ -3305,7 +4239,9 @@ def run_pack_post_install(
     """Download the pack's installer from the same commit and run it in the project."""
     encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
     content = read_response(
-        opener, f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{entry['script']}"
+        opener,
+        f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{entry['script']}",
+        purpose="download",
     )
     with tempfile.TemporaryDirectory(prefix="ce-pack-post-install-") as temporary:
         script = Path(temporary) / Path(entry["script"]).name
@@ -3412,7 +4348,9 @@ def main() -> int:
         )
         return 1
     reporter.close()
-    post_install_code = post_install_packs(args, result) if isinstance(result, dict) else 0
+    post_install_code = 0
+    if isinstance(result, dict) and result.get("status") != "upgrade-skipped":
+        post_install_code = post_install_packs(args, result)
     if not getattr(sys.stdout, "isatty", lambda: False)():
         print(json.dumps(result, sort_keys=True))
     return 1 if post_install_code else 0
