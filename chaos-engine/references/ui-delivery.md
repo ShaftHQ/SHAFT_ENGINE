@@ -20,7 +20,7 @@ Return to the router after delivery. The optional `design-skills`
   PR-body checklist. An uncited practice is a guess.
 - Find which PR workflow runs the UI/e2e suite
   (`rg -n "pull_request|playwright|e2e" .github/workflows`). A push-only suite
-  or a `--grep` subset is a coverage gap. An IDE change needs a real IDE under
+  or a `--grep` subset is a CI coverage gap. An IDE change needs a real IDE under
   a headless display and an evidence folder.
 
 ## Red, then green

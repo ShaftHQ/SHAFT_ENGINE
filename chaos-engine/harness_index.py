@@ -91,9 +91,9 @@ SKILLS = (
      "and tracker hygiene. On demand only.", "on-demand"),
     # On demand only: source-of-truth docs, status vocabulary, journey maps (#7726).
     ("docs-hygiene", "portable", "skills/docs-hygiene/SKILL.md",
-     "Use when editing source-of-truth docs, status tables, journey maps, or hour "
-     "totals: three sources, Done / In progress / Not started, live hour formulas, "
-     "full journeys, and a delete-guard upstream check. On demand only.", "on-demand"),
+     "Use when editing source-of-truth docs or status tables: three sources, "
+     "Done / In progress / Not started, and live hour formulas. On demand only.",
+     "on-demand"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
