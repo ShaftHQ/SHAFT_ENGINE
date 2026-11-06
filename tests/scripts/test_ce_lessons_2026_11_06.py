@@ -1122,6 +1122,72 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertFalse(any("ghp_" in item for item in hits))
 
+    def test_merge_resolution_secret_still_fails_closed(self) -> None:
+        boundary = _load("ce_operation_merge_history_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args: str) -> None:
+                subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)  # nosec B603 B607
+
+            git("init")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            (root / "status.md").write_text("clean\n", encoding="utf-8")
+            git("add", "status.md")
+            git("commit", "-m", "root")
+            git("checkout", "-b", "left")
+            (root / "left.md").write_text("left\n", encoding="utf-8")
+            git("add", "left.md")
+            git("commit", "-m", "left")
+            git("checkout", "-b", "right", "HEAD~1")
+            (root / "right.md").write_text("right\n", encoding="utf-8")
+            git("add", "right.md")
+            git("commit", "-m", "right")
+            git("checkout", "left")
+            git("merge", "right", "--no-commit")
+            (root / "status.md").write_text("token ghp_abcdefghij123456\n", encoding="utf-8")
+            git("add", "status.md")
+            git("commit", "-m", "merge in")
+            git("checkout", "-b", "later", "right")
+            (root / "later.md").write_text("later\n", encoding="utf-8")
+            git("add", "later.md")
+            git("commit", "-m", "later")
+            git("checkout", "left")
+            git("merge", "later", "--no-commit")
+            (root / "status.md").write_text("clean\n", encoding="utf-8")
+            git("add", "status.md")
+            git("commit", "-m", "merge out")
+            empty = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+            plain = subprocess.run(  # nosec B603 B607 - fixed git log of the temp repo.
+                ["git", "log", "-p", "--no-color", f"{empty}..HEAD"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            net = subprocess.run(  # nosec B603 B607 - fixed git diff of the temp repo.
+                ["git", "diff", "--no-color", empty, "HEAD"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            index = subprocess.run(  # nosec B603 B607 - fixed git diff of the temp index.
+                ["git", "diff", "--cached", "--no-color"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotIn("ghp_", plain.stdout)
+            self.assertNotIn("ghp_", net.stdout)
+            self.assertNotIn("ghp_", index.stdout)
+            self.assertNotIn("ghp_", (root / "status.md").read_text(encoding="utf-8"))
+            hits = boundary.disk_blocks(root, ["status.md"])
+            self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
+            self.assertFalse(any("ghp_" in item for item in hits))
+
 
 class AdversarialEvidenceTest(TestCase):
     def setUp(self) -> None:

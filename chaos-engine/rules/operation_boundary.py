@@ -194,8 +194,13 @@ def committed_secret_failures(root: Path) -> list[str]:
     if not base:
         return []
     exclude = [".", ":(exclude)tests", ":(exclude)tests/**"]
-    # Every outgoing commit, not the net tree. A later removal must not hide an introduced secret.
-    history = _git(Path(root), ["log", "-p", "--no-color", f"{base}..HEAD", "--", *exclude])
+    # Every outgoing commit, including merge resolutions. Default `git log -p`
+    # omits merge patches, so a secret that exists only in a merge commit would
+    # disappear after a later merge removes it.
+    history = _git(
+        Path(root),
+        ["log", "-p", "--diff-merges=first-parent", "--no-color", f"{base}..HEAD", "--", *exclude],
+    )
     head = _git(Path(root), ["diff", "--no-color", f"{base}..HEAD", "--", *exclude])
     staged = _git(Path(root), ["diff", "--cached", "--no-color", "--", *exclude])
     scans = (history, head, staged)
