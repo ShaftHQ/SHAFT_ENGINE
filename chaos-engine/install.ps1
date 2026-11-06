@@ -4,6 +4,7 @@
 [CmdletBinding()]
 param(
     [switch]$ParseOnly,
+    [switch]$ProvisionPythonShim,
     [switch]$WithMavenTools,
     [ValidateSet("native", "docker")][string]$MavenToolsMode = "native",
     [switch]$Interactive,
@@ -147,6 +148,68 @@ function Install-ChaosEngineUv([string]$Work) {
     $uv = Join-Path $Work "uv.exe"
     if (-not (Test-Path -LiteralPath $uv -PathType Leaf)) { throw "uv archive is missing its executable" }
     return $uv
+}
+
+function Install-ChaosEnginePyShim([string]$Interpreter, [string]$ShimDir) {
+    # The launcher is embedded in this script. A fresh adopter project has no
+    # source checkout and no separate shim file to copy.
+    if ([string]::IsNullOrWhiteSpace($Interpreter)) { throw "py shim interpreter is missing" }
+    if ([string]::IsNullOrWhiteSpace($ShimDir)) { throw "py shim directory is missing" }
+    New-Item -ItemType Directory -Force -Path $ShimDir | Out-Null
+    $quoted = $Interpreter.Replace('"', '""')
+    $shimPy = Join-Path $ShimDir "windows_py_shim.py"
+    $shimQuoted = $shimPy.Replace('"', '""')
+    # SHIM-PY-START
+    $shimSource = @'
+import os
+import sys
+
+args = sys.argv[1:]
+if not args:
+    sys.stderr.write("py shim missing interpreter\n")
+    raise SystemExit(2)
+interpreter = args[0]
+user = args[1:]
+if user and user[0] == "-3":
+    user = user[1:]
+if os.name == "nt":
+    import subprocess
+    raise SystemExit(subprocess.run([interpreter, *user]).returncode)
+os.execv(interpreter, [interpreter, *user])
+'@
+    # SHIM-PY-END
+    Set-Content -LiteralPath $shimPy -Value $shimSource -Encoding ascii
+    # %* stays the original argument list. -3 is an argument of the shim, not of CPython.
+    @"
+@echo off
+"$quoted" "$shimQuoted" "$quoted" %*
+"@ | Set-Content -LiteralPath (Join-Path $ShimDir "py.cmd") -Encoding ascii
+    @"
+@echo off
+"$quoted" %*
+"@ | Set-Content -LiteralPath (Join-Path $ShimDir "python.cmd") -Encoding ascii
+}
+
+function Install-ChaosEngineManagedPython([string]$Uv) {
+    # #7766: provision Python 3.11+ and a py shim before any lifecycle or download prompt.
+    $env:UV_PYTHON_INSTALL_DIR = Join-Path $env:LOCALAPPDATA "chaos-engine\python"
+    & $Uv python install 3.14 --no-progress
+    if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
+    $interpreter = ((& $Uv python find 3.14) | Out-String).Trim()
+    if ([string]::IsNullOrWhiteSpace($interpreter)) { throw "uv-managed Python was installed but not found" }
+    $shimDir = Join-Path $env:LOCALAPPDATA "chaos-engine\bin"
+    Install-ChaosEnginePyShim $interpreter $shimDir
+    if ($env:Path -notlike "*${shimDir}*") { $env:Path = "$shimDir;" + $env:Path }
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($null -eq $userPath) { $userPath = "" }
+    if ($userPath -notlike "*${shimDir}*") {
+        if ([string]::IsNullOrWhiteSpace($userPath)) { $joined = $shimDir }
+        else { $joined = $userPath.TrimEnd(';') + ';' + $shimDir }
+        [Environment]::SetEnvironmentVariable("Path", $joined, "User")
+    }
+    $pointerDir = Join-Path $project ".chaos-engine-state"
+    New-Item -ItemType Directory -Force -Path $pointerDir | Out-Null
+    Set-Content -LiteralPath (Join-Path $pointerDir "hook-python") -Value $interpreter -Encoding ascii
 }
 
 function Get-ChaosEngineHeader([object]$Headers, [string]$Name) {
@@ -335,6 +398,10 @@ function Read-ChaosEngineUrl([string]$Url) {
 if ($ParseOnly) {
     return
 }
+if ($ProvisionPythonShim) {
+    Install-ChaosEnginePyShim ([string]$env:CHAOS_ENGINE_SHIM_INTERPRETER) ([string]$env:CHAOS_ENGINE_SHIM_DIR)
+    return
+}
 
 $interactiveRequested = $Interactive
 
@@ -379,6 +446,12 @@ New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $bootstrap = Join-Path $work "bootstrap.py"
     [Console]::Error.WriteLine("Installing ChaosEngine into $project from $repository@$branch")
+    # #7766: locate or provision Python 3.11+ before the download/lifecycle prompt.
+    $managedUv = $null
+    if ($null -eq $python) {
+        $managedUv = Install-ChaosEngineUv $work
+        Install-ChaosEngineManagedPython $managedUv
+    }
     if ($interactiveRequested) {
         if ([Console]::IsInputRedirected) {
             throw "interactive mode requires a usable controlling terminal"
@@ -408,12 +481,8 @@ try {
     if ($WithoutPonytail) { $arguments += "--without-ponytail" }
     if ($WithoutCaveman) { $arguments += "--without-caveman" }
     $arguments += @(ConvertTo-ChaosEngineAddOnFlags $AddOnSwitches)
-    if ($null -eq $python) {
-        $uv = Install-ChaosEngineUv $work
-        $env:UV_PYTHON_INSTALL_DIR = Join-Path $env:LOCALAPPDATA "chaos-engine\python"
-        & $uv python install 3.14 --no-progress
-        if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
-        $invoke = @($uv, "run", "--no-project", "--managed-python") + $arguments
+    if ($null -ne $managedUv) {
+        $invoke = @($managedUv, "run", "--no-project", "--managed-python") + $arguments
     }
     else { $invoke = @($python) + $arguments }
     & $invoke[0] @($invoke[1..($invoke.Length - 1)])

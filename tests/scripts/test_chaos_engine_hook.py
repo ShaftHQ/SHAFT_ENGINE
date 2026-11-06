@@ -1213,6 +1213,7 @@ process.stderr.write(result.stderr || '');
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             failure = {
                 "hook_event_name": "PostToolUse",
+                "cwd": temporary,
                 "tool_name": "PowerShell",
                 "tool_input": {"command": "py -3 -m unittest focused"},
                 "tool_response": {"status": "failed", "exit_code": 1},
@@ -1235,7 +1236,7 @@ process.stderr.write(result.stderr || '');
                 environment,
             )
             ledger = Path(temporary) / ".chaos-engine-state"
-            ledger.mkdir()
+            ledger.mkdir(exist_ok=True)
             (ledger / "retrieve-justification.json").write_text(
                 json.dumps({"schemaVersion": 1, "citations": ["chaos-engine/hooks/guard.py"]}),
                 encoding="utf-8",
@@ -1651,6 +1652,7 @@ process.stderr.write(result.stderr || '');
             session = "name-the-controller"
             failure = {
                 "hook_event_name": "PostToolUse",
+                "cwd": temporary,
                 "tool_name": "Bash",
                 "tool_input": {"command": "py -3 -m unittest focused"},
                 "tool_response": {"status": "failed", "exit_code": 1},

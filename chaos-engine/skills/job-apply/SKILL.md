@@ -105,7 +105,16 @@ Detail cards: [research](references/research.md),
 
 ## Hard rules
 
-- Never send the application; drafts only (forms: submit only after explicit yes).
+- A recorded standing order changes which drafts are produced, inside the scope that order names. The scope text stays in the private store. It does not authorize the agent to send.
+- Distinct contacts or channels are separate drafts.
+- The remote ask goes in the subject and in the body.
+- Two independent reviewers must each record PASS on the current draft, and neither reviewer is the writer. One signature. The signature text stays in the private store. The human sends from their own mailbox. Read the Sent folder back after that human send.
+- Public-by-link happens through the browser share dialog and is confirmed this turn. The agent does not publish.
+- After two identical ATS verification errors, stop and draft the next channel. Do not submit it.
+- The ledger is a cache. Read the tracker back after every write. The sheet location stays in the private store.
+- Search the Sent folder before any resend.
+- Cover letters and emails do not use founder or CEO titles, client names, or tool claims that are not in the CV or a project README.
+- Never send the application; drafts only (forms: submit only after an explicit human yes). A standing order does not create an exception.
 - Never invent achievements, features, or metrics.
 - Never put applicant names, emails, phones, employers, or personal stats into
   this skill tree; keep them in the private per-user applicant profile / live

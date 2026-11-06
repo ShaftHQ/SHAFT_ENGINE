@@ -2654,6 +2654,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             )
             failure = {
                 "hook_event_name": "PostToolUseFailure",
+                "cwd": str(project),
                 "tool_name": "PowerShell",
                 "tool_input": {"command": "py -3 -m unittest installed.case"},
                 "session_id": "real-install",

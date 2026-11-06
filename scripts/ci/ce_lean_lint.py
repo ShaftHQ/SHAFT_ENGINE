@@ -113,8 +113,12 @@ def leak_counts(root: Path = ROOT) -> dict[str, int]:
 
 
 def issue_tag_counts(root: Path = ROOT) -> dict[str, int]:
+    """Issue-number tags in the shipped core. Origin-only transcripts may cite them."""
+    origin_only = _origin_only(root)
     counts = {}
     for path in core_files(root, (".md",)):
+        if origin_only(path.relative_to(root / CORE)):
+            continue
         hits = len(ISSUE_TAG.findall(_text(path)))
         if hits:
             counts[path.relative_to(root).as_posix()] = hits

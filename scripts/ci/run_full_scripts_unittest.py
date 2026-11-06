@@ -34,13 +34,24 @@ def main(argv: list[str] | None = None) -> int:
         args = ["discover", "-s", "tests/scripts", "-v"]
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    with full_scripts_unittest_lock(ROOT):
-        # Re-exec under the same interpreter so unittest sees a clean argv.
-        os.execvpe(
-            sys.executable,
-            [sys.executable, "-m", "unittest", *args],
-            env,
+    if sys.stdin is not None and sys.stdin.isatty():
+        print(
+            "warning: full suite in the foreground; start it detached (nohup or setsid)",
+            file=sys.stderr,
         )
+    try:
+        with full_scripts_unittest_lock(ROOT, blocking=False):
+            # Re-exec under the same interpreter so unittest sees a clean argv.
+            # The lock fd is inheritable, so it is held across os.execvpe.
+            # flock runs when this with-statement is entered, inside the try.
+            os.execvpe(
+                sys.executable,
+                [sys.executable, "-m", "unittest", *args],
+                env,
+            )
+    except BlockingIOError:
+        print("refusing a second full-suite run; one copy at a time", file=sys.stderr)
+        return 2
     return 0  # pragma: no cover — execvpe does not return
 
 

@@ -54,8 +54,14 @@ def _status_board_item_hits(item: dict[str, Any]) -> list[str]:
     label = item.get("id") or item.get("title")
     if not item.get("owner"):
         hits.append(f"missing-owner:{label}")
-    if not item.get("link"):
+    # Link or attachment/file. Done with neither is its own hit (#7767 / Coach L6).
+    if not item.get("link") and not item.get("attachment") and not item.get("file"):
         hits.append(f"missing-link:{label}")
+    status = str(item.get("status") or "").casefold().replace("_", " ")
+    section = str(item.get("section") or "").casefold()
+    if status in {"done", "delivered"} or section == "done":
+        if not item.get("link") and not item.get("attachment") and not item.get("file"):
+            hits.append(f"done-without-link-or-file:{label}")
     if item.get("section") == "open" and item.get("status") in {"done", "delivered", "closed"}:
         hits.append(f"closed-in-open:{item.get('id')}")
     if (item.get("blocker_expired") or item.get("superseded")) and item.get("listed_as_blocker"):
@@ -68,10 +74,59 @@ def _status_board_item_hits(item: dict[str, Any]) -> list[str]:
     return hits
 
 
+def _numeric_id_hits(board: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    if not board.get("numbered_ids"):
+        return hits
+    seen: list[int] = []
+    for item in board.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        nid = item.get("numeric_id")
+        if not isinstance(nid, int) or isinstance(nid, bool) or nid < 1:
+            hits.append(f"missing-numeric-id:{item.get('id')}")
+            continue
+        seen.append(nid)
+    if len(seen) != len(set(seen)):
+        hits.append("duplicate-numeric-id")
+    return hits
+
+
+def _proceed_wake_hits(board: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
+    proceed = board.get("proceed_ids")
+    if proceed is None:
+        return hits
+    allowed: set[int] = set()
+    for raw in proceed:
+        try:
+            allowed.add(int(raw))
+        except (TypeError, ValueError):
+            hits.append("bad-proceed-id")
+    for item in board.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        nid = item.get("numeric_id")
+        if not (item.get("resumed") or item.get("dispatched")) or nid is None:
+            continue
+        try:
+            if int(nid) not in allowed:
+                hits.append(f"proceed-woke-other:{nid}")
+        except (TypeError, ValueError):
+            hits.append(f"proceed-woke-other:{nid}")
+    return hits
+
+
+def _status_board_proceed_hits(board: dict[str, Any]) -> list[str]:
+    """Numbered ids, and proceed-with-N wakes only those items."""
+    return _numeric_id_hits(board) + _proceed_wake_hits(board)
+
+
 def evaluate_status_board(board: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(board, dict):
         return _result(["board"], "#7692 status-board gate failed")
     hits = _status_board_receipt_hits(board)
+    hits.extend(_status_board_proceed_hits(board))
     for item in board.get("items") or []:
         if isinstance(item, dict):
             hits.extend(_status_board_item_hits(item))
@@ -101,6 +156,12 @@ def evaluate_run_state(payload: dict[str, Any]) -> dict[str, Any]:
             hits.append("owner-channel-not-ack-plus-result")
         if "TODO-internal" in text:
             hits.append("internal-notes-as-owner-output")
+    # #7767: check run-state before every dispatch; token restore is not a resume.
+    if payload.get("about_to_dispatch") and not payload.get("run_state_checked"):
+        hits.append("dispatch-without-run-state-check")
+    if payload.get("token_restored") and payload.get("resumed_work"):
+        if not payload.get("proceed_id") and not payload.get("shared_file_names_phase"):
+            hits.append("token-restore-is-not-resume")
     return _result(hits, "#7693 run-state gate failed")
 
 
@@ -120,6 +181,11 @@ def evaluate_owner_media_gate(record: dict[str, Any]) -> dict[str, Any]:
         hits.append("silent-pivot")
     if record.get("abandoned_easier_path") and not record.get("owner_options_brief"):
         hits.append("abandoned-easier-path-without-brief")
+    if record.get("require_human_listen") or record.get("owner_delivery"):
+        if record.get("human_listen_start") is not True and record.get("human_look_start") is not True:
+            hits.append("missing-human-listen-start")
+        if record.get("human_listen_end") is not True and record.get("human_look_end") is not True:
+            hits.append("missing-human-listen-end")
     return _result(hits, "#7694 owner-media gate failed")
 
 
@@ -152,6 +218,10 @@ def _scheduler_identity_hits(record: dict[str, Any]) -> list[str]:
             hits.append("missing-description-sha")
         elif record.get("description_sha256") != record.get("brief_description_sha256"):
             hits.append("description-sha-mismatch")
+    if record.get("uploading") and not record.get("studio_duplicate_search"):
+        hits.append("missing-studio-duplicate-search")
+    if record.get("hashtag_helper_used") and not record.get("description_retyped"):
+        hits.append("hashtag-helper-without-retype")
     if not record.get("posted_or_scheduled"):
         return hits
     acting = record.get("acting_identity")
@@ -184,6 +254,13 @@ def evaluate_live_change_diff(record: dict[str, Any]) -> dict[str, Any]:
             hits.append("missing-after-values")
         if not record.get("diff") and not record.get("diff_recorded"):
             hits.append("missing-diff")
+    # Cleo: never probe-write a live source of truth; re-download before editing it.
+    if record.get("live_source_of_truth") and record.get("write_probe"):
+        hits.append("write-probe-on-live-sot")
+    if (record.get("editing_live") or record.get("about_to_edit_live")) and not record.get(
+        "redownloaded_before_edit"
+    ):
+        hits.append("missing-redownload-before-edit")
     return _result(hits, "#7696 live-change-diff gate failed")
 
 
@@ -368,6 +445,98 @@ def evaluate_voice_clone(record: dict[str, Any]) -> dict[str, Any]:
     return _result(hits, "#7708 voice-clone gate failed")
 
 
+def _verdict_required(record: dict[str, Any]) -> bool:
+    """Two verdicts apply for every merge, enqueue, or PASS claim."""
+    if record.get("merge_or_enqueue"):
+        return True
+    if str(record.get("adversarial_pass_sha") or "").strip():
+        return True
+    if record.get("external_cli_failed") or record.get("designer_generated"):
+        return True
+    if "verdicts" in record or record.get("independent_review") is not None:
+        return True
+    return False
+
+
+def _one_verdict_hits(verdict: Any, head: str, producer: str) -> list[str]:
+    if not isinstance(verdict, dict):
+        return ["verdict-not-a-record"]
+    hits: list[str] = []
+    if str(verdict.get("verdict") or "").strip().upper() != "PASS":
+        hits.append("verdict-not-pass")
+    sha = str(verdict.get("sha") or "").strip()
+    if not sha:
+        hits.append("verdict-missing-sha")
+    elif not head:
+        hits.append("missing-head-sha")
+        hits.append("verdict-sha-mismatch")
+    elif sha != head:
+        hits.append("verdict-sha-mismatch")
+    worker = str(verdict.get("worker") or "").strip()
+    reviewer = str(verdict.get("reviewer") or "").strip()
+    if not worker:
+        hits.append("verdict-missing-worker")
+    if not reviewer:
+        hits.append("verdict-missing-reviewer")
+    if producer and (reviewer == producer or worker == producer):
+        hits.append("self-review")
+    return hits
+
+
+def _worker_identity_hits(verdicts: list[Any]) -> list[str]:
+    """Workers and reviewers are each two distinct identities. Method labels are not."""
+    workers: set[str] = set()
+    reviewers: set[str] = set()
+    for item in verdicts:
+        if not isinstance(item, dict):
+            continue
+        worker = str(item.get("worker") or "").strip()
+        reviewer = str(item.get("reviewer") or "").strip()
+        if worker:
+            workers.add(worker)
+        if reviewer:
+            reviewers.add(reviewer)
+    hits: list[str] = []
+    if len(workers) < 2:
+        hits.append("verdicts-not-independent")
+    if len(reviewers) < 2:
+        hits.append("reviewers-not-independent")
+    return hits
+
+
+def _adversarial_fallback_hits(record: dict[str, Any]) -> list[str]:
+    """Successful verdicts bound to the head, from two workers. Not method labels."""
+    if not _verdict_required(record):
+        return []
+    hits: list[str] = []
+    if record.get("external_cli_failed") and not str(record.get("fallback_reason") or "").strip():
+        hits.append("missing-fallback-reason")
+    verdicts = record.get("verdicts") or []
+    head = str(record.get("head_sha") or "").strip()
+    if not head:
+        hits.append("missing-head-sha")
+    if not isinstance(verdicts, list) or len(verdicts) < 2:
+        hits.append("missing-second-verdict")
+        return hits
+    producer = str(record.get("designer") or record.get("producer") or "").strip()
+    for verdict in verdicts:
+        hits.extend(_one_verdict_hits(verdict, head, producer))
+    hits.extend(_worker_identity_hits(verdicts))
+    return hits
+
+
+def _adversarial_designer_hits(record: dict[str, Any]) -> list[str]:
+    if not record.get("designer_generated"):
+        return []
+    designer = str(record.get("designer") or "").strip()
+    reviewer = str(record.get("reviewer") or "").strip()
+    if not designer or not reviewer:
+        return ["missing-producer-or-reviewer"]
+    if designer == reviewer:
+        return ["designer-reviewed-own-work"]
+    return []
+
+
 # ----- #7709 adversarial PASS SHA-bound -----
 def evaluate_adversarial_pass_sha(record: dict[str, Any]) -> dict[str, Any]:
     hits: list[str] = []
@@ -383,6 +552,8 @@ def evaluate_adversarial_pass_sha(record: dict[str, Any]) -> dict[str, Any]:
                 hits.append("pass-sha-stale-needs-reack")
     if record.get("commits_after_pass") and not record.get("reack_after_commit"):
         hits.append("post-pass-commits-without-reack")
+    hits.extend(_adversarial_fallback_hits(record))
+    hits.extend(_adversarial_designer_hits(record))
     return _result(hits, "#7709 adversarial-pass-sha gate failed")
 
 
@@ -406,6 +577,11 @@ def evaluate_clean_start(record: dict[str, Any]) -> dict[str, Any]:
         n = min(len(script_first), len(asr_first), int(record.get("first_n") or 3))
         if n and script_first[:n] != asr_first[:n]:
             hits.append("first-words-mismatch")
+    if record.get("require_human_listen"):
+        if record.get("human_listen_start") is not True:
+            hits.append("missing-human-listen-start")
+        if record.get("human_listen_end") is not True:
+            hits.append("missing-human-listen-end")
     return _result(hits, "#7710 clean-start gate failed")
 
 
@@ -547,6 +723,9 @@ def evaluate_stop_scope_guard(payload: dict[str, Any]) -> dict[str, Any]:
         ):
             if "stop-all-without-peer-ack" not in hits:
                 hits.append("stop-all-without-peer-ack")
+    # After a cancel that followed a live write, re-read the live surface this turn.
+    if payload.get("cancelled_after_live_write") and not payload.get("post_cancel_live_recheck"):
+        hits.append("missing-post-cancel-live-recheck")
     return _result(hits, "#7718 stop-scope-guard gate failed")
 
 

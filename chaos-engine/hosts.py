@@ -4628,7 +4628,9 @@ LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
 # Short reason for #7667 shell fail-closed JSON (keeps command <= HOOK_COMMAND_MAX_CHARS).
-HOOK_LAUNCH_PYTHON_BLOCK = "no Python 3.11+"
+# #7766: what is missing, why, and the one fix. Kept short so the Windows
+# hook command stays within HOOK_COMMAND_MAX_CHARS (300).
+HOOK_LAUNCH_PYTHON_BLOCK = "no Python 3.11+; hooks need it; rerun installer"
 _CWD_UNAVAILABLE_ERRNOS = {
     errno.ENOENT,
     getattr(errno, "ESTALE", 116),

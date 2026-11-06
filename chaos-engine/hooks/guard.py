@@ -459,6 +459,48 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
     return ""
 
 
+def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
+    """Force-push, private-remote, relayed-delete, and secret checks on the real command."""
+    script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
+    if not script.is_file():
+        return ""
+    spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary", script)
+    if spec is None or spec.loader is None:
+        return "operation boundary failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for command in commands:
+        hits = module.command_blocks(project, command)
+        if hits:
+            return "operation boundary: " + str(hits[0])
+    return ""
+
+
+_OBSERVED_TOOL_EVENTS = frozenset({"PostToolUse", "PostToolUseFailure"})
+
+
+def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict, event_name: str) -> str:
+    """Record the tool's real result and scan its stdout/stderr."""
+    script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
+    if not script.is_file():
+        return ""
+    spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary_post", script)
+    if spec is None or spec.loader is None:
+        return "operation boundary failed: checker unavailable"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = event.get("tool_response") or event.get("toolResponse") or event.get("tool_result")
+    secret = module.output_secret_block(result)
+    if secret:
+        return "operation boundary: " + secret
+    problem = module.observe_commands(
+        project, commands, failed=_tool_result_failed(event_name, result),
+    )
+    if problem:
+        return "operation boundary: " + problem
+    return ""
+
+
 def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
@@ -1334,8 +1376,18 @@ def _command_guard_state(
         mutation_command(candidate) and not tracker_command(candidate) for candidate in commands
         )
     )
+    if event_name in _OBSERVED_TOOL_EVENTS and not receipt_command:
+        project = Path(str(event.get("cwd") or Path.cwd()))
+        post_block = _post_tool_boundary(project, commands, event, event_name)
+        if post_block:
+            return receipt_command, mutation, post_block
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
+    if event_name == "PreToolUse":
+        project = Path(str(event.get("cwd") or Path.cwd()))
+        boundary_block = _operation_boundary_block(commands, project)
+        if boundary_block:
+            return receipt_command, mutation, boundary_block
     push_block = (_overlay_push_block(commands) or _pr_body_block(commands)) if event_name == "PreToolUse" else ""
     if push_block:
         return receipt_command, mutation, push_block

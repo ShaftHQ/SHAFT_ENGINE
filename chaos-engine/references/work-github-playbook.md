@@ -213,7 +213,7 @@ first and the earlier is `DIRTY`, merge `origin/<default>` into the earlier and
 re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
-   `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
+   `gh pr merge <n> --merge --match-head-commit <sha>` after `scripts/ci/merge_ready.py` lists open threads. Never squash or force.
 5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (repo-only)
    until merged or a red fix is pushed. One line on GREEN, RED, or MERGED.
    No second poll. Reject a `gh run view` loop and a second watch while one task is pending.

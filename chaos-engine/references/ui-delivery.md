@@ -18,10 +18,10 @@ Return to the router after delivery. The optional `design-skills`
 - Best-practice asks need cited sources (NN/g, WCAG 2.2, Baymard, web.dev,
   MDN). Map each practice to a concrete change or to existing compliance in a
   PR-body checklist. An uncited practice is a guess.
-- Find which PR workflow runs the UI/e2e suite:
-  `rg -n "pull_request|playwright|e2e" .github/workflows`. A suite that runs
-  only on push or deploy is a CI coverage gap. Record it now, not after green.
-  A `--grep` subset of a spec is one too: gate the whole file.
+- Find which PR workflow runs the UI/e2e suite
+  (`rg -n "pull_request|playwright|e2e" .github/workflows`). A push-only suite
+  or a `--grep` subset is a CI coverage gap. An IDE change needs a real IDE under
+  a headless display and an evidence folder.
 
 ## Red, then green
 

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+_FOUNDER = re.compile(r"\b(?:co-)?founder\b|\bceo\b", re.I)
 
 # Explicitly internal surfaces may skip Coach when live_publish is not True.
 _INTERNAL = frozenset({
@@ -35,4 +38,11 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
             hits.append("owner-title-mismatch")
         if "Co-Founder" in title or title == "Founder":
             hits.append("owner-title-mismatch")
+    letter = obs.get("cover_letter")
+    if isinstance(letter, str) and letter.strip() and _FOUNDER.search(letter):
+        hits.append("founder-or-ceo-title")
+    facts = obs.get("facts_checked")
+    accepted = obs.get("coach_gate_pass") is True or obs.get("coach_accepted") is True
+    if obs.get("live_publish") is True and accepted and not facts:
+        hits.append("coach-accept-missing-facts")
     return {"ok": not hits, "hits": hits}

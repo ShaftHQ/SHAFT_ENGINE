@@ -9,7 +9,13 @@
 - [ ] Payroll vendor vs end client worded correctly ("with", not "at", when the vendor only runs payroll).
 - [ ] User exclusions honoured in the body.
 - [ ] Forms (if used): all required filled; screenshot shown; explicit yes; one submit; confirmation + ID captured.
-- [ ] Exactly one email draft exists when the route is email; never sent by the agent.
-- [ ] Application ledger updated.
+- [ ] Exactly one email draft exists when the route is email; never sent by the agent. A standing order does not authorize send.
+- [ ] Application ledger updated, then read back. The ledger is a cache of the tracker.
+- [ ] Distinct contacts or channels are separate rows.
+- [ ] Remote ask is in the subject and the body when the role is remote.
+- [ ] Two independent reviewers each recorded PASS, neither is the writer, a single signature is present, and any Sent read-back is from a human send. Authorization evidence is a recorded id, not a bare flag.
+- [ ] Public-by-link used the share dialog and was confirmed this turn.
+- [ ] Sent folder searched before any resend.
+- [ ] Cover letter has no founder/CEO title, no client name, and no unsourced tool claim.
 - [ ] Applicant profile reads/writes stayed in the private per-user store (nothing personal added to this skill tree).
 - [ ] Abstraction check on the skill tree still passes ([check_abstraction.sh](../scripts/check_abstraction.sh)).

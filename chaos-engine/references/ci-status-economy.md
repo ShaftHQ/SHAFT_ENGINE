@@ -99,8 +99,18 @@ command, 404 mark); the candidate install still runs.
 ## A rerun replays the old event
 
 `gh run rerun` replays the original event payload, so it never sees an edited
-PR body or title. To re-evaluate a body gate, trigger a new event (push a
-commit, or close and reopen the PR).
+PR body or title. After a body fix, push an empty commit. Do not rerun the
+old run. A pull request body must carry a receipt line
+`retrieve: used`, `retrieve: skipped(<reason>)`, or `retrieve: exempt(<reason>)`
+before `gh pr create`.
+
+The shared watcher is `scripts/agents/watch_pr_checks.py`. It is a bounded
+`for` loop (never `while True`). It exits non-zero and wakes on a failed,
+cancelled, or timed-out check, on BLOCKED or DIRTY, on dequeue, on a stuck
+merge-queue head (no merge_group progress for 20 minutes), and on its own
+deadline. After enqueue it logs the queue position. `preflight_unbounded_loops`
+warns when a watcher source has an unbounded loop. This detector is generic.
+Product auto-merge config does not live here.
 
 `gh run rerun` on a run that is still in progress fails with a message that
 reads as if the workflow file were broken. The workflow is fine: wait for the

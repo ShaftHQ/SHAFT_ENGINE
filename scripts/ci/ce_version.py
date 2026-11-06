@@ -7,6 +7,7 @@ string in ``chaos-engine/VERSION``. Stdlib only.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import re
 import sys
 from pathlib import Path
@@ -66,6 +67,24 @@ def next_version(current: str, merge_day: str) -> str:
     return f"{major}.{quarter}.{stamp}.{n}"
 
 
+def future_version_error(value: str, today: dt.date | None = None) -> str | None:
+    """Reject ``0.4.YYYYMMDD.n`` (and legacy dates) later than ``today``.
+
+    ``version_key`` still orders future stamps so Q4→Q1 comparisons stay valid.
+    The lint is this function, used by ``check`` and by callers that publish
+    a version.
+    """
+    _major, date_int, _n = version_key(value)
+    day = today or dt.date.today()
+    stamp = int(f"{day:%Y%m%d}")
+    if date_int > stamp:
+        return (
+            f"CE version {value!r} is dated {date_int}, after {stamp}. "
+            "Never publish a future-dated ChaosEngine version."
+        )
+    return None
+
+
 def read_version(path: Path | None = None) -> str:
     """Return the stripped VERSION string; raise ValueError if missing/invalid."""
     target = VERSION_PATH if path is None else Path(path)
@@ -102,6 +121,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "check":
             value = read_version(args.path)
+            future = future_version_error(value)
+            if future:
+                raise ValueError(future)
             print(f"ce_version: pass {value}")
             return 0
     except ValueError as exc:

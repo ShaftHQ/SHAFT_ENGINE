@@ -13,6 +13,8 @@ session or watchdog reads the lease instead of guessing.
 ## Session-budget rules
 
 - Stop and checkpoint by 35 min; assume any session can die at any point in a turn.
+- A task expected to run longer than 30 minutes registers an hourly watchdog
+  and a progress file at start, and removes the watchdog at close.
 - Anything longer than a few minutes runs as a durable job:
   `python3 .chaos-engine/tool.py job start <name> -- <command>`. Never as a
   foreground command, and never as a bare `nohup ... &`.

@@ -6,6 +6,7 @@ import shutil
 import subprocess  # nosec B404 - fixed git init/add against a temp repo only.
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
@@ -29,6 +30,26 @@ PINNED = (
 def _playbook(text: str) -> str:
     return text
 
+
+
+@contextmanager
+def _park_leaked_pdca(root: Path):
+    """Hide suite-local PDCA events for one contract check, then restore them."""
+    folder = root / ".chaos-engine-state" / "repeat-failure-pdca"
+    parked = folder.with_name(folder.name + "-suite-park")
+    moved = False
+    if folder.exists():
+        if parked.exists():
+            shutil.rmtree(parked)
+        folder.rename(parked)
+        moved = True
+    try:
+        yield
+    finally:
+        if moved:
+            if folder.exists():
+                shutil.rmtree(folder)
+            parked.rename(folder)
 
 
 def _stage_version(root: Path) -> None:
@@ -206,12 +227,24 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertIn("yaml", reason)
         self.assertNotIn("invalid JSON", reason)
 
+    def test_parked_pdca_hides_leaked_events_and_restores_them(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            folder = root / ".chaos-engine-state" / "repeat-failure-pdca"
+            folder.mkdir(parents=True)
+            events = folder / "events.jsonl"
+            events.write_text("leaked\n", encoding="utf-8")
+            with _park_leaked_pdca(root):
+                self.assertFalse(folder.exists())
+            self.assertEqual("leaked\n", events.read_text(encoding="utf-8"))
+
     def test_live_playbook_and_entrypoint_satisfy_the_contract(self):
         text = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
         self.assertEqual([], playbook_contract_failures(text))
-        failures = overlay_pre_push_failures(
-            ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/VERSION"]
-        )
+        with _park_leaked_pdca(ROOT):
+            failures = overlay_pre_push_failures(
+                ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/VERSION"]
+            )
         self.assertEqual([], failures)
 
     def test_release_note_label_fails_when_open_pr_has_none(self):
@@ -255,16 +288,17 @@ class OverlayPrePushTest(unittest.TestCase):
         from unittest import mock
         from scripts.ci import overlay_pre_push as opp
 
-        with mock.patch.object(
-            opp,
-            "release_note_label_failures",
-            return_value=["release-note label: open PR #1 needs exactly one"],
-        ) as mocked:
-            with mock.patch.object(opp, "code_quality_failures", return_value=[]):
-                with mock.patch.object(opp, "changed_overlay_paths", return_value=[]):
-                    with mock.patch.object(opp, "tip_preflight_failures", return_value=[]):
-                        live = opp.overlay_pre_push_failures(ROOT)
-        fixture = opp.overlay_pre_push_failures(ROOT, ["shaft-engine/src/Main.java"])
+        with _park_leaked_pdca(ROOT):
+            with mock.patch.object(
+                opp,
+                "release_note_label_failures",
+                return_value=["release-note label: open PR #1 needs exactly one"],
+            ) as mocked:
+                with mock.patch.object(opp, "code_quality_failures", return_value=[]):
+                    with mock.patch.object(opp, "changed_overlay_paths", return_value=[]):
+                        with mock.patch.object(opp, "tip_preflight_failures", return_value=[]):
+                            live = opp.overlay_pre_push_failures(ROOT)
+            fixture = opp.overlay_pre_push_failures(ROOT, ["shaft-engine/src/Main.java"])
         self.assertTrue(any("release-note label" in f for f in live))
         self.assertEqual([], fixture)
         mocked.assert_called_once()

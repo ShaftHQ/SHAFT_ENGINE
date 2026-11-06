@@ -865,6 +865,9 @@ def is_origin_only(relative: Path) -> bool:
     return (
         relative.parts[:1] == ("guides",)
         or relative.parts[:2] == ("assets", "brand")
+        # Full lesson transcripts cite the product repo. They stay in git and
+        # out of the portable adopter payload (#7767 lessons ledger).
+        or relative.parts[:3] == ("references", "details", "ce-lessons-2026-11-06")
         or relative.as_posix() in {
             "README.md",
             "INSTALL.md",
@@ -8557,10 +8560,57 @@ MINIMUM_PYTHON = (3, 11)
 
 
 def python_floor_message(version: tuple[int, ...] | None = None) -> str:
-    """Explain the supported Python floor (3.10 reaches end of life in October 2026)."""
+    """What is missing, why, and the one fix (#7766)."""
     found = ".".join(str(part) for part in (version or sys.version_info)[:3])
-    return (f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
-            "Rerun the install one-liner, which provisions a supported Python through uv.\n")
+    return (
+        f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
+        "Hooks and the installer refuse an older interpreter. "
+        "Rerun the install one-liner, which provisions a supported Python through uv before any prompt.\n"
+    )
+
+
+def managed_python_roots() -> list[Path]:
+    """Directories where the installer provisions uv-managed CPython (#7766)."""
+    roots: list[Path] = []
+    env_dir = os.environ.get("UV_PYTHON_INSTALL_DIR", "").strip()
+    if env_dir:
+        roots.append(Path(env_dir))
+    local = os.environ.get("LOCALAPPDATA", "").strip()
+    if local:
+        roots.append(Path(local) / "chaos-engine" / "python")
+    xdg = os.environ.get("XDG_DATA_HOME", "").strip()
+    home = Path.home()
+    share = Path(xdg) if xdg else home / ".local" / "share"
+    roots.append(share / "chaos-engine" / "python")
+    return roots
+
+
+def interpreter_meets_floor(path: Path) -> bool:
+    """True when ``path`` runs and reports Python >= MINIMUM_PYTHON."""
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed interpreter plus a version probe.
+            [str(path), "-c", "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return completed.returncode == 0
+
+
+def locate_supported_python(roots: list[Path] | None = None) -> Path | None:
+    """Find a provisioned Python 3.11+ under the managed install dirs, not on PATH."""
+    names = ("python.exe", "python3", "python")
+    for root in roots if roots is not None else managed_python_roots():
+        if not root.is_dir():
+            continue
+        for name in names:
+            for candidate in root.rglob(name):
+                if candidate.is_file() and interpreter_meets_floor(candidate):
+                    return candidate
+    return None
 
 
 _HANDLED = object()
@@ -9037,6 +9087,10 @@ def _emit_result(args, result) -> int:
 
 def main() -> int:
     if sys.version_info < MINIMUM_PYTHON:
+        # #7766: locate a provisioned 3.11+ before any lifecycle prompt.
+        located = locate_supported_python()
+        if located is not None and os.path.realpath(located) != os.path.realpath(sys.executable):
+            os.execv(str(located), [str(located), *sys.argv])  # nosec B606 - managed interpreter + this argv
         sys.stderr.write(python_floor_message())
         return 2
     args, extra = parser().parse_known_args()

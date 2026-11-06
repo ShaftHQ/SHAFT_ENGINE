@@ -4,7 +4,9 @@
 
 1. **Clean at item close** only after the stream's delivery is pushed and
    verified (merged PR tip on origin, or upload + watch-page receipt for media).
-   Never delete the only copy of unpushed work. Remove only paths the agent
+   Never delete the only copy of unpushed work. Register each artifact in the
+   ownership manifest at creation time, not at close. `delivery_close_blockers`
+   refuses a dirty or unpushed unique worktree. Remove only paths the agent
    itself created and recorded in the ownership manifest. Never touch
    `signed-renders/**` under the workspace root (delete-guard never-touch; L62).
 2. **Ordered actions after verify:**

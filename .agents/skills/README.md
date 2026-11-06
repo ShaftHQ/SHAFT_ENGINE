@@ -147,6 +147,8 @@ sends you there; the rest by
 - [doc-claim review](../../chaos-engine/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
+- [delegation cycle](../../chaos-engine/references/delegation-cycle.md)
+- [external contribution](../../chaos-engine/references/external-contribution.md)
 - [execution workflows](../../chaos-engine/references/execution-workflows.md)
 - [gate fail-closed](../../chaos-engine/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
 - [moving-channel pin](../../chaos-engine/references/moving-channel-pin.md): pin policy for upstream channels that keep shipping newer builds
@@ -488,6 +490,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [pre-done-self-review](../../chaos-engine/skills/pre-done-self-review/SKILL.md) (portable)
 - [job-apply](../../chaos-engine/skills/job-apply/SKILL.md) (portable)
 - [job-search](../../chaos-engine/skills/job-search/SKILL.md) (portable)
+- [docs-hygiene](../../chaos-engine/skills/docs-hygiene/SKILL.md) (portable)
 - [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
 - [ci-cd](../../chaos-engine/skills/ci-cd/SKILL.md) (portable)
 - [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
