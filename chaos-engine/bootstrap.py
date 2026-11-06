@@ -2671,7 +2671,7 @@ def _prefix_tree(tree: list, prefix: str) -> list:
 
 
 class ResolvedTreeUnavailable(Exception):
-    """A later listing failed after one or more tree SHAs were already resolved."""
+    """A recursive fetch failed after pack discovery had already finished."""
 
     def __init__(self, tree_shas: dict[str, str]):
         super().__init__("ChaosEngine source tree listing failed")
@@ -2711,9 +2711,12 @@ def fetch_chaos_engine_tree(
 ) -> tuple[list, dict[str, str]]:
     """Core blobs plus sibling ce-pack/ce-addons. Never ``git/trees/<commit>?recursive=1``.
 
-    The map is ``chaos-engine`` and ``<dir>/ce-pack`` / ``<dir>/ce-addons`` to the
-    tree oid taken from the non-recursive listings. An already-expanded fixture
-    returns an empty map. A later read failure keeps the oids resolved so far.
+    The map is complete before any recursive fetch: ``chaos-engine`` plus every
+    ``<dir>/ce-pack`` and ``<dir>/ce-addons`` the one-level scan found. An
+    already-expanded fixture returns an empty map. A recursive fetch of an
+    already-discovered tree keeps that complete map so the tarball can be
+    checked against every identity. A parent or pack listing that fails before
+    the scan finishes is the original download error, not a partial map.
     """
     root_url = f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}"
     root = _parse_git_tree(read_response(opener, root_url, purpose="download"))
@@ -2734,8 +2737,9 @@ def fetch_chaos_engine_tree(
     if core_sha is None:
         raise ValueError("ChaosEngine source tree has an unexpected layout")
     tree_shas = {"chaos-engine": core_sha}
+    # Discovery must finish. A 504 here is a download failure, not a core-only tarball.
+    _discover_pack_trees(root, opener, encoded_repository, tree_shas)
     try:
-        _discover_pack_trees(root, opener, encoded_repository, tree_shas)
         entries = _prefix_tree(
             _read_git_tree(opener, encoded_repository, core_sha, recursive=True),
             "chaos-engine",

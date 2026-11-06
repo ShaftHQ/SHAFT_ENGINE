@@ -2156,6 +2156,124 @@ class InstallerPhase0DownloadTest(unittest.TestCase):
             self.assertFalse(list(destination.rglob("SKILL.md")))
             self.assertFalse((destination / "chaos-engine").exists())
 
+    def test_incomplete_pack_discovery_504_does_not_install_tarball(self):
+        """A 504 while scanning parents must not install a core-only tarball."""
+        module = load()
+        skill = b"skill-from-tar"
+        install_py = b"print('ok')\n"
+        profile = b'{"name":"shaft-skills"}\n'
+        addon = b'{"name":"shaft-engine-users"}\n'
+        core_sha = module.source_directory_tree_sha(
+            {
+                "skills/chaos-engine/SKILL.md": (skill, False),
+                "install.py": (install_py, False),
+            }
+        )
+        agents = "a" * 40
+        skills = "c" * 40
+        prefix = f"SHAFT_ENGINE-{COMMIT_ONE}"
+        archive = _gzip_tarball(
+            {
+                f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": skill,
+                f"{prefix}/chaos-engine/install.py": install_py,
+                f"{prefix}/shaft-skills/ce-pack/profile.json": profile,
+                f"{prefix}/shaft-skills/ce-addons/shaft-engine-users/addon.json": addon,
+            }
+        )
+        root = {
+            "truncated": False,
+            "tree": [
+                {"path": ".agents", "mode": "040000", "type": "tree", "sha": agents},
+                {"path": "chaos-engine", "mode": "040000", "type": "tree", "sha": core_sha},
+                {"path": "shaft-skills", "mode": "040000", "type": "tree", "sha": skills},
+            ],
+        }
+        agents_listing = {
+            "truncated": False,
+            "tree": [{"path": "README.md", "mode": "100644", "type": "blob", "sha": "f" * 40, "size": 1}],
+        }
+        skills_listing = {
+            "truncated": False,
+            "tree": [
+                {"path": "ce-pack", "mode": "040000", "type": "tree", "sha": "d" * 40},
+                {"path": "ce-addons", "mode": "040000", "type": "tree", "sha": "e" * 40},
+            ],
+        }
+
+        def opener(fail: str):
+            def open_url(request, timeout=0):
+                del timeout
+                url = _request_url(request)
+                if "/commits/" in url:
+                    return Response(json.dumps({"sha": COMMIT_ONE}).encode())
+                if url.endswith(f"/git/trees/{COMMIT_ONE}"):
+                    return Response(json.dumps(root).encode())
+                if url.endswith(f"/git/trees/{agents}"):
+                    if fail == "agents":
+                        raise _http_504(url)
+                    return Response(json.dumps(agents_listing).encode())
+                if url.endswith(f"/git/trees/{skills}"):
+                    if fail == "skills":
+                        raise _http_504(url)
+                    return Response(json.dumps(skills_listing).encode())
+                if "codeload.github.com" in url or "/tarball/" in url:
+                    return Response(archive)
+                raise _http_504(url)
+
+            return open_url
+
+        for fail in ("agents", "skills"):
+            with self.subTest(fail=fail):
+                with tempfile.TemporaryDirectory() as temporary:
+                    destination = Path(temporary)
+                    with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                        module, "resolve_local_clone", return_value=None
+                    ), self.assertRaisesRegex(RuntimeError, "unable to download"):
+                        module.download_source(
+                            "ShaftHQ/SHAFT_ENGINE",
+                            COMMIT_ONE,
+                            destination,
+                            opener=opener(fail),
+                        )
+                    self.assertFalse(list(destination.rglob("SKILL.md")))
+                    self.assertFalse(list(destination.rglob("profile.json")))
+                    self.assertFalse(list(destination.rglob("addon.json")))
+
+                with tempfile.TemporaryDirectory() as temporary:
+                    project = Path(temporary)
+                    with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                        module, "resolve_local_clone", return_value=None
+                    ), self.assertRaisesRegex(RuntimeError, r"unable to download"):
+                        module.install_latest(
+                            project,
+                            repository="ShaftHQ/SHAFT_ENGINE",
+                            branch="main",
+                            skip_tools=True,
+                            opener=opener(fail),
+                        )
+                    self.assertFalse((project / ".chaos-engine").exists())
+                    self.assertFalse((project / "shaft-skills").exists())
+
+                with tempfile.TemporaryDirectory() as temporary:
+                    project = Path(temporary)
+                    before = self._core(project, COMMIT_ONE)
+                    with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                        module, "resolve_local_clone", return_value=None
+                    ):
+                        result = module.install_latest(
+                            project,
+                            repository="ShaftHQ/SHAFT_ENGINE",
+                            branch="main",
+                            skip_tools=True,
+                            opener=opener(fail),
+                        )
+                    self.assertEqual(before, self._snapshot(project))
+                    self.assertFalse((project / ".chaos-engine.backup").exists())
+                    self.assertEqual("upgrade-skipped", result["status"])
+                    self.assertEqual("CE-UPGRADE-DEFERRED", result["error"])
+                    self.assertIn("HTTP 504", result["cause"])
+                    self.assertIn("unable to download", result["cause"])
+
 
 if __name__ == "__main__":
     unittest.main()
