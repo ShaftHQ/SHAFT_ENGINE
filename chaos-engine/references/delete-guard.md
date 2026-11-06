@@ -9,6 +9,14 @@ on a non-zero exit.
 
 Install and doctor logs belong under `<project>/.chaos-engine-state/logs/` via [`session_logs.py`](../session_logs.py). Recording them on the session created-paths manifest lets cleanup-at-close self-delete those logs without an owner code.
 
+## Relayed codes and force
+
+An agent relaying a delete code is not the human's own yes. Refuse it.
+A pre-push check refuses `git push --force` and `--force-with-lease` unless
+the human approved that push. Do not add a git remote to a private working
+copy. Secret-scan status files, lessons files, and commit output before they
+leave the machine.
+
 ## What it refuses
 
 It parses `rm`, `unlink`, `shred`, `mv` (each source path), `rsync --delete*` /

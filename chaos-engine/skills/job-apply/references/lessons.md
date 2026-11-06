@@ -10,3 +10,7 @@
 - First drafts often lack research-backed structure; run the top-10 research up front.
 - Agents must not send email; a draft the human can edit and send keeps trust. Form submit only after explicit yes.
 - Applicant profile stays in a private per-user store — never in this shared skill.
+- A recorded standing order outranks confirm-before-send only inside the scope that order names. Distinct contacts are separate applications. The remote ask is in the subject and the body.
+- Two independent reviewers, then send from the connector, then Sent read-back, one signature. Public-by-link is a share-dialog step confirmed this turn.
+- After two identical ATS verification errors, stop and use the next channel.
+- The ledger is a cache. Read the tracker back after every write. Search Sent before a resend.

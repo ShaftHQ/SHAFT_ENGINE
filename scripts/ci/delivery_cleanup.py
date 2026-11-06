@@ -141,6 +141,13 @@ def delivery_close_blockers(
     leftover_merged_worktrees: Sequence[str] | None = None,
     leftover_report_servers: Sequence[dict] | str | None = None,
     session_logs_cleared: bool = True,
+    live_publish: bool = False,
+    coach_accept: dict | None = None,
+    publish_package: dict | None = None,
+    media_delivery: dict | None = None,
+    dirty_unpushed_worktrees: Sequence[str] | None = None,
+    leftover_browsers: Sequence[str] | None = None,
+    allure_serve: bool = False,
 ) -> list[str]:
     """
     Compose close-gate blockers for a delivered task (issue 7755).
@@ -166,7 +173,7 @@ def delivery_close_blockers(
                 server_labels.append(f"{item.get('kind')}:{item.get('pid')}")
             else:
                 server_labels.append(str(item))
-    return item_close_blockers(
+    blockers = item_close_blockers(
         git_status_clean=git_status_clean,
         created_files=created,
         created_files_accounted=accounted,
@@ -175,6 +182,35 @@ def delivery_close_blockers(
         leftover_registered_artifacts=artifact_paths,
         leftover_report_servers=server_labels,
     )
+    if live_publish:
+        accepted = isinstance(coach_accept, dict) and (
+            coach_accept.get("accepted") is True or coach_accept.get("coach_gate_pass") is True
+        )
+        if not accepted:
+            blockers.append("live-publish-without-coach-accept")
+        elif not coach_accept.get("facts_checked"):
+            blockers.append("coach-accept-missing-facts")
+    if isinstance(publish_package, dict):
+        if not publish_package.get("render_390"):
+            blockers.append("missing-390px-render")
+        if not publish_package.get("render_desktop"):
+            blockers.append("missing-desktop-render")
+        if not publish_package.get("contrast_note"):
+            blockers.append("missing-contrast-note")
+    if isinstance(media_delivery, dict):
+        start = media_delivery.get("human_listen_start") or media_delivery.get("human_look_start")
+        end = media_delivery.get("human_listen_end") or media_delivery.get("human_look_end")
+        if not start or not end:
+            blockers.append("media-missing-human-listen")
+    dirty = [str(p) for p in (dirty_unpushed_worktrees or []) if str(p).strip()]
+    if dirty:
+        blockers.append(f"dirty-unpushed-worktrees:{len(dirty)}")
+    browsers = [str(p) for p in (leftover_browsers or []) if str(p).strip()]
+    if browsers:
+        blockers.append(f"leftover-browsers:{len(browsers)}")
+    if allure_serve:
+        blockers.append("allure-serve-running")
+    return blockers
 
 
 if __name__ == "__main__":

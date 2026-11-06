@@ -3342,10 +3342,13 @@ MINIMUM_PYTHON = (3, 11)
 
 
 def python_floor_message(version: tuple[int, ...] | None = None) -> str:
-    """Explain the supported Python floor (3.10 reaches end of life in October 2026)."""
+    """What is missing, why, and the one fix (#7766)."""
     found = ".".join(str(part) for part in (version or sys.version_info)[:3])
-    return (f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
-            "Rerun the install one-liner, which provisions a supported Python through uv.\n")
+    return (
+        f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
+        "Hooks and the installer refuse an older interpreter. "
+        "Rerun the install one-liner, which provisions a supported Python through uv before any prompt.\n"
+    )
 
 
 def main() -> int:

@@ -170,7 +170,66 @@ def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, lis
     unresolved = int(view.get("unresolvedReviewThreads") or 0)
     if bucket == "GREEN" and merge_state == "BLOCKED" and unresolved:
         return "RED", [{"name": "unresolved-review-threads", "link": str(unresolved)}]
+    stuck = stuck_queue_head(view)
+    if stuck:
+        return "RED", [{"name": stuck, "link": "merge_group"}]
+    dequeued = dequeue_wake(view)
+    if dequeued:
+        return "RED", [{"name": dequeued, "link": "merge-queue"}]
     return bucket, failing
+
+
+STUCK_QUEUE_HEAD_MINUTES = 20
+_UNBOUNDED_LOOP = re.compile(r"while\s+True\b")
+
+
+def queue_position_line(position: int, length: int | None = None) -> str:
+    """Log line written after a PR enters the merge queue."""
+    if length:
+        return f"queue position {int(position)} of {int(length)}"
+    return f"queue position {int(position)}"
+
+
+def stuck_queue_head(pull: dict | None, *, threshold: int = STUCK_QUEUE_HEAD_MINUTES) -> str | None:
+    """Wake when this PR is the queue head and merge_group has been idle too long.
+
+    Generic. Does not encode a product auto-merge policy.
+    """
+    view = pull or {}
+    enqueued = bool(view.get("enqueued") or view.get("inMergeQueue"))
+    if not enqueued and not view.get("isMergeQueueHead"):
+        return None
+    position = view.get("queuePosition")
+    head = view.get("isMergeQueueHead") is True or position in {1, "1"}
+    if not head:
+        return None
+    age = view.get("minutes_since_merge_group", view.get("mergeGroupIdleMinutes"))
+    if age is None:
+        return None
+    try:
+        idle = float(age)
+    except (TypeError, ValueError):
+        return None
+    limit = float(view.get("stuck_head_minutes") or threshold)
+    if idle >= limit:
+        return "stuck-queue-head"
+    return None
+
+
+def dequeue_wake(pull: dict | None) -> str | None:
+    """Wake when the PR left the queue without merging."""
+    view = pull or {}
+    if view.get("dequeued") is True and str(view.get("state") or "").upper() != "MERGED":
+        return "dequeued"
+    return None
+
+
+def preflight_unbounded_loops(source: str) -> list[str]:
+    """Warn when a watcher source contains ``while True`` without a poll cap."""
+    text = source or ""
+    if _UNBOUNDED_LOOP.search(text) and "max_polls" not in text and "HARD_MAX" not in text:
+        return ["unbounded-loop"]
+    return []
 
 class CheckWatchError(RuntimeError):
     """Raised for gh/environment failures that map to exit code 3."""
@@ -786,6 +845,15 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.until_merged:
             bucket, failing = classify_unattended(checks, pull)
+            if isinstance(pull, dict) and pull.get("queuePosition") not in (None, ""):
+                length = pull.get("queueLength")
+                print(
+                    queue_position_line(
+                        int(pull["queuePosition"]),
+                        int(length) if length not in (None, "") else None,
+                    ),
+                    file=sys.stderr,
+                )
         else:
             grace = time.monotonic() - started < REGISTRATION_GRACE_SECONDS and not args.poll_once
             bucket, failing = classify_checks(checks, registration_grace=grace)

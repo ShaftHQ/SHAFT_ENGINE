@@ -23,6 +23,11 @@ Return to the router after delivery. The optional `design-skills`
   only on push or deploy is a CI coverage gap. Record it now, not after green.
   A `--grep` subset of a spec is one too: gate the whole file.
 
+## Plugin and IDE deliveries
+
+A plugin or IDE change is proven on a real IDE under a headless display, with
+an evidence folder of the run. A unit test of the plugin model is not that proof.
+
 ## Red, then green
 
 Run every new or edited UI/e2e test against a build of the base branch first.

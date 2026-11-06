@@ -17,6 +17,8 @@ files after adversarial review had signed off (prior designer-review miss class)
 
 - Unit tests assert missing path / empty observations → FAIL hits.
 - New gate PRs include a missing-input test before the happy path.
+- A new gate is untrusted until it fails a seeded known defect
+  (`rules/gate_proven_red.py`). A gate that has only ever passed is not evidence.
 
 ## Follow-up
 

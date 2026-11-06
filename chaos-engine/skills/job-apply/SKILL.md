@@ -105,7 +105,16 @@ Detail cards: [research](references/research.md),
 
 ## Hard rules
 
-- Never send the application; drafts only (forms: submit only after explicit yes).
+- A recorded standing order outranks confirm-before-send inside the scope that order names. The scope text stays in the private store.
+- Distinct contacts or channels are separate applications.
+- The remote ask goes in the subject and in the body.
+- Two independent reviewers, then send from the human's mailbox connector. Read the Sent folder back. One signature. The signature text stays in the private store.
+- Public-by-link happens through the browser share dialog and is confirmed this turn.
+- After two identical ATS verification errors, stop and use the next channel.
+- The ledger is a cache. Read the tracker back after every write. The sheet location stays in the private store.
+- Search the Sent folder before any resend.
+- Cover letters and emails do not use founder or CEO titles, client names, or tool claims that are not in the CV or a project README.
+- Never send the application; drafts only (forms: submit only after explicit yes). The standing order above is the exception inside its named scope, and the human still owns the connector send.
 - Never invent achievements, features, or metrics.
 - Never put applicant names, emails, phones, employers, or personal stats into
   this skill tree; keep them in the private per-user applicant profile / live

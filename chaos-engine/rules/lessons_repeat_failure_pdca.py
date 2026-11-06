@@ -99,6 +99,16 @@ def evaluate_repeat_failure_pdca(record: dict[str, Any]) -> dict[str, Any]:
     if record.get("chained_fix_after_fail"):
         hits.append("chained-fix-after-fail")
 
+    # Second consecutive failure of the same stage blocks the next push until an RCA is in the progress file.
+    if record.get("push_attempted"):
+        count = record.get("consecutive_failure_count")
+        if not isinstance(count, int):
+            count = len(failures)
+        if count >= 2 and not record.get("rca_in_progress_file"):
+            note = _resolve_note(record)
+            if not note_covers_stage(note, stage):
+                hits.append("push-without-rca")
+
     label = _trigger_label(record, failures, distinct, stage)
     if label is None:
         return _result(hits, "repeat-failure-pdca gate failed")

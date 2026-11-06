@@ -227,6 +227,41 @@ trap cleanup EXIT INT TERM
 
 bootstrap="$work/bootstrap.py"
 echo "Installing ChaosEngine into ${project} from ${repository}@${branch}" >&2
+# #7766: provision Python 3.11+ before the download/lifecycle prompt.
+managed_uv=
+if [ -z "$python" ]; then
+  system=$(uname -s)
+  machine=$(uname -m)
+  case "$system:$machine" in
+    Linux:x86_64) uv_target=x86_64-unknown-linux-gnu; uv_sha=c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83 ;;
+    Linux:aarch64|Linux:arm64) uv_target=aarch64-unknown-linux-gnu; uv_sha=71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc ;;
+    Darwin:x86_64) uv_target=x86_64-apple-darwin; uv_sha=20c47e4c1f630b8abaff8c291fa9b9aa300fef92c4fbff95adf198b55287cda7 ;;
+    Darwin:arm64) uv_target=aarch64-apple-darwin; uv_sha=81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731 ;;
+    *) fail "Unsupported ChaosEngine platform: $system/$machine" ;;
+  esac
+  uv_archive="$work/uv.tar.gz"
+  fetch "$uv_archive" "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-${uv_target}.tar.gz"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "$uv_archive" | cut -d' ' -f1)
+  else
+    actual=$(shasum -a 256 "$uv_archive" | cut -d' ' -f1)
+  fi
+  [ "$actual" = "$uv_sha" ] || fail "uv download checksum verification failed"
+  tar -xzf "$uv_archive" -C "$work"
+  managed_uv="$work/uv-${uv_target}/uv"
+  [ -x "$managed_uv" ] || fail "uv archive is missing its executable"
+  export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
+  "$managed_uv" python install 3.14 --no-progress
+  interp=$("$managed_uv" python find 3.14)
+  [ -n "$interp" ] || fail "uv-managed Python was installed but not found"
+  shim_dir="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/bin"
+  mkdir -p "$shim_dir"
+  ln -sfn "$interp" "$shim_dir/python3"
+  ln -sfn "$interp" "$shim_dir/python"
+  export PATH="$shim_dir:$PATH"
+  mkdir -p "${project}/.chaos-engine-state"
+  printf '%s\n' "$interp" > "${project}/.chaos-engine-state/hook-python"
+fi
 if [ -n "$interactive" ]; then
   controlling_tty="$(printf '%s/%s' /dev tty)"
   [ -r "$controlling_tty" ] || fail "interactive mode requires a usable controlling terminal"
@@ -248,30 +283,8 @@ case "$0" in
     fetch "$bootstrap" "$bootstrap_url"
     ;;
 esac
-if [ -z "$python" ]; then
-  system=$(uname -s)
-  machine=$(uname -m)
-  case "$system:$machine" in
-    Linux:x86_64) uv_target=x86_64-unknown-linux-gnu; uv_sha=c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83 ;;
-    Linux:aarch64|Linux:arm64) uv_target=aarch64-unknown-linux-gnu; uv_sha=71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc ;;
-    Darwin:x86_64) uv_target=x86_64-apple-darwin; uv_sha=20c47e4c1f630b8abaff8c291fa9b9aa300fef92c4fbff95adf198b55287cda7 ;;
-    Darwin:arm64) uv_target=aarch64-apple-darwin; uv_sha=81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731 ;;
-    *) fail "Unsupported ChaosEngine platform: $system/$machine" ;;
-  esac
-  uv_archive="$work/uv.tar.gz"
-  fetch "$uv_archive" "https://github.com/astral-sh/uv/releases/download/0.13.7/uv-${uv_target}.tar.gz"
-  if command -v sha256sum >/dev/null 2>&1; then
-    actual=$(sha256sum "$uv_archive" | cut -d' ' -f1)
-  else
-    actual=$(shasum -a 256 "$uv_archive" | cut -d' ' -f1)
-  fi
-  [ "$actual" = "$uv_sha" ] || fail "uv download checksum verification failed"
-  tar -xzf "$uv_archive" -C "$work"
-  uv="$work/uv-${uv_target}/uv"
-  [ -x "$uv" ] || fail "uv archive is missing its executable"
-  export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
-  "$uv" python install 3.14 --no-progress
-  set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
+if [ -n "$managed_uv" ]; then
+  set -- "$managed_uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else
   set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 fi
@@ -307,8 +320,8 @@ if isinstance(cause, str) and cause.strip():
 '
     if [ -n "$python" ]; then
       cause=$("$python" -c "$cause_script" "$trace" 2>/dev/null || true)
-    elif [ -n "${uv:-}" ]; then
-      cause=$("$uv" run --no-project --managed-python -c "$cause_script" "$trace" 2>/dev/null || true)
+    elif [ -n "${managed_uv:-}" ]; then
+      cause=$("$managed_uv" run --no-project --managed-python -c "$cause_script" "$trace" 2>/dev/null || true)
     fi
   fi
   if [ -n "$cause" ]; then

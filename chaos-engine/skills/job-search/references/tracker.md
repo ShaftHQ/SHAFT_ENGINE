@@ -11,5 +11,5 @@ One row per opening:
 | Apply method | email / external form / ATS / Easy Apply (usually out of scope for this skill) |
 | Fit flags | Verbatim eligibility / region / work-mode notes |
 
-Read back after every write. Before adding a row, search for the same agency +
+The ledger is a cache of this tracker. Read back after every write. The sheet location stays in the private store. Before adding a row, search for the same agency +
 contact + client to avoid double-apply on repeat postings.

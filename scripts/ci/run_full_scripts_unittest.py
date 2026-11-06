@@ -34,8 +34,19 @@ def main(argv: list[str] | None = None) -> int:
         args = ["discover", "-s", "tests/scripts", "-v"]
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    with full_scripts_unittest_lock(ROOT):
+    if sys.stdin is not None and sys.stdin.isatty():
+        print(
+            "warning: full suite in the foreground; start it detached (nohup or setsid)",
+            file=sys.stderr,
+        )
+    try:
+        lock = full_scripts_unittest_lock(ROOT, blocking=False)
+    except BlockingIOError:
+        print("refusing a second full-suite run; one copy at a time", file=sys.stderr)
+        return 2
+    with lock:
         # Re-exec under the same interpreter so unittest sees a clean argv.
+        # The lock fd is inheritable, so it is held across os.execvpe.
         os.execvpe(
             sys.executable,
             [sys.executable, "-m", "unittest", *args],

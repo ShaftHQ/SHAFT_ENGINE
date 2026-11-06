@@ -255,6 +255,8 @@ def full_scripts_unittest_lock(root: Path, *, blocking: bool = True):
     handle = lock_path.open("a+", encoding="utf-8")
     flags = fcntl.LOCK_EX if blocking else (fcntl.LOCK_EX | fcntl.LOCK_NB)
     try:
+        # Survive exec of the suite so a second runner still sees the lock.
+        os.set_inheritable(handle.fileno(), True)
         fcntl.flock(handle.fileno(), flags)
         handle.seek(0)
         handle.truncate()
