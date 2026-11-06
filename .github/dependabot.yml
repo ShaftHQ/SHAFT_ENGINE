@@ -31,7 +31,6 @@ updates:
       - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium"
       - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios"
       - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows"
-      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/lighthouse"
       - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/reporting"
     schedule:
       interval: "weekly"
@@ -56,6 +55,37 @@ updates:
       # group sets applies-to: security-updates. One dependency, one PR.
       setup-npm-security:
         applies-to: security-updates
+        patterns:
+          - "*"
+        group-by: dependency-name
+
+  # Lighthouse only. glob, minimatch, and path-scurry resolve as one tree.
+  # First matching group wins. Other lighthouse dependencies stay one PR per name.
+  - package-ecosystem: "npm"
+    directories:
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/lighthouse"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+    groups:
+      lighthouse-coupled:
+        patterns:
+          - "glob"
+          - "minimatch"
+          - "path-scurry"
+          - "@isaacs/brace-expansion"
+      lighthouse-coupled-security:
+        applies-to: security-updates
+        patterns:
+          - "glob"
+          - "minimatch"
+          - "path-scurry"
+          - "@isaacs/brace-expansion"
+      lighthouse-other:
         patterns:
           - "*"
         group-by: dependency-name
@@ -109,9 +139,26 @@ updates:
           - "com.google.cloud:*"
           - "com.google.protobuf:*"
           - "io.grpc:*"
+      # These five build plugins. Listed before the catch-all name group.
+      maven-build-plugins:
+        patterns:
+          - "org.apache.maven.plugins:maven-compiler-plugin"
+          - "org.apache.maven.plugins:maven-enforcer-plugin"
+          - "org.codehaus.mojo:versions-maven-plugin"
+          - "org.apache.maven.plugins:maven-jar-plugin"
+          - "org.apache.maven.plugins:maven-install-plugin"
       # Version updates. One pull request per dependency name across directories.
       aligned-maven-dependencies:
         group-by: dependency-name
+      # Security twin of maven-build-plugins. Security jobs ignore version-only groups.
+      maven-build-plugins-security:
+        applies-to: security-updates
+        patterns:
+          - "org.apache.maven.plugins:maven-compiler-plugin"
+          - "org.apache.maven.plugins:maven-enforcer-plugin"
+          - "org.codehaus.mojo:versions-maven-plugin"
+          - "org.apache.maven.plugins:maven-jar-plugin"
+          - "org.apache.maven.plugins:maven-install-plugin"
       # Security updates do not use the version group above. Same dependency
       # version across modules stays in one pull request.
       aligned-maven-security:
