@@ -1,6 +1,6 @@
 ---
 name: docs-hygiene
-description: Use when editing source-of-truth docs or status tables: three sources, Done / In progress / Not started, and live hour formulas. On demand only.
+description: "Use when editing source-of-truth docs or status tables: three sources, Done / In progress / Not started, and live hour formulas. On demand only."
 license: MIT
 permissions:
   - read
