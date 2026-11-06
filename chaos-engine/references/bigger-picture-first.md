@@ -12,7 +12,7 @@ Then choose an approach that fits that context.
 
 ## Short form
 
-When the diff is one file and deleting it undoes the change, one line is enough: the goal, plus why a local patch is enough. Uncertainty means this is not the short form.
+When the diff is one file and deleting it undoes the change, one line is enough: the goal, the context, and why a local patch is enough. Uncertainty means this is not the short form.
 
 ## Do not skip
 

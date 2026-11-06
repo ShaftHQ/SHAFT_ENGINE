@@ -9,6 +9,10 @@ Work only inside the bounded specification you were handed. Preserve user
 work, public API, secrets, and safety boundaries. Ethics EC1-EC7 in the
 [router contract](router-contract.md#ethical-conduct) stay controlling.
 
+## Bigger picture first
+
+Before retrieve: name the goal, the larger context, and what a local hotfix would miss, then choose the approach ([bigger picture first](bigger-picture-first.md)).
+
 ## Retrieve first
 
 When this card was loaded through a role adapter, load

@@ -136,7 +136,7 @@ class EntryCoverageTest(unittest.TestCase):
         )
 
     def test_bigger_picture_first_is_the_first_bot_entry_step(self) -> None:
-        """The step-back rule is linked from both entries, ahead of retrieve."""
+        """Numbered step 1 is the step-back, including the no-skip sentence."""
         path = "chaos-engine/references/bigger-picture-first.md"
         self.assertIn(path, self.report["by_link"])
         for name in ("cli", "bot"):
@@ -144,11 +144,34 @@ class EntryCoverageTest(unittest.TestCase):
         bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         section = bot.split("## Every task, before discovery", 1)[1].split("\n## ", 1)[0]
-        first = section.split("\n2. ", 1)[0]
-        self.assertIn("bigger-picture-first.md", first)
-        self.assertIn("goal", first)
-        self.assertIn("local hotfix", first)
-        self.assertLess(first.find("bigger-picture-first.md"), section.find("tool.py retrieve"))
+        step1: list[str] = []
+        started = False
+        for line in section.splitlines():
+            if not started:
+                if line.startswith("1. "):
+                    started = True
+                    step1.append(line)
+                continue
+            if line[:1].isdigit() and line[1:3] == ". ":
+                break
+            step1.append(line)
+        first = "\n".join(step1)
+        self.assertTrue(first.startswith("1. "), first)
+        for needle in (
+            "bigger-picture-first.md",
+            "goal",
+            "larger context",
+            "local hotfix",
+            "review comment",
+            "CI failure",
+            "just hotfix it",
+        ):
+            self.assertIn(needle, first, needle)
+        self.assertNotIn("tool.py retrieve", first)
+        self.assertLess(section.find(first), section.find("tool.py retrieve"))
+        law = skill.split("1. Measure thrice", 1)[1].split("\n2. ", 1)[0]
+        self.assertLess(law.find("step back"), law.find("research and plan before the first edit"))
+        self.assertIn("research and plan before the first edit", law)
         self.assertIn("## Bigger picture first", skill)
         self.assertIn("../../references/bigger-picture-first.md", skill)
         self.assertIn("what a local hotfix", skill.split("## Triage", 1)[0])
@@ -157,6 +180,14 @@ class EntryCoverageTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertNotIn("bigger-picture", worker)
         self.assertNotIn("bigger_picture", worker)
+
+    def test_delegate_card_steps_back_before_retrieve(self) -> None:
+        """Role adapters load the delegate card, so the beat has to be on that card."""
+        card = (ROOT / "chaos-engine/references/delegate-card.md").read_text(encoding="utf-8")
+        self.assertLess(card.find("## Bigger picture first"), card.find("## Retrieve first"))
+        beat = card.split("## Retrieve first", 1)[0]
+        for needle in ("bigger-picture-first.md", "goal", "larger context", "local hotfix"):
+            self.assertIn(needle, beat, needle)
 
     def test_required_hook_events_wired_on_each_platform(self) -> None:
         # Host hook configs under .claude/.codex/.grok are gitignored install
