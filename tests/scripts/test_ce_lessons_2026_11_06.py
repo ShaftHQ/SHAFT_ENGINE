@@ -151,13 +151,13 @@ class DelegationAndBoardTest(TestCase):
 
     def test_token_restore_is_not_resume(self) -> None:
         bad = self.prior.evaluate_run_state(
-            {"token_restored": True, "resumed_work": True, "about_to_dispatch": True}
+            {"token_restored": True, "resumed_work": True, "about_to_dispatch": True}  # nosec B105 - gate flag, not a secret
         )
         self.assertIn("token-restore-is-not-resume", bad["hits"])
         self.assertIn("dispatch-without-run-state-check", bad["hits"])
         good = self.prior.evaluate_run_state(
             {
-                "token_restored": True,
+                "token_restored": True,  # nosec B105 - gate flag, not a secret
                 "resumed_work": True,
                 "proceed_id": 1,
                 "about_to_dispatch": True,

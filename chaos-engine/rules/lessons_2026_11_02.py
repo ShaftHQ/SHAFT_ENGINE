@@ -74,21 +74,26 @@ def _status_board_item_hits(item: dict[str, Any]) -> list[str]:
     return hits
 
 
-def _status_board_proceed_hits(board: dict[str, Any]) -> list[str]:
-    """#7767: numbered IDs, and proceed-with-N wakes only those items."""
+def _numeric_id_hits(board: dict[str, Any]) -> list[str]:
     hits: list[str] = []
-    if board.get("numbered_ids"):
-        seen: list[int] = []
-        for item in board.get("items") or []:
-            if not isinstance(item, dict):
-                continue
-            nid = item.get("numeric_id")
-            if not isinstance(nid, int) or isinstance(nid, bool) or nid < 1:
-                hits.append(f"missing-numeric-id:{item.get('id')}")
-                continue
-            seen.append(nid)
-        if len(seen) != len(set(seen)):
-            hits.append("duplicate-numeric-id")
+    if not board.get("numbered_ids"):
+        return hits
+    seen: list[int] = []
+    for item in board.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        nid = item.get("numeric_id")
+        if not isinstance(nid, int) or isinstance(nid, bool) or nid < 1:
+            hits.append(f"missing-numeric-id:{item.get('id')}")
+            continue
+        seen.append(nid)
+    if len(seen) != len(set(seen)):
+        hits.append("duplicate-numeric-id")
+    return hits
+
+
+def _proceed_wake_hits(board: dict[str, Any]) -> list[str]:
+    hits: list[str] = []
     proceed = board.get("proceed_ids")
     if proceed is None:
         return hits
@@ -102,13 +107,19 @@ def _status_board_proceed_hits(board: dict[str, Any]) -> list[str]:
         if not isinstance(item, dict):
             continue
         nid = item.get("numeric_id")
-        if (item.get("resumed") or item.get("dispatched")) and nid is not None:
-            try:
-                if int(nid) not in allowed:
-                    hits.append(f"proceed-woke-other:{nid}")
-            except (TypeError, ValueError):
+        if not (item.get("resumed") or item.get("dispatched")) or nid is None:
+            continue
+        try:
+            if int(nid) not in allowed:
                 hits.append(f"proceed-woke-other:{nid}")
+        except (TypeError, ValueError):
+            hits.append(f"proceed-woke-other:{nid}")
     return hits
+
+
+def _status_board_proceed_hits(board: dict[str, Any]) -> list[str]:
+    """Numbered ids, and proceed-with-N wakes only those items."""
+    return _numeric_id_hits(board) + _proceed_wake_hits(board)
 
 
 def evaluate_status_board(board: dict[str, Any]) -> dict[str, Any]:
