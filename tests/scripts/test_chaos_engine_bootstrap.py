@@ -1849,20 +1849,45 @@ class InstallerPhase0DownloadTest(unittest.TestCase):
             self.assertNotIn(str(project), cause)
             self.assertNotRegex(trace + cause, r"(?i)(token|secret|password)=")
 
+    def test_source_directory_tree_sha_matches_git(self):
+        module = load()
+        sha = module.source_directory_tree_sha(
+            {
+                "VERSION": (b"1\n", False),
+                "sub/a.txt": (b"hello", False),
+                "install.sh": (b"#!/bin/sh\n", True),
+            }
+        )
+        self.assertEqual("54ecb56f2a2fb2a1d28f3df421a695781f788330", sha)
+
     def test_download_requests_chaos_engine_subtree_not_whole_repo(self):
         module = load()
         skill = b"skill"
-        subtree_sha = "a" * 40
+        profile = b'{"name":"shaft-skills"}\n'
+        addon = b'{"name":"shaft-engine-users"}\n'
+        core = "a" * 40
+        skills = "c" * 40
+        engine = "b" * 40
+        pack = "d" * 40
+        addons = "e" * 40
         root = {
             "truncated": False,
             "tree": [
-                {"path": "chaos-engine", "mode": "040000", "type": "tree", "sha": subtree_sha},
-                {"path": "shaft-engine", "mode": "040000", "type": "tree", "sha": "b" * 40},
+                {"path": "chaos-engine", "mode": "040000", "type": "tree", "sha": core},
+                {"path": "shaft-skills", "mode": "040000", "type": "tree", "sha": skills},
+                {"path": "shaft-engine", "mode": "040000", "type": "tree", "sha": engine},
             ],
         }
-        subtree = {
-            "truncated": False,
-            "tree": [blob_tree_entry("skills/chaos-engine/SKILL.md", skill)],
+        listings = {
+            core: [blob_tree_entry("skills/chaos-engine/SKILL.md", skill)],
+            skills: [
+                {"path": "ce-pack", "mode": "040000", "type": "tree", "sha": pack},
+                {"path": "ce-addons", "mode": "040000", "type": "tree", "sha": addons},
+                {"path": "README.md", "mode": "100644", "type": "blob", "sha": "f" * 40, "size": 1},
+            ],
+            pack: [blob_tree_entry("profile.json", profile)],
+            addons: [blob_tree_entry("shaft-engine-users/addon.json", addon)],
+            engine: [{"path": "pom.xml", "mode": "100644", "type": "blob", "sha": "9" * 40, "size": 3}],
         }
         urls: list[str] = []
 
@@ -1872,22 +1897,41 @@ class InstallerPhase0DownloadTest(unittest.TestCase):
             urls.append(url)
             if url.endswith(f"/git/trees/{COMMIT_ONE}"):
                 return Response(json.dumps(root).encode())
-            if f"/git/trees/{subtree_sha}?recursive=1" in url:
-                return Response(json.dumps(subtree).encode())
-            if url.endswith("SKILL.md"):
+            for sha, entries in listings.items():
+                recursive = sha in {core, pack, addons}
+                needle = f"/git/trees/{sha}?recursive=1" if recursive else f"/git/trees/{sha}"
+                if (needle in url) if recursive else url.endswith(needle):
+                    return Response(json.dumps({"truncated": False, "tree": entries}).encode())
+            if url.endswith("skills/chaos-engine/SKILL.md"):
                 return Response(skill)
+            if url.endswith("shaft-skills/ce-pack/profile.json"):
+                return Response(profile)
+            if url.endswith("shaft-skills/ce-addons/shaft-engine-users/addon.json"):
+                return Response(addon)
             raise AssertionError(url)
 
         with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
             source = module.download_source(
-                "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, Path(temporary), opener=opener
+                "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, destination, opener=opener
             )
             self.assertEqual(skill, (source / "skills/chaos-engine/SKILL.md").read_bytes())
-            self.assertFalse((Path(temporary) / "shaft-engine").exists())
+            self.assertEqual(profile, (destination / "shaft-skills/ce-pack/profile.json").read_bytes())
+            self.assertEqual(
+                addon,
+                (destination / "shaft-skills/ce-addons/shaft-engine-users/addon.json").read_bytes(),
+            )
+            self.assertFalse((destination / "shaft-engine").exists())
+            self.assertFalse((destination / "shaft-skills/README.md").exists())
         self.assertTrue(any(url.endswith(f"/git/trees/{COMMIT_ONE}") for url in urls))
         self.assertFalse(any(f"/git/trees/{COMMIT_ONE}?recursive=1" in url for url in urls))
-        self.assertTrue(any(f"/git/trees/{subtree_sha}?recursive=1" in url for url in urls))
-        self.assertFalse(any("b" * 40 in url for url in urls))
+        self.assertTrue(any(f"/git/trees/{core}?recursive=1" in url for url in urls))
+        self.assertTrue(any(url.endswith(f"/git/trees/{skills}") for url in urls))
+        self.assertFalse(any(f"/git/trees/{skills}?recursive=1" in url for url in urls))
+        self.assertTrue(any(f"/git/trees/{pack}?recursive=1" in url for url in urls))
+        self.assertTrue(any(f"/git/trees/{addons}?recursive=1" in url for url in urls))
+        self.assertTrue(any(url.endswith(f"/git/trees/{engine}") for url in urls))
+        self.assertFalse(any(f"/git/trees/{engine}?recursive=1" in url for url in urls))
 
     def test_tarball_fallback_keeps_only_chaos_engine_and_checks_blob_sha(self):
         module = load()
@@ -1943,6 +1987,174 @@ class InstallerPhase0DownloadTest(unittest.TestCase):
                     Path(temporary),
                     opener=opener(bad),
                 )
+
+    def _tree_sha_tarball_opener(self, module, archive: bytes, *, core_files, pack_files, addon_files):
+        core_sha = module.source_directory_tree_sha(core_files)
+        pack_sha = module.source_directory_tree_sha(pack_files)
+        addon_sha = module.source_directory_tree_sha(addon_files)
+        skills = "c" * 40
+        engine = "b" * 40
+        root = {
+            "truncated": False,
+            "tree": [
+                {"path": "chaos-engine", "mode": "040000", "type": "tree", "sha": core_sha},
+                {"path": "shaft-skills", "mode": "040000", "type": "tree", "sha": skills},
+                {"path": "shaft-engine", "mode": "040000", "type": "tree", "sha": engine},
+            ],
+        }
+        skills_listing = {
+            "truncated": False,
+            "tree": [
+                {"path": "ce-pack", "mode": "040000", "type": "tree", "sha": pack_sha},
+                {"path": "ce-addons", "mode": "040000", "type": "tree", "sha": addon_sha},
+            ],
+        }
+        engine_listing = {
+            "truncated": False,
+            "tree": [{"path": "pom.xml", "mode": "100644", "type": "blob", "sha": "9" * 40, "size": 3}],
+        }
+
+        def open_url(request, timeout=0):
+            del timeout
+            url = _request_url(request)
+            if url.endswith(f"/git/trees/{COMMIT_ONE}"):
+                return Response(json.dumps(root).encode())
+            if url.endswith(f"/git/trees/{skills}") or url.endswith(f"/git/trees/{engine}"):
+                body = skills_listing if url.endswith(f"/git/trees/{skills}") else engine_listing
+                return Response(json.dumps(body).encode())
+            if "/git/trees/" in url:
+                raise _http_504(url)
+            if "codeload.github.com" in url and url.endswith(f"/tar.gz/{COMMIT_ONE}"):
+                return Response(archive)
+            raise _http_504(url)
+
+        return open_url
+
+    def test_tarball_fallback_keeps_sibling_packs_when_tree_sha_matches(self):
+        module = load()
+        skill = b"skill-from-tar"
+        install_py = b"print('ok')\n"
+        research = b"notes\n"
+        profile = b'{"name":"shaft-skills"}\n'
+        addon = b'{"name":"shaft-engine-users"}\n'
+        prefix = f"SHAFT_ENGINE-{COMMIT_ONE}"
+        archive = _gzip_tarball(
+            {
+                f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": skill,
+                f"{prefix}/chaos-engine/install.py": install_py,
+                f"{prefix}/chaos-engine/RESEARCH.md": research,
+                f"{prefix}/shaft-skills/ce-pack/profile.json": profile,
+                f"{prefix}/shaft-skills/ce-addons/shaft-engine-users/addon.json": addon,
+                f"{prefix}/shaft-engine/pom.xml": b"<project/>",
+                f"{prefix}/other/ce-pack/profile.json": b"unlisted",
+            }
+        )
+        opener = self._tree_sha_tarball_opener(
+            module,
+            archive,
+            core_files={
+                "skills/chaos-engine/SKILL.md": (skill, False),
+                "install.py": (install_py, False),
+                "RESEARCH.md": (research, False),
+            },
+            pack_files={"profile.json": (profile, False)},
+            addon_files={"shaft-engine-users/addon.json": (addon, False)},
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            with mock.patch.object(module.time, "sleep"):
+                source = module.download_source(
+                    "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, destination, opener=opener
+                )
+            self.assertEqual(skill, (source / "skills/chaos-engine/SKILL.md").read_bytes())
+            self.assertEqual(install_py, (source / "install.py").read_bytes())
+            self.assertFalse((source / "RESEARCH.md").exists())
+            self.assertEqual(profile, (destination / "shaft-skills/ce-pack/profile.json").read_bytes())
+            self.assertEqual(
+                addon,
+                (destination / "shaft-skills/ce-addons/shaft-engine-users/addon.json").read_bytes(),
+            )
+            self.assertFalse((destination / "shaft-engine").exists())
+            self.assertFalse((destination / "other").exists())
+
+    def test_tarball_rejected_when_root_tree_sha_does_not_match(self):
+        module = load()
+        skill = b"skill-from-tar"
+        install_py = b"print('ok')\n"
+        profile = b'{"name":"shaft-skills"}\n'
+        addon = b'{"name":"shaft-engine-users"}\n'
+        prefix = f"SHAFT_ENGINE-{COMMIT_ONE}"
+        good_core = {
+            "skills/chaos-engine/SKILL.md": (skill, False),
+            "install.py": (install_py, False),
+        }
+        pack_files = {"profile.json": (profile, False)}
+        addon_files = {"shaft-engine-users/addon.json": (addon, False)}
+
+        def archive_with(install_bytes: bytes, profile_bytes: bytes) -> bytes:
+            return _gzip_tarball(
+                {
+                    f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": skill,
+                    f"{prefix}/chaos-engine/install.py": install_bytes,
+                    f"{prefix}/shaft-skills/ce-pack/profile.json": profile_bytes,
+                    f"{prefix}/shaft-skills/ce-addons/shaft-engine-users/addon.json": addon,
+                }
+            )
+
+        cases = (
+            archive_with(b"TAMPERED-INSTALL", profile),
+            archive_with(install_py, b"TAMPERED-PACK"),
+        )
+        for archive in cases:
+            opener = self._tree_sha_tarball_opener(
+                module,
+                archive,
+                core_files=good_core,
+                pack_files=pack_files,
+                addon_files=addon_files,
+            )
+            with tempfile.TemporaryDirectory() as temporary:
+                destination = Path(temporary)
+                with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                    module, "resolve_local_clone", return_value=None
+                ), self.assertRaisesRegex(ValueError, "does not match"):
+                    module.download_source(
+                        "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, destination, opener=opener
+                    )
+                self.assertFalse(list(destination.rglob("install.py")))
+                self.assertFalse(list(destination.rglob("profile.json")))
+                self.assertFalse(list(destination.rglob("SKILL.md")))
+
+    def test_tarball_rejected_when_tree_listing_504s(self):
+        module = load()
+        prefix = f"SHAFT_ENGINE-{COMMIT_ONE}"
+        archive = _gzip_tarball(
+            {
+                f"{prefix}/chaos-engine/skills/chaos-engine/SKILL.md": b"plausible-skill",
+                f"{prefix}/chaos-engine/install.py": b"TAMPERED-INSTALL",
+            }
+        )
+
+        def opener(request, timeout=0):
+            del timeout
+            url = _request_url(request)
+            if "/git/trees/" in url:
+                raise _http_504(url)
+            if "codeload.github.com" in url or "/tarball/" in url:
+                return Response(archive)
+            raise _http_504(url)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            with mock.patch.object(module.time, "sleep"), mock.patch.object(
+                module, "resolve_local_clone", return_value=None
+            ), self.assertRaisesRegex(RuntimeError, "unable to download"):
+                module.download_source(
+                    "ShaftHQ/SHAFT_ENGINE", COMMIT_ONE, destination, opener=opener
+                )
+            self.assertFalse(list(destination.rglob("install.py")))
+            self.assertFalse(list(destination.rglob("SKILL.md")))
+            self.assertFalse((destination / "chaos-engine").exists())
 
 
 if __name__ == "__main__":
