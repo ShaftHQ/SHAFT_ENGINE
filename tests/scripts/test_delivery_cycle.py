@@ -98,6 +98,39 @@ class DeliveryCycleContractTest(unittest.TestCase):
             self.assertNotIn("one round", text)
             self.assertNotIn("returns to the reviewer who raised the blocker", text)
 
+    def test_remaining_callers_wait_for_green_checks(self) -> None:
+        flow = (REFS / "iterative-flow.md").read_text(encoding="utf-8")
+        consult = (REFS / "consult-first.md").read_text(encoding="utf-8")
+        playbook = (REFS / "work-github-playbook.md").read_text(encoding="utf-8")
+        checklist = (REFS / "design-review-video-checklist.md").read_text(encoding="utf-8")
+        cycle = (REFS / "delivery-cycle.md").read_text(encoding="utf-8")
+        registry = (
+            ROOT / "tests/scripts/test_agent_router_contract.py"
+        ).read_text(encoding="utf-8")
+        ordered = "two independent adversarial reviews after required checks are green"
+        sequential = (REFS / "sequential-wip.md").read_text(encoding="utf-8")
+        for text in (flow, consult, playbook, checklist, sequential):
+            self.assertIn("after required checks are green", text)
+            self.assertIn("two independent adversarial reviews", text)
+        for text in (flow, checklist, sequential):
+            self.assertLess(text.index(CYCLE), text.index(ordered))
+            self.assertIn(ordered, text)
+        self.assertLess(consult.index(CYCLE), consult.index("two independent adversarial reviews"))
+        self.assertIn(ordered, playbook)
+        self.assertEqual(playbook.count(ordered), 1)
+        self.assertNotIn("does the acceptance review", flow)
+        self.assertIn("The author is neither reviewer", flow)
+        self.assertIn("The author is neither reviewer", checklist)
+        self.assertIn(CYCLE, flow)
+        self.assertIn(CYCLE, consult)
+        self.assertIn("architect ->", consult)
+        self.assertNotIn("before any local\nvalidation or review", playbook)
+        self.assertNotIn("followed by extra local tests", playbook)
+        self.assertIn("## Session lift", cycle)
+        self.assertIn("active session only", cycle)
+        self.assertNotIn("planning-selected terminal adversarial review", registry)
+        self.assertIn(ordered, registry)
+
     def test_leftover_callers_keep_two_reviews_not_a_one_review_close(self) -> None:
         for name in CALLERS:
             raw = (REFS / name).read_text(encoding="utf-8")
@@ -128,6 +161,7 @@ class DeliveryCycleContractTest(unittest.TestCase):
             flow_raw.index("At most 3 iterations"),
             flow_raw.index("Run two independent adversarial reviews"),
         )
+
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")

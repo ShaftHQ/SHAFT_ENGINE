@@ -24,6 +24,15 @@ this order, with a one-line bigger-picture note. The cap is not a quota.
 "At most 3" does not mean three iterations are required. Zero extra
 iterations is the normal case when the first Check accepts.
 
+## Session lift
+
+The caps above are the default. An explicit owner instruction may lift
+the iteration cap or the review cap for the active session only.
+Architect still comes first. Reviews still start only after required
+checks are green on that head. A new commit still invalidates earlier
+passes. Do not review an unchanged head a third time unless that same
+instruction lifts that sentence too.
+
 ## Adoption
 
 The core card, kanban Definition of Done, router contract, and delegation
