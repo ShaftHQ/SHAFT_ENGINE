@@ -196,6 +196,198 @@ class AndroidLifecycleServiceTest {
     }
 
     @Test
+    void stopReleasesALiveLeaseAndLogsNameBothRoles(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment environment = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+
+        String logs = lifecycle.logs();
+        assertTrue(lifecycle.emulatorLog().startsWith(fixture.paths().state()));
+        assertTrue(lifecycle.appiumLog().startsWith(fixture.paths().state()));
+        assertFalse(lifecycle.emulatorLog().equals(lifecycle.appiumLog()));
+        assertTrue(logs.contains("== emulator ==" + System.lineSeparator() + Files.readString(lifecycle.emulatorLog())));
+        assertTrue(logs.contains("== appium ==" + System.lineSeparator() + Files.readString(lifecycle.appiumLog())));
+
+        assertTrue(lifecycle.stop(fixture.options().shutdownTimeout()));
+        assertEquals(List.of("appium", "emulator"), runtime.stopped);
+        assertFalse(Files.exists(fixture.paths().state().resolve("mobile-android-runtime.json")));
+        assertEquals("", lifecycle.logs());
+        assertFalse(lifecycle.stop(fixture.options().shutdownTimeout()));
+        environment.close();
+    }
+
+    @Test
+    void stopDropsAFullyDeadLeaseWithoutSignalingProcesses(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment environment = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+        runtime.setAllAlive(false);
+
+        assertFalse(lifecycle.stop(fixture.options().shutdownTimeout()));
+
+        assertTrue(runtime.stopped.isEmpty());
+        assertFalse(Files.exists(fixture.paths().state().resolve("mobile-android-runtime.json")));
+        environment.close();
+    }
+
+    @Test
+    void stopRefusesAPartiallyAliveLease(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment environment = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+        runtime.setAlive("emulator", false);
+
+        IOException failure = assertThrows(IOException.class,
+                () -> lifecycle.stop(fixture.options().shutdownTimeout()));
+
+        assertTrue(failure.getMessage().contains("partially alive"));
+        assertTrue(runtime.stopped.isEmpty());
+        assertTrue(runtime.process("appium").isAlive());
+        assertTrue(Files.isRegularFile(fixture.paths().state().resolve("mobile-android-runtime.json")));
+        runtime.setAlive("emulator", true);
+        environment.close();
+    }
+
+    @Test
+    void startRejectsACompatibleLeaseWhenReuseIsDisabled(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment running = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+
+        IOException failure = assertThrows(IOException.class, () -> lifecycle.start(fixture.plan(), fixture.approval(),
+                fixture.options().withReuseOwnedProcesses(false)));
+
+        assertTrue(failure.getMessage().contains("reuse is disabled"));
+        assertEquals(2, runtime.commands.size());
+        assertTrue(runtime.stopped.isEmpty());
+        running.close();
+    }
+
+    @Test
+    void startRejectsALeaseThatDoesNotMatchTheReviewedPlan(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment running = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+        AndroidSetupRequest otherRequest = new AndroidSetupRequest(36, "pixel_8", "google_apis", "x86_64",
+                "other_avd", 4096, 2, 4823);
+        ReadyOperations otherOperations = new ReadyOperations();
+        SetupPlan otherPlan = AndroidSetupPlanner.plan(SetupPlatform.LINUX, SetupArchitecture.X64,
+                SetupMode.MANAGED, otherRequest);
+        SetupOptions otherOptions = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, fixture.paths())
+                .withMode(SetupMode.MANAGED).withTimeouts(Duration.ofSeconds(5), Duration.ofSeconds(5));
+        new AndroidSetupService(fixture.paths(), SetupPlatform.LINUX, SetupArchitecture.X64, otherRequest,
+                otherOperations, false).install(otherPlan, approval(otherPlan));
+        AndroidLifecycleService otherLifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, otherRequest, otherOperations, runtime, new RecordingHealth());
+
+        IOException failure = assertThrows(IOException.class,
+                () -> otherLifecycle.start(otherPlan, approval(otherPlan), otherOptions));
+
+        assertTrue(failure.getMessage().contains("does not match the reviewed plan"));
+        assertEquals(2, runtime.commands.size());
+        running.close();
+    }
+
+    @Test
+    void startRejectsForeignProfileHostAndExternalMode(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+
+        IllegalArgumentException profile = assertThrows(IllegalArgumentException.class, () -> lifecycle.start(
+                fixture.plan(), fixture.approval(), fixture.options().withProfile(SetupProfile.REPORT_PORTAL)));
+        assertTrue(profile.getMessage().contains("MOBILE_ANDROID"));
+
+        SetupPlan windows = AndroidSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
+                SetupMode.MANAGED, fixture.request());
+        IllegalArgumentException host = assertThrows(IllegalArgumentException.class,
+                () -> lifecycle.start(windows, approval(windows), fixture.options()));
+        assertTrue(host.getMessage().contains("does not match this host"));
+
+        IllegalArgumentException external = assertThrows(IllegalArgumentException.class, () -> lifecycle.start(
+                fixture.plan(), fixture.approval(), fixture.options().withMode(SetupMode.EXTERNAL)));
+        assertTrue(external.getMessage().contains("External"));
+        assertTrue(runtime.commands.isEmpty());
+    }
+
+    @Test
+    void startRejectsAnInvalidReceiptAMismatchedReceiptAndAnUnreadyTarget(@TempDir Path temp) throws Exception {
+        Fixture invalid = installed(temp.resolve("invalid"));
+        RecordingRuntime invalidRuntime = new RecordingRuntime();
+        AndroidLifecycleService invalidLifecycle = new AndroidLifecycleService(invalid.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, invalid.request(), invalid.operations(), invalidRuntime, new RecordingHealth());
+        Files.writeString(invalid.paths().receipts().resolve("mobile-android.json"), "{");
+
+        IOException invalidFailure = assertThrows(IOException.class,
+                () -> invalidLifecycle.start(invalid.plan(), invalid.approval(), invalid.options()));
+
+        assertTrue(invalidFailure.getMessage().contains("invalid"));
+        assertTrue(invalidRuntime.commands.isEmpty());
+
+        Fixture mismatch = installed(temp.resolve("mismatch"));
+        RecordingRuntime mismatchRuntime = new RecordingRuntime();
+        AndroidLifecycleService mismatchLifecycle = new AndroidLifecycleService(mismatch.paths(),
+                SetupPlatform.LINUX, SetupArchitecture.X64, mismatch.request(), mismatch.operations(),
+                mismatchRuntime, new RecordingHealth());
+        Path receipt = mismatch.paths().receipts().resolve("mobile-android.json");
+        String original = Files.readString(receipt);
+        assertTrue(original.contains(mismatch.plan().digest()));
+        Files.writeString(receipt, original.replace(mismatch.plan().digest(), "sha256:" + "0".repeat(64)));
+
+        IOException mismatchFailure = assertThrows(IOException.class,
+                () -> mismatchLifecycle.start(mismatch.plan(), mismatch.approval(), mismatch.options()));
+
+        assertTrue(mismatchFailure.getMessage().contains("does not match the reviewed plan"));
+        assertTrue(mismatchRuntime.commands.isEmpty());
+
+        Fixture blocked = installed(temp.resolve("blocked"));
+        RecordingRuntime blockedRuntime = new RecordingRuntime();
+        blocked.operations().blockedTarget = SetupTarget.ANDROID_SDK;
+        AndroidLifecycleService blockedLifecycle = new AndroidLifecycleService(blocked.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, blocked.request(), blocked.operations(), blockedRuntime, new RecordingHealth());
+
+        IOException blockedFailure = assertThrows(IOException.class,
+                () -> blockedLifecycle.start(blocked.plan(), blocked.approval(), blocked.options()));
+
+        assertTrue(blockedFailure.getMessage().contains("ANDROID_SDK is not ready: blocked"));
+        assertTrue(blockedRuntime.commands.isEmpty());
+    }
+
+    @Test
+    void logsRejectAnUnreadableLeaseAndALeaseForADifferentAvd(@TempDir Path temp) throws Exception {
+        Fixture fixture = installed(temp);
+        RecordingRuntime runtime = new RecordingRuntime();
+        AndroidLifecycleService lifecycle = new AndroidLifecycleService(fixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, fixture.request(), fixture.operations(), runtime, new RecordingHealth());
+        ManagedEnvironment environment = lifecycle.start(fixture.plan(), fixture.approval(), fixture.options());
+        Path lease = fixture.paths().state().resolve("mobile-android-runtime.json");
+        String original = Files.readString(lease);
+        Files.writeString(lease, "{");
+
+        IOException invalid = assertThrows(IOException.class, lifecycle::logs);
+        assertTrue(invalid.getMessage().contains("lease is invalid"));
+
+        assertTrue(original.contains(fixture.request().avdName()));
+        Files.writeString(lease, original.replace(fixture.request().avdName(), "other_avd"));
+        IOException mismatch = assertThrows(IOException.class, lifecycle::logs);
+        assertTrue(mismatch.getMessage().contains("does not match the requested AVD"));
+
+        Files.writeString(lease, original);
+        environment.close();
+    }
+
+    @Test
     void leaseRoundTripReusesProcessesAndStopsOnlyAfterFinalRelease(@TempDir Path temp) throws Exception {
         Fixture fixture = installed(temp);
         RecordingRuntime runtime = new RecordingRuntime();
@@ -336,9 +528,14 @@ class AndroidLifecycleServiceTest {
                            SetupPlan plan, SetupApproval approval, SetupOptions options) { }
 
     private static final class ReadyOperations implements AndroidToolchainOperations {
+        private SetupTarget blockedTarget;
+
         @Override public void preflight(List<SetupAction> actions, boolean offline) { }
         @Override public void install(SetupAction action) { }
         @Override public SetupStatus status(SetupAction action) {
+            if (action.target() == blockedTarget) {
+                return new SetupStatus(action.target(), SetupReadiness.MISSING, "", "blocked");
+            }
             return new SetupStatus(action.target(), SetupReadiness.READY, action.version(), "ready");
         }
     }
