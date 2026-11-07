@@ -55,30 +55,79 @@ class GuidanceContractSelectionTest(unittest.TestCase):
         self.assertFalse(set(GATED) & set(gate.ungated_script_modules(ROOT)))
 
 
+def _contract_failures_on_copy(changed: str, copies: tuple[str, ...], mutate) -> list[str]:
+    """Run one cheap contract against a temp root. The checkout stays untouched."""
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        for relative in copies:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((ROOT / relative).read_bytes())
+        mutate(root)
+        script = (
+            "import sys\n"
+            "from pathlib import Path\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "sys.path.append(sys.argv[2])\n"
+            "from scripts.ci.overlay_pre_push import cheap_ci_contract_failures\n"
+            "print('\\n'.join(cheap_ci_contract_failures(Path(sys.argv[1]), [sys.argv[3]])))\n"
+        )
+        run = subprocess.run(  # nosec B603 - this interpreter, fixed script, temp root.
+            [sys.executable, "-c", script, str(root), str(ROOT), changed],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=120,
+        )
+        if run.returncode != 0:
+            raise AssertionError(run.stderr[-2000:] or run.stdout[-2000:])
+        return [line for line in run.stdout.splitlines() if line]
+
+
 class GuidanceContractFailureTest(unittest.TestCase):
     def test_dropping_awaiting_checks_fails_pre_push_with_that_needle(self) -> None:
-        path = ROOT / "chaos-engine/references/ci-status-economy.md"
-        original = path.read_text(encoding="utf-8")
-        try:
-            path.write_text(original.replace("AWAITING_CHECKS", "QUEUED_STATE"), encoding="utf-8")
-            failures = prepush.cheap_ci_contract_failures(
-                ROOT, ["chaos-engine/references/ci-status-economy.md"]
+        copies = (
+            "tests/__init__.py",
+            "tests/scripts/__init__.py",
+            "tests/scripts/repo_state_guard.py",
+            "tests/scripts/test_ce_bugfix_2026_10_30_2.py",
+            "chaos-engine/references/ci-status-economy.md",
+            "chaos-engine/skills/ci-cd/SKILL.md",
+        )
+
+        def mutate(root: Path) -> None:
+            path = root / "chaos-engine/references/ci-status-economy.md"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace("AWAITING_CHECKS", "QUEUED_STATE"),
+                encoding="utf-8",
             )
-        finally:
-            path.write_text(original, encoding="utf-8")
+
+        failures = _contract_failures_on_copy(
+            "chaos-engine/references/ci-status-economy.md", copies, mutate
+        )
         self.assertIn("AWAITING_CHECKS", "\n".join(failures))
 
     def test_bot_entry_chain_over_24576_bytes_fails(self) -> None:
-        path = ROOT / "chaos-engine/references/bot-entry.md"
-        original = path.read_text(encoding="utf-8")
-        pad = "<!-- chain-budget-probe-7791 unique mandated-chain padding -->\n" * 800
-        try:
-            path.write_text(original + pad, encoding="utf-8")
-            failures = prepush.cheap_ci_contract_failures(
-                ROOT, ["chaos-engine/references/bot-entry.md"]
-            )
-        finally:
-            path.write_text(original, encoding="utf-8")
+        copies = (
+            "tests/__init__.py",
+            "tests/scripts/__init__.py",
+            "tests/scripts/repo_state_guard.py",
+            "tests/scripts/ce_installed_fixture.py",
+            "tests/scripts/test_chaos_engine_token_economy_6173.py",
+            "scripts/ci/validate_agent_guidance.py",
+            "scripts/ci/agent_guidance_budget.json",
+            "scripts/ci/agent_harness_parity.json",
+            "chaos-engine/references/bot-entry.md",
+        )
+
+        def mutate(root: Path) -> None:
+            path = root / "chaos-engine/references/bot-entry.md"
+            pad = "<!-- chain-budget-probe-7791 unique mandated-chain padding -->\n" * 800
+            path.write_text(path.read_text(encoding="utf-8") + pad, encoding="utf-8")
+
+        failures = _contract_failures_on_copy(
+            "chaos-engine/references/bot-entry.md", copies, mutate
+        )
         self.assertIn("24576", "\n".join(failures))
 
     def test_nested_chaos_engine_readme_fails_even_without_the_unit_module(self) -> None:

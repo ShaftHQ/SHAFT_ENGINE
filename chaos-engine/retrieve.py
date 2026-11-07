@@ -701,6 +701,53 @@ def _graphify_seeds(query: str) -> list[str]:
     return seeds
 
 
+def _skip_no_rare_before_store(store: str, query: str) -> bool:
+    """Unpatched Graphify does not walk a query that has no rare token.
+
+    A patched ``subprocess.run`` still runs so a concrete ``src=`` path is kept.
+    """
+    if store != "graphify" or subprocess.run is not _REAL_RUN:
+        return False
+    split = _corpus_split()
+    if split is None or split.rare_tokens(query):
+        return False
+    words = query.split()
+    return not (len(words) == 1 and words[0].casefold() in split.GENERIC_SEEDS)
+
+
+def _keep_store_path_or_skip_no_rare(store: str, query: str, outcome: dict[str, Any]) -> dict[str, Any]:
+    """A query with no rare token keeps a store path that contains a query word.
+
+    With no such path, the result is skipped. ``failure tail`` does not need a
+    Graphify index. One generic word still uses the store walk.
+    """
+    if store != "graphify":
+        return outcome
+    split = _corpus_split()
+    if split is None or split.rare_tokens(query):
+        return outcome
+    words = query.split()
+    if len(words) == 1 and words[0].casefold() in split.GENERIC_SEEDS:
+        return outcome
+    tokens = {token.casefold() for token in re.findall(r"[A-Za-z0-9_.-]{3,}", query)}
+    hits = outcome.get("hits") if isinstance(outcome.get("hits"), list) else []
+    concrete = outcome.get("status") == STATUS_USED and any(
+        isinstance(hit, dict)
+        and any(token in str(hit.get("path") or "").casefold() for token in tokens)
+        for hit in hits
+    )
+    if concrete:
+        return outcome
+    return {
+        "status": STATUS_SKIPPED,
+        "reason": "no-rare-token",
+        "hits": [],
+        "query": query,
+        "excerpt": "",
+        "bytes": 0,
+    }
+
+
 def _split_hits(store: str, query: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Graphify uses the path predicate. MemPalace requires a rare token in the path or section."""
     split = _corpus_split()
@@ -972,10 +1019,21 @@ def retrieve(
                 direct = None
     if chosen == "deja":
         outcome = _run_deja(root, cleaned, host=host, mode=mode)
+    elif _skip_no_rare_before_store(chosen, cleaned):
+        outcome = {
+            "status": STATUS_SKIPPED,
+            "reason": "no-rare-token",
+            "hits": [],
+            "query": cleaned,
+            "excerpt": "",
+            "bytes": 0,
+        }
     elif direct is not None:
         outcome = direct
     else:
-        outcome = _run_store(root, chosen, cleaned)
+        outcome = _keep_store_path_or_skip_no_rare(
+            chosen, cleaned, _run_store(root, chosen, cleaned)
+        )
     receipt.update(outcome)
     mindset = _mindset()
     if mindset is not None and receipt.get("status") in {STATUS_USED, STATUS_SKIPPED}:

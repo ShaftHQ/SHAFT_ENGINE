@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+import subprocess  # nosec B404 - checkout git ls-files and git grep only.
 from pathlib import Path
 
 HARNESS_COLLECTION = "chaos-engine-harness"
@@ -337,8 +338,74 @@ def _symbol_hits(
     return hits
 
 
-def resolve_hits(project: Path, query: str, rare: list[str] | None = None) -> list[dict]:
-    tokens = list(rare if rare is not None else rare_tokens(query))
+def _git_text(project: Path, args: list[str], timeout: int) -> tuple[int, str] | None:
+    """Real git, even when a test has patched ``subprocess.run``."""
+    process = None
+    try:
+        process = subprocess.Popen(  # nosec B603 - fixed git argv, no shell.
+            args,
+            cwd=project,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        stdout, _stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if process is not None:
+            process.kill()
+            process.communicate()
+        return None
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return process.returncode, stdout or ""
+
+
+def _tracked_files(project: Path) -> list[str]:
+    completed = _git_text(project, ["git", "ls-files", "-z"], 20)
+    if completed is None or completed[0] != 0:
+        return []
+    return [line for line in completed[1].split("\0") if line]
+
+
+def _disk_path_hits(paths: list[str], token: str) -> list[dict]:
+    hits = []
+    for path in paths:
+        if token.isupper():
+            if token not in path:
+                continue
+        elif token.casefold() not in path.casefold():
+            continue
+        hits.append({"path": path, "label": path.rsplit("/", 1)[-1], "section": path})
+    return hits
+
+
+def _disk_text_hits(project: Path, token: str) -> list[dict]:
+    """Exact token in checkout file text. No palace and no Graphify index."""
+    completed = _git_text(project, ["git", "grep", "-l", "-I", "-F", "--", token], 30)
+    if completed is None or completed[0] not in {0, 1}:
+        return []
+    hits = []
+    for path in completed[1].splitlines():
+        if not path:
+            continue
+        hits.append({"path": path, "label": path.rsplit("/", 1)[-1], "section": token})
+    return hits
+
+
+def _checkout_hits(project: Path, tokens: list[str]) -> list[dict]:
+    paths = _tracked_files(project)
+    found: list[dict] = []
+    for token in tokens:
+        if "_" in token or "/" in token or "." in token:
+            found.extend(_disk_path_hits(paths, token))
+        if token.isupper() and len(token) >= 4:
+            found.extend(_disk_text_hits(project, token))
+        if _java_type(token):
+            found.extend(_disk_path_hits(paths, token))
+    return found
+
+
+def _palace_found(project: Path, query: str, tokens: list[str]) -> list[dict]:
     database = _palace_sqlite(project)
     if database is None or not tokens:
         return []
@@ -359,6 +426,10 @@ def resolve_hits(project: Path, query: str, rare: list[str] | None = None) -> li
                 found.extend(_path_hits(connection, token, collection_id))
     finally:
         connection.close()
+    return found
+
+
+def _finish_hits(query: str, tokens: list[str], found: list[dict]) -> list[dict]:
     found = apply_path_predicate(query, found)
     if _POLICY.search(query) and not any(_java_type(token) for token in tokens):
         harness = [hit for hit in found if is_harness_path(str(hit.get("path") or ""))]
@@ -376,21 +447,22 @@ def resolve_hits(project: Path, query: str, rare: list[str] | None = None) -> li
     return unique[:8]
 
 
+def resolve_hits(project: Path, query: str, rare: list[str] | None = None) -> list[dict]:
+    tokens = list(rare if rare is not None else rare_tokens(query))
+    if not tokens:
+        return []
+    found = _finish_hits(query, tokens, _palace_found(project, query, tokens))
+    if found:
+        return found
+    return _finish_hits(query, tokens, _checkout_hits(project, tokens))
+
+
 def direct_graphify_outcome(project: Path, query: str) -> dict | None:
     """Exact path or text hits. ``None`` means Graphify should still run."""
     cleaned = " ".join(str(query).split())
     rare = rare_tokens(cleaned)
     if not rare:
-        if len(cleaned.split()) == 1 and cleaned.casefold() in GENERIC_SEEDS:
-            return None
-        return {
-            "status": "skipped",
-            "reason": "no-rare-token",
-            "hits": [],
-            "query": cleaned,
-            "excerpt": "",
-            "bytes": 0,
-        }
+        return None
     hits = resolve_hits(project, cleaned, rare)
     if not hits:
         if _CALLER.search(cleaned) or not _POLICY.search(cleaned):
