@@ -68,7 +68,7 @@ def enhancement_errors(note: str) -> list[str]:
     if block is None:
         return ["missing ## Enhancements block"]
     errors, rows = _rows(block)
-    nothing = "nothing actionable" in (note or "").casefold()
+    nothing = "nothing actionable" in block.casefold()
     tracked = any(kind == "tracked" for kind, _rest in rows)
     unmarked = any(kind is None for kind, _rest in rows)
     if nothing and (tracked or unmarked):

@@ -690,6 +690,29 @@ def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
     return stores.corrupt_palace_gate(palace)
 
 
+def _graphify_seeds(query: str) -> list[str]:
+    """Caller questions must not pass a bare identifier seed Graphify cannot resolve."""
+    split = _corpus_split()
+    if split is None:
+        return []
+    seeds = split.walk_seeds(query)
+    if split._CALLER.search(query):
+        return [seed for seed in seeds if "/" in seed or "." in seed]
+    return seeds
+
+
+def _split_hits(store: str, query: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Graphify uses the path predicate. MemPalace requires a rare token in the path or section."""
+    split = _corpus_split()
+    if split is None:
+        return hits
+    if store == "mempalace":
+        return split.drop_path_section_misses(query, hits)
+    if store == "graphify":
+        return split.apply_path_predicate(query, hits)
+    return hits
+
+
 def _store_hit_receipt(
     project: Path, store: str, query: str, completed: subprocess.CompletedProcess[str], origin_sync: bool
 ) -> dict[str, Any]:
@@ -726,19 +749,17 @@ def _store_hit_receipt(
                 "hits": [],
                 "bytes": 0,
             }
-    if store == "graphify":
-        split = _corpus_split()
-        if split is not None:
-            hits = split.apply_path_predicate(query, hits)
-            if not hits:
-                return {
-                    "store": store,
-                    "status": STATUS_SKIPPED,
-                    "reason": "no-relevant-hits",
-                    "query": query,
-                    "hits": [],
-                    "bytes": 0,
-                }
+    if store in {"graphify", "mempalace"}:
+        hits = _split_hits(store, query, hits)
+        if not hits:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "no-relevant-hits",
+                "query": query,
+                "hits": [],
+                "bytes": 0,
+            }
     if store == "memory" and not hits and mindset is not None:
         return mindset.memory_no_hit_receipt()
     excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
@@ -792,8 +813,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         args = [sys.executable, str(tool), "mempalace", "search", query]
     else:
         args = [sys.executable, str(tool), "graphify", "query", query]
-        split = _corpus_split()
-        seeds = split.walk_seeds(query) if split is not None else []
+        seeds = _graphify_seeds(query)
         if seeds and [seed.casefold() for seed in seeds] != [word.casefold() for word in query.split()]:
             for seed in seeds:
                 args.extend(["--seed", seed])

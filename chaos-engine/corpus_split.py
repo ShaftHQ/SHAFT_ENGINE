@@ -1,8 +1,9 @@
 """One palace, one graph: harness paths and the product tree stay separate at query time.
 
-Harness rows can be mined into the ``chaos-engine-harness`` collection. Search
-still reads the shared sqlite file and does not start a second Graphify, a
-second palace, or another embedding model.
+Harness rows are mined into the ``chaos-engine-harness`` collection. A harness
+query reads that collection when the palace has it, and the whole sqlite file
+when it does not. Search does not start a second Graphify, a second palace,
+or another embedding model.
 """
 
 from __future__ import annotations
@@ -124,6 +125,27 @@ def drop_semantic_misses(query: str, hits: list[dict]) -> list[dict]:
     return kept
 
 
+def drop_path_section_misses(query: str, hits: list[dict]) -> list[dict]:
+    """Drop a semantic hit whose path and section lack every rare query token.
+
+    An all-caps token must appear in that case. A lowercase path fragment is
+    not the symbol.
+    """
+    rare = rare_tokens(query)
+    if not rare:
+        return list(hits)
+    kept = []
+    for hit in hits:
+        blob = f"{hit.get('path') or ''} {hit.get('section') or ''}"
+        folded = blob.casefold()
+        if any(
+            token in blob if token.isupper() and len(token) >= 4 else token.casefold() in folded
+            for token in rare
+        ):
+            kept.append(hit)
+    return kept
+
+
 def drop_always_loaded(query: str, hits: list[dict]) -> list[dict]:
     rare = rare_tokens(query)
     kept = []
@@ -206,16 +228,61 @@ def _palace_sqlite(project: Path) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def _path_hits(connection: sqlite3.Connection, token: str) -> list[dict]:
-    rows = connection.execute(
+def _harness_collection_id(connection: sqlite3.Connection) -> int | None:
+    try:
+        row = connection.execute(
+            "SELECT id FROM collections WHERE name = ? LIMIT 1",
+            (HARNESS_COLLECTION,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row or row[0] is None:
+        return None
+    return int(row[0])
+
+
+def _query_scopes_harness(query: str, tokens: list[str]) -> bool:
+    if any(_java_type(token) for token in tokens):
+        return False
+    if any("_" in token or "/" in token or "." in token for token in tokens):
+        return True
+    return _POLICY.search(query) is not None
+
+
+def _path_rows(
+    connection: sqlite3.Connection, token: str, collection_id: int | None
+) -> list[tuple]:
+    if collection_id is None:
+        sql = """
+            SELECT json_extract(metadata_json, '$.source_file')
+            FROM documents
+            WHERE json_extract(metadata_json, '$.source_file') LIKE '%' || ? || '%'
+            LIMIT 30
         """
-        SELECT json_extract(metadata_json, '$.source_file')
-        FROM documents
-        WHERE json_extract(metadata_json, '$.source_file') LIKE '%' || ? || '%'
-        LIMIT 30
-        """,
-        (token,),
-    ).fetchall()
+        params: tuple = (token,)
+    else:
+        sql = """
+            SELECT json_extract(d.metadata_json, '$.source_file')
+            FROM documents AS d
+            WHERE d.collection_id = ?
+              AND json_extract(d.metadata_json, '$.source_file') LIKE '%' || ? || '%'
+            LIMIT 30
+        """
+        params = (collection_id, token)
+    try:
+        return list(connection.execute(sql, params).fetchall())
+    except sqlite3.OperationalError:
+        return []
+
+
+def _path_hits(
+    connection: sqlite3.Connection, token: str, collection_id: int | None = None
+) -> list[dict]:
+    scoped = collection_id is not None
+    rows = _path_rows(connection, token, collection_id)
+    if scoped and not rows:
+        rows = _path_rows(connection, token, None)
+        scoped = False
     hits = []
     for (source,) in rows:
         path = relativize(str(source or ""))
@@ -224,25 +291,35 @@ def _path_hits(connection: sqlite3.Connection, token: str) -> list[dict]:
                 continue
         elif token.casefold() not in path.casefold():
             continue
-        hits.append({"path": path, "label": path.rsplit("/", 1)[-1], "section": path})
+        hit = {"path": path, "label": path.rsplit("/", 1)[-1], "section": path}
+        if scoped:
+            hit["collection"] = HARNESS_COLLECTION
+        hits.append(hit)
+    if collection_id is not None and not hits:
+        return _path_hits(connection, token, None)
     return hits
 
 
-def _symbol_hits(connection: sqlite3.Connection, token: str) -> list[dict]:
+def _symbol_hits(
+    connection: sqlite3.Connection, token: str, collection_id: int | None = None
+) -> list[dict]:
+    match = '"' + token.replace('"', '""') + '"'
+    sql = """
+        SELECT d.document, json_extract(d.metadata_json, '$.source_file')
+        FROM docs_fts
+        JOIN fts_rowid_map AS map ON map.fts_rowid = docs_fts.rowid
+        JOIN documents AS d ON d.collection_id = map.collection_id AND d.id = map.doc_id
+        WHERE docs_fts MATCH ?
+    """
+    params: list = [match]
+    if collection_id is not None:
+        sql += " AND d.collection_id = ?"
+        params.append(collection_id)
+    sql += " LIMIT 40"
     try:
-        rows = connection.execute(
-            """
-            SELECT d.document, json_extract(d.metadata_json, '$.source_file')
-            FROM docs_fts
-            JOIN fts_rowid_map AS map ON map.fts_rowid = docs_fts.rowid
-            JOIN documents AS d ON d.collection_id = map.collection_id AND d.id = map.doc_id
-            WHERE docs_fts MATCH ?
-            LIMIT 40
-            """,
-            ('"' + token.replace('"', '""') + '"',),
-        ).fetchall()
+        rows = connection.execute(sql, params).fetchall()
     except sqlite3.OperationalError:
-        return []
+        rows = []
     hits = []
     for document, source in rows:
         text = str(document or "")
@@ -251,7 +328,12 @@ def _symbol_hits(connection: sqlite3.Connection, token: str) -> list[dict]:
         path = relativize(str(source or ""))
         at = text.find(token)
         section = text[max(0, at - 80) : at + len(token) + 80].replace("\n", " ")
-        hits.append({"path": path, "label": path.rsplit("/", 1)[-1], "section": section})
+        hit = {"path": path, "label": path.rsplit("/", 1)[-1], "section": section}
+        if collection_id is not None:
+            hit["collection"] = HARNESS_COLLECTION
+        hits.append(hit)
+    if collection_id is not None and not hits:
+        return _symbol_hits(connection, token, None)
     return hits
 
 
@@ -264,14 +346,17 @@ def resolve_hits(project: Path, query: str, rare: list[str] | None = None) -> li
     try:
         connection.execute("PRAGMA query_only=ON")
         connection.execute("PRAGMA busy_timeout=2000")
+        collection_id = (
+            _harness_collection_id(connection) if _query_scopes_harness(query, tokens) else None
+        )
         found: list[dict] = []
         for token in tokens:
             if "_" in token or "/" in token or "." in token:
-                found.extend(_path_hits(connection, token))
+                found.extend(_path_hits(connection, token, collection_id))
             if (token.isupper() and len(token) >= 4) or _java_type(token):
-                found.extend(_symbol_hits(connection, token))
+                found.extend(_symbol_hits(connection, token, collection_id))
             if _java_type(token):
-                found.extend(_path_hits(connection, token))
+                found.extend(_path_hits(connection, token, collection_id))
     finally:
         connection.close()
     found = apply_path_predicate(query, found)
@@ -306,20 +391,18 @@ def direct_graphify_outcome(project: Path, query: str) -> dict | None:
             "excerpt": "",
             "bytes": 0,
         }
-    if _CALLER.search(cleaned):
-        return None
     hits = resolve_hits(project, cleaned, rare)
     if not hits:
-        if _POLICY.search(cleaned):
-            return {
-                "status": "skipped",
-                "reason": "no-relevant-hits",
-                "hits": [],
-                "query": cleaned,
-                "excerpt": "",
-                "bytes": 0,
-            }
-        return None
+        if _CALLER.search(cleaned) or not _POLICY.search(cleaned):
+            return None
+        return {
+            "status": "skipped",
+            "reason": "no-relevant-hits",
+            "hits": [],
+            "query": cleaned,
+            "excerpt": "",
+            "bytes": 0,
+        }
     excerpt = "\n".join(str(hit["path"]) for hit in hits)
     raw = excerpt.encode("utf-8")
     if len(raw) > _EXCERPT_BYTES:

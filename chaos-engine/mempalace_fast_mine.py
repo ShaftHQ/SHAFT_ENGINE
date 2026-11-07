@@ -144,10 +144,10 @@ def _install_source_alias() -> bool:
 
 
 def install_collection_route() -> None:
-    """Send a harness mine at the separate collection. Search still reads every collection.
+    """Send a harness mine at the separate collection.
 
     ``get_collection`` rejects an ad-hoc name unless ``_skip_name_check`` is set (#2347).
-    The env is set only around the harness incremental mine, so a full tree stays on drawers.
+    The env wraps each harness mine, including the harness files of a full tree.
     """
     name = os.environ.get("CHAOS_ENGINE_MEMPALACE_COLLECTION", "").strip()
     if not name:

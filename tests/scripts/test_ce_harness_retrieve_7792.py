@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
+import sqlite3
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
 
@@ -66,6 +70,36 @@ class HarnessRetrieveTest(unittest.TestCase):
         self.assertEqual("skipped", receipt["status"])
         self.assertEqual("no-rare-token", receipt["reason"])
         self.assertEqual([], receipt.get("hits") or [])
+
+    def test_caller_query_resolves_the_gate_without_a_bare_seed(self) -> None:
+        retrieve = _retrieve()
+        seeds: list[str] = []
+        real = retrieve.subprocess.run
+
+        def spy(args, *pos, **kwargs):
+            argv = list(args) if isinstance(args, (list, tuple)) else []
+            index = 0
+            while index < len(argv):
+                if argv[index] == "--seed" and index + 1 < len(argv):
+                    seeds.append(argv[index + 1])
+                    index += 2
+                    continue
+                index += 1
+            return real(args, *pos, **kwargs)
+
+        with patch.object(retrieve.subprocess, "run", spy):
+            receipt = retrieve.retrieve("what calls harness_pr_gate", project=ROOT)
+        self.assertIn("scripts/ci/harness_pr_gate.py", _paths(receipt))
+        self.assertNotIn("harness_pr_gate", seeds)
+
+    def test_mempalace_drops_a_semantic_hit_without_the_rare_token(self) -> None:
+        receipt = _retrieve().retrieve("AWAITING_CHECKS pre-push", store="mempalace", project=ROOT)
+        hits = [hit for hit in receipt.get("hits") or [] if isinstance(hit, dict)]
+        if not hits:
+            self.assertNotEqual("used", receipt.get("status"))
+            return
+        blob = f"{hits[0].get('path') or ''} {hits[0].get('section') or ''}"
+        self.assertIn("AWAITING_CHECKS", blob)
 
 
 class CorpusSplitTest(unittest.TestCase):
@@ -160,7 +194,67 @@ class CorpusSplitTest(unittest.TestCase):
             (None, ["shaft-engine/src/main/java/com/shaft/driver/SHAFT.java"]),
             groups,
         )
-        self.assertEqual([(None, None)], split.mempalace_mine_groups(None))
+
+    def test_harness_query_reads_the_harness_collection(self) -> None:
+        split = _split()
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "sqlite_exact.sqlite3"
+            connection = sqlite3.connect(database)
+            connection.execute("CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT)")
+            connection.execute(
+                "CREATE TABLE documents (id INTEGER PRIMARY KEY, collection_id INTEGER, document TEXT, metadata_json TEXT)"
+            )
+            connection.execute("INSERT INTO collections VALUES (1, 'mempalace_drawers')")
+            connection.execute("INSERT INTO collections VALUES (2, 'chaos-engine-harness')")
+            connection.execute(
+                "INSERT INTO documents VALUES (1, 1, 'drawers copy', ?)",
+                (json.dumps({"source_file": "notes/harness_pr_gate_copy.py"}),),
+            )
+            connection.execute(
+                "INSERT INTO documents VALUES (2, 2, 'harness copy', ?)",
+                (json.dumps({"source_file": "scripts/ci/harness_pr_gate.py"}),),
+            )
+            connection.commit()
+            connection.close()
+            with patch.object(split, "_palace_sqlite", return_value=database):
+                hits = split.resolve_hits(ROOT, "harness_pr_gate failure tail")
+        self.assertTrue(hits)
+        self.assertEqual(["scripts/ci/harness_pr_gate.py"], [hit["path"] for hit in hits])
+        self.assertEqual("chaos-engine-harness", hits[0].get("collection"))
+
+    def test_full_mine_records_harness_paths_in_the_harness_collection(self) -> None:
+        stores = _load("ce_stores_full_mine_7792", ROOT / "chaos-engine/stores.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            snapshot = root / "snapshot"
+            (snapshot / "chaos-engine").mkdir(parents=True)
+            (snapshot / "chaos-engine" / "retrieve.py").write_text("print('harness')\n", encoding="utf-8")
+            (snapshot / "scripts" / "ci").mkdir(parents=True)
+            (snapshot / "scripts" / "ci" / "harness_pr_gate.py").write_text("print('gate')\n", encoding="utf-8")
+            (snapshot / "product").mkdir()
+            (snapshot / "product" / "App.java").write_text("class App {}\n", encoding="utf-8")
+            seen: list[str | None] = []
+
+            def invoke(command, cwd):
+                seen.append(os.environ.get("CHAOS_ENGINE_MEMPALACE_COLLECTION"))
+                return 0
+
+            with (
+                patch.object(stores.shutil, "which", return_value="/tools/mempalace"),
+                patch.object(stores, "resolve_palace", return_value=root / "palace"),
+                patch.object(stores, "incremental_mine_paths", return_value=None),
+                patch.object(stores, "read_wing", return_value=""),
+                patch.object(stores, "write_palace_marker"),
+                patch.object(stores, "_apply_documentation_index"),
+            ):
+                stores._refresh_mempalace(
+                    root,
+                    snapshot=snapshot,
+                    primary=root,
+                    revision="a" * 40,
+                    invoke=invoke,
+                )
+        self.assertIn("chaos-engine-harness", seen)
 
     def test_fast_mine_routes_the_harness_collection(self) -> None:
         fast = _load("ce_fast_mine_7792", ROOT / "chaos-engine/mempalace_fast_mine.py")

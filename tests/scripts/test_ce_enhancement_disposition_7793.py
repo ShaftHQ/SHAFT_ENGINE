@@ -70,6 +70,15 @@ class EnhancementDispositionTest(unittest.TestCase):
         note = SHIPPED + "\n## Later\n- retrieval is a separate decision\n"
         self.assertEqual([], self.checker.enhancement_errors(note))
 
+    def test_nothing_actionable_after_the_block_keeps_a_tracked_bullet(self) -> None:
+        note = (
+            "## Enhancements\n"
+            "- tracked: https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7792\n"
+            "\n## Later\n"
+            "nothing actionable\n"
+        )
+        self.assertEqual([], self.checker.enhancement_errors(note))
+
     def test_rejected_separate_decision_is_not_a_disposition(self) -> None:
         note = "## Enhancements\n- rejected: retrieval is a separate decision\n"
         errors = self.checker.enhancement_errors(note)
