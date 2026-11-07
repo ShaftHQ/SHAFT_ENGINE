@@ -942,7 +942,7 @@ class GuidedWorkflowPanelTest {
         return true;
     }
 
-    private static void expandAdvanced(GuidedWorkflowPanel panel) {
+    static void expandAdvanced(GuidedWorkflowPanel panel) {
         javax.swing.JCheckBox toggle =
                 findByAccessibleName(panel, "Show advanced Guided options", javax.swing.JCheckBox.class);
         assertNotNull(toggle, "Missing Advanced options toggle");
@@ -951,14 +951,14 @@ class GuidedWorkflowPanelTest {
         }
     }
 
-    private static void setText(GuidedWorkflowPanel panel, String accessibleName, String value) {
+    static void setText(GuidedWorkflowPanel panel, String accessibleName, String value) {
         javax.swing.text.JTextComponent field =
                 findByAccessibleName(panel, accessibleName, javax.swing.text.JTextComponent.class);
         assertNotNull(field, "Missing field: " + accessibleName);
         field.setText(value);
     }
 
-    private static void select(JComboBox<?> comboBox, String label) {
+    static void select(JComboBox<?> comboBox, String label) {
         for (int index = 0; index < comboBox.getItemCount(); index++) {
             Object item = comboBox.getItemAt(index);
             if (label.equals(item.toString())) {
@@ -974,7 +974,7 @@ class GuidedWorkflowPanelTest {
         return invocations.get(invocations.size() - 1);
     }
 
-    private static JButton findButton(Component component, String accessibleName) {
+    static JButton findButton(Component component, String accessibleName) {
         if (component instanceof JButton button && accessibleName.equals(accessibleName(button))) {
             return button;
         }
@@ -989,7 +989,7 @@ class GuidedWorkflowPanelTest {
         return null;
     }
 
-    private static <T extends JComponent> T findByAccessibleName(
+    static <T extends JComponent> T findByAccessibleName(
             Component component,
             String accessibleName,
             Class<T> type) {
@@ -1008,7 +1008,7 @@ class GuidedWorkflowPanelTest {
         return null;
     }
 
-    private static String accessibleName(JComponent component) {
+    static String accessibleName(JComponent component) {
         AccessibleContext context = component.getAccessibleContext();
         return context == null ? "" : context.getAccessibleName();
     }
