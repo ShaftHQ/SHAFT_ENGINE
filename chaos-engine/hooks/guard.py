@@ -8,7 +8,7 @@ repository guard stays outside the core and shares no code with it.
 from __future__ import annotations
 
 import contextlib
-
+import io
 import json
 import os
 import hashlib
@@ -527,9 +527,11 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if spec is None or spec.loader is None:
         return "overlay pre-push contract failed: checker unavailable"
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    captured = io.StringIO()
     try:
-        failures = module.overlay_pre_push_failures(project)
+        with contextlib.redirect_stdout(captured):
+            spec.loader.exec_module(module)
+            failures = module.overlay_pre_push_failures(project)
     except Exception as error:
         # A checker crash is a contract failure. Leaving it uncaught makes the
         # hook protocol report invalid JSON, and the same push is retried.
