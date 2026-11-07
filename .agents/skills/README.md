@@ -267,6 +267,7 @@ sends you there; the rest by
 - [skill compress audit](../../chaos-engine/references/skill-compress-audit.md)
 - [tip churn preflight](../../chaos-engine/references/tip-churn-preflight.md)
 - [token budget modes](../../chaos-engine/references/token-budget-modes.md)
+- [untangle lesson](../../chaos-engine/references/untangle-lesson.md)
 - [zero llm catalog](../../chaos-engine/references/zero-llm-catalog.md)
 - [LICENSE](../../chaos-engine/LICENSE)
 - [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
