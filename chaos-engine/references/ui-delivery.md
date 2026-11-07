@@ -72,7 +72,7 @@ the change under `Test contract changes` in the PR body.
 
 Terminal adversarial review is mandatory when a UI PR changes a test contract
 or PR CI does not run the changed surface. Time pressure is not a skip reason.
-Keep it cheap: one reviewer, one round, given the diff, the red-then-green log,
+Keep it cheap: both delivery-cycle reviews, given the diff, the red-then-green log,
 and the matrix screenshots.
 
 ## PR body and report

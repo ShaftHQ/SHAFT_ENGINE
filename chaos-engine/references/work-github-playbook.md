@@ -11,7 +11,7 @@ GitHub MCP. If a host already has GitHub MCP, leave it unchanged.
 
 Skip planning questions only when the owner explicitly asked for unattended planning.
 
-Program: epic plus native sub-issues; one orchestrator; local implementers; one adversarial reviewer per PR; one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close only when every sub-issue is merged or explicitly dropped on the tracker.
+Program: epic plus native sub-issues; one orchestrator; local implementers; two independent adversarial reviews per PR ([delivery cycle](delivery-cycle.md)); one Learning Session after the epic's in-scope pull requests merge. Unchanged overlay files are an invalid Learning Session skip only after a confirmed delivery. Sub-issues do not re-ask attendance. Each implementation PR names its unittest module. Close only when every sub-issue is merged or explicitly dropped on the tracker.
 
 ## 4. Implement, check, review, deliver
 
@@ -23,8 +23,8 @@ Complete approved scope and create its final scope commit before any local
 validation or review. Triage automated CI, annotations, bots, and PR comments;
 batch-fix applicable findings.
 Never push one tip per micro-fix when fresh-installer paths are implicated ([how](tip-churn-preflight.md)).
-Then run planning-approved adversarial review,
-at most two rounds, followed by extra local tests. Do not stop behavior work
+Then run the two adversarial reviews in [delivery cycle](delivery-cycle.md),
+followed by extra local tests. Do not stop behavior work
 for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
 After the implementation batch is ready, resolve repository identity from the

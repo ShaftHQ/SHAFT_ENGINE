@@ -45,8 +45,11 @@ only the final Done, with evidence.
   the version it reviewed (revision id, modified time or hash). Before
   accepting it, compare with the current version; if the artifact changed
   after the review copy was taken, re-review.
-- Cap: 5 rounds without convergence. Stop and escalate to the user with the
-  open findings and each agent's position.
+- Cap: 3 PDCA iterations without acceptance, owned by
+  [delivery cycle](delivery-cycle.md). The in-session reviewer is Check.
+  The two independent adversarial reviews are the cycle's close, not a
+  fourth iteration. Stop and escalate with the open findings and each
+  agent's position.
 
 ## After each delivery
 

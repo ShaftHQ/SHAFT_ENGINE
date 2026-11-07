@@ -24,3 +24,7 @@ hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
 
 Use the canonical TDD/PDCA phase boundary (`.chaos-engine/references/tdd.md#workflow`).
+The harness close is [delivery cycle](../../../../chaos-engine/references/delivery-cycle.md):
+at most 3 PDCA iterations, then two independent adversarial reviews. Bruce's
+in-session check is Check. It is not one of those two reviews, and the author
+is neither reviewer. Stop when Check accepts. The cap is not a quota.

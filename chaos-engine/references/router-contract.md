@@ -80,7 +80,8 @@ would start without ChaosEngine.
    an invariant, not each symptom; do not interrupt implementation with review,
    test, commit, push, or validation gates.
 5. After the final scope commit, triage automated CI, annotations, bots, and PR
-   comments first. Then one fresh-context review; a second round only for blockers.
+   comments first. Then the two adversarial reviews in
+   [delivery cycle](delivery-cycle.md).
 6. Report outcome, exact checks, failures, and every finding as fixed or filed.
 
 Consult [field heuristics](heuristics.md) only for deeper
@@ -136,8 +137,8 @@ Validation scope (balanced default): tests created or edited by the task plus
 directly impacted tests; the owner may pick only tests created or edited, or
 the full suite. Directly impacted tests include every test that references a
 type the change edits, replaces, or stops calling (mocks included): find them
-with `git grep -l TypeName -- '*/src/test/*'`. Review is one
-fresh-context review, with a second round only for blocker findings. Details:
+with `git grep -l TypeName -- '*/src/test/*'`. Review is the two adversarial
+reviews in [delivery cycle](delivery-cycle.md). Details:
 [work-github-planning](work-github-planning.md).
 
 When a CI job fails, inspect the failing job and isolate its exact failing

@@ -113,13 +113,13 @@ or adjacent prose with blocker notes, HEAD SHA, and root-learning handoff
 
 ## Independent adversarial review
 
-Review is optional and selected explicitly during planning; recommend it and
-default it on. If approved, review complete pull-request implementation only
-after final scope commit plus automated CI/comment fixes. Never review
-individual implementation steps. Review is mandatory, never skipped for time,
-when a PR changes an existing test contract or PR CI does not run the changed
-surface ([UI delivery](ui-delivery.md)); one reviewer, one round is enough.
-Independence remains mandatory when enabled:
+The [delivery cycle](delivery-cycle.md) requires two independent adversarial reviews
+after required checks are green on the accepted head. Never review
+individual implementation steps. A pull request that changes an existing test
+contract, or whose CI does not run the changed surface
+([UI delivery](ui-delivery.md)), does not skip that pair.
+Time pressure never skips this pair.
+Independence:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal
@@ -127,7 +127,7 @@ Independence remains mandatory when enabled:
   reliable terminal close, use an artifact-bounded ephemeral reviewer and pass
   the exact revision or diff plus its directly required guidance as immutable
   input. It must not depend on repository shell access to discover the artifact.
-  When review is enabled, such a review records a valid receipt only when active host
+  Each review records a valid receipt only when the active host
   adapter records its successful receipt, bound to that artifact. Until an
   adapter supports that receipt, obtain an independent pull-request review too;
   prose claiming the one-shot review happened is not evidence.
@@ -144,8 +144,8 @@ Independence remains mandatory when enabled:
   search that misses because the tree is wrong returns a clean no-match, which
   is indistinguishable from a real absence and is the most confident wrong
   answer a review can produce.
-- Depth scales with the pull request, matching consult triage. Use one reviewer
-  with correctness, reproduction, and blast-radius lenses.
+- Depth scales with the pull request, matching consult triage. Each of the two
+  reviewers uses correctness, reproduction, and blast-radius lenses.
 - Escalate to the most intelligent model for a new subsystem, a migration, a
   dependency swap, or any decision that is expensive to unwind.
 
@@ -154,8 +154,8 @@ work.
 
 When implementation is delegated to a local runtime (FreeToken / OpenCode),
 OmniRoute, or any writer that is not the host session model, the orchestrator
-**must** still trigger independent adversarial review as a **new instance of
-the same host model** (native reviewer subagent). Never assign that review to
+**must** still trigger the two independent adversarial reviews as **new instances of
+the same host model** (native reviewer subagents). Never assign either review to
 the local or OmniRoute writer. Transport does not change the reviewer.
 When FreeToken is READY and the owner selected orchestrator mode, the
 orchestrator must not implement product or overlay chunks; dispatch a
@@ -196,10 +196,11 @@ a row that already exists.
 
 ### Review disposition
 
-Run no more than two rounds. Batch-fix first-round confirmed findings at the
-end, then use a second round only to assess those fixes. Never exceed two or
-restart full review. A finding that changes architecture returns work to
-planning. Extra local tests run only after this terminal review stage.
+Run the two reviews the delivery cycle names, both on the same head. A
+blocking finding is Act inside the remaining PDCA cap, then both reviews
+repeat on the new head. Do not add a third review of an unchanged head. A
+finding that changes architecture returns work to planning. Extra local tests
+run only after this terminal review stage.
 
 Post the findings as a pull-request review, not only in chat. Findings that live
 only in a transcript die with the session, which is how the same class gets

@@ -122,7 +122,7 @@ class FlowTests(unittest.TestCase):
 
     def test_core_card_encodes_locked_decisions(self):
         text = " ".join(_router_text().split())
-        for phrase in ("One fresh-context review", "second round only for",
+        for phrase in ("at most 3 PDCA", "two independent adversarial reviews",
                        "Learning Session after every final delivery", "One blocking CI wait per push",
                        "retry at most once", "Every finding ends fixed",
                        "not critical, blocker, or high", "Measure thrice",

@@ -124,12 +124,14 @@ class UiDeliveryLessonTests(unittest.TestCase):
         review = section(self.raw, "Review")
         self.assertIn("is mandatory when a UI PR changes a test contract", review)
         self.assertIn("Time pressure is not a skip reason", review)
-        self.assertIn("one reviewer, one round", review)
+        self.assertIn("delivery-cycle", review)
+        self.assertNotIn("one reviewer, one round", review)
         # Qualifying the rule is a mutation too: no escape hatch may be appended.
         for hedge in ("unless", "optional", "if time", "when possible"):
             self.assertNotIn(hedge, review.casefold())
         delegation = compact(DELEGATION)
-        self.assertIn("Review is mandatory, never skipped for time, when a PR changes an existing test contract", delegation)
+        self.assertIn("two independent adversarial reviews", delegation)
+        self.assertIn("never skips this pair", delegation)
         self.assertIn("(ui-delivery.md)", delegation)
 
     def test_manual_deploy_is_named_after_merge(self):

@@ -42,8 +42,9 @@ Its core promises are straightforward:
   callers, and compare viable approaches first.
 - **Coherent implementation.** Finish approved scope without microstep review,
   validation, commit, or delivery interruptions.
-- **Terminal challenge.** After final scope commit and automated PR findings,
-  optional owner-approved review runs at most twice, then extra local tests.
+- **Terminal challenge.** After the accepted PDCA Check and green required
+  checks, two independent adversarial reviews run
+  ([delivery cycle](references/delivery-cycle.md)), then extra local tests.
 - **Owned delivery.** Work continues through review, checks, and confirmed
   merge when that authority is granted.
 - **Durable learning.** Reusable facts and decisions go to structured stores;
@@ -60,7 +61,7 @@ flowchart LR
     P --> D[Do complete implementation]
     D --> F[Final scope commit]
     F --> A[Automated CI and comment fixes]
-    A --> X[Optional adversarial review<br/>maximum two rounds]
+    A --> X[Two adversarial reviews<br/>after the green head]
     X --> V[Extra local tests]
     V --> G[Merge]
     G --> M[Confirmed merge]
@@ -146,8 +147,8 @@ entrypoint will:
 4. inspect current project files and authoritative sources;
 5. choose the narrowest applicable routed surface;
 6. implement approved scope as one coherent batch;
-7. triage remote findings, run at most two owner-approved terminal reviews,
-   then consolidated validation; and
+7. follow the delivery cycle: architect, at most 3 PDCA iterations, then two
+   independent adversarial reviews; and
 8. report exact checks, delivery state, and the Learning Session result.
 
 Projects select one profile after loading the portable core. A profile supplies
