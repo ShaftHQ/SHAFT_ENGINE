@@ -167,7 +167,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Set up JDK 25
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -286,7 +286,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up JDK 25
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -366,7 +366,7 @@ jobs:
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up JDK 25
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -477,7 +477,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Set up JDK 25
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           java-version: '25'
           distribution: 'zulu'
