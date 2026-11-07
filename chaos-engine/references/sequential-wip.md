@@ -2,8 +2,7 @@
 
 ## Rule
 
-Default mode: **one** in-progress item per bot / stream. Finish build →
-two independent adversarial reviews → sign-off → lessons before starting the next.
+Default mode: **one** in-progress item per bot / stream. Finish build, stop at most 3 PDCA iterations, then two independent adversarial reviews after required checks are green ([delivery cycle](delivery-cycle.md)), then sign-off and lessons before starting the next.
 Workers implement; the author is neither reviewer; the lead signs and merges.
 A new commit repeats both passes.
 

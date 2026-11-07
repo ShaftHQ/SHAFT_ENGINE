@@ -12,12 +12,12 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 3. Split work into the smallest item that ships on its own (one clip, one
    post, one slide, one PR).
 4. One owner per item: the owner implements it and self-reviews against the
-   Definition of Done (DoD), written before work starts.
-5. The Acceptance reviewer is not the author. Run two independent adversarial
-   reviews after required checks are green on that head. Each returns
+   Definition of Done (DoD), written before work starts. That self-review is
+   Check. It is not one of the close reviews.
+5. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until Check accepts.
+   Stop at most 3 PDCA iterations before the close reviews.
+6. The Acceptance reviewer is not the author. Then run two independent adversarial reviews after required checks are green on that head. Each returns
    specific, checkable comments, or signs off. The author is neither reviewer.
-6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until Check accepts.
-   Stop at most 3 PDCA iterations, then both reviews pass on that same head.
 7. Done = both sign-offs AND the item is shipped (published, scheduled, or
    merged). Those sign-offs are the two reviews. Signed-off work that has
    not shipped is still WIP. A new commit invalidates both passes.
@@ -42,7 +42,7 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 14. Roles:
     - **Design owner** owns and implements all design work (UI, images,
       video, presentations) and self-reviews it.
-    - **Acceptance reviewer** does the acceptance review.
+    - **Acceptance reviewer** is the role name for the close pair, not a single review. The close is two independent adversarial reviews after required checks are green.
     - **Engineering advisor** does only code and engine work; it may advise
       during planning and decisions, but never implements or accepts design
       work.
@@ -75,9 +75,7 @@ written on that row.
 - [ ] Both sign-offs, and the item shipped or scheduled?
 - [ ] Post-merge own cleanup ran for this stream's recorded worktree / branch (hygiene proofs; DoD)?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
-- [ ] Design kind: next same-kind item waited until build → two independent adversarial reviews →
-      sign-off → lessons landed (WIP=1 per kind; WIP=2 only after two consecutive
-      first-pass signs)? See [design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict).
+- [ ] Design kind: next same-kind item waited until build, at most 3 PDCA iterations, then two independent adversarial reviews after required checks are green, then sign-off and lessons (WIP=1 per kind; WIP=2 only after two consecutive first-pass signs)? See [design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict).
 - [ ] Preventive rule applied to the next item's plan, template, or checks?
 - [ ] Each lesson routed (generic → ChaosEngine, project → its own repo),
       with the PR handed to the engineering advisor?

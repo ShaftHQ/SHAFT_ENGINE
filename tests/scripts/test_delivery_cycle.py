@@ -91,9 +91,18 @@ class DeliveryCycleContractTest(unittest.TestCase):
         registry = (
             ROOT / "tests/scripts/test_agent_router_contract.py"
         ).read_text(encoding="utf-8")
-        for text in (flow, consult, playbook, checklist):
+        ordered = "two independent adversarial reviews after required checks are green"
+        sequential = (REFS / "sequential-wip.md").read_text(encoding="utf-8")
+        for text in (flow, consult, playbook, checklist, sequential):
             self.assertIn("after required checks are green", text)
             self.assertIn("two independent adversarial reviews", text)
+        for text in (flow, checklist, sequential):
+            self.assertLess(text.index(CYCLE), text.index(ordered))
+            self.assertIn(ordered, text)
+        self.assertLess(consult.index(CYCLE), consult.index("two independent adversarial reviews"))
+        self.assertIn(ordered, playbook)
+        self.assertEqual(playbook.count(ordered), 1)
+        self.assertNotIn("does the acceptance review", flow)
         self.assertIn("The author is neither reviewer", flow)
         self.assertIn("The author is neither reviewer", checklist)
         self.assertIn(CYCLE, flow)
