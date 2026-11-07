@@ -46,7 +46,6 @@
   "shaft-heal/src/main/java/com/shaft/heal/model/HealingReport.java": 5,
   "shaft-infrastructure/src/main/java/com/shaft/infrastructure/OcrSetupManifest.java": 1,
   "shaft-infrastructure/src/main/java/com/shaft/infrastructure/SetupExecutionException.java": 1,
-  "shaft-infrastructure/src/main/java/com/shaft/infrastructure/SetupOptions.java": 1,
   "shaft-infrastructure/src/main/java/com/shaft/infrastructure/StaleSetupApprovalException.java": 1,
   "shaft-mcp/src/main/java/com/shaft/mcp/AutobotProviderChatResponse.java": 1,
   "shaft-mcp/src/main/java/com/shaft/mcp/EngineService.java": 1,
