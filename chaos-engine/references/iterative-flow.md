@@ -13,12 +13,12 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
    post, one slide, one PR).
 4. One owner per item: the owner implements it and self-reviews against the
    Definition of Done (DoD), written before work starts.
-5. Run two independent adversarial reviews against the same DoD
+5. Repeat the [PDCA loop](multi-agent-pdca.md#loop) for the owner self-check.
+   At most 3 iterations; the cap is not a quota.
+6. Run two independent adversarial reviews against the same DoD
    ([delivery cycle](delivery-cycle.md)), only after required checks are green.
    The author is neither reviewer. Each returns specific, checkable comments,
    or signs off.
-6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) for the owner self-check.
-   At most 3 iterations; the cap is not a quota.
 7. Done includes those two independent adversarial reviews: both sign-offs AND the item is shipped
    (published, scheduled, or merged). Signed-off work that has not shipped is still WIP.
 8. Only after Done, pull the next item.
@@ -42,7 +42,7 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 14. Roles:
     - **Design owner** owns and implements all design work (UI, images,
       video, presentations) and self-reviews it.
-    - **Acceptance reviewer** does the acceptance review.
+    - **Acceptance reviewer** is one of the two independent adversarial reviewers and does not close the item alone.
     - **Engineering advisor** does only code and engine work; it may advise
       during planning and decisions, but never implements or accepts design
       work.
@@ -75,7 +75,7 @@ written on that row.
 - [ ] Both sign-offs, and the item shipped or scheduled?
 - [ ] Post-merge own cleanup ran for this stream's recorded worktree / branch (hygiene proofs; DoD)?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
-- [ ] Design kind: next same-kind item waited until build → independent review →
+- [ ] Design kind: next same-kind item waited until build → two independent adversarial reviews →
       sign-off → lessons landed (WIP=1 per kind; WIP=2 only after two consecutive
       first-pass signs)? See [design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict).
 - [ ] Preventive rule applied to the next item's plan, template, or checks?

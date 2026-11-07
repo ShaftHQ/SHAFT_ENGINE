@@ -130,7 +130,7 @@ Rules:
 
 1. **WIP = 1 per design kind.** Parallel across different kinds is allowed when
    path globs are still disjoint.
-2. Each item must finish **build → independent review → orchestrator sign-off →
+2. Each item must finish **build → two independent adversarial reviews → orchestrator sign-off →
    lessons captured** before the next same-kind item starts.
 3. After **two consecutive first-pass sign-offs** for that kind, the kind may
    rise to **WIP = 2**. Any reject drops that kind back to WIP = 1 (streak

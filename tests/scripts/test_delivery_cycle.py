@@ -119,6 +119,15 @@ class DeliveryCycleContractTest(unittest.TestCase):
         self.assertIn("after required checks are green", playbook)
         self.assertIn("Do not review a red head", playbook)
         self.assertIn("then sign-off", checklist)
+        flow_raw = (REFS / "iterative-flow.md").read_text(encoding="utf-8")
+        streams = (REFS / "parallel-streams.md").read_text(encoding="utf-8")
+        self.assertNotIn("does the acceptance review", flow_raw)
+        self.assertNotIn("→ independent review →", flow_raw)
+        self.assertNotIn("→ independent review →", streams)
+        self.assertLess(
+            flow_raw.index("At most 3 iterations"),
+            flow_raw.index("Run two independent adversarial reviews"),
+        )
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
