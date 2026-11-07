@@ -412,6 +412,20 @@ def _apply_upstream(receipt: dict) -> None:
         receipt["upstreamIssueUrls"] = (existing if isinstance(existing, list) else []) + urls
 
 
+def _enhancement_tracking(note: str | None, disposition: str) -> list[str]:
+    """Tracked URLs from a note. Structural errors raise for every disposition."""
+    if note is None:
+        return []
+    checker = _load_sibling("enhancement_disposition.py")
+    errors = checker.enhancement_errors(note)
+    if errors:
+        raise ValueError("; ".join(errors))
+    tracked = list(checker.tracked_urls(note))
+    if disposition == "no-durable" and tracked:
+        raise ValueError("no-durable refuses tracked enhancements")
+    return tracked
+
+
 def finalize(
     session_id: str,
     *,
@@ -419,12 +433,14 @@ def finalize(
     extract_heuristics: bool = True,
     host: str | None = None,
     apply_upstream: bool = False,
+    note: str | None = None,
 ) -> dict[str, object]:
     """Record a portable completion receipt. Never auto-opens draft PRs."""
     if not isinstance(session_id, str) or not session_id.strip():
         raise ValueError("session id required")
     if disposition not in {"issues-first", "no-durable", "blocked"}:
         raise ValueError("unsupported disposition")
+    tracked = _enhancement_tracking(note, disposition)
     learning = _load_learning()
     receipt = {
         "schemaVersion": 1,
@@ -464,6 +480,8 @@ def finalize(
         receipt["projectInstructionCandidates"] = plan["project"]
     if plan["bodies"]:
         receipt["upstreamBodies"] = plan["bodies"]
+    if disposition == "issues-first" and tracked:
+        receipt["trackingIssues"] = tracked
     if apply_upstream:
         _apply_upstream(receipt)
 
@@ -512,6 +530,7 @@ def main(argv: list[str] | None = None) -> int:
     final.add_argument(
         "--host", default=None, help="host id; instruction-only hosts get a retrieve receipt check"
     )
+    final.add_argument("--note", default=None, help="terminal note; Enhancements block is checked")
     runtime = sub.add_parser("finalize-runtime")
     runtime.add_argument("--session-id", required=True)
     runtime.add_argument(
@@ -541,6 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             extract_heuristics=not args.no_heuristics,
             host=args.host,
             apply_upstream=True,
+            note=getattr(args, "note", None),
         )
     except (OSError, RuntimeError, ValueError) as error:
         if getattr(args, "silent", False):

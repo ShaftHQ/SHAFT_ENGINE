@@ -5647,6 +5647,15 @@ _TRACKING_DEMAND = (
 )
 
 
+def _enhancement_errors(message: str) -> list[str]:
+    """Delegate the Enhancements close to the portable checker. No second copy."""
+    module = _portable_hook_guard()
+    checker = getattr(module, "enhancement_errors", None) if module is not None else None
+    if not callable(checker):
+        return ["enhancement disposition checker unavailable"]
+    return list(checker(message))
+
+
 def _terminal_reflection_reason(hook_input: dict) -> str | None:
     session_id = _reflection_session_id(hook_input)
     elapsed = _reflection.session_elapsed_seconds(session_id)
@@ -5654,16 +5663,18 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
         return None
     if _reflection.has_valid_terminal_receipt(session_id):
         return None
-    message = str(hook_input.get("last_assistant_message") or "").casefold()
+    raw = str(hook_input.get("last_assistant_message") or "")
+    message = raw.casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
-    tracked = _TRACKING_ATTESTATION in message or _ISSUE_URL.search(message) is not None
-    if not missing and tracked:
+    errors = _enhancement_errors(raw)
+    if not missing and not errors:
         _reflection.accept_terminal_reflection(session_id)
         return None
     parts = ["Terminal reflection required once this session."]
     if missing:
         parts.append("Include " + ", ".join(missing) + ".")
-    if not tracked:
+    if errors:
+        parts.append(" ".join(errors))
         parts.append(_TRACKING_DEMAND)
     parts.append("Do not repeat it after later tool calls.")
     return " ".join(parts)

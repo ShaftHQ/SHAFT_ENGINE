@@ -8,6 +8,7 @@ import json
 import os
 import re
 import runpy
+import sqlite3
 import subprocess  # nosec B404 - optional advisory store CLIs only.
 import sys
 from pathlib import Path
@@ -689,6 +690,76 @@ def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
     return stores.corrupt_palace_gate(palace)
 
 
+def _graphify_seeds(query: str) -> list[str]:
+    """Caller questions must not pass a bare identifier seed Graphify cannot resolve."""
+    split = _corpus_split()
+    if split is None:
+        return []
+    seeds = split.walk_seeds(query)
+    if split._CALLER.search(query):
+        return [seed for seed in seeds if "/" in seed or "." in seed]
+    return seeds
+
+
+def _skip_no_rare_before_store(store: str, query: str) -> bool:
+    """Unpatched Graphify does not walk a query that has no rare token.
+
+    A patched ``subprocess.run`` still runs so a concrete ``src=`` path is kept.
+    """
+    if store != "graphify" or subprocess.run is not _REAL_RUN:
+        return False
+    split = _corpus_split()
+    if split is None or split.rare_tokens(query):
+        return False
+    words = query.split()
+    return not (len(words) == 1 and words[0].casefold() in split.GENERIC_SEEDS)
+
+
+def _keep_store_path_or_skip_no_rare(store: str, query: str, outcome: dict[str, Any]) -> dict[str, Any]:
+    """A query with no rare token keeps a store path that contains a query word.
+
+    With no such path, the result is skipped. ``failure tail`` does not need a
+    Graphify index. One generic word still uses the store walk.
+    """
+    if store != "graphify":
+        return outcome
+    split = _corpus_split()
+    if split is None or split.rare_tokens(query):
+        return outcome
+    words = query.split()
+    if len(words) == 1 and words[0].casefold() in split.GENERIC_SEEDS:
+        return outcome
+    tokens = {token.casefold() for token in re.findall(r"[A-Za-z0-9_.-]{3,}", query)}
+    hits = outcome.get("hits") if isinstance(outcome.get("hits"), list) else []
+    concrete = outcome.get("status") == STATUS_USED and any(
+        isinstance(hit, dict)
+        and any(token in str(hit.get("path") or "").casefold() for token in tokens)
+        for hit in hits
+    )
+    if concrete:
+        return outcome
+    return {
+        "status": STATUS_SKIPPED,
+        "reason": "no-rare-token",
+        "hits": [],
+        "query": query,
+        "excerpt": "",
+        "bytes": 0,
+    }
+
+
+def _split_hits(store: str, query: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Graphify uses the path predicate. MemPalace requires a rare token in the path or section."""
+    split = _corpus_split()
+    if split is None:
+        return hits
+    if store == "mempalace":
+        return split.drop_path_section_misses(query, hits)
+    if store == "graphify":
+        return split.apply_path_predicate(query, hits)
+    return hits
+
+
 def _store_hit_receipt(
     project: Path, store: str, query: str, completed: subprocess.CompletedProcess[str], origin_sync: bool
 ) -> dict[str, Any]:
@@ -716,6 +787,17 @@ def _store_hit_receipt(
         hits = _collapse_hits_by_file(
             mindset.relevance_floor(hits, query, project=project, texts=texts)
         )[:_HIT_LIMIT]
+        if not hits:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "no-relevant-hits",
+                "query": query,
+                "hits": [],
+                "bytes": 0,
+            }
+    if store in {"graphify", "mempalace"}:
+        hits = _split_hits(store, query, hits)
         if not hits:
             return {
                 "store": store,
@@ -778,6 +860,10 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         args = [sys.executable, str(tool), "mempalace", "search", query]
     else:
         args = [sys.executable, str(tool), "graphify", "query", query]
+        seeds = _graphify_seeds(query)
+        if seeds and [seed.casefold() for seed in seeds] != [word.casefold() for word in query.split()]:
+            for seed in seeds:
+                args.extend(["--seed", seed])
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "CHAOS_ENGINE_RETRIEVE": "1"}
     if store == "mempalace":
         # An ambient selection (e.g. chroma) must not override the owned palace (#6212).
@@ -860,6 +946,20 @@ def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, An
     }
 
 
+def _corpus_split():
+    path = Path(__file__).resolve().with_name("corpus_split.py")
+    if not path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("chaos_engine_corpus_split_retrieve", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def graph_freshness_field(project: Path) -> dict[str, str]:
     """Never answer from an outdated graph silently (#6409): report fresh, stale or absent."""
     try:
@@ -909,10 +1009,31 @@ def retrieve(
     if recorded is not None:
         receipt.update(recorded)
         return receipt
+    direct = None
+    if chosen == "graphify":
+        split = _corpus_split()
+        if split is not None:
+            try:
+                direct = split.direct_graphify_outcome(root, cleaned)
+            except (OSError, sqlite3.Error, RuntimeError, ValueError):
+                direct = None
     if chosen == "deja":
         outcome = _run_deja(root, cleaned, host=host, mode=mode)
+    elif _skip_no_rare_before_store(chosen, cleaned):
+        outcome = {
+            "status": STATUS_SKIPPED,
+            "reason": "no-rare-token",
+            "hits": [],
+            "query": cleaned,
+            "excerpt": "",
+            "bytes": 0,
+        }
+    elif direct is not None:
+        outcome = direct
     else:
-        outcome = _run_store(root, chosen, cleaned)
+        outcome = _keep_store_path_or_skip_no_rare(
+            chosen, cleaned, _run_store(root, chosen, cleaned)
+        )
     receipt.update(outcome)
     mindset = _mindset()
     if mindset is not None and receipt.get("status") in {STATUS_USED, STATUS_SKIPPED}:

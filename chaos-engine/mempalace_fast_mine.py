@@ -19,6 +19,7 @@ The shim also retires itself when the installed ``_replace_fts`` already deletes
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -142,8 +143,43 @@ def _install_source_alias() -> bool:
     return patched
 
 
+def install_collection_route() -> None:
+    """Send a harness mine at the separate collection.
+
+    ``get_collection`` rejects an ad-hoc name unless ``_skip_name_check`` is set (#2347).
+    The env wraps each harness mine, including the harness files of a full tree.
+    """
+    name = os.environ.get("CHAOS_ENGINE_MEMPALACE_COLLECTION", "").strip()
+    if not name:
+        return
+    try:
+        import mempalace.palace.collection as collection
+    except ImportError:
+        return
+    original = collection.get_collection
+    if getattr(original, "chaos_engine_collection_route", False):
+        return
+
+    def routed(palace_path, collection_name=None, *args, **kwargs):
+        kwargs["_skip_name_check"] = True
+        return original(palace_path, name, *args, **kwargs)
+
+    routed.chaos_engine_collection_route = True
+    collection.get_collection = routed
+    try:
+        import mempalace.palace as palace
+    except ImportError:
+        palace = None
+    if palace is not None and getattr(palace, "get_collection", None) is original:
+        palace.get_collection = routed
+
+
 def install() -> bool:
     """Patch MemPalace in this process; False (unpatched) for any unexpected shape."""
+    try:
+        install_collection_route()
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        pass  # collection route is optional; the mine still uses the default drawers
     aliased = False
     try:
         aliased = _install_source_alias()

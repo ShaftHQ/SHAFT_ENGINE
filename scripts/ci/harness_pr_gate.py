@@ -669,6 +669,16 @@ CHECKS = {
         "installer",
         ("tests.scripts.test_watch_upstream_pins", "tests.scripts.test_watch_upstream_pins_coverage_7738"),
     ),
+    # #7791-#7793: pre-push guidance, harness retrieve split, enhancement disposition.
+    "guidance-close-contract": Check(
+        "guidance-close-contract",
+        "guidance-close",
+        (
+            "tests.scripts.test_ce_pre_push_guidance_7791",
+            "tests.scripts.test_ce_harness_retrieve_7792",
+            "tests.scripts.test_ce_enhancement_disposition_7793",
+        ),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -734,6 +744,7 @@ SURFACE_CHECKS = {
     "self-modify": ("self-modify-contract",),
     "context-rot": ("context-rot-contract",),
     "genai-spans": ("genai-spans-contract",),
+    "guidance-close": ("guidance-close-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -1393,6 +1404,23 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_genai_spans_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
+    "guidance-close": (
+        "chaos-engine/corpus_split.py",
+        "chaos-engine/enhancement_disposition.py",
+        "chaos-engine/retrieve.py",
+        "chaos-engine/stores.py",
+        "chaos-engine/mempalace_fast_mine.py",
+        "chaos-engine/learning_session.py",
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/skills/self-improve/SKILL.md",
+        "chaos-engine/references/reflection-checkpoints.md",
+        "scripts/ci/overlay_pre_push.py",
+        "scripts/ci/harness_pr_gate.py",
+        "scripts/agents/guard.py",
+        "tests/scripts/test_ce_pre_push_guidance_7791.py",
+        "tests/scripts/test_ce_harness_retrieve_7792.py",
+        "tests/scripts/test_ce_enhancement_disposition_7793.py",
+    ),
 }
 
 
@@ -1929,12 +1957,38 @@ def event_waiver(
     return receipts[0] if receipts else None
 
 
-def _failure_tail(stream, root: Path, limit: int = 4096) -> str:
-    """Return a bounded redacted tail for one failed check."""
-    stream.flush()
-    size = stream.tell()
-    stream.seek(max(0, size - limit * 2))
-    text = stream.read(limit * 2).decode("utf-8", errors="replace")
+def failure_excerpt(text: str, limit: int) -> str:
+    """Start at the first FAIL: or AssertionError and keep a short tail inside ``limit``."""
+    if limit <= 0:
+        return ""
+    start = -1
+    for needle in ("FAIL:", "AssertionError"):
+        at = text.find(needle)
+        if at != -1 and (start == -1 or at < start):
+            start = at
+    body = text if start < 0 else text[start:]
+    body = body.strip()
+    if len(body) <= limit:
+        return body
+    tail = min(240, max(0, limit // 6))
+    marker = "\n...\n"
+    head = limit - tail - len(marker)
+    if head < 1:
+        return body[:limit]
+    return body[:head] + marker + body[-tail:]
+
+
+def failure_log(check_ids, output, limit: int = 4096) -> str:
+    """First line names the failed check ids. The excerpt stays inside ``limit``."""
+    ids = ",".join(str(item) for item in check_ids)
+    header = f"failed={ids}\n"
+    if len(header) >= limit:
+        return header[:limit]
+    log = header + failure_excerpt(str(output), limit - len(header))
+    return log[:limit]
+
+
+def _redact_failure(text: str, root: Path) -> str:
     for value in {str(root), str(Path.home()), tempfile.gettempdir()}:
         if value:
             text = text.replace(value, "<path>")
@@ -1947,13 +2001,23 @@ def _failure_tail(stream, root: Path, limit: int = 4096) -> str:
         r"\1\2<redacted>",
         text,
     )
-    return text[-limit:].strip()
+    return text
 
 
-def _emit_failure_tail(stream, root: Path) -> None:
-    detail = _failure_tail(stream, root)
+def _failure_tail(stream, root: Path, limit: int = 4096) -> str:
+    """Return a bounded redacted window for one failed check."""
+    stream.flush()
+    size = stream.tell()
+    window = max(limit * 4, 65536)
+    stream.seek(max(0, size - window))
+    text = stream.read(window).decode("utf-8", errors="replace")
+    return _redact_failure(text, root)
+
+
+def _emit_failure_tail(stream, root: Path, check_ids: tuple[str, ...] = ()) -> None:
+    detail = failure_log(check_ids, _failure_tail(stream, root, limit=65536))
     if detail:
-        print(f"harness-pr-gate bounded failure tail:\n{detail}", file=sys.stderr)
+        print(detail, file=sys.stderr)
 
 
 def _isolated_environment(temp_root: str) -> dict[str, str]:
@@ -1961,14 +2025,25 @@ def _isolated_environment(temp_root: str) -> dict[str, str]:
     return {**os.environ, "TMPDIR": temp_root, "TEMP": temp_root, "TMP": temp_root}
 
 
-def _run_check(command: list[str], root: Path, timeout: float) -> tuple[str, int | None]:
+def _run_check(
+    command: list[str],
+    root: Path,
+    timeout: float,
+    check_ids: tuple[str, ...] = (),
+) -> tuple[str, int | None]:
     """Run one quiet check, exposing only a bounded redacted tail on failure."""
     with tempfile.TemporaryDirectory(prefix="harness-gate-") as temp_root:
-        return _run_isolated_check(command, root, timeout, _isolated_environment(temp_root))
+        return _run_isolated_check(
+            command, root, timeout, _isolated_environment(temp_root), check_ids
+        )
 
 
 def _run_isolated_check(
-    command: list[str], root: Path, timeout: float, env: dict[str, str]
+    command: list[str],
+    root: Path,
+    timeout: float,
+    env: dict[str, str],
+    check_ids: tuple[str, ...] = (),
 ) -> tuple[str, int | None]:
     windows = os.name == "nt"
     with tempfile.TemporaryFile() as output:
@@ -1984,7 +2059,7 @@ def _run_isolated_check(
         try:
             exit_code = process.wait(timeout=timeout)
             if exit_code:
-                _emit_failure_tail(output, root)
+                _emit_failure_tail(output, root, check_ids)
             return ("passed" if exit_code == 0 else "failed"), exit_code
         except subprocess.TimeoutExpired:
             if windows:
@@ -2006,7 +2081,7 @@ def _run_isolated_check(
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
-            _emit_failure_tail(output, root)
+            _emit_failure_tail(output, root, check_ids)
             return "timeout", None
 
 
@@ -2118,7 +2193,10 @@ def run_plan(
         remaining = budget_seconds - (check_started - started)
         if remaining <= 0:
             return "timeout", None, 0.0
-        status, exit_code = _run_check(unit_command(unit), root, remaining)
+        ids = tuple(
+            check.id for check in plan.checks if unit in execution_units(check.modules)
+        )
+        status, exit_code = _run_check(unit_command(unit), root, remaining, ids)
         return status, exit_code, round(time.monotonic() - check_started, 3)
 
     order = _execution_order(plan)
@@ -2176,6 +2254,11 @@ def render_text(payload: dict[str, Any]) -> str:
         f"harness-pr-gate valid={str(payload.get('valid', True)).lower()} surfaces={surfaces} "
         f"elapsed={timing.get('elapsed_seconds', 0)}s/{timing.get('budget_seconds', 0)}s"
     ]
+    failed_ids = [
+        item["id"] for item in payload.get("checks", []) if item.get("status") == "failed"
+    ]
+    if failed_ids:
+        lines.insert(0, "failed=" + ",".join(failed_ids))
     lines.extend(
         f"{item['id']} known-drift={item['known_drift']}: now passes; promote it by clearing known_drift"
         for item in payload.get("checks", [])

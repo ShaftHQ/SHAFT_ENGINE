@@ -675,7 +675,7 @@ class TerminalReflectionOnce7667Test(unittest.TestCase):
                 labels = "\n".join(
                     f"{label}: note" for label in self.guard.TERMINAL_LABELS
                 )
-                complete = labels + "\nnothing actionable"
+                complete = labels + "\n## Enhancements\nnothing actionable"
                 first = self.guard._terminal_reflection_reason(
                     {"session_id": session, "last_assistant_message": complete},
                     session,

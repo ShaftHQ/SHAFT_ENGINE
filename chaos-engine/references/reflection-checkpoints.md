@@ -94,6 +94,14 @@ duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those
 URLs on the receipt as `trackingIssues`. Use `noDeferredOrRiskWork: true` only
 when nothing was deferred and no residual risk remains. The hook never creates
 issues; a terminal receipt without tracking URLs or that attestation fails.
+
+## Enhancements
+
+The stop hook reads only the final Enhancements block, not the rest of the chat.
+A bullet must lead with shipped, tracked, or rejected, each followed by a colon.
+Shipped and tracked rows carry a github.com pull, issues, or commit URL.
+Rejected rows carry a reason that is not a deferral phrase such as later.
+Use nothing actionable for this block when it lists only shipped and rejected rows.
 The terminal root reflection consumes the root session receipt and receipts from
 every delegate created during the runtime. Delegate termination does not discard
 its failures, recoveries, blockers, dead ends, or improvement ideas;

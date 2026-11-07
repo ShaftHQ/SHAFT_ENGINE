@@ -1514,6 +1514,93 @@ def fast_mine_prefix(mempalace: str) -> list[str]:
     return [interpreter, str(shim)]
 
 
+_HARNESS_EXCLUDES = (
+    "chaos-engine/",
+    ".chaos-engine/",
+    "scripts/ci/harness_pr_gate.py",
+    "tests/scripts/test_ce_*.py",
+)
+
+
+def _corpus_split():
+    import importlib.util
+
+    split_path = Path(__file__).resolve().with_name("corpus_split.py")
+    spec = importlib.util.spec_from_file_location("chaos_engine_corpus_split_mine", split_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("corpus_split.py missing from installed core")
+    split = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(split)
+    return split
+
+
+def _snapshot_files(snapshot: Path) -> list[str]:
+    found: list[str] = []
+    for path in snapshot.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(snapshot).as_posix()
+        if rel == ".git" or rel.startswith(".git/"):
+            continue
+        found.append(rel)
+    return found
+
+
+def _restore_gitignore(ignore: Path, original: bytes | None, stat: os.stat_result | None) -> None:
+    if original is None:
+        ignore.unlink(missing_ok=True)
+        return
+    ignore.write_bytes(original)
+    if stat is not None:
+        os.utime(ignore, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+
+
+def _mine_with_collection(
+    split,
+    collection: str | None,
+    invoke,
+    mine: list[str],
+    snapshot: Path,
+    group: list[str] | None,
+) -> None:
+    previous = os.environ.get(split.COLLECTION_ENV)
+    if collection:
+        os.environ[split.COLLECTION_ENV] = collection
+    try:
+        if group is None:
+            _run(invoke, mine, snapshot)
+        else:
+            _mine_only(snapshot, group, invoke, mine)
+    finally:
+        if collection:
+            if previous is None:
+                os.environ.pop(split.COLLECTION_ENV, None)
+            else:
+                os.environ[split.COLLECTION_ENV] = previous
+
+
+def _mine_full_tree(snapshot: Path, invoke, mine: list[str]) -> None:
+    """Mine product files on the drawers default, then harness files into their collection."""
+    split = _corpus_split()
+    harness = [path for path in _snapshot_files(snapshot) if split.is_harness_path(path)]
+    if not harness:
+        _run(invoke, mine, snapshot)
+        return
+    ignore = snapshot / ".gitignore"
+    original = ignore.read_bytes() if ignore.is_file() else None
+    stat = ignore.stat() if original is not None else None
+    body = bytearray(original or b"")
+    if body and not body.endswith(b"\n"):
+        body += b"\n"
+    body += ("\n".join(_HARNESS_EXCLUDES) + "\n").encode("utf-8")
+    try:
+        ignore.write_bytes(body)
+        _run(invoke, mine, snapshot)
+    finally:
+        _restore_gitignore(ignore, original, stat)
+    _mine_with_collection(split, split.HARNESS_COLLECTION, invoke, mine, snapshot, harness)
+
+
 def _refresh_mempalace(
     cwd: Path,
     *,
@@ -1546,9 +1633,13 @@ def _refresh_mempalace(
     scope = "full tree" if paths is None else f"incremental, {len(paths)} changed file(s)"
     print(f"stores: mempalace mine ({scope}) at {revision[:12]}", file=sys.stderr, flush=True)
     if paths is None:
-        _run(invoke, mine, snapshot)
+        _mine_full_tree(snapshot, invoke, mine)
     elif paths:
-        _mine_only(snapshot, paths, invoke, mine)
+        split = _corpus_split()
+        for collection, group in split.mempalace_mine_groups(paths):
+            if not group:
+                continue
+            _mine_with_collection(split, collection, invoke, mine, snapshot, group)
     sync = [
         mempalace,
         "--palace",
