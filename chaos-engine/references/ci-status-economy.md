@@ -81,8 +81,9 @@ command, 404 mark); the candidate install still runs.
 ## Merge queue and same-account pull requests
 
 - With a merge queue, null `autoMergeRequest` does not mean the pull request
-  left the queue. Read `mergeQueueEntry` and its `headCommit.oid` (the synthetic
-  merge-group SHA), not the pull request head SHA.
+  left the queue. `AWAITING_CHECKS` on `mergeQueueEntry` means it is already
+  queued. Read that entry's `headCommit.oid` (the synthetic merge-group SHA),
+  not the pull request head SHA. Do not dequeue it to force checks to start.
 - The Dependabot schedule is read-only. It does not dequeue and it does not
   re-arm. A missing required check (`PR Gate Summary` or `Release-note governance`)
   on that synthetic SHA is a visible diagnostic failure. A maintainer enqueues
