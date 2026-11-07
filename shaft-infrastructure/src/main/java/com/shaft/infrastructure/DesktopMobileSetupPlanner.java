@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /** Release-coupled plans for existing iOS Simulator and Windows desktop hosts. */
 final class DesktopMobileSetupPlanner {
-    static final String XCUITEST_VERSION = "12.22.3";
+    static final String XCUITEST_VERSION = "13.0.6";
     static final String WINDOWS_DRIVER_VERSION = "6.3.1";
     static final String WINAPPDRIVER_VERSION = "1.2.1";
     private static final Pattern IOS_SPEC = Pattern.compile(
@@ -20,7 +20,7 @@ final class DesktopMobileSetupPlanner {
     private static final Pattern WINDOWS_SPEC = Pattern.compile(
             "wad=" + Pattern.quote(WINAPPDRIVER_VERSION) + ",appiumPort=([0-9]+)");
     static final String IOS_LOCK_SHA256 =
-            "sha256:b805495dabfcff603d249ccd372238fec045c5fc6531c19b7d724d90ed191719";
+            "sha256:d16095aa88ef8bbf746610e4ab712a712a3a60ba999bfa7fc9c63dbf67df03b2";
     static final String WINDOWS_LOCK_SHA256 =
             "sha256:fffc3d354a058fab4914372b77becaf2a588c5713e7dfc967f5bacedc9b7d2dd";
 
@@ -29,10 +29,10 @@ final class DesktopMobileSetupPlanner {
     private static final String INSPECTOR_SHA256 =
             "aba1d2e2b53975b7b49c28066b6bb6d2e5adf374c67286f95123aae0ca6c9e23";
     private static final String XCUITEST_SHA256 =
-            "92f0c6ae88d7c8715263f8517d5cdcef81314ac7c73bba3e3dbca28023107fc2";
+            "a95afe48cef763c7b888a166686c75cc0e55c2b548c6369677c6e739c0f057b7";
     private static final String WINDOWS_DRIVER_SHA256 =
             "2bbb3056635601b73a03d9337ec18cee6d03ed1aed980bb4611bde8e3b1c2812";
-    private static final long XCUITEST_ARTIFACT_BYTES = 15282109L;
+    private static final long XCUITEST_ARTIFACT_BYTES = 18977637L;
     private static final long WINDOWS_DRIVER_ARTIFACT_BYTES = 1408788L;
     private static final String WINAPPDRIVER_SHA256 =
             "a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe";
