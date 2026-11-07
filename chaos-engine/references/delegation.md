@@ -114,7 +114,8 @@ or adjacent prose with blocker notes, HEAD SHA, and root-learning handoff
 ## Independent adversarial review
 
 The [delivery cycle](delivery-cycle.md) requires two independent adversarial reviews
-after required checks are green on the accepted head. Never review
+after final scope commit and after required checks are green on the accepted head.
+An unchanged head gets at most two reviews. Never review
 individual implementation steps. A pull request that changes an existing test
 contract, or whose CI does not run the changed surface
 ([UI delivery](ui-delivery.md)), does not skip that pair.
@@ -155,7 +156,7 @@ work.
 When implementation is delegated to a local runtime (FreeToken / OpenCode),
 OmniRoute, or any writer that is not the host session model, the orchestrator
 **must** still trigger the two independent adversarial reviews as **new instances of
-the same host model** (native reviewer subagents). Never assign either review to
+the same host model** (native reviewer subagents). Never assign that review to
 the local or OmniRoute writer. Transport does not change the reviewer.
 When FreeToken is READY and the owner selected orchestrator mode, the
 orchestrator must not implement product or overlay chunks; dispatch a
