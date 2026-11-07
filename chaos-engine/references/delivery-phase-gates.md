@@ -9,7 +9,7 @@ Maps the ChaosEngine delivery loop to **hooks** (machine-checkable) vs **skills*
 | Research receipt | Hook when enforced | PreToolUse research-before-mutation gate | [research-receipt](research-receipt.md) |
 | Implement (Do) | Hook | PreToolUse session identity, catastrophic deny, worktree | playbooks / roles |
 | Check | Skill + tests | PostToolUse records outcomes | consolidated proof commands |
-| Optional adversarial | Skill | — | independent PR review |
+| Two adversarial reviews | Skill | after required checks are green | [delivery cycle](delivery-cycle.md) |
 | Learning Session | Hook | Stop requires terminal Learning Session | [learning](../learning.py) + [self-improve](../skills/self-improve/SKILL.md) |
 
 ## Research-before-mutation (enforced path)

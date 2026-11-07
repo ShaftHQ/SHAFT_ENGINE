@@ -32,6 +32,10 @@ class DeliveryCycleContractTest(unittest.TestCase):
         self.assertIn(CYCLE, text)
         self.assertIn(REVIEWS, text)
         self.assertIn("not a quota", text)
+        self.assertIn("The author is neither reviewer", text)
+        self.assertIn("Do not review an unchanged head a third time", text)
+        self.assertIn("A new commit invalidates both passes", text)
+        self.assertIn("after required checks are green", text)
         self.assertIn("Architect", text)
         self.assertIn("investigate-lessons.md", text)
         self.assertNotIn("at least three", text.lower())
@@ -48,6 +52,25 @@ class DeliveryCycleContractTest(unittest.TestCase):
                 self.assertNotIn(old, text)
         self.assertIn(CYCLE, skill)
         self.assertIn(REVIEWS, skill)
+        self.assertNotIn("](delivery-cycle.md)", skill)
+        self.assertNotIn("](../../references/delivery-cycle.md)", skill)
+        self.assertNotIn("optional terminal review", router)
+
+    def test_callers_use_the_cycle_instead_of_the_old_caps(self) -> None:
+        planning = (REFS / "work-github-planning.md").read_text(encoding="utf-8")
+        streams = (REFS / "parallel-streams.md").read_text(encoding="utf-8")
+        gates = (REFS / "delivery-phase-gates.md").read_text(encoding="utf-8")
+        playbook = (
+            ROOT / "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("recommend on", planning)
+        self.assertIn(REVIEWS, planning)
+        self.assertNotIn("five PDCA", streams)
+        self.assertIn(CYCLE, streams)
+        self.assertNotIn("Optional adversarial", gates)
+        self.assertIn("delivery-cycle.md", gates)
+        self.assertNotIn("for two passes", playbook)
+        self.assertIn("Stop when Check accepts", playbook)
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")

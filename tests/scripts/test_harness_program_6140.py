@@ -19,7 +19,7 @@ class HarnessProgramTest(unittest.TestCase):
             "epic plus native sub-issues",
             "one orchestrator",
             "local implementers",
-            "one adversarial reviewer per PR",
+            "two reviews ([delivery cycle](delivery-cycle.md))",
             "one Learning Session after the epic's in-scope pull requests merge",
             "invalid Learning Session skip only after a confirmed delivery",
             "Sub-issues do not re-ask attendance",

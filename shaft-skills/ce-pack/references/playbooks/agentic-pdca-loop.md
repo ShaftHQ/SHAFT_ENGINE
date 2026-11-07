@@ -11,9 +11,9 @@ these phases sequential inside it.
 - Bruce reviews the actual diff and evidence for defects, ambiguity, and
   confidence, then assigns any required patch to an implementation owner.
 
-Do not merge phases. Run Kevin -> Bob -> Bruce, then repeat that order for two
-passes: quality/simplicity, then intuitiveness/acceptability. Rerun the
-smallest check each pass. Stop at >=90% confidence or a blocker.
+Do not merge phases. Run Kevin -> Bob -> Bruce. Bruce covers
+quality/simplicity, then intuitiveness/acceptability, inside Check.
+Stop when Check accepts. Do not add a pass to fill a quota.
 
 ## Execution
 

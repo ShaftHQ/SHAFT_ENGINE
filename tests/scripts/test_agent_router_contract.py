@@ -3182,9 +3182,10 @@ class DisciplineTest(unittest.TestCase):
         self.assertIn("after final scope commit", content)
         self.assertIn("after required checks are green", content)
         self.assertRegex(content, r"at most two|no more than two")
+        self.assertIn("never the author", content)
         self.assertRegex(
             content,
-            r"never the author|separate agent|independent",
+            r"separate agent|independent",
             "enabled review must remain independent",
         )
 

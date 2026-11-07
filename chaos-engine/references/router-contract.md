@@ -198,7 +198,7 @@ redefining the workflow or roles.
 Capability comes in three levels on every host: most intelligent, default, and
 mechanical. Name them that way, never by provider or product.
 
-[Delegation](delegation.md) defines levels and optional terminal review;
+[Delegation](delegation.md) defines levels and the [delivery cycle](delivery-cycle.md) reviews;
 [roles](roles.md) defines role boundaries. Read both before dispatch.
 Every dispatch loads this entrypoint and carries its bounded covenant.
 
