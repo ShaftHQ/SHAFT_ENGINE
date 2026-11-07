@@ -109,7 +109,6 @@ Companions at task start via `tool.py entry` ([bot entry](../../references/bot-e
 | Add-ons | design, video, or project pack | [addons.md](../../references/addons.md) |
 | Complexity gate | complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 | Durable jobs | outlives the session | [durable-jobs.md](../../references/durable-jobs.md) |
-| Untangle | structure review without a repo rewrite | [untangle-lesson.md](../../references/untangle-lesson.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

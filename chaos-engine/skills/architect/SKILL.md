@@ -15,6 +15,7 @@ permissions:
 Judgement cards for design-level work. Core [triage](../chaos-engine/SKILL.md#triage)
 sets depth; [Ponytail](../../companions/ponytail-ultra.md) still caps scope.
 Load ONE card file below, not all.
+When a review of a change already in scope needs structure vocabulary, load the [untangle lesson](../../references/untangle-lesson.md).
 
 ## First: retrieve
 

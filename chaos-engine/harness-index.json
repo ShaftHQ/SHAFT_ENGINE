@@ -872,24 +872,6 @@
       "kind": "route",
       "name": "Durable jobs",
       "path": "references/durable-jobs.md"
-    },
-    {
-      "description": "Use when a review needs hidden-link, needless-link, and surplus vocabulary without rewriting the repository or deleting tests.",
-      "family": "reference",
-      "hosts": {
-        "antigravity": "catalog",
-        "claude": "catalog",
-        "codex": "catalog",
-        "copilot": "catalog",
-        "cursor": "catalog",
-        "gemini": "catalog",
-        "grok": "catalog",
-        "grok-bot": "catalog",
-        "opencode": "catalog"
-      },
-      "kind": "route",
-      "name": "Untangle",
-      "path": "references/untangle-lesson.md"
     }
   ],
   "generator": "harness_index.py",

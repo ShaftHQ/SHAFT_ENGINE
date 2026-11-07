@@ -193,8 +193,6 @@ class SkillIndexParityTest(unittest.TestCase):
             "remove tests that would not catch a real bug",
         ):
             self.assertIn(phrase, text)
-        names = {entry["name"] for entry in index()["entries"]}
-        self.assertIn("Untangle", names)
 
 
 if __name__ == "__main__":
