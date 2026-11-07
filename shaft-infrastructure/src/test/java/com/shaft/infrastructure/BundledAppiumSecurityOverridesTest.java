@@ -127,6 +127,57 @@ class BundledAppiumSecurityOverridesTest {
         assertEquals(List.of(), vulnerable, "appium proxy-addr is below 2.0.8");
     }
 
+    /**
+     * Dependabot alerts #422, #420, #419, #418 (minimatch below 11.0.1) and #414, #411,
+     * #408, #405 (glob below 14.0.2). glob 14 depends on minimatch ^11. An {@code inBundle}
+     * or shrinkwrapped driver copy stays on the published driver.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"appium", "appium-ios", "appium-windows", "reporting"})
+    void bundledTreesPinGlobAndMinimatchAboveTheVulnerableFloor(String bundle) throws Exception {
+        String root = "/com/shaft/infrastructure/" + bundle + "/";
+        String manifest = read(root + "package.json");
+        assertTrue(manifest.contains("\"minimatch\": \"11.0.5\""), bundle + " package.json overrides minimatch");
+        assertTrue(manifest.contains("\"glob\": \"14.0.4\""), bundle + " package.json overrides glob");
+
+        JsonNode packages = JSON.readTree(read(root + "package-lock.json")).path("packages");
+        List<String> below = copiesBelowFloor(packages, "glob", "14.0.4");
+        below.addAll(copiesBelowFloor(packages, "minimatch", "11.0.5"));
+        assertEquals(List.of(), below, bundle + " lockfile leaves glob or minimatch below the floor");
+    }
+
+    /**
+     * Dependabot alert #407. npm overrides cannot move the {@code inBundle} follow-redirects
+     * 1.16.1 copy inside appium-windows-driver. Every other copy must be at least 1.16.2.
+     */
+    @Test
+    void appiumWindowsOverridesFollowRedirectsAndNonBundledCopiesMeetTheFloor() throws Exception {
+        String manifest = read("/com/shaft/infrastructure/appium-windows/package.json");
+        assertTrue(manifest.contains("\"follow-redirects\": \"1.16.2\""),
+                "appium-windows package.json overrides follow-redirects");
+        JsonNode packages = JSON.readTree(read("/com/shaft/infrastructure/appium-windows/package-lock.json"))
+                .path("packages");
+        assertEquals(List.of(), copiesBelowFloor(packages, "follow-redirects", "1.16.2"),
+                "appium-windows follow-redirects below 1.16.2");
+    }
+
+    private static List<String> copiesBelowFloor(JsonNode packages, String name, String floor) {
+        List<String> below = new ArrayList<>();
+        for (Map.Entry<String, JsonNode> entry : packages.properties()) {
+            if (unreachableByOverride(entry.getKey(), entry.getValue(), packages)) {
+                continue;
+            }
+            if (!entry.getKey().endsWith("node_modules/" + name)) {
+                continue;
+            }
+            String version = entry.getValue().path("version").asText();
+            if (compareVersions(version, floor) < 0) {
+                below.add(entry.getKey() + "@" + version + " < " + floor);
+            }
+        }
+        return below;
+    }
+
     private static int compareVersions(String left, String right) {
         Matcher a = SEMVER.matcher(left);
         Matcher b = SEMVER.matcher(right);

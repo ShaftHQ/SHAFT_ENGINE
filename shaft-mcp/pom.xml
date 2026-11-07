@@ -68,6 +68,17 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- GHSA-ccrj-gw8r-854m, Dependabot alert #394: spring-boot-dependencies
+                 imports opentelemetry-bom 1.62.0, so opentelemetry-api stays <= 1.66.0.
+                 The first import wins; this BOM must precede spring-boot-dependencies.
+                 A second opentelemetry-bom import after Boot does not override Boot. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>1.68.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
