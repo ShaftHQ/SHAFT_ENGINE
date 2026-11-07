@@ -63,6 +63,10 @@ class DeliveryCycleContractTest(unittest.TestCase):
         playbook = (
             ROOT / "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
         ).read_text(encoding="utf-8")
+        sequential = (REFS / "sequential-wip.md").read_text(encoding="utf-8")
+        web_design = (
+            CE / "addons/design-skills/references/craft/web-design.md"
+        ).read_text(encoding="utf-8")
         self.assertNotIn("recommend on", planning)
         self.assertIn(REVIEWS, planning)
         self.assertNotIn("five PDCA", streams)
@@ -71,6 +75,12 @@ class DeliveryCycleContractTest(unittest.TestCase):
         self.assertIn("delivery-cycle.md", gates)
         self.assertNotIn("for two passes", playbook)
         self.assertIn("Stop when Check accepts", playbook)
+        self.assertIn(CYCLE, playbook)
+        self.assertIn(REVIEWS, playbook)
+        for text in (sequential, web_design):
+            self.assertIn(REVIEWS, text)
+            self.assertNotIn("one round", text)
+            self.assertNotIn("returns to the reviewer who raised the blocker", text)
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
