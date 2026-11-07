@@ -3,8 +3,10 @@
 
 Scheduled and workflow_dispatch runs inventory real queue membership, the
 synthetic merge-group SHA, and both required checks. They do not enqueue,
-dequeue, or re-arm. A manual hold for a head is authoritative. Bot merge
-stays off until a maintainer records a verified opt-in for that same head.
+dequeue, or re-arm. Dependabot opened, reopened, and synchronize events
+enqueue once with BOT_TOKEN when dependabot_enqueue_decision says so.
+GITHUB_TOKEN is never that credential: events it creates start no
+merge_group workflows. A dependabot-hold label is authoritative.
 
 Empty check lists and API errors are different. Abandoned or cancelled
 installer results are not success. Looking up the pull-request head SHA does
@@ -208,8 +210,8 @@ def may_enqueue(entry: Mapping[str, Any]) -> bool:
 
     A hold wins over opt-in. Synchronize does not clear a hold for that head.
     Already-queued PRs are not re-armed, even when autoMergeRequest is null.
-    The scheduled workflow does not call this; a person enqueues until an
-    opt-in is verified.
+    The scheduled workflow does not call this. Dependabot pull_request_target
+    uses dependabot_enqueue_decision and BOT_TOKEN instead.
     """
     if not isinstance(entry, Mapping) or _enqueue_refused(entry):
         return False
@@ -217,6 +219,47 @@ def may_enqueue(entry: Mapping[str, Any]) -> bool:
     if _installer_checks_failed(entry, _checks_for(entry, head)):
         return False
     return head_checks_green(entry)
+
+
+DEPENDABOT_LOGINS = frozenset({"dependabot[bot]", "app/dependabot"})
+HOLD_LABEL = "dependabot-hold"
+
+
+def dependabot_enqueue_decision(pull: Mapping[str, Any]) -> str:
+    """Return ``enqueue`` or ``skip:<reason>`` for one Dependabot pull request.
+
+    Callers are opened, reopened, and synchronize only. A schedule must not
+    use a skip as a reason to try again. Null autoMergeRequest plus a
+    merge-queue entry means the pull request is already queued.
+    """
+    if not isinstance(pull, Mapping):
+        return "skip:not-an-object"
+    author = pull.get("author")
+    if isinstance(author, Mapping):
+        login = str(author.get("login") or "")
+    elif isinstance(author, str):
+        login = author
+    else:
+        login = ""
+    if login not in DEPENDABOT_LOGINS:
+        return "skip:not-dependabot"
+    if pull.get("isDraft") is True:
+        return "skip:draft"
+    if pull.get("mergeable") == "CONFLICTING" or pull.get("mergeStateStatus") == "DIRTY":
+        return "skip:conflict"
+    labels = pull.get("labels") or []
+    if isinstance(labels, list):
+        for label in labels:
+            name = label.get("name") if isinstance(label, Mapping) else label
+            if str(name or "") == HOLD_LABEL:
+                return "skip:hold"
+    entry = pull.get("mergeQueueEntry")
+    if isinstance(entry, Mapping) and entry:
+        return "skip:already-queued"
+    auto = pull.get("autoMergeRequest")
+    if isinstance(auto, Mapping) and auto:
+        return "skip:already-armed"
+    return "enqueue"
 
 
 def _epoch(value: object) -> int | None:
@@ -353,11 +396,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     diagnose.add_argument("--queue-json", required=True)
     diagnose.add_argument("--checks-dir", default="")
 
+    decide = sub.add_parser("enqueue-decision", help="print enqueue or skip:<reason>")
+    decide.add_argument("--pr-json", required=True)
+
     args = parser.parse_args(argv)
-    document = _read_json(args.queue_json)
+    document = _read_json(args.queue_json if args.command != "enqueue-decision" else args.pr_json)
     if not isinstance(document, Mapping):
         print("api_error\tinventory JSON is not an object", file=sys.stderr)
         return 1
+    if args.command == "enqueue-decision":
+        print(dependabot_enqueue_decision(document))
+        return 0
     if args.command == "shas":
         try:
             found = queue_shas(document)

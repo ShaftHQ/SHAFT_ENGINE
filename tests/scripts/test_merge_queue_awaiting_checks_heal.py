@@ -17,6 +17,7 @@ from scripts.ci.merge_queue_awaiting_checks_heal import (
     RETRY_BUDGET,
     classify,
     conclusion_is_green,
+    dependabot_enqueue_decision,
     installer_result_is_green,
     may_enqueue,
     queue_shas,
@@ -229,6 +230,45 @@ class RequiredWorkflowsMergeGroupTest(unittest.TestCase):
             REQUIRED_QUEUE_CHECKS,
             {"PR Gate Summary", "Release-note governance"},
         )
+
+
+class DependabotEnqueueDecisionTest(unittest.TestCase):
+    def test_open_dependabot_pull_request_enqueues_once(self) -> None:
+        self.assertEqual("enqueue", dependabot_enqueue_decision({
+            "author": {"login": "app/dependabot"},
+            "isDraft": False,
+            "mergeable": "MERGEABLE",
+            "mergeStateStatus": "CLEAN",
+            "labels": [{"name": "dependencies"}],
+            "mergeQueueEntry": None,
+            "autoMergeRequest": None,
+        }))
+
+    def test_hold_queue_and_arm_skip(self) -> None:
+        base = {
+            "author": {"login": "dependabot[bot]"},
+            "isDraft": False,
+            "mergeable": "MERGEABLE",
+            "labels": [],
+            "mergeQueueEntry": None,
+            "autoMergeRequest": None,
+        }
+        self.assertEqual("skip:hold", dependabot_enqueue_decision({
+            **base, "labels": [{"name": "dependabot-hold"}],
+        }))
+        self.assertEqual("skip:already-queued", dependabot_enqueue_decision({
+            **base, "autoMergeRequest": None, "mergeQueueEntry": {"state": "AWAITING_CHECKS"},
+        }))
+        self.assertEqual("skip:already-armed", dependabot_enqueue_decision({
+            **base, "autoMergeRequest": {"enabledAt": "2026-11-07T00:00:00Z"},
+        }))
+        self.assertEqual("skip:draft", dependabot_enqueue_decision({**base, "isDraft": True}))
+        self.assertEqual("skip:conflict", dependabot_enqueue_decision({
+            **base, "mergeable": "CONFLICTING",
+        }))
+        self.assertEqual("skip:not-dependabot", dependabot_enqueue_decision({
+            **base, "author": {"login": "someone"},
+        }))
 
 
 class DiagnoseCliTest(unittest.TestCase):

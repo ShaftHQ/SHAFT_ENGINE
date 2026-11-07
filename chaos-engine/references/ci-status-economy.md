@@ -122,7 +122,9 @@ run to finish (or `gh run cancel <run-id>`), then rerun.
 
 - A release-prep PR opened by the workflow gets no PR Gate checks
   (`GITHUB_TOKEN` events start no workflows). If it shows no PR Gate checks,
-  close and reopen it as the owner to start them.
+  close and reopen it as the owner to start them. Dependabot enqueue uses
+  `BOT_TOKEN` for the same reason: a queue entry created by `GITHUB_TOKEN`
+  never starts the required merge_group checks and then times out.
 - A release-prep PR only bumps versions. Merging it is the publish: the
   delivery workflow releases from the default branch when the version
   changes. Before you merge, check that no release blockers are open.

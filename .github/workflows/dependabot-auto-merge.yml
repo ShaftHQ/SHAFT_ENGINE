@@ -1,14 +1,18 @@
-name: Dependabot queue diagnostic
+name: Dependabot queue
 
-# Read-only inventory of merge-queue membership. This file does not enable
-# auto-merge, dequeue, or re-arm, and it does not re-enable a workflow that
-# GitHub has set to disabled_manually. GITHUB_TOKEN only. A maintainer
-# enqueues by hand until a verified head-bound opt-in exists. A manual hold
-# for that head stays authoritative. Opened, reopened, and synchronize events
-# do not enqueue. Required checks on the synthetic SHA are PR Gate Summary
-# and Release-note governance.
+# Schedule and workflow_dispatch only inventory merge-queue membership.
+# They do not enable auto-merge, dequeue, or re-arm, and this file does not
+# by itself re-enable a workflow GitHub has set to disabled_manually.
+# Dependabot opened, reopened, and synchronize events enable auto-merge with
+# BOT_TOKEN. GITHUB_TOKEN events start no workflows, so a queue entry created
+# that way never runs merge_group checks and times out. Do not fall back to
+# GITHUB_TOKEN. A dependabot-hold label skips enqueue. The enqueue job checks
+# out the default branch only and never runs pull-request code. Required
+# checks on the synthetic SHA are PR Gate Summary and Release-note governance.
 
 on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, reopened, synchronize]
   schedule:
     - cron: '*/20 * * * *'
   workflow_dispatch: {}
@@ -25,6 +29,7 @@ concurrency:
 jobs:
   diagnose:
     name: Diagnose merge queue
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -67,3 +72,53 @@ jobs:
           done <"$tmp/shas.txt"
           python3 scripts/ci/merge_queue_awaiting_checks_heal.py diagnose \
             --queue-json "$tmp/queue.json" --checks-dir "$tmp/checks"
+
+  enqueue:
+    name: Enqueue Dependabot with BOT_TOKEN
+    if: >-
+      github.event_name == 'pull_request_target'
+      && github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout default branch for the enqueue decision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Enable auto-merge when the decision is enqueue
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BOT_TOKEN}" ]; then
+            echo "::error::BOT_TOKEN is required. GITHUB_TOKEN events start no merge_group workflows."
+            exit 1
+          fi
+          repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
+          pr="${PR_NUMBER:?PR_NUMBER is required}"
+          tmp="$(mktemp)"
+          trap 'rm -f "$tmp"' EXIT
+          GH_TOKEN="${BOT_TOKEN}" gh pr view "$pr" -R "$repo" \
+            --json author,isDraft,mergeable,mergeStateStatus,labels,mergeQueueEntry,autoMergeRequest \
+            >"$tmp"
+          decision="$(python3 scripts/ci/merge_queue_awaiting_checks_heal.py enqueue-decision --pr-json "$tmp")"
+          echo "enqueue decision: ${decision}"
+          case "${decision}" in
+            enqueue)
+              GH_TOKEN="${BOT_TOKEN}" gh pr merge "$pr" -R "$repo" --auto
+              GH_TOKEN="${BOT_TOKEN}" gh pr view "$pr" -R "$repo" --json autoMergeRequest,state \
+                --jq 'if (.autoMergeRequest != null) or (.state != "OPEN") then "armed" else error("auto-merge not armed") end'
+              ;;
+            skip:*)
+              ;;
+            *)
+              echo "::error::unknown enqueue decision: ${decision}"
+              exit 1
+              ;;
+          esac

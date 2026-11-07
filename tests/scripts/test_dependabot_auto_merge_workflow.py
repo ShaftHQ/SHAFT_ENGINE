@@ -1,4 +1,4 @@
-"""Dependabot queue workflow is a read-only diagnostic, not a re-arm loop."""
+"""Dependabot schedule stays read-only. Event enqueue uses BOT_TOKEN."""
 
 from __future__ import annotations
 
@@ -26,10 +26,12 @@ def _real_gh_lines(text: str) -> list[str]:
 class DependabotAutoMergeWorkflowTest(unittest.TestCase):
     def test_schedule_and_dispatch_are_read_only(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
+        diagnose, enqueue = text.split("  enqueue:", 1)
         self.assertIn("schedule:", text)
         self.assertIn("workflow_dispatch:", text)
-        self.assertNotIn("pull_request_target", text)
-        self.assertNotIn("gh pr merge", text)
+        self.assertIn("pull_request_target:", text)
+        self.assertNotIn("gh pr merge", diagnose)
+        self.assertNotIn("secrets.BOT_TOKEN", diagnose)
         self.assertNotIn("dequeuePullRequest", text)
         self.assertNotIn("enqueuePullRequest", text)
         self.assertNotIn("may_enqueue", text)
@@ -37,10 +39,18 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("contents: read", text)
         self.assertNotIn("contents: write", text)
         self.assertNotIn("pull-requests: write", text)
-        self.assertIn("secrets.GITHUB_TOKEN", text)
+        self.assertIn("secrets.GITHUB_TOKEN", diagnose)
+        self.assertNotIn("secrets.GITHUB_TOKEN", enqueue)
+        self.assertIn("secrets.BOT_TOKEN", enqueue)
+        self.assertIn("gh pr merge", enqueue)
+        self.assertIn("--auto", enqueue)
+        self.assertIn("enqueue-decision", enqueue)
         self.assertNotIn("DEPENDABOT_TOKEN", text)
         self.assertIn("persist-credentials: false", text)
-        self.assertIn("Checkout default branch for the diagnostic script", text)
+        self.assertIn("Checkout default branch for the diagnostic script", diagnose)
+        self.assertIn("Checkout default branch for the enqueue decision", enqueue)
+        self.assertNotIn("github.event.pull_request.head.sha", text)
+        self.assertNotIn("github.event.pull_request.head.ref", text)
 
     def test_inventory_uses_the_synthetic_queue_sha_and_both_checks(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -74,6 +84,8 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         for needle in ("re-arm", "soft-fail", "eviction"):
             self.assertIn(needle, text)
         self.assertIn("read-only", text.lower())
+        self.assertIn("BOT_TOKEN", text)
+        self.assertIn("events start no workflows", text)
         self.assertNotIn("gh pr merge", text)
 
 

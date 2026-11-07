@@ -64,6 +64,18 @@ class ProcessCardsTest(unittest.TestCase):
         raw = (CE / "references/worker-keep-alive.md").read_text(encoding="utf-8")
         self.assertNotIn("L39", raw)
 
+    def test_local_tools_iron_rule(self) -> None:
+        for name in ("bot-entry.md", "delegation-cycle.md"):
+            raw = (CE / "references" / name).read_text(encoding="utf-8")
+            with self.subTest(card=name):
+                self.assertIn("Always use local tools", raw)
+                self.assertIn("explicit yes", raw)
+                self.assertIn("every provider", raw)
+                self.assertIn("it is faster", raw)
+                self.assertIn("saved habit", raw)
+                self.assertIn("playbook", raw)
+                self.assertNotIn("mohab", raw.lower())
+
     def test_bot_entry_requires_ce_load(self) -> None:
         bot = (CE / "references/bot-entry.md").read_text(encoding="utf-8")
         self.assertIn("ce_load: required", bot)

@@ -38,6 +38,7 @@ Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`)
    Coach, Carl, and Chaos write the code on this machine with Grok Build
    (`grok`); do not hand it to a Cursor cloud agent
    ([delegation cycle](delegation-cycle.md)).
+   Always use local tools. A cloud agent or an extra machine needs the owner's own explicit yes in that moment, on every provider. A saved habit, a playbook, or "it is faster" is not approval.
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 5. Before any delete, `tool.py delete-check <paths>`; refusal: owner code
    only ([discipline](delete-check-discipline.md)).

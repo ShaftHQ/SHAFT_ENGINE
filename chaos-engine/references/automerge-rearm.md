@@ -11,17 +11,18 @@
    `Release-note governance`). They do not dequeue and they do not enable
    auto-merge. A diagnostic failure exits non-zero. The old per-item soft-fail
    (warning, then exit 0) hid a green "all armed" result.
-3. Opened, reopened, and synchronize events do not enqueue. A future bot merge
-   needs a maintainer-explicit opt-in bound to that head SHA, and the opt-in
-   has to be verified. A manual hold or removal is authoritative for that head.
-   Synchronize does not clear the hold. Until that opt-in exists, a maintainer
-   enqueues by hand.
+3. Opened, reopened, and synchronize events for Dependabot enqueue once,
+   with `BOT_TOKEN`, and only when `dependabot_enqueue_decision` returns
+   `enqueue`. A `dependabot-hold` label is a manual hold for that pull
+   request. Synchronize does not clear the hold. The schedule does not
+   enqueue, so an eviction is not a reason to arm auto-merge again.
 4. Null `autoMergeRequest` does not mean the pull request is outside the queue.
    Read `mergeQueueEntry`. An API error is not an empty run list. One missing
    required check is not healthy. A young entry inside the age grace is not a
    stall. Repeated timeouts stop; they do not start another loop. Abandoned or
    cancelled installer results are not success.
-5. Do not replace `GITHUB_TOKEN` with a stronger token.
+5. The enqueue credential is `BOT_TOKEN`. `GITHUB_TOKEN` events start no workflows, so a merge-queue entry created that way never receives merge_group checks and times out. Do not fall back to `GITHUB_TOKEN`.
+   The schedule still uses `GITHUB_TOKEN` for the read-only inventory.
 6. Every `gh pr` call passes `-R "$GITHUB_REPOSITORY"`, and every `gh api`
    call sets `GH_REPO="$GITHUB_REPOSITORY"`. Without that, a schedule runner
    can print an empty list and look green while it saw nothing. That empty
@@ -38,13 +39,16 @@ written for, and it is the behavior this rule retires.
 
 ## Check
 
-Workflow file: no auto-merge command, no dequeue mutation, no
-`pull_request_target` enqueue, `contents: read`, and a non-zero exit when the
-inventory fails. Predicate tests cover an explicit hold, a queued pull request
-with null auto-merge, synchronize after a hold, repeated timeout, the wrong
-SHA, either required check missing, a young or healthy entry, an API error,
-retry exhaustion, and an abandoned or cancelled installer. Contract:
-`tests/scripts/test_dependabot_auto_merge_workflow.py` and
+Workflow file: the schedule and dispatch jobs do not enable auto-merge and
+do not dequeue. The Dependabot `pull_request_target` job checks out the
+default branch only, decides with `enqueue-decision`, and enables auto-merge
+with `BOT_TOKEN`. `contents: read`. A failed inventory exits non-zero.
+Predicate tests cover an explicit hold, a queued pull request with null
+auto-merge, synchronize after a hold, repeated timeout, the wrong SHA,
+either required check missing, a young or healthy entry, an API error,
+retry exhaustion, an abandoned or cancelled installer, and the Dependabot
+enqueue decision (hold, already queued, already armed, conflict, draft).
+Contract: `tests/scripts/test_dependabot_auto_merge_workflow.py` and
 `tests/scripts/test_merge_queue_awaiting_checks_heal.py`.
 
 ## Follow-up
