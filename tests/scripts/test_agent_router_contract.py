@@ -677,12 +677,14 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "planning-selected terminal adversarial review after the final scope commit",
+        "rule": "finish before starting: pull-based flow, WIP limits, explicit Definition of Done",
         "status": "prose-only",
         "reason": (
-            "Review is an owner-selected planning decision and semantic activity. A "
-            "hook cannot authenticate its quality or force it without recreating the "
-            "retired reviewer-dispatch ledger and action deadlock."
+            "Finish-before-starting is required, and Check requires two independent "
+            "adversarial reviews after required checks are green. A hook cannot "
+            "authenticate review quality, nor whether the pull, the WIP limit, and "
+            "the Definition of Done were honored, without recreating the retired "
+            "reviewer-dispatch ledger and action deadlock."
         ),
     },
     {

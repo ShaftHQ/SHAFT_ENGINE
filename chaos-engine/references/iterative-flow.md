@@ -13,12 +13,14 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
    post, one slide, one PR).
 4. One owner per item: the owner implements it and self-reviews against the
    Definition of Done (DoD), written before work starts.
-5. The reviewer runs an acceptance review against the same DoD and returns
-   specific, checkable comments, or signs off.
-6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until owner and
-   reviewer both sign off explicitly.
-7. Done = both sign-offs AND the item is shipped (published, scheduled, or
-   merged). Signed-off work that has not shipped is still WIP.
+5. Run two independent adversarial reviews against the same DoD
+   ([delivery cycle](delivery-cycle.md)), only after required checks are green.
+   The author is neither reviewer. Each returns specific, checkable comments,
+   or signs off.
+6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) for the owner self-check.
+   At most 3 iterations; the cap is not a quota.
+7. Done includes those two independent adversarial reviews: both sign-offs AND the item is shipped
+   (published, scheduled, or merged). Signed-off work that has not shipped is still WIP.
 8. Only after Done, pull the next item.
 9. After every review round, log each lesson as failure → root cause →
    preventive rule (a check, template, or script change).

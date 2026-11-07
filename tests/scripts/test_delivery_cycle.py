@@ -13,6 +13,22 @@ CYCLE = "at most 3 PDCA"
 REVIEWS = "two independent adversarial reviews"
 LINK = "delivery-cycle.md"
 OLD = ("second round only for", "One fresh-context review", "one reviewer, one round")
+ONE_REVIEW_CLOSE = (
+    "The reviewer runs an acceptance review",
+    "owner and reviewer both sign off",
+    "final scope commit and automated finding batch",
+    "before any local validation or review",
+    "followed by extra local tests",
+    "after independent review",
+    "one acceptance review",
+    "one independent review",
+)
+CALLERS = (
+    "iterative-flow.md",
+    "consult-first.md",
+    "work-github-playbook.md",
+    "design-review-video-checklist.md",
+)
 LESSON_HEADINGS = (
     "## Canonical record",
     "## Past approval",
@@ -81,6 +97,28 @@ class DeliveryCycleContractTest(unittest.TestCase):
             self.assertIn(REVIEWS, text)
             self.assertNotIn("one round", text)
             self.assertNotIn("returns to the reviewer who raised the blocker", text)
+
+    def test_leftover_callers_keep_two_reviews_not_a_one_review_close(self) -> None:
+        for name in CALLERS:
+            raw = (REFS / name).read_text(encoding="utf-8")
+            text = " ".join(raw.split())
+            with self.subTest(file=name):
+                self.assertIn(REVIEWS, raw)
+                for old in ONE_REVIEW_CLOSE:
+                    self.assertNotIn(old, text)
+        flow = " ".join((REFS / "iterative-flow.md").read_text(encoding="utf-8").split())
+        consult = " ".join((REFS / "consult-first.md").read_text(encoding="utf-8").split())
+        playbook = " ".join((REFS / "work-github-playbook.md").read_text(encoding="utf-8").split())
+        checklist = (REFS / "design-review-video-checklist.md").read_text(encoding="utf-8")
+        self.assertIn("The author is neither reviewer", flow)
+        self.assertIn("the cap is not a quota", flow)
+        self.assertIn("architect, at most 3 PDCA", consult)
+        self.assertIn("after required checks are green", consult)
+        self.assertIn("Never force a review between earlier phases", consult)
+        self.assertIn("local tests that are the required checks", playbook)
+        self.assertIn("after required checks are green", playbook)
+        self.assertIn("Do not review a red head", playbook)
+        self.assertIn("then sign-off", checklist)
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
