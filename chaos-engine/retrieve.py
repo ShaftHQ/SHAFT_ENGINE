@@ -8,6 +8,7 @@ import json
 import os
 import re
 import runpy
+import sqlite3
 import subprocess  # nosec B404 - optional advisory store CLIs only.
 import sys
 from pathlib import Path
@@ -725,6 +726,19 @@ def _store_hit_receipt(
                 "hits": [],
                 "bytes": 0,
             }
+    if store == "graphify":
+        split = _corpus_split()
+        if split is not None:
+            hits = split.apply_path_predicate(query, hits)
+            if not hits:
+                return {
+                    "store": store,
+                    "status": STATUS_SKIPPED,
+                    "reason": "no-relevant-hits",
+                    "query": query,
+                    "hits": [],
+                    "bytes": 0,
+                }
     if store == "memory" and not hits and mindset is not None:
         return mindset.memory_no_hit_receipt()
     excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
@@ -778,6 +792,11 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         args = [sys.executable, str(tool), "mempalace", "search", query]
     else:
         args = [sys.executable, str(tool), "graphify", "query", query]
+        split = _corpus_split()
+        seeds = split.walk_seeds(query) if split is not None else []
+        if seeds and [seed.casefold() for seed in seeds] != [word.casefold() for word in query.split()]:
+            for seed in seeds:
+                args.extend(["--seed", seed])
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "CHAOS_ENGINE_RETRIEVE": "1"}
     if store == "mempalace":
         # An ambient selection (e.g. chroma) must not override the owned palace (#6212).
@@ -860,6 +879,20 @@ def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, An
     }
 
 
+def _corpus_split():
+    path = Path(__file__).resolve().with_name("corpus_split.py")
+    if not path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("chaos_engine_corpus_split_retrieve", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def graph_freshness_field(project: Path) -> dict[str, str]:
     """Never answer from an outdated graph silently (#6409): report fresh, stale or absent."""
     try:
@@ -909,8 +942,18 @@ def retrieve(
     if recorded is not None:
         receipt.update(recorded)
         return receipt
+    direct = None
+    if chosen == "graphify":
+        split = _corpus_split()
+        if split is not None:
+            try:
+                direct = split.direct_graphify_outcome(root, cleaned)
+            except (OSError, sqlite3.Error, RuntimeError, ValueError):
+                direct = None
     if chosen == "deja":
         outcome = _run_deja(root, cleaned, host=host, mode=mode)
+    elif direct is not None:
+        outcome = direct
     else:
         outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)

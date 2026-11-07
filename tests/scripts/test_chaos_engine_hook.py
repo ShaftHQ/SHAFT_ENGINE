@@ -1166,7 +1166,7 @@ process.stderr.write(result.stderr || '');
                     "hook_event_name": "Stop",
                     "session_id": "portable-track",
                     "stop_hook_active": True,
-                    "last_assistant_message": labels + "\nnothing actionable",
+                    "last_assistant_message": labels + "\n## Enhancements\nnothing actionable",
                 },
                 env,
             )

@@ -1548,7 +1548,28 @@ def _refresh_mempalace(
     if paths is None:
         _run(invoke, mine, snapshot)
     elif paths:
-        _mine_only(snapshot, paths, invoke, mine)
+        import importlib.util
+
+        split_path = Path(__file__).resolve().with_name("corpus_split.py")
+        spec = importlib.util.spec_from_file_location("chaos_engine_corpus_split_mine", split_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("corpus_split.py missing from installed core")
+        split = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(split)
+        for collection, group in split.mempalace_mine_groups(paths):
+            if not group:
+                continue
+            previous = os.environ.get(split.COLLECTION_ENV)
+            if collection:
+                os.environ[split.COLLECTION_ENV] = collection
+            try:
+                _mine_only(snapshot, group, invoke, mine)
+            finally:
+                if collection:
+                    if previous is None:
+                        os.environ.pop(split.COLLECTION_ENV, None)
+                    else:
+                        os.environ[split.COLLECTION_ENV] = previous
     sync = [
         mempalace,
         "--palace",

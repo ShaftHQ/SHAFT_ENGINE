@@ -955,15 +955,38 @@ def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
     return ""
 
 
+def _enhancement_disposition():
+    path = Path(__file__).resolve().parents[1] / "enhancement_disposition.py"
+    if not path.is_file():
+        return None
+    specification = importlib.util.spec_from_file_location(
+        "chaos_engine_enhancement_disposition", path
+    )
+    if specification is None or specification.loader is None:
+        return None
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def enhancement_errors(message: str) -> list[str]:
+    """Shared close check. The repository stop hook delegates here."""
+    module = _enhancement_disposition()
+    if module is None:
+        return ["enhancement disposition checker unavailable"]
+    return list(module.enhancement_errors(message))
+
+
 def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     """Ask once for a Start-Stop-Continue retrospective, then stay quiet."""
     elapsed = reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 3600 or reflection.has_valid_terminal_receipt(session_id):
         return ""
-    message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
+    raw = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "")
+    message = raw.casefold()
     missing = [label for label in TERMINAL_LABELS if label not in message]
-    tracked = _TRACKING_ATTESTATION in message or _ISSUE_URL.search(message) is not None
-    if not missing and tracked:
+    errors = enhancement_errors(raw)
+    if not missing and not errors:
         reflection.accept_terminal_reflection(session_id)
         return ""
     # A host retry that has not written the retrospective must not loop.
@@ -975,7 +998,8 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     parts = ["Terminal reflection required once this session."]
     if missing:
         parts.append("Include " + ", ".join(missing) + ".")
-    if not tracked:
+    if errors:
+        parts.append(" ".join(errors))
         parts.append(_TRACKING_DEMAND)
     parts.append("Do not repeat it after later tool calls.")
     return " ".join(parts)

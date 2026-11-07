@@ -150,3 +150,11 @@ note, and this chat note are not tracking. Do not estimate tokens, model
 price, or currency in this note. A host meter and an empty local ledger are
 not the same number. `session_token_usage.py` stays the ledger for deja
 measurements and local dispatch records. Finalize does not attach it.
+
+## Enhancements
+
+Close the note with one Enhancements block after the next action.
+Every bullet in that block starts with `shipped:`, `tracked:`, or `rejected:`.
+`shipped:` and `tracked:` each cite one `https://github.com` pull, issue, or commit URL.
+`rejected:` names a concrete reason; `out of scope`, `later`, and `separate decision` are not reasons.
+`nothing actionable` belongs here only when the block has no `tracked` bullet and no unmarked bullet.

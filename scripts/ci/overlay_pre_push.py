@@ -523,6 +523,22 @@ CHEAP_CI_CONTRACTS = (
      or p.endswith("test_ce_session_manifest_delete_and_backup_silence.py"),
      "tests.scripts.test_ce_session_manifest_delete_and_backup_silence",
      "SessionManifestDeleteTest.test_forged_manifest_rejected"),
+    # #7791: Agent Guidance contracts that previously failed only in CI.
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_ce_bugfix_2026_10_30_2",
+     "MergeQueueLessonTest.test_docs_and_skill"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_chaos_engine_token_economy_6173",
+     "LeanBootstrapTest.test_mandated_chain_budget_holds_on_every_host"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_ce_guard_reachability",
+     "GuardReachabilityTest.test_documented_commands_exist_or_are_marked_repo_only"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_agent_router_contract",
+     "NoDuplicationTest.test_no_substantive_line_is_repeated_across_guidance_files"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith("/README.md"),
+     "tests.scripts.test_validate_documentation_boundaries",
+     "ValidateDocumentationBoundariesTest.test_rejects_unapproved_nested_readme_inside_allowed_markdown_tree"),
 )
 
 
@@ -570,13 +586,71 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
     ]
 
 
+def _assertion_detail(trace: str) -> str:
+    """Keep the failing assertion, not the last line of a multi-line file dump."""
+    for line in trace.splitlines():
+        stripped = line.strip()
+        if "AssertionError" in stripped or stripped.startswith("FAIL:"):
+            return stripped[:500]
+    lines = [line.strip() for line in trace.splitlines() if line.strip()]
+    return (lines[-1] if lines else "")[:500]
+
+
+def nested_chaos_readme_failures(root: Path, changed: list[str]) -> list[str]:
+    """An unallowlisted ``chaos-engine/**/README.md`` fails even when the unit module is absent."""
+    try:
+        from scripts.ci.validate_documentation_boundaries import ALLOWED_NESTED_READMES
+    except (ImportError, OSError):
+        ALLOWED_NESTED_READMES = {"chaos-engine/README.md", "chaos-engine/profiles/README.md"}
+    failures = []
+    for path in changed:
+        if not path.startswith("chaos-engine/") or Path(path).name.lower() != "readme.md":
+            continue
+        if path in ALLOWED_NESTED_READMES:
+            continue
+        if (root / path).is_file():
+            failures.append(f"non-root README is prohibited: {path}")
+    return failures
+
+
+# Same probe as tests.scripts.test_harness_isolated_imports.IsolatedImportsTest (#7197).
+_ISOLATED_PROBE = (
+    "import runpy, sys; sys.path.insert(0, sys.argv[1].rsplit('/', 1)[0]); "
+    "runpy.run_path(sys.argv[1], run_name='isolated')"
+)
+_ISOLATED_THIRD_PARTY = re.compile(r"No module named '(?:yaml|jsonschema|requests)'")
+
+
+def isolated_import_probe_failures(root: Path, changed: list[str]) -> list[str]:
+    """Probe each changed ``tests/scripts/test_*.py`` with ``python3 -I``. Not the whole gate list."""
+    failures = []
+    for path in changed:
+        if not (path.startswith("tests/scripts/test_") and path.endswith(".py")):
+            continue
+        file = root / path
+        if not file.is_file():
+            continue
+        run = subprocess.run(  # nosec B603 - this interpreter, isolated, one changed test file.
+            [sys.executable, "-I", "-c", _ISOLATED_PROBE, str(file)],
+            cwd="/",
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        last = (run.stderr.strip().splitlines() or [""])[-1]
+        if run.returncode and "ModuleNotFoundError" in last and not _ISOLATED_THIRD_PARTY.search(last):
+            failures.append(f"{path}: {last}")
+    return failures
+
+
 def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
     """Run the Agent Guidance Gate's cheap byte-budget/lint/allowlist tests before push."""
     import importlib
     import unittest
 
     normalized = [p.replace("\\", "/").removeprefix("./") for p in changed]
-    failures = []
+    failures = nested_chaos_readme_failures(root, normalized)
     for predicate, module_name, test_id in CHEAP_CI_CONTRACTS:
         if not any(predicate(p) for p in normalized):
             continue
@@ -591,7 +665,7 @@ def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
         result = unittest.TestResult()
         suite.run(result)
         if not result.wasSuccessful():
-            detail = (result.failures + result.errors)[0][1].strip().splitlines()[-1]
+            detail = _assertion_detail((result.failures + result.errors)[0][1])
             failures.append(f"{module_name}.{test_id} failed: {detail}")
     return failures
 
@@ -925,8 +999,12 @@ def overlay_pre_push_failures(
         )
     if any(path.replace("\\", "/").removeprefix("./").startswith("chaos-engine/") for path in changed):
         collectors.append(("portable_core", lambda: portable_core_path_failures(root)))
-    if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
+    normalized_changed = [path.replace("\\", "/").removeprefix("./") for path in changed]
+    if any(path.startswith("tests/scripts/test_") for path in normalized_changed):
         collectors.append(("ungated", lambda: ungated_script_module_failures(root)))
+        collectors.append(
+            ("isolated_import", lambda: isolated_import_probe_failures(root, normalized_changed))
+        )
     collectors.extend(
         [
             ("shipped_validator", lambda: shipped_validator_import_failures(root, changed)),
