@@ -677,12 +677,13 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "two independent adversarial reviews after required checks are green on the accepted head",
+        "rule": "finish before starting: pull-based flow, WIP limits, explicit Definition of Done",
         "status": "prose-only",
         "reason": (
-            "The delivery cycle requires that pair, and the author is neither reviewer. A "
-            "hook cannot authenticate review quality or force it without recreating the "
-            "retired reviewer-dispatch ledger and action deadlock."
+            "Finish-before-starting is required, and Check requires two independent adversarial reviews after required checks are green. "
+            "A hook cannot authenticate review quality, nor whether the pull, the WIP limit, and "
+            "the Definition of Done were honored, without recreating the retired "
+            "reviewer-dispatch ledger and action deadlock."
         ),
     },
     {

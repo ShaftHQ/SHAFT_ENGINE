@@ -14,13 +14,14 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 4. One owner per item: the owner implements it and self-reviews against the
    Definition of Done (DoD), written before work starts. That self-review is
    Check. It is not one of the close reviews.
-5. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until Check accepts.
-   Stop at most 3 PDCA iterations before the close reviews.
-6. The Acceptance reviewer is not the author. Then run two independent adversarial reviews after required checks are green on that head. Each returns
-   specific, checkable comments, or signs off. The author is neither reviewer.
-7. Done = both sign-offs AND the item is shipped (published, scheduled, or
-   merged). Those sign-offs are the two reviews. Signed-off work that has
-   not shipped is still WIP. A new commit invalidates both passes.
+5. Repeat the [PDCA loop](multi-agent-pdca.md#loop) for the owner self-check.
+   At most 3 iterations; the cap is not a quota. Stop at most 3 PDCA iterations before the close reviews.
+6. Run two independent adversarial reviews after required checks are green on that head
+   ([delivery cycle](delivery-cycle.md)). The Acceptance reviewer is not the author. The author is neither reviewer. Each returns
+   specific, checkable comments, or signs off.
+7. Done includes those two independent adversarial reviews: both sign-offs AND the item is shipped
+   (published, scheduled, or merged). Signed-off work that has not shipped is still WIP.
+   A new commit invalidates both passes.
 8. Only after Done, pull the next item.
 9. After every review round, log each lesson as failure → root cause →
    preventive rule (a check, template, or script change).
@@ -42,7 +43,7 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 14. Roles:
     - **Design owner** owns and implements all design work (UI, images,
       video, presentations) and self-reviews it.
-    - **Acceptance reviewer** is the role name for the close pair, not a single review. The close is two independent adversarial reviews after required checks are green.
+    - **Acceptance reviewer** is one of the two independent adversarial reviewers and does not close the item alone.
     - **Engineering advisor** does only code and engine work; it may advise
       during planning and decisions, but never implements or accepts design
       work.
