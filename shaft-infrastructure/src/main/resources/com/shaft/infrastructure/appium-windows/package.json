@@ -15,7 +15,10 @@
     "morgan": "1.12.1",
     "sharp": "0.35.5",
     "shell-quote": "1.11.0",
-    "axios": "1.20.0"
+    "axios": "1.20.0",
+    "minimatch": "11.0.5",
+    "glob": "14.0.4",
+    "follow-redirects": "1.16.2"
   },
   "scripts": {
     "postinstall": "node ./repair-shell-quote.js"
