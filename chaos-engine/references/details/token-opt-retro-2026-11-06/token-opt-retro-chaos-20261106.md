@@ -35,8 +35,8 @@ I did not rewrite the bodies with `gh pr edit` after the agents opened the pull 
 
 Yes, at least the Cursor cloud agents that opened #7772 and #7774 said so themselves.
 
-- #7774: `retrieve: skipped(no .chaos-engine overlay; path-scoped reads of bootstrap.py and installer tests)`
-- #7772: `retrieve: skipped(no installed .chaos-engine/tool.py)`
+- #7774 skipped retrieve because the cloud VM had no `.chaos-engine` overlay. The reads were path-scoped (bootstrap.py and installer tests).
+- #7772 skipped retrieve because `.chaos-engine/tool.py` was not installed.
 - #7773 used `retrieve: exempt(harness)` because it was editing the harness. That exemption can be valid, but the pull request still used a Cursor branch name and Cursor body wrapper, so it was not a full ChaosEngine-hosted session either.
 
 What I loaded versus what they loaded:
