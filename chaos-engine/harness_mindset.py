@@ -62,6 +62,16 @@ PLAN_HEADING = re.compile(r"^##[ \t]+Plan[ \t]*$", re.MULTILINE)
 RETRIEVE_LINE = re.compile(
     r"^[ \t>*-]*`?retrieve:[ \t]*(?:([\w.-]+)[ \t]+)?(used|skipped|exempt)\b[ \t]*(.*)$", re.MULTILINE | re.IGNORECASE
 )
+_OVERLAY_EXCUSE = re.compile(
+    r"no\s+\.chaos-engine overlay|no installed \.chaos-engine/tool\.py",
+    re.IGNORECASE,
+)
+_CURSOR_CHROME = (
+    "CURSOR_AGENT_PR_BODY_BEGIN",
+    "CURSOR_AGENT_PR_BODY_END",
+    "cursor.com/agents",
+)
+_AGENTIC_BRANCH = re.compile(r"^ChaosEngine/[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
 OUTCOME_HEADING = re.compile(r"^##[ \t]+Outcome changed[ \t]*$", re.MULTILINE)
 LESSON_TITLE = re.compile(r"^(?:Lesson|Lessons)\b", re.IGNORECASE)
 NEXT_HEADING = re.compile(r"^##[ \t]+", re.MULTILINE)
@@ -443,6 +453,39 @@ def is_agentic(body: str, labels: Iterable[str] = ()) -> bool:
     harness-made PR carries it; the label covers PRs opened outside the hook.
     """
     return AGENTIC_MARKER in (body or "") or AGENTIC_LABEL in {label.strip().casefold() for label in labels}
+
+
+def _overlay_receipt_failed(verdict: str, reason: str, text: str) -> bool:
+    kind = verdict.casefold()
+    if kind == "skipped" and _OVERLAY_EXCUSE.search(reason or ""):
+        return True
+    return kind == "exempt" and bool(_OVERLAY_EXCUSE.search(text))
+
+
+def forbidden_retrieve_errors(body: str) -> list[str]:
+    """Missing-overlay skips are hard failures. Other skip reasons stay valid."""
+    text = body or ""
+    if any(_overlay_receipt_failed(verdict, reason, text) for _store, verdict, reason in RETRIEVE_LINE.findall(text)):
+        return ["missing-overlay retrieve is a hard failure; install the overlay, then retrieve"]
+    return []
+
+
+def provider_chrome_errors(body: str) -> list[str]:
+    """Reject a host wrapper around a ChaosEngine pull request body."""
+    text = body or ""
+    return [f"PR body contains provider chrome `{token}`" for token in _CURSOR_CHROME if token in text]
+
+
+def branch_prefix_errors(branch: str, *, agentic: bool) -> list[str]:
+    """Agentic work uses ChaosEngine/<slug>. A cursor/ branch fails even for a human body."""
+    name = (branch or "").strip()
+    if not name:
+        return []
+    if name.startswith("cursor/"):
+        return ["branch must be ChaosEngine/<short-slug>, never cursor/"]
+    if agentic and _AGENTIC_BRANCH.fullmatch(name) is None:
+        return [f"agentic branch `{name}` must match ChaosEngine/<short-slug>"]
+    return []
 
 
 def plan_receipt_errors(

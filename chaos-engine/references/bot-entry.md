@@ -16,7 +16,7 @@ doctor and `tool.py` use `.chaos-engine/install.py`. Tee install/doctor logs to
 
 Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`).
 
-1. Bigger picture first ([bigger picture first](bigger-picture-first.md)), before retrieve, discovery, or a patch: name the goal, the larger context, and what a local hotfix would miss, then choose the approach. One file and reversible: one line. If unsure, it is not trivial. Do not skip this for a review comment, a CI failure, or "just hotfix it".
+1. Bigger picture first ([card](bigger-picture-first.md)) before retrieve or a patch: name the goal, the larger context, and the local hotfix a narrow patch would miss. Do not skip this for a review comment, a CI failure, or "just hotfix it".
 2. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
    prints. It bundles `identity.md`, the core card
    (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
@@ -24,12 +24,17 @@ Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`)
    Without a shell: read those five files directly.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.
-3. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
+3. If `.chaos-engine/tool.py` is missing, install and stop:
+   `python3 chaos-engine/install.py install --project <repo> --source <repo>/chaos-engine --commit <40-hex-sha>` (repo-only).
+   Then one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
    before the first broad search or unnamed read
    ([retrieve-first](retrieve-first.md)).
+   A missing-overlay skip is a hard failure, not a receipt.
 4. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
-   [research receipt](research-receipt.md).
-   Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
+   [research receipt](research-receipt.md). `exempt(harness)` is not a missing-overlay escape.
+   Branch `ChaosEngine/<short-slug>` (never `cursor/…`); no `CURSOR_AGENT_PR_BODY` or `cursor.com/agents`
+   ([delegation cycle](delegation-cycle.md)).
+   Always use local tools. A cloud agent or an extra machine needs the owner's own explicit yes in that moment, on every provider. A saved habit, a playbook, or "it is faster" is not approval.
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 5. Before any delete, `tool.py delete-check <paths>`; refusal: owner code
    only ([discipline](delete-check-discipline.md)).
@@ -122,28 +127,18 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 - **box-durability** (default entry/worker checklist):
-  1. Manual swap does not survive a restart. At entry after any restart, run
-     `free -h`; if swap is `0`, re-add it (`fallocate -l 8G /swapfile`,
-     `mkswap /swapfile`, `swapon /swapfile`, `sysctl vm.swappiness=10`).
-  2. Only `/workspace` survives Update Bot's Computer / recover / reset. Keep
-     all in-progress files, checkpoints, installs, and tool caches under
-     `/workspace` (never rely on `$HOME` alone for work product).
-  3. Update Bot's Computer runs only when no bot is busy — go idle when asked
-     so the update can proceed.
-  4. A `.git` directory can become a **husk** after restart (missing `objects/`
-     or `refs/` dirs, or a born HEAD whose objects are gone). Doctor reports
-     `git-husk` as a **warn** (hard error only when the secret guard cannot run).
-     A valid empty repo (`git init`, unborn HEAD, `objects/`+`refs/` present) is
-     **not** a husk. Recovery: remote repos → re-clone or fetch; local-only →
-     `git init` if needed plus one baseline commit of explicit paths (never
-     `git add -A`). ChaosEngine install does not create `.git` in non-git dirs.
-  5. **Scripts and commits:** shell scripts that mutate state use `set -e` (or
-     `set -euo pipefail`). Stage **explicit paths** only — never
-     `git commit -a` / `git add -A`. If a pre-commit / overlay pre-push diff is
-     far larger than the planned change, stop and unstage; do not force the
-     oversized commit through.
-  6. **Freshly generated assets** (renders, encodes, contact sheets): checkpoint
-     or commit them in the same turn they appear (L54).
+  1. At entry after a restart, run `free -h`; if swap is `0`, re-add it
+     (`fallocate -l 8G /swapfile`, `mkswap /swapfile`, `swapon /swapfile`, `sysctl vm.swappiness=10`).
+  2. Only `/workspace` survives Update Bot's Computer / recover / reset. Keep work product there.
+  3. Update Bot's Computer runs only when no bot is busy — go idle when asked.
+  4. A `.git` directory can become a husk after restart (missing `objects/` or `refs/`,
+     or a born HEAD whose objects are gone). `git-husk` is a warn unless the secret guard cannot run.
+     A valid empty repo (`git init`, unborn HEAD, `objects/`+`refs/`) is not a husk.
+     Remote recovery is re-clone or fetch; local-only is `git init` plus explicit paths, never `git add -A`.
+     ChaosEngine install does not create `.git` in non-git dirs.
+  5. Scripts that mutate state use `set -e`. Stage explicit paths only — never
+     `git commit -a` / `git add -A`.
+  6. Freshly generated assets: checkpoint or commit them in the same turn (L54).
 
 
 ## Repeat-failure PDCA

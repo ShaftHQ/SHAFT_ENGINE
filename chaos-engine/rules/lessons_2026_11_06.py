@@ -35,6 +35,20 @@ _RETRIEVE = re.compile(
     r"retrieve:\s*(?:used|skipped\([^)\n]+\)|exempt\([^)\n]+\))",
     re.I,
 )
+_OVERLAY_SKIP_LINE = re.compile(
+    r"(?im)^[ \t>*-]*`?retrieve:[ \t]*(?:[\w.-]+[ \t]+)?skipped\b[^\n]*"
+    r"(?:no\s+\.chaos-engine overlay|no installed \.chaos-engine/tool\.py)"
+)
+_EXEMPT_LINE = re.compile(
+    r"(?im)^[ \t>*-]*`?retrieve:[ \t]*(?:[\w.-]+[ \t]+)?exempt\b"
+)
+_OVERLAY_EXCUSE = re.compile(
+    r"no\s+\.chaos-engine overlay|no installed \.chaos-engine/tool\.py",
+    re.I,
+)
+_PROVIDER_CHROME = re.compile(
+    r"CURSOR_AGENT_PR_BODY_BEGIN|CURSOR_AGENT_PR_BODY_END|cursor\.com/agents"
+)
 _FOUNDER = re.compile(r"\b(?:co-)?founder\b|\bceo\b", re.I)
 
 
@@ -354,9 +368,14 @@ def evaluate_long_task_watchdog(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def evaluate_pr_body(body: str) -> dict[str, Any]:
+    text = body or ""
     hits: list[str] = []
-    if not _RETRIEVE.search(body or ""):
+    if not _RETRIEVE.search(text):
         hits.append("missing-retrieve-receipt")
+    if _OVERLAY_SKIP_LINE.search(text) or (_EXEMPT_LINE.search(text) and _OVERLAY_EXCUSE.search(text)):
+        hits.append("overlay-skip-is-hard-failure")
+    if _PROVIDER_CHROME.search(text):
+        hits.append("provider-chrome")
     return _result(hits, "pr-body receipt gate failed")
 
 

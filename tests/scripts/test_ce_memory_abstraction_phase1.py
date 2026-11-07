@@ -64,6 +64,18 @@ class ProcessCardsTest(unittest.TestCase):
         raw = (CE / "references/worker-keep-alive.md").read_text(encoding="utf-8")
         self.assertNotIn("L39", raw)
 
+    def test_local_tools_iron_rule(self) -> None:
+        for name in ("bot-entry.md", "delegation-cycle.md"):
+            raw = (CE / "references" / name).read_text(encoding="utf-8")
+            with self.subTest(card=name):
+                self.assertIn("Always use local tools", raw)
+                self.assertIn("explicit yes", raw)
+                self.assertIn("every provider", raw)
+                self.assertIn("it is faster", raw)
+                self.assertIn("saved habit", raw)
+                self.assertIn("playbook", raw)
+                self.assertNotIn("mohab", raw.lower())
+
     def test_bot_entry_requires_ce_load(self) -> None:
         bot = (CE / "references/bot-entry.md").read_text(encoding="utf-8")
         self.assertIn("ce_load: required", bot)
@@ -157,6 +169,15 @@ class WorkerCeEntryTest(unittest.TestCase):
     def test_lint_passes_with_markers(self) -> None:
         text = "ce_load: required\nRun: python3 .chaos-engine/tool.py entry\ngoal: x\n"
         self.assertEqual([], self.mod.lint_brief(text))
+
+    def test_lint_rejects_a_cursor_cloud_handoff(self) -> None:
+        text = (
+            "ce_load: required\n"
+            "Run: python3 .chaos-engine/tool.py entry\n"
+            "Launch a Cursor cloud agent for the patch.\n"
+        )
+        fails = self.mod.lint_brief(text)
+        self.assertTrue(any("Cursor" in item for item in fails))
 
     def test_cli_fail_and_pass(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -457,6 +457,13 @@ def mindset_body_errors(body: str) -> list[dict[str, str]]:
         note_root = os.environ.get("CHAOS_ENGINE_PROJECT", "")
         if note_root:
             module.record_lesson_note(Path(note_root), message)
+    for message in module.forbidden_retrieve_errors(body):
+        findings.append(issue("plan-receipts", "pull_request.body", message))
+    for message in module.provider_chrome_errors(body):
+        findings.append(issue("provider-chrome", "pull_request.body", message))
+    head = os.environ.get("PR_HEAD_REF", "")
+    for message in module.branch_prefix_errors(head, agentic=module.is_agentic(body, labels)):
+        findings.append(issue("branch-prefix", "pull_request.head", message))
     return findings
 
 

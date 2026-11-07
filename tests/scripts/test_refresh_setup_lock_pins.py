@@ -82,15 +82,50 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
 
     def test_dependabot_npm_entry_covers_every_bundled_setup_lockfile(self):
         text = (self.ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
-        self.assertEqual(1, text.count('package-ecosystem: "npm"'))
-        block = text.split('package-ecosystem: "npm"', 1)[1].split("package-ecosystem:", 1)[0]
+        self.assertEqual(2, text.count('package-ecosystem: "npm"'))
+        blocks = [
+            part.split("package-ecosystem:", 1)[0]
+            for part in text.split('package-ecosystem: "npm"')[1:]
+        ]
+        covered = "\n".join(blocks)
         for lock in (self.ROOT / "shaft-infrastructure/src/main/resources/com/shaft/infrastructure").glob(
             "*/package-lock.json"
         ):
             with self.subTest(lock=lock.parent.name):
-                self.assertIn(f'- "/{lock.parent.relative_to(self.ROOT).as_posix()}"', block)
-        self.assertIn('interval: "weekly"', block)
-        self.assertIn("groups:", block)
+                self.assertIn(f'- "/{lock.parent.relative_to(self.ROOT).as_posix()}"', covered)
+        lighthouse = next(block for block in blocks if "/lighthouse\"" in block)
+        other = next(block for block in blocks if "appium-uiautomator2-driver" in block)
+        self.assertIn('interval: "weekly"', lighthouse)
+        self.assertIn('interval: "weekly"', other)
+        self.assertIn("groups:", lighthouse)
+        self.assertIn("lighthouse-coupled:", lighthouse)
+        self.assertIn("lighthouse-coupled-security:", lighthouse)
+        for name in ("glob", "minimatch", "path-scurry", "@isaacs/brace-expansion"):
+            self.assertIn(name, lighthouse)
+        self.assertNotIn("appium-uiautomator2-driver", lighthouse)
+        self.assertIn("group-by: dependency-name", other)
+        self.assertNotIn("/lighthouse\"", other)
+
+    def test_maven_build_plugin_group_is_narrow_and_first_match(self):
+        text = (self.ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+        maven = text.split('package-ecosystem: "maven"', 1)[1]
+        self.assertLess(maven.index("google-grpc-protobuf:"), maven.index("maven-build-plugins:"))
+        self.assertLess(maven.index("maven-build-plugins:"), maven.index("aligned-maven-dependencies:"))
+        self.assertLess(maven.index("maven-build-plugins-security:"), maven.index("aligned-maven-security:"))
+        plugins = maven.split("maven-build-plugins:", 1)[1].split("aligned-maven-dependencies:", 1)[0]
+        security = maven.split("maven-build-plugins-security:", 1)[1].split("aligned-maven-security:", 1)[0]
+        for name in (
+            "org.apache.maven.plugins:maven-compiler-plugin",
+            "org.apache.maven.plugins:maven-enforcer-plugin",
+            "org.codehaus.mojo:versions-maven-plugin",
+            "org.apache.maven.plugins:maven-jar-plugin",
+            "org.apache.maven.plugins:maven-install-plugin",
+        ):
+            self.assertIn(name, plugins)
+            self.assertIn(name, security)
+        self.assertIn("com.networknt:json-schema-validator", maven)
+        self.assertIn("version-update:semver-major", maven)
+        self.assertNotIn("multi-ecosystem-groups", text)
 
     def test_refresh_job_guards_bot_token_and_names_fallback(self):
         text = (self.ROOT / ".github/workflows/setup-lock-pins-push.yml").read_text(encoding="utf-8")

@@ -219,6 +219,14 @@ class RetrieveGateScopeTest(unittest.TestCase):
             self.gate.retrieve_receipt_field("x\nretrieve: skipped(no-project-index)\n"),
         )
         self.assertIsNone(self.gate.retrieve_receipt_field("no field here"))
+        self.assertIsNone(self.gate.retrieve_receipt_field("retrieve: skipped(no .chaos-engine overlay)"))
+        self.assertIsNone(
+            self.gate.retrieve_receipt_field("retrieve: skipped(no installed .chaos-engine/tool.py)")
+        )
+        self.assertEqual("exempt(harness)", self.gate.retrieve_receipt_field("retrieve: exempt(harness)"))
+        self.assertIsNone(
+            self.gate.retrieve_receipt_field("retrieve: exempt(harness)\nno .chaos-engine overlay\n")
+        )
 
     def test_retrieve_first_rule_text_is_the_epic_text(self):
         text = (ROOT / "chaos-engine/references/retrieve-first.md").read_text(encoding="utf-8")

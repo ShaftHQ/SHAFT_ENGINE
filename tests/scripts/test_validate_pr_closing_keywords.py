@@ -449,14 +449,65 @@ class MainCLIIntegrationTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("`## Plan`", result.stderr)
 
+    def test_overlay_skip_is_a_hard_failure(self):
+        body = AGENT_MARKER + "\n" + CLEAN_BODY + "\nretrieve: skipped(no .chaos-engine overlay)\n"
+        result = self._run_cli(body=body)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("hard failure", result.stderr)
+        installed = AGENT_MARKER + "\n" + CLEAN_BODY + "\nretrieve: skipped(no installed .chaos-engine/tool.py)\n"
+        self.assertIn("hard failure", self._run_cli(body=installed).stderr)
+
+    def test_prose_mention_of_a_missing_overlay_is_not_a_skip(self):
+        body = AGENT_MARKER + "\n" + CLEAN_BODY + "\nThe notes mention no .chaos-engine overlay in prose only.\n"
+        result = self._run_cli(body=body)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_exempt_harness_with_overlay_excuse_fails(self):
+        body = (
+            AGENT_MARKER
+            + "\n## Plan\n\nsteps\n\nretrieve: exempt(harness)\nno .chaos-engine overlay\n\n"
+            + "## Riskiest assumption\n\nN/A\n"
+        )
+        result = self._run_cli(body=body)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("hard failure", result.stderr)
+
+    def test_provider_chrome_is_rejected(self):
+        for token in ("CURSOR_AGENT_PR_BODY_BEGIN", "CURSOR_AGENT_PR_BODY_END", "cursor.com/agents"):
+            result = self._run_cli(body=AGENT_MARKER + "\n" + CLEAN_BODY + "\n" + token + "\n")
+            self.assertEqual(result.returncode, 1, token)
+            self.assertIn(token, result.stderr)
+
+    def test_cursor_branch_fails_and_a_human_fix_branch_passes(self):
+        human = "Closes #1\n\n## Riskiest assumption\n\nN/A\n"
+        cursor = self._run_cli(body=human, head_ref="cursor/night")
+        self.assertEqual(cursor.returncode, 1)
+        self.assertIn("cursor/", cursor.stderr)
+        self.assertEqual(self._run_cli(body=human, head_ref="fix/human").returncode, 0)
+        agentic = self._run_cli(body=AGENT_MARKER + "\n" + CLEAN_BODY, head_ref="fix/human")
+        self.assertEqual(agentic.returncode, 1)
+        self.assertIn("ChaosEngine/<short-slug>", agentic.stderr)
+        chaos = self._run_cli(
+            body=AGENT_MARKER + "\n" + CLEAN_BODY,
+            head_ref="ChaosEngine/night-cluster-20261106",
+        )
+        self.assertEqual(chaos.returncode, 0, chaos.stderr)
+        self.assertEqual(self._run_cli(body=AGENT_MARKER + "\n" + CLEAN_BODY, head_ref="").returncode, 0)
+
     def test_agent_skip_without_reason_fails(self):
         body = AGENT_MARKER + "\n" + CLEAN_BODY.replace("retrieve: graphify skipped index is stale", "retrieve: graphify skipped")
         result = self._run_cli(body=body)
         self.assertEqual(result.returncode, 1)
         self.assertIn("skipped without a reason", result.stderr)
 
-    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT, labels=""):
-        env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json, "PR_LABELS": labels}
+    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT, labels="", head_ref=""):
+        env = {
+            **os.environ,
+            "PR_BODY": body,
+            "PR_COMMITS_JSON": commits_json,
+            "PR_LABELS": labels,
+            "PR_HEAD_REF": head_ref,
+        }
         return subprocess.run(  # nosec B603
             [sys.executable, CLI_SCRIPT],
             capture_output=True,

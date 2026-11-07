@@ -345,6 +345,18 @@ class PrBodyPreflightTest(unittest.TestCase):
         self.assertTrue(gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: bad))
         self.assertEqual([], gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: None))
 
+    def test_cursor_branch_blocks_without_an_open_pr(self) -> None:
+        from unittest.mock import patch
+
+        from scripts.ci import overlay_pre_push as gate
+
+        with patch.object(gate, "head_branch_name", return_value="cursor/night"):
+            self.assertTrue(gate.cursor_branch_failures(Path(".")))
+        with patch.object(gate, "head_branch_name", return_value="fix/human"):
+            self.assertEqual([], gate.cursor_branch_failures(Path(".")))
+        with patch.object(gate, "head_branch_name", return_value="ChaosEngine/night-cluster-20261106"):
+            self.assertEqual([], gate.cursor_branch_failures(Path(".")))
+
 
 if __name__ == "__main__":
     unittest.main()
