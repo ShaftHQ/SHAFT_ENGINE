@@ -537,6 +537,7 @@ CHECKS = {
         (
             "tests.scripts.test_process_owner_scrum_master",
             "tests.scripts.test_multi_agent_pdca",
+            "tests.scripts.test_delivery_cycle",
             "tests.scripts.test_parallel_streams",
             "tests.scripts.test_box_disk_guard",
             "tests.scripts.test_delivery_cleanup",
@@ -1201,6 +1202,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",
         "chaos-engine/references/multi-agent-pdca.md",
+        "chaos-engine/references/delivery-cycle.md",
+        "chaos-engine/references/investigate-lessons.md",
+        "tests/scripts/test_delivery_cycle.py",
         "chaos-engine/references/iterative-flow.md",
         "chaos-engine/pre_done_review.py",
         "chaos-engine/skills/pre-done-self-review/SKILL.md",
