@@ -69,7 +69,7 @@ sequenceDiagram
     G-->>A: approach, invariants, research receipt
     A->>W: proceed at the routed surface
     W-->>A: complete implementation and final scope commit
-    A->>A: automated findings, optional terminal review, local tests
+    A->>A: automated findings, two adversarial reviews, local tests
     A-->>U: outcome, checks run, what was refuted
 ```
 
@@ -95,18 +95,14 @@ flowchart LR
 
 ## Delivery cycle
 
-Finish full approved implementation and final scope commit, then fix automated
-CI/comment findings. Run planning-approved adversarial review at most twice,
-then extra local tests. No microstep review, test, validation, commit, push, or
-delivery loops interrupt work.
+Architect the work, then at most 3 PDCA iterations, then two independent
+adversarial reviews on the green head. The cap is not a quota. The owner is
+[delivery cycle](../../chaos-engine/references/delivery-cycle.md). No microstep
+review interrupts implementation.
 
 ```mermaid
 flowchart LR
-    AN[analyze] --> PL[plan] --> DE[design] --> RD[RED] --> GR[GREEN] --> RF[refactor] --> CM[commit] --> PR[pull request] --> BG[babysit to green] --> MG[merge]
-    RD -.-> RV{{independent<br/>adversarial review}}
-    GR -.-> RV
-    RF -.-> RV
-    RV -.->|refuted| RD
+    AR[architect] --> PD[PDCA at most 3] --> CK[checks green] --> RV[two adversarial reviews] --> MG[merge]
 ```
 
 ## The surfaces
@@ -148,6 +144,7 @@ sends you there; the rest by
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
 - [delegation cycle](../../chaos-engine/references/delegation-cycle.md)
+- [delivery cycle](../../chaos-engine/references/delivery-cycle.md)
 - [external contribution](../../chaos-engine/references/external-contribution.md)
 - [execution workflows](../../chaos-engine/references/execution-workflows.md)
 - [gate fail-closed](../../chaos-engine/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
@@ -160,6 +157,7 @@ sends you there; the rest by
 - [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
 - [multi-agent PDCA loop](../../chaos-engine/references/multi-agent-pdca.md)
 - [iterative flow rule](../../chaos-engine/references/iterative-flow.md)
+- [investigate lessons](../../chaos-engine/references/investigate-lessons.md)
 - [parallel streams](../../chaos-engine/references/parallel-streams.md)
 - [process-owner / Scrum-master](../../chaos-engine/references/process-owner-scrum-master.md)
 - [decision-quality baseline](../../chaos-engine/decision-quality-baseline.md)
