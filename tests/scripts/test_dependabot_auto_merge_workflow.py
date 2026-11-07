@@ -51,6 +51,18 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertIn("Checkout default branch for the enqueue decision", enqueue)
         self.assertNotIn("github.event.pull_request.head.sha", text)
         self.assertNotIn("github.event.pull_request.head.ref", text)
+        self.assertIn("checks: read", text)
+        for line in text.splitlines():
+            if "--json" in line:
+                self.assertNotIn(
+                    "mergeQueueEntry",
+                    line,
+                    "gh pr view --json has no mergeQueueEntry field",
+                )
+        self.assertIn("mergeQueueEntry{state}", enqueue)
+        self.assertIn('document["mergeQueueEntry"]', enqueue)
+        self.assertIn('>"$queue"', enqueue)
+        self.assertNotIn("pullRequest.mergeQueueEntry')", enqueue)
 
     def test_inventory_uses_the_synthetic_queue_sha_and_both_checks(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")

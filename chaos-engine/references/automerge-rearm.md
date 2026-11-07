@@ -17,7 +17,8 @@
    request. Synchronize does not clear the hold. The schedule does not
    enqueue, so an eviction is not a reason to arm auto-merge again.
 4. Null `autoMergeRequest` does not mean the pull request is outside the queue.
-   Read `mergeQueueEntry`. An API error is not an empty run list. One missing
+   Read `mergeQueueEntry` with GraphQL. `gh pr view --json` has no such field,
+   and that error is not "not queued". An API error is not an empty run list. One missing
    required check is not healthy. A young entry inside the age grace is not a
    stall. Repeated timeouts stop; they do not start another loop. Abandoned or
    cancelled installer results are not success.

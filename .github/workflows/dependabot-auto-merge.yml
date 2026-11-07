@@ -19,6 +19,7 @@ on:
 
 permissions:
   actions: read
+  checks: read
   contents: read
   pull-requests: read
 
@@ -103,10 +104,33 @@ jobs:
           repo="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
           pr="${PR_NUMBER:?PR_NUMBER is required}"
           tmp="$(mktemp)"
-          trap 'rm -f "$tmp"' EXIT
+          trap 'rm -f "$tmp" "${tmp}.queue"' EXIT
           GH_TOKEN="${BOT_TOKEN}" gh pr view "$pr" -R "$repo" \
-            --json author,isDraft,mergeable,mergeStateStatus,labels,mergeQueueEntry,autoMergeRequest \
+            --json author,isDraft,mergeable,mergeStateStatus,labels,autoMergeRequest \
             >"$tmp"
+          # gh 2.103.3 rejects mergeQueueEntry on pr view. Read it with GraphQL.
+          # gh --jq prints an empty line for JSON null, which is not a value.
+          queue="${tmp}.queue"
+          GH_TOKEN="${BOT_TOKEN}" GH_REPO="$repo" gh api graphql \
+            -F owner="${repo%%/*}" -F name="${repo#*/}" -F number="$pr" \
+            -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){mergeQueueEntry{state}}}}' \
+            >"$queue"
+          python3 - "$tmp" "$queue" <<'PY'
+          import json, sys
+          view_path, queue_path = sys.argv[1], sys.argv[2]
+          with open(view_path, encoding="utf-8") as handle:
+              document = json.load(handle)
+          with open(queue_path, encoding="utf-8") as handle:
+              payload = json.load(handle)
+          if payload.get("errors"):
+              raise SystemExit("queue membership query failed")
+          pull = ((payload.get("data") or {}).get("repository") or {}).get("pullRequest")
+          if not isinstance(pull, dict) or "mergeQueueEntry" not in pull:
+              raise SystemExit("queue membership query missing mergeQueueEntry")
+          document["mergeQueueEntry"] = pull.get("mergeQueueEntry")
+          with open(view_path, "w", encoding="utf-8") as handle:
+              json.dump(document, handle)
+          PY
           decision="$(python3 scripts/ci/merge_queue_awaiting_checks_heal.py enqueue-decision --pr-json "$tmp")"
           echo "enqueue decision: ${decision}"
           case "${decision}" in
