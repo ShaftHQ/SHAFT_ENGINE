@@ -59,3 +59,4 @@ routes are reached through `local-runtimes`; roles through their adapters.
 | Add-ons | Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one. | `references/addons.md` | [route](../references/addons.md) |
 | Complexity gate | Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure. | `references/complexity-gate.md` | [route](../references/complexity-gate.md) |
 | Durable jobs | Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers. | `references/durable-jobs.md` | [route](../references/durable-jobs.md) |
+| Untangle | Use when a review needs hidden-link, needless-link, and surplus vocabulary without rewriting the repository or deleting tests. | `references/untangle-lesson.md` | [route](../references/untangle-lesson.md) |

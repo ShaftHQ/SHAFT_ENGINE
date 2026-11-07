@@ -181,6 +181,19 @@ class SkillIndexParityTest(unittest.TestCase):
         self.assertIn("chaos-engine/vendor/*/skills", validator.SKILLS_ROOTS)
         self.assertGreaterEqual(len(validator.skill_dirs(ROOT)), 12)
 
+    def test_untangle_lesson_rejects_test_deletion(self):
+        text = (SOURCE / "references/untangle-lesson.md").read_text(encoding="utf-8")
+        for phrase in (
+            "Do not remove tests",
+            "Hidden links",
+            "Needless links",
+            "Surplus",
+            "Do not untangle a whole repository",
+        ):
+            self.assertIn(phrase, text)
+        names = {entry["name"] for entry in index()["entries"]}
+        self.assertIn("Untangle", names)
+
 
 if __name__ == "__main__":
     unittest.main()

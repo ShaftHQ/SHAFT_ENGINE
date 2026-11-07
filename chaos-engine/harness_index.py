@@ -184,6 +184,8 @@ ROUTES = (
      "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
     ("Durable jobs", "references/durable-jobs.md",
      "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers."),
+    ("Untangle", "references/untangle-lesson.md",
+     "Use when a review needs hidden-link, needless-link, and surplus vocabulary without rewriting the repository or deleting tests."),
 )
 ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
 ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
@@ -296,6 +298,7 @@ ROUTER_USE = {
     "Add-ons": "design, video, or project pack",
     "Complexity gate": "complexity gate",
     "Durable jobs": "outlives the session",
+    "Untangle": "structure review without a repo rewrite",
 }
 
 
