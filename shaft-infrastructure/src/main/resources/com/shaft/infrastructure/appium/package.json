@@ -5,7 +5,7 @@
   "dependencies": {
     "appium": "3.9.0",
     "appium-inspector-plugin": "2026.9.2",
-    "appium-uiautomator2-driver": "8.7.3"
+    "appium-uiautomator2-driver": "9.0.1"
   },
   "overrides": {
     "body-parser": "2.4.0",
