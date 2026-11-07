@@ -278,7 +278,7 @@ class CorpusSplitTest(unittest.TestCase):
         os.environ["CHAOS_ENGINE_MEMPALACE_COLLECTION"] = "chaos-engine-harness"
         try:
             fast.install_collection_route()
-            sys.modules["mempalace.palace.collection"].get_collection("/tmp/palace")
+            sys.modules["mempalace.palace.collection"].get_collection("palace.sqlite")
         finally:
             os.environ.pop("CHAOS_ENGINE_MEMPALACE_COLLECTION", None)
             for key, module in previous.items():
