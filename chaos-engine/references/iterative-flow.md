@@ -13,12 +13,14 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
    post, one slide, one PR).
 4. One owner per item: the owner implements it and self-reviews against the
    Definition of Done (DoD), written before work starts.
-5. The reviewer runs an acceptance review against the same DoD and returns
-   specific, checkable comments, or signs off.
-6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until owner and
-   reviewer both sign off explicitly.
+5. The Acceptance reviewer is not the author. Run two independent adversarial
+   reviews after required checks are green on that head. Each returns
+   specific, checkable comments, or signs off. The author is neither reviewer.
+6. Repeat the [PDCA loop](multi-agent-pdca.md#loop) until Check accepts.
+   Stop at most 3 PDCA iterations, then both reviews pass on that same head.
 7. Done = both sign-offs AND the item is shipped (published, scheduled, or
-   merged). Signed-off work that has not shipped is still WIP.
+   merged). Those sign-offs are the two reviews. Signed-off work that has
+   not shipped is still WIP. A new commit invalidates both passes.
 8. Only after Done, pull the next item.
 9. After every review round, log each lesson as failure → root cause →
    preventive rule (a check, template, or script change).
@@ -73,7 +75,7 @@ written on that row.
 - [ ] Both sign-offs, and the item shipped or scheduled?
 - [ ] Post-merge own cleanup ran for this stream's recorded worktree / branch (hygiene proofs; DoD)?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
-- [ ] Design kind: next same-kind item waited until build → independent review →
+- [ ] Design kind: next same-kind item waited until build → two independent adversarial reviews →
       sign-off → lessons landed (WIP=1 per kind; WIP=2 only after two consecutive
       first-pass signs)? See [design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict).
 - [ ] Preventive rule applied to the next item's plan, template, or checks?

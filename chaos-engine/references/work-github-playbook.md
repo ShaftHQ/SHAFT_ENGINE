@@ -19,12 +19,11 @@ Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
 choice into review rounds. Before committing any subagent's work: Before reviewing or shipping any nontrivial diff, file deferred/out-of-scope/adjacent-finding/follow-up items.
 
-Complete approved scope and create its final scope commit before any local
-validation or review. Triage automated CI, annotations, bots, and PR comments;
+Complete approved scope and create its final scope commit. Triage automated CI, annotations, bots, and PR comments;
 batch-fix applicable findings.
 Never push one tip per micro-fix when fresh-installer paths are implicated ([how](tip-churn-preflight.md)).
-Then run the [delivery cycle](delivery-cycle.md) reviews,
-followed by extra local tests. Do not stop behavior work
+Then two independent adversarial reviews after required checks are green ([delivery cycle](delivery-cycle.md)).
+Do not stop behavior work
 for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
 After the implementation batch is ready, resolve repository identity from the

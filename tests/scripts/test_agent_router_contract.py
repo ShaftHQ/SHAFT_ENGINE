@@ -677,11 +677,11 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     },
     {
         "law": 6,
-        "rule": "planning-selected terminal adversarial review after the final scope commit",
+        "rule": "two independent adversarial reviews after required checks are green on the accepted head",
         "status": "prose-only",
         "reason": (
-            "Review is an owner-selected planning decision and semantic activity. A "
-            "hook cannot authenticate its quality or force it without recreating the "
+            "The delivery cycle requires that pair, and the author is neither reviewer. A "
+            "hook cannot authenticate review quality or force it without recreating the "
             "retired reviewer-dispatch ledger and action deadlock."
         ),
     },

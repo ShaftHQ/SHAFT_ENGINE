@@ -100,14 +100,14 @@ rule overrides an imported skill's default path.
 
 Work runs in this order, and each phase ends before the next begins:
 
-analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
+architect -> analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
 pull request -> babysit (fix review comments, failed tests, and unresolved threads, then resolve them) to green -> prove epic and tracker initial scope is complete -> merge ->
 terminal reflection when owed -> one root Learning Session -> final report.
 
-Behavior changes receive only the two terminal adversarial reviews defined in
+Behavior changes receive only the two independent adversarial reviews defined in
 [delivery cycle](delivery-cycle.md) and [delegation](delegation.md), after the
-final scope commit and automated finding batch. Never force review between
-phases or actions.
+final scope commit and after required checks are green. Cap: at most 3 PDCA
+iterations. Never force review between phases or actions.
 
 ## Output
 

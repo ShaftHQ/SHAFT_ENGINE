@@ -82,6 +82,33 @@ class DeliveryCycleContractTest(unittest.TestCase):
             self.assertNotIn("one round", text)
             self.assertNotIn("returns to the reviewer who raised the blocker", text)
 
+    def test_remaining_callers_wait_for_green_checks(self) -> None:
+        flow = (REFS / "iterative-flow.md").read_text(encoding="utf-8")
+        consult = (REFS / "consult-first.md").read_text(encoding="utf-8")
+        playbook = (REFS / "work-github-playbook.md").read_text(encoding="utf-8")
+        checklist = (REFS / "design-review-video-checklist.md").read_text(encoding="utf-8")
+        cycle = (REFS / "delivery-cycle.md").read_text(encoding="utf-8")
+        registry = (
+            ROOT / "tests/scripts/test_agent_router_contract.py"
+        ).read_text(encoding="utf-8")
+        for text in (flow, consult, playbook, checklist):
+            self.assertIn("after required checks are green", text)
+            self.assertIn("two independent adversarial reviews", text)
+        self.assertIn("The author is neither reviewer", flow)
+        self.assertIn("The author is neither reviewer", checklist)
+        self.assertIn(CYCLE, flow)
+        self.assertIn(CYCLE, consult)
+        self.assertIn("architect ->", consult)
+        self.assertNotIn("followed by extra local tests", playbook)
+        self.assertNotIn("before any local\nvalidation or review", playbook)
+        self.assertIn("## Session lift", cycle)
+        self.assertIn("active session only", cycle)
+        self.assertNotIn("planning-selected terminal adversarial review", registry)
+        self.assertIn(
+            "two independent adversarial reviews after required checks are green",
+            registry,
+        )
+
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
         self.assertIn("3 PDCA iterations", pdca)
