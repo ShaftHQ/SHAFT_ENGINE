@@ -19,13 +19,9 @@ Rule every open design choice on the issue before the first implementing commit;
 a ticket that reaches code still choosing between candidate fixes converts that
 choice into review rounds. Before committing any subagent's work: Before reviewing or shipping any nontrivial diff, file deferred/out-of-scope/adjacent-finding/follow-up items.
 
-Complete approved scope and create its final scope commit before any local
-validation or review. Triage automated CI, annotations, bots, and PR comments;
-batch-fix applicable findings.
+Complete approved scope. Run the local tests that are the required checks, then commit that green head, and two independent adversarial reviews ([delivery cycle](delivery-cycle.md)) start only after required checks are green. Do not review a red head. Triage automated CI, annotations, bots, and PR comments; batch-fix applicable findings.
 Never push one tip per micro-fix when fresh-installer paths are implicated ([how](tip-churn-preflight.md)).
-Then run the [delivery cycle](delivery-cycle.md) reviews,
-followed by extra local tests. Do not stop behavior work
-for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
+Do not stop behavior work for per-step commits, tests, reviews, PR-body updates, or delivery receipts.
 
 After the implementation batch is ready, resolve repository identity from the
 active worktree, bind the full `HEAD` SHA and branch, push, and create or update
@@ -123,8 +119,7 @@ records its terminal reflection receipt before the Learning Session.
    (gitignored).
 
 Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
-[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
-playbook can take another lesson without deleting that guidance.
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
 
 
 ## 7. Push, PR, green, merge, compact

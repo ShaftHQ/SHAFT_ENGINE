@@ -104,10 +104,9 @@ analyze -> plan -> design -> RED -> GREEN -> refactor -> commit ->
 pull request -> babysit (fix review comments, failed tests, and unresolved threads, then resolve them) to green -> prove epic and tracker initial scope is complete -> merge ->
 terminal reflection when owed -> one root Learning Session -> final report.
 
-Behavior changes receive only the two terminal adversarial reviews defined in
-[delivery cycle](delivery-cycle.md) and [delegation](delegation.md), after the
-final scope commit and automated finding batch. Never force review between
-phases or actions.
+The close is the [delivery cycle](delivery-cycle.md): architect, at most 3 PDCA
+iterations, then two independent adversarial reviews after required checks are green.
+The cap is not a quota. Never force a review between earlier phases.
 
 ## Output
 
