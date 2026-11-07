@@ -189,6 +189,8 @@ class SkillIndexParityTest(unittest.TestCase):
             "Needless links",
             "Surplus",
             "Do not untangle a whole repository",
+            "never weaken, delete, or rewrite a test to reach green",
+            "remove tests that would not catch a real bug",
         ):
             self.assertIn(phrase, text)
         names = {entry["name"] for entry in index()["entries"]}
