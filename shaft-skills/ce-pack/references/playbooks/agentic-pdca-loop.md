@@ -11,9 +11,9 @@ these phases sequential inside it.
 - Bruce reviews the actual diff and evidence for defects, ambiguity, and
   confidence, then assigns any required patch to an implementation owner.
 
-Do not merge phases. Run Kevin -> Bob -> Bruce, then repeat that order for two
-passes: quality/simplicity, then intuitiveness/acceptability. Rerun the
-smallest check each pass. Stop at >=90% confidence or a blocker.
+Do not merge phases. Run Kevin -> Bob -> Bruce. Bruce covers
+quality/simplicity, then intuitiveness/acceptability, inside Check.
+Stop when Check accepts. Do not add a pass to fill a quota.
 
 ## Execution
 
@@ -24,3 +24,7 @@ hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
 
 Use the canonical TDD/PDCA phase boundary (`.chaos-engine/references/tdd.md#workflow`).
+The harness close is the delivery cycle (`chaos-engine/references/delivery-cycle.md`):
+at most 3 PDCA iterations, then two independent adversarial reviews. Bruce's
+in-session check is Check. It is not one of those two reviews, and the author
+is neither reviewer. Stop when Check accepts. The cap is not a quota.

@@ -3178,12 +3178,14 @@ class DisciplineTest(unittest.TestCase):
 
     def test_delegation_bounds_optional_terminal_review(self):
         content = compact(DELEGATION)
-        self.assertIn("optional", content)
+        self.assertIn("two independent adversarial reviews", content)
         self.assertIn("after final scope commit", content)
+        self.assertIn("after required checks are green", content)
         self.assertRegex(content, r"at most two|no more than two")
+        self.assertIn("never the author", content)
         self.assertRegex(
             content,
-            r"never the author|separate agent|independent",
+            r"separate agent|independent",
             "enabled review must remain independent",
         )
 

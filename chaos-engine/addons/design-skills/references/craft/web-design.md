@@ -82,9 +82,9 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
   homepage specs before handoff and update them with the text unchanged.
 - Install from the repository's lockfile: `yarn.lock` means
   `yarn install --frozen-lockfile`; `npm ci` needs `package-lock.json`.
-- Before merge, a second bot reviews as a developer, one round, even with every
-  local gate green. On a landing page it caught a reduced-motion blocker and a
-  PR gate that filtered out the new tests.
+- Before merge, follow the delivery cycle: two independent adversarial reviews
+  on the green head. On a landing page a review caught a reduced-motion blocker
+  and a PR gate that filtered out the new tests.
 
 - Renaming a locked name ships on every surface in one release (decks,
   docs, site chips, aria labels); grep for the old name before sign-off.

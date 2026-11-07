@@ -64,8 +64,8 @@ scratch paths, and the short report contract (head SHA, files, checks, leftovers
 Separate agent instance; no author reasoning history; confirm the head SHA
 before findings. Re-run the named tests; when the PR claims a live gate, exercise
 **live behaviour** (real URL, real build, real HTML) — unit green alone is not
-evidence. Sign-off names the full head SHA; mismatch → re-review. Cap: five PDCA
-rounds, then escalate ([multi-agent PDCA](multi-agent-pdca.md)).
+evidence. Sign-off names the full head SHA; mismatch → re-review. Cap: at most 3 PDCA
+iterations, then the two reviews ([delivery cycle](delivery-cycle.md)).
 
 ## Merge and rebase
 

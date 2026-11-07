@@ -14,7 +14,7 @@ design-skills add-on lesson index; load them on demand from that add-on.
 2. **Do** — one implementer.
 3. **Self-check** against the gates below.
 4. **Independent adversarial review** (not the implementer).
-5. **Orchestrator SIGN** after indep PASS + gate JSON. PDCA ≤ ~5 rounds then escalate.
+5. **Orchestrator SIGN** after the two adversarial reviews in [delivery cycle](delivery-cycle.md) pass, plus gate JSON. PDCA is at most 3 iterations, then escalate.
 6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads.
 7. **Retro** defects → ChaosEngine gate + review-brief block.
 8. **Share only approved deliverables** — after independent review + owner approval (named acceptance gate when applicable). Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).

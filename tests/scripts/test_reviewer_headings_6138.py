@@ -17,7 +17,8 @@ class ReviewerHeadingsTest(unittest.TestCase):
         for heading in HEADINGS:
             self.assertIn(f"### {heading}", roles)
             self.assertIn(heading, delegation)
-        self.assertIn("One fresh-context review after implementation", skill)
+        self.assertIn("two independent adversarial reviews", skill)
+        self.assertIn("delivery-cycle.md", skill)
 
 
 if __name__ == "__main__":

@@ -70,6 +70,7 @@ By [harness_map.py](../harness_map.py).
 - `references/delegation.md`: Delegation
 - `references/delete-check-discipline.md`: Delete-check discipline (D5)
 - `references/delete-guard.md`: Delete guard
+- `references/delivery-cycle.md`: Delivery cycle
 - `references/delivery-phase-gates.md`: Delivery workflow phase gates
 - `references/design-loop.md`: Use when a design document needs write-review-revise ro…
 - `references/design-review-video-checklist.md`: Design review / video worker checklist
@@ -103,6 +104,7 @@ By [harness_map.py](../harness_map.py).
 - `references/insight-extract.md`: Insight extraction (success / failure pairs)
 - `references/installer-program-executable-spec.md`: Installer program executable specification
 - `references/installer-program.md`: ChaosEngine installer program
+- `references/investigate-lessons.md`: Investigate lessons
 - `references/iterative-flow.md`: Iterative flow: one item at a time
 - `references/learn-traces.md`: Use when session traces must be mapped, reduced, and ve…
 - `references/level-1-catalog.md`: Use when a task needs a secondary skill or tool beyond…

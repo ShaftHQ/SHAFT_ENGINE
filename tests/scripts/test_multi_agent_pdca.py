@@ -17,7 +17,7 @@ class MultiAgentPdcaTest(unittest.TestCase):
             "logical or visual issue",
             "Both sign-offs",
             "final Done",
-            "5 rounds without convergence",
+            "3 PDCA iterations",
             "destructive, external-send, or out-of-scope",
             "lessons pass and a parity",
             "names the full head SHA it reviewed",

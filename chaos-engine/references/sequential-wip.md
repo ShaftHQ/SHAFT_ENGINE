@@ -3,9 +3,9 @@
 ## Rule
 
 Default mode: **one** in-progress item per bot / stream. Finish build →
-independent adversarial review → sign-off → lessons before starting the next.
-Workers implement; a separate worker reviews; the lead signs and merges.
-Re-review returns to the reviewer who raised the blocker.
+two independent adversarial reviews → sign-off → lessons before starting the next.
+Workers implement; the author is neither reviewer; the lead signs and merges.
+A new commit repeats both passes.
 
 Human-only blockers route to the orchestrator contact as **NEEDS-HUMAN** (or
 the host's equivalent). Bots do not bypass radio-silence charters.
