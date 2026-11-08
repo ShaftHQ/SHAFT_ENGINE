@@ -64,6 +64,12 @@ GRADLE_GENUINE_FAILURE = (
     "Execution failed for task ':verifyPlugin'. > "
     "DEPRECATED_API_USAGES: 1 problem found"
 )
+# Runs 42467112280 and 42472115062: Gradle could not download the Kotlin
+# compiler embeddable jar. The verify job called this a non-transfer error.
+GRADLE_GATEWAY_TIMEOUT = (
+    "Could not GET https://github.com/JetBrains/kotlin/releases/download/v2.1.20/kotlin-compiler-embeddable-2.1.20.jar. "
+    "Received status code 504 from server: Gateway Time-out"
+)
 
 
 def _bash() -> str | None:
@@ -156,6 +162,20 @@ class BuildRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=2)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(2, attempts)
+
+    def test_a_gradle_gateway_timeout_is_retried_until_it_succeeds(self):
+        command = self._fake_command(output=GRADLE_GATEWAY_TIMEOUT, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_live_tools_gradle_steps_call_build_retry(self):
+        # Run 42472115062 invoked gradlew directly, so a 504 was not retried.
+        workflow = (REPO_ROOT / ".github/workflows/live-tools-nightly.yml").read_text(encoding="utf-8")
+        gradlew_lines = [line.strip() for line in workflow.splitlines() if "shaft-intellij/gradlew" in line]
+        self.assertGreaterEqual(len(gradlew_lines), 1)
+        for line in gradlew_lines:
+            self.assertIn("scripts/ci/build_retry.sh", line)
 
     def test_a_genuine_verifier_finding_is_not_retried(self):
         # A deprecated-API usage is the gate doing its job. Retrying it costs

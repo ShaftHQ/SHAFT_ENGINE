@@ -641,7 +641,7 @@ class HookCommandShort7667Test(unittest.TestCase):
         entry = copilot["hooks"]["preToolUse"][0]
         self.assertLessEqual(len(entry["bash"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
         self.assertLessEqual(len(entry["powershell"]), self.hosts.HOOK_COMMAND_MAX_CHARS)
-        self.assertTrue(entry["bash"].startswith("command -v python3 ") or entry["bash"].startswith("python3 "))
+        self.assertTrue(entry["bash"].startswith("echo `# <#`"))
         self.assertTrue(entry["powershell"].startswith("$a=") or entry["powershell"].startswith("py -3 "))
 
     def test_launch_py_runs_guard_from_project_root(self) -> None:

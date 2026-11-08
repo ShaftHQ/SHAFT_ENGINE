@@ -4628,8 +4628,8 @@ LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
 # Short reason for #7667 shell fail-closed JSON (keeps command <= HOOK_COMMAND_MAX_CHARS).
-# #7766: what is missing, why, and the one fix. Kept short so the Windows
-# hook command stays within HOOK_COMMAND_MAX_CHARS (300).
+# #7766: what is missing, why, and the one fix. Kept short so the hook
+# command stays within HOOK_COMMAND_MAX_CHARS.
 HOOK_LAUNCH_PYTHON_BLOCK = "no Python 3.11+; hooks need it; rerun installer"
 _CWD_UNAVAILABLE_ERRNOS = {
     errno.ENOENT,
@@ -4705,7 +4705,8 @@ HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
 HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
 HOOK_PAYLOAD_ENV = "CHAOS_ENGINE_HOOK_PAYLOAD"
 
-HOOK_COMMAND_MAX_CHARS = 300
+# 1024 fits the sh/PowerShell polyglot (#7831). Hosts must not echo an inline script.
+HOOK_COMMAND_MAX_CHARS = 1024
 HOOK_LAUNCH_PY = ".chaos-engine/hooks/launch.py"
 
 
@@ -4970,7 +4971,7 @@ def chaos_guard_locator_command(
 
     Hosts echo the hook command on every block. The previous inline polyglot was
     ~11KB / 241 lines. Locate/guard logic lives in ``launch.py``; this command
-    stays under ``HOOK_COMMAND_MAX_CHARS`` (300). Copilot repo hooks set
+    stays under ``HOOK_COMMAND_MAX_CHARS``. Copilot repo hooks set
     ``cwd: "."`` so the relative launcher path resolves; ``launch.py`` still
     walks parents / payload cwd for ``guard.py`` (#6632).
     """
@@ -4987,27 +4988,17 @@ def chaos_guard_locator_command(
     )
     if "'" in block or "'" in target:
         raise ValueError("hook launch command must stay single-quote safe")
+    probe = _powershell_interpreter_probe(host, event, block)
     if windows:
         # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
-        if host == "grok":
-            command = f"py -3 {target}"
-        else:
-            # Probe python3/py/python then fail closed with JSON (Copilot PS field).
-            if event is None:
-                arr = f"'{HOOK_LAUNCH_PY}','{host}'"
-            else:
-                arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
-            command = (
-                f"$a={arr};"
-                "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
-                "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
-                f";Write-Output '{block}';exit 2"
-            )
+        command = f"py -3 {target}" if host == "grok" else probe
     else:
-        command = (
-            f"command -v python3 >/dev/null 2>&1 && exec python3 {target}; "
-            f"echo '{block}'; exit 2"
-        )
+        # Copilot CLI runs the unix `command` through PowerShell (#7831). The
+        # same string is bash on Linux (#7830). `>` must not name a file.
+        command = _unix_powershell_polyglot(target, block, probe)
+    targets = powershell_out_file_targets(command)
+    if targets:
+        raise ValueError(f"hook command Out-File target {targets[0]}")
     if len(command) > HOOK_COMMAND_MAX_CHARS:
         raise ValueError(
             f"hook command is {len(command)} chars; max {HOOK_COMMAND_MAX_CHARS} (#7667)"
@@ -5028,17 +5019,114 @@ def hook_command_source(command: str) -> str:
     return decoded_quote_free_exec(command)
 
 
+_PS_BLOCK_COMMENT = re.compile(r"<#.*?#>", re.DOTALL)
+_PS_FILE_REDIRECT = re.compile(r"(?<![0-9&])>(?!&)\s*([^\s;|&]+)")
+
+
+def powershell_out_file_targets(command: str, drive: str = "D") -> list[str]:
+    """File paths a PowerShell ``>`` redirect would hand to Out-File.
+
+    Block comments are ignored. ``>&`` and a redirect to ``$null`` or ``NUL``
+    are not files. A ``/...`` path is the drive-qualified path PowerShell
+    builds, so ``>/dev/null`` on drive D is ``D:\\dev\\null`` (#7831).
+    """
+    if not isinstance(command, str) or not command.strip():
+        return []
+    visible = _PS_BLOCK_COMMENT.sub(" ", command)
+    found: list[str] = []
+    for match in _PS_FILE_REDIRECT.finditer(visible):
+        token = match.group(1).strip("'\"")
+        if token.casefold() in {"$null", "nul"}:
+            continue
+        if token.startswith("/"):
+            token = drive + ":" + token.replace("/", "\\")
+        if token not in found:
+            found.append(token)
+    return found
+
+
+def _powershell_interpreter_probe(host: str, event: str | None, block: str) -> str:
+    """Probe python3, py, then python. Fail closed only when none of them start."""
+    if event is None:
+        arr = f"'{HOOK_LAUNCH_PY}','{host}'"
+    else:
+        arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
+    return (
+        f"$a={arr};"
+        "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
+        "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
+        f";Write-Output '{block}';exit 2"
+    )
+
+
+def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
+    """One command: bash exec-chain, PowerShell foreach. No file Out-File target.
+
+    ``<#`` is a bash syntax error, so the comment starts after ``echo``.
+    ``exec`` replaces the process, so a real hook deny (exit 2) does not try
+    the next interpreter. A non-interactive bash exits on a failed ``exec``
+    before ``||`` can try the next name, so ``execfail`` is set first.
+    PowerShell never sees those lines: they are inside ``<# #>``.
+    ``LASTEXITCODE=`` and ``n=`` satisfy Grok's ``$NAME`` scanner for the probe.
+    """
+    return (
+        "echo `# <#`\n"
+        "LASTEXITCODE=\n"
+        "n=\n"
+        "shopt -s execfail\n"
+        f"exec python3 {target} || exec py -3 {target} || exec python {target} "
+        f"|| {{ echo '{block}'; exit 2; }}\n"
+        "#> > $null\n"
+        f"{probe}"
+    )
+
+
+def plugin_list_still_running(error: BaseException) -> bool:
+    """True only for a ``plugin list --available --json`` that exceeded its wait."""
+    if not isinstance(error, subprocess.TimeoutExpired):
+        return False
+    command = error.cmd if isinstance(error.cmd, (list, tuple)) else str(error.cmd).split()
+    return {"plugin", "list", "--available", "--json"} <= {str(part) for part in command}
+
+
+def refresh_stale_plugins_after_upgrade(project: Path, controller: object | None = None) -> None:
+    """After an upgrade, refresh plugins. A still-running list does not fail the install.
+
+    A non-zero plugin command still raises. A stale registration still activates.
+    ``controller`` is the client surface tests double; the install path uses this module.
+    """
+    detect = detected_plugin_status if controller is None else controller.detected_plugin_status
+    activate = activate_detected_plugins if controller is None else controller.activate_detected_plugins
+    try:
+        client_plugins = detect(project)
+    except subprocess.TimeoutExpired as error:
+        if plugin_list_still_running(error):
+            return
+        raise
+    if any(
+        isinstance(item, dict) and item.get("plugin") == "stale"
+        for item in client_plugins.values()
+    ):
+        activate(project)
+
+
 def powershell_hook_parse_error(command: str) -> str | None:
     """Return why a hook command would fail under Copilot CLI's PowerShell, or None.
 
     Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
     PowerShell. A parse error, a quoted native argument PowerShell 5.1
-    re-quotes, or a hard-coded `python3` (missing or the Store stub on many
-    Windows machines) exits non-zero: the user-visible
-    `Denied by preToolUse hook from "repo settings" (hook errored)`.
+    re-quotes, a ``>`` file path (``D:\\dev\\null``), or a hard-coded `python3`
+    (missing or the Store stub on many Windows machines) exits non-zero: the
+    user-visible `Denied by preToolUse hook from "repo settings" (hook errored)`.
     """
     if not isinstance(command, str) or not command.strip():
         return "empty hook command"
+    targets = powershell_out_file_targets(command)
+    if targets:
+        return f"PowerShell Out-File target {targets[0]}"
+    # The unix field is a polyglot. PowerShell takes the foreach tail (#7831).
+    if command.startswith("echo `# <#`") and HOOK_LAUNCH_PY in command:
+        return None
     # #7667: short launcher file. Windows hosts use `commandWindows` / the
     # powershell field (`py -3 ...`). A `python3 ...launch.py` string is the
     # Unix `command`/`bash` field, not executed by PowerShell.

@@ -38,7 +38,10 @@ shift
 # "Failed to read artifact descriptor" is the same Central refusal as a missing POM
 # (Ubuntu_Firefox_Grid, run 38362240871): the descriptor never arrived, so a fresh
 # process can. A compilation failure does not contain this phrase.
-RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
+# Gradle reports a JetBrains GitHub release timeout as "Gateway Time-out" /
+# "status code 504" / "Could not GET", not the Maven phrases above
+# (runs 42467112280 and 42472115062, kotlin-compiler-embeddable).
+RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|status code 504|Gateway Time-out|Could not GET |Could not download |Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
 
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT

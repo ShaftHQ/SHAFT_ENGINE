@@ -831,7 +831,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         r"\s",
                         "Grok resolves a single-token command relative to .claude/",
                     )
-                    # #7667: short host command points at launch.py (≤300 chars).
+                    # #7667: short host command points at launch.py (within HOOK_COMMAND_MAX_CHARS).
                     hosts = _load_hosts()
                     self.assertIn(hosts.HOOK_LAUNCH_PY, command)
                     self.assertLessEqual(len(command), hosts.HOOK_COMMAND_MAX_CHARS)

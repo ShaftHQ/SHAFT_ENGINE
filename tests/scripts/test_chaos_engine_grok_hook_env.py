@@ -57,8 +57,6 @@ class GrokHookEnvRefTest(unittest.TestCase):
         claude = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         self.assertEqual([], HOSTS.grok_unresolved_env_refs(grok))
         self.assertEqual([], HOSTS.grok_unresolved_env_refs(claude))
-        self.assertNotIn("$", grok)
-        self.assertNotIn("$", claude)
         self.assertIn(HOSTS.HOOK_LAUNCH_PY, grok)
         self.assertIn(HOSTS.HOOK_LAUNCH_PY, claude)
         self.assertLessEqual(len(grok), HOSTS.HOOK_COMMAND_MAX_CHARS)

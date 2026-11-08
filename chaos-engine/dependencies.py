@@ -1307,6 +1307,14 @@ def resolve_account_actions(
             verified = lookup_error is None
         installed = record.get("version") if isinstance(record.get("version"), str) else None
         healthy = record.get("healthy") is True
+        # A missing tool with a pinned runtime still installs when the channel
+        # lookup fails (#7823). A healthy tool keeps the unverified reuse.
+        if latest is None and not (installed and healthy):
+            pinned_runtime = _pinned_runtime_version(specification, name)
+            if pinned_runtime:
+                latest = pinned_runtime
+                verified = True
+                lookup_error = None
         action = dependency_action(
             installed_version=installed,
             resolved_version=latest,
@@ -3029,6 +3037,16 @@ def select_runtime_artifact(
     if not isinstance(url, str) or not url.startswith("https://") or not isinstance(digest, str) or HEX_DIGEST.fullmatch(digest) is None:
         raise ValueError(f"runtime artifact is invalid: {runtime}")
     return dict(artifact)
+
+
+def _pinned_runtime_version(specification: dict[str, object], name: str) -> str | None:
+    """Pinned runtime version for ``name``, when the specification ships one."""
+    runtimes = specification.get("runtimes")
+    runtime = runtimes.get(name) if isinstance(runtimes, dict) else None
+    version = runtime.get("version") if isinstance(runtime, dict) else None
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return None
 
 
 def _pinned_package_identity(package: object) -> tuple[str, str] | None:

@@ -8,6 +8,7 @@ or another embedding model.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import subprocess  # nosec B404 - checkout git ls-files and git grep only.
@@ -487,3 +488,183 @@ def direct_graphify_outcome(project: Path, query: str) -> dict | None:
         "excerpt": excerpt,
         "bytes": len(excerpt.encode("utf-8")),
     }
+
+
+_INVENTORY_START = "<!-- inventory:external-services:start -->"
+_INVENTORY_END = "<!-- inventory:external-services:end -->"
+_COMPANION_ABSENT = "companion page was not searched"
+_IMPACT_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{2,}")
+_IMPACT_FLAG = re.compile(r"--[A-Za-z0-9][\w-]*")
+
+
+def _impact_needles(query: str) -> list[str]:
+    flags = [item.casefold() for item in _IMPACT_FLAG.findall(query)]
+    if flags:
+        return flags
+    return [
+        token.casefold()
+        for token in _IMPACT_TOKEN.findall(query)
+        if token.casefold() not in _STOP
+    ]
+
+
+def _page_blob(page: dict) -> str:
+    return json.dumps(page, ensure_ascii=False).casefold()
+
+
+def _line_of(text: str, needle: str) -> int | None:
+    at = text.casefold().find(needle)
+    if at < 0:
+        return None
+    return text[:at].count("\n") + 1
+
+
+def _documentation_pages(project: Path) -> list[dict]:
+    path = project / "graphify-out" / "documentation-pages.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return []
+    pages = payload.get("pages") if isinstance(payload, dict) else None
+    return [page for page in pages if isinstance(page, dict) and page.get("path")] if isinstance(pages, list) else []
+
+
+def _graph_code_nodes(project: Path) -> list[dict]:
+    path = project / "graphify-out" / "graph.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return []
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    return [node for node in nodes if isinstance(node, dict)] if isinstance(nodes, list) else []
+
+
+def _companion_checkout(project: Path) -> dict[str, str]:
+    """Name the companion page when that checkout is present. Never invent a path."""
+    readme = project / "chaos-engine" / "README.md"
+    if not readme.is_file():
+        readme = project / "README.md"
+    try:
+        text = readme.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return {"companion": _COMPANION_ABSENT}
+    start = text.find(_INVENTORY_START)
+    end = text.find(_INVENTORY_END)
+    repo = ""
+    if start >= 0 and end > start:
+        for line in text[start:end].splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) < 2:
+                continue
+            purpose = cells[1].casefold()
+            item = cells[0].strip()
+            if "companion" in purpose and "documentation" in purpose and "/" in item and " " not in item:
+                repo = item
+                break
+    if not repo or "/" not in repo:
+        return {"companion": _COMPANION_ABSENT}
+    slug = repo.split("/", 1)[1]
+    checkout = next(
+        (path for path in (project.parent / slug, project / slug) if path.is_dir()),
+        None,
+    )
+    if checkout is None:
+        return {"companion": _COMPANION_ABSENT}
+    return {"companion": _COMPANION_ABSENT, "companionCheckout": str(checkout)}
+
+
+def impact_graphify_outcome(project: Path, query: str) -> dict:
+    """Rank skill and documentation pages for one contract. No network, cap 8.
+
+    The companion documentation checkout is searched only when the origin README
+    inventory names it and that directory exists. An absent checkout says so and
+    does not invent ``companionPath``.
+    """
+    cleaned = " ".join(str(query).split())
+    needles = _impact_needles(cleaned)
+    scored: list[tuple[int, dict]] = []
+    for page in _documentation_pages(project):
+        path = str(page.get("path") or "")
+        blob = _page_blob(page)
+        if needles and not any(needle in blob for needle in needles):
+            continue
+        score = 20
+        folded = path.casefold()
+        if "skill" in folded:
+            score += 50
+        if "install" in folded or folded.endswith(".md"):
+            score += 30
+        line = None
+        for needle in needles:
+            line = _line_of(blob, needle)
+            if line is not None:
+                break
+        hit = {"path": path, "label": path.rsplit("/", 1)[-1], "section": path}
+        if line is not None:
+            hit["line"] = line
+        scored.append((score, hit))
+    for node in _graph_code_nodes(project):
+        path = str(node.get("source_file") or node.get("path") or "")
+        if not path or path.startswith("docs:"):
+            continue
+        blob = " ".join(
+            str(node.get(key) or "") for key in ("label", "rationale", "source_file", "path")
+        ).casefold()
+        matched = any(needle in blob for needle in needles) if needles else False
+        folded = path.casefold()
+        score = 5
+        if matched and ("skill" in folded or folded.endswith(".md")):
+            score = 40
+        elif matched:
+            score = 15
+        hit = {"path": path, "label": path.rsplit("/", 1)[-1], "section": path}
+        scored.append((score, hit))
+    scored.sort(key=lambda item: (-item[0], str(item[1].get("path") or "")))
+    unique: list[dict] = []
+    seen: set[str] = set()
+    for _score, hit in scored:
+        path = str(hit.get("path") or "")
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        unique.append(hit)
+        if len(unique) == 8:
+            break
+    excerpt = "\n".join(str(hit["path"]) for hit in unique)
+    receipt = {
+        "status": "used" if unique else "skipped",
+        "reason": "hits" if unique else "no-relevant-hits",
+        "query": cleaned,
+        "hits": unique,
+        "excerpt": excerpt,
+        "bytes": len(excerpt.encode("utf-8")),
+    }
+    companion = _companion_checkout(project)
+    checkout = companion.pop("companionCheckout", None)
+    if checkout and needles:
+        page = _companion_page(Path(checkout), needles)
+        if page is not None:
+            receipt["companionPath"] = page
+            receipt["companion"] = page
+            return receipt
+    receipt["companion"] = _COMPANION_ABSENT
+    return receipt
+
+
+def _companion_page(checkout: Path, needles: list[str]) -> str | None:
+    try:
+        files = sorted(checkout.rglob("*.md"))
+    except OSError:
+        return None
+    for path in files:
+        if path.name.startswith("."):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        if any(needle in text.casefold() for needle in needles):
+            return path.relative_to(checkout).as_posix()
+    return None

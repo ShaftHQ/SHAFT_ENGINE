@@ -1432,6 +1432,67 @@ def _input_paths(tool_input: dict) -> list[str]:
     return paths
 
 
+EDIT_TOOLS = frozenset({"Write", "Edit", "StrReplace", "MultiEdit"})
+IMPACT_EDIT_BLOCK = (
+    "Impact receipt missing for this task area. "
+    "Run `python3 .chaos-engine/tool.py retrieve --mode impact` "
+    "and record `retrieve: used` or `retrieve: skipped(<reason>)` before the first edit."
+)
+INSTRUCTION_ONLY_HOSTS = ("cursor", "opencode", "grok-bot")
+
+
+def impact_edit_block_reason(
+    *,
+    project: Path,
+    event_name: str,
+    tool_name: str,
+    session_id: str | None = None,
+) -> str | None:
+    """Deny the first edit until this session has an impact receipt.
+
+    ``retrieved: True`` counts, as does a research-receipt line
+    ``retrieve: used`` or ``retrieve: skipped(<reason>)``. Reads do not deny.
+    """
+    if event_name != "PreToolUse" or tool_name not in EDIT_TOOLS:
+        return None
+    row = _live_sessions(_load_payload(project)).get(_session_key(session_id))
+    if isinstance(row, dict) and row.get("retrieved"):
+        return None
+    sink = project / ".chaos-engine-state" / "research-receipt.md"
+    try:
+        text = sink.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        text = ""
+    field = retrieve_receipt_field(text) or ""
+    if field == "used" or field.startswith("skipped("):
+        return None
+    return IMPACT_EDIT_BLOCK
+
+
+def record_instruction_only_impact_line(project: Path, host: str, status: str = "used") -> str:
+    """Record the same ``retrieve:`` line. Does not install a receipt shim."""
+    chosen = str(host or "").strip().casefold()
+    if chosen not in INSTRUCTION_ONLY_HOSTS:
+        raise ValueError(f"not an instruction-only host: {host}")
+    if status == "used":
+        line = "retrieve: used"
+    else:
+        reason = status.strip() or "no-hits"
+        line = f"retrieve: skipped({reason})"
+    sink = project / ".chaos-engine-state" / "research-receipt.md"
+    sink.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        existing = sink.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        existing = "# Research receipt\n\n"
+    if re.search(r"(?m)^retrieve:", existing):
+        existing = re.sub(r"(?m)^retrieve:.*$", line, existing, count=1)
+    else:
+        existing = existing.rstrip() + "\n" + line + "\n"
+    sink.write_text(existing, encoding="utf-8")
+    return line
+
+
 def file_read_block_reason(
     *,
     project: Path,
