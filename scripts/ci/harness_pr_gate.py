@@ -381,6 +381,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_ui_delivery",
             "tests.scripts.test_architect_skill_parity",
             "tests.scripts.test_technical_presentations_skill_parity",
+            "tests.scripts.test_guard_documented_installer",
         ),
     ),
     # #6222: modules that only ran in the weekly acceptance run, each selected
@@ -1057,6 +1058,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_reflection_recovery.py",
         "tests/scripts/test_bootstrap_pack_post_install.py",
         "tests/scripts/test_chaos_engine_ui_delivery.py",
+        "tests/scripts/test_guard_documented_installer.py",
     ),
     # #6222: inputs of the formerly weekly-only modules. Each is a cheap
     # (< 5 s) single-module check, so broad content globs are affordable.

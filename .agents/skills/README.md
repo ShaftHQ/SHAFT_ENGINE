@@ -466,6 +466,7 @@ change it:
 | `tests/scripts/test_validate_skills.py` | Skill frontmatter, names, and body limits. |
 | `tests/scripts/test_guard_lifecycle.py`, `tests/scripts/test_guard_nul_corruption.py`, `tests/scripts/test_session_worktree.py` | The lifecycle guard's decisions, session worktree setup/teardown, and behaviour on a corrupt state file. |
 | `tests/scripts/test_guard_memory_worktree.py` | That a memory write from a linked worktree is refused, and that each host actually invokes the guard for it. |
+| `tests/scripts/test_guard_documented_installer.py` | The published install.sh pipeline is allowed only when its owner and repo match the checkout origin. Generic curl\|bash stays catastrophic. |
 | `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
 | `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_chaos_engine_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
 | `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
