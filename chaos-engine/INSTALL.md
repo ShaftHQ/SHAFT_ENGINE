@@ -77,8 +77,7 @@ Ignored for client selection: `PATH`, a `cursor` program, `GROK_SESSION_ID`,
 list Copilot when `gh`, `code`, or `cursor` is on `PATH`. That list is not a
 selection.
 
-The published one-liner stays silent. It does not ask, and it does not open
-`/dev/tty` or `CONIN$`.
+The published one-liner stays silent. It does not ask, and it does not open `/dev/tty` or `CONIN$`.
 
 ### Name the client yourself
 
@@ -163,9 +162,9 @@ for a normal first install.
 
 The default install is the lean core only. These add-ons are never installed
 by default and never auto-selected; opt in with a flag.
-[Clients this command can complete](#clients-this-command-can-complete) is
-separate: choosing a client does not select these packs, and a client id is
-not an add-on id.
+Host completion is separate from these optional flags. Choosing a client does
+not select these packs, and a client id is not an add-on id. See
+[Clients this command can complete](#clients-this-command-can-complete).
 
 | Add-on | For | sh / bootstrap.py / install.py | PowerShell |
 | --- | --- | --- | --- |
