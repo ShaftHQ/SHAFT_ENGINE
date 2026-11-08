@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -487,7 +488,14 @@ class ActivationTests(unittest.TestCase):
             self.assertFalse((bot / ".opencode/plugins/chaos-engine-receipt.js").exists())
             self.assertEqual(("grok-bot",), self.install.read_completion_targets(bot))
 
-    def _run_locked_install(self, project: Path, *, hosts: tuple[str, ...] | None, skip_tools: bool = False) -> None:
+    def _run_locked_install(
+        self,
+        project: Path,
+        *,
+        hosts: tuple[str, ...] | None,
+        skip_tools: bool = False,
+        controller=None,
+    ) -> None:
         """Real _run_install_command. install_with_dependencies is stubbed and writes the shims."""
 
         def which(name):
@@ -516,12 +524,43 @@ class ActivationTests(unittest.TestCase):
         if hosts:
             command.extend(("--hosts", ",".join(hosts)))
         args = self.install.parser().parse_args(command)
+        host_controller = controller if controller is not None else object()
         with mock.patch.dict(os.environ, quiet_host_env(), clear=True):
             with mock.patch.object(self.install, "install_with_dependencies", side_effect=install_with_dependencies):
                 with mock.patch.object(self.install, "install", side_effect=install):
-                    with mock.patch.object(self.install, "load_installed_controller", return_value=object()):
+                    with mock.patch.object(self.install, "load_installed_controller", return_value=host_controller):
                         with mock.patch.object(self.install, "post_install_housekeeping", return_value=None):
                             self.install._run_install_command(args, set(), set())
+
+    def test_install_command_activates_claude_completion_targets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "claude"
+            project.mkdir()
+            bindir = Path(temporary) / "bin"
+            bindir.mkdir()
+            claude = bindir / "claude"
+            claude.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            claude.chmod(0o755)
+            seen: dict[str, object] = {}
+
+            def activate(*args, **kwargs):
+                seen["args"] = args
+                seen["claude"] = kwargs["which"]("claude")
+                seen["codex"] = kwargs["which"]("codex")
+                return {"clients": {"claude": "activated"}}
+
+            controller = mock.Mock()
+            controller.activate_detected_plugins.side_effect = activate
+            previous = os.environ.get("PATH", "")
+            os.environ["PATH"] = str(bindir) + os.pathsep + previous
+            try:
+                self._run_locked_install(project, hosts=("claude",), controller=controller)
+            finally:
+                os.environ["PATH"] = previous
+            self.assertEqual((project,), seen["args"])
+            self.assertEqual(str(claude), seen["claude"])
+            self.assertIsNone(seen["codex"])
+            self.assertEqual(("claude",), self.install.read_completion_targets(project))
 
     def test_doctor_summary_names_completion_targets(self):
         plain = self.install.format_health_report({"status": "healthy", "commit": "a" * 40})
@@ -570,43 +609,298 @@ class ActivationTests(unittest.TestCase):
                 user_config.write_bytes(before)
 
     def _grok_selection_leaves_lean_to_the_predicate(self):
+        # Shipped should_apply_grok_lean. A replacement stays green if the real predicate is forced False.
+        lean = load("ce_grok_lean_7817", CE / "grok_lean_config.py")
+        compat = "# CHAOSENGINE-GROK-LEAN:START"
+        skills = "# CHAOSENGINE-GROK-SKILLS:START"
+
+        def path_without_grok(*extra: str) -> str:
+            parts = [part for part in extra if part]
+            for part in os.environ.get("PATH", "").split(os.pathsep):
+                if not part:
+                    continue
+                if (Path(part) / "grok").exists() or (Path(part) / "grok.exe").exists():
+                    continue
+                parts.append(part)
+            return os.pathsep.join(parts)
+
+        def sync_lean(project: Path, home: Path, path: str) -> str:
+            env = quiet_host_env()
+            env["PATH"] = path
+            env["GROK_HOME"] = str(home)
+            env.pop("CHAOS_ENGINE_LEAN_GROK_SKILLS", None)
+            with mock.patch.dict(os.environ, env, clear=True):
+                lean.sync_project_grok_lean(project)
+            config = home / "config.toml"
+            return config.read_text(encoding="utf-8") if config.is_file() else ""
+
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "project"
+            root = Path(temporary)
+            empty_bin = root / "empty-bin"
+            empty_bin.mkdir()
+            grok_bin = root / "grok-bin"
+            grok_bin.mkdir()
+            fake_grok = grok_bin / "grok"
+            fake_grok.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            fake_grok.chmod(0o755)
+
+            bare = root / "bare"
+            bare.mkdir()
+            self.assertNotIn(compat, sync_lean(bare, root / "home-bare", str(empty_bin)))
+
+            hooked = root / "hooked"
+            (hooked / ".grok" / "hooks").mkdir(parents=True)
+            (hooked / ".grok" / "hooks" / "lifecycle.json").write_text("{}\n", encoding="utf-8")
+            hooked_text = sync_lean(hooked, root / "home-hooked", str(empty_bin))
+            self.assertIn(compat, hooked_text)
+            self.assertNotIn(skills, hooked_text)
+
+            pathed = root / "pathed"
+            pathed.mkdir()
+            pathed_text = sync_lean(pathed, root / "home-pathed", str(grok_bin))
+            self.assertIn(compat, pathed_text)
+            self.assertNotIn(skills, pathed_text)
+
+            project = root / "project"
             project.mkdir()
-            home = Path(temporary) / "grok-home"
+            home = root / "home-install"
             self.install.install(project, CE, "1" * 40)
             hosts = load("ce_hosts_7817_lean", CE / "hosts.py")
-            real_load = hosts._load_grok_lean_config
-            recorded: list[object] = []
-
-            def patched_load():
-                module = real_load()
-                real_sync = module.sync_project_grok_lean
-                module.should_apply_grok_lean = lambda _project, which=None: True
-
-                def wrapped_sync(*args, **kwargs):
-                    recorded.append(kwargs.get("lean_skills", False))
-                    return real_sync(*args, **kwargs)
-
-                module.sync_project_grok_lean = wrapped_sync
-                return module
-
-            hosts.install.__globals__["_load_grok_lean_config"] = patched_load
-            with mock.patch.dict(os.environ, {"GROK_HOME": str(home)}, clear=False):
-                os.environ.pop("CHAOS_ENGINE_LEAN_GROK_SKILLS", None)
+            env = quiet_host_env()
+            env["PATH"] = path_without_grok()
+            env["GROK_HOME"] = str(home)
+            env.pop("CHAOS_ENGINE_LEAN_GROK_SKILLS", None)
+            with mock.patch.dict(os.environ, env, clear=True):
                 hosts.install(project, core_commit="1" * 40)
                 self.install.apply_install_host_completion(project, ("grok",))
-            config = home / "config.toml"
-            text = config.read_text(encoding="utf-8") if config.is_file() else ""
-            self.assertTrue(recorded)
-            self.assertTrue(all(value is False for value in recorded))
-            self.assertIn("# CHAOSENGINE-GROK-LEAN:START", text)
-            self.assertNotIn("# CHAOSENGINE-GROK-SKILLS:START", text)
+            installed = home / "config.toml"
+            installed_text = installed.read_text(encoding="utf-8") if installed.is_file() else ""
+            self.assertIn(compat, installed_text)
+            self.assertNotIn(skills, installed_text)
             for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md"):
                 self.assertTrue((project / relative).is_file(), relative)
             self.assertFalse((project / ".cursor/hooks.json").exists())
             self.assertFalse((project / ".opencode/plugins/chaos-engine-receipt.js").exists())
             self.assertEqual(("grok",), self.install.read_completion_targets(project))
+
+
+class CallerBindingTests(unittest.TestCase):
+    """Each production keyword must be absent from the call for the matching test to fail."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bootstrap = load("ce_bootstrap_7813_callers", CE / "bootstrap.py")
+        cls.install = load("ce_install_7813_callers", CE / "install.py")
+
+    def test_main_passes_hosts_to_install_latest(self):
+        captured: dict[str, object] = {}
+
+        def install_latest(*_args, **kwargs):
+            captured.update(kwargs)
+            return {"status": "installed", "root": str(_args[0]), "commit": "a" * 40}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            argv = [
+                "bootstrap.py",
+                "--project",
+                temporary,
+                "--repository",
+                "Example/Project",
+                "--skip-tools",
+                "--hosts",
+                "claude",
+            ]
+            with mock.patch.object(sys, "argv", argv):
+                with mock.patch.object(self.bootstrap, "install_latest", side_effect=install_latest):
+                    with mock.patch.object(self.bootstrap, "write_install_trace"):
+                        with mock.patch.object(self.bootstrap, "record_install_source"):
+                            with mock.patch.object(self.bootstrap, "post_install_packs", return_value=0):
+                                with mock.patch("sys.stdout", io.StringIO()), mock.patch("sys.stderr", io.StringIO()):
+                                    code = self.bootstrap.main()
+        self.assertEqual(0, code)
+        self.assertEqual("claude", captured.get("hosts"))
+
+    def test_install_latest_passes_completion_targets_to_verify(self):
+        captured: dict[str, object] = {}
+
+        def fake_core(_project, scratch, **_kwargs):
+            scratch["temporary"] = mock.Mock()
+            target = Path(_project) / ".chaos-engine"
+            target.mkdir(parents=True, exist_ok=True)
+            return target, "b" * 40, mock.Mock()
+
+        def fake_verify(*_args, **kwargs):
+            captured.update(kwargs)
+            return {"status": "installed"}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.dict(os.environ, quiet_host_env(), clear=True):
+                with mock.patch.object(self.bootstrap, "_run_core_install", side_effect=fake_core):
+                    with mock.patch.object(self.bootstrap, "_verify_and_activate", side_effect=fake_verify):
+                        self.bootstrap.install_latest(
+                            Path(temporary),
+                            repository="Example/Project",
+                            skip_tools=False,
+                            hosts="claude",
+                            interactive=False,
+                            reporter=self.bootstrap.InstallReporter(stream=io.StringIO()),
+                        )
+        self.assertEqual(("claude",), captured.get("completion_targets"))
+
+    def test_unhealthy_verify_passes_completion_targets_to_heal_handoff(self):
+        captured: dict[str, object] = {}
+
+        def publish(*_args, **kwargs):
+            captured.update(kwargs)
+            return {"status": "heal-handoff"}
+
+        doctor = {
+            "components": {
+                "core": {"status": "invalid", "taskImpact": "required", "detail": "core-broken"},
+            }
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            target = project / ".chaos-engine"
+            target.mkdir()
+            (target / "install.py").write_text("# core\n", encoding="utf-8")
+            installer = mock.Mock()
+            installer.load_installed_controller.return_value = mock.Mock(spec=[])
+            with mock.patch.object(self.bootstrap, "verify_gate_doctor", return_value=doctor):
+                with mock.patch.object(self.bootstrap, "_publish_heal_handoff", side_effect=publish):
+                    result = self.bootstrap._verify_and_activate(
+                        project,
+                        repository="Example/Project",
+                        commit="c" * 40,
+                        target=target,
+                        installer=installer,
+                        reporter=self.bootstrap.InstallReporter(stream=io.StringIO()),
+                        remaining=lambda _name: (),
+                        confirm=lambda _name: None,
+                        interactive=False,
+                        prior_install=False,
+                        terminal_context=None,
+                        completion_targets=("codex",),
+                    )
+        self.assertEqual("heal-handoff", result["status"])
+        self.assertEqual(("codex",), captured.get("completion_targets"))
+
+    def test_activate_resolved_clients_selects_completion_targets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            installer = mock.Mock()
+            installer.activate_completion_targets.return_value = {"clients": {"claude": "activated"}}
+            controller = mock.Mock()
+            selected = self.bootstrap._activate_resolved_clients(
+                installer, controller, project, ("claude",), lambda _name: None, interactive=False
+            )
+            self.assertEqual({"clients": {"claude": "activated"}}, selected)
+            installer.activate_completion_targets.assert_called_once_with(
+                project,
+                ("claude",),
+                host_controller=controller,
+                confirmer=None,
+            )
+            controller.activate_detected_plugins.assert_not_called()
+
+            absent_installer = mock.Mock()
+            absent_controller = mock.Mock()
+            absent_controller.activate_detected_plugins.return_value = {"clients": {}}
+            self.bootstrap._activate_resolved_clients(
+                absent_installer, absent_controller, project, None, lambda _name: None, interactive=False
+            )
+            absent_controller.activate_detected_plugins.assert_called_once_with(project)
+            absent_installer.activate_completion_targets.assert_not_called()
+
+    def test_doctor_emit_result_names_grok_bot_target_and_card(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            self.install.record_completion_targets(project, ("grok-bot",))
+            args = self.install.parser().parse_args(["doctor", "--project", str(project)])
+            self.assertFalse(args.json)
+            stdout = io.StringIO()
+            with mock.patch("sys.stdout", stdout):
+                code = self.install._emit_result(
+                    args, {"status": "healthy", "commit": "a" * 40, "clients": {}}
+                )
+            text = stdout.getvalue()
+        self.assertEqual(0, code)
+        self.assertIn("completion targets: grok-bot", text)
+        self.assertTrue(
+            "chaos-engine/references/bot-entry.md" in text or "GAP-GROKBOT-HOOKS" in text,
+            text,
+        )
+        self.assertNotIn("Grok Bot", self.bootstrap.format_host_onboarding_cards())
+
+
+class InstallScriptHostTests(unittest.TestCase):
+    def _run_install_sh(self, *arguments: str):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bindir = root / "bin"
+            bindir.mkdir()
+            record = root / "argv.txt"
+            fake = bindir / "python3"
+            fake.write_text(
+                "\n".join(
+                    (
+                        "#!/bin/sh",
+                        "for arg in \"$@\"; do",
+                        "  if [ \"$arg\" = \"-c\" ]; then",
+                        "    exit 0",
+                        "  fi",
+                        "done",
+                        "printf '%s\\n' \"$@\" >> \"$CHAOS_ENGINE_FAKE_PYTHON_ARGV\"",
+                        "exit 0",
+                        "",
+                    )
+                ),
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            work = root / "project"
+            work.mkdir()
+            env = os.environ.copy()
+            env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
+            env["CHAOS_ENGINE_REPOSITORY"] = "ShaftHQ/SHAFT_ENGINE"
+            env["CHAOS_ENGINE_FAKE_PYTHON_ARGV"] = str(record)
+            for key in (
+                "CHAOS_ENGINE_INSTALL_URL",
+                "CHAOS_ENGINE_BRANCH",
+                "CHAOS_ENGINE_RESOLVE_ONLY",
+                "JAVA_HOME",
+            ):
+                env.pop(key, None)
+            completed = subprocess.run(
+                ["bash", str(CE / "install.sh"), *arguments],
+                cwd=work,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            recorded = record.read_text(encoding="utf-8").splitlines() if record.is_file() else []
+            return completed, recorded
+
+    def test_install_sh_forwards_hosts_argument(self):
+        completed, recorded = self._run_install_sh("--hosts", "grok")
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("--hosts", recorded)
+        self.assertEqual("grok", recorded[recorded.index("--hosts") + 1])
+        self.assertTrue(any(line.endswith("bootstrap.py") for line in recorded), recorded)
+
+    def test_install_sh_forwards_hosts_equals_argument(self):
+        completed, recorded = self._run_install_sh("--hosts=codex")
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("--hosts=codex", recorded)
+        self.assertTrue(any(line.endswith("bootstrap.py") for line in recorded), recorded)
+
+    def test_install_sh_rejects_hosts_without_client_id(self):
+        completed, recorded = self._run_install_sh("--hosts")
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("--hosts requires a client id", completed.stderr)
+        self.assertNotIn("--hosts", recorded)
 
 
 class AddonSeparationTests(unittest.TestCase):
