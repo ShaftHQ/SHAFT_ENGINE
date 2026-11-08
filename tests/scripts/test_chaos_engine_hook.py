@@ -1583,6 +1583,8 @@ process.stderr.write(result.stderr || '');
                 "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
                 "Dispatch the implementer. The writer must stop before merge. "
                 "Do not merge https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+                "Tell the subagent to stop. Do not merge "
+                "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
             )
             for prompt in prompts:
                 submitted = self.run_hook(
