@@ -15,6 +15,41 @@ from scripts.ci import harness_pr_gate as gate  # noqa: E402
 from scripts.ci import overlay_pre_push as prepush  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _git_exclude(root: Path) -> Path:
+    completed = subprocess.run(  # nosec B603 - fixed git argv, never a shell.
+        ["git", "-C", str(root), "rev-parse", "--git-path", "info/exclude"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    path = Path(completed.stdout.strip())
+    if not path.is_absolute():
+        path = root / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _append_exclude(path: Path, relative: str) -> None:
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    if relative in existing.splitlines():
+        return
+    separator = "" if existing.endswith("\n") or not existing else "\n"
+    path.write_text(existing + separator + relative + "\n", encoding="utf-8")
+
+
+def _drop_exclude(path: Path, relative: str) -> None:
+    if not path.exists():
+        return
+    kept = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines(keepends=True)
+        if line.strip() != relative
+    ]
+    path.write_text("".join(kept), encoding="utf-8")
+
+
 GUIDANCE_IDS = {
     "MergeQueueLessonTest.test_docs_and_skill",
     "LeanBootstrapTest.test_mandated_chain_budget_holds_on_every_host",
@@ -167,15 +202,27 @@ class IsolatedProbeTest(unittest.TestCase):
             self.assertEqual([], prepush.isolated_import_probe_failures(ROOT, [JAVA]))
 
     def test_missing_self_locating_import_fails_the_probe(self) -> None:
-        path = ROOT / "tests/scripts/test_ce_probe_missing_import_7791.py"
+        # info/exclude first: a sibling harness process snapshots porcelain status (#7820).
+        relative = "tests/scripts/test_ce_probe_missing_import_7791.py"
+        path = ROOT / relative
+        exclude = _git_exclude(ROOT)
+        _append_exclude(exclude, relative)
         path.write_text("import scripts.ci.overlay_pre_push\n", encoding="utf-8")
         try:
-            failures = prepush.isolated_import_probe_failures(
-                ROOT, ["tests/scripts/test_ce_probe_missing_import_7791.py"]
+            status = subprocess.run(  # nosec B603 - fixed git argv, never a shell.
+                ["git", "-C", str(ROOT), "status", "--porcelain=v1", "--untracked-files=normal"],
+                check=True,
+                capture_output=True,
+                text=True,
             )
+            self.assertNotIn(relative, status.stdout)
+            failures = prepush.isolated_import_probe_failures(ROOT, [relative])
         finally:
             path.unlink(missing_ok=True)
+            _drop_exclude(exclude, relative)
         self.assertTrue(any("ModuleNotFoundError" in item for item in failures), failures)
+        self.assertFalse(path.exists())
+        self.assertNotIn(relative, exclude.read_text(encoding="utf-8"))
 
 
 class DesignSkillsFailureLogTest(unittest.TestCase):
