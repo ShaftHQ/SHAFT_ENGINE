@@ -63,4 +63,5 @@ one lesson card.
 | [L83 install download retry](install-download-retry.md) | SSL EOF / GnuTLS retry + local-clone fallback |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
+Avatar QC not listed above (frozen-tail, wardrobe, likeness): [lesson index extension](index-extension.md). Load one row.
 
