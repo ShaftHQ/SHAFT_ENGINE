@@ -25,7 +25,7 @@ public interface Internal extends EngineProperties<Internal> {
      * @return the configured value of {@code shaftEngineVersion}
      */
     @Key("shaftEngineVersion")
-    @DefaultValue("10.4.20261102")
+    @DefaultValue("10.4.20261108")
     String shaftEngineVersion();
 
     /**
@@ -54,7 +54,7 @@ public interface Internal extends EngineProperties<Internal> {
      * <a href="https://github.com/allure-framework/allure3/releases">Allure3Releases</a>
      */
     @Key("allure3Version")
-    @DefaultValue("3.22.1")
+    @DefaultValue("3.33.0")
     String allure3Version();
 
     /**
@@ -89,7 +89,7 @@ public interface Internal extends EngineProperties<Internal> {
      * Appium UiAutomator2 driver npm package version used by SHAFT MCP for Android.
      */
     @Key("appiumUiAutomator2DriverVersion")
-    @DefaultValue("9.0.0")
+    @DefaultValue("9.0.1")
     String appiumUiAutomator2DriverVersion();
 
     /**
@@ -97,7 +97,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("13.0.1")
+    @DefaultValue("13.0.7")
     String appiumXcuitestDriverVersion();
 
     /**
