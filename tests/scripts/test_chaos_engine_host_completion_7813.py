@@ -211,6 +211,7 @@ class InteractiveSelectionTests(unittest.TestCase):
 
     def test_default_install_does_not_open_the_terminal(self):
         opened = []
+        captured = {}
 
         def factory():
             opened.append("tty")
@@ -219,8 +220,12 @@ class InteractiveSelectionTests(unittest.TestCase):
         def opener(*_args, **_kwargs):
             raise AssertionError("network")
 
+        def core(*_args, **kwargs):
+            captured["completion_targets"] = kwargs.get("completion_targets", "missing")
+            raise RuntimeError("halt")
+
         with tempfile.TemporaryDirectory() as temporary, mock.patch.dict(os.environ, quiet_host_env(), clear=True):
-            with mock.patch.object(self.bootstrap, "_run_core_install", side_effect=RuntimeError("halt")):
+            with mock.patch.object(self.bootstrap, "_run_core_install", side_effect=core):
                 with self.assertRaisesRegex(RuntimeError, "halt"):
                     self.bootstrap.install_latest(
                         Path(temporary),
@@ -230,6 +235,16 @@ class InteractiveSelectionTests(unittest.TestCase):
                         opener=opener,
                     )
         self.assertEqual([], opened)
+        self.assertIsNone(captured["completion_targets"])
+
+    def test_empty_interactive_answer_without_clis_passes_none(self):
+        self.assertIsNone(self._interactive_targets(set()))
+
+    def test_empty_interactive_answer_with_four_clis_passes_only_those(self):
+        self.assertEqual(
+            ("claude", "codex", "grok", "gemini"),
+            self._interactive_targets({"claude", "codex", "grok", "gemini", "gh", "code", "cursor"}),
+        )
 
     def test_install_docs_and_wrappers_keep_the_question_off_the_one_liner(self):
         shell = (CE / "install.sh").read_text(encoding="utf-8")
@@ -259,7 +274,7 @@ class InteractiveSelectionTests(unittest.TestCase):
                 return False
 
         def core(_project, scratch, **kwargs):
-            captured["targets"] = kwargs.get("completion_targets")
+            captured["targets"] = kwargs["completion_targets"]
             scratch["temporary"] = mock.Mock()
             return Path("/unused"), "1" * 40, mock.Mock()
 
@@ -281,6 +296,47 @@ class InteractiveSelectionTests(unittest.TestCase):
         self.assertEqual(1 if question else 0, output.count(self.bootstrap.CLIENT_QUESTION))
         self.assertEqual(1, output.count("Confirm Install companions (Caveman + Ponytail) with the core?"))
         self.assertEqual(1, output.count("Confirm Continue ChaosEngine install?"))
+
+    def _interactive_targets(self, found: set[str]):
+        """Empty answer through install_latest. which() is the patched bootstrap.shutil.which."""
+        captured = {}
+
+        def which(name, *_args, **_kwargs):
+            return f"/usr/bin/{name}" if name in found else None
+
+        def core(_project, scratch, **kwargs):
+            captured["completion_targets"] = kwargs["completion_targets"]
+            scratch["temporary"] = mock.Mock()
+            return Path("/unused"), "1" * 40, mock.Mock()
+
+        class Terminal:
+            def __enter__(self):
+                return io.StringIO("\ny\ny\n")
+
+            def __exit__(self, *_exc):
+                return False
+
+        wizard = self.bootstrap.run_first_run_wizard
+        defaults = wizard.__kwdefaults__
+        previous = defaults["which"]
+        # which= is bound at import. Point it at bootstrap.shutil.which so the patch is visible.
+        defaults["which"] = lambda name, *args, **kwargs: self.bootstrap.shutil.which(name, *args, **kwargs)
+        try:
+            with tempfile.TemporaryDirectory() as temporary, mock.patch.dict(os.environ, quiet_host_env(), clear=True):
+                with mock.patch.object(self.bootstrap.shutil, "which", side_effect=which):
+                    with mock.patch.object(self.bootstrap, "_run_core_install", side_effect=core):
+                        self.bootstrap.install_latest(
+                            Path(temporary),
+                            repository="Example/Project",
+                            interactive=True,
+                            skip_tools=True,
+                            reporter=self.bootstrap.InstallReporter(stream=io.StringIO()),
+                            terminal_factory=Terminal,
+                            opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("network")),
+                        )
+        finally:
+            defaults["which"] = previous
+        return captured["completion_targets"]
 
 
 class ActivationTests(unittest.TestCase):
@@ -338,31 +394,134 @@ class ActivationTests(unittest.TestCase):
             self.assertNotIn("Grok Bot", self.bootstrap.format_host_onboarding_cards())
 
     def test_unattended_keeps_path_shims_and_a_selection_does_not(self):
-        def which(name):
-            return "/usr/bin/cursor" if name == "cursor" else None
-
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
-            self.install.record_completion_targets(project, ("grok-bot",))
-            with mock.patch.object(self.install.shutil, "which", side_effect=which):
-                self.install.apply_install_host_completion(project, None)
+            project = Path(temporary) / "unattended"
+            project.mkdir()
+            self._drive_core_install(project, None)
             self.assertTrue((project / ".cursor/hooks.json").is_file())
-            self.assertFalse((project / ".opencode").exists())
+            self.assertTrue((project / ".opencode/plugins/chaos-engine-receipt.js").is_file())
+            self.assertFalse((project / ".chaos-engine-state/host-completion.json").exists())
             self.assertEqual((), self.install.read_completion_targets(project))
             chosen = Path(temporary) / "chosen"
             chosen.mkdir()
-            with mock.patch.object(self.install.shutil, "which", side_effect=which):
-                self.install.apply_install_host_completion(chosen, ("grok",))
+            self._drive_core_install(chosen, ("grok",))
             self.assertFalse((chosen / ".cursor/hooks.json").exists())
+            self.assertFalse((chosen / ".opencode/plugins/chaos-engine-receipt.js").exists())
             self.assertEqual(("grok",), self.install.read_completion_targets(chosen))
-            locked = Path(temporary) / "locked"
-            locked.mkdir()
-            with mock.patch.object(self.install.shutil, "which", side_effect=which):
-                self.install.wire_receipt_shims(locked)
-                self.install.reconcile_locked_host_completion(locked, ("grok-bot",))
-            self.assertFalse((locked / ".cursor/hooks.json").exists())
-            self.assertFalse((locked / ".opencode").exists())
-            self.assertEqual(("grok-bot",), self.install.read_completion_targets(locked))
+
+    def _drive_core_install(self, project: Path, targets) -> None:
+        """Real _run_core_install. Download and installer load are patched; shim methods are not."""
+        called = {"install": False}
+
+        def which(name):
+            return f"/usr/bin/{name}" if name in {"cursor", "cursor-agent", "opencode"} else None
+
+        def install_with_dependencies(installed, _source, _commit, **_kwargs):
+            called["install"] = True
+            self.install.wire_receipt_shims(installed, which=which)
+            self.install.record_completion_targets(installed, ("stale",))
+            return installed / ".chaos-engine"
+
+        installer = type("Installer", (), {})()
+        installer.install_with_dependencies = install_with_dependencies
+        installer.clear_completion_targets = self.install.clear_completion_targets
+        installer.unwire_receipt_shims = self.install.unwire_receipt_shims
+        installer.apply_install_host_completion = self.install.apply_install_host_completion
+        scratch: dict = {"temporary": None}
+        try:
+            with mock.patch.object(self.bootstrap, "resolve_latest", return_value=("d" * 40, "main")):
+                with mock.patch.object(self.bootstrap, "download_source", return_value=CE):
+                    with mock.patch.object(self.bootstrap, "load_installer", return_value=installer):
+                        self.bootstrap._run_core_install(
+                            project,
+                            scratch,
+                            repository="Example/Project",
+                            branch=None,
+                            skip_tools=False,
+                            with_maven_tools=False,
+                            maven_tools_mode="native",
+                            distribution="portable",
+                            opener=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("network")),
+                            provisioner=None,
+                            reporter=self.bootstrap.InstallReporter(stream=io.StringIO()),
+                            bundle_options=None,
+                            addons_requested=None,
+                            addons_removed=None,
+                            confirm=lambda _name: None,
+                            remaining=lambda _name: (),
+                            completion_targets=targets,
+                        )
+        finally:
+            temporary = scratch["temporary"]
+            if temporary is not None:
+                temporary.cleanup()
+        self.assertTrue(called["install"])
+
+    def test_install_command_reconciles_locked_shims(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "unattended"
+            project.mkdir()
+            self._run_locked_install(project, hosts=None)
+            self.assertTrue((project / ".cursor/hooks.json").is_file())
+            self.assertTrue((project / ".opencode/plugins/chaos-engine-receipt.js").is_file())
+            self.assertFalse((project / ".chaos-engine-state/host-completion.json").exists())
+            chosen = Path(temporary) / "grok-bot"
+            chosen.mkdir()
+            self._run_locked_install(chosen, hosts=("grok-bot",))
+            self.assertFalse((chosen / ".cursor/hooks.json").exists())
+            self.assertFalse((chosen / ".opencode/plugins/chaos-engine-receipt.js").exists())
+            self.assertEqual(("grok-bot",), self.install.read_completion_targets(chosen))
+
+    def test_skip_tools_apply_wires_only_the_selected_shims(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            both = Path(temporary) / "both"
+            both.mkdir()
+            self._run_locked_install(both, hosts=("opencode", "cursor"), skip_tools=True)
+            self.assertTrue((both / ".cursor/hooks.json").is_file())
+            self.assertTrue((both / ".opencode/plugins/chaos-engine-receipt.js").is_file())
+            self.assertEqual(("opencode", "cursor"), self.install.read_completion_targets(both))
+            bot = Path(temporary) / "bot"
+            bot.mkdir()
+            self._run_locked_install(bot, hosts=("grok-bot",), skip_tools=True)
+            self.assertFalse((bot / ".cursor/hooks.json").exists())
+            self.assertFalse((bot / ".opencode/plugins/chaos-engine-receipt.js").exists())
+            self.assertEqual(("grok-bot",), self.install.read_completion_targets(bot))
+
+    def _run_locked_install(self, project: Path, *, hosts: tuple[str, ...] | None, skip_tools: bool = False) -> None:
+        """Real _run_install_command. install_with_dependencies is stubbed and writes the shims."""
+
+        def which(name):
+            return f"/usr/bin/{name}" if name in {"cursor", "cursor-agent", "opencode"} else None
+
+        def install_with_dependencies(installed, _source, _commit, **_kwargs):
+            self.install.wire_receipt_shims(installed, which=which)
+            self.install.record_completion_targets(installed, ("stale",))
+            return installed / ".chaos-engine"
+
+        def install(installed, _source, _commit, **_kwargs):
+            return installed / ".chaos-engine"
+
+        command = [
+            "install",
+            "--project",
+            str(project),
+            "--source",
+            str(CE),
+            "--commit",
+            "c" * 40,
+            "--skip-prerequisites",
+        ]
+        if skip_tools:
+            command.append("--skip-tools")
+        if hosts:
+            command.extend(("--hosts", ",".join(hosts)))
+        args = self.install.parser().parse_args(command)
+        with mock.patch.dict(os.environ, quiet_host_env(), clear=True):
+            with mock.patch.object(self.install, "install_with_dependencies", side_effect=install_with_dependencies):
+                with mock.patch.object(self.install, "install", side_effect=install):
+                    with mock.patch.object(self.install, "load_installed_controller", return_value=object()):
+                        with mock.patch.object(self.install, "post_install_housekeeping", return_value=None):
+                            self.install._run_install_command(args, set(), set())
 
     def test_doctor_summary_names_completion_targets(self):
         plain = self.install.format_health_report({"status": "healthy", "commit": "a" * 40})
@@ -370,10 +529,6 @@ class ActivationTests(unittest.TestCase):
         self.assertIn("completion targets: grok, cursor", report)
         self.assertNotIn("completion targets:", plain)
         self.assertNotIn("completionTargets", self.install._DIAGNOSTIC_FIELDS["doctor"])
-        source = (CE / "install.py").read_text(encoding="utf-8")
-        self.assertIn("apply_install_host_completion(project, targets)", source)
-        self.assertIn("apply_install_host_completion(args.project, targets)", source)
-        self.assertIn("wire_receipt_shims(project)", source)
 
     def test_claude_activation_requires_the_cli_and_grok_does_not_force_lean(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -422,19 +577,30 @@ class ActivationTests(unittest.TestCase):
             self.install.install(project, CE, "1" * 40)
             hosts = load("ce_hosts_7817_lean", CE / "hosts.py")
             real_load = hosts._load_grok_lean_config
+            recorded: list[object] = []
 
             def patched_load():
                 module = real_load()
-                module.should_apply_grok_lean = lambda _project, which=None: False
+                real_sync = module.sync_project_grok_lean
+                module.should_apply_grok_lean = lambda _project, which=None: True
+
+                def wrapped_sync(*args, **kwargs):
+                    recorded.append(kwargs.get("lean_skills", False))
+                    return real_sync(*args, **kwargs)
+
+                module.sync_project_grok_lean = wrapped_sync
                 return module
 
             hosts.install.__globals__["_load_grok_lean_config"] = patched_load
             with mock.patch.dict(os.environ, {"GROK_HOME": str(home)}, clear=False):
+                os.environ.pop("CHAOS_ENGINE_LEAN_GROK_SKILLS", None)
                 hosts.install(project, core_commit="1" * 40)
                 self.install.apply_install_host_completion(project, ("grok",))
             config = home / "config.toml"
             text = config.read_text(encoding="utf-8") if config.is_file() else ""
-            self.assertNotIn("# CHAOSENGINE-GROK-LEAN:START", text)
+            self.assertTrue(recorded)
+            self.assertTrue(all(value is False for value in recorded))
+            self.assertIn("# CHAOSENGINE-GROK-LEAN:START", text)
             self.assertNotIn("# CHAOSENGINE-GROK-SKILLS:START", text)
             for relative in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md"):
                 self.assertTrue((project / relative).is_file(), relative)
