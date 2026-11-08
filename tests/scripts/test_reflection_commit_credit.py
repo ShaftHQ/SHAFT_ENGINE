@@ -198,22 +198,34 @@ class ReflectionCommitCreditTest(unittest.TestCase):
             self.assertIn("receipt", blocked.getvalue())
             self.assertIn("Do not read reflection.py", blocked.getvalue())
             portable = _load_portable_guard()
-            portable_output = io.StringIO()
-            with redirect_stdout(portable_output):
-                code = portable._run_event(
-                    {
-                        "hook_event_name": "PreToolUse",
-                        "tool_name": "Write",
-                        "tool_input": {"file_path": "scripts/agents/probe.py"},
-                        "session_id": session,
-                        "cwd": ".",
-                    },
-                    "portable",
-                )
-            self.assertEqual(2, code)
-            self.assertIn("Reflection required", portable_output.getvalue())
-            self.assertIn("receipt", portable_output.getvalue())
-            self.assertIn("Do not read reflection.py", portable_output.getvalue())
+            project = portable.justification.project_root(Path("."))
+            sink = project / ".chaos-engine-state" / "research-receipt.md"
+            existed = sink.is_file()
+            prior = sink.read_text(encoding="utf-8") if existed else ""
+            sink.parent.mkdir(parents=True, exist_ok=True)
+            sink.write_text("retrieve: used\n", encoding="utf-8")
+            try:
+                portable_output = io.StringIO()
+                with redirect_stdout(portable_output):
+                    code = portable._run_event(
+                        {
+                            "hook_event_name": "PreToolUse",
+                            "tool_name": "Write",
+                            "tool_input": {"file_path": "scripts/agents/probe.py"},
+                            "session_id": session,
+                            "cwd": ".",
+                        },
+                        "portable",
+                    )
+                self.assertEqual(2, code)
+                self.assertIn("Reflection required", portable_output.getvalue())
+                self.assertIn("receipt", portable_output.getvalue())
+                self.assertIn("Do not read reflection.py", portable_output.getvalue())
+            finally:
+                if existed:
+                    sink.write_text(prior, encoding="utf-8")
+                elif sink.is_file():
+                    sink.unlink()
 
 
 def _load_portable_guard():

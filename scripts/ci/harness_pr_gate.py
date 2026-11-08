@@ -139,6 +139,7 @@ CHECKS = {
             "tests.scripts.test_mcp_chrome_devtools_opt_in",
             "tests.scripts.test_copilot_cli_hook",
             "tests.scripts.test_chaos_engine_grok_hook_env",
+            "tests.scripts.test_open_queue_hooks_and_impact",
         ),
         True,
     ),
@@ -831,6 +832,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_mcp_chrome_devtools_opt_in.py",
         "tests/scripts/test_copilot_cli_hook.py",
         "tests/scripts/test_chaos_engine_grok_hook_env.py",
+        "tests/scripts/test_open_queue_hooks_and_impact.py",
     ),
     "lifecycle": (
         "chaos-engine/hooks/*",

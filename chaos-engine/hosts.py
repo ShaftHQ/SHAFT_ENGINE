@@ -5035,7 +5035,7 @@ def powershell_out_file_targets(command: str, drive: str = "D") -> list[str]:
 
     Block comments are ignored. ``>&`` and a redirect to ``$null`` or ``NUL``
     are not files. A ``/...`` path is the drive-qualified path PowerShell
-    builds, so ``>/dev/null`` on drive D is ``D:\\dev\\null`` (#7831).
+    builds. A leading slash is qualified with the caller drive (#7831).
     """
     if not isinstance(command, str) or not command.strip():
         return []
@@ -5070,6 +5070,8 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
     """One command: bash exec-chain, PowerShell foreach. No file Out-File target.
 
     ``<#`` is a bash syntax error, so the comment starts after ``echo``.
+    The opener's newline goes to stderr (``>&2``), so a failed launch leaves
+    stdout empty. ``>&`` is not an Out-File target.
     ``exec`` replaces the process, so a real hook deny (exit 2) does not try
     the next interpreter. A non-interactive bash exits on a failed ``exec``
     before ``||`` can try the next name, so ``execfail`` is set first.
@@ -5077,7 +5079,7 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
     ``LASTEXITCODE=`` and ``n=`` satisfy Grok's ``$NAME`` scanner for the probe.
     """
     return (
-        "echo `# <#`\n"
+        "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
         "shopt -s execfail\n"
@@ -5101,7 +5103,7 @@ def powershell_hook_parse_error(command: str) -> str | None:
 
     Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
     PowerShell. A parse error, a quoted native argument PowerShell 5.1
-    re-quotes, a ``>`` file path (``D:\\dev\\null``), or a hard-coded `python3`
+    re-quotes, a ``>`` file path, or a hard-coded `python3`
     (missing or the Store stub on many Windows machines) exits non-zero: the
     user-visible `Denied by preToolUse hook from "repo settings" (hook errored)`.
     """
