@@ -176,10 +176,7 @@ def validate_sbom(root: Path) -> list[str]:
     return []
 
 
-def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
-                         require_signatures: bool = False) -> list[str]:
-    errors: list[str] = []
-    parent = _parse(root / "pom.xml")
+def _reactor_modules(errors: list[str], parent: ET.Element) -> None:
     modules = {_text(module, ".") for module in parent.findall("m:modules/m:module", NS)}
     expected_modules = {str(path.parent) for path, _ in PUBLIC_ARTIFACTS.values() if path.parent != Path(".")}
     if not expected_modules.issubset(modules):
@@ -187,6 +184,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if "report-aggregate" not in modules:
         errors.append("reactor must include report-aggregate")
 
+
+def _parent_plugins(errors: list[str], parent: ET.Element, root: Path) -> None:
     active_plugins = [
         _text(plugin, "m:artifactId")
         for plugin in parent.findall("m:build/m:plugins/m:plugin", NS)
@@ -212,6 +211,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if sbom_skip != "false":
         errors.append("aggregate SBOM must include reactor artifacts regardless of deploy-skip detection")
 
+
+def _report_aggregate_skips(errors: list[str], root: Path) -> None:
     aggregate = _parse(root / "report-aggregate" / "pom.xml")
     if _text(aggregate, "m:properties/m:maven.deploy.skip") != "true":
         errors.append("report-aggregate must set maven.deploy.skip=true")
@@ -220,6 +221,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if _text(aggregate, "m:properties/m:skipPublishing") != "true":
         errors.append("report-aggregate must set skipPublishing=true")
 
+
+def _bom_references(errors: list[str], root: Path) -> None:
     bom = _parse(root / "shaft-bom" / "pom.xml")
     bom_artifacts = {
         _text(dependency, "m:artifactId")
@@ -229,6 +232,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if unpublished:
         errors.append(f"BOM references unpublished artifacts: {sorted(unpublished)}")
 
+
+def _public_metadata(errors: list[str], root: Path) -> None:
     for artifact, (pom_path, packaging) in PUBLIC_ARTIFACTS.items():
         pom = _parse(root / pom_path)
         for field in ("m:name", "m:description"):
@@ -245,6 +250,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
                 if plugin not in plugins:
                     errors.append(f"{artifact} must activate {plugin}")
 
+
+def _release_workflows(errors: list[str], root: Path) -> None:
     workflow = (root / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
     required_steps = [
         "Reject existing Maven Central release version",
@@ -282,36 +289,51 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     if "javadoc-source-folder: target/javadocs" not in javadocs_workflow:
         errors.append("JavaDocs workflow must publish the assembled root target/javadocs site")
 
+
+def _publication_outputs(errors: list[str], root: Path, require_signatures: bool) -> None:
+    version = _version(root)
+    for artifact, (pom_path, packaging) in PUBLIC_ARTIFACTS.items():
+        module_dir = (root / pom_path).parent
+        target = module_dir / "target"
+        pom_output = root / pom_path
+        if not pom_output.is_file():
+            errors.append(f"missing publication output: {pom_output.relative_to(root)}")
+        pom_signature = target / f"{artifact}-{version}.pom.asc"
+        if require_signatures and not pom_signature.is_file():
+            errors.append(f"missing signature: {pom_signature.relative_to(root)}")
+        if packaging == "jar":
+            files = [f"{artifact}-{version}.jar"]
+            files += [f"{artifact}-{version}-{classifier}.jar" for classifier in JAR_CLASSIFIERS]
+            for name in files:
+                output = target / name
+                if not output.is_file():
+                    errors.append(f"missing publication output: {output.relative_to(root)}")
+                    continue
+                classifier = None
+                if name.endswith("-sources.jar"):
+                    classifier = "sources"
+                elif name.endswith("-javadoc.jar"):
+                    classifier = "javadoc"
+                errors.extend(validate_jar_contents(artifact, classifier, output))
+                if require_signatures and not output.with_name(output.name + ".asc").is_file():
+                    errors.append(f"missing signature: {output.relative_to(root)}.asc")
+    errors.extend(validate_sbom(root))
+    if require_signatures and not (root / "target" / "bom.json.asc").is_file():
+        errors.append("missing signature: target/bom.json.asc")
+
+
+def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
+                         require_signatures: bool = False) -> list[str]:
+    errors: list[str] = []
+    parent = _parse(root / "pom.xml")
+    _reactor_modules(errors, parent)
+    _parent_plugins(errors, parent, root)
+    _report_aggregate_skips(errors, root)
+    _bom_references(errors, root)
+    _public_metadata(errors, root)
+    _release_workflows(errors, root)
     if check_build_outputs:
-        version = _version(root)
-        for artifact, (pom_path, packaging) in PUBLIC_ARTIFACTS.items():
-            module_dir = (root / pom_path).parent
-            target = module_dir / "target"
-            pom_output = root / pom_path
-            if not pom_output.is_file():
-                errors.append(f"missing publication output: {pom_output.relative_to(root)}")
-            pom_signature = target / f"{artifact}-{version}.pom.asc"
-            if require_signatures and not pom_signature.is_file():
-                errors.append(f"missing signature: {pom_signature.relative_to(root)}")
-            if packaging == "jar":
-                files = [f"{artifact}-{version}.jar"]
-                files += [f"{artifact}-{version}-{classifier}.jar" for classifier in JAR_CLASSIFIERS]
-                for name in files:
-                    output = target / name
-                    if not output.is_file():
-                        errors.append(f"missing publication output: {output.relative_to(root)}")
-                        continue
-                    classifier = None
-                    if name.endswith("-sources.jar"):
-                        classifier = "sources"
-                    elif name.endswith("-javadoc.jar"):
-                        classifier = "javadoc"
-                    errors.extend(validate_jar_contents(artifact, classifier, output))
-                    if require_signatures and not output.with_name(output.name + ".asc").is_file():
-                        errors.append(f"missing signature: {output.relative_to(root)}.asc")
-        errors.extend(validate_sbom(root))
-        if require_signatures and not (root / "target" / "bom.json.asc").is_file():
-            errors.append("missing signature: target/bom.json.asc")
+        _publication_outputs(errors, root, require_signatures)
     return errors
 
 
