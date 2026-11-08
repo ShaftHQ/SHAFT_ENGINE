@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _git_exclude(root: Path) -> Path:
-    completed = subprocess.run(  # nosec B603 - fixed git argv, never a shell.
+    completed = subprocess.run(  # nosec B603 B607 - fixed git argv, never a shell.
         ["git", "-C", str(root), "rev-parse", "--git-path", "info/exclude"],
         check=True,
         capture_output=True,
@@ -209,7 +209,7 @@ class IsolatedProbeTest(unittest.TestCase):
         _append_exclude(exclude, relative)
         path.write_text("import scripts.ci.overlay_pre_push\n", encoding="utf-8")
         try:
-            status = subprocess.run(  # nosec B603 - fixed git argv, never a shell.
+            status = subprocess.run(  # nosec B603 B607 - fixed git argv, never a shell.
                 ["git", "-C", str(ROOT), "status", "--porcelain=v1", "--untracked-files=normal"],
                 check=True,
                 capture_output=True,
