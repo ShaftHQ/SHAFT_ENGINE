@@ -66,6 +66,8 @@ shaft-cli help
 shaft-cli report
   option --args arity=1
   option --json arity=0
+  option --results arity=1
+  option --single-file arity=0
   option --stdio-ok arity=0
   option -V,--version arity=0
   option -h,--help arity=0
