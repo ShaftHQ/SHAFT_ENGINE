@@ -93,7 +93,7 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Run live IntelliJ chat-panel tool tests (Tool + Capture)
         run: >-
-          bash shaft-intellij/gradlew -p shaft-intellij test
+          bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveToolE2ETest
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveCaptureToolE2ETest
           -Dshaft.intellij.liveToolE2E=true
@@ -143,7 +143,7 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Run live IntelliJ chat-panel tool tests (Diagnostics)
         run: >-
-          bash shaft-intellij/gradlew -p shaft-intellij test
+          bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.ShaftAssistantPanelLiveDiagnosticsToolE2ETest
           -Dshaft.intellij.liveToolE2E=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"
@@ -195,7 +195,7 @@ jobs:
       # job -- and, by extension, never flips the notify job's outcome.
       - name: Run authoring live tests (gating)
         run: >-
-          bash shaft-intellij/gradlew -p shaft-intellij test
+          bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij test
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.shaftProjectServiceCreatesAndInitializesAgentsThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.testAutomationServiceLooksUpScenariosAndChecksGuardrailsThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.codingPartnerServicePlansAndDiffsThroughTheRealChatPanel"
@@ -218,7 +218,7 @@ jobs:
       - name: Run authoring externally-networked tests (non-gating)
         continue-on-error: true
         run: >-
-          bash shaft-intellij/gradlew -p shaft-intellij test
+          bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij test
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.guideServiceSearchesTheLiveUserGuideThroughTheRealChatPanel"
           --tests "com.shaft.intellij.ui.ShaftAssistantPanelLiveAuthoringToolE2ETest.plannerServiceExploresARealHeadlessSessionThroughTheRealChatPanel"
           -Dshaft.intellij.liveToolE2E=true
@@ -275,7 +275,7 @@ jobs:
       - name: Run live Gemini E2E test
         if: env.GEMINI_API_KEY != ''
         run: >-
-          bash shaft-intellij/gradlew -p shaft-intellij test
+          bash scripts/ci/build_retry.sh 2 15 bash shaft-intellij/gradlew -p shaft-intellij test
           --tests com.shaft.intellij.ui.AssistantGeminiLiveE2ETest
           -Dshaft.intellij.liveGemini=true
           "-Dshaft.intellij.liveMcpCommand=${MCP_JAVA} @${MCP_ARGS}"

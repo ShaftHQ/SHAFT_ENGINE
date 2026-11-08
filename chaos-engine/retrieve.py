@@ -17,6 +17,7 @@ from typing import Any
 STORES = ("memory", "mempalace", "graphify", "deja")
 DEJA_LIMIT = "8"
 DEJA_MODES = ("search", "how", "fix")
+RETRIEVE_MODES = (*DEJA_MODES, "impact")
 _NO_TRANSCRIPT_HOSTS = frozenset({"grok-bot", "copilot-cloud"})
 STATUS_USED = "used"
 STATUS_SKIPPED = "skipped"
@@ -977,6 +978,21 @@ def graph_freshness_field(project: Path) -> dict[str, str]:
     }
 
 
+def _graphify_direct(root: Path, cleaned: str, mode: str, chosen: str) -> dict[str, Any] | None:
+    """Local Graphify outcome, or None when the direct read cannot answer."""
+    if chosen != "graphify":
+        return None
+    split = _corpus_split()
+    if split is None:
+        return None
+    try:
+        if mode == "impact":
+            return split.impact_graphify_outcome(root, cleaned)
+        return split.direct_graphify_outcome(root, cleaned)
+    except (OSError, sqlite3.Error, RuntimeError, ValueError):
+        return None
+
+
 def retrieve(
     query: str,
     *,
@@ -993,7 +1009,7 @@ def retrieve(
     if len(cleaned) > QUERY_MAX:
         raise ValueError(f"query exceeds {QUERY_MAX} characters")
     root = project_root(project)
-    chosen = pick_store(cleaned, store)
+    chosen = "graphify" if mode == "impact" and store in {None, "graphify"} else pick_store(cleaned, store)
     receipt: dict[str, Any] = {
         "schemaVersion": 1,
         "kind": "retrieve-orchestrator",
@@ -1009,16 +1025,13 @@ def retrieve(
     if recorded is not None:
         receipt.update(recorded)
         return receipt
-    direct = None
-    if chosen == "graphify":
-        split = _corpus_split()
-        if split is not None:
-            try:
-                direct = split.direct_graphify_outcome(root, cleaned)
-            except (OSError, sqlite3.Error, RuntimeError, ValueError):
-                direct = None
+    direct = _graphify_direct(root, cleaned, mode, chosen)
     if chosen == "deja":
         outcome = _run_deja(root, cleaned, host=host, mode=mode)
+    elif mode == "impact" and direct is not None:
+        # A contract flag is not a Graphify walk seed. Keep the local impact
+        # ranking instead of the no-rare-token skip (#7824).
+        outcome = direct
     elif _skip_no_rare_before_store(chosen, cleaned):
         outcome = {
             "status": STATUS_SKIPPED,
@@ -1122,7 +1135,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--host", default=os.environ.get("CHAOS_ENGINE_HOST"))
-    parser.add_argument("--mode", choices=DEJA_MODES, default="search")
+    parser.add_argument("--mode", choices=RETRIEVE_MODES, default="search")
     parser.add_argument(
         "--recheck", action="store_true", help="re-probe MemPalace after a backend repair"
     )

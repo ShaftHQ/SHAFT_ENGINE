@@ -4072,9 +4072,21 @@ def failed_install_result(error: BaseException) -> dict[str, str]:
     }
 
 
+def _plugin_list_timeout(error: BaseException) -> bool:
+    """True when ``plugin list --available --json`` is still running past its wait."""
+    if not isinstance(error, subprocess.TimeoutExpired):
+        return False
+    command = error.cmd if isinstance(error.cmd, (list, tuple)) else str(error.cmd).split()
+    return {"plugin", "list", "--available", "--json"} <= {str(part) for part in command}
+
+
 def classify_install_error(error: BaseException) -> str:
     if isinstance(error, (KeyboardInterrupt, InstallCancelled)):
         return "CE-INSTALL-CANCELLED"
+    # A still-running plugin list is not a failed install (#7826). The upgrade
+    # path swallows it; this keeps a bubbled timeout out of CE-INSTALL-FAILED.
+    if _plugin_list_timeout(error):
+        return "CE-INSTALL-PLUGIN-LIST-RUNNING"
     detail = str(error)
     if "Claude marketplace collision" in detail or "Claude plugin collision" in detail:
         return "CE-CLAUDE-MARKETPLACE-CONFLICT"

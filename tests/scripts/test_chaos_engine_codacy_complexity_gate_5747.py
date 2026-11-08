@@ -99,7 +99,7 @@ class CodacyComplexityGate5747Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             event = {
                 "hook_event_name": "PreToolUse",
-                "session_id": "codacy-5747-soft",
+                "session_id": "codacy-5747",
                 "cwd": temporary,
                 "tool_name": "Edit",
                 "tool_input": {
@@ -111,14 +111,26 @@ class CodacyComplexityGate5747Tests(unittest.TestCase):
                     "new_string": "y",
                 },
             }
-            buffer = io.StringIO()
-            with redirect_stdout(buffer):
-                code = self.guard._run_event(event, "claude")
-            self.assertEqual(0, code)
-            payload = json.loads(buffer.getvalue().strip().splitlines()[-1])
-            self.assertIn("additionalContext", payload)
-            self.assertIn("ACTION_REQUIRED", payload["additionalContext"])
-            self.assertNotEqual("block", payload.get("decision"))
+            project = self.guard.justification.project_root(Path(temporary))
+            sink = project / ".chaos-engine-state" / "research-receipt.md"
+            existed = sink.is_file()
+            prior = sink.read_text(encoding="utf-8") if existed else ""
+            sink.parent.mkdir(parents=True, exist_ok=True)
+            sink.write_text("retrieve: used\n", encoding="utf-8")
+            try:
+                buffer = io.StringIO()
+                with redirect_stdout(buffer):
+                    code = self.guard._run_event(event, "claude")
+                self.assertEqual(0, code)
+                payload = json.loads(buffer.getvalue().strip().splitlines()[-1])
+                self.assertIn("additionalContext", payload)
+                self.assertIn("ACTION_REQUIRED", payload["additionalContext"])
+                self.assertNotEqual("block", payload.get("decision"))
+            finally:
+                if existed:
+                    sink.write_text(prior, encoding="utf-8")
+                elif sink.is_file():
+                    sink.unlink()
 
 
 if __name__ == "__main__":

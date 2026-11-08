@@ -1719,6 +1719,14 @@ def _kernel_block(event: dict, event_name: str, tool_name: str, tool_input: obje
         )
         if read_reason:
             return _deny(event, event_name, tool_name, read_reason), normalized
+        impact_reason = justification.impact_edit_block_reason(
+            project=justification.project_root(Path(str(event.get("cwd") or Path.cwd()))),
+            event_name=str(normalized.name or event_name),
+            tool_name=str(normalized.tool_name or tool_name),
+            session_id=session_id,
+        )
+        if impact_reason:
+            return _deny(event, event_name, tool_name, impact_reason), normalized
     research_reason = _research_before_mutation_reason(
         event_name, bool(normalized.stateful_mutation), session_id
     )
