@@ -1585,6 +1585,12 @@ process.stderr.write(result.stderr || '');
                 "Do not merge https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
                 "Tell the subagent to stop. Do not merge "
                 "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+                "The implementer must stop. Do not merge "
+                "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+                "The writer must stop. Do not merge "
+                "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+                "This dispatch must stop. Do not merge "
+                "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
             )
             for prompt in prompts:
                 submitted = self.run_hook(
@@ -1625,6 +1631,39 @@ process.stderr.write(result.stderr || '');
             self.assertTrue(
                 any(
                     item.get("pullRequest") == 17 and item.get("repository") == "ShaftHQ/example"
+                    for item in entries
+                ),
+                entries,
+            )
+
+    def test_brief_word_with_owner_scope_cue_records_pull_request(self):
+        """#7797: a brief word plus an owner cue still records the pull request."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            submitted = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": (
+                        "Dispatch this pull request as out of scope: "
+                        "https://github.com/ShaftHQ/example/pull/19"
+                    ),
+                    "session_id": "oos-7797c",
+                },
+                environment,
+            )
+            self.assertEqual(0, submitted.returncode, submitted.stdout + submitted.stderr)
+            allow = root / ".chaos-engine-state" / "out-of-scope-pull-requests.json"
+            self.assertTrue(
+                allow.is_file(),
+                "a brief that also says out of scope must still record the pull request",
+            )
+            payload = json.loads(allow.read_text(encoding="utf-8"))
+            entries = payload["pullRequests"]
+            self.assertTrue(
+                any(
+                    item.get("pullRequest") == 19 and item.get("repository") == "ShaftHQ/example"
                     for item in entries
                 ),
                 entries,
