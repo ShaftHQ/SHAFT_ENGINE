@@ -57,6 +57,7 @@ import javax.xml.transform.stream.StreamSource;
 import java.io.*;
 import java.net.URI;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -1303,7 +1304,7 @@ public class RestActions {
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
         //Add configs
-        RestAssuredConfig userConfigs = sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
+        RestAssuredConfig userConfigs = sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset(StandardCharsets.UTF_8)
                         .appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
                 .httpClient(HttpClientConfig.httpClientConfig()
                         .setParam("http.connection.timeout", ApiSettings.apiConnectionTimeoutSeconds() * 1000)
@@ -1478,7 +1479,7 @@ public class RestActions {
                 MultiPartSpecBuilder mp = new MultiPartSpecBuilder(String.valueOf(value))
                         .controlName(name)
                         .mimeType("text/plain")
-                        .charset("UTF-8");
+                        .charset(StandardCharsets.UTF_8);
                 builder.addMultiPart(mp.build());
                 hasAnyPart = true;
             }
