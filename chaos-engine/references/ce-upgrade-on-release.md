@@ -27,6 +27,10 @@ implicitly (`ce_load: required` + `tool.py entry`).
    owner — do not silently skip the upgrade or invent a local fork.
 5. Role-neutral: no bot-specific exceptions; ownership of the harness is
    the harness owner role, not a named agent.
+6. **Concurrent bumps:** two open changes that each edit `chaos-engine/VERSION`
+   conflict. The one that merges second calls `next_version` on the value
+   already on the default branch for that merge day. It does not keep the
+   older number and it does not reuse the number the first change published.
 
 ## Why
 
