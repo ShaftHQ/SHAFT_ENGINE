@@ -794,7 +794,7 @@ class InstallerUxTests(unittest.TestCase):
 
         class Terminal:
             def __enter__(self):
-                return io.StringIO("n\n")
+                return io.StringIO("\nn\n")
 
             def __exit__(self, *_exc):
                 return False

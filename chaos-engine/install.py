@@ -4163,6 +4163,100 @@ def unwire_receipt_shims(project: Path, module=None) -> None:
         module.uninstall(project, host)
 
 
+COMPLETION_TARGETS_RELATIVE = ".chaos-engine-state/host-completion.json"
+
+
+def record_completion_targets(project: Path, targets: tuple[str, ...]) -> None:
+    path = Path(project) / COMPLETION_TARGETS_RELATIVE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"schemaVersion": 1, "targets": list(targets)}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def clear_completion_targets(project: Path) -> None:
+    path = Path(project) / COMPLETION_TARGETS_RELATIVE
+    if is_link_or_reparse(path) or path.is_file():
+        path.unlink()
+
+
+def read_completion_targets(project: Path) -> tuple[str, ...]:
+    path = Path(project) / COMPLETION_TARGETS_RELATIVE
+    try:
+        if is_link_or_reparse(path) or not path.is_file():
+            return ()
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return ()
+    raw = payload.get("targets") if isinstance(payload, dict) else None
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        return ()
+    return tuple(raw)
+
+
+def wire_selected_receipt_shims(project: Path, targets: tuple[str, ...]) -> dict[str, str]:
+    """Call the existing receipt-shim install for cursor and opencode only.
+
+    grok-bot is not a shim host. receipt_shim.install() writes the OpenCode
+    plugin for every host other than cursor, so this function never calls it
+    for grok-bot.
+    """
+    selected = tuple(host for host in RECEIPT_SHIM_HOSTS if host in targets)
+    module = _receipt_shim_module() if selected else None
+    tracked = _consumer_tracked_shim_targets(project) if selected else set()
+    result: dict[str, str] = {}
+    for host in RECEIPT_SHIM_HOSTS:
+        if host not in selected or module is None:
+            result[host] = "absent"
+        elif RECEIPT_SHIM_TARGETS[host] in tracked:
+            result[host] = "untouched-tracked"
+        else:
+            module.install(project, host)
+            result[host] = "wired"
+    return result
+
+
+def apply_install_host_completion(
+    project: Path, targets: tuple[str, ...] | None
+) -> dict[str, str]:
+    """Unattended keeps PATH/marker shim wiring. A target set wires only itself."""
+    if targets is None:
+        clear_completion_targets(project)
+        return wire_receipt_shims(project)
+    record_completion_targets(project, targets)
+    return wire_selected_receipt_shims(project, targets)
+
+
+def activate_completion_targets(
+    project: Path,
+    targets: tuple[str, ...],
+    *,
+    host_controller,
+    which=shutil.which,
+    confirmer=None,
+) -> dict[str, object]:
+    """Claude and Codex marketplace activation when that CLI is on PATH.
+
+    A missing CLI does not fail the install. Grok lean stays on
+    should_apply_grok_lean; this function does not merge it.
+    """
+    native = tuple(host for host in ("codex", "claude") if host in targets and which(host))
+    if not native or host_controller is None:
+        return {"clients": {}}
+
+    def filtered(name: str, allowed: tuple[str, ...] = native):
+        if name not in allowed:
+            return None
+        return which(name)
+
+    kwargs = {"which": filtered}
+    if confirmer is not None:
+        kwargs["confirmer"] = confirmer
+    result = host_controller.activate_detected_plugins(project, **kwargs)
+    return result if isinstance(result, dict) else {"clients": {}}
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -4176,6 +4270,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
     bundle_options: dict[str, bool] | None = None,
     addons: tuple[str, ...] = (),
+    completion_targets: tuple[str, ...] | None = None,
 ) -> Path:
     project = project.resolve()
     reject_nested_project(project)
@@ -4645,7 +4740,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         sync_repository_overlay_from_source(project, commit)
-        wire_receipt_shims(project)
+        apply_install_host_completion(project, completion_targets)
         clear_install_rollback(project)
         if not _running_under_tests():
             refresh_stale_graph(project)
@@ -7142,6 +7237,12 @@ def parser() -> argparse.ArgumentParser:
             "imagine into ~/.grok/config.toml (also CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
         ),
     )
+    install_command.add_argument(
+        "--hosts",
+        action="append",
+        default=None,
+        help="Client ids to complete (comma-separated). Also CHAOS_ENGINE_HOST.",
+    )
     repair_command = commands.add_parser(
         "repair",
         help="Targeted zero-LLM repair for one component (no full wipe).",
@@ -7729,7 +7830,11 @@ def apply_git_husk_doctor(result: dict[str, object], project: Path) -> None:
         result["status"] = "recovery-required"
 
 
-def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> str:
+def format_doctor_host_onboarding(
+    clients: dict[str, object] | None = None,
+    *,
+    targets: tuple[str, ...] | None = None,
+) -> str:
     """Load bootstrap host onboarding cards for human doctor output."""
     bootstrap_path = Path(__file__).resolve().with_name("bootstrap.py")
     spec = importlib.util.spec_from_file_location(
@@ -7742,6 +7847,7 @@ def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> s
     return module.format_host_onboarding_cards(
         detected=module.detect_install_hosts(),
         activated=clients if isinstance(clients, dict) else {},
+        targets=targets,
     )
 
 
@@ -8366,6 +8472,9 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         f"ChaosEngine {label}: {status}",
         f"commit: {commit_text}",
     ]
+    targets = document.get("completionTargets")
+    if isinstance(targets, (list, tuple)) and targets:
+        lines.append("completion targets: " + ", ".join(str(item) for item in targets))
     last_install = document.get("lastInstall")
     if isinstance(last_install, dict) and last_install.get("status") == "rolled-back":
         requested = str(last_install.get("requestedCommit") or "")[:12] or "unknown"
@@ -8761,6 +8870,24 @@ def _local_source_required_message() -> str:
     )
 
 
+def _bootstrap_host_resolution():
+    path = Path(__file__).resolve().with_name("bootstrap.py")
+    spec = importlib.util.spec_from_file_location("ce_install_host_resolution", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"unable to load ChaosEngine host resolver: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def completion_targets_from_args(args) -> tuple[str, ...] | None:
+    """Explicit --hosts or CHAOS_ENGINE_HOST. Empty means the unattended install."""
+    raw = getattr(args, "hosts", None)
+    explicit = ",".join(raw) if raw else None
+    resolution = _bootstrap_host_resolution().resolve_install_hosts(explicit=explicit)
+    return resolution.hosts or None
+
+
 def _run_install_command(args, requested, removed) -> object:
     """The `install` subcommand: the JSON result, or ``_HANDLED`` for an unchanged no-op."""
     if args.from_bundle is not None:
@@ -8779,6 +8906,7 @@ def _run_install_command(args, requested, removed) -> object:
     refusal = linked_worktree_refusal(args.project)
     if refusal:
         raise RuntimeError(refusal)
+    targets = completion_targets_from_args(args)
     planned, addons = plan_install(args.project, args.source, requested, removed)
     args.distribution = args.distribution or planned
     if getattr(args, "if_changed", False) and overlay_unchanged(
@@ -8792,16 +8920,17 @@ def _run_install_command(args, requested, removed) -> object:
     record_mcp_opt_in(args.project, args)
     if getattr(args, "consumer", False):
         os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
-    target = (
-        install(
+    if args.skip_tools:
+        target = install(
             args.project,
             args.source,
             args.commit,
             distribution=args.distribution,
             addons=addons,
         )
-        if args.skip_tools
-        else install_with_dependencies(
+        apply_install_host_completion(args.project, targets)
+    else:
+        target = install_with_dependencies(
             args.project,
             args.source,
             args.commit,
@@ -8810,8 +8939,14 @@ def _run_install_command(args, requested, removed) -> object:
             maven_tools_mode=args.maven_tools_mode,
             bundle_options=bundle,
             addons=addons,
+            completion_targets=targets,
         )
-    )
+        if targets:
+            activate_completion_targets(
+                args.project,
+                targets,
+                host_controller=load_installed_controller(target, "hosts"),
+            )
     result: object = {
         "status": "installed", "root": str(target), "bundle": bundle, "addons": list(addons)
     }
@@ -9066,15 +9201,22 @@ def _emit_result(args, result) -> int:
         if getattr(args, "fix_next_only", False):
             body = format_fix_next_only(result)
         else:
-            body = format_health_report(result, kind=args.command)
+            report = result
+            targets = read_completion_targets(getattr(args, "project", Path(".")))
+            if targets:
+                report = dict(result)
+                report["completionTargets"] = list(targets)
+            body = format_health_report(report, kind=args.command)
         print(body, end="")
         if args.command == "doctor":
             migration = result.get("migration")
             if isinstance(migration, dict) and migration.get("hardCut"):
                 print(f"WARNING: {migration['hardCut']}")
             clients = result.get("clients")
+            targets = read_completion_targets(getattr(args, "project", Path(".")))
             onboarding = format_doctor_host_onboarding(
-                clients if isinstance(clients, dict) else {}
+                clients if isinstance(clients, dict) else {},
+                targets=targets,
             )
             # Cortex: host/copilot+grok cards were printed twice; keep one block.
             if onboarding and "Host onboarding cards:" not in body:

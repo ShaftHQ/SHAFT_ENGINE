@@ -68,6 +68,12 @@ for a normal first install.
 The default install is the lean core only. These add-ons are never installed
 by default and never auto-selected; opt in with a flag:
 
+Host completion is separate from these optional flags. Choosing a client with
+`--hosts` or `CHAOS_ENGINE_HOST` (or the `--interactive` / `-Interactive`
+question) does not select `design-skills`, `shaft-engine-users`,
+`shaft-core-developers`, deja, or `--with-mcp`. Those stay off unless their own
+flag or `CHAOS_ENGINE_ADDONS` is set. Host completion is not an add-on id.
+
 | Add-on | For | sh / bootstrap.py / install.py | PowerShell |
 | --- | --- | --- | --- |
 | `design-skills` | Anyone designing web pages, images, motion graphics, or videos: 23 verified design cards and the zero-LLM `design_qc.py` | `--with-design-skills` | `-WithDesignSkills` |
@@ -323,7 +329,14 @@ that was open during installation so it loads its verified local plugin cache.
 Pass `--interactive` on macOS/Linux (PowerShell `-Interactive`) for the first-run
 wizard: it detects host CLIs, explains what will be installed (including Caveman +
 Ponytail companions), and prints a host-specific next-actions checklist before any
-download. The non-interactive one-liner path is unchanged.
+download. The client question exists only on `--interactive` / `-Interactive`.
+The default one-liner does not ask and does not open `/dev/tty` or `CONIN$`,
+even when a controlling terminal exists. An empty answer selects only the
+pre-checked `claude`, `codex`, `grok`, and `gemini` CLIs on `PATH`. Copilot is
+not pre-checked from `gh`, `code`, or `cursor`, and a `cursor` binary does not
+select Cursor. `--hosts` and `CHAOS_ENGINE_HOST` skip the question. PowerShell
+passes the same explicit ids with `-Hosts`. Companion confirmation still runs
+once. The non-interactive one-liner does not ask.
 
 Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
 branch (otherwise `main`). The bootstrap resolves that mutable branch through
