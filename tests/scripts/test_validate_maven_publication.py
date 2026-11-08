@@ -44,6 +44,31 @@ class MavenPublicationValidationTest(unittest.TestCase):
     def test_repository_publication_contract_is_valid(self):
         self.assertEqual(MODULE.validate_publication(), [])
 
+    def test_central_publisher_before_0_12_0_keeps_maven_310_bookkeeping(self):
+        self.assertFalse(MODULE.central_publishing_drops_maven_310_bookkeeping("0.11.0"))
+        self.assertFalse(MODULE.central_publishing_drops_maven_310_bookkeeping(""))
+        self.assertTrue(MODULE.central_publishing_drops_maven_310_bookkeeping("0.12.0"))
+        self.assertTrue(MODULE.central_publishing_drops_maven_310_bookkeeping("0.12.1"))
+        self.assertTrue(MODULE.central_publishing_drops_maven_310_bookkeeping("1.0"))
+
+    def test_downgraded_central_publisher_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._copy_contract(root)
+            pom = root / "pom.xml"
+            document = ET.parse(pom)
+            version = document.getroot().find(
+                "m:build/m:pluginManagement/m:plugins/m:plugin"
+                "[m:artifactId='central-publishing-maven-plugin']/m:version",
+                MODULE.NS,
+            )
+            self.assertIsNotNone(version)
+            version.text = "0.11.0"
+            document.write(pom, encoding="utf-8", xml_declaration=True)
+            errors = MODULE.validate_publication(root)
+            self.assertTrue(any("maven-metadata-local.xml" in error and "0.11.0" in error
+                                for error in errors))
+
     def test_bom_rejects_unpublished_artifact(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

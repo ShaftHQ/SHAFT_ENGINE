@@ -64,6 +64,65 @@ def _version(root: Path) -> str:
     return _text(_parse(root / "pom.xml"), "m:version") or ""
 
 
+# Maven 3.10 writes these next to staged artifacts. central-publishing 0.11.0
+# zips them, and Central rejects the bundle because that directory has no .pom.
+# 0.12.0 deletes them before the bundle is built.
+_MAVEN_310_STAGING_FILES = ("maven-metadata-local.xml", "_remote.repositories")
+_CENTRAL_PUBLISHING_FIX = (0, 12, 0)
+
+
+def maven_version_tuple(version: str) -> tuple[int, ...]:
+    numbers: list[int] = []
+    for part in version.split("."):
+        digits: list[str] = []
+        for char in part:
+            if not char.isdigit():
+                break
+            digits.append(char)
+        if not digits:
+            break
+        numbers.append(int("".join(digits)))
+    return tuple(numbers)
+
+
+def central_publishing_drops_maven_310_bookkeeping(version: str) -> bool:
+    """True when this publisher drops Maven 3.10 staging bookkeeping before upload."""
+    parsed = maven_version_tuple(version)
+    if not parsed:
+        return False
+    width = max(len(parsed), len(_CENTRAL_PUBLISHING_FIX))
+    left = parsed + (0,) * (width - len(parsed))
+    right = _CENTRAL_PUBLISHING_FIX + (0,) * (width - len(_CENTRAL_PUBLISHING_FIX))
+    return left >= right
+
+
+def central_publishing_version(pom: ET.Element) -> str | None:
+    direct = _text(
+        pom,
+        "m:build/m:plugins/m:plugin[m:artifactId='central-publishing-maven-plugin']/m:version",
+    )
+    managed = _text(
+        pom,
+        "m:build/m:pluginManagement/m:plugins/m:plugin"
+        "[m:artifactId='central-publishing-maven-plugin']/m:version",
+    )
+    return direct or managed
+
+
+def _require_central_publishing(errors: list[str], pom_path: Path) -> None:
+    if not pom_path.is_file():
+        return
+    version = central_publishing_version(_parse(pom_path))
+    if version and central_publishing_drops_maven_310_bookkeeping(version):
+        return
+    shown = version or "missing"
+    names = " and ".join(_MAVEN_310_STAGING_FILES)
+    errors.append(
+        f"{pom_path.as_posix()} central-publishing-maven-plugin {shown} "
+        f"bundles Maven 3.10 staging files {names}; require 0.12.0 or newer"
+    )
+
+
 def validate_jar_contents(artifact: str, classifier: str | None, jar: Path) -> list[str]:
     errors: list[str] = []
     try:
@@ -140,6 +199,8 @@ def validate_publication(root: Path = ROOT, check_build_outputs: bool = False,
     )
     if central is not None and _text(central, "m:inherited") == "false":
         errors.append("Central publishing must be inherited by every deployable reactor module")
+    _require_central_publishing(errors, root / "pom.xml")
+    _require_central_publishing(errors, root / "allure-cli" / "pom.xml")
     if all(plugin in active_plugins for plugin in ("cyclonedx-maven-plugin", "maven-gpg-plugin")):
         if active_plugins.index("cyclonedx-maven-plugin") > active_plugins.index("maven-gpg-plugin"):
             errors.append("aggregate SBOM must be attached before Maven GPG signs verify-phase artifacts")
