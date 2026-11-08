@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -871,8 +872,11 @@ class InstallScriptHostTests(unittest.TestCase):
                 "JAVA_HOME",
             ):
                 env.pop(key, None)
-            completed = subprocess.run(
-                ["bash", str(CE / "install.sh"), *arguments],
+            bash = shutil.which("bash")
+            if bash is None:
+                self.fail("bash must be on PATH")
+            completed = subprocess.run(  # nosec B603 B607 - absolute bash and the repository install.sh
+                [bash, str(CE / "install.sh"), *arguments],
                 cwd=work,
                 env=env,
                 capture_output=True,
