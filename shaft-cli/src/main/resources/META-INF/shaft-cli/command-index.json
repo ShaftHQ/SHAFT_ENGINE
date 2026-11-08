@@ -39,7 +39,7 @@
     },
     {
       "name": "report",
-      "description": "Reporting shortcuts: open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes."
+      "description": "Reporting shortcuts: generate, open, summary, history, flake, tags, clusters, heal, mute, unmute, mutes. generate rebuilds the single-file Allure report from an existing results directory inside this shaded jar, so Windows does not put the test classpath on the java command line."
     },
     {
       "name": "session",
