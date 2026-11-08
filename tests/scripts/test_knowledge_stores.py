@@ -359,10 +359,14 @@ class UnreadableGraphDoctorTest(unittest.TestCase):
         stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            subprocess.run([GIT, "init", "-q", "-b", "main", str(project)], check=True)
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+                [GIT, "init", "-q", "-b", "main", str(project)], check=True,
+            )
             (project / "a.txt").write_text("a\n", encoding="utf-8")
-            subprocess.run([GIT, "-C", str(project), "add", "a.txt"], check=True)
-            subprocess.run(
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+                [GIT, "-C", str(project), "add", "a.txt"], check=True,
+            )
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
                 [GIT, "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
                  "commit", "-qm", "init"],
                 check=True,

@@ -695,7 +695,8 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
 
 
 def _readable_tip_lag(message: str, graph_out: Path) -> bool:
-    """True only when the graph parses and the sole gap is the branch tip.
+    """
+    True only when the graph parses and the sole gap is the branch tip.
 
     A file larger than 2 bytes can still be corrupt. Doctor must not call that
     sync-advisory (#7824).
