@@ -959,6 +959,21 @@ class QueueSnapshotTest(TestCase):
 
 
 class OperationBoundaryTest(TestCase):
+    def test_shell_set_plus_is_not_a_force_refspec(self) -> None:
+        boundary = _load("ce_operation_boundary_set_plus_7819", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.assertIsNone(boundary.force_push_block(root, "set +e; git push origin SOME_BRANCH"))
+            self.assertIsNone(boundary.force_push_block(root, "set +o pipefail; git push origin SOME_BRANCH"))
+            self.assertEqual(
+                "force-push-without-approval",
+                boundary.force_push_block(root, "git push --force origin SOME_BRANCH"),
+            )
+            self.assertEqual(
+                "force-push-without-approval",
+                boundary.force_push_block(root, "git push origin +SOME_BRANCH"),
+            )
+
     def test_push_force_remote_delete_and_secrets_use_disk_evidence(self) -> None:
         boundary = _load("ce_operation_boundary_1106", CE / "rules/operation_boundary.py")
         overlay = _load("ce_overlay_boundary_1106", ROOT / "scripts/ci/overlay_pre_push.py")
