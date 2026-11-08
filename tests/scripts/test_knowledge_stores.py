@@ -350,5 +350,39 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
         )
 
 
+class UnreadableGraphDoctorTest(unittest.TestCase):
+    """#7824: a stale graph.json that does not parse is degraded, not advisory."""
+
+    def test_corrupt_stale_graph_is_degraded_and_a_parsed_one_stays_advisory(self):
+        import runpy
+
+        stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+                [GIT, "init", "-q", "-b", "main", str(project)], check=True,
+            )
+            (project / "a.txt").write_text("a\n", encoding="utf-8")
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+                [GIT, "-C", str(project), "add", "a.txt"], check=True,
+            )
+            subprocess.run(  # nosec B603 - resolved Git executable and controlled fixture arguments.
+                [GIT, "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
+                 "commit", "-qm", "init"],
+                check=True,
+            )
+            graph = project / "graphify-out"
+            graph.mkdir()
+            (graph / "manifest.json").write_text("{}\n", encoding="utf-8")
+            (graph / "graph.json").write_text('{"nodes": [\n', encoding="utf-8")
+            stores["write_marker"](graph, "0" * 40)
+            corrupt = stores["graphify_doctor_row"](project)
+            self.assertEqual("degraded", corrupt["status"], corrupt)
+            self.assertIn("repair --project . --component graphify", corrupt["fixNext"])
+            (graph / "graph.json").write_text('{"nodes": []}\n', encoding="utf-8")
+            readable = stores["graphify_doctor_row"](project)
+            self.assertEqual("sync-advisory", readable["status"], readable)
+
+
 if __name__ == "__main__":
     unittest.main()

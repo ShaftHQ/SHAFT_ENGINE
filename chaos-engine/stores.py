@@ -695,9 +695,20 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
 
 
 def _readable_tip_lag(message: str, graph_out: Path) -> bool:
-    """True only when the graph is readable and the sole gap is the branch tip."""
+    """
+    True only when the graph parses and the sole gap is the branch tip.
+
+    A file larger than 2 bytes can still be corrupt. Doctor must not call that
+    sync-advisory (#7824).
+    """
     graph = graph_out / "graph.json"
-    return message.startswith("stale - indexed=") and graph.is_file() and graph.stat().st_size > 2
+    if not (message.startswith("stale - indexed=") and graph.is_file() and graph.stat().st_size > 2):
+        return False
+    try:
+        parsed = json.loads(graph.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return False
+    return isinstance(parsed, (dict, list))
 
 
 def home_palace_note() -> str:
