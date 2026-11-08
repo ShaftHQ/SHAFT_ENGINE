@@ -73,8 +73,8 @@ playbooks. Before the first push of **any** human PR:
 ## 5. Docs, catalog, and screenshots — only where real
 
 Update user documentation and the feature catalog only for shipped behavior.
-Regenerate screenshots only for changed panels. Externally documented behavior
-changes in the companion documentation repository require their own PR.
+Regenerate screenshots only for changed panels. Companion-repository changes
+require their own PR ([docs follow the change](docs-follow-change.md)).
 
 ## 6. Terminal Learning Session
 

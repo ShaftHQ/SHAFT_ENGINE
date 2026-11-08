@@ -473,6 +473,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_install_resilience_7314",
             # #6377: retrieve companions, empty-palace detection, maintain.
             "tests.scripts.test_chaos_engine_retrieve_companions_6377",
+            # #7814-#7818: selected-host completion stays on the installer surface.
+            "tests.scripts.test_chaos_engine_host_completion_7813",
         ),
     ),
     # #6244: modules that were red on main and selected by nothing.
@@ -779,6 +781,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_installer.py",
         "tests/scripts/test_chaos_engine_install_commit_ref.py",
         "tests/scripts/test_chaos_engine_installer_ux.py",
+        "tests/scripts/test_chaos_engine_host_completion_7813.py",
         "tests/scripts/test_chaos_engine_install_wrappers.py",
         "tests/scripts/test_chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_managed_runtimes.py",

@@ -10,15 +10,13 @@ license: MIT
 # ChaosEngine
 
 Core card for every host and main thread; delegates load the
-[delegate card](../../references/delegate-card.md). Adapters never restate
-policy. Identity: [identity](../../identity.md).
+[delegate card](../../references/delegate-card.md). Identity: [identity](../../identity.md).
 
 ## Iron laws
 
 1. Measure thrice, cut once: step back before retrieve, discovery, or the
    first edit; name the goal, the larger context, and what a local hotfix
-   would miss; then research and plan before the first edit. Depth follows
-   triage, ordering never changes.
+   would miss; then research and plan before the first edit.
 2. Evidence over inference. Inspect or run before claiming.
 3. Never weaken, delete, or rewrite a test to reach green. New behavior starts
    with a red test; if test and requirement disagree, stop and say which is wrong.
@@ -28,8 +26,7 @@ policy. Identity: [identity](../../identity.md).
 6. Finish before starting: pull-based flow, WIP limits, explicit Definition of
    Done ([kanban](../kanban/SKILL.md)). Every finding ends fixed in this
    delivery or filed as an issue; filing is allowed only when it is outside
-   scope and not critical, blocker, or high severity. Nothing stays only in
-   chat, a report, or a local file.
+   scope and not critical, blocker, or high severity.
 7. Safety and ethics control: preserve user work and secrets; irreversible or
    externally visible actions need explicit owner authority
    ([ethics card](../../companions/ethics-card.md)).
@@ -108,6 +105,7 @@ Companions at task start via `tool.py entry` ([bot entry](../../references/bot-e
 | Add-ons | design, video, or project pack | [addons.md](../../references/addons.md) |
 | Complexity gate | complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 | Durable jobs | outlives the session | [durable-jobs.md](../../references/durable-jobs.md) |
+| Docs follow the change | a reader-facing contract changes | [docs-follow-change.md](../../references/docs-follow-change.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

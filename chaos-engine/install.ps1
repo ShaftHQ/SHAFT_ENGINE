@@ -8,6 +8,7 @@ param(
     [switch]$WithMavenTools,
     [ValidateSet("native", "docker")][string]$MavenToolsMode = "native",
     [switch]$Interactive,
+    [string]$Hosts,
     [switch]$WithoutMemory,
     [switch]$WithoutMempalace,
     [switch]$WithoutGraphify,
@@ -473,6 +474,7 @@ try {
     if ($WithMavenTools) { $arguments += "--with-maven-tools" }
     if ($MavenToolsMode -eq "docker") { $arguments += @("--maven-tools-mode", "docker") }
     if ($interactiveRequested) { $arguments += "--interactive" }
+    if (-not [string]::IsNullOrWhiteSpace($Hosts)) { $arguments += @("--hosts", $Hosts) }
     # -Verbose is the CmdletBinding common parameter; irm|iex callers use CHAOS_ENGINE_VERBOSE=1.
     if ($PSBoundParameters.ContainsKey("Verbose")) { $arguments += "--verbose" }
     if ($WithoutMemory) { $arguments += "--without-memory" }

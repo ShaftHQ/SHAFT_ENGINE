@@ -93,12 +93,24 @@ maven_tools_mode=native
 interactive=
 verbose=
 forwarded_flags=
+pending_hosts=
 for argument in "$@"; do
+  if [ -n "$pending_hosts" ]; then
+    forwarded_flags="$forwarded_flags --hosts $argument"
+    pending_hosts=
+    continue
+  fi
   [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
   [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
   [ "$argument" = "--interactive" ] && interactive=1
   [ "$argument" = "--verbose" ] && verbose=1
   case "$argument" in
+    --hosts)
+      pending_hosts=1
+      ;;
+    --hosts=*)
+      forwarded_flags="$forwarded_flags $argument"
+      ;;
     --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-caveman)
       forwarded_flags="$forwarded_flags $argument"
       ;;
@@ -111,6 +123,7 @@ for argument in "$@"; do
       ;;
   esac
 done
+[ -z "$pending_hosts" ] || fail "--hosts requires a client id"
 
 
 find_chaos_engine_managed_jdk_home() {

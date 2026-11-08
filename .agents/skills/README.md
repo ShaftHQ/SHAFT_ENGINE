@@ -141,6 +141,7 @@ sends you there; the rest by
 - [shaft profile.json](../../shaft-skills/ce-pack/profile.json)
 - [routing](../../shaft-skills/ce-pack/references/routing.md)
 - [doc-claim review](../../chaos-engine/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
+- [docs follow the change](../../chaos-engine/references/docs-follow-change.md): reader-facing command, flag, and default contracts stay current, including changes already made in the session
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
 - [delegation cycle](../../chaos-engine/references/delegation-cycle.md)

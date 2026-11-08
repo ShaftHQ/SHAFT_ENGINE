@@ -100,6 +100,51 @@ macOS or Linux:
 curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
+## Clients this command can complete
+
+The command above completes a client when the environment shows exactly one
+client, or when you name the client. The full contract is
+[INSTALL.md](INSTALL.md#clients-this-command-can-complete).
+
+| Variable already set | Client id |
+| --- | --- |
+| `CLAUDE_CODE_ENTRYPOINT` or `CLAUDE_PLUGIN_ROOT` | `claude` |
+| `CODEX_HOME` | `codex` |
+| `GROK_HOOK_EVENT` | `grok` |
+| `CURSOR_AGENT` or `CURSOR_CONVERSATION_ID` | `cursor` |
+
+An empty value is ignored. Two different clients stop the install.
+`gemini`, `copilot`, `opencode`, and `grok-bot` are never inferred. Ignored
+for selection: `PATH`, a `cursor` program, `GROK_SESSION_ID`, `GEMINI_HOME`,
+`GEMINI_PROJECT_DIR`, and `COPILOT_HOME`. The published one-liner stays silent.
+
+Name the client with `CHAOS_ENGINE_HOST` or `--hosts` (PowerShell `-Hosts`).
+Valid ids: `claude`, `codex`, `grok`, `gemini`, `copilot`, `opencode`,
+`cursor`, `grok-bot`. Unknown ids stop the install.
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+curl -fsSL "$url" | bash -s -- "$url" --hosts grok
+```
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"))) -Hosts grok
+```
+
+`--interactive` (PowerShell `-Interactive`) asks
+`Which clients should this install complete?` once. Enter accepts `claude`,
+`codex`, `grok`, and `gemini` when those commands are on `PATH`. When none of
+them are, Enter completes no client and keeps the unattended PATH shims.
+`copilot`, `opencode`, `cursor`, and `grok-bot` must be typed. An explicit
+host value skips the question.
+
+Portable host files are still written for every client. Claude and Codex
+register a marketplace when that CLI is on `PATH`. Cursor writes
+`.cursor/hooks.json` and OpenCode writes
+`.opencode/plugins/chaos-engine-receipt.js` only when selected. Grok Bot
+writes no receipt shim. Naming `grok` does not enable `--lean-grok-skills`.
+A client id is not an add-on.
+
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
 [bootstrap.py](bootstrap.py) first when your trust policy requires review before
 execution. The public default is the neutral `portable` distribution.
@@ -454,7 +499,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | hashlib | Portable runtime standard-library dependency. | chaos-engine/addon_catalog.py, chaos-engine/addons/design-skills/scripts/design_qc.py, chaos-engine/addons/design-skills/scripts/motion_graphics_gate.py, chaos-engine/backups_watch.py, chaos-engine/bootstrap.py, chaos-engine/context_rot.py, chaos-engine/delete_guard.py, chaos-engine/dependencies.py, chaos-engine/external_reflection.py, chaos-engine/genai_spans.py, chaos-engine/harness_mindset.py, chaos-engine/heuristics.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py, chaos-engine/insight_extract.py, chaos-engine/install.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/overlay_match.py, chaos-engine/packs/java/maven_tools.py, chaos-engine/prompt_evolve.py, chaos-engine/rules/memory_full_dump.py, chaos-engine/rules/web_ui_gate.py, chaos-engine/self_modify.py, chaos-engine/significance.py, chaos-engine/skills/local-agency/scripts/tip_preflight.py, chaos-engine/skills/omniroute/scripts/runner.py, chaos-engine/stores.py, chaos-engine/tool.py, chaos-engine/workflow_induce.py, chaos-engine/worktree_overlay.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | hmac | Portable runtime standard-library dependency. | chaos-engine/delete_guard.py, chaos-engine/hooks/reflection.py, chaos-engine/hosts.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | html | Portable runtime standard-library dependency. | chaos-engine/addons/design-skills/scripts/hosted_cms_gates.py, chaos-engine/addons/design-skills/scripts/liveseo_gates.py, chaos-engine/addons/design-skills/scripts/surface_qc.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
-| importlib | Portable runtime standard-library dependency. | chaos-engine/addons/design-skills/scripts/craft_qc.py, chaos-engine/addons/design-skills/scripts/design_qc.py, chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py, chaos-engine/corpus_split.py, chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/heuristics.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/retrieve_justification.py, chaos-engine/hosts.py, chaos-engine/insight_extract.py, chaos-engine/install.py, chaos-engine/learn_traces.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/mempalace_fast_mine.py, chaos-engine/mempalace_privacy.py, chaos-engine/meta_optimize.py, chaos-engine/official_self_heal.py, chaos-engine/overlay_match.py, chaos-engine/pack_binding.py, chaos-engine/retrieve.py, chaos-engine/rules/lessons_2026_11_02.py, chaos-engine/rules/lessons_2026_11_06.py, chaos-engine/rules/operation_boundary.py, chaos-engine/session_logs.py, chaos-engine/silent_verify.py, chaos-engine/skills/local-agency/scripts/dispatch.py, chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py, chaos-engine/skills/local-agency/scripts/tests/test_assert_parent_rog_shell.py, chaos-engine/skills/local-agency/scripts/tip_preflight.py, chaos-engine/skills/local-coding-delegate/hardware_probe.py, chaos-engine/stores.py, chaos-engine/token_economy.py, chaos-engine/tool.py, chaos-engine/worktree_overlay.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
+| importlib | Portable runtime standard-library dependency. | chaos-engine/addons/design-skills/scripts/craft_qc.py, chaos-engine/addons/design-skills/scripts/design_qc.py, chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py, chaos-engine/bootstrap.py, chaos-engine/corpus_split.py, chaos-engine/dependencies.py, chaos-engine/draft_skill_pr.py, chaos-engine/heuristics.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/retrieve_justification.py, chaos-engine/hosts.py, chaos-engine/insight_extract.py, chaos-engine/install.py, chaos-engine/learn_traces.py, chaos-engine/learning.py, chaos-engine/learning_session.py, chaos-engine/mempalace_fast_mine.py, chaos-engine/mempalace_privacy.py, chaos-engine/meta_optimize.py, chaos-engine/official_self_heal.py, chaos-engine/overlay_match.py, chaos-engine/pack_binding.py, chaos-engine/retrieve.py, chaos-engine/rules/lessons_2026_11_02.py, chaos-engine/rules/lessons_2026_11_06.py, chaos-engine/rules/operation_boundary.py, chaos-engine/session_logs.py, chaos-engine/silent_verify.py, chaos-engine/skills/local-agency/scripts/dispatch.py, chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py, chaos-engine/skills/local-agency/scripts/tests/test_assert_parent_rog_shell.py, chaos-engine/skills/local-agency/scripts/tip_preflight.py, chaos-engine/skills/local-coding-delegate/hardware_probe.py, chaos-engine/stores.py, chaos-engine/token_economy.py, chaos-engine/tool.py, chaos-engine/worktree_overlay.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | inspect | Portable runtime standard-library dependency. | chaos-engine/install.py, chaos-engine/mempalace_fast_mine.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | io | Portable runtime standard-library dependency. | chaos-engine/bootstrap.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/launch.py, chaos-engine/hooks/lifecycle.py, chaos-engine/overlay_match.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |
 | json | Portable runtime standard-library dependency. | chaos-engine/addon_catalog.py, chaos-engine/addons/design-skills/scripts/craft_qc.py, chaos-engine/addons/design-skills/scripts/design_qc.py, chaos-engine/addons/design-skills/scripts/linkcheck.py, chaos-engine/addons/design-skills/scripts/liveseo_gates.py, chaos-engine/addons/design-skills/scripts/motion_graphics_gate.py, chaos-engine/addons/design-skills/scripts/surface_qc.py, chaos-engine/addons/design-skills/scripts/title_scope_gate.py, chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py, chaos-engine/backups_watch.py, chaos-engine/bootstrap.py, chaos-engine/ce_brief.py, chaos-engine/context_rot.py, chaos-engine/deep_research.py, chaos-engine/deja_ab_measure.py, chaos-engine/delete_guard.py, chaos-engine/dependencies.py, chaos-engine/dod.py, chaos-engine/draft_skill_pr.py, chaos-engine/external_reflection.py, chaos-engine/gate_fail_closed.py, chaos-engine/genai_spans.py, chaos-engine/grok_lean_config.py, chaos-engine/harness_index.py, chaos-engine/harness_mindset.py, chaos-engine/heuristics.py, chaos-engine/hooks/guard.py, chaos-engine/hooks/kernel.py, chaos-engine/hooks/launch.py, chaos-engine/hooks/lifecycle.py, chaos-engine/hooks/receipt_shim.py, chaos-engine/hooks/reflection.py, chaos-engine/hooks/retrieve_justification.py, chaos-engine/hosts.py, chaos-engine/insight_extract.py, chaos-engine/install.py, chaos-engine/jobs.py, chaos-engine/learn_traces.py, chaos-engine/learn_traces_mrv.py, chaos-engine/learning.py, chaos-engine/learning_counters.py, chaos-engine/learning_session.py, chaos-engine/mcp_policy.py, chaos-engine/memory_provenance.py, chaos-engine/meta_optimize.py, chaos-engine/mobile_retro.py, chaos-engine/official_self_heal.py, chaos-engine/overlay_match.py, chaos-engine/packs/java/installer.py, chaos-engine/packs/java/maven_tools.py, chaos-engine/phase_ledger.py, chaos-engine/pre_done_review.py, chaos-engine/prerequisites.py, chaos-engine/profile_installs.py, chaos-engine/prompt_evolve.py, chaos-engine/retrieve.py, chaos-engine/rules/lessons_repeat_failure_pdca.py, chaos-engine/rules/memory_full_dump.py, chaos-engine/rules/operation_boundary.py, chaos-engine/secret_guard.py, chaos-engine/self_modify.py, chaos-engine/session_token_usage.py, chaos-engine/significance.py, chaos-engine/skill_compress_audit.py, chaos-engine/skills/colibri/scripts/probe.py, chaos-engine/skills/freetoken/scripts/probe.py, chaos-engine/skills/local-agency/scripts/assert_parent_rog_shell.py, chaos-engine/skills/local-agency/scripts/design_turn_gate.py, chaos-engine/skills/local-agency/scripts/dispatch.py, chaos-engine/skills/local-agency/scripts/executor_brief.py, chaos-engine/skills/local-agency/scripts/require_rog_freetoken.py, chaos-engine/skills/local-agency/scripts/tests/test_assert_parent_rog_shell.py, chaos-engine/skills/local-agency/scripts/tip_preflight.py, chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py, chaos-engine/skills/local-openai-compat/scripts/probe.py, chaos-engine/skills/omniroute/scripts/runner.py, chaos-engine/stores.py, chaos-engine/task_ledger.py, chaos-engine/token_economy.py, chaos-engine/tool.py, chaos-engine/vendor/icm-architect/skills/icm-architect/scripts/index.py, chaos-engine/vendor/icm-architect/skills/icm-architect/scripts/links.py, chaos-engine/vendor/icm-architect/skills/icm-architect/scripts/viz.py, chaos-engine/wake_pack.py, chaos-engine/workflow_induce.py, chaos-engine/worktree_overlay.py | required | Windows, Linux, macOS | resolved latest stable Python | Python runtime | affected command fails closed |

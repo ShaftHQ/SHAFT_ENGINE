@@ -17,7 +17,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 MAP = "references/harness-map.md"
-WIDTH = 56
+# The generated map file stays under its 16384-byte cap.
+WIDTH = 55
 SCOPES = (
     ("Core", ("identity.md",)),
     ("Companions", ("companions/*.md",)),

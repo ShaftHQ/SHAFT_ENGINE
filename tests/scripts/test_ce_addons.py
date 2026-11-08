@@ -58,6 +58,14 @@ class CatalogTests(unittest.TestCase):
     def test_nothing_is_selected_by_default(self):
         self.assertEqual([], catalog.resolve(self.found, set(), set(), set()))
 
+    def test_design_skills_stays_opt_in_and_hosts_are_not_addons(self):
+        selected = catalog.resolve(self.found, {"design-skills"}, set(), set())
+        self.assertEqual(["design-skills"], selected)
+        for name in ("shaft-engine-users", "shaft-core-developers", "deja"):
+            self.assertNotIn(name, selected)
+        for host in ("claude", "codex", "grok", "gemini", "copilot", "opencode", "cursor", "grok-bot"):
+            self.assertNotIn(host, self.found)
+
     def test_requires_are_added_and_dependents_block_removal(self):
         self.assertEqual(
             ["shaft-core-developers", "shaft-engine-users"],
@@ -267,6 +275,9 @@ class AddOnOnlyReinstallTests(unittest.TestCase):
             install.install_with_dependencies(project, CE, self.COMMIT, addons=("design-skills",))
             self.assertEqual(1, len(provisioned), "an add-on change must not re-provision account tools")
             self.assertTrue((project / ".chaos-engine/addons/design-skills/SKILL.md").is_file())
+            manifest = json.loads((project / ".chaos-engine/manifest.json").read_text(encoding="utf-8"))
+            self.assertTrue(any(str(key).startswith("addons/design-skills/") for key in manifest["files"]))
+            self.assertFalse(any(str(key).startswith("addons/shaft-") for key in manifest["files"]))
 
             install.install_with_dependencies(project, CE, self.COMMIT, addons=("design-skills",))
             self.assertEqual(2, len(provisioned), "a plain rerun keeps healing account tools")

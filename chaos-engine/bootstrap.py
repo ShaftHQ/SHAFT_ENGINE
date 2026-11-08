@@ -1824,6 +1824,7 @@ def format_host_onboarding_cards(
     detected: list[tuple[str, str, bool]] | None = None,
     activated: dict[str, object] | None = None,
     color: bool = False,
+    targets: tuple[str, ...] | None = None,
 ) -> str:
     """Render a rustup-style host table; how/gap only for one actionable host."""
     detected_map = {
@@ -1872,8 +1873,138 @@ def format_host_onboarding_cards(
         if host_id == actionable:
             lines.append(f"      how: {card['how']}")
             lines.append(f"      gap: {card['gap']}")
+    if targets and "grok-bot" in targets:
+        lines.extend(_grok_bot_onboarding_lines())
     return "\n".join(lines) + "\n"
 
+
+def _grok_bot_onboarding_lines() -> list[str]:
+    """Point the Grok Bot card at hosts.INSTRUCTION_ONLY_HOSTS, not a receipt shim."""
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("hosts.py")
+    spec = importlib.util.spec_from_file_location("ce_bootstrap_hosts_card", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("hosts.py is required for the Grok Bot card")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    entry = module.INSTRUCTION_ONLY_HOSTS["grok-bot"]
+    instructions = str(entry["instructions"])
+    gap = str(entry["gap"])
+    return [
+        f"    {'Grok Bot':<16} {'instruction-only':<14} {instructions}",
+        f"      how: Read {instructions} at task start. No receipt shim is installed.",
+        f"      gap: {gap}",
+    ]
+
+
+
+# Install-time client ids. Instruction-only ids stay out of HOST_CAPABILITIES.
+INSTALL_HOST_IDS = (
+    "claude",
+    "codex",
+    "grok",
+    "gemini",
+    "copilot",
+    "opencode",
+    "cursor",
+    "grok-bot",
+)
+# Signals already read by this repository on 2026-11-08. Not detect_host(), and
+# not PATH, GROK_SESSION_ID, GEMINI_HOME, GEMINI_PROJECT_DIR, or COPILOT_HOME.
+IMPLICIT_CLIENT_SIGNALS = (
+    ("CLAUDE_CODE_ENTRYPOINT", "claude"),
+    ("CLAUDE_PLUGIN_ROOT", "claude"),
+    ("CODEX_HOME", "codex"),
+    ("GROK_HOOK_EVENT", "grok"),
+    ("CURSOR_AGENT", "cursor"),
+    ("CURSOR_CONVERSATION_ID", "cursor"),
+)
+PRECHECK_HOSTS = ("claude", "codex", "grok", "gemini")
+CLIENT_QUESTION = "Which clients should this install complete?"
+
+
+class InstallHostError(ValueError):
+    """Explicit or implicit client selection failed closed."""
+
+
+class InstallHostResolution:
+    """Selected clients, and whether the interactive wizard may ask."""
+
+    __slots__ = ("hosts", "prompt")
+
+    def __init__(self, hosts: tuple[str, ...], prompt: bool) -> None:
+        self.hosts = hosts
+        self.prompt = prompt
+
+
+def parse_install_hosts(raw: str) -> tuple[str, ...]:
+    """Parse a comma- or whitespace-separated host list. Unknown ids fail closed."""
+    parts = [part.strip().casefold() for part in re.split(r"[\s,]+", raw.strip()) if part.strip()]
+    known = ", ".join(INSTALL_HOST_IDS)
+    if not parts:
+        raise InstallHostError(f"missing ChaosEngine host (choose from: {known})")
+    unknown = [part for part in parts if part not in INSTALL_HOST_IDS]
+    if unknown:
+        raise InstallHostError(
+            "unknown ChaosEngine host: " + ", ".join(unknown) + f" (choose from: {known})"
+        )
+    return tuple(host for host in INSTALL_HOST_IDS if host in parts)
+
+
+def resolve_install_hosts(
+    *, explicit: str | None = None, environ: dict[str, str] | None = None
+) -> InstallHostResolution:
+    """Map --hosts / CHAOS_ENGINE_HOST, else exactly one implicit client signal.
+
+    An empty result means no client. The prompt flag is true only then, so the
+    interactive wizard may ask. This function does not call detect_host().
+    """
+    env = os.environ if environ is None else environ
+    flag = explicit.strip() if isinstance(explicit, str) else ""
+    configured = str(env.get("CHAOS_ENGINE_HOST") or "").strip()
+    if flag or configured:
+        chosen = parse_install_hosts(flag or configured)
+        if flag and configured and chosen != parse_install_hosts(configured):
+            known = ", ".join(INSTALL_HOST_IDS)
+            raise InstallHostError(
+                f"CHAOS_ENGINE_HOST={configured} conflicts with --hosts {flag} (choose from: {known})"
+            )
+        return InstallHostResolution(chosen, False)
+    found: list[str] = []
+    for key, host in IMPLICIT_CLIENT_SIGNALS:
+        value = env.get(key)
+        if isinstance(value, str) and value.strip() and host not in found:
+            found.append(host)
+    if len(found) > 1:
+        raise InstallHostError("multiple ChaosEngine clients are active: " + " and ".join(found))
+    if found:
+        return InstallHostResolution((found[0],), False)
+    return InstallHostResolution((), True)
+
+
+def prechecked_completion_hosts(*, which=shutil.which) -> tuple[str, ...]:
+    """PATH pre-check for the interactive empty answer. Not Copilot and not Cursor."""
+    return tuple(host for host in PRECHECK_HOSTS if which(host))
+
+
+def ask_completion_hosts(*, input_stream, output, which=shutil.which) -> tuple[str, ...]:
+    """Ask once. An empty answer is the pre-checked set. An unknown id does not continue."""
+    prechecked = prechecked_completion_hosts(which=which)
+    known = ", ".join(INSTALL_HOST_IDS)
+    marked = ", ".join(prechecked) if prechecked else "none"
+    output.write(f"{CLIENT_QUESTION} [{known}]\n")
+    output.write(f"Pre-checked (empty answer selects these only): {marked}\n")
+    output.write("Clients: ")
+    output.flush()
+    answer = input_stream.readline()
+    if not answer.strip():
+        return prechecked
+    try:
+        return parse_install_hosts(answer)
+    except InstallHostError:
+        output.write(f"Unknown client. Choose from: {known}\n")
+        raise
 
 
 def detect_install_hosts(*, which=shutil.which) -> list[tuple[str, str, bool]]:
@@ -1896,7 +2027,9 @@ def run_first_run_wizard(
     input_stream,
     output,
     which=shutil.which,
-) -> None:
+    ask_clients: bool = False,
+    resolved_hosts: tuple[str, ...] = (),
+) -> tuple[str, ...] | None:
     """Guide a first-time interactive install before any network work."""
     hosts = detect_install_hosts(which=which)
     present = [label for _host_id, label, found in hosts if found]
@@ -1933,10 +2066,17 @@ def run_first_run_wizard(
     for host_id, label, found in hosts:
         glyph = found_glyph if found else missing_glyph
         output.write(f"     {glyph} {label}: {HOST_NEXT_ACTIONS[host_id]}\n")
+    if resolved_hosts:
+        selected: tuple[str, ...] | None = tuple(resolved_hosts)
+    elif ask_clients:
+        selected = ask_completion_hosts(input_stream=input_stream, output=output, which=which) or None
+    else:
+        selected = None
     output.write("\n")
     output.flush()
     confirm_operation("Install companions (Caveman + Ponytail) with the core", input_stream=input_stream, output=output)
     confirm_operation("Continue ChaosEngine install", input_stream=input_stream, output=output)
+    return selected
 
 
 @contextmanager
@@ -3386,6 +3526,22 @@ def _install_operations(skip_tools: bool, with_maven_tools: bool) -> list[str]:
     return operations
 
 
+def _finish_host_completion(installer, project: Path, targets, *, already_wired: bool) -> None:
+    """Keep PATH shims from a locked install. A selected set replaces that wiring."""
+    if targets is None:
+        clear = getattr(installer, "clear_completion_targets", None)
+        if already_wired and callable(clear):
+            clear(project)
+        return
+    if already_wired:
+        unwire = getattr(installer, "unwire_receipt_shims", None)
+        if callable(unwire):
+            unwire(project)
+    apply = getattr(installer, "apply_install_host_completion", None)
+    if callable(apply):
+        apply(project, targets)
+
+
 def _run_core_install(
     project: Path,
     scratch: dict,
@@ -3404,6 +3560,7 @@ def _run_core_install(
     addons_removed: set[str] | None,
     confirm,
     remaining,
+    completion_targets: tuple[str, ...] | None = None,
 ) -> tuple[Path, str, object]:
     confirm("Resolve source")
     reporter.start("Resolve source", remaining=remaining("Resolve source"))
@@ -3481,6 +3638,7 @@ def _run_core_install(
             **addon_options,
         )
         _complete_dependency_steps(reporter, remaining, with_maven_tools=with_maven_tools)
+    _finish_host_completion(installer, project, completion_targets, already_wired=not skip_tools)
     suggest = getattr(installer, "suggest_addons", None)
     tips = suggest(project, source, addons) if callable(suggest) else []
     if tips:
@@ -3523,15 +3681,15 @@ def _publish_heal_handoff(
     terminal_context,
     doctor: dict,
     health_error: BaseException,
+    completion_targets: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     reporter.complete("Verify installation", remaining=remaining("Verify installation"))
     try:
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
-        if interactive:
-            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
-        else:
-            clients = host_controller.activate_detected_plugins(project)
+        clients = _activate_resolved_clients(
+            installer, host_controller, project, completion_targets, confirm, interactive=interactive
+        )
         reporter.complete("Activate clients", remaining=())
     except Exception:
         clients = {"clients": {}}
@@ -3629,6 +3787,23 @@ def _swap_back_previous_core(project: Path, error: BaseException, *, installer, 
             record_install_rollback(project, commit, restored)
 
 
+def _activate_resolved_clients(installer, host_controller, project: Path, targets, confirm, *, interactive: bool):
+    """Today's activation when unattended; selected Claude/Codex only when targets are set."""
+    if targets is None:
+        if interactive:
+            return host_controller.activate_detected_plugins(project, confirmer=confirm)
+        return host_controller.activate_detected_plugins(project)
+    activate = getattr(installer, "activate_completion_targets", None)
+    if not callable(activate):
+        return {"clients": {}}
+    return activate(
+        project,
+        targets,
+        host_controller=host_controller,
+        confirmer=confirm if interactive else None,
+    )
+
+
 def _verify_and_activate(
     project: Path,
     *,
@@ -3642,6 +3817,7 @@ def _verify_and_activate(
     interactive: bool,
     prior_install: bool,
     terminal_context,
+    completion_targets: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     host_controller = installer.load_installed_controller(target, "hosts")
     try:
@@ -3667,15 +3843,15 @@ def _verify_and_activate(
                     terminal_context=terminal_context,
                     doctor=doctor,
                     health_error=health_error,
+                    completion_targets=completion_targets,
                 )
             raise health_error
         reporter.complete("Verify installation", remaining=remaining("Verify installation"))
         confirm("Activate clients")
         reporter.start("Activate clients", remaining=remaining("Activate clients"))
-        if interactive:
-            clients = host_controller.activate_detected_plugins(project, confirmer=confirm)
-        else:
-            clients = host_controller.activate_detected_plugins(project)
+        clients = _activate_resolved_clients(
+            installer, host_controller, project, completion_targets, confirm, interactive=interactive
+        )
         reporter.complete("Activate clients", remaining=())
         doctor = final_install_doctor(target, project, doctor)
         doctor["clients"] = clients.get("clients", {})
@@ -3719,9 +3895,11 @@ def install_latest(
     bundle_options: dict[str, bool] | None = None,
     addons_requested: set[str] | None = None,
     addons_removed: set[str] | None = None,
+    hosts: str | None = None,
 ) -> dict[str, object]:
     if skip_tools and with_maven_tools:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
+    resolution = resolve_install_hosts(explicit=hosts)
     project = Path(project).resolve()
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
@@ -3732,13 +3910,17 @@ def install_latest(
     reporter.announce(project, repository, branch or "default")
     terminal_context, terminal_input = _open_install_terminal(interactive, terminal_factory)
     if terminal_input is not None:
-        run_first_run_wizard(
+        completion_targets = run_first_run_wizard(
             project=project,
             repository=repository,
             with_maven_tools=with_maven_tools,
             input_stream=terminal_input,
             output=reporter.stream,
+            ask_clients=not resolution.hosts,
+            resolved_hosts=resolution.hosts,
         )
+    else:
+        completion_targets = resolution.hosts or None
 
     def confirm(name: str) -> None:
         if terminal_input is not None:
@@ -3766,6 +3948,7 @@ def install_latest(
             addons_removed=addons_removed,
             confirm=confirm,
             remaining=remaining,
+            completion_targets=completion_targets,
         )
         scratch["temporary"].cleanup()
     except BaseException as error:
@@ -3796,6 +3979,7 @@ def install_latest(
         interactive=interactive,
         prior_install=prior_install,
         terminal_context=terminal_context,
+        completion_targets=completion_targets,
     )
 
 
@@ -3846,6 +4030,12 @@ def parser() -> argparse.ArgumentParser:
         "remove it with --without-<addon>, or set CHAOS_ENGINE_ADDONS=a,b."
     )
     result.add_argument("--interactive", action="store_true")
+    result.add_argument(
+        "--hosts",
+        action="append",
+        default=None,
+        help="Client ids to complete (comma-separated). Also CHAOS_ENGINE_HOST.",
+    )
     result.add_argument(
         "--verbose",
         action="store_true",
@@ -4325,6 +4515,7 @@ def main() -> int:
             bundle_options=bundle_options,
             addons_requested=addons_requested,
             addons_removed=addons_removed,
+            hosts=",".join(args.hosts) if args.hosts else None,
         )
         write_install_trace(Path(args.project).resolve(), result, reporter.traces)
         record_install_source(Path(args.project).resolve(), args.repository, args.branch)

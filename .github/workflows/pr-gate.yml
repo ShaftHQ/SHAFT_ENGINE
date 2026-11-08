@@ -119,6 +119,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              - 'tests/scripts/test_chaos_engine_host_completion_7813.py'
               - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
               - 'chaos-engine/consumer_mode.py'
@@ -266,6 +267,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_install_wrappers.py'
               - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
               - 'tests/scripts/test_chaos_engine_installer_ux.py'
+              - 'tests/scripts/test_chaos_engine_host_completion_7813.py'
               # Issue #6186: every chaos_installer path must also run this
               # gate, whose installer surface replaced the ubuntu UX step.
               - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
