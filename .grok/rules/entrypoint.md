@@ -75,6 +75,7 @@ Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/ref
   `tool.py usage`.
 - Learning Session after every final delivery. Never local queues.
 - Repository work is not done until the pull request is merged.
+- Reader-facing contracts stay documented on every surface that states them, including changes already made in the session ([docs follow the change](../../chaos-engine/references/docs-follow-change.md)).
 
 ## Route
 
@@ -108,6 +109,7 @@ Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/ref
 | Add-ons | design, video, or project pack | [addons.md](../../chaos-engine/references/addons.md) |
 | Complexity gate | complexity gate | [complexity-gate.md](../../chaos-engine/references/complexity-gate.md) |
 | Durable jobs | outlives the session | [durable-jobs.md](../../chaos-engine/references/durable-jobs.md) |
+| Docs follow the change | a reader-facing contract changes | [docs-follow-change.md](../../chaos-engine/references/docs-follow-change.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

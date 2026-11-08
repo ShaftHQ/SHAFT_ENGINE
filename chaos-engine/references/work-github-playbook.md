@@ -75,6 +75,8 @@ playbooks. Before the first push of **any** human PR:
 Update user documentation and the feature catalog only for shipped behavior.
 Regenerate screenshots only for changed panels. Externally documented behavior
 changes in the companion documentation repository require their own PR.
+The harness rule for which surfaces move, including work already done in the
+session, is [docs follow the change](docs-follow-change.md).
 
 ## 6. Terminal Learning Session
 

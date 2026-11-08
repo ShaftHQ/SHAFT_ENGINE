@@ -184,6 +184,8 @@ ROUTES = (
      "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
     ("Durable jobs", "references/durable-jobs.md",
      "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers."),
+    ("Docs follow the change", "references/docs-follow-change.md",
+     "Use when a change alters a command, flag, default, or other reader-facing contract, including work already done in the session."),
 )
 ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
 ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
@@ -296,6 +298,7 @@ ROUTER_USE = {
     "Add-ons": "design, video, or project pack",
     "Complexity gate": "complexity gate",
     "Durable jobs": "outlives the session",
+    "Docs follow the change": "a reader-facing contract changes",
 }
 
 

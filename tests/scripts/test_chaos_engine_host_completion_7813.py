@@ -932,5 +932,53 @@ class AddonSeparationTests(unittest.TestCase):
         self.assertIn('tools.append("node")', (CE / "prerequisites.py").read_text(encoding="utf-8"))
 
 
+class InstallCommandDocsTests(unittest.TestCase):
+    """The one-liner is followed by the client inference contract (#7813)."""
+
+    ONE_LINER = (
+        'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/'
+        'chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/'
+        'ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
+    )
+    HEADING = "## Clients this command can complete"
+    REQUIRED = (
+        *HOST_IDS,
+        *IMPLICIT_ENV,
+        *NOT_IMPLICIT_ENV,
+        "--hosts",
+        "-Hosts",
+        "--interactive",
+        "Which clients should this install complete?",
+        ".cursor/hooks.json",
+        ".opencode/plugins/chaos-engine-receipt.js",
+    )
+
+    def _section(self, relative: str) -> str:
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        command_at = text.index(self.ONE_LINER)
+        heading_at = text.index(self.HEADING)
+        self.assertGreater(heading_at, command_at, relative)
+        rest = text[heading_at + len(self.HEADING):]
+        next_heading = rest.find("\n## ")
+        self.assertGreater(next_heading, 0, relative)
+        return rest[:next_heading]
+
+    def test_install_command_documents_clients_under_the_one_liner(self):
+        for relative in ("chaos-engine/INSTALL.md", "chaos-engine/README.md"):
+            section = self._section(relative)
+            for token in self.REQUIRED:
+                self.assertIn(token, section, f"{relative} missing {token}")
+
+    def test_harness_routes_docs_follow_the_change(self):
+        skill = (CE / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        reference = (CE / "references/docs-follow-change.md").read_text(encoding="utf-8")
+        self.assertIn("references/docs-follow-change.md", skill)
+        self.assertIn("Docs follow the change", skill)
+        self.assertIn("external-services inventory", reference)
+        self.assertIn("docs/agentic/chaos-engine.mdx", reference)
+        self.assertNotIn("shaft", reference.casefold())
+        self.assertIn("changes already made in the session", reference)
+
+
 if __name__ == "__main__":
     unittest.main()

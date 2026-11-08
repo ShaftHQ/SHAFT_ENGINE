@@ -872,6 +872,24 @@
       "kind": "route",
       "name": "Durable jobs",
       "path": "references/durable-jobs.md"
+    },
+    {
+      "description": "Use when a change alters a command, flag, default, or other reader-facing contract, including work already done in the session.",
+      "family": "reference",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Docs follow the change",
+      "path": "references/docs-follow-change.md"
     }
   ],
   "generator": "harness_index.py",

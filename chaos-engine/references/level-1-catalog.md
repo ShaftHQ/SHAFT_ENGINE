@@ -39,6 +39,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Job apply | Apply for a job: classify posting, draft never send, research-backed cover email, gate checklist | [`../skills/job-apply/SKILL.md`](../skills/job-apply/SKILL.md) |
 | Job search | Search for jobs: two-channel discovery, eligibility filter, End-key scroll, share-profile gate | [`../skills/job-search/SKILL.md`](../skills/job-search/SKILL.md) |
 | Docs hygiene | Source-of-truth docs, status vocabulary, live hour formulas, full journeys, delete-guard upstream | [`../skills/docs-hygiene/SKILL.md`](../skills/docs-hygiene/SKILL.md) |
+| Docs follow the change | A command, flag, default, or other reader-facing contract changed, including earlier in the session | [`docs-follow-change.md`](docs-follow-change.md) |
 | Delegation cycle | Shared instruction file, numbered board, proceed-by-id, one CE lessons PR | [`delegation-cycle.md`](delegation-cycle.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |

@@ -100,6 +100,51 @@ macOS or Linux:
 curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
+## Clients this command can complete
+
+The command above completes a client when the environment shows exactly one
+client, or when you name the client. The full contract is
+[INSTALL.md](INSTALL.md#clients-this-command-can-complete).
+
+| Variable already set | Client id |
+| --- | --- |
+| `CLAUDE_CODE_ENTRYPOINT` or `CLAUDE_PLUGIN_ROOT` | `claude` |
+| `CODEX_HOME` | `codex` |
+| `GROK_HOOK_EVENT` | `grok` |
+| `CURSOR_AGENT` or `CURSOR_CONVERSATION_ID` | `cursor` |
+
+An empty value is ignored. Two different clients stop the install.
+`gemini`, `copilot`, `opencode`, and `grok-bot` are never inferred. Ignored
+for selection: `PATH`, a `cursor` program, `GROK_SESSION_ID`, `GEMINI_HOME`,
+`GEMINI_PROJECT_DIR`, and `COPILOT_HOME`. The published one-liner stays silent.
+
+Name the client with `CHAOS_ENGINE_HOST` or `--hosts` (PowerShell `-Hosts`).
+Valid ids: `claude`, `codex`, `grok`, `gemini`, `copilot`, `opencode`,
+`cursor`, `grok-bot`. Unknown ids stop the install.
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+curl -fsSL "$url" | bash -s -- "$url" --hosts grok
+```
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"))) -Hosts grok
+```
+
+`--interactive` (PowerShell `-Interactive`) asks
+`Which clients should this install complete?` once. Enter accepts `claude`,
+`codex`, `grok`, and `gemini` when those commands are on `PATH`. When none of
+them are, Enter completes no client and keeps the unattended PATH shims.
+`copilot`, `opencode`, `cursor`, and `grok-bot` must be typed. An explicit
+host value skips the question.
+
+Portable host files are still written for every client. Claude and Codex
+register a marketplace when that CLI is on `PATH`. Cursor writes
+`.cursor/hooks.json` and OpenCode writes
+`.opencode/plugins/chaos-engine-receipt.js` only when selected. Grok Bot
+writes no receipt shim. Naming `grok` does not enable `--lean-grok-skills`.
+A client id is not an add-on.
+
 Inspect [install.ps1](install.ps1), [install.sh](install.sh), and
 [bootstrap.py](bootstrap.py) first when your trust policy requires review before
 execution. The public default is the neutral `portable` distribution.

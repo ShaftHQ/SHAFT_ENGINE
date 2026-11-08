@@ -53,6 +53,102 @@ macOS or Linux, using [install.sh](install.sh):
 curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh" | bash -s -- "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
 ```
 
+## Clients this command can complete
+
+The command above is the whole install. It writes the portable host files,
+then completes a client when the environment shows exactly one client, or when
+you name the client.
+
+### How the installer infers the client
+
+| Variable already set | Client id |
+| --- | --- |
+| `CLAUDE_CODE_ENTRYPOINT` or `CLAUDE_PLUGIN_ROOT` | `claude` |
+| `CODEX_HOME` | `codex` |
+| `GROK_HOOK_EVENT` | `grok` |
+| `CURSOR_AGENT` or `CURSOR_CONVERSATION_ID` | `cursor` |
+
+An empty value is ignored. Two different clients stop the install and name
+both. `gemini`, `copilot`, `opencode`, and `grok-bot` have no install-process
+variable, so inference never selects them.
+
+Ignored for client selection: `PATH`, a `cursor` program, `GROK_SESSION_ID`,
+`GEMINI_HOME`, `GEMINI_PROJECT_DIR`, and `COPILOT_HOME`. The wizard can still
+list Copilot when `gh`, `code`, or `cursor` is on `PATH`. That list is not a
+selection.
+
+The published one-liner stays silent. It does not ask, and it does not open
+`/dev/tty` or `CONIN$`.
+
+### Name the client yourself
+
+`CHAOS_ENGINE_HOST` and `--hosts` (PowerShell `-Hosts`) name one or more ids,
+separated by commas or spaces. An unknown id stops the install and prints the
+valid list. When both forms are set, they must name the same ids.
+
+Valid ids: `claude`, `codex`, `grok`, `gemini`, `copilot`, `opencode`,
+`cursor`, `grok-bot`.
+
+macOS or Linux, naming Grok:
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+curl -fsSL "$url" | bash -s -- "$url" --hosts grok
+```
+
+The same command with the environment variable:
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+CHAOS_ENGINE_HOST=claude curl -fsSL "$url" | bash -s -- "$url"
+```
+
+Windows PowerShell:
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"))) -Hosts grok
+```
+
+```powershell
+$env:CHAOS_ENGINE_HOST = "claude"
+irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
+```
+
+`--hosts=codex` is the same as `--hosts codex`. Several ids look like
+`--hosts claude,cursor`.
+
+### Ask once in the wizard
+
+`--interactive` (PowerShell `-Interactive`) asks
+`Which clients should this install complete?` once, then asks the existing
+companion confirmation once. An explicit host value skips the client question.
+
+Press Enter to accept the pre-checked commands that are on `PATH`: `claude`,
+`codex`, `grok`, and `gemini`. When none of those four commands are on
+`PATH`, Enter completes no client and keeps the unattended PATH shims.
+`copilot`, `opencode`, `cursor`, and `grok-bot` are outside that pre-checked
+set. Type their ids to select them.
+
+### What completing a client changes
+
+Portable host files are still written for every client. A real selection
+activates that client:
+
+- Claude and Codex register a marketplace when that CLI is on `PATH`. A
+  missing CLI leaves the adapter files and the manual card, and the install
+  still succeeds.
+- Cursor writes `.cursor/hooks.json`. OpenCode writes
+  `.opencode/plugins/chaos-engine-receipt.js`. A selection of any other client
+  does not write those receipt shims.
+- Grok Bot prints the instruction card and writes no receipt shim.
+- Grok's lean config is applied when the Grok CLI is present or the project
+  already has `.grok/hooks`. Naming `grok` does not by itself merge that span,
+  and it does not enable `--lean-grok-skills`.
+- Optional add-ons stay off. A client id is not an add-on id.
+
+When nothing is inferred and you do not name a client, the install keeps the
+unattended PATH shim wiring.
+
 Verify:
 
 ```text
@@ -66,13 +162,10 @@ for a normal first install.
 ## Optional add-ons
 
 The default install is the lean core only. These add-ons are never installed
-by default and never auto-selected; opt in with a flag:
-
-Host completion is separate from these optional flags. Choosing a client with
-`--hosts` or `CHAOS_ENGINE_HOST` (or the `--interactive` / `-Interactive`
-question) does not select `design-skills`, `shaft-engine-users`,
-`shaft-core-developers`, deja, or `--with-mcp`. Those stay off unless their own
-flag or `CHAOS_ENGINE_ADDONS` is set. Host completion is not an add-on id.
+by default and never auto-selected; opt in with a flag.
+[Clients this command can complete](#clients-this-command-can-complete) is
+separate: choosing a client does not select these packs, and a client id is
+not an add-on id.
 
 | Add-on | For | sh / bootstrap.py / install.py | PowerShell |
 | --- | --- | --- | --- |
@@ -329,14 +422,9 @@ that was open during installation so it loads its verified local plugin cache.
 Pass `--interactive` on macOS/Linux (PowerShell `-Interactive`) for the first-run
 wizard: it detects host CLIs, explains what will be installed (including Caveman +
 Ponytail companions), and prints a host-specific next-actions checklist before any
-download. The client question exists only on `--interactive` / `-Interactive`.
-The default one-liner does not ask and does not open `/dev/tty` or `CONIN$`,
-even when a controlling terminal exists. An empty answer selects only the
-pre-checked `claude`, `codex`, `grok`, and `gemini` CLIs on `PATH`. Copilot is
-not pre-checked from `gh`, `code`, or `cursor`, and a `cursor` binary does not
-select Cursor. `--hosts` and `CHAOS_ENGINE_HOST` skip the question. PowerShell
-passes the same explicit ids with `-Hosts`. Companion confirmation still runs
-once. The non-interactive one-liner does not ask.
+download. Client inference, explicit ids, and the one question are specified in
+[Clients this command can complete](#clients-this-command-can-complete).
+Companion confirmation still runs once.
 
 Set `CHAOS_ENGINE_BRANCH` to override the repository's configured default
 branch (otherwise `main`). The bootstrap resolves that mutable branch through
