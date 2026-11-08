@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
@@ -105,34 +106,33 @@ public final class ReportCommand implements Callable<Integer> {
      * Resolves the results directory for {@code report generate} from {@code --results}
      * or a {@code results=} / {@code resultsDirectory=} argument.
      *
-     * @return the directory, or null when the caller did not name one
+     * @return the directory, or empty when the caller did not name one
      */
-    Path resultsDirectory() {
+    Optional<Path> resultsDirectory() {
         if (results != null) {
-            return results;
+            return Optional.of(results);
         }
         for (String entry : keyValues) {
-            if (entry == null) {
-                continue;
-            }
             int separator = entry.indexOf('=');
             if (separator <= 0) {
                 continue;
             }
             String key = entry.substring(0, separator).trim();
-            if ("results".equals(key) || "resultsDirectory".equals(key)) {
-                String value = entry.substring(separator + 1).trim();
-                if (!value.isEmpty()) {
-                    return Path.of(value);
-                }
+            if (!"results".equals(key) && !"resultsDirectory".equals(key)) {
+                continue;
             }
+            String value = entry.substring(separator + 1).trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            return Optional.of(Path.of(value));
         }
-        return null;
+        return Optional.empty();
     }
 
     private int generateFromResults() {
-        Path directory = resultsDirectory();
-        if (directory == null) {
+        Optional<Path> directory = resultsDirectory();
+        if (directory.isEmpty()) {
             spec.commandLine().getErr().println("report generate requires --results <allure-results-directory>");
             return 2;
         }
@@ -140,7 +140,7 @@ public final class ReportCommand implements Callable<Integer> {
             System.setProperty("allure.singleFile", "true");
         }
         try {
-            Path report = SHAFT.Report.generateAllureReport(directory);
+            Path report = SHAFT.Report.generateAllureReport(directory.get());
             spec.commandLine().getOut().println(report.toAbsolutePath().normalize());
             return 0;
         } catch (IllegalArgumentException | IllegalStateException failure) {

@@ -85,6 +85,18 @@ class ReportCommandTest {
     }
 
     @Test
+    void generateSkipsBlankPairsAndAcceptsResultsDirectoryKey() {
+        StringWriter err = new StringWriter();
+        int exit = new CommandLine(new ReportCommand(connector))
+                .setErr(new PrintWriter(err, true))
+                .execute("generate", "not-a-pair", "other=value", "results=",
+                        "resultsDirectory=target/blank-skipped-allure-results-7837");
+        assertEquals(1, exit);
+        assertTrue(err.toString().contains("does not exist"));
+        assertFalse(err.toString().contains("called report_"));
+    }
+
+    @Test
     void generateAcceptsResultsKeyWithoutCallingMcp() {
         StringWriter err = new StringWriter();
         int exit = new CommandLine(new ReportCommand(connector))
