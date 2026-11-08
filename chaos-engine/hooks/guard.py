@@ -775,6 +775,83 @@ def broad_rm(command: str) -> bool:
     return recursive and any(catastrophic_target(target) for target in targets)
 
 
+_SEGMENT = re.compile(r"[A-Za-z0-9_.-]+\Z")
+_RAW_HOST = "raw.githubusercontent.com"
+_INSTALL_DIR = "chaos-engine"
+_INSTALL_SCRIPT = "install.sh"
+
+
+def _installer_url(url: str) -> tuple[str, str] | None:
+    """Owner and repo for a raw chaos-engine install.sh URL, else None."""
+    prefix = "https://" + _RAW_HOST + "/"
+    marker = "/" + _INSTALL_DIR + "/" + _INSTALL_SCRIPT
+    if not url.startswith(prefix) or not url.endswith(marker):
+        return None
+    parts = url[len(prefix) : -len(marker)].split("/")
+    if len(parts) < 3:
+        return None
+    owner, repo, *ref = parts
+    if _SEGMENT.fullmatch(owner) is None or _SEGMENT.fullmatch(repo) is None:
+        return None
+    if not ref or any(
+        _SEGMENT.fullmatch(part) is None or part in {".", ".."} for part in ref
+    ):
+        return None
+    return owner, repo
+
+
+def documented_installer_command(command: str) -> tuple[str, str] | None:
+    """Owner and repo when command is exactly ``curl -fsSL URL | bash -s -- URL``."""
+    statements = [part.strip() for part in re.split(r"&&|\|\||;|\r?\n", command) if part.strip()]
+    if len(statements) != 1:
+        return None
+    stages = [part.strip() for part in re.split(r"(?<!\|)\|(?!\|)", statements[0]) if part.strip()]
+    if len(stages) != 2:
+        return None
+    try:
+        download = shlex.split(stages[0], posix=True)
+        shell = shlex.split(stages[1], posix=True)
+    except ValueError:
+        return None
+    if len(download) != 3 or download[0] != "curl" or download[1] != "-fsSL":
+        return None
+    if shell != ["bash", "-s", "--", download[2]]:
+        return None
+    return _installer_url(download[2])
+
+
+def _origin_slug(project: Path) -> str:
+    git = shutil.which("git")
+    if git is None:
+        return ""
+    try:
+        completed = subprocess.run(  # nosec B603 - absolute git from which, fixed argv.
+            [git, "remote", "get-url", "origin"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return ""
+    if completed.returncode != 0:
+        return ""
+    match = re.search(
+        r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$",
+        completed.stdout.strip(),
+    )
+    return match.group(1) if match else ""
+
+
+def documented_installer_for_project(command: str, project: Path) -> bool:
+    """True only for this checkout's own published install.sh pipeline."""
+    parsed = documented_installer_command(command)
+    if parsed is None:
+        return False
+    owner, repo = parsed
+    return f"{owner}/{repo}".casefold() == _origin_slug(project).casefold()
+
+
 def catastrophic_posix(command: str) -> bool:
     if any(
         command_head(tokens(stage))[0] in DOWNLOADERS
@@ -1441,7 +1518,12 @@ def _command_guard_state(
     uninspectable = _uninspectable_functions_call(
         tool_name, tool_input, functions_source, functions_direct, commands
     )
-    if uninspectable or any(_command_is_destructive(candidate) for candidate in commands):
+    project = Path(str(event.get("cwd") or Path.cwd()))
+    if uninspectable or any(
+        _command_is_destructive(candidate)
+        and not documented_installer_for_project(candidate, project)
+        for candidate in commands
+    ):
         return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
     return receipt_command, mutation, ""
 
