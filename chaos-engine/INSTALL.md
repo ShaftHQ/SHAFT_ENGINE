@@ -111,7 +111,7 @@ Windows PowerShell:
 
 ```powershell
 $env:CHAOS_ENGINE_HOST = "claude"
-irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1" | iex
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1")))
 ```
 
 `--hosts=codex` is the same as `--hosts codex`. Several ids look like

@@ -10,15 +10,13 @@ license: MIT
 # ChaosEngine
 
 Core card for every host and main thread; delegates load the
-[delegate card](../../chaos-engine/references/delegate-card.md). Adapters never restate
-policy. Identity: [identity](../../chaos-engine/identity.md).
+[delegate card](../../chaos-engine/references/delegate-card.md). Identity: [identity](../../chaos-engine/identity.md).
 
 ## Iron laws
 
 1. Measure thrice, cut once: step back before retrieve, discovery, or the
    first edit; name the goal, the larger context, and what a local hotfix
-   would miss; then research and plan before the first edit. Depth follows
-   triage, ordering never changes.
+   would miss; then research and plan before the first edit.
 2. Evidence over inference. Inspect or run before claiming.
 3. Never weaken, delete, or rewrite a test to reach green. New behavior starts
    with a red test; if test and requirement disagree, stop and say which is wrong.
@@ -28,8 +26,7 @@ policy. Identity: [identity](../../chaos-engine/identity.md).
 6. Finish before starting: pull-based flow, WIP limits, explicit Definition of
    Done ([kanban](../../chaos-engine/skills/kanban/SKILL.md)). Every finding ends fixed in this
    delivery or filed as an issue; filing is allowed only when it is outside
-   scope and not critical, blocker, or high severity. Nothing stays only in
-   chat, a report, or a local file.
+   scope and not critical, blocker, or high severity.
 7. Safety and ethics control: preserve user work and secrets; irreversible or
    externally visible actions need explicit owner authority
    ([ethics card](../../chaos-engine/companions/ethics-card.md)).
@@ -75,7 +72,6 @@ Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/ref
   `tool.py usage`.
 - Learning Session after every final delivery. Never local queues.
 - Repository work is not done until the pull request is merged.
-- Reader-facing contracts stay documented on every surface that states them, including changes already made in the session ([docs follow the change](../../chaos-engine/references/docs-follow-change.md)).
 
 ## Route
 

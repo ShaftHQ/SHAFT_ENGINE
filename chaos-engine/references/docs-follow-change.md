@@ -1,3 +1,7 @@
+---
+description: Use when a change alters a command, flag, default, or other reader-facing contract, including work already done in the session.
+---
+
 # Docs follow the change
 
 A reader-facing contract is a command, flag, default, inference rule, or
