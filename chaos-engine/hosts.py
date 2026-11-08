@@ -1684,16 +1684,23 @@ def client_command(
     runner=subprocess.run,
     timeout: int = 30,
 ) -> subprocess.CompletedProcess[str]:
-    result = runner(  # nosec B603 - executable is resolved by shutil.which.
-        [executable, *arguments],
-        cwd=project,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-        timeout=timeout,
-    )
+    try:
+        result = runner(  # nosec B603 - executable is resolved by shutil.which.
+            [executable, *arguments],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        if plugin_list_still_running(error):
+            # Still listing plugins (#7826). An empty document is not stale,
+            # so the upgrade does not activate and does not fail the install.
+            return subprocess.CompletedProcess(error.cmd, 0, stdout="{}", stderr="")
+        raise
     # Windows can hand back stdout/stderr as None (#6975: json.loads(None)
     # failed "Activate clients"). Normalize so callers see text.
     result.stdout = result.stdout or ""
@@ -5087,27 +5094,6 @@ def plugin_list_still_running(error: BaseException) -> bool:
         return False
     command = error.cmd if isinstance(error.cmd, (list, tuple)) else str(error.cmd).split()
     return {"plugin", "list", "--available", "--json"} <= {str(part) for part in command}
-
-
-def refresh_stale_plugins_after_upgrade(project: Path, controller: object | None = None) -> None:
-    """After an upgrade, refresh plugins. A still-running list does not fail the install.
-
-    A non-zero plugin command still raises. A stale registration still activates.
-    ``controller`` is the client surface tests double; the install path uses this module.
-    """
-    detect = detected_plugin_status if controller is None else controller.detected_plugin_status
-    activate = activate_detected_plugins if controller is None else controller.activate_detected_plugins
-    try:
-        client_plugins = detect(project)
-    except subprocess.TimeoutExpired as error:
-        if plugin_list_still_running(error):
-            return
-        raise
-    if any(
-        isinstance(item, dict) and item.get("plugin") == "stale"
-        for item in client_plugins.values()
-    ):
-        activate(project)
 
 
 def powershell_hook_parse_error(command: str) -> str | None:

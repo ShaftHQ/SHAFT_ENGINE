@@ -86,48 +86,41 @@ class NullSinkAndLifecycleTest(unittest.TestCase):
 
 
 class PluginListTimeoutTest(unittest.TestCase):
-    def test_a_still_running_plugin_list_does_not_fail_or_activate(self) -> None:
-        class Controller:
-            def __init__(self) -> None:
-                self.activated = False
+    def test_a_still_running_plugin_list_returns_an_empty_document(self) -> None:
+        def runner(*_args, **_kwargs):
+            raise subprocess.TimeoutExpired(
+                ["tool", "plugin", "list", "--available", "--json"], 30
+            )
 
-            def detected_plugin_status(self, project: Path):
-                raise subprocess.TimeoutExpired(
-                    ["tool", "plugin", "list", "--available", "--json"], 30
-                )
+        result = HOSTS.client_command(
+            "tool",
+            ["plugin", "list", "--available", "--json"],
+            Path("."),
+            runner=runner,
+        )
+        self.assertEqual(0, result.returncode)
+        self.assertEqual("{}", result.stdout)
 
-            def activate_detected_plugins(self, project: Path) -> None:
-                self.activated = True
+    def test_a_different_timeout_still_raises(self) -> None:
+        def runner(*_args, **_kwargs):
+            raise subprocess.TimeoutExpired(["tool", "plugin", "marketplace", "list"], 30)
 
-        controller = Controller()
-        HOSTS.refresh_stale_plugins_after_upgrade(Path("."), controller)
-        self.assertFalse(controller.activated)
+        with self.assertRaises(subprocess.TimeoutExpired):
+            HOSTS.client_command(
+                "tool", ["plugin", "marketplace", "list"], Path("."), runner=runner
+            )
 
     def test_a_failed_plugin_command_still_raises(self) -> None:
-        class Controller:
-            def detected_plugin_status(self, project: Path):
-                raise RuntimeError("client plugin command failed: no")
-
-            def activate_detected_plugins(self, project: Path) -> None:
-                raise AssertionError("must not activate")
+        def runner(*_args, **_kwargs):
+            return subprocess.CompletedProcess(["tool"], 1, stdout="", stderr="no")
 
         with self.assertRaises(RuntimeError):
-            HOSTS.refresh_stale_plugins_after_upgrade(Path("."), Controller())
-
-    def test_a_stale_plugin_still_activates(self) -> None:
-        class Controller:
-            def __init__(self) -> None:
-                self.activated = False
-
-            def detected_plugin_status(self, project: Path):
-                return {"claude": {"plugin": "stale"}}
-
-            def activate_detected_plugins(self, project: Path) -> None:
-                self.activated = True
-
-        controller = Controller()
-        HOSTS.refresh_stale_plugins_after_upgrade(Path("."), controller)
-        self.assertTrue(controller.activated)
+            HOSTS.client_command(
+                "tool",
+                ["plugin", "list", "--available", "--json"],
+                Path("."),
+                runner=runner,
+            )
 
     def test_classify_does_not_call_a_running_plugin_list_a_failed_install(self) -> None:
         timeout = subprocess.TimeoutExpired(

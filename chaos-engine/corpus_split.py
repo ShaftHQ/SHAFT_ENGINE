@@ -575,15 +575,7 @@ def _companion_checkout(project: Path) -> dict[str, str]:
     return {"companion": _COMPANION_ABSENT, "companionCheckout": str(checkout)}
 
 
-def impact_graphify_outcome(project: Path, query: str) -> dict:
-    """Rank skill and documentation pages for one contract. No network, cap 8.
-
-    The companion documentation checkout is searched only when the origin README
-    inventory names it and that directory exists. An absent checkout says so and
-    does not invent ``companionPath``.
-    """
-    cleaned = " ".join(str(query).split())
-    needles = _impact_needles(cleaned)
+def _impact_documentation_hits(project: Path, needles: list[str]) -> list[tuple[int, dict]]:
     scored: list[tuple[int, dict]] = []
     for page in _documentation_pages(project):
         path = str(page.get("path") or "")
@@ -605,6 +597,11 @@ def impact_graphify_outcome(project: Path, query: str) -> dict:
         if line is not None:
             hit["line"] = line
         scored.append((score, hit))
+    return scored
+
+
+def _impact_code_hits(project: Path, needles: list[str]) -> list[tuple[int, dict]]:
+    scored: list[tuple[int, dict]] = []
     for node in _graph_code_nodes(project):
         path = str(node.get("source_file") or node.get("path") or "")
         if not path or path.startswith("docs:"):
@@ -619,8 +616,20 @@ def impact_graphify_outcome(project: Path, query: str) -> dict:
             score = 40
         elif matched:
             score = 15
-        hit = {"path": path, "label": path.rsplit("/", 1)[-1], "section": path}
-        scored.append((score, hit))
+        scored.append((score, {"path": path, "label": path.rsplit("/", 1)[-1], "section": path}))
+    return scored
+
+
+def impact_graphify_outcome(project: Path, query: str) -> dict:
+    """Rank skill and documentation pages for one contract. No network, cap 8.
+
+    The companion documentation checkout is searched only when the origin README
+    inventory names it and that directory exists. An absent checkout says so and
+    does not invent ``companionPath``.
+    """
+    cleaned = " ".join(str(query).split())
+    needles = _impact_needles(cleaned)
+    scored = _impact_documentation_hits(project, needles) + _impact_code_hits(project, needles)
     scored.sort(key=lambda item: (-item[0], str(item[1].get("path") or "")))
     unique: list[dict] = []
     seen: set[str] = set()

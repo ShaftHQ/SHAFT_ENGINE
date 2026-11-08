@@ -978,6 +978,21 @@ def graph_freshness_field(project: Path) -> dict[str, str]:
     }
 
 
+def _graphify_direct(root: Path, cleaned: str, mode: str, chosen: str) -> dict[str, Any] | None:
+    """Local Graphify outcome, or None when the direct read cannot answer."""
+    if chosen != "graphify":
+        return None
+    split = _corpus_split()
+    if split is None:
+        return None
+    try:
+        if mode == "impact":
+            return split.impact_graphify_outcome(root, cleaned)
+        return split.direct_graphify_outcome(root, cleaned)
+    except (OSError, sqlite3.Error, RuntimeError, ValueError):
+        return None
+
+
 def retrieve(
     query: str,
     *,
@@ -1010,17 +1025,7 @@ def retrieve(
     if recorded is not None:
         receipt.update(recorded)
         return receipt
-    direct = None
-    if chosen == "graphify":
-        split = _corpus_split()
-        if split is not None:
-            try:
-                if mode == "impact":
-                    direct = split.impact_graphify_outcome(root, cleaned)
-                else:
-                    direct = split.direct_graphify_outcome(root, cleaned)
-            except (OSError, sqlite3.Error, RuntimeError, ValueError):
-                direct = None
+    direct = _graphify_direct(root, cleaned, mode, chosen)
     if chosen == "deja":
         outcome = _run_deja(root, cleaned, host=host, mode=mode)
     elif mode == "impact" and direct is not None:
