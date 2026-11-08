@@ -4228,6 +4228,25 @@ def apply_install_host_completion(
     return wire_selected_receipt_shims(project, targets)
 
 
+def reconcile_locked_host_completion(
+    project: Path, targets: tuple[str, ...] | None
+) -> dict[str, str]:
+    """install_with_dependencies already wired PATH shims. A selection replaces that."""
+    if targets is None:
+        clear_completion_targets(project)
+        return {}
+    unwire_receipt_shims(project)
+    return apply_install_host_completion(project, targets)
+
+
+def with_completion_target_line(body: str, targets: object) -> str:
+    """Name selected clients on the human doctor summary without touching its renderer."""
+    if not isinstance(targets, (list, tuple)) or not targets:
+        return body
+    line = "completion targets: " + ", ".join(str(item) for item in targets)
+    return body + ("" if body.endswith("\n") else "\n") + line + "\n"
+
+
 def activate_completion_targets(
     project: Path,
     targets: tuple[str, ...],
@@ -4270,7 +4289,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     confirmer=None,
     bundle_options: dict[str, bool] | None = None,
     addons: tuple[str, ...] = (),
-    completion_targets: tuple[str, ...] | None = None,
 ) -> Path:
     project = project.resolve()
     reject_nested_project(project)
@@ -4740,7 +4758,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         sync_repository_overlay_from_source(project, commit)
-        apply_install_host_completion(project, completion_targets)
+        wire_receipt_shims(project)
         clear_install_rollback(project)
         if not _running_under_tests():
             refresh_stale_graph(project)
@@ -8472,9 +8490,6 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         f"ChaosEngine {label}: {status}",
         f"commit: {commit_text}",
     ]
-    targets = document.get("completionTargets")
-    if isinstance(targets, (list, tuple)) and targets:
-        lines.append("completion targets: " + ", ".join(str(item) for item in targets))
     last_install = document.get("lastInstall")
     if isinstance(last_install, dict) and last_install.get("status") == "rolled-back":
         requested = str(last_install.get("requestedCommit") or "")[:12] or "unknown"
@@ -8928,7 +8943,8 @@ def _run_install_command(args, requested, removed) -> object:
             distribution=args.distribution,
             addons=addons,
         )
-        apply_install_host_completion(args.project, targets)
+        if targets:
+            apply_install_host_completion(args.project, targets)
     else:
         target = install_with_dependencies(
             args.project,
@@ -8939,8 +8955,8 @@ def _run_install_command(args, requested, removed) -> object:
             maven_tools_mode=args.maven_tools_mode,
             bundle_options=bundle,
             addons=addons,
-            completion_targets=targets,
         )
+        reconcile_locked_host_completion(args.project, targets)
         if targets:
             activate_completion_targets(
                 args.project,
@@ -9201,12 +9217,10 @@ def _emit_result(args, result) -> int:
         if getattr(args, "fix_next_only", False):
             body = format_fix_next_only(result)
         else:
-            report = result
-            targets = read_completion_targets(getattr(args, "project", Path(".")))
-            if targets:
-                report = dict(result)
-                report["completionTargets"] = list(targets)
-            body = format_health_report(report, kind=args.command)
+            body = format_health_report(result, kind=args.command)
+            body = with_completion_target_line(
+                body, read_completion_targets(getattr(args, "project", Path(".")))
+            )
         print(body, end="")
         if args.command == "doctor":
             migration = result.get("migration")

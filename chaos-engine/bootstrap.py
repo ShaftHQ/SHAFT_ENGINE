@@ -3526,6 +3526,22 @@ def _install_operations(skip_tools: bool, with_maven_tools: bool) -> list[str]:
     return operations
 
 
+def _finish_host_completion(installer, project: Path, targets, *, already_wired: bool) -> None:
+    """Keep PATH shims from a locked install. A selected set replaces that wiring."""
+    if targets is None:
+        clear = getattr(installer, "clear_completion_targets", None)
+        if already_wired and callable(clear):
+            clear(project)
+        return
+    if already_wired:
+        unwire = getattr(installer, "unwire_receipt_shims", None)
+        if callable(unwire):
+            unwire(project)
+    apply = getattr(installer, "apply_install_host_completion", None)
+    if callable(apply):
+        apply(project, targets)
+
+
 def _run_core_install(
     project: Path,
     scratch: dict,
@@ -3620,13 +3636,9 @@ def _run_core_install(
             confirmer=confirm,
             bundle_options=bundle_options,
             **addon_options,
-            **(
-                {"completion_targets": completion_targets}
-                if completion_targets is not None
-                else {}
-            ),
         )
         _complete_dependency_steps(reporter, remaining, with_maven_tools=with_maven_tools)
+    _finish_host_completion(installer, project, completion_targets, already_wired=not skip_tools)
     suggest = getattr(installer, "suggest_addons", None)
     tips = suggest(project, source, addons) if callable(suggest) else []
     if tips:

@@ -355,18 +355,25 @@ class ActivationTests(unittest.TestCase):
                 self.install.apply_install_host_completion(chosen, ("grok",))
             self.assertFalse((chosen / ".cursor/hooks.json").exists())
             self.assertEqual(("grok",), self.install.read_completion_targets(chosen))
+            locked = Path(temporary) / "locked"
+            locked.mkdir()
+            with mock.patch.object(self.install.shutil, "which", side_effect=which):
+                self.install.wire_receipt_shims(locked)
+                self.install.reconcile_locked_host_completion(locked, ("grok-bot",))
+            self.assertFalse((locked / ".cursor/hooks.json").exists())
+            self.assertFalse((locked / ".opencode").exists())
+            self.assertEqual(("grok-bot",), self.install.read_completion_targets(locked))
 
     def test_doctor_summary_names_completion_targets(self):
-        report = self.install.format_health_report(
-            {"status": "healthy", "commit": "a" * 40, "completionTargets": ["grok", "cursor"]}
-        )
-        self.assertIn("completion targets: grok, cursor", report)
         plain = self.install.format_health_report({"status": "healthy", "commit": "a" * 40})
+        report = self.install.with_completion_target_line(plain, ["grok", "cursor"])
+        self.assertIn("completion targets: grok, cursor", report)
         self.assertNotIn("completion targets:", plain)
         self.assertNotIn("completionTargets", self.install._DIAGNOSTIC_FIELDS["doctor"])
         source = (CE / "install.py").read_text(encoding="utf-8")
-        self.assertIn("apply_install_host_completion(project, completion_targets)", source)
+        self.assertIn("apply_install_host_completion(project, targets)", source)
         self.assertIn("apply_install_host_completion(args.project, targets)", source)
+        self.assertIn("wire_receipt_shims(project)", source)
 
     def test_claude_activation_requires_the_cli_and_grok_does_not_force_lean(self):
         with tempfile.TemporaryDirectory() as temporary:
