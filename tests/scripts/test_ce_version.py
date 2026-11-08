@@ -63,6 +63,12 @@ class CeVersionTest(unittest.TestCase):
     def test_check_cli_pass(self) -> None:
         self.assertEqual(0, self.mod.main(["check"]))
 
+    def test_concurrent_bump_rule_names_next_version(self) -> None:
+        doc = (ROOT / "chaos-engine/references/ce-upgrade-on-release.md").read_text(encoding="utf-8")
+        self.assertIn("Concurrent bumps", doc)
+        self.assertIn("merges second", doc)
+        self.assertIn("next_version", doc)
+
 
 if __name__ == "__main__":
     unittest.main()
