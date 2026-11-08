@@ -154,6 +154,11 @@ _OUT_OF_SCOPE_PR_URL = re.compile(
 _OUT_OF_SCOPE_CUE = re.compile(
     r"(?i)\b(?:out\s+of\s+scope|do\s+not\s+(?:watch|babysit|merge)|don'?t\s+watch)\b"
 )
+# #7797: these are owner decisions even inside a dispatch brief. "do not merge" is not.
+_OWNER_SCOPE_DECISION = re.compile(
+    r"(?i)\b(?:out\s+of\s+scope|do\s+not\s+(?:watch|babysit)|don'?t\s+watch)\b"
+)
+_DELEGATED_BRIEF = re.compile(r"(?i)\b(?:implementer|writer|dispatch|subagent)\b")
 _OUT_OF_SCOPE_STATE = "out-of-scope-pull-requests.json"
 
 
@@ -254,6 +259,9 @@ def record_out_of_scope_from_prompt(event: dict) -> None:
     """Parse owner 'out of scope' + PR URL from UserPromptSubmit (#7443)."""
     prompt = event.get("prompt") or event.get("user_prompt") or ""
     if not isinstance(prompt, str) or not _OUT_OF_SCOPE_CUE.search(prompt):
+        return
+    # #7797: an implementer brief that says "do not merge" is not an owner allowlist entry.
+    if _DELEGATED_BRIEF.search(prompt) and not _OWNER_SCOPE_DECISION.search(prompt):
         return
     cwd = Path(str(event.get("cwd") or Path.cwd()))
     for match in _OUT_OF_SCOPE_PR_URL.finditer(prompt):
