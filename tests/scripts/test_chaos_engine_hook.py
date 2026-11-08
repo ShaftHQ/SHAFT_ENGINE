@@ -1572,6 +1572,61 @@ process.stderr.write(result.stderr || '');
             text = (stopped.stdout + stopped.stderr).casefold()
             self.assertNotIn("until merged", text)
 
+    def test_implementer_dispatch_stop_before_merge_is_not_out_of_scope(self):
+        """#7797: a writer/implementer brief is not an owner out-of-scope decision."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            # The live false positive also says "do not merge" inside the brief.
+            prompts = (
+                "Dispatch the implementer. The writer must stop before merge of "
+                "https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+                "Dispatch the implementer. The writer must stop before merge. "
+                "Do not merge https://github.com/ShaftHQ/shafthq.github.io/pull/1175.",
+            )
+            for prompt in prompts:
+                submitted = self.run_hook(
+                    {
+                        "hook_event_name": "UserPromptSubmit",
+                        "cwd": str(root),
+                        "prompt": prompt,
+                        "session_id": "oos-7797a",
+                    },
+                    environment,
+                )
+                self.assertEqual(0, submitted.returncode, submitted.stdout + submitted.stderr)
+            allow = root / ".chaos-engine-state" / "out-of-scope-pull-requests.json"
+            self.assertFalse(
+                allow.exists(),
+                "an implementer dispatch must not write the out-of-scope allowlist",
+            )
+
+    def test_do_not_merge_without_delegation_wording_records_pull_request(self):
+        """#7797: bare 'do not merge <url>' still records that pull request."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            submitted = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": "do not merge https://github.com/ShaftHQ/example/pull/17",
+                    "session_id": "oos-7797b",
+                },
+                environment,
+            )
+            self.assertEqual(0, submitted.returncode, submitted.stdout + submitted.stderr)
+            allow = root / ".chaos-engine-state" / "out-of-scope-pull-requests.json"
+            self.assertTrue(allow.is_file(), "bare 'do not merge' must record the pull request")
+            payload = json.loads(allow.read_text(encoding="utf-8"))
+            entries = payload["pullRequests"]
+            self.assertTrue(
+                any(
+                    item.get("pullRequest") == 17 and item.get("repository") == "ShaftHQ/example"
+                    for item in entries
+                ),
+                entries,
+            )
 
     def test_session_start_reports_reflection_controller_drift_only_when_files_differ(self):
         with tempfile.TemporaryDirectory() as temporary:

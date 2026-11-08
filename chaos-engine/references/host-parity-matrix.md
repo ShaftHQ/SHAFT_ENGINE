@@ -78,6 +78,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-BOT-ENTRY | Independent bots (GPTs, Claude Projects, others) | medium | No checkout auto-load and no hooks: start from [bot entry](bot-entry.md) (`tool.py entry`, or an exported entry file for bots without repository access). | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
+| GAP-CLAUDE-IMPORT | Claude surfaces that do not expand `@AGENTS.md` | medium | A Claude surface that does not expand `CLAUDE.md`'s `@AGENTS.md` import, and has no installed overlay, sees only that one import line. That explains a report that Claude ignored the rules. Installed Claude Code stays the strongest hook mapping. | Tracked `CLAUDE.md` stays exactly `@AGENTS.md` (`test_fresh_import_pointers_are_exactly_one_import`). |
 
 
 
