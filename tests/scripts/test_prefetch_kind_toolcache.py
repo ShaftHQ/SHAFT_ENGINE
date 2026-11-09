@@ -108,7 +108,8 @@ class PrefetchKindToolcacheTest(unittest.TestCase):
             self.assertEqual(0, code)
             self.assertEqual(payload, dest.read_bytes())
             self.assertTrue(os.access(dest, os.X_OK))
-            self.assertEqual(0o755, dest.stat().st_mode & 0o777)
+            if os.name == "posix":  # NTFS does not store 0755.
+                self.assertEqual(0o755, dest.stat().st_mode & 0o777)
 
     def test_http_504_exits_1_with_response_code(self):
         state = {"hits": 0}

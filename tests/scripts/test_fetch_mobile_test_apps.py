@@ -11,6 +11,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -279,6 +280,103 @@ class FetchMobileTestAppsTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
+    def test_http_404_is_not_retried(self):
+        """A missing fixture is not a transfer refusal: one request, no pause."""
+        state = {"hits": 0}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                state["hits"] += 1
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *_args):
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        pauses: list[float] = []
+        original_pause = getattr(fetch, "_pause", None)
+        fetch._pause = pauses.append
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                cache = Path(tmp) / "cache"
+                dest = "shaft-engine/src/test/resources/testDataFiles/apps/missing.apk"
+                (root / "scripts" / "ci").mkdir(parents=True)
+                manifest = {
+                    "schemaVersion": 1,
+                    "releaseTag": "test",
+                    "baseUrl": f"http://127.0.0.1:{server.server_address[1]}",
+                    "apps": [
+                        {
+                            "asset": "missing.apk",
+                            "sha256": "c" * 64,
+                            "destinations": [dest],
+                        }
+                    ],
+                }
+                manifest_path = root / "scripts/ci/mobile_test_apps.manifest.json"
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                with self.assertRaises(fetch.FetchError):
+                    fetch.fetch_all(
+                        root=root, manifest_path=manifest_path, cache_dir=cache
+                    )
+                self.assertEqual(1, state["hits"])
+                self.assertEqual([], pauses)
+        finally:
+            if original_pause is None:
+                del fetch._pause
+            else:
+                fetch._pause = original_pause
+            server.shutdown()
+            server.server_close()
+
+    def test_timeout_retries_with_backoff_then_raises(self):
+        """URLError(TimeoutError) is a transfer refusal for every attempt."""
+        calls = {"n": 0}
+
+        def _timed_out(*_args, **_kwargs):
+            calls["n"] += 1
+            raise fetch.urllib.error.URLError(TimeoutError("timed out"))
+
+        pauses: list[float] = []
+        original_pause = getattr(fetch, "_pause", None)
+        fetch._pause = pauses.append
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                cache = Path(tmp) / "cache"
+                dest = "shaft-engine/src/test/resources/testDataFiles/apps/demo.apk"
+                (root / "scripts" / "ci").mkdir(parents=True)
+                manifest = {
+                    "schemaVersion": 1,
+                    "releaseTag": "test",
+                    "baseUrl": "http://127.0.0.1:9",
+                    "apps": [
+                        {
+                            "asset": "demo.apk",
+                            "sha256": "d" * 64,
+                            "destinations": [dest],
+                        }
+                    ],
+                }
+                manifest_path = root / "scripts/ci/mobile_test_apps.manifest.json"
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                with patch.object(fetch.urllib.request, "urlopen", side_effect=_timed_out):
+                    with self.assertRaises(fetch.FetchError):
+                        fetch.fetch_all(
+                            root=root, manifest_path=manifest_path, cache_dir=cache
+                        )
+                self.assertEqual(fetch.DOWNLOAD_ATTEMPTS, calls["n"])
+                self.assertEqual([5, 15, 45], pauses)
+        finally:
+            if original_pause is None:
+                del fetch._pause
+            else:
+                fetch._pause = original_pause
 
     def test_tracked_mobile_binary_gate_passes_on_clean_tree(self):
         failures = fetch.tracked_mobile_binary_failures(ROOT)
