@@ -463,6 +463,33 @@ def base_download_gone(error: Exception, base_sha: str, *, windows: bool) -> boo
     )
 
 
+# The same frozen base, after the wrapper's own gateway retries, still dies in
+# Provision dependencies with HTTP 504 (runs 42580335056 and 42582606870).
+# The candidate install still runs.
+BASE_GATEWAY_TIMEOUT = "base-upstream-gateway-timeout"
+_BASE_GATEWAY_MARKS = (
+    "HTTP Error 502",
+    "HTTP Error 503",
+    "HTTP Error 504",
+    "Gateway Time-out",
+    "The requested URL returned error: 502",
+    "The requested URL returned error: 503",
+    "The requested URL returned error: 504",
+)
+
+
+def base_gateway_timeout(error: Exception, base_sha: str, *, windows: bool) -> bool:
+    """Frozen-base provisioning failed on a gateway error after the wrapper retries."""
+    text = str(error)
+    return (
+        isinstance(error, AcceptanceCommandFailure)
+        and base_sha == KNOWN_BASE_SHA
+        and tuple(error.command) == tuple(public_wrapper_command(base_sha, windows=windows))
+        and "failed phase: Provision dependencies" in text
+        and any(mark in text for mark in _BASE_GATEWAY_MARKS)
+    )
+
+
 def upstream_python_abi_wheels(error: Exception) -> str | None:
     """#6780: name the CPython ABI tag when the frozen base cannot resolve native wheels.
 
@@ -1836,6 +1863,12 @@ def run_acceptance(
                     return {
                         "status": "skipped",
                         "reason": BASE_DOWNLOAD_GONE,
+                        "requestedPython": "n/a",
+                    }
+                if base_gateway_timeout(error, base_sha, windows=os.name == "nt"):
+                    return {
+                        "status": "skipped",
+                        "reason": BASE_GATEWAY_TIMEOUT,
                         "requestedPython": "n/a",
                     }
                 transition = exact_base_compatibility_transition(
