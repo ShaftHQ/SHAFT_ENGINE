@@ -66,4 +66,4 @@ Always-on SessionStart full scan; continuous Task Observer; auto-merge skill mut
 ## Local trending study
 
 The 2026-11-09 pass, its license checks, and the later proposals and cadence:
-[ce-study-2026-11-09](details/ce-study-2026-11-09/README.md).
+[ce-study-2026-11-09](details/ce-study-2026-11-09/index.md).
