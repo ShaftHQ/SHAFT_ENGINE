@@ -1531,15 +1531,22 @@ def _command_guard_state(
         tool_name, tool_input, functions_source, functions_direct, commands
     )
     project = Path(str(event.get("cwd") or Path.cwd()))
+    reason = _destructive_scope_reason(commands, project, uninspectable)
+    if reason:
+        return receipt_command, mutation, reason
+    return receipt_command, mutation, ""
+
+
+def _destructive_scope_reason(commands: tuple[str, ...], project: Path, uninspectable: bool) -> str:
     if uninspectable:
-        return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
+        return "ChaosEngine rejected destructive broad scope."
     for candidate in commands:
         if not _command_is_destructive(candidate) or documented_installer_for_project(candidate, project):
             continue
         if documented_installer_command(candidate) is not None:
-            return receipt_command, mutation, _INSTALLER_ORIGIN_DENIAL
-        return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
-    return receipt_command, mutation, ""
+            return _INSTALLER_ORIGIN_DENIAL
+        return "ChaosEngine rejected destructive broad scope."
+    return ""
 
 
 def _pending_watch_claim_reason(event: dict) -> str:

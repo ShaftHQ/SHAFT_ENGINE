@@ -754,7 +754,8 @@ def run_checked(
 TRANSIENT_NETWORK_FAILURE = re.compile(
     r"Could not resolve host|Connection (?:reset|refused|timed out)|Operation timed out|"
     r"Failed to connect|early EOF|unexpected disconnect|TLS connection|"
-    r"The requested URL returned error: (?:429|5\d\d)|RPC failed",
+    r"The requested URL returned error: (?:429|5\d\d)|HTTP Error (?:429|5\d\d)|"
+    r"Gateway Time-out|RPC failed",
     re.IGNORECASE,
 )
 NETWORK_ATTEMPTS = 3
@@ -1142,7 +1143,7 @@ def run_public_wrapper(
     commit: str, project: Path, *, require_current_action: bool = True,
     environment: dict[str, str] | None = None,
 ) -> None:
-    result = run_checked(
+    result = run_network_checked(
         public_wrapper_command(commit, windows=os.name == "nt"),
         cwd=project,
         environment=environment or wrapper_environment(),

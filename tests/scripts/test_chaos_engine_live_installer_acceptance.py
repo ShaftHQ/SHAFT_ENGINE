@@ -1532,6 +1532,29 @@ class NetworkRetryTest(TestCase):
                 self.acceptance.run_network_checked(["git", "fetch"], cwd=Path("."), sleep=lambda _: None)
         self.assertEqual(1, run.call_count)
 
+    def test_gateway_timeouts_are_retried(self):
+        ok = CompletedProcess(["wrapper"], 0, "", "")
+        details = (
+            "curl: (22) The requested URL returned error: 504",
+            "CE-INSTALL-FAILED: HTTP Error 504: Gateway Time-out",
+        )
+        for detail in details:
+            with self.subTest(detail=detail):
+                flake = self.failure(detail)
+                with mock.patch.object(self.acceptance, "run_checked", side_effect=[flake, ok]) as run:
+                    result = self.acceptance.run_network_checked(
+                        ["bash", "-c", "wrapper"], cwd=Path("."), sleep=lambda _: None
+                    )
+                self.assertIs(ok, result)
+                self.assertEqual(2, run.call_count)
+
+    def test_installer_failure_is_not_retried_as_a_network_flake(self):
+        product = self.failure("installed ChaosEngine distribution differs; uninstall before changing it")
+        with mock.patch.object(self.acceptance, "run_checked", side_effect=[product]) as run:
+            with self.assertRaises(self.acceptance.AcceptanceCommandFailure):
+                self.acceptance.run_network_checked(["bash", "-c", "wrapper"], cwd=Path("."), sleep=lambda _: None)
+        self.assertEqual(1, run.call_count)
+
     def test_retries_are_bounded(self):
         dns = self.failure("Could not resolve host: github.com")
         with mock.patch.object(self.acceptance, "run_checked", side_effect=[dns, dns, dns]) as run:
