@@ -154,6 +154,36 @@ def _record_store_outcome(
     module.record_store_outcome(project, store, status, query, text, reason)
 
 
+def _citation_text(receipt: dict) -> str:
+    """Paths extract_citations already parses. No new grammar."""
+    parts: list[str] = []
+    hits = receipt.get("hits") if isinstance(receipt.get("hits"), list) else []
+    for hit in hits:
+        if not isinstance(hit, dict) or not hit.get("path"):
+            continue
+        path = str(hit["path"])
+        line = hit.get("line")
+        parts.append(f"{path}:{line}" if line else path)
+    excerpt = str(receipt.get("excerpt") or "")
+    if excerpt:
+        parts.append(excerpt)
+    return "\n".join(parts)
+
+
+def _commit_retrieve_receipt(root: Path, store: str, query: str, receipt: dict) -> None:
+    status = str(receipt.get("status") or "")
+    if status not in {STATUS_USED, STATUS_SKIPPED, STATUS_DEGRADED}:
+        return
+    _record_store_outcome(
+        root,
+        store,
+        status,
+        query,
+        _citation_text(receipt),
+        str(receipt.get("reason") or ""),
+    )
+
+
 def _tool_py(project: Path) -> Path | None:
     for relative in (".chaos-engine/tool.py", "chaos-engine/tool.py"):
         path = project / relative
@@ -823,7 +853,6 @@ def _store_hit_receipt(
         "excerpt": excerpt,
         "bytes": len(excerpt.encode("utf-8")),
     }
-    _record_store_outcome(project, store, STATUS_USED, query, body)
     if origin_sync:
         receipt["originSync"] = "advisory"
     return receipt
@@ -1066,15 +1095,7 @@ def retrieve(
             pass
     if chosen == "graphify":
         receipt["freshness"] = graph_freshness_field(root)
-    if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:
-        _record_store_outcome(
-            root,
-            chosen,
-            str(receipt["status"]),
-            cleaned,
-            "",
-            str(receipt.get("reason") or ""),
-        )
+    _commit_retrieve_receipt(root, chosen, cleaned, receipt)
     return receipt
 
 
