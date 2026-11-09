@@ -1,5 +1,6 @@
 package com.shaft.ai.local;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.nio.file.Files;
@@ -11,11 +12,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** Process boundary that prevents a managed native runtime from outliving the SHAFT JVM. */
 public final class ManagedLocalAiProcessSupervisor {
+    private static final AtomicInteger LIVE_CONTROL_MONITORS = new AtomicInteger();
+
     private ManagedLocalAiProcessSupervisor() { }
+
+    static int liveControlMonitors() {
+        return LIVE_CONTROL_MONITORS.get();
+    }
 
     /** Internal process entrypoint. */
     public static void main(String[] arguments) throws Exception {
@@ -70,6 +78,7 @@ public final class ManagedLocalAiProcessSupervisor {
         private Thread parentMonitor;
         private Thread controlMonitor;
         private Thread treeMonitor;
+        private Thread childOutput;
 
         private Ownership(ProcessHandle parent, Path workingDirectory, List<String> command) {
             this.parent = parent;
@@ -90,10 +99,17 @@ public final class ManagedLocalAiProcessSupervisor {
                 parent.onExit().join();
                 ownerLost();
             });
-            controlMonitor = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
-                awaitControlPipeClosure();
-                ownerLost();
-            });
+            if ("1".equals(System.getenv("SHAFT_LOCAL_AI_CONTROL_PIPE"))) {
+                LIVE_CONTROL_MONITORS.incrementAndGet();
+                controlMonitor = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
+                    try {
+                        awaitControlPipeClosure();
+                        ownerLost();
+                    } finally {
+                        LIVE_CONTROL_MONITORS.decrementAndGet();
+                    }
+                });
+            }
             treeMonitor = Thread.ofVirtual().name("shaft-local-ai-tree-monitor").start(this::monitorTree);
         }
 
@@ -106,9 +122,19 @@ public final class ManagedLocalAiProcessSupervisor {
                 ProcessBuilder builder = new ProcessBuilder(command).directory(workingDirectory.toFile())
                         .redirectErrorStream(true);
                 builder.environment().remove("CLASSPATH");
-                builder.inheritIO();
+                builder.environment().remove("SHAFT_LOCAL_AI_CONTROL_PIPE");
                 try {
-                    child.set(builder.start());
+                    Process started = builder.start();
+                    child.set(started);
+                    // Child bytes stay on the Java stream Surefire already owns.
+                    childOutput = Thread.ofVirtual().name("shaft-local-ai-child-output").start(() -> {
+                        try (var input = started.getInputStream()) {
+                            input.transferTo(System.out);
+                            System.out.flush();
+                        } catch (IOException ignored) {
+                            // The child stream closes when the process exits.
+                        }
+                    });
                     return true;
                 } finally {
                     launchResolved.set(true);
@@ -120,12 +146,27 @@ public final class ManagedLocalAiProcessSupervisor {
             try {
                 child.get().waitFor();
             } finally {
+                joinChildOutput();
                 parentMonitor.interrupt();
-                controlMonitor.interrupt();
+                if (controlMonitor != null) {
+                    controlMonitor.interrupt();
+                }
                 synchronized (gate) {
                     terminate(child.get(), Duration.ofSeconds(2), retainedDescendants);
                 }
                 treeMonitor.interrupt();
+            }
+        }
+
+        private void joinChildOutput() {
+            Thread output = childOutput;
+            if (output == null) {
+                return;
+            }
+            try {
+                output.join(Duration.ofSeconds(2));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
             }
         }
 

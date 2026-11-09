@@ -3,7 +3,10 @@ package com.shaft.ai.local;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -115,6 +118,43 @@ class ManagedLocalAiProcessSupervisorTest {
                 directory.toAbsolutePath().toString(),
                 child.toAbsolutePath().toString()
         });
+    }
+
+    @Test
+    void childOutputUsesTheJavaStreamInsteadOfTheNativeDescriptor() throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("java-stream"));
+        Path child = directory.resolve("child.sh");
+        Files.writeString(child, "#!/bin/sh\nprintf 'supervised\\n'\n");
+        assertTrue(child.toFile().setExecutable(true));
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        PrintStream previous = System.out;
+        System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+        try {
+            String[] parent = currentParent();
+            ManagedLocalAiProcessSupervisor.main(new String[] {
+                    parent[0], parent[1],
+                    directory.toAbsolutePath().toString(),
+                    child.toAbsolutePath().toString()
+            });
+        } finally {
+            System.setOut(previous);
+        }
+        assertTrue(captured.toString(StandardCharsets.UTF_8).contains("supervised"));
+    }
+
+    @Test
+    void inProcessLaunchDoesNotKeepTheHostStandardInput() throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("host-stdin"));
+        Path child = directory.resolve("child.sh");
+        Files.writeString(child, "#!/bin/sh\nexit 0\n");
+        assertTrue(child.toFile().setExecutable(true));
+        String[] parent = currentParent();
+        ManagedLocalAiProcessSupervisor.main(new String[] {
+                parent[0], parent[1],
+                directory.toAbsolutePath().toString(),
+                child.toAbsolutePath().toString()
+        });
+        assertEquals(0, ManagedLocalAiProcessSupervisor.liveControlMonitors());
     }
 
     @Test
