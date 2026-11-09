@@ -1,5 +1,6 @@
 """Generated SHAFT skill inventory and quality-contract tests (#4640)."""
 
+import importlib.util
 import json
 import re
 import tempfile
@@ -433,7 +434,10 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
             self.assertEqual(instructed, [], label)
 
     def test_readme_mindmap_names_each_skill_and_the_relation(self):
-        readme = (REPOSITORY / "shaft-skills/readme.md").read_text(encoding="utf-8")
+        skills = REPOSITORY / "shaft-skills"
+        readmes = [path.name for path in skills.iterdir() if path.name.casefold() == "readme.md"]
+        self.assertEqual(readmes, ["README.md"])
+        readme = (skills / "README.md").read_text(encoding="utf-8")
         self.assertIn("mindmap", readme.casefold())
         self.assertIn("selects exactly one", readme.casefold())
         for name in _inventory_names():
@@ -441,6 +445,32 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         self.assertIn("Allure failure analysis", readme)
         self.assertIn("Record and playback", readme)
         self.assertIn("Code generation", readme)
+
+    def test_on_demand_caches_keep_the_full_when_text(self):
+        generator = REPOSITORY / "scripts/mcp/generate_shaft_skill_tool_caches.py"
+        spec = importlib.util.spec_from_file_location(
+            "generate_shaft_skill_tool_caches_7858", generator
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
+        caches = [
+            path.read_text(encoding="utf-8")
+            for path in (
+                REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md",
+                REPOSITORY / "shaft-skills/shaft-cli/references/cache.md",
+            )
+        ]
+        for tool in index["tools"]:
+            description = str(tool.get("description") or "")
+            when = module._when(description)
+            self.assertEqual(
+                when,
+                description.replace("|", "/").replace("`", "'").replace("\n", " ").strip(),
+            )
+            row = f"| `{tool['name']}` | {when} |"
+            for cache in caches:
+                self.assertIn(row, cache)
 
     def test_description_listing_and_progressive_disclosure_budgets_hold(self):
         self.assertEqual(validate_repository(REPOSITORY), [])

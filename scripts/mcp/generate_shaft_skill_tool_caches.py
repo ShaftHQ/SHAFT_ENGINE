@@ -32,14 +32,11 @@ CACHE_RULE = (
 CALL_FORM = (
     "shaft-cli call <TOOL> [key=value ...] [--args '<json>'] [--json] [--stdio-ok]"
 )
-WHEN_LIMIT = 96
 
 
 def _when(description: str) -> str:
-    text = description.replace("|", "/").replace("`", "'").replace("\n", " ").strip()
-    if len(text) <= WHEN_LIMIT:
-        return text
-    return text[: WHEN_LIMIT - 3].rstrip() + "..."
+    """Keep the full when-text. A fixed cut drops constraints that sit at the end."""
+    return description.replace("|", "/").replace("`", "'").replace("\n", " ").strip()
 
 
 def _args(params: list[dict]) -> str:

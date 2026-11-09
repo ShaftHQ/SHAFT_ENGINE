@@ -70,7 +70,6 @@ ALLOWED_EXACT = {
     "legacy-shaft-engine/README.md",
     "shaft-intellij/README.md",
     "shaft-skills/README.md",
-    "shaft-skills/readme.md",
     "chaos-engine/profiles/README.md",
     ".chaos-engine/profiles/README.md",
     ".chaos-engine/THIRD_PARTY_NOTICES.md",
