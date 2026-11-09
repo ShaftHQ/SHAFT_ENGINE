@@ -691,7 +691,7 @@ jobs:
           cd appium-flutter-server/demo-app
           bash "$GITHUB_WORKSPACE/scripts/ci/prepare_flutter_demo_android.sh" .
           dart pub global activate rps --version 0.8.0
-          flutter build apk --debug
+          bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Upload wired Flutter demo-app APK
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1319,6 +1319,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Prefetch kind into the runner tool cache
+        shell: bash
+        run: bash scripts/ci/build_retry.sh 4 20 python3 scripts/ci/prefetch_kind_toolcache.py
 
       - name: Create Kubernetes Kind Cluster
         uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2

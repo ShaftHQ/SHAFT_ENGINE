@@ -108,7 +108,10 @@ class FetchMobileTestAppsTest(unittest.TestCase):
         expected = "a" * 64  # deliberately not sha256(wrong)
 
         class Handler(BaseHTTPRequestHandler):
+            hits = 0
+
             def do_GET(self):  # noqa: N802
+                Handler.hits += 1
                 if self.path.endswith("/bad.apk"):
                     self.send_response(200)
                     self.send_header("Content-Length", str(len(wrong)))
@@ -152,7 +155,127 @@ class FetchMobileTestAppsTest(unittest.TestCase):
                 self.assertFalse((root / dest).exists())
                 # Mismatched download must not leave a poison cache entry either.
                 self.assertFalse(any(cache.glob("*")), msg=list(cache.glob("*")))
+                # A 200 with the wrong body is not a transfer refusal.
+                self.assertEqual(1, Handler.hits)
         finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_gateway_timeout_then_success_fetches_pinned_bytes(self):
+        """504 twice, then 200: three requests and the pinned body (#7855)."""
+        payload = b"pinned-after-gateway-timeout"
+        digest = _sha256(payload)
+        state = {"hits": 0}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                state["hits"] += 1
+                if state["hits"] <= 2:
+                    self.send_response(504)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *_args):
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        original_pause = getattr(fetch, "_pause", None)
+        fetch._pause = lambda _seconds: None
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                cache = Path(tmp) / "cache"
+                dest = "shaft-engine/src/test/resources/testDataFiles/apps/demo.apk"
+                (root / "scripts" / "ci").mkdir(parents=True)
+                manifest = {
+                    "schemaVersion": 1,
+                    "releaseTag": "test",
+                    "baseUrl": f"http://127.0.0.1:{server.server_address[1]}",
+                    "apps": [
+                        {
+                            "asset": "demo.apk",
+                            "sha256": digest,
+                            "destinations": [dest],
+                        }
+                    ],
+                }
+                manifest_path = root / "scripts/ci/mobile_test_apps.manifest.json"
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                report = fetch.fetch_all(
+                    root=root, manifest_path=manifest_path, cache_dir=cache
+                )
+                installed = root / dest
+                self.assertEqual(payload, installed.read_bytes())
+                self.assertEqual(3, state["hits"])
+                self.assertEqual("ok", report["apps"][0]["status"])
+        finally:
+            if original_pause is None:
+                del fetch._pause
+            else:
+                fetch._pause = original_pause
+            server.shutdown()
+            server.server_close()
+
+    def test_persistent_gateway_timeout_raises_after_download_attempts(self):
+        """Always 504: FetchError names HTTP Error 504 after DOWNLOAD_ATTEMPTS."""
+        state = {"hits": 0}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                state["hits"] += 1
+                self.send_response(504)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *_args):
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        pauses: list[float] = []
+        original_pause = getattr(fetch, "_pause", None)
+        fetch._pause = pauses.append
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                cache = Path(tmp) / "cache"
+                dest = "shaft-engine/src/test/resources/testDataFiles/apps/demo.apk"
+                (root / "scripts" / "ci").mkdir(parents=True)
+                manifest = {
+                    "schemaVersion": 1,
+                    "releaseTag": "test",
+                    "baseUrl": f"http://127.0.0.1:{server.server_address[1]}",
+                    "apps": [
+                        {
+                            "asset": "demo.apk",
+                            "sha256": "b" * 64,
+                            "destinations": [dest],
+                        }
+                    ],
+                }
+                manifest_path = root / "scripts/ci/mobile_test_apps.manifest.json"
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                with self.assertRaises(fetch.FetchError) as raised:
+                    fetch.fetch_all(
+                        root=root, manifest_path=manifest_path, cache_dir=cache
+                    )
+                self.assertIn("HTTP Error 504", str(raised.exception))
+                self.assertEqual(fetch.DOWNLOAD_ATTEMPTS, state["hits"])
+                self.assertEqual([5, 15, 45], pauses)
+                self.assertFalse(any(cache.glob("*")), msg=list(cache.glob("*")))
+        finally:
+            if original_pause is None:
+                del fetch._pause
+            else:
+                fetch._pause = original_pause
             server.shutdown()
             server.server_close()
 

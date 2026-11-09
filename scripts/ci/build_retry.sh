@@ -41,7 +41,9 @@ shift
 # Gradle reports a JetBrains GitHub release timeout as "Gateway Time-out" /
 # "status code 504" / "Could not GET", not the Maven phrases above
 # (runs 42467112280 and 42472115062, kotlin-compiler-embeddable).
-RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|status code 504|Gateway Time-out|Could not GET |Could not download |Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
+# Run 42580722341: wrapper "HTTP response code: 504" (gradle-9.3.1-all.zip)
+# is a transfer error; 429/500/502/503 share it. grep -E needs a capturing group.
+RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|status code 504|Gateway Time-out|Could not GET |Could not download |Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length|HTTP response code: (429|500|502|503|504)'
 
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT

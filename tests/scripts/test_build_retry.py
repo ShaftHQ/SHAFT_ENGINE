@@ -70,6 +70,12 @@ GRADLE_GATEWAY_TIMEOUT = (
     "Could not GET https://github.com/JetBrains/kotlin/releases/download/v2.1.20/kotlin-compiler-embeddable-2.1.20.jar. "
     "Received status code 504 from server: Gateway Time-out"
 )
+# Run 42580722341: flutter build apk hit this wrapper sentence, which does not
+# contain "status code 504".
+GRADLE_WRAPPER_504 = (
+    'Exception in thread "main" java.io.IOException: Server returned HTTP response code: 504 '
+    "for URL: https://github.com/gradle/gradle-distributions/releases/download/v9.3.1/gradle-9.3.1-all.zip"
+)
 
 
 def _bash() -> str | None:
@@ -100,13 +106,17 @@ class BuildRetryScriptTest(unittest.TestCase):
     def _fake_command(self, *, output: str, fail_times: int) -> str:
         # Records one line per invocation, then fails `fail_times` times before
         # succeeding, so the test can count attempts rather than infer them.
+        # The failure text is a file: the Gradle wrapper line contains quotes.
+        (self.workspace / "failure.txt").write_text(
+            output + "\n", encoding="utf-8", newline="\n"
+        )
         script = self.workspace / "fake-mvn.sh"
         script.write_text(
             "#!/usr/bin/env bash\n"
             'echo "attempt" >> attempts.log\n'
             "count=$(wc -l < attempts.log)\n"
             f'if [ "$count" -le {fail_times} ]; then\n'
-            f'  echo "{output}"\n'
+            "  cat failure.txt\n"
             "  exit 1\n"
             "fi\n"
             'echo "BUILD SUCCESS"\n',
@@ -168,6 +178,41 @@ class BuildRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=2)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(2, attempts)
+
+    def test_a_gradle_wrapper_http_504_is_retried_until_it_succeeds(self):
+        command = self._fake_command(output=GRADLE_WRAPPER_504, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_e2e_flutter_demo_app_build_wraps_flutter_with_build_retry(self):
+        workflow = (REPO_ROOT / ".github/workflows/e2eTests.yml").read_text(encoding="utf-8")
+        start = workflow.index("  Flutter_Demo_App_Build:\n")
+        end = workflow.index("\n  Android_Native_BrowserStack:\n", start)
+        job = workflow[start:end]
+        wrapped = (
+            'bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" '
+            "2 60 flutter build apk --debug"
+        )
+        self.assertIn(wrapped, job)
+        bare = [
+            line.strip()
+            for line in job.splitlines()
+            if line.strip() == "flutter build apk --debug"
+        ]
+        self.assertEqual([], bare)
+
+    def test_ubuntu_junit_e2e_prefetches_kind_before_kind_action(self):
+        workflow = (REPO_ROOT / ".github/workflows/e2eTests.yml").read_text(encoding="utf-8")
+        start = workflow.index("  Ubuntu_JUnit_E2E:\n")
+        kind_action = workflow.index("uses: helm/kind-action@", start)
+        window = workflow[start:kind_action]
+        command = (
+            "bash scripts/ci/build_retry.sh 4 20 "
+            "python3 scripts/ci/prefetch_kind_toolcache.py"
+        )
+        self.assertIn("Prefetch kind into the runner tool cache", window)
+        self.assertIn(command, window)
 
     def test_live_tools_gradle_steps_call_build_retry(self):
         # Run 42472115062 invoked gradlew directly, so a 504 was not retried.
