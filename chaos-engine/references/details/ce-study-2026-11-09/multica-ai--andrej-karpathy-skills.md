@@ -25,4 +25,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo is null. gh api repos/multica-ai/andrej-karpathy-skills/license returned HTTP 404, message Not Found. The root listing has no LICENSE, COPYING, or UNLICENSE file.
 - Missing license: skill edit blocked, vendoring blocked.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

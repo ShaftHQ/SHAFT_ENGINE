@@ -26,4 +26,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo.spdxId is AGPL-3.0. gh api repos/debpalash/VoiceStudio/license returned HTTP 200 and path LICENSE.
 - The SHAFT_ENGINE root LICENSE is MIT. AGPL-3.0 is incompatible with copying this program into that tree. Skill edit blocked. Vendoring blocked.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

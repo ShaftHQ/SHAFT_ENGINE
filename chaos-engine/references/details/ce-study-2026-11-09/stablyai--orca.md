@@ -25,4 +25,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo.spdxId is MIT. gh api repos/stablyai/orca/license returned HTTP 200 and path LICENSE.
 - No skill edit from this note.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

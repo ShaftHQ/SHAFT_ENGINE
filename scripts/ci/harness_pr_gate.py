@@ -230,6 +230,7 @@ CHECKS = {
             "tests.scripts.test_dependabot_auto_merge_workflow",
             "tests.scripts.test_guard_split",
             "tests.scripts.test_ce_addons",
+            "tests.scripts.test_docs_links_lychee_log",
         ),
     ),
     "setup-aggregator-contract": Check(

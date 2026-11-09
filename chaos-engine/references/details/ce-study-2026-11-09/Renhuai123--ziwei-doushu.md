@@ -25,4 +25,3 @@
 - A separate DATASET-LICENSE file says the sample and interpretation datasets are released on CC BY 4.0 terms, that repository code stays under the root MIT LICENSE, and that the classical texts are treated as public domain by that file. This note does not copy any of the three.
 - No skill edit from this note. The dataset terms are not a reason to vendor the data.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

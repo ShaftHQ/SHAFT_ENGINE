@@ -2867,8 +2867,8 @@ def instruction_block(tree: str = INSTALLED_TREE) -> str:
     return (
         f"{START}\nBefore every task, follow the canonical "
         f"[ChaosEngine]({skill}). "
-        f"Load project identity from [{identity}]({identity}). "
-        f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
+        f"Load `{identity}`. "
+        f"Use `{tool}`. "
         "Prefer gh for GitHub when gh exists and is configured. "
         "CLI over MCP when both exist. "
         "Default MCP catalog never includes GitHub MCP.\n"
@@ -2881,7 +2881,7 @@ def copilot_instruction_block(tree: str = INSTALLED_TREE) -> str:
     tree = INSTALLED_TREE
     block = instruction_block(tree)
     return block.replace(f"]({tree}/", f"](../{tree}/").replace(
-        f"`{tree}/tool.py`", f"`../{tree}/tool.py`"
+        f"`{tree}/", f"`../{tree}/"
     )
 
 

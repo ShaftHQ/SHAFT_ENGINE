@@ -26,4 +26,3 @@
 - The file opens with the standard MIT grant, then states that the MIT grant covers source code only. It lists data and assets that are not under MIT, including CC BY-NC-SA 3.0, ODbL 1.0, CC BY-NC 4.0, and separately licensed 3D models.
 - GitHub did not emit a single SPDX id. This delivery does not invent one. Skill edit blocked. Vendoring blocked.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

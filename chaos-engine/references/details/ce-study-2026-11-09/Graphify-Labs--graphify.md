@@ -24,4 +24,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo.spdxId is Apache-2.0. gh api repos/Graphify-Labs/graphify/license returned HTTP 200 and path LICENSE.
 - Apache-2.0 still requires keeping license and notices with any copy. No copy, and no skill edit from this note.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

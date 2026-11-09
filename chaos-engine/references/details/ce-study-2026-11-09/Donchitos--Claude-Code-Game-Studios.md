@@ -25,4 +25,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo.spdxId is MIT. gh api repos/Donchitos/Claude-Code-Game-Studios/license returned HTTP 200 and path LICENSE.
 - MIT would allow a later adaptation. This delivery does not edit a skill from this note.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

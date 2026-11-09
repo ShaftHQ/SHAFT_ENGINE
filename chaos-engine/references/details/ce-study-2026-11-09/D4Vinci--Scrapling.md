@@ -24,4 +24,3 @@
 - Checked 2026-11-10. GraphQL licenseInfo.spdxId is BSD-3-Clause. gh api repos/D4Vinci/Scrapling/license returned HTTP 200 and path LICENSE.
 - BSD-3-Clause still requires keeping the copyright notice with any copy. No copy, and no skill edit from this note.
 
-Adopt the idea. Do not copy third-party code. Do not vendor the repository.

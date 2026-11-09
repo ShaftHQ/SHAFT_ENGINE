@@ -1,6 +1,6 @@
 ---
 name: job-applications
-description: "Use when applying to job openings on the user's behalf through any channel (email with CV, LinkedIn message or Easy Apply, or a company/ATS web form), including a daily application run: find, dedupe, tailor, apply, log."
+description: "Use when applying to jobs for the user by email, LinkedIn, or an ATS form."
 license: MIT
 permissions:
   - bash

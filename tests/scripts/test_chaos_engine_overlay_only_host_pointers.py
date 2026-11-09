@@ -44,6 +44,7 @@ class OverlayOnlyHostPointerTests(unittest.TestCase):
             block,
         )
         self.assertIn("`../.chaos-engine/tool.py`", block)
+        self.assertIn("`../.chaos-engine/identity.md`", block)
         self.assertNotIn("skills/../chaos-engine", block)
         self.assertNotIn("../chaos-engine/", block.replace("../.chaos-engine/", ""))
 
