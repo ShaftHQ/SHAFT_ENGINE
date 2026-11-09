@@ -163,6 +163,24 @@
       "path": "skills/job-search/SKILL.md"
     },
     {
+      "description": "Use when applying to job openings on the user's behalf through any channel (email with CV, LinkedIn message or Easy Apply, or a company/ATS web form), including a daily application run: find, dedupe, tailor, apply, log.",
+      "family": "on-demand",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "job-applications",
+      "path": "skills/job-applications/SKILL.md"
+    },
+    {
       "description": "Use when editing source-of-truth docs or status tables: three sources, Done / In progress / Not started, and live hour formulas. On demand only.",
       "family": "on-demand",
       "hosts": {
