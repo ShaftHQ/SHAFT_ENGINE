@@ -7031,6 +7031,17 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             "policy-overlay drift outside a repository checkout: rerun the ChaosEngine install one-liner"
         )
     mismatches = match.policy_hash_mismatches(source, overlay)
+    if (
+        mismatches
+        and not match.nested_overlay_drift(overlay)
+        and match.published_commit_ahead_of_checkout(project, mismatches)
+    ):
+        return {
+            "status": "repaired",
+            "component": "policy-overlay",
+            "action": "kept-published-commit",
+            "mismatches": mismatches,
+        }
     if not mismatches:
         removed = remove_nested_install_artifacts(overlay) if match.nested_overlay_drift(overlay) else []
         action = "removed-nested-overlay" if removed else "verified"

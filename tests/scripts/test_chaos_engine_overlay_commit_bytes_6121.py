@@ -107,6 +107,19 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
             )
             manifest = json.loads((installed / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(new_sha, manifest["source"]["commit"])
+            self.assertEqual([], self.overlay.owned_tree_differs_from_commit(project, installed, new_sha))
+            result = {"status": "healthy", "components": {"core": {"status": "healthy"}}}
+            self.overlay.apply_doctor_overlay_match(result, project)
+            self.assertTrue(result["components"]["core"]["coreMatchesSource"])
+            self.assertNotEqual("recovery-required", result["status"])
+            policy = {"status": "healthy", "components": {}}
+            self.overlay.apply_policy_hash_doctor(policy, project)
+            self.assertEqual("healthy", policy["components"]["policy-overlay"]["status"])
+            self.assertEqual(
+                "checkout behind installed commit",
+                policy["components"]["policy-overlay"]["reason"],
+            )
+            self.assertNotEqual("recovery-required", policy["status"])
 
     def test_doctor_rejects_rewritten_digests_for_a_real_commit(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temporary:
