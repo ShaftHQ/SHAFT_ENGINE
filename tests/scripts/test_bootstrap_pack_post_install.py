@@ -96,7 +96,8 @@ class PackPostInstallTest(unittest.TestCase):
 
     def test_addons_doc_keeps_add_ons_opt_in_and_documents_the_pack_exception(self) -> None:
         text = (ROOT / "chaos-engine/references/addons.md").read_text(encoding="utf-8")
-        self.assertIn("never installed by default and never auto-selected", text)
+        self.assertIn("Optional add-ons stay opt-in", text)
+        self.assertIn("`*/ce-pack` entrypoint signal", text)
         self.assertIn("## Project-pack exception", text)
         self.assertIn("--skip-pack-post-install", text)
 

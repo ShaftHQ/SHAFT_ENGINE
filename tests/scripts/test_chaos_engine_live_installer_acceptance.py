@@ -1365,6 +1365,94 @@ DOWNLOAD_GONE_DETAIL = (
     "CE-INSTALL-FAILED: HTTP Error 404: Not Found; "
     "failed phase: Provision dependencies; unhealthy: not reported"
 )
+GATEWAY_TIMEOUT_DETAIL = (
+    "CE-INSTALL-FAILED: HTTP Error 504: Gateway Time-out; "
+    "failed phase: Provision dependencies; unhealthy: not reported"
+)
+
+
+class BaseGatewayTimeoutTest(TestCase):
+    """
+    A frozen-base gateway timeout skips only that chain. The candidate still runs.
+    """
+
+    def test_gateway_timeout_on_the_frozen_base_is_narrow(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        command = module.public_wrapper_command(base, windows=False)
+        failure = module.AcceptanceCommandFailure(command, 1, GATEWAY_TIMEOUT_DETAIL)
+        self.assertTrue(module.base_gateway_timeout(failure, base, windows=False))
+        self.assertFalse(module.base_gateway_timeout(failure, "e" * 40, windows=False))
+        self.assertFalse(module.base_gateway_timeout(RuntimeError(GATEWAY_TIMEOUT_DETAIL), base, windows=False))
+        other_phase = GATEWAY_TIMEOUT_DETAIL.replace("Provision dependencies", "Verify installation")
+        self.assertFalse(module.base_gateway_timeout(
+            module.AcceptanceCommandFailure(command, 1, other_phase), base, windows=False
+        ))
+        candidate_cmd = module.public_wrapper_command("d" * 40, windows=False)
+        self.assertFalse(module.base_gateway_timeout(
+            module.AcceptanceCommandFailure(candidate_cmd, 1, GATEWAY_TIMEOUT_DETAIL),
+            base,
+            windows=False,
+        ))
+
+    def test_gateway_timeout_skips_the_base_chain_and_still_installs_the_candidate(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "d" * 40
+        installs = []
+
+        def wrapper(commit, project, **_kwargs):
+            installs.append(commit)
+            if commit == base:
+                raise module.AcceptanceCommandFailure(
+                    module.public_wrapper_command(base, windows=False), 1, GATEWAY_TIMEOUT_DETAIL
+                )
+            state = project / ".chaos-engine-state/mempalace"
+            state.mkdir(parents=True, exist_ok=True)
+            state.joinpath(".mined").write_bytes(b"current\n")
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"commands": {"uv": "uv"}}), encoding="utf-8"
+            )
+
+        verify_results = iter(({"actions": {"uv": "installed"}}, {"actions": {"uv": "reused"}}))
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper), \
+                mock.patch.object(module, "verify_account_phase", side_effect=lambda *a, **k: dict(next(verify_results))), \
+                mock.patch.object(module, "account_receipt_commands", return_value={"uv": "uv"}), \
+                mock.patch.object(module, "assert_account_search_paths"), \
+                mock.patch.object(module, "assert_local_mempalace"), \
+                mock.patch.object(module, "assert_single_generated_mempalace"):
+            module.run_acceptance(Path(temporary), evidence, candidate_sha=candidate, base_sha=base)
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        self.assertEqual("pass", statuses["fresh-account-candidate-wrapper"])
+        self.assertEqual("pass", statuses["fresh-account-rerun"])
+        self.assertEqual(module.BASE_GATEWAY_TIMEOUT, evidence["baseUpgradeChain"]["reason"])
+        self.assertEqual([candidate, candidate], installs[1:])
+
+    def test_candidate_gateway_timeout_still_fails_the_job(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "d" * 40
+
+        def wrapper(commit, project, **_kwargs):
+            del project
+            raise module.AcceptanceCommandFailure(
+                module.public_wrapper_command(commit, windows=False), 1, GATEWAY_TIMEOUT_DETAIL
+            )
+
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper):
+            with self.assertRaises(module.AcceptancePhaseFailure) as raised:
+                module.run_acceptance(
+                    Path(temporary), evidence, candidate_sha=candidate, base_sha=base
+                )
+        self.assertEqual("fresh-account-candidate-wrapper", raised.exception.phase)
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        self.assertEqual("fail", statuses["fresh-account-candidate-wrapper"])
 
 
 class BaseDownloadGoneTest(TestCase):
@@ -1530,6 +1618,29 @@ class NetworkRetryTest(TestCase):
         with mock.patch.object(self.acceptance, "run_checked", side_effect=[missing]) as run:
             with self.assertRaises(self.acceptance.AcceptanceCommandFailure):
                 self.acceptance.run_network_checked(["git", "fetch"], cwd=Path("."), sleep=lambda _: None)
+        self.assertEqual(1, run.call_count)
+
+    def test_gateway_timeouts_are_retried(self):
+        ok = CompletedProcess(["wrapper"], 0, "", "")
+        details = (
+            "curl: (22) The requested URL returned error: 504",
+            "CE-INSTALL-FAILED: HTTP Error 504: Gateway Time-out",
+        )
+        for detail in details:
+            with self.subTest(detail=detail):
+                flake = self.failure(detail)
+                with mock.patch.object(self.acceptance, "run_checked", side_effect=[flake, ok]) as run:
+                    result = self.acceptance.run_network_checked(
+                        ["bash", "-c", "wrapper"], cwd=Path("."), sleep=lambda _: None
+                    )
+                self.assertIs(ok, result)
+                self.assertEqual(2, run.call_count)
+
+    def test_installer_failure_is_not_retried_as_a_network_flake(self):
+        product = self.failure("installed ChaosEngine distribution differs; uninstall before changing it")
+        with mock.patch.object(self.acceptance, "run_checked", side_effect=[product]) as run:
+            with self.assertRaises(self.acceptance.AcceptanceCommandFailure):
+                self.acceptance.run_network_checked(["bash", "-c", "wrapper"], cwd=Path("."), sleep=lambda _: None)
         self.assertEqual(1, run.call_count)
 
     def test_retries_are_bounded(self):

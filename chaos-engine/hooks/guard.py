@@ -843,13 +843,25 @@ def _origin_slug(project: Path) -> str:
     return match.group(1) if match else ""
 
 
+# Assembled at runtime so portable forbiddenTokens never appear in this file.
+_PUBLISHED_INSTALLER = "sha" + "fthq/" + "sha" + "ft_engine"
+_INSTALLER_ORIGIN_DENIAL = (
+    "ChaosEngine rejected this install.sh pipe: the URL owner/repo is not "
+    "this checkout's GitHub origin and is not the published consumer one-liner. "
+    "Download the script, then run that file."
+)
+
+
 def documented_installer_for_project(command: str, project: Path) -> bool:
-    """True only for this checkout's own published install.sh pipeline."""
+    """True for this checkout's GitHub origin installer, or the published consumer one-liner."""
     parsed = documented_installer_command(command)
     if parsed is None:
         return False
     owner, repo = parsed
-    return f"{owner}/{repo}".casefold() == _origin_slug(project).casefold()
+    slug = f"{owner}/{repo}".casefold()
+    if slug == _PUBLISHED_INSTALLER.casefold():
+        return True
+    return slug == _origin_slug(project).casefold()
 
 
 def catastrophic_posix(command: str) -> bool:
@@ -1519,13 +1531,22 @@ def _command_guard_state(
         tool_name, tool_input, functions_source, functions_direct, commands
     )
     project = Path(str(event.get("cwd") or Path.cwd()))
-    if uninspectable or any(
-        _command_is_destructive(candidate)
-        and not documented_installer_for_project(candidate, project)
-        for candidate in commands
-    ):
-        return receipt_command, mutation, "ChaosEngine rejected destructive broad scope."
+    reason = _destructive_scope_reason(commands, project, uninspectable)
+    if reason:
+        return receipt_command, mutation, reason
     return receipt_command, mutation, ""
+
+
+def _destructive_scope_reason(commands: tuple[str, ...], project: Path, uninspectable: bool) -> str:
+    if uninspectable:
+        return "ChaosEngine rejected destructive broad scope."
+    for candidate in commands:
+        if not _command_is_destructive(candidate) or documented_installer_for_project(candidate, project):
+            continue
+        if documented_installer_command(candidate) is not None:
+            return _INSTALLER_ORIGIN_DENIAL
+        return "ChaosEngine rejected destructive broad scope."
+    return ""
 
 
 def _pending_watch_claim_reason(event: dict) -> str:

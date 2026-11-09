@@ -462,8 +462,22 @@ def migrates_to_default_distribution(
         return True
 
 
-def resolve_rematerialize_distribution(installed_id: object, source: Path) -> str:
-    """Distribution for rematerialize/repair/maintain after CE-10 retirements (#7564)."""
+def resolve_rematerialize_distribution(
+    installed_id: object, source: Path, project: Path | None = None
+) -> str:
+    """
+    Distribution for rematerialize/repair after reidentification.
+
+    When `project` is set, the same rules as `detect_distribution` win over a
+    previously recorded id. A pack-less snapshot still falls back to portable.
+    """
+    if project is not None:
+        try:
+            detected = detect_distribution(project, source)
+        except (OSError, ValueError):
+            detected = ""
+        if detected and _distribution_in_catalog(source, detected):
+            return detected
     if migrates_to_default_distribution(installed_id, DEFAULT_DISTRIBUTION, source):
         return DEFAULT_DISTRIBUTION
     if isinstance(installed_id, str) and installed_id:
@@ -739,6 +753,119 @@ def kept_addons_line(project: Path | None) -> str:
             "reinstall with its source or CHAOS_ENGINE_ADDON_PATHS)")
 
 
+def _pack_distribution_id(profile: dict[str, object]) -> str | None:
+    declared = profile.get("distribution")
+    identifier = declared.get("id") if isinstance(declared, dict) else None
+    if not isinstance(identifier, str) or not identifier:
+        return None
+    return identifier
+
+
+def _project_pack_profiles(project: Path) -> list[dict[str, object]]:
+    """Pack profiles in `project` that also ship an entrypoint, same gate as host skills."""
+    profiles: list[dict[str, object]] = []
+    if not project.is_dir():
+        return profiles
+    for path in sorted(project.glob(PROJECT_PACK_GLOB)):
+        root = path.parent
+        if is_link_or_reparse(root) or is_link_or_reparse(path):
+            continue
+        if not (root / "entrypoint.md").is_file() or is_link_or_reparse(root / "entrypoint.md"):
+            continue
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(document, dict):
+            profiles.append(document)
+    return profiles
+
+
+def _source_pack_profiles(source: Path) -> list[dict[str, object]]:
+    profiles: list[dict[str, object]] = []
+    for root in project_packs(source).values():
+        path = root / "profile.json"
+        if not path.is_file() or not (root / "entrypoint.md").is_file():
+            continue
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if isinstance(document, dict):
+            profiles.append(document)
+    return profiles
+
+
+def reidentify_pack_addons(
+    project: Path,
+    source: Path,
+    found: dict[str, dict[str, object]],
+) -> tuple[set[str], set[str]]:
+    """
+    Return `(select, drop)` so a rerun matches host pack selection.
+
+    Host skills (`selected_profile_name`) treat a checkout with exactly one
+    `*/ce-pack` entrypoint as that pack. The installer then selects the add-on
+    that declares the pack distribution, which pulls in its user skills and
+    installs `packs/<name>/entrypoint.md`. A project that only matches
+    `installWhen` gets those user skills and stays on the default distribution.
+    Any other project drops a previously recorded distribution add-on. An
+    explicit `--without` still wins, because the caller passes `drop` through
+    the persisted set and removals are applied later.
+    """
+    by_distribution: dict[str, tuple[set[str], set[str]]] = {}
+    for document in _source_pack_profiles(source):
+        distribution_id = _pack_distribution_id(document)
+        if distribution_id is None:
+            continue
+        core = {
+            name
+            for name, entry in found.items()
+            if entry["manifest"].get("distribution") == distribution_id
+        }
+        users: set[str] = set()
+        for name in core:
+            requires = entry_requires(found, name)
+            for required in requires:
+                manifest = found.get(required, {}).get("manifest")
+                if isinstance(manifest, dict) and not manifest.get("distribution"):
+                    users.add(required)
+        by_distribution[distribution_id] = (core, users)
+    home_ids: set[str] = set()
+    project_profiles = _project_pack_profiles(project)
+    if len(project_profiles) == 1:
+        distribution_id = _pack_distribution_id(project_profiles[0])
+        if distribution_id in by_distribution:
+            home_ids.add(distribution_id)
+    declared = project_maven_ids(project)
+    user_ids: set[str] = set()
+    if not home_ids:
+        for document in _source_pack_profiles(source):
+            distribution_id = _pack_distribution_id(document)
+            if distribution_id not in by_distribution:
+                continue
+            predicate = profile_install_predicate(document)
+            if predicate and predicate & declared:
+                user_ids.add(distribution_id)
+    select: set[str] = set()
+    drop: set[str] = set()
+    for distribution_id, (core, users) in by_distribution.items():
+        drop |= core
+        if distribution_id in home_ids:
+            select |= core | users
+        elif distribution_id in user_ids:
+            select |= users
+    return select, drop
+
+
+def entry_requires(found: dict[str, dict[str, object]], name: str) -> list[str]:
+    manifest = found[name]["manifest"]
+    requires = manifest.get("requires", []) if isinstance(manifest, dict) else []
+    if not isinstance(requires, list):
+        return []
+    return [item for item in requires if isinstance(item, str)]
+
+
 def plan_install(
     project: Path,
     source: Path,
@@ -746,22 +873,27 @@ def plan_install(
     removed: set[str] | None = None,
     environ: dict[str, str] | None = None,
 ) -> tuple[str, tuple[str, ...]]:
-    """Distribution and add-ons for this install: explicit choices, then the recorded ones.
+    """
+    Distribution and add-ons for this install.
 
-    No add-on is ever selected because of what the project contains.
+    Explicit `--with` / `--without` win. Identity add-ons are re-derived from
+    the project every run so an older portable or repository choice cannot
+    stick. Other recorded add-ons stay until removed.
     """
     record_kept_addons(project, keep_installed_addons(project, source))
     catalog = addon_catalog()
     found = catalog.discover(source)
     files, current = installed_record(project)
     persisted = catalog.installed(found, files, current)
+    select, drop = reidentify_pack_addons(project, source, found)
+    persisted = (persisted - drop) | select
     wanted = set(requested or ()) | catalog.environment_names(environ)
     selected = catalog.resolve(found, wanted, set(removed or ()), persisted)
     return catalog.distribution(found, selected, DEFAULT_DISTRIBUTION), tuple(selected)
 
 
 def detect_distribution(project: Path, source: Path) -> str:
-    """The distribution recorded add-ons imply; default stays portable (no auto-selection)."""
+    """Distribution this project reidentifies to. Portable when it is neither pack home nor user."""
     return plan_install(project, source)[0]
 
 
@@ -3052,24 +3184,35 @@ def _prepare_install_inputs(
     return project, source, desired_source
 
 
+def _distribution_in_catalog(source: Path, distribution: str) -> bool:
+    try:
+        return distribution in distribution_catalog(source)
+    except ValueError:
+        return False
+
+
 def _require_compatible_distribution(
     current_distribution: object, distribution: str, source: Path
 ) -> bool:
     """Raise when installed distribution cannot rematerialize as `distribution`.
 
-    Returns True when the install is an allowed CE-10 retirement migrate (#7564).
+    Returns True when the id changes. A catalog distribution may replace the
+    installed one so reidentification can move between portable and a pack
+    distribution without an uninstall. Unknown ids still fail closed.
     """
     if not isinstance(current_distribution, dict):
         raise ValueError(
             "installed ChaosEngine distribution differs; uninstall before changing it"
         )
     installed_id = current_distribution.get("id")
+    if installed_id == distribution:
+        return False
     migrating = migrates_to_default_distribution(installed_id, distribution, source)
-    if current_distribution.get("id") != distribution and not migrating:
-        raise ValueError(
-            "installed ChaosEngine distribution differs; uninstall before changing it"
-        )
-    return migrating
+    if migrating or _distribution_in_catalog(source, distribution):
+        return True
+    raise ValueError(
+        "installed ChaosEngine distribution differs; uninstall before changing it"
+    )
 
 
 def _upgrade_same_commit_in_place(
@@ -6840,6 +6983,29 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     removing.rmdir()
 
 
+def stage_project_packs(project: Path, source: Path) -> None:
+    """
+    Copy project `ce-pack` and `ce-addons` trees beside a chaos-engine snapshot.
+
+    Repair and local reinstall copy only the core tree. Without the sibling
+    pack, reidentification cannot see the distribution the host skill pointer
+    already selected.
+    """
+    parent = Path(source).resolve().parent
+    project = Path(project).resolve()
+    for kind in ("ce-pack", "ce-addons"):
+        for path in sorted(project.glob(f"*/{kind}")):
+            if is_link_or_reparse(path) or not path.is_dir():
+                continue
+            destination = parent / path.parent.name / kind
+            if destination.exists() or is_link_or_reparse(destination):
+                continue
+            if path.resolve() == destination.resolve():
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(path, destination, ignore=shutil.ignore_patterns("__pycache__"))
+
+
 def _overlay_match_module():
     spec = importlib.util.spec_from_file_location(
         "ce_overlay_match_repair", Path(__file__).resolve().with_name("overlay_match.py")
@@ -6869,6 +7035,17 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             "policy-overlay drift outside a repository checkout: rerun the ChaosEngine install one-liner"
         )
     mismatches = match.policy_hash_mismatches(source, overlay)
+    if (
+        mismatches
+        and not match.nested_overlay_drift(overlay)
+        and match.published_commit_ahead_of_checkout(project, mismatches)
+    ):
+        return {
+            "status": "repaired",
+            "component": "policy-overlay",
+            "action": "kept-published-commit",
+            "mismatches": mismatches,
+        }
     if not mismatches:
         removed = remove_nested_install_artifacts(overlay) if match.nested_overlay_drift(overlay) else []
         action = "removed-nested-overlay" if removed else "verified"
@@ -6882,6 +7059,7 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
     ).stdout.strip()
     snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-repair-")) / "chaos-engine"
     _shutil.copytree(source, snapshot, ignore=_shutil.ignore_patterns("__pycache__"))
+    stage_project_packs(project, snapshot)
     installed_id = None
     try:
         manifest = json.loads((overlay / MANIFEST_NAME).read_text(encoding="utf-8"))
@@ -6890,8 +7068,8 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             installed_id = distribution.get("id")
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError):
         installed_id = None
-    # #7564: pass migrated/installed id so repair does not invent a portable/repository mismatch.
-    rematerialize = resolve_rematerialize_distribution(installed_id, snapshot)
+    # Reidentify against the staged pack. A recorded id must not force the other distribution.
+    rematerialize = resolve_rematerialize_distribution(installed_id, snapshot, project)
     argv = [sys.executable, str(snapshot / "install.py"), "install", "--project", str(project),
             "--source", str(snapshot), "--commit", commit, "--distribution", rematerialize]
     completed = runner(argv, cwd=project, check=False)
@@ -7171,9 +7349,11 @@ def parser() -> argparse.ArgumentParser:
     install_command = commands.add_parser(
         "install",
         epilog=(
-            "Optional add-ons are never installed by default. Add one with --with-<addon> "
-            "and remove it with --without-<addon> (or set CHAOS_ENGINE_ADDONS=a,b). "
-            "List them with: install.py addons --project ."
+            "Optional add-ons stay opt-in (--with-<addon> / --without-<addon>, or "
+            "CHAOS_ENGINE_ADDONS=a,b). The one-liner reidentifies a project pack: "
+            "the pack home gets that distribution, a matching project gets its user "
+            "skills, and every other project stays portable. "
+            "List add-ons with: install.py addons --project ."
         ),
     )
     install_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")

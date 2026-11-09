@@ -60,11 +60,16 @@ def _payload_relative(source: Path, path: Path) -> Path:
     return _install_module().payload_relative(source, path)
 
 
-def owned_source_files(source: Path) -> tuple[Path, ...]:
-    """Same payload source_files() copies for the rematerialize distribution (#7564)."""
+def owned_source_files(source: Path, distribution: str | None = None) -> tuple[Path, ...]:
+    """
+    Payload `source_files()` installs for `distribution`.
+
+    Omitting `distribution` keeps the portable payload (#7564). Doctor passes
+    the installed id so a pack-home install is not judged against portable.
+    """
     install = _install_module()
-    distribution = getattr(install, "DEFAULT_DISTRIBUTION", REPOSITORY_DISTRIBUTION)
-    return install.source_files(source, distribution)
+    chosen = distribution or getattr(install, "DEFAULT_DISTRIBUTION", REPOSITORY_DISTRIBUTION)
+    return install.source_files(source, chosen)
 
 
 _GIT_COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -109,7 +114,9 @@ def _pack_trees_at_commit(project: Path, commit: str) -> list[str]:
     ]
 
 
-def _owned_rels_at_commit(project: Path, commit: str) -> list[tuple[str, str]] | None:
+def _owned_rels_at_commit(
+    project: Path, commit: str, distribution: str | None = None
+) -> list[tuple[str, str]] | None:
     """(installed, repository) path pairs from the commit tree, incl. paths the working tree lacks."""
     archived = subprocess.run(  # nosec B603 B607 - fixed git archive of the core and pack trees
         ["git", "-C", str(project), "archive", commit, SOURCE_DIR, *_pack_trees_at_commit(project, commit)],
@@ -128,7 +135,7 @@ def _owned_rels_at_commit(project: Path, commit: str) -> list[tuple[str, str]] |
             return None
         return [
             (_payload_relative(source, path).as_posix(), path.relative_to(root).as_posix())
-            for path in owned_source_files(source)
+            for path in owned_source_files(source, distribution)
         ]
 
 
@@ -143,7 +150,7 @@ def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> li
     )
     if probe.returncode != 0:
         return None
-    relatives = _owned_rels_at_commit(project, commit)
+    relatives = _owned_rels_at_commit(project, commit, _manifest_distribution(project))
     if relatives is None:
         return None
     # The SOURCE tree is compared at repository paths; an overlay at installed paths.
@@ -181,6 +188,41 @@ def _apply_commit_byte_gate(result: dict[str, object], core: dict[str, object], 
         "SOURCE is not that commit. Do not rewrite manifest file digests."
     )
     return True
+
+
+def _manifest_distribution(project: Path) -> str | None:
+    manifest_path = project / OVERLAY_DIR / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    recorded = manifest.get("distribution") if isinstance(manifest, dict) else None
+    identifier = recorded.get("id") if isinstance(recorded, dict) else None
+    return identifier if isinstance(identifier, str) and identifier else None
+
+
+def _bytes_match_commit(project: Path, tree: Path, commit: str, relatives: list[str]) -> bool:
+    for relative in relatives:
+        blob = _git_show_owned(project, commit, f"{SOURCE_DIR}/{relative}")
+        current = tree / relative
+        if blob is None or not current.is_file() or current.read_bytes() != blob:
+            return False
+    return True
+
+
+def published_commit_ahead_of_checkout(project: Path, mismatches: list[str]) -> bool:
+    """
+    True when the overlay matches the installed commit and the checkout does not.
+
+    Repair must not copy that older checkout over the published payload (#6121).
+    """
+    commit = _manifest_commit(project)
+    if not commit or not mismatches:
+        return False
+    if not _bytes_match_commit(project, project / OVERLAY_DIR, commit, mismatches):
+        return False
+    source_diff = owned_tree_differs_from_commit(project, project / SOURCE_DIR, commit)
+    return bool(source_diff)
 
 
 def _manifest_commit(project: Path) -> str | None:
@@ -497,7 +539,17 @@ def apply_policy_hash_doctor(
     if portable.is_dir() and overlay.is_dir():
         mismatches = policy_hash_mismatches(portable, overlay)
         nested = nested_overlay_drift(overlay)
-        if mismatches or nested:
+        if mismatches and not nested and published_commit_ahead_of_checkout(root, mismatches):
+            components["policy-overlay"] = {
+                "status": "healthy",
+                "taskImpact": "required",
+                "reason": "checkout behind installed commit",
+                "detail": (
+                    "overlay matches the installed commit; local SOURCE does not. "
+                    "Do not repair from SOURCE."
+                ),
+            }
+        elif mismatches or nested:
             components["policy-overlay"] = {
                 "status": "recovery-required",
                 "taskImpact": "required",
