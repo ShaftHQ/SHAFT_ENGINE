@@ -1087,22 +1087,6 @@ def remove_nested_install_artifacts(target: Path) -> list[str]:
     return removed
 
 
-_OPTIONAL_SKILL_ROUTE = re.compile(
-    r"(?im)^[^\n]*\[[^\]]+\]\([^)\s]+/SKILL\.md\)[^\n]*"
-    r"\bif that file is absent, skip this route and continue\.[ \t]*$"
-)
-
-
-def content_without_optional_skill_routes(content: str) -> str:
-    """Drop one optional on-disk skill route before the portable token scan.
-
-    That line may name a product skill that is not on every machine. The rest
-    of the file still rejects a pack token. The line has to link a SKILL.md
-    and tell the reader to skip when the file is absent.
-    """
-    return _OPTIONAL_SKILL_ROUTE.sub("", content)
-
-
 def source_files(
     source: Path, distribution: str = DEFAULT_DISTRIBUTION, addons: tuple[str, ...] = ()
 ) -> tuple[Path, ...]:
@@ -1140,9 +1124,7 @@ def source_files(
             raise ValueError(f"source contains a link or reparse point: {relative}")
         if path.is_file():
             relative_text = relative.as_posix().casefold()
-            content = content_without_optional_skill_routes(
-                path.read_text(encoding="utf-8", errors="ignore")
-            ).casefold()
+            content = path.read_text(encoding="utf-8", errors="ignore").casefold()
             if any(token in relative_text or token in content for token in forbidden_tokens):
                 raise ValueError(
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"

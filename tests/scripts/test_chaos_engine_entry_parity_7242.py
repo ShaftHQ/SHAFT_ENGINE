@@ -71,12 +71,13 @@ class EntryParityTests(unittest.TestCase):
 class ShaftSkillsEntryLinkTest(unittest.TestCase):
     """#7858: ChaosEngine points at the shaft entrypoint and skips a missing tree."""
 
-    def test_canonical_entry_links_the_shaft_entrypoint_and_skips_when_absent(self):
-        entry = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+    def test_repository_entry_links_the_shaft_entrypoint_and_skips_when_absent(self):
+        entry = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("If that file is absent, skip this route and continue.", entry)
         match = re.search(r"\[[^\]]+\]\(([^)]*shaft-developer/SKILL\.md)\)", entry)
         self.assertIsNotNone(match)
-        target = (ROOT / "chaos-engine/skills/chaos-engine" / match.group(1)).resolve()
+        self.assertLess(entry.index(match.group(0)), entry.index("<!-- CHAOSENGINE:START -->"))
+        target = (ROOT / match.group(1)).resolve()
         self.assertEqual(target, (ROOT / "shaft-skills/shaft-developer/SKILL.md").resolve())
         playbook = (
             ROOT / "shaft-skills/shaft-failure-analysis/references/playbook.md"
@@ -87,41 +88,27 @@ class ShaftSkillsEntryLinkTest(unittest.TestCase):
             if len(line.strip()) > 80 and not line.startswith("#")
         )
         self.assertNotIn(sentence, entry)
+        core = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         host = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
-        self.assertIn("If that file is absent, skip this route and continue.", host)
-        self.assertNotIn(sentence, host)
-        self.assertIn("shaft-developer/SKILL.md", host)
+        profile = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(encoding="utf-8")
+        for text in (core, host, profile):
+            self.assertNotIn(sentence, text)
+            self.assertNotIn("shaft-developer/SKILL.md", text)
+        for text in (core, host):
+            self.assertNotIn("shaft", text.casefold())
 
     def test_missing_shaft_tree_reads_cleanly_and_does_not_require_the_path(self):
-        source = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            entry = root / "chaos-engine/skills/chaos-engine/SKILL.md"
-            entry.parent.mkdir(parents=True)
+            entry = root / "AGENTS.md"
             entry.write_text(source, encoding="utf-8")
-            self.assertFalse((root / "shaft-skills").exists())
+            self.assertFalse((root / "shaft-skills/shaft-developer").exists())
             text = entry.read_text(encoding="utf-8")
             match = re.search(r"\[[^\]]+\]\(([^)]*shaft-developer/SKILL\.md)\)", text)
             self.assertIsNotNone(match)
             self.assertFalse((entry.parent / match.group(1)).resolve().is_file())
             self.assertIn("If that file is absent, skip this route and continue.", text)
-
-    def test_optional_route_stays_out_of_the_portable_token_scan(self):
-        spec = importlib.util.spec_from_file_location(
-            "ce_install_7858", ROOT / "chaos-engine/install.py"
-        )
-        install = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(install)
-        text = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
-        scanned = install.content_without_optional_skill_routes(text).casefold()
-        self.assertNotIn("shaft", scanned)
-        smuggled = text + "\nshaft stays forbidden\n"
-        self.assertIn(
-            "shaft",
-            install.content_without_optional_skill_routes(smuggled).casefold(),
-        )
-        packaged = install.source_files(ROOT / "chaos-engine", install.DEFAULT_DISTRIBUTION)
-        self.assertTrue(any(path.name == "SKILL.md" and "skills" in path.parts for path in packaged))
 
     def test_generated_host_copy_matches_the_canonical_entry(self):
         module_path = ROOT / "chaos-engine/grok_model_load.py"
