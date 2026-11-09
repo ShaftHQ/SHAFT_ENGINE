@@ -128,6 +128,19 @@ jobs:
             sed -i "s|selenium/hub:$CURRENT_HUB|selenium/hub:$NEW_HUB|g" shaft-engine/src/main/resources/docker-compose/selenium4.yml
             CHANGES_MADE=true
           fi
+
+          # The compose file and SeleniumGridSetupPlanner must share one tag.
+          # A compose-only edit fails tests/scripts/test_grid_cdp_contract.py.
+          if [ "$CHANGES_MADE" = true ] \
+            && [ "$NEW_CHROME" = "$NEW_EDGE" ] \
+            && [ "$NEW_EDGE" = "$NEW_FIREFOX" ] \
+            && [ "$NEW_FIREFOX" = "$NEW_HUB" ]; then
+            echo "Sharing tag $NEW_HUB with the planner and the grid contract"
+            sed -i "s|static final String IMAGE_TAG = \".*\";|static final String IMAGE_TAG = \"$NEW_HUB\";|" \
+              shaft-infrastructure/src/main/java/com/shaft/infrastructure/SeleniumGridSetupPlanner.java
+            sed -i "s|GRID_TAG = \".*\"|GRID_TAG = \"$NEW_HUB\"|" \
+              tests/scripts/test_grid_cdp_contract.py
+          fi
           
           if [ "$CHANGES_MADE" = true ]; then
             echo "changes=true" >> $GITHUB_OUTPUT
