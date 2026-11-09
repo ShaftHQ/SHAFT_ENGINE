@@ -53,7 +53,8 @@ def _read_url(url: str) -> bytes | None:
         if error.code in _RETRYABLE_HTTP:
             print(f"HTTP response code: {error.code}", file=sys.stderr)
         else:
-            print(f"Could not GET {url}", file=sys.stderr)
+            # Not a transfer phrase. "Could not GET" would make build_retry repeat a 404.
+            print(f"download refused with HTTP {error.code}", file=sys.stderr)
         return None
     except (urllib.error.URLError, TimeoutError, ConnectionResetError):
         print(f"Could not GET {url}", file=sys.stderr)

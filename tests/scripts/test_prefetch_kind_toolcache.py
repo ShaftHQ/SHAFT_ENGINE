@@ -139,6 +139,36 @@ class PrefetchKindToolcacheTest(unittest.TestCase):
             self.assertFalse(_destination(tool_cache).exists())
             self.assertEqual(1, state["hits"])
 
+    def test_http_404_is_not_a_transfer_phrase(self):
+        state = {"hits": 0}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                state["hits"] += 1
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *_args):
+                return
+
+        server = self._serve(Handler)
+        with tempfile.TemporaryDirectory() as tmp:
+            tool_cache = Path(tmp)
+            os.environ["RUNNER_TOOL_CACHE"] = str(tool_cache)
+            os.environ["KIND_RELEASE_BASE_URL"] = (
+                f"http://127.0.0.1:{server.server_address[1]}"
+            )
+            stdout, stderr = StringIO(), StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = prefetch.main()
+            text = stdout.getvalue() + stderr.getvalue()
+            self.assertEqual(1, code)
+            self.assertEqual(1, state["hits"])
+            self.assertIn("download refused with HTTP 404", text)
+            self.assertNotIn("HTTP response code:", text)
+            self.assertNotIn("Could not GET", text)
+
     def test_bad_checksum_exits_without_binary_or_http_phrase(self):
         payload = b"not-the-published-kind"
         asset = _asset()

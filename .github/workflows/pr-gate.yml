@@ -289,6 +289,8 @@ jobs:
               # what build_retry.sh needs (issue #4445).
               - 'scripts/ci/build_retry.sh'
               - 'tests/scripts/test_build_retry.py'
+              - 'scripts/ci/prefetch_kind_toolcache.py'
+              - 'tests/scripts/test_prefetch_kind_toolcache.py'
               # Absorbed into the element set by name (#4531): the
               # allure-extent-report-operator playbook tells an agent to run
               # the extractor, which makes both harness elements, and the
