@@ -13,7 +13,7 @@
 ## Adopt
 
 - A voice feature stays on a local tool. A cloud voice API needs a named approval. The design add-on already has voice-over gates. Do not extend them from this repository.
-- Voice cloning as a product is a follow-up issue, not a skill body. The URL goes in proposals.md when that issue is filed.
+- Voice cloning as a product is follow-up https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7881, not a skill body.
 
 ## Skip
 

@@ -14,7 +14,7 @@
 ## Adopt
 
 - ChaosEngine already separates the writer from the reviewer. A verified, machine-readable finding is the idea to keep for our own repositories.
-- A security-audit campaign is a follow-up issue, not a skill body. It must not be an offensive audit of systems we do not own. The URL goes in proposals.md when that issue is filed.
+- A security-audit campaign is follow-up https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7882, not a skill body. It must not be an offensive audit of systems we do not own.
 
 ## Skip
 

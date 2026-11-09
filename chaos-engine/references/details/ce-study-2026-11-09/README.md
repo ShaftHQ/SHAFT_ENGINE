@@ -2,7 +2,7 @@
 
 Local notes from the 2026-11-09 continuous-learning pass. Star counts are the Charlie Hills snapshot of 6 Nov 2026, or the weekly stars-gained board for 2-8 Nov 2026. They are not live counts.
 
-Twenty-nine repositories, one note each. Four names appear on both the Charlie Hills list and the weekly board; they are not duplicated. proposals.md and cadence.md land in the next commit.
+Twenty-nine repositories, one note each. Four names appear on both the Charlie Hills list and the weekly board; they are not duplicated. Proposals: [proposals.md](proposals.md). Cadence: [cadence.md](cadence.md).
 
 No third-party code is copied. A missing or incompatible license blocks a skill edit and blocks vendoring.
 

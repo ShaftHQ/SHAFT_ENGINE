@@ -370,6 +370,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertTrue((CORE / "RESEARCH.md").is_file())
         self.assertTrue(INSTALLER.is_origin_only(Path("STANDALONE.md")))
         self.assertTrue(INSTALLER.is_origin_only(Path("README.md")))
+        self.assertTrue(
+            INSTALLER.is_origin_only(
+                Path("references/details/ce-study-2026-11-09/proposals.md")
+            )
+        )
         sources = sorted(
             path
             for path in CORE.rglob("*")

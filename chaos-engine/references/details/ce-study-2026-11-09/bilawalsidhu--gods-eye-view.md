@@ -12,7 +12,7 @@
 
 ## Adopt
 
-- A spatial globe is a new product. It is a follow-up issue, not a skill body. The URL goes in proposals.md when that issue is filed.
+- A spatial globe is a new product. It is follow-up https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7884, not a skill body.
 - Keep the split between code license and data license. Do not treat a code grant as a data grant.
 
 ## Skip

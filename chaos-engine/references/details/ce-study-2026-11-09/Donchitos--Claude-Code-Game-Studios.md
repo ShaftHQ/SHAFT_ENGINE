@@ -13,7 +13,7 @@
 ## Adopt
 
 - ChaosEngine already uses one owner and a written brief before a build. Keep that. Do not import a game-studio role pack.
-- A game studio is a follow-up issue, not a skill body. The URL goes in proposals.md when that issue is filed.
+- A game studio is follow-up https://github.com/ShaftHQ/SHAFT_ENGINE/issues/7883, not a skill body.
 
 ## Skip
 
