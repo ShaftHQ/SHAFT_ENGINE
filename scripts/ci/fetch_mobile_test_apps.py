@@ -17,6 +17,7 @@ import shutil
 import subprocess  # nosec B404 - fixed git ls-files argv only
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -30,6 +31,10 @@ DEFAULT_CACHE = Path(
     )
 )
 _USER_AGENT = "shaft-engine-fetch-mobile-test-apps/1"
+DOWNLOAD_ATTEMPTS = 4
+_BACKOFF_SECONDS = (5, 15, 45)
+_BACKOFF_CAP_SECONDS = 60
+_RETRYABLE_HTTP = frozenset({429, 500, 502, 503, 504})
 
 
 class FetchError(RuntimeError):
@@ -110,29 +115,64 @@ def _cache_path(cache_dir: Path, sha256: str, asset: str) -> Path:
     return cache_dir / f"{sha256}-{safe}"
 
 
+def _pause(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def _is_timeout_or_reset(error: urllib.error.URLError) -> bool:
+    reason = error.reason
+    if isinstance(reason, (TimeoutError, ConnectionResetError)):
+        return True
+    text = str(reason).lower()
+    return "timed out" in text or "connection reset" in text
+
+
+def _discard_partial(path: Path | None) -> None:
+    if path is not None:
+        path.unlink(missing_ok=True)
+
+
 def _download(url: str, destination: Path, expected_sha256: str) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response:  # nosec B310 - pinned HTTPS release URL
-            with tempfile.NamedTemporaryFile(
-                dir=str(destination.parent), delete=False
-            ) as tmp:
-                tmp_path = Path(tmp.name)
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    tmp.write(chunk)
-    except urllib.error.URLError as error:
-        raise FetchError(f"download failed for {url}: {error}") from error
-    actual = _sha256_file(tmp_path)
-    if actual != expected_sha256:
-        tmp_path.unlink(missing_ok=True)
-        raise FetchError(
-            f"sha256 mismatch for {url}: expected {expected_sha256}, got {actual}"
-        )
-    tmp_path.replace(destination)
+    last_error: BaseException | None = None
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        tmp_path: Path | None = None
+        try:
+            with urllib.request.urlopen(  # nosec B310 - pinned HTTPS release URL
+                request, timeout=120
+            ) as response:
+                with tempfile.NamedTemporaryFile(
+                    dir=str(destination.parent), delete=False
+                ) as tmp:
+                    tmp_path = Path(tmp.name)
+                    shutil.copyfileobj(response, tmp, length=1024 * 1024)
+            actual = _sha256_file(tmp_path)
+            if actual != expected_sha256:
+                raise FetchError(
+                    f"sha256 mismatch for {url}: expected {expected_sha256}, got {actual}"
+                )
+            tmp_path.replace(destination)
+            return
+        except urllib.error.HTTPError as error:
+            # HTTPError is a URLError. A 404 must not be retried with the timeout path.
+            error.close()
+            last_error = error
+            retryable = error.code in _RETRYABLE_HTTP
+        except urllib.error.URLError as error:
+            last_error = error
+            retryable = _is_timeout_or_reset(error)
+        except (TimeoutError, ConnectionResetError) as error:
+            last_error = error
+            retryable = True
+        finally:
+            # replace() already removed a committed temp. Anything left is partial.
+            if tmp_path is not None and tmp_path.exists():
+                _discard_partial(tmp_path)
+        if not retryable or attempt >= DOWNLOAD_ATTEMPTS:
+            raise FetchError(f"download failed for {url}: {last_error}") from last_error
+        _pause(min(_BACKOFF_CAP_SECONDS, _BACKOFF_SECONDS[attempt - 1]))
+    raise FetchError(f"download failed for {url}: {last_error}")
 
 
 def _ensure_cached(cache_dir: Path, base_url: str, asset: str, sha256: str) -> Path:
