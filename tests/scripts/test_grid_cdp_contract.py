@@ -35,6 +35,15 @@ class GridCdpContractTest(unittest.TestCase):
         self.assertIn(f'IMAGE_TAG = "{GRID_TAG}"', planner)
         self.assertNotIn("4.48.0-20260905", compose)
 
+    def test_weekly_updater_rewrites_the_planner_and_the_contract(self):
+        workflow = (
+            REPO / ".github/workflows/update-selenium-grid-versions.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SeleniumGridSetupPlanner.java", workflow)
+        self.assertIn("test_grid_cdp_contract.py", workflow)
+        self.assertIn('IMAGE_TAG = \\"', workflow)
+        self.assertIn('GRID_TAG = \\"', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
