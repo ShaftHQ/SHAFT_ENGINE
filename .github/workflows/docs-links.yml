@@ -56,13 +56,23 @@ jobs:
           # and pipefail stops before any other markdown is checked.
           # ICM templates are copied into a workspace. Their {slug} links are
           # not repository files. Other vendor markdown stays in the check.
+          # Record lychee's status before xargs replaces it with 123.
           git ls-files -z -- '*.md' ':!.memory' \
             ':!chaos-engine/vendor/icm-architect/skills/icm-architect/assets/templates' \
-            | xargs -0 "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
-            --root-dir "$GITHUB_WORKSPACE" "${mode[@]}" --format markdown --output lychee-report.md
+            | xargs -0 sh -c '
+                "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
+                  --root-dir "$GITHUB_WORKSPACE" --format markdown --output lychee-report.md \
+                  "$@"
+                code=$?
+                echo "lychee_exit=$code"
+                exit "$code"
+              ' sh "${mode[@]}"
       - name: Summary
         if: always()
-        run: '[ -f lychee-report.md ] && head -c 60000 lychee-report.md >> "$GITHUB_STEP_SUMMARY" || true'
+        run: |
+          if [ -f lychee-report.md ]; then
+            head -c 60000 lychee-report.md | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Open or update the external-links tracker
         if: failure() && steps.check.outcome == 'failure' && github.event_name == 'schedule'
         env:
