@@ -367,13 +367,9 @@ def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
         reinstall = [python, str(installed_root / "bootstrap.py"), "--project", str(project), "--repository", repository]
         if branch:
             reinstall += ["--branch", branch]
-    distribution = str(manifest.get("distribution", {}).get("id", ""))
-    if distribution:
-        # #7564: retired ids (repository/legacy) must rematerialize as portable; a
-        # chaos-engine-only snapshot no longer synthesizes distribution=repository.
-        if distribution in {"legacy", "repository"}:
-            distribution = "portable"
-        reinstall += ["--distribution", distribution]
+    # Do not pin the recorded distribution. The one-liner reidentifies the
+    # project (pack home, product user, or portable) and must be able to
+    # replace a wrong id from an older install.
     return [
         reinstall,
         [python, str(installed_root / "install.py"), "doctor", "--project", str(project)],
@@ -396,6 +392,15 @@ def local_reinstall_command(project: Path) -> list[str]:
     commit = _maintain_git(project, "rev-parse", "HEAD").stdout.strip()
     snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-maintain-")) / "chaos-engine"
     shutil.copytree(source, snapshot, ignore=shutil.ignore_patterns("__pycache__"))
+    for kind in ("ce-pack", "ce-addons"):
+        for path in sorted(project.glob(f"*/{kind}")):
+            if path.is_symlink() or not path.is_dir():
+                continue
+            destination = snapshot.parent / path.parent.name / kind
+            if destination.exists() or path.resolve() == destination.resolve():
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(path, destination, ignore=shutil.ignore_patterns("__pycache__"))
     return [sys.executable, str(snapshot / "install.py"), "install", "--project", str(project),
             "--source", str(snapshot), "--commit", commit]
 

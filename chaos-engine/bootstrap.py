@@ -4026,8 +4026,10 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     result.epilog = (
-        "Optional add-ons are never installed by default: add one with --with-<addon>, "
-        "remove it with --without-<addon>, or set CHAOS_ENGINE_ADDONS=a,b."
+        "Optional add-ons stay opt-in (--with-<addon> / --without-<addon>, or "
+        "CHAOS_ENGINE_ADDONS=a,b). The one-liner reidentifies a project pack: "
+        "the pack home gets that distribution, a matching project gets its user "
+        "skills, and every other project stays portable."
     )
     result.add_argument("--interactive", action="store_true")
     result.add_argument(
@@ -4406,9 +4408,9 @@ def emit_install_failure(
 def pack_post_installs(project: Path) -> list[dict]:
     """``postInstall`` entries of the project packs the installer selected.
 
-    A pack is selected from project files (``installWhen``), so its
-    ``postInstall`` runs automatically for that project type. Optional
-    add-ons are never auto-selected and have no ``postInstall``.
+    The pack home distribution installs that pack, so its ``postInstall`` runs.
+    A portable install does not include the pack. Optional add-ons have no
+    ``postInstall``.
     """
     found = []
     for profile in sorted((project / ".chaos-engine" / "packs").glob("*/profile.json")):

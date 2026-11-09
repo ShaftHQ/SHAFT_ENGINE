@@ -30,7 +30,7 @@ apply unchanged to repository and portable installed hosts.
   screenshots where a human sees UI, human-facing instructions, and
   AI-supported details (locator policy, replay-proven snippets, properties,
   exact commands).
-- Install or upgrade (`chaos-engine/INSTALL.md` in this repository): `$env:CHAOS_ENGINE_ADDONS='shaft-core-developers'; irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex` (upgrades keep the add-on).
+- Install or upgrade (`chaos-engine/INSTALL.md` in this repository): rerun the install one-liner. This checkout is the pack home, so the installer selects `shaft-core-developers` (and `shaft-engine-users`) and the repository distribution. A previous portable install is upgraded in place.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
 - Cheap, bounded, already-specified local coding work uses the

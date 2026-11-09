@@ -221,18 +221,27 @@ class PayloadTests(unittest.TestCase):
         self.assertIn("addons/shaft-engine-users/shaft-developer/SKILL.md", relatives)
         self.assertFalse(any(item.startswith("addons/shaft-core-developers") for item in relatives))
 
-    def test_plan_ignores_project_files_and_honours_the_environment(self):
+    def test_plan_reidentifies_a_product_user_and_honours_the_environment(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
-            (project / "pom.xml").write_text(
+            root = Path(temporary)
+            user = root / "user"
+            user.mkdir()
+            (user / "pom.xml").write_text(
                 "<project><dependencies><dependency><artifactId>shaft-engine</artifactId>"
                 "</dependency></dependencies></project>",
                 encoding="utf-8",
             )
-            self.assertEqual(("portable", ()), install.plan_install(project, CE, environ={}))
+            plain = root / "plain"
+            plain.mkdir()
+            (plain / "pom.xml").write_text(
+                "<project><artifactId>unrelated</artifactId></project>",
+                encoding="utf-8",
+            )
+            self.assertEqual(("portable", ()), install.plan_install(plain, CE, environ={}))
+            self.assertEqual(("portable", ("shaft-engine-users",)), install.plan_install(user, CE, environ={}))
             self.assertEqual(
-                ("portable", ("design-skills",)),
-                install.plan_install(project, CE, environ={"CHAOS_ENGINE_ADDONS": "design-skills"}),
+                ("portable", ("design-skills", "shaft-engine-users")),
+                install.plan_install(user, CE, environ={"CHAOS_ENGINE_ADDONS": "design-skills"}),
             )
 
 

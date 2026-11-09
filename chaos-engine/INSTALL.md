@@ -160,8 +160,10 @@ for a normal first install.
 
 ## Optional add-ons
 
-The default install is the lean core only. These add-ons are never installed
-by default and never auto-selected; opt in with a flag.
+The default install is the lean core. Design and the other optional add-ons
+stay opt-in. Pack identity is chosen again on every one-liner, as the bullets
+below describe.
+
 Host completion is separate from these optional flags. Choosing a client does
 not select these packs, and a client id is not an add-on id. See
 [Clients this command can complete](#clients-this-command-can-complete).
@@ -193,17 +195,29 @@ url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/in
 curl -fsSL "$url" | bash -s -- "$url" --with-design-skills --with-shaft-engine-users
 ```
 
-- The selection is recorded in `.chaos-engine/manifest.json`; a later upgrade
-  without flags keeps it. An explicit `--without-<name>` wins.
+- An explicit `--with-<name>` or `--without-<name>` wins for that run.
+  Optional add-ons stay recorded. Pack identity is chosen again on the next
+  one-liner.
 - Unknown names fail closed and list the valid ones. Removing an add-on that a
   selected add-on requires (for example `shaft-engine-users` while
   `shaft-core-developers` stays) is refused.
 - List what is available and installed:
   `python3 .chaos-engine/install.py addons --project .` (`--json` for tools).
-- Files land under `.chaos-engine/addons/<name>/`; `shaft-core-developers`
-  switches the profile to the repository distribution (`packs/shaft/`).
-- Existing SHAFT_ENGINE checkouts that already run the repository profile keep
-  it on upgrade and gain `shaft-engine-users`.
+- Files land under `.chaos-engine/addons/<name>/`. `shaft-core-developers`
+  switches the profile to the repository distribution and installs
+  `packs/shaft/entrypoint.md`, which is the file the host skill pointer loads.
+- Re-running the one-liner reidentifies the project and replaces a wrong
+  earlier choice. No uninstall is required.
+  - A checkout with exactly one `*/ce-pack` entrypoint (the same signal host
+    skills use) is the pack home. This repository gets
+    `shaft-core-developers` and `shaft-engine-users`, and the repository
+    distribution.
+  - A project that is not that home, but whose Maven ids match the pack
+    `installWhen`, gets `shaft-engine-users` and stays on `portable`.
+  - Any other project stays `portable`. A previously recorded distribution
+    add-on is dropped. Other recorded add-ons stay until `--without-<name>`.
+- `--without-<name>` on that run still wins. The next one-liner without the
+  flag reidentifies again.
 - Sources: the catalog and resolver [addon_catalog.py](addon_catalog.py); the
   [design-skills router](addons/design-skills/SKILL.md) and its
   [manifest](addons/design-skills/addon.json); the SHAFT manifests
@@ -430,11 +444,13 @@ branch (otherwise `main`). The bootstrap resolves that mutable branch through
 the GitHub API, downloads the exact commit's declared harness files, rejects
 unsafe tree entries, and records repository, immutable provenance digests and
 the commit in `.chaos-engine/manifest.json`.
-The public default is the neutral `portable` distribution. Project files never
-select anything else (hard cut: a matching root `pom.xml` used to select the
-repository profile; it now only prints a tip). The repository profile comes
-from the `shaft-core-developers` add-on, or from an earlier install that
-already recorded it; see [Optional add-ons](#optional-add-ons). Re-running the
+The public default is the neutral `portable` distribution. Re-running the
+one-liner reidentifies the project; see [Optional add-ons](#optional-add-ons).
+A checkout with exactly one project-pack entrypoint installs that pack's
+distribution so the host skill pointer resolves. A Maven project that only
+matches the pack's `installWhen` gains the user skills and stays `portable`.
+Every other project stays `portable`. An older install that recorded the wrong
+distribution is replaced in place. Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
 download leaves the last verified installation unchanged. A drifted, CRLF-converted,
 extra-file, or otherwise broken `.chaos-engine` directory is replaced with a

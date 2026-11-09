@@ -56,7 +56,7 @@ class ProjectPackTests(unittest.TestCase):
                 "<artifactId>shaft-engine</artifactId></dependency></dependencies></project>",
                 encoding="utf-8",
             )
-            # Hard cut: project files never select an add-on; they only produce a tip.
+            # A matching pom stays portable and only suggests the contributor add-on.
             self.assertEqual("portable", self.install.detect_distribution(project, CE))
             self.assertIn("shaft-core-developers", self.install.suggest_addons(project, CE))
             distribution, addons = self.install.plan_install(
@@ -69,6 +69,105 @@ class ProjectPackTests(unittest.TestCase):
         self.assertIn("packs/shaft/entrypoint.md", relatives)
         self.assertIn("packs/java/pack.json", relatives)
         self.assertFalse(any(item.startswith("profiles/shaft") for item in relatives))
+
+    def _home_project(self, root: Path) -> Path:
+        project = root / "home"
+        pack = project / "demo-pack" / "ce-pack"
+        pack.mkdir(parents=True)
+        (pack / "entrypoint.md").write_text("home\n", encoding="utf-8")
+        (pack / "profile.json").write_text(
+            json.dumps({"schemaVersion": 1, "name": "shaft", "distribution": {"id": "repository"}}),
+            encoding="utf-8",
+        )
+        return project
+
+    def test_pack_home_reidentifies_as_repository_distribution(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._home_project(Path(temporary))
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+            self.assertEqual("repository", distribution)
+            self.assertEqual(("shaft-core-developers", "shaft-engine-users"), addons)
+
+    def test_pack_home_without_flag_drops_the_distribution_addon(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._home_project(Path(temporary))
+            distribution, addons = self.install.plan_install(
+                project, CE, set(), {"shaft-core-developers"}, environ={}
+            )
+            self.assertEqual("portable", distribution)
+            self.assertNotIn("shaft-core-developers", addons)
+            self.assertIn("shaft-engine-users", addons)
+
+    def test_product_user_gets_user_skills_and_stays_portable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "user"
+            project.mkdir()
+            (project / "pom.xml").write_text(
+                "<project><artifactId>shaft-engine</artifactId></project>\n",
+                encoding="utf-8",
+            )
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+            self.assertEqual("portable", distribution)
+            self.assertEqual(("shaft-engine-users",), addons)
+
+    def test_plain_project_stays_portable_and_drops_a_stale_distribution_addon(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "plain"
+            project.mkdir()
+            overlay = project / ".chaos-engine"
+            overlay.mkdir()
+            (overlay / "manifest.json").write_text(
+                json.dumps({"distribution": {"id": "repository"}, "files": {}}),
+                encoding="utf-8",
+            )
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+            self.assertEqual("portable", distribution)
+            self.assertNotIn("shaft-core-developers", addons)
+            self.assertNotIn("shaft-engine-users", addons)
+
+    def test_pack_home_wins_over_a_matching_pom(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._home_project(Path(temporary))
+            (project / "pom.xml").write_text(
+                "<project><artifactId>shaft-engine</artifactId></project>\n",
+                encoding="utf-8",
+            )
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+            self.assertEqual("repository", distribution)
+            self.assertEqual(("shaft-core-developers", "shaft-engine-users"), addons)
+
+    def test_reidentify_matches_the_host_skill_profile(self):
+        hosts = _load("ce_hosts_reidentify", CE / "hosts.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._home_project(Path(temporary))
+            self.assertEqual("shaft", hosts.selected_profile_name(project, ".chaos-engine"))
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+        self.assertEqual("repository", distribution)
+        self.assertEqual(("shaft-core-developers", "shaft-engine-users"), addons)
+        relatives = {
+            self.install.payload_relative(CE, path).as_posix()
+            for path in self.install.source_files(CE, distribution, addons)
+        }
+        self.assertIn("packs/shaft/entrypoint.md", relatives)
+        self.assertEqual("shaft", hosts.selected_profile_name(ROOT, ".chaos-engine"))
+
+    def test_plain_project_keeps_an_optional_addon(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "plain"
+            overlay = project / ".chaos-engine"
+            overlay.mkdir(parents=True)
+            (overlay / "manifest.json").write_text(
+                json.dumps({
+                    "distribution": {"id": "repository"},
+                    "files": {"addons/design-skills/addon.json": "abc"},
+                }),
+                encoding="utf-8",
+            )
+            distribution, addons = self.install.plan_install(project, CE, set(), set(), environ={})
+            self.assertEqual("portable", distribution)
+            self.assertIn("design-skills", addons)
+            self.assertNotIn("shaft-core-developers", addons)
+            self.assertNotIn("shaft-engine-users", addons)
 
     def test_unmatched_project_stays_portable_without_the_project_pack(self):
         with tempfile.TemporaryDirectory() as temporary:

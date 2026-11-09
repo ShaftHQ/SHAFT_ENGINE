@@ -5,10 +5,16 @@ description: Use when a task fits an optional add-on (design, video, or a projec
 
 # Add-ons
 
-The core installs alone. Add-ons are optional bundles of skills and
-references that are never installed by default and never auto-selected from
-project files. A user opts in with a flag; the choice persists across
-upgrades until removed.
+The core installs alone. Design and other optional add-ons are never
+selected from project files. A user opts in with a flag; that choice persists
+across upgrades until removed.
+
+The one-liner reidentifies pack identity on every run, using the same
+`*/ce-pack` entrypoint signal as host skills. The pack home gets that pack's
+distribution add-on (and the user skills it requires). A project that only
+matches the pack `installWhen` gets the user skills and stays on the portable
+distribution. Any other project stays portable, and a previously recorded
+distribution add-on is dropped. `--without-<name>` on that run still wins.
 
 ## List
 
@@ -28,8 +34,9 @@ Prints each add-on as `name  state  flag  use-when`. Add `--json` for tools.
 
 Unknown names fail closed and list the valid ones. Requirements are added
 automatically; removing an add-on that another selected add-on requires is
-refused and names the dependent. A later upgrade without flags keeps the
-recorded set. When the source lacks a recorded external add-on (the official
+refused and names the dependent. A later upgrade without flags keeps recorded
+optional add-ons. Pack identity is chosen again on that run. When the source
+lacks a recorded external add-on (the official
 one-liner downloads only the core tree), the installed copy is kept and the
 installer prints `addon kept: <name> (project-local; set CHAOS_ENGINE_ADDON_PATHS or reinstall with its source)`. That is expected for project-owned add-ons (for example `automatest-coach`) when this install run did not pass their source path; doctor also surfaces them as `stale-source`. Extra add-on
 directories can be named in `CHAOS_ENGINE_ADDON_PATHS`.
@@ -42,9 +49,10 @@ example "the owner") and keep a validator in the pack that fails on them.
 
 ## Project-pack exception
 
-Add-ons stay opt-in. A project pack is different: the installer selects it
-from project files (`installWhen` in the pack's `profile.json`). When the
-selected pack declares `postInstall` (a repository script and flags), the
+Optional add-ons stay opt-in. Pack identity does not. A checkout with exactly
+one `*/ce-pack` entrypoint is that pack's home and is installed as the pack
+distribution. A different project whose files match `installWhen` receives
+only the user skills. When the selected pack declares `postInstall` (a repository script and flags), the
 bootstrap downloads that script from the same commit and runs it in the
 project once the core installs. Some packs use this to run their own tool installer. Pass `--skip-pack-post-install` to skip it. If it fails, the
 core install is kept and the exit code is non-zero.

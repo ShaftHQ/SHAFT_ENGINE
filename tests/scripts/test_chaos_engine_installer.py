@@ -2499,7 +2499,7 @@ module.install_with_dependencies(project, source, "3" * 40)
                 """,
                 encoding="utf-8",
             )
-            # Hard cut: a matching pom only suggests the add-on; it never selects it.
+            # A matching pom stays portable. User skills are selected separately.
             self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
             self.assertEqual(["shaft-core-developers"], MODULE.suggest_addons(project, SOURCE))
 
@@ -2693,18 +2693,26 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertNotIn("Reflection required", second.stdout)
             self.assertIn("Reflection required", third.stdout)
 
-    def test_distribution_cannot_change_during_an_update(self):
+    def test_catalog_distribution_cross_upgrade_keeps_host_token(self):
+        """Reidentification may replace portable with a catalog pack distribution."""
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
             MODULE.install(project, SOURCE, TEST_COMMIT)
-            before = tree_digest(project / ".chaos-engine")
+            manifest_path = project / ".chaos-engine/manifest.json"
+            host_token = json.loads(manifest_path.read_text(encoding="utf-8"))["hostToken"]
 
-            with self.assertRaisesRegex(ValueError, "uninstall before changing"):
-                MODULE.install(project, SOURCE, "2" * 40, distribution="repository")
+            MODULE.install(project, SOURCE, "2" * 40, distribution="repository")
 
-            self.assertEqual(before, tree_digest(project / ".chaos-engine"))
-            self.assertFalse(project.joinpath(".chaos-engine.backup").exists())
+            upgraded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual("repository", upgraded["distribution"]["id"])
+            self.assertEqual(host_token, upgraded["hostToken"])
+            self.assertEqual("2" * 40, upgraded["source"]["commit"])
+            self.assertTrue((project / ".chaos-engine/packs/shaft/entrypoint.md").is_file())
+
+            with self.assertRaisesRegex(ValueError, "unknown ChaosEngine distribution"):
+                MODULE.install(project, SOURCE, "3" * 40, distribution="not-a-distribution")
+            self.assertEqual("repository", json.loads(manifest_path.read_text(encoding="utf-8"))["distribution"]["id"])
 
     def test_distributionless_legacy_manifest_upgrades_in_place(self):
         with tempfile.TemporaryDirectory() as temporary:

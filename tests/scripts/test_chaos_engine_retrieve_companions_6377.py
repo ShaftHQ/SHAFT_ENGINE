@@ -389,14 +389,14 @@ class MaintainTest(unittest.TestCase):
         )
         commands = self.tool.maintain_commands(root, self.work)
         self.assertIn("o/r", commands[0])
-        self.assertIn("portable", commands[0])
+        self.assertNotIn("--distribution", commands[0])
         self.assertIn("doctor", commands[1])
         self.assertEqual(["stores", "refresh", "--if-stale"], commands[2][-3:])
         # #6849: the re-mine runs as a durable background job, never in maintain's foreground.
         self.assertEqual(["job", "start", "stores-refresh", "--"], commands[2][2:6])
 
-    def test_maintain_rewrites_retired_repository_distribution_7564(self):
-        """#7564: maintain must not pass --distribution repository to a pack-less reinstall."""
+    def test_maintain_does_not_pin_recorded_distribution(self):
+        """A rerun reidentifies. Maintain must not pin a stale distribution id."""
         root = self.tmp / "repo-dist-core"
         root.mkdir()
         (root / "manifest.json").write_text(
@@ -404,7 +404,7 @@ class MaintainTest(unittest.TestCase):
             encoding="utf-8",
         )
         reinstall = self.tool.maintain_commands(root, self.work)[0]
-        self.assertEqual("portable", reinstall[reinstall.index("--distribution") + 1])
+        self.assertNotIn("--distribution", reinstall)
         self.assertNotIn("repository", reinstall)
 
 
@@ -460,6 +460,9 @@ class MaintainTest(unittest.TestCase):
         source = self.work / "chaos-engine"
         source.mkdir()
         (source / "install.py").write_text("# stub\n", encoding="utf-8")
+        pack = self.work / "demo-pack" / "ce-pack"
+        pack.mkdir(parents=True)
+        (pack / "profile.json").write_text("{}\n", encoding="utf-8")
         reinstall = self.tool.maintain_commands(self._local_manifest(), self.work)[0]
         snapshot = Path(reinstall[reinstall.index("--source") + 1])
         self.assertEqual("install", reinstall[2])
@@ -467,7 +470,10 @@ class MaintainTest(unittest.TestCase):
         self.assertNotEqual(source.resolve(), snapshot.resolve())
         self.assertFalse(snapshot.resolve().is_relative_to(self.work.resolve()))
         self.assertEqual(_git(self.work, "rev-parse", "HEAD"), reinstall[reinstall.index("--commit") + 1])
-        self.assertEqual("portable", reinstall[reinstall.index("--distribution") + 1])
+        # A recorded id must not be pinned. The sibling pack is staged so the
+        # rerun can reidentify the same way the one-liner does.
+        self.assertNotIn("--distribution", reinstall)
+        self.assertTrue((snapshot.parent / "demo-pack" / "ce-pack" / "profile.json").is_file())
         self.assertNotIn("--repository", reinstall)
 
     def test_local_install_without_source_fails_before_running_6757(self):

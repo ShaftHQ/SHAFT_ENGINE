@@ -1,7 +1,9 @@
 # SHAFT engine users add-on
 
-Optional ChaosEngine add-on for people who use SHAFT in their own test
-projects. It is never installed by default.
+ChaosEngine add-on for people who use SHAFT in their own test projects.
+The install one-liner selects it when the project matches the pack
+`installWhen`, and when the project is the pack home (via
+`shaft-core-developers`). It is not selected for any other project.
 
 - Install: `--with-shaft-engine-users` (PowerShell `-WithShaftEngineUsers`,
   or `CHAOS_ENGINE_ADDONS=shaft-engine-users`).
