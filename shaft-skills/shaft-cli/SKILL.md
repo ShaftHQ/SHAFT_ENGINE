@@ -5,5 +5,7 @@ description: Use when a SHAFT task needs a deterministic one-shot command, machi
 
 # SHAFT CLI
 
-Start with [SHAFT Developer](../shaft-developer/SKILL.md), then read and follow
-[the CLI playbook](references/playbook.md).
+Start with [SHAFT Developer](../shaft-developer/SKILL.md). Load the compact
+[command cache](references/cache.md). Do not run `--help` for ordinary
+discovery. Follow only the matching rule in
+[the playbook](references/playbook.md).

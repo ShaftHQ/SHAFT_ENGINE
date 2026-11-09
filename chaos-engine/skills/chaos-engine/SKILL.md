@@ -108,6 +108,8 @@ Companions at task start via `tool.py entry` ([bot entry](../../references/bot-e
 | Docs follow the change | a reader-facing contract changes | [docs-follow-change.md](../../references/docs-follow-change.md) |
 <!-- HARNESS-ROUTES:END -->
 
+SHAFT skills: when [shaft-developer](../../../shaft-skills/shaft-developer/SKILL.md) is on disk, load that entrypoint and let it select one skill. If that file is absent, skip this route and continue.
+
 ## Catalog
 
 On demand: [catalog](../../references/catalog.md), [harness map](../../references/harness-map.md), [router contract](../../references/router-contract.md).

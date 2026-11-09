@@ -1,6 +1,7 @@
 """Generated SHAFT skill inventory and quality-contract tests (#4640)."""
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -321,6 +322,128 @@ class JourneyCoverageMapTest(unittest.TestCase):
         for path in MAP_POINTERS:
             content = path.read_text(encoding="utf-8")
             self.assertIn("journey-coverage-map.md", content, path.name)
+
+
+REPOSITORY = Path(__file__).resolve().parents[2]
+TOOL_INDEX = (
+    REPOSITORY
+    / "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json"
+)
+CACHE_RULE = (
+    "Compact cache rule: name, when to use, and essential arguments only. "
+    "Do not embed a JSON schema. Load this file only when the shaft skills "
+    "entrypoint selects this skill."
+)
+SKILL_NAME = re.compile(r"^shaft-[a-z0-9]+(?:-[a-z0-9]+)*$")
+HELP_INSTRUCTION = re.compile(r"(?i)\b(do not|never|don't)\b")
+
+
+def _inventory_names() -> list[str]:
+    inventory = (REPOSITORY / "shaft-skills/INVENTORY.md").read_text(encoding="utf-8")
+    return re.findall(r"(?m)^\| (shaft-[a-z0-9-]+) \|", inventory)
+
+
+def _entrypoint_text() -> str:
+    hub = REPOSITORY / "shaft-skills/shaft-developer/SKILL.md"
+    text = hub.read_text(encoding="utf-8")
+    routing = next(
+        hub.parent / target
+        for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
+        if target.split("#", 1)[0].endswith("routing.md")
+    )
+    return text + "\n" + routing.read_text(encoding="utf-8")
+
+
+def _cache_files() -> list[tuple[str, Path]]:
+    found = []
+    for skill in sorted((REPOSITORY / "shaft-skills").glob("*/SKILL.md")):
+        body = skill.read_text(encoding="utf-8")
+        if "references/cache.md" not in body:
+            continue
+        cache = skill.parent / "references/cache.md"
+        heading = ""
+        if cache.is_file():
+            heading = cache.read_text(encoding="utf-8").splitlines()[0]
+        found.append((heading, cache))
+    return found
+
+
+class ShaftSkillsOptimization7858Test(unittest.TestCase):
+    """Issue #7858: one entrypoint, two compact on-demand tool caches, one mindmap."""
+
+    def test_entrypoint_names_every_generated_inventory_skill(self):
+        names = _inventory_names()
+        self.assertGreaterEqual(len(names), 30)
+        blob = _entrypoint_text()
+        missing = [name for name in names if name not in blob]
+        self.assertEqual(missing, [])
+
+    def test_skill_names_match_the_shaft_scheme(self):
+        for name in _inventory_names():
+            self.assertRegex(name, SKILL_NAME)
+
+    def test_exactly_one_mcp_cache_and_one_cli_cache(self):
+        kinds = []
+        for heading, cache in _cache_files():
+            self.assertTrue(cache.is_file(), cache)
+            text = cache.read_text(encoding="utf-8")
+            self.assertIn(CACHE_RULE, text)
+            self.assertNotIn("inputSchema", text)
+            self.assertNotIn('"properties"', text)
+            self.assertNotIn('"type":', text)
+            if heading == "# MCP cache":
+                kinds.append("mcp")
+            elif heading == "# CLI cache":
+                kinds.append("cli")
+            else:
+                self.fail(f"unexpected cache heading {heading!r} in {cache}")
+        self.assertEqual(kinds, ["cli", "mcp"])
+
+    def test_mcp_cache_recovers_index_names_without_schemas(self):
+        index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
+        names = [tool["name"] for tool in index["tools"]]
+        self.assertGreaterEqual(len(names), 100)
+        cache = (
+            REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn(names[0], cache)
+        missing = [name for name in names if f"`{name}`" not in cache]
+        extra = re.findall(r"(?m)^\| `([a-z][a-z0-9_]*)` \|", cache)
+        self.assertEqual(missing, [])
+        self.assertEqual(sorted(extra), sorted(names))
+        self.assertLess(len(cache.encode("utf-8")), TOOL_INDEX.stat().st_size // 2)
+
+    def test_cli_cache_recovers_a_catalog_command_without_help_discovery(self):
+        reference = (
+            REPOSITORY / "shaft-skills/references/shaft-cli-commands.md"
+        ).read_text(encoding="utf-8")
+        form = re.search(r"shaft-cli call <TOOL>[^\n`]*", reference)
+        self.assertIsNotNone(form)
+        cache_path = REPOSITORY / "shaft-skills/shaft-cli/references/cache.md"
+        skill = (REPOSITORY / "shaft-skills/shaft-cli/SKILL.md").read_text(encoding="utf-8")
+        cache = cache_path.read_text(encoding="utf-8")
+        self.assertIn(form.group(0).strip(), cache)
+        self.assertIn("references/cache.md", skill)
+        for label, text in (("skill", skill), ("cache", cache)):
+            instructed = [
+                line
+                for line in text.splitlines()
+                if "--help" in line and not HELP_INSTRUCTION.search(line)
+            ]
+            self.assertEqual(instructed, [], label)
+
+    def test_readme_mindmap_names_each_skill_and_the_relation(self):
+        readme = (REPOSITORY / "shaft-skills/readme.md").read_text(encoding="utf-8")
+        self.assertIn("mindmap", readme.casefold())
+        self.assertIn("selects exactly one", readme.casefold())
+        for name in _inventory_names():
+            self.assertIn(name, readme)
+        self.assertIn("Allure failure analysis", readme)
+        self.assertIn("Record and playback", readme)
+        self.assertIn("Code generation", readme)
+
+    def test_description_listing_and_progressive_disclosure_budgets_hold(self):
+        self.assertEqual(validate_repository(REPOSITORY), [])
 
 
 if __name__ == "__main__":
