@@ -465,7 +465,8 @@ def migrates_to_default_distribution(
 def resolve_rematerialize_distribution(
     installed_id: object, source: Path, project: Path | None = None
 ) -> str:
-    """Distribution for rematerialize/repair after reidentification.
+    """
+    Distribution for rematerialize/repair after reidentification.
 
     When `project` is set, the same rules as `detect_distribution` win over a
     previously recorded id. A pack-less snapshot still falls back to portable.
@@ -800,7 +801,8 @@ def reidentify_pack_addons(
     source: Path,
     found: dict[str, dict[str, object]],
 ) -> tuple[set[str], set[str]]:
-    """Return `(select, drop)` so a rerun matches host pack selection.
+    """
+    Return `(select, drop)` so a rerun matches host pack selection.
 
     Host skills (`selected_profile_name`) treat a checkout with exactly one
     `*/ce-pack` entrypoint as that pack. The installer then selects the add-on
@@ -871,7 +873,8 @@ def plan_install(
     removed: set[str] | None = None,
     environ: dict[str, str] | None = None,
 ) -> tuple[str, tuple[str, ...]]:
-    """Distribution and add-ons for this install.
+    """
+    Distribution and add-ons for this install.
 
     Explicit `--with` / `--without` win. Identity add-ons are re-derived from
     the project every run so an older portable or repository choice cannot
@@ -6981,7 +6984,8 @@ def finalize_dependency_tombstone(removing: Path) -> None:
 
 
 def stage_project_packs(project: Path, source: Path) -> None:
-    """Copy project `ce-pack` and `ce-addons` trees beside a chaos-engine snapshot.
+    """
+    Copy project `ce-pack` and `ce-addons` trees beside a chaos-engine snapshot.
 
     Repair and local reinstall copy only the core tree. Without the sibling
     pack, reidentification cannot see the distribution the host skill pointer

@@ -61,7 +61,8 @@ def _payload_relative(source: Path, path: Path) -> Path:
 
 
 def owned_source_files(source: Path, distribution: str | None = None) -> tuple[Path, ...]:
-    """Payload `source_files()` installs for `distribution`.
+    """
+    Payload `source_files()` installs for `distribution`.
 
     Omitting `distribution` keeps the portable payload (#7564). Doctor passes
     the installed id so a pack-home install is not judged against portable.
@@ -210,7 +211,8 @@ def _bytes_match_commit(project: Path, tree: Path, commit: str, relatives: list[
 
 
 def published_commit_ahead_of_checkout(project: Path, mismatches: list[str]) -> bool:
-    """True when the overlay matches the installed commit and the checkout does not.
+    """
+    True when the overlay matches the installed commit and the checkout does not.
 
     Repair must not copy that older checkout over the published payload (#6121).
     """

@@ -1372,7 +1372,9 @@ GATEWAY_TIMEOUT_DETAIL = (
 
 
 class BaseGatewayTimeoutTest(TestCase):
-    """A frozen-base gateway timeout skips only that chain. The candidate still runs."""
+    """
+    A frozen-base gateway timeout skips only that chain. The candidate still runs.
+    """
 
     def test_gateway_timeout_on_the_frozen_base_is_narrow(self):
         module = load_acceptance()
