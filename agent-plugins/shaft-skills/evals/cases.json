@@ -191,6 +191,42 @@
       "prompt": "Implement browser navigation, cookie setup, file upload, drag-and-drop, window switching, element interaction, and a screenshot using the current web APIs.",
       "expected_skill": "shaft-web-actions",
       "rejected_skills": ["shaft-mobile-actions", "shaft-fluent-api"]
+    },
+    {
+      "id": "route-android-apk-select",
+      "prompt": "Choose a universal APK or an ABI-split APK for a local emulator versus a real arm64 Android device.",
+      "expected_skill": "shaft-android-apk-select",
+      "rejected_skills": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"]
+    },
+    {
+      "id": "route-browserstack-native",
+      "prompt": "Configure App Automate for a native Android run: secrets keys, a device pin, a bs:// app id, and Local tunneling.",
+      "expected_skill": "shaft-browserstack-native",
+      "rejected_skills": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"]
+    },
+    {
+      "id": "route-docs-hygiene",
+      "prompt": "Keep the project docs lean: one source-of-truth trio, Done / In progress / Not started, hours that add up, and the delete-guard before removing a page.",
+      "expected_skill": "shaft-docs-hygiene",
+      "rejected_skills": ["shaft-test-completion", "shaft-stakeholder-reporting"]
+    },
+    {
+      "id": "route-ios-ipa-acceptance",
+      "prompt": "Gate this iOS package before cloud upload: confirm iphoneos, signing, arm64, thinning, and the property list.",
+      "expected_skill": "shaft-ios-ipa-acceptance",
+      "rejected_skills": ["shaft-browserstack-native", "shaft-android-apk-select"]
+    },
+    {
+      "id": "route-mobile-env",
+      "prompt": "Repair the local Android setup: split JDK, pin Appium, create an emulator image, and raise emulator memory until the doctor loop is green.",
+      "expected_skill": "shaft-mobile-env",
+      "rejected_skills": ["shaft-test-environment", "shaft-browserstack-native"]
+    },
+    {
+      "id": "route-mobile-retest-hygiene",
+      "prompt": "Triage this mobile retest: the map tap is a no-op, the picker probe is wrong, the bytecode mix does not match the progress journal, and the swipe fallback never ran.",
+      "expected_skill": "shaft-mobile-retest-hygiene",
+      "rejected_skills": ["shaft-failure-analysis", "shaft-mobile-actions"]
     }
   ]
 }

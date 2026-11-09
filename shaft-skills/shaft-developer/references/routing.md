@@ -32,7 +32,7 @@ installer is a separate product and must not publish `shaft-mcp` into CE
 | Run approved tests and capture trustworthy execution evidence | [`shaft-test-execution`](../../shaft-test-execution/SKILL.md) |
 | Monitor progress, gates, coverage, duration, retries, or execution health | [`shaft-test-monitoring`](../../shaft-test-monitoring/SKILL.md) |
 | Close a cycle: exit criteria, residual risk, archive, testware retirement, handover, or lessons | [`shaft-test-completion`](../../shaft-test-completion/SKILL.md) |
-| Diagnose one consistent failed or broken result and identify root cause | [`shaft-failure-analysis`](../../shaft-failure-analysis/SKILL.md) |
+| Allure failure analysis of one consistent failed or broken result and its root cause | [`shaft-failure-analysis`](../../shaft-failure-analysis/SKILL.md) |
 | Diagnose inconsistent pass/fail outcomes under equivalent conditions | [`shaft-flaky-test-analysis`](../../shaft-flaky-test-analysis/SKILL.md) |
 | File or improve a reproducible product defect report | [`shaft-defect-reporting`](../../shaft-defect-reporting/SKILL.md) |
 | Produce an engineering-facing execution or failure report | [`shaft-execution-reporting`](../../shaft-execution-reporting/SKILL.md) |
@@ -63,8 +63,8 @@ of duplicating their guidance.
 | Implement SHAFT database tests | [`shaft-database-testing`](../../shaft-database-testing/SKILL.md) |
 | Implement element, browser, API, or other SHAFT assertions | [`shaft-assertions`](../../shaft-assertions/SKILL.md) |
 | Search and ground syntax in the current official SHAFT guide | [`shaft-guide-search`](../../shaft-guide-search/SKILL.md) |
-| Record a live web or mobile flow | [`shaft-test-recording`](../../shaft-test-recording/SKILL.md) |
-| Generate test code from a persisted recording | [`shaft-recording-codegen`](../../shaft-recording-codegen/SKILL.md) |
+| Record and playback of a live web or mobile flow | [`shaft-test-recording`](../../shaft-test-recording/SKILL.md) |
+| Code generation from a persisted recording | [`shaft-recording-codegen`](../../shaft-recording-codegen/SKILL.md) |
 | Preview, guardrail-check, apply, or verify a generated change | [`shaft-change-verification`](../../shaft-change-verification/SKILL.md) |
 
 ## Tool specialists
@@ -81,7 +81,7 @@ return here and load `shaft-recording-codegen`. Do not send that request to
 `shaft-automated-test-authoring`.
 
 Do not infer exact MCP names, parameters, or CLI flags from this map. The two
-tool specialists resolve them from the generated canonical catalogs.
+tool specialists resolve them from their compact caches.
 
 
 ## Design stage tools (#5943)

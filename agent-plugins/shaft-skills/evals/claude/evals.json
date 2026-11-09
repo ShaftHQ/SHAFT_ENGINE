@@ -310,6 +310,66 @@
         "The structured chosen_skill is exactly shaft-web-actions.",
         "The structured chosen_skill is none of: shaft-mobile-actions, shaft-fluent-api."
       ]
+    },
+    {
+      "id": 32,
+      "prompt": "Choose a universal APK or an ABI-split APK for a local emulator versus a real arm64 Android device.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-android-apk-select.",
+        "The structured chosen_skill is none of: shaft-mobile-env, shaft-ios-ipa-acceptance."
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "Configure App Automate for a native Android run: secrets keys, a device pin, a bs:// app id, and Local tunneling.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-browserstack-native.",
+        "The structured chosen_skill is none of: shaft-mobile-env, shaft-ios-ipa-acceptance."
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "Keep the project docs lean: one source-of-truth trio, Done / In progress / Not started, hours that add up, and the delete-guard before removing a page.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-docs-hygiene.",
+        "The structured chosen_skill is none of: shaft-test-completion, shaft-stakeholder-reporting."
+      ]
+    },
+    {
+      "id": 35,
+      "prompt": "Gate this iOS package before cloud upload: confirm iphoneos, signing, arm64, thinning, and the property list.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-ios-ipa-acceptance.",
+        "The structured chosen_skill is none of: shaft-browserstack-native, shaft-android-apk-select."
+      ]
+    },
+    {
+      "id": 36,
+      "prompt": "Repair the local Android setup: split JDK, pin Appium, create an emulator image, and raise emulator memory until the doctor loop is green.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-mobile-env.",
+        "The structured chosen_skill is none of: shaft-test-environment, shaft-browserstack-native."
+      ]
+    },
+    {
+      "id": 37,
+      "prompt": "Triage this mobile retest: the map tap is a no-op, the picker probe is wrong, the bytecode mix does not match the progress journal, and the swipe fallback never ran.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-mobile-retest-hygiene.",
+        "The structured chosen_skill is none of: shaft-failure-analysis, shaft-mobile-actions."
+      ]
     }
   ]
 }

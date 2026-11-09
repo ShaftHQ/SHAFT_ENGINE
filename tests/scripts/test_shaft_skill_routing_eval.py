@@ -228,7 +228,7 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
         self.assertEqual(defects, [])
         corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(len(corpus["cases"]), 31)
+        self.assertEqual(len(corpus["cases"]), 37)
         self.assertEqual(
             {case["expected_skill"] for case in corpus["cases"]},
             set(review["skills"]),
@@ -290,6 +290,27 @@ class OwnerGenerateFromScenarioRoutingTest(unittest.TestCase):
         self.assertEqual(case["expected_skill"], "shaft-test-recording")
         self.assertIn("shaft-recording-codegen", case["rejected_skills"])
         self.assertIn("shaft-automated-test-authoring", case["rejected_skills"])
+
+
+class NamedSituationRoutingTest(unittest.TestCase):
+    """#7858: allure failure analysis, record and playback, and code generation."""
+
+    def test_each_named_situation_selects_exactly_one_skill(self):
+        routing = ROUTING_PATH.read_text(encoding="utf-8")
+        expected = {
+            "Allure failure analysis": "shaft-failure-analysis",
+            "Record and playback": "shaft-test-recording",
+            "Code generation": "shaft-recording-codegen",
+        }
+        for situation, skill in expected.items():
+            rows = [
+                line
+                for line in routing.splitlines()
+                if line.startswith("|") and situation in line
+            ]
+            self.assertEqual(len(rows), 1, situation)
+            linked = re.findall(r"\]\(\.\./\.\./(shaft-[a-z0-9-]+)/SKILL\.md\)", rows[0])
+            self.assertEqual(linked, [skill], situation)
 
 
 if __name__ == "__main__":
