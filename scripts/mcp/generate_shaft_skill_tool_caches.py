@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Write the compact on-demand MCP and CLI caches from tool-index.json.
-
-Compact cache rule: name, when to use, and essential arguments only. Do not
-embed a JSON schema. Load this file only when the shaft skills entrypoint
-selects this skill. Full schemas stay on the server until the agent calls one
-tool. The CLI cache is the command index, so ordinary discovery does not run
---help.
-
-    python3 scripts/mcp/generate_shaft_skill_tool_caches.py
-    python3 scripts/mcp/generate_shaft_skill_tool_caches.py --check
-"""
+"""Write the compact on-demand MCP and CLI caches from tool-index.json."""
+# Compact cache rule: name, when to use, and essential arguments only. Do not
+# embed a JSON schema. Load this file only when the shaft skills entrypoint
+# selects this skill. Full schemas stay on the server until the agent calls one
+# tool. The CLI cache is the command index, so ordinary discovery does not run
+# --help.
+#
+#     python3 scripts/mcp/generate_shaft_skill_tool_caches.py
+#     python3 scripts/mcp/generate_shaft_skill_tool_caches.py --check
+#
 
 from __future__ import annotations
 
@@ -70,8 +69,10 @@ def render_mcp(index: dict) -> str:
             "",
             CACHE_RULE,
             "",
-            "Defer every full schema until the one tool you will call. "
-            "Do not paste this table's rows into the ChaosEngine entry.",
+            (
+                "Defer every full schema until the one tool you will call. "
+                + "Do not paste this table's rows into the ChaosEngine entry."
+            ),
             "",
             _table(tools),
             "",
@@ -106,8 +107,11 @@ def render_cli(index: dict) -> str:
             "- `shaft-cli guide search`",
             "- `shaft-cli doctor analyze|suggest|local-ai-status`",
             "",
-            "Browser, element, capture, and driver commands need `shaft-cli session start` "
-            "unless the call is a deliberately disposable one-shot.",
+            (
+                "Browser, element, capture, and driver commands need "
+                + "`shaft-cli session start` unless the call is a deliberately "
+                + "disposable one-shot."
+            ),
             "",
             "## Tools",
             "",
