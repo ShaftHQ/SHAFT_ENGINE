@@ -4978,9 +4978,9 @@ def chaos_guard_locator_command(
 
     Hosts echo the hook command on every block. The previous inline polyglot was
     ~11KB / 241 lines. Locate/guard logic lives in ``launch.py``; this command
-    stays under ``HOOK_COMMAND_MAX_CHARS``. Copilot repo hooks set
-    ``cwd: "."`` so the relative launcher path resolves; ``launch.py`` still
-    walks parents / payload cwd for ``guard.py`` (#6632).
+    stays under ``HOOK_COMMAND_MAX_CHARS``. The command walks parent directories
+    for ``launch.py``. ``launch.py`` still walks parents / payload cwd for
+    ``guard.py`` (#6632).
     """
     del managed_python
     if not re.fullmatch(r"[a-z0-9-]+", host):
@@ -4996,12 +4996,19 @@ def chaos_guard_locator_command(
     if "'" in block or "'" in target:
         raise ValueError("hook launch command must stay single-quote safe")
     probe = _powershell_interpreter_probe(host, event, block)
-    if windows:
-        # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
-        command = f"py -3 {target}" if host == "grok" else probe
+    if windows and host == "grok":
+        script = (
+            "import os,pathlib,sys;q=chr(34);r='"
+            + HOOK_LAUNCH_PY
+            + "';d=pathlib.Path.cwd();"
+            "f=next((p/r for p in(d,*d.parents)if(p/r).is_file()),None);"
+            "j=q.join(['{','decision',':','block',',','reason',':','missing '+r+' cwd '+str(d),'}']);"
+            "os.execv(sys.executable,[sys.executable,str(f),*sys.argv[1:]]) if f else (print(j) or sys.exit(2))"
+        )
+        command = f'py -3 -c "{script}" {args}'
+    elif windows:
+        command = probe
     else:
-        # Copilot CLI runs the unix `command` through PowerShell (#7831). The
-        # same string is bash on Linux (#7830). `>` must not name a file.
         command = _unix_powershell_polyglot(target, block, probe)
     targets = powershell_out_file_targets(command)
     if targets:
@@ -5053,40 +5060,48 @@ def powershell_out_file_targets(command: str, drive: str = "D") -> list[str]:
 
 
 def _powershell_interpreter_probe(host: str, event: str | None, block: str) -> str:
-    """Probe python3, py, then python. Fail closed only when none of them start."""
-    if event is None:
-        arr = f"'{HOOK_LAUNCH_PY}','{host}'"
-    else:
-        arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
+    """Walk parents for launch.py, then probe python3, py, python."""
+    args = f"'{host}'" if event is None else f"'{host}','{event}'"
     return (
-        f"$a={arr};"
+        "$a='';"
+        f"$r='{HOOK_LAUNCH_PY}';$o=$pwd.path;$d=$o;"
+        'for(;$d -and -not (Test-Path ($f="$d/$r"));$d=Split-Path $d){};'
+        'if(-not $d){Write-Output "{`"decision`":`"block`",`"reason`":`"missing $r cwd $o`"}";exit 2};'
+        f"$a=$f,{args};"
         "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
-        "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
-        f";Write-Output '{block}';exit 2"
+        "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}};"
+        f"Write-Output '{block}';exit 2"
     )
 
 
 def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
-    """One command: bash exec-chain, PowerShell foreach. No file Out-File target.
+    """Bash/dash parent walk plus the PowerShell probe. Dash never runs shopt.
 
-    ``<#`` is a bash syntax error, so the comment starts after ``echo``.
-    The opener's newline goes to stderr (``>&2``), so a failed launch leaves
-    stdout empty. ``>&`` is not an Out-File target.
-    ``exec`` replaces the process, so a real hook deny (exit 2) does not try
-    the next interpreter. A non-interactive bash exits on a failed ``exec``
-    before ``||`` can try the next name, so ``execfail`` is set first.
-    PowerShell never sees those lines: they are inside ``<# #>``.
-    ``LASTEXITCODE=`` and ``n=`` satisfy Grok's ``$NAME`` scanner for the probe.
+    ``execfail`` is set only when this string is already running under bash.
+    A missing launcher exits 2 with the path and the original cwd. ``exec``
+    still replaces the process so a real interpreter failure is not retried.
     """
+    args = target.split(" ", 1)[1]
+    walker = (
+        '[ -n "$BASH_VERSION" ]&&shopt -s execfail;'
+        f"r={HOOK_LAUNCH_PY};o=$PWD;d=$o;"
+        'while [ -n "$d" ]&&[ ! -f "$d/$r" ];do [ "$d" = / ]&&break;d=${d%/*};done;'
+        '[ -n "$d" ]&&[ -f "$d/$r" ]||{ echo "{\\"decision\\":\\"block\\",\\"reason\\":\\"missing $r cwd $o\\"}"; exit 2; };'
+        'f="$d/$r";'
+        f"set -- {args};"
+        'exec python3 "$f" "$@"||exec py -3 "$f" "$@"||{ echo \''
+        + block
+        + "'; exit 2; };"
+        "BASH_VERSION=;PWD="
+    )
     return (
         "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
-        "shopt -s execfail\n"
-        f"exec python3 {target} || exec py -3 {target} || exec python {target} "
-        f"|| {{ echo '{block}'; exit 2; }}\n"
-        "#> > $null\n"
-        f"{probe}"
+        "pwd=\n"
+        + walker
+        + "\n#> > $null\n"
+        + probe
     )
 
 

@@ -67,6 +67,9 @@ class NullSinkAndLifecycleTest(unittest.TestCase):
             py = bindir / "py"
             py.write_text("#!/bin/sh\nprintf '%s\\n' '{}'\nexit 0\n", encoding="utf-8")
             py.chmod(0o755)  # nosec B103 - fixture interpreter the test itself runs.
+            launch = Path(temporary) / ".chaos-engine/hooks"
+            launch.mkdir(parents=True)
+            (launch / "launch.py").write_text("raise SystemExit(9)\n", encoding="utf-8")
             environment = os.environ.copy()
             environment["PATH"] = str(bindir)
             bash = shutil.which("bash") or "/bin/bash"
