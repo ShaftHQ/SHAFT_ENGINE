@@ -5084,7 +5084,7 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
         "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
-        "[ -f .chaos-engine/hooks/launch.py ] || { echo 'missing .chaos-engine/hooks/launch.py'; exit 2; }\n"
+        "[ -f .chaos-engine/hooks/launch.py ] || { echo 'missing .chaos-engine/hooks/launch.py' >&2; exit 2; }\n"
         '[ -n "${BASH_VERSION-}" ] && shopt -s execfail\n'
         f"exec python3 {target} || exec py -3 {target} || exec python {target} "
         f"|| {{ echo '{block}'; exit 2; }}\n"

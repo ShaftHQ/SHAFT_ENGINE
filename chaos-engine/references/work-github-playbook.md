@@ -118,7 +118,7 @@ records its terminal reflection receipt before the Learning Session.
    Secrets never enter `.memory/memory`; they stay in `.memory/private/`
    (gitignored).
 
-Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
+Promotion, orchestrated-runtime membership, nightly recovery, ROG machineId, and `repair-or-revert` stay in
 [work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
 
 
@@ -138,15 +138,6 @@ Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue
   this PR does not fully resolve, unlink it from the PR's Development sidebar.
-- A nightly-failure tracker (label prefix `nightly-failure:`) is recovered only
-  when its owning workflow concludes success with a full job set (`jobs=all`,
-  nothing skipped). A merge, a closing keyword, a manual `gh issue close`, and
-  a partial `workflow_dispatch` are not recovery. A product pull request must
-  not use a closing keyword on that tracker. Say `Related to #N`.
-  Decision: `scripts/ci/validate_pr_closing_keywords.py` `nightly_tracker_recovered`.
-- ROG writes go through the parent Shell that has `machineId`. A Task child
-  has no `machineId` and must not be described as ROG delivery.
-  The platform schema is outside this repository.
 - Merge only within granted authority. A companion PR in another publishing
   repository needs its own authority.
 - Compact after a confirmed merge if the host supports it.

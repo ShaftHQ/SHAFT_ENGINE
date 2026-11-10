@@ -84,18 +84,14 @@ class LeanBootstrapTest(unittest.TestCase):
         self.assertEqual([], setup.unique_sentence_loss(before, after))
 
     def test_unique_sentence_loss_current_tree_is_empty(self):
+        """Compare merge-base to HEAD. A self-compare stays green after a deletion."""
         setup = load_module(
             "ce_unique_sentence_tree", ROOT / "scripts/ci/validate_agent_setup.py"
         )
-        chain = BUDGET["lean_chain"]
-        paths = [*chain["common"], chain["profile"]]
-        for host_paths in chain["hosts"].values():
-            paths.extend(host_paths)
-        texts = {
-            path: (ROOT / path).read_text(encoding="utf-8")
-            for path in dict.fromkeys(paths)
-        }
-        self.assertEqual([], setup.unique_sentence_loss(texts, texts))
+        before, after = setup._lean_implement_texts(ROOT)
+        self.assertTrue(before, "origin/main merge-base texts are required")
+        self.assertTrue(after)
+        self.assertEqual([], setup.unique_sentence_loss(before, after))
 
     def test_implement_max_bytes_is_16384(self):
         self.assertEqual(16384, BUDGET["lean_chain"]["implement_max_bytes"])
