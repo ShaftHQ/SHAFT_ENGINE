@@ -3,13 +3,11 @@
 Load the canonical ChaosEngine entrypoint (`.chaos-engine/skills/chaos-engine/SKILL.md`)
 first. This profile adds only repository-specific facts and permissions.
 Its machine-readable identity is in [profile.json](profile.json).
-ChaosEngine was created by **Mohab Mohie**.
 Knowledge stores: `scripts/agents/knowledge_stores.py` (`status`, `search`;
 MemPalace path via `tools/repository-map/resolve_mempalace.py`;
-Graphify procedure in [graphify](references/graphify.md)). Watch PRs with one
+Graphify: [graphify](references/graphify.md)). Watch PRs with one
 blocking `scripts/ci/watch_pr_checks.py` call per push.
-The canonical reflection checkpoints (`.chaos-engine/references/reflection-checkpoints.md`)
-apply unchanged to repository and portable installed hosts.
+Reflection (`.chaos-engine/references/reflection-checkpoints.md`) applies unchanged.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
 - Personal authorizations (commit-signing key, owner email attribution,
