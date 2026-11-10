@@ -1000,6 +1000,8 @@ class OperationBoundaryTest(TestCase):
                 "git push -uf",
                 "git push -fu",
                 "git push origin changeset +refs/heads/main",
+                "git push origin set +refs/heads/main",
+                "git push origin refs/heads/set +refs/heads/main",
             ):
                 self.assertEqual(
                     "force-push-without-approval",

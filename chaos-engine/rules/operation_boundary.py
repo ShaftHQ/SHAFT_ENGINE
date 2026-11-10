@@ -13,12 +13,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# `set +e` is a shell option. A force refspec is a plus argument that does not follow `set`.
-# `-f` counts only on the git push statement, not on another program in the same shell (#7901).
+# `set +e` is a separate shell statement, so it is not part of the git push
+# statement. Any plus argument on the push statement is a force refspec.
+# A short option cluster that contains f counts only on that statement (#7901).
 _FORCE = re.compile(
     r"(--force\b|--force-with-lease\b"
     r"|(?:^|\s)-[A-Za-z]*f[A-Za-z]*(?=\s|$)"
-    r"|(?<!\bset)\s\+\S+)"
+    r"|\s\+\S+)"
 )
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
