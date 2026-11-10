@@ -1206,6 +1206,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_omniroute_calibration.py",
     ),
     "process-owner": (
+        "chaos-engine/references/work-github-playbook.md",
         "chaos-engine/references/process-owner-scrum-master.md",
         "chaos-engine/references/router-contract.md",
         "chaos-engine/references/roles.md",

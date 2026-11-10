@@ -752,7 +752,8 @@ class UnixPolyglotLaunchFileTest(unittest.TestCase):
             )
         combined = result.stdout + result.stderr
         self.assertNotEqual(0, result.returncode, combined)
-        self.assertIn("missing .chaos-engine/hooks/launch.py", combined)
+        self.assertNotIn("missing .chaos-engine/hooks/launch.py", result.stdout)
+        self.assertIn("missing .chaos-engine/hooks/launch.py", result.stderr)
         self.assertNotIn("shopt:", combined)
 
     def test_unix_polyglot_missing_launch_under_sh(self) -> None:

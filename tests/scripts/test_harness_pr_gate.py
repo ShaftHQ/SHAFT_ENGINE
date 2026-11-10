@@ -377,6 +377,10 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
 
+    def test_playbook_selects_the_delivery_cycle_module(self) -> None:
+        plan = classify_paths(["chaos-engine/references/work-github-playbook.md"])
+        self.assertIn("tests.scripts.test_delivery_cycle", plan.test_modules)
+
     def test_lean_implement_files_select_the_unique_sentence_module(self) -> None:
         module = "tests.scripts.test_chaos_engine_token_economy_6173"
         for path in (
