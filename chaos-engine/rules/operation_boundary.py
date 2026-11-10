@@ -16,9 +16,10 @@ from typing import Any
 # `set +e` is a separate shell statement, so it is not part of the git push
 # statement. Any plus argument on the push statement is a force refspec.
 # A short option cluster that contains f counts only on that statement (#7901).
+# The cluster may end at a substitution closer or a redirect, not only at whitespace.
 _FORCE = re.compile(
     r"(--force\b|--force-with-lease\b"
-    r"|(?:^|\s)-[A-Za-z]*f[A-Za-z]*(?=\s|$)"
+    r"|(?:^|\s)-[A-Za-z]*f[A-Za-z]*(?=[\s)|`<>]|$)"
     r"|\s\+\S+)"
 )
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
@@ -50,7 +51,7 @@ def _normalized(command: str) -> str:
 
 
 def _shell_statements(command: str) -> list[str]:
-    """Split on ``&&``, ``||``, and ``;`` outside quotes and substitutions.
+    """Split on ``&&``, ``||``, ``;``, ``|``, and ``&`` outside quotes and substitutions.
 
     A quoted ref, ``$(...)``, or a backtick command may contain those separators.
     """
@@ -105,7 +106,7 @@ def _shell_statements(command: str) -> list[str]:
             buf = []
             index += 2
             continue
-        if char == ";":
+        if char in {"|", "&", ";"}:
             parts.append("".join(buf))
             buf = []
             index += 1

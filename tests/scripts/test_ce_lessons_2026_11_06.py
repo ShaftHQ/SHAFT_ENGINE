@@ -985,6 +985,8 @@ class OperationBoundaryTest(TestCase):
                 "set +e; git push origin SOME_BRANCH",
                 "set +e && git push origin SOME_BRANCH",
                 "git push origin 'feature;wip'",
+                "rm -f /tmp/note.md|git push origin SOME_BRANCH",
+                "git push origin SOME_BRANCH 2>&1",
             ):
                 self.assertIsNone(boundary.force_push_block(root, allowed), allowed)
             for denied in (
@@ -1002,6 +1004,10 @@ class OperationBoundaryTest(TestCase):
                 "git push origin changeset +refs/heads/main",
                 "git push origin set +refs/heads/main",
                 "git push origin refs/heads/set +refs/heads/main",
+                "git push -uf|cat",
+                "git push $(echo; echo -f)",
+                "git push `echo -f`",
+                "git push -uf>out",
             ):
                 self.assertEqual(
                     "force-push-without-approval",
