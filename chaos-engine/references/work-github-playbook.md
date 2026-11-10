@@ -128,6 +128,7 @@ Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
   update the agreed PR shape with a
   description that lists each sub-item and its commit. Keep that description
   current as later commits land.
+- A large delivery is more than one module or more than one issue. Open a draft pull request on `ChaosEngine/<slug>` at the first accepted commit. Push after each locally green slice. The draft stays a draft until that head is green and the required reviews have passed. This rule does not arm auto-merge. A one-file reversible fix is exempt.
 - Verify `closingIssuesReferences` after opening: GitHub matches closing words
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue

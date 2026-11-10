@@ -70,6 +70,7 @@ class GrokHookEnvRefTest(unittest.TestCase):
     def test_windows_shell_branch_still_reaches_the_guard(self):
         if not shutil.which("py"):
             self.skipTest("Windows Grok command uses py launcher")
+        self._skip_unless_windows_py_launcher()
         command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
         self._assert_guard(command, windows=True)
 
@@ -79,8 +80,21 @@ class GrokHookEnvRefTest(unittest.TestCase):
             self.skipTest("PowerShell is required to drive the Grok Windows branch")
         if not shutil.which("py"):
             self.skipTest("Windows Grok command uses py launcher")
+        self._skip_unless_windows_py_launcher()
         command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
         self._assert_guard(command, posix=False, executable=executable)
+
+    def _skip_unless_windows_py_launcher(self) -> None:
+        probe = subprocess.run(  # nosec B603 - fixed py launcher probe, no shell.
+            ["py", "-3", "-c", "import sys; print(sys.version)"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        words = probe.stdout.split() + probe.stderr.split()
+        if probe.returncode != 0 or "Python" not in probe.stdout or "-3" in words:
+            self.skipTest("py is not the Windows launcher")
 
     def _assert_guard(self, command: str, *, posix: bool = True, windows: bool = False, executable: str | None = None):
         payload = {
