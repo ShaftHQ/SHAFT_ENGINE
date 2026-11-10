@@ -733,7 +733,7 @@ class UnixPolyglotLaunchFileTest(unittest.TestCase):
     def test_unix_polyglot_checks_launch_file_before_shopt(self) -> None:
         command = self._command()
         self.assertLess(
-            command.index("[ -f .chaos-engine/hooks/launch.py ]"),
+            command.index('[ -f "$d/.chaos-engine/hooks/launch.py" ]'),
             command.index("shopt"),
         )
 

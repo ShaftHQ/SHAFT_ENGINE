@@ -44,6 +44,8 @@ capability level unless the assignment states otherwise. Returns architectural
 ambiguity undecided. May assign only mechanical, spec-exact, or bulk work
 downward, then verifies its output.
 
+When the brief already contains the exact edit, apply that edit before any other read. If several minutes pass with no diff, stop and report that instead of another survey.
+
 ## Reviewer
 
 Read-only. Reads the full diff, verifies claims, checks spec first and quality

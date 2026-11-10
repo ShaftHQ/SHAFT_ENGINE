@@ -4,6 +4,7 @@ name: PR time to merge
 # above the 15-minute target opens or updates one `ci-pr-time` issue. The
 # `quality` job reports the main-branch quality trend (Codacy check runs and
 # Codecov coverage); a regression opens or updates one `ci-quality` issue.
+# Recovery closes that issue.
 
 on:
   schedule:
@@ -72,10 +73,19 @@ jobs:
           code=$?
           set -e
           cat quality.md >> "$GITHUB_STEP_SUMMARY"
-          [ "$code" = 0 ] && exit 0
-          [ "$code" = 2 ] || exit "$code"
-          gh label create ci-quality --repo "$REPO" --color D93F0B --description "Quality regression on main (#6990)" 2>/dev/null || true
           existing=$(gh issue list --repo "$REPO" --label ci-quality --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            action=$(python3 scripts/ci/quality_trend.py --tracker-action "$code" --open-issue "$existing")
+          else
+            action=$(python3 scripts/ci/quality_trend.py --tracker-action "$code")
+          fi
+          [ "$action" = "noop" ] && exit 0
+          [ "$action" = "fail" ] && exit "$code"
+          if [ "$action" = "close" ]; then
+            gh issue close "$existing" --repo "$REPO" --comment "Quality trend recovered on main."
+            exit 0
+          fi
+          gh label create ci-quality --repo "$REPO" --color D93F0B --description "Quality regression on main (#6990)" 2>/dev/null || true
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$REPO" --body-file quality.md
           else

@@ -5,7 +5,7 @@ draft before the gate checklist.
 
 1. Address a named person. ([Harvard](https://careerservices.fas.harvard.edu/resources/hes-create-impactful-resumes-and-cover-letters/), [Indeed](https://www.indeed.com/career-advice/resumes-cover-letters/how-to-write-a-cover-letter), [Fonzi](https://fonzi.ai/blog/how-to-email-recruiter))
 2. Open with the role, the company, and where you saw the posting. (Indeed, [Cornell](https://jobs.hr.cornell.edu/us/en/blogarticle/how-to-write-an-effective-cover-letter), [LHH](https://www.lhh.com/en-us/insights/email-cover-letter-samples))
-3. Lead with a value hook, not your name. (LHH, Fonzi, [hackingthecaseinterview](https://www.hackingthecaseinterview.com/pages/email-to-consulting-recruiter))
+3. Lead with a value hook, not your name. (LHH, Fonzi)
 4. Tailor to the posting; reuse its keywords. (Harvard, Indeed)
 5. One to three concrete, quantified achievements. ([Harvard 2026](https://careerservices.fas.harvard.edu/blog/2026/08/10/how-to-write-a-cover-letter-that-actually-gets-you-hired-in-2026/), Indeed, Fonzi)
 6. Tie each achievement to an employer need; do not repeat the CV. (Harvard, Cornell)
