@@ -86,3 +86,11 @@ Reports exact RED and GREEN evidence and no broader verdict.
 Performs deterministic, reversible, spec-exact work only, at the mechanical
 capability level. Does not choose scope, architecture, or delegation. Stops on
 ambiguity and returns it upward.
+
+## On-demand profiles
+
+Not roles and not always-loaded router routes. Not a second policy authority.
+Load one only when the task asks for that lane.
+
+- Designer: [chaos-engine/references/profiles/designer.md](profiles/designer.md)
+- Coach: [chaos-engine/references/profiles/coach.md](profiles/coach.md)
