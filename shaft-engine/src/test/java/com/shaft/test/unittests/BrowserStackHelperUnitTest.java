@@ -2,6 +2,7 @@ package com.shaft.test.unittests;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.BrowserStackAppPlatform;
 import com.shaft.driver.internal.DriverFactory.BrowserStackHelper;
 import com.shaft.driver.internal.DriverFactory.BrowserStackSdkHelper;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
@@ -159,7 +160,11 @@ public class BrowserStackHelperUnitTest {
         input.setCapability("bstack:options", replacement);
 
         try (MockedConstruction<DriverFactoryHelper> helperConstruction = Mockito.mockConstruction(DriverFactoryHelper.class);
-             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class)) {
+             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class);
+             MockedStatic<BrowserStackAppPlatform> appPlatform = Mockito.mockStatic(
+                     BrowserStackAppPlatform.class, Mockito.CALLS_REAL_METHODS)) {
+            appPlatform.when(() -> BrowserStackAppPlatform.lookupAppName(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString())).thenReturn("existing-app.ipa");
             sdkHelperMock.when(BrowserStackSdkHelper::generateBrowserStackYml).thenReturn("browserstack.yml");
             BrowserStackHelper.getBrowserStackDriver(input);
             DriverFactoryHelper constructed = helperConstruction.constructed().getFirst();
@@ -181,7 +186,11 @@ public class BrowserStackHelperUnitTest {
                 .seleniumVersion("4.25.0").appUrl("").appRelativeFilePath("").browserVersion("17.0");
 
         try (MockedConstruction<DriverFactoryHelper> helperConstruction = Mockito.mockConstruction(DriverFactoryHelper.class);
-             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class)) {
+             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class);
+             MockedStatic<BrowserStackAppPlatform> appPlatform = Mockito.mockStatic(
+                     BrowserStackAppPlatform.class, Mockito.CALLS_REAL_METHODS)) {
+            appPlatform.when(() -> BrowserStackAppPlatform.lookupAppName(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString())).thenReturn("existing-app.apk");
             sdkHelperMock.when(BrowserStackSdkHelper::generateBrowserStackYml).thenReturn("browserstack.yml");
 
             SHAFT.Properties.platform.set().targetPlatform("windows");
@@ -226,7 +235,11 @@ public class BrowserStackHelperUnitTest {
         SHAFT.Properties.mobile.set().app("bs://existing-mobile-app").browserName("");
 
         try (MockedConstruction<DriverFactoryHelper> helperConstruction = Mockito.mockConstruction(DriverFactoryHelper.class);
-             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class)) {
+             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class);
+             MockedStatic<BrowserStackAppPlatform> appPlatform = Mockito.mockStatic(
+                     BrowserStackAppPlatform.class, Mockito.CALLS_REAL_METHODS)) {
+            appPlatform.when(() -> BrowserStackAppPlatform.lookupAppName(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString())).thenReturn("existing-app.apk");
             sdkHelperMock.when(BrowserStackSdkHelper::generateBrowserStackYml).thenReturn("browserstack.yml");
 
             MutableCapabilities input = new MutableCapabilities();

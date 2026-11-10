@@ -996,6 +996,10 @@ class OperationBoundaryTest(TestCase):
                 "git push origin 'feature;wip' --force",
                 "git push origin 'feature;wip' -f",
                 'git push origin "release;hotfix" --force-with-lease',
+                "git push $(echo; echo --force)",
+                "git push -uf",
+                "git push -fu",
+                "git push origin changeset +refs/heads/main",
             ):
                 self.assertEqual(
                     "force-push-without-approval",

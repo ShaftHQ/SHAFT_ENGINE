@@ -15,7 +15,11 @@ from typing import Any
 
 # `set +e` is a shell option. A force refspec is a plus argument that does not follow `set`.
 # `-f` counts only on the git push statement, not on another program in the same shell (#7901).
-_FORCE = re.compile(r"(--force\b|--force-with-lease\b|(?:^|\s)-f(?:\s|$)|(?<!set)\s\+\S+)")
+_FORCE = re.compile(
+    r"(--force\b|--force-with-lease\b"
+    r"|(?:^|\s)-[A-Za-z]*f[A-Za-z]*(?=\s|$)"
+    r"|(?<!\bset)\s\+\S+)"
+)
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
@@ -45,11 +49,25 @@ def _normalized(command: str) -> str:
 
 
 def _shell_statements(command: str) -> list[str]:
-    """Split on ``&&``, ``||``, and ``;`` outside quotes. A quoted ref may contain ``;``."""
+    """Split on ``&&``, ``||``, and ``;`` outside quotes and substitutions.
+
+    A quoted ref, ``$(...)``, or a backtick command may contain those separators.
+    """
     parts: list[str] = []
     buf: list[str] = []
     quote = ""
     index = 0
+
+    def append_quoted(mark: str, cursor: int) -> int:
+        buf.append(command[cursor])
+        cursor += 1
+        while cursor < len(command):
+            buf.append(command[cursor])
+            if command[cursor] == mark and command[cursor - 1] != "\\":
+                return cursor + 1
+            cursor += 1
+        return cursor
+
     while index < len(command):
         char = command[index]
         if quote:
@@ -62,6 +80,24 @@ def _shell_statements(command: str) -> list[str]:
             quote = char
             buf.append(char)
             index += 1
+            continue
+        if command.startswith("$(", index):
+            depth = 1
+            buf.append("$(")
+            index += 2
+            while index < len(command) and depth:
+                if command[index] in {"'", '"'}:
+                    index = append_quoted(command[index], index)
+                    continue
+                buf.append(command[index])
+                if command[index] == "(":
+                    depth += 1
+                elif command[index] == ")":
+                    depth -= 1
+                index += 1
+            continue
+        if char == "`":
+            index = append_quoted("`", index)
             continue
         if command.startswith("&&", index) or command.startswith("||", index):
             parts.append("".join(buf))

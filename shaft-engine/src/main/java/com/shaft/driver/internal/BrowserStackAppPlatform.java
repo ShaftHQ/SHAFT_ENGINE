@@ -36,12 +36,15 @@ public final class BrowserStackAppPlatform {
         if (name == null || name.isBlank()) {
             return "";
         }
-        String normalized = name.toLowerCase(Locale.ROOT);
-        if (normalized.endsWith(".ipa") || normalized.contains(".ipa")) {
+        String leaf = name.toLowerCase(Locale.ROOT).split("\\?", 2)[0];
+        int slash = Math.max(leaf.lastIndexOf('/'), leaf.lastIndexOf('\\'));
+        if (slash >= 0) {
+            leaf = leaf.substring(slash + 1);
+        }
+        if (leaf.endsWith(".ipa")) {
             return "IOS";
         }
-        if (normalized.endsWith(".apk") || normalized.endsWith(".aab")
-                || normalized.contains(".apk") || normalized.contains(".aab")) {
+        if (leaf.endsWith(".apk") || leaf.endsWith(".aab")) {
             return "ANDROID";
         }
         return "";

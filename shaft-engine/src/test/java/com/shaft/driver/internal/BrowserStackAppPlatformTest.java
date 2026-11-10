@@ -38,6 +38,23 @@ public class BrowserStackAppPlatformTest {
     }
 
     @Test
+    public void nestedSuffixUsesTheFileNameNotAnEarlierSegment() {
+        Assert.assertEquals(BrowserStackAppPlatform.platformFromName("build.ipa/app.apk"), "ANDROID");
+        Assert.assertEquals(BrowserStackAppPlatform.platformFromName("app.aab?x=.ipa"), "ANDROID");
+        Assert.assertEquals(BrowserStackAppPlatform.platformFromName("HRSD-release.ipa"), "IOS");
+    }
+
+    @Test
+    public void missingCredentialFailureDoesNotEchoTheSecret() {
+        IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                () -> BrowserStackAppPlatform.lookupAppName(
+                        "bs://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "user-name", ""));
+        Assert.assertFalse(failure.getMessage().contains("user-name"), failure.getMessage());
+        Assert.assertFalse(failure.getMessage().contains("bs://"), failure.getMessage());
+        Assert.assertFalse(failure.getMessage().toLowerCase().contains("accesskey"), failure.getMessage());
+    }
+
+    @Test
     public void recentAppsJsonSuppliesTheStubbedNameWithoutANetworkCall() {
         String id = "bs://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         String body = """
