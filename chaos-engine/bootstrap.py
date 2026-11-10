@@ -3878,6 +3878,31 @@ def _verify_and_activate(
     }
 
 
+def lift_consumer_project(project: Path) -> Path:
+    """Install into the parent consumer when the path is the overlay or portable tree (#7907).
+
+    Standalone curl|bash file: same rule as install.py, without importing it.
+    """
+    resolved = Path(project).resolve()
+
+    def overlay_or_portable(path: Path) -> bool:
+        return ".chaos-engine" in path.parts or (path / "skills/chaos-engine/SKILL.md").is_file()
+
+    while overlay_or_portable(resolved) and resolved.parent != resolved:
+        resolved = resolved.parent
+    if overlay_or_portable(resolved) and resolved.parent == resolved:
+        if ".chaos-engine" in resolved.parts:
+            raise ValueError(
+                "refusing a nested install inside .chaos-engine; "
+                f"rerun with --project {resolved.parent}"
+            )
+        raise ValueError(
+            "refusing a nested install inside a portable ChaosEngine tree; "
+            f"rerun with --project {resolved.parent}"
+        )
+    return resolved
+
+
 def install_latest(
     project: Path,
     *,
@@ -3900,7 +3925,7 @@ def install_latest(
     if skip_tools and with_maven_tools:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
     resolution = resolve_install_hosts(explicit=hosts)
-    project = Path(project).resolve()
+    project = lift_consumer_project(Path(project))
     if not project.is_dir():
         raise ValueError(f"project is not a directory: {project}")
     with_maven_tools = wants_maven_tools(
@@ -4506,6 +4531,7 @@ def main() -> int:
     if getattr(args, "consumer", False):
         os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
     try:
+        args.project = lift_consumer_project(Path(args.project))
         bundle_options = {
             name: not getattr(args, f"without_{name}", False)
             for name in (
