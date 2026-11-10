@@ -79,12 +79,28 @@ def fetch(repo: str, limit: int) -> tuple[list[dict], float | None]:
     return runs, float(coverage) if coverage is not None else None
 
 
+def tracker_action(exit_code: int, open_issue: int | None) -> str:
+    """What the weekly workflow should do with the ci-quality issue."""
+    if exit_code == 0:
+        return "close" if open_issue else "noop"
+    if exit_code == 2:
+        return "comment" if open_issue else "create"
+    return "fail"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", required=True)
+    parser.add_argument("--repo")
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--coverage-floor", type=float, default=72.9)
+    parser.add_argument("--tracker-action", type=int, default=None)
+    parser.add_argument("--open-issue", type=int, default=None)
     args = parser.parse_args(argv)
+    if args.tracker_action is not None:
+        print(tracker_action(args.tracker_action, args.open_issue))
+        return 0
+    if not args.repo:
+        parser.error("the following arguments are required: --repo")
     runs, coverage = fetch(args.repo, args.limit)
     summary = summarize(codacy_rows(runs), coverage, args.coverage_floor)
     print(render(summary))

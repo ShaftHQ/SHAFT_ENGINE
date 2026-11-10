@@ -31,6 +31,18 @@ class QualityLayersTest(unittest.TestCase):
         self.assertIn("quality_trend.py", text)
         self.assertIn("ci-quality", text)
 
+    def test_tracker_action_closes_on_recovery(self) -> None:
+        self.assertEqual("close", qt.tracker_action(0, 1))
+        self.assertEqual("noop", qt.tracker_action(0, None))
+        self.assertEqual("comment", qt.tracker_action(2, 1))
+        self.assertEqual("create", qt.tracker_action(2, None))
+        self.assertEqual("fail", qt.tracker_action(1, None))
+        text = (ROOT / ".github/workflows/pr-time-to-merge.yml").read_text(encoding="utf-8")
+        self.assertIn("--tracker-action", text)
+        self.assertIn("gh issue close", text)
+        source = (ROOT / "scripts/ci/quality_trend.py").read_text(encoding="utf-8")
+        self.assertIn("default=72.9", source)
+
 
     def test_coverage_statuses_block_and_carry_forward(self) -> None:
         config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
