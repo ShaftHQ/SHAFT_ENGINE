@@ -37,6 +37,21 @@ writes one immutable root-owned schema-v2 completion. Stop hooks validate that
 artifact and never credit finalize command prose alone. Completions omit
 transcripts, private routes, model identities, credentials, and local paths.
 
+## Nightly-failure recovery
+
+A nightly-failure tracker (label prefix `nightly-failure:`) is recovered only
+when its owning workflow concludes success with a full job set (`jobs=all`,
+nothing skipped). A merge, a closing keyword, a manual `gh issue close`, and
+a partial `workflow_dispatch` are not recovery. A product pull request must
+not use a closing keyword on that tracker. Say `Related to #N`.
+Decision: `scripts/ci/validate_pr_closing_keywords.py` `nightly_tracker_recovered`.
+
+## ROG machineId
+
+ROG writes go through the parent Shell that has `machineId`. A Task child
+has no `machineId` and must not be described as ROG delivery.
+The platform schema is outside this repository.
+
 ## History correction and gate waivers
 
 An owner-authorized history correction binds the expected remote tip and uses

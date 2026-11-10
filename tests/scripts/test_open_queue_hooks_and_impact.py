@@ -62,6 +62,9 @@ class NullSinkAndLifecycleTest(unittest.TestCase):
     def test_bash_uses_py_when_python3_is_missing_and_does_not_emit_the_lifecycle_block(self) -> None:
         command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
         with tempfile.TemporaryDirectory() as temporary:
+            launch = Path(temporary) / ".chaos-engine" / "hooks"
+            launch.mkdir(parents=True)
+            (launch / "launch.py").write_text("", encoding="utf-8")
             bindir = Path(temporary) / "bin"
             bindir.mkdir()
             py = bindir / "py"

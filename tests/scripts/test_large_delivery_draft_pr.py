@@ -11,11 +11,10 @@ STUDIED = ROOT / "chaos-engine/references/studied-repos-not-adopted.md"
 ROLES = ROOT / "chaos-engine/references/roles.md"
 
 PLAYBOOK_SENTENCES = (
-    "Open a draft pull request on `ChaosEngine/<slug>` at the first accepted commit.",
-    "Push after each locally green slice.",
-    "The draft stays a draft until that head is green and the required reviews have passed.",
-    "This rule does not arm auto-merge.",
-    "A one-file reversible fix is exempt.",
+    "draft pull request on the first commit",
+    "pushes again after each locally green slice",
+    "does not arm auto-merge",
+    "one-file reversible fix is not a large delivery",
 )
 
 ABSENT_DIRS = (
@@ -33,7 +32,8 @@ class LargeDeliveryDraftPrTest(unittest.TestCase):
         text = PLAYBOOK.read_text(encoding="utf-8")
         for sentence in PLAYBOOK_SENTENCES:
             self.assertIn(sentence, text)
-        self.assertLessEqual(PLAYBOOK.stat().st_size, 16384)
+        self.assertLessEqual(PLAYBOOK.stat().st_size, 15360)
+        self.assertEqual(0, text.count("This rule does not auto-merge."))
 
     def test_studied_repos_are_not_adopted(self) -> None:
         text = STUDIED.read_text(encoding="utf-8")

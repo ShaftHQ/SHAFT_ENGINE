@@ -73,11 +73,9 @@ class HookLaunchCwdTest(unittest.TestCase):
                 cwd=temporary,
             )
             self.assertEqual(2, result.returncode, result.stdout + result.stderr)
-            self.assertIn(
-                "missing .chaos-engine/hooks/launch.py cwd " + temporary,
-                result.stdout,
-            )
-            self.assertNotIn("shopt", result.stderr)
+            self.assertNotIn("missing .chaos-engine/hooks/launch.py", result.stdout)
+            self.assertIn("missing .chaos-engine/hooks/launch.py", result.stderr)
+            self.assertNotIn("shopt:", result.stdout + result.stderr)
 
     def test_dash_finds_parent_launch_py(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
@@ -134,4 +132,5 @@ class HookLaunchCwdTest(unittest.TestCase):
         self.assertEqual(0, found.returncode, found.stdout + found.stderr)
         self.assertIn("found-launch", found.stdout)
         self.assertEqual(2, missing.returncode, missing.stdout + missing.stderr)
-        self.assertIn("missing", missing.stdout)
+        self.assertNotIn("missing", missing.stdout)
+        self.assertIn("missing .chaos-engine/hooks/launch.py", missing.stderr)

@@ -799,6 +799,72 @@ approval_mode = "prompt"
         self.assertNotIn("create_relation", errors[0]["message"])
         self.assertIn("shorten the object", errors[0]["message"])
 
+    def _commit_lean_sentence_repo(self, *, delete_only_copy: bool) -> str:
+        """Lean implement paths at origin/main. Optionally delete the only copy at HEAD."""
+        sentence = "Zed unique sentence loss fixture marker 7886."
+        only = ".github/copilot-instructions.md"
+        self.git("init", "-q", "-b", "main", ".")
+        self.git("config", "user.email", "harness@example.invalid")
+        self.git("config", "user.name", "Harness")
+        budget = {
+            "lean_chain": {
+                "implement_max_bytes": 16384,
+                "common": ["AGENTS.md"],
+                "profile": "shaft-skills/ce-pack/entrypoint.md",
+                "orchestrate": ["chaos-engine/skills/kanban/SKILL.md"],
+                "on_trigger": ["chaos-engine/skills/self-improve/SKILL.md"],
+                "hosts": {
+                    "copilot": ["AGENTS.md", only],
+                },
+            }
+        }
+        self.write("scripts/ci/agent_guidance_budget.json", json.dumps(budget))
+        self.write("README.md", "landing\n")
+        filler = "Shared filler stays.\n"
+        self.write("AGENTS.md", filler)
+        self.write("shaft-skills/ce-pack/entrypoint.md", filler)
+        self.write(only, f"{filler}\n{sentence}\n")
+        added = self.git("add", "-A")
+        self.assertEqual(0, added.returncode, added.stderr)
+        committed = self.git("commit", "-qm", "base")
+        self.assertEqual(0, committed.returncode, committed.stderr)
+        pinned = self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.assertEqual(0, pinned.returncode, pinned.stderr)
+        if delete_only_copy:
+            self.write(only, filler)
+            restaged = self.git("add", "-A")
+            self.assertEqual(0, restaged.returncode, restaged.stderr)
+            dropped = self.git("commit", "-qm", "drop unique sentence")
+            self.assertEqual(0, dropped.returncode, dropped.stderr)
+        return only
+
+    def test_validate_repository_quotes_a_unique_sentence_loss(self):
+        sentence = "Zed unique sentence loss fixture marker 7886."
+        only = self._commit_lean_sentence_repo(delete_only_copy=True)
+        errors, _metrics = validate_repository(self.root, run_external=False)
+        matches = [
+            error
+            for error in errors
+            if error["path"] == only
+            and "unique sentence lost from the lean implement path:" in error["message"]
+            and sentence in error["message"]
+        ]
+        self.assertTrue(matches, errors)
+        self.assertFalse(
+            any(error["path"] == "not-a-real-path" and sentence in error["message"] for error in errors)
+        )
+
+    def test_validate_repository_no_unique_sentence_loss_when_before_equals_after(self):
+        self._commit_lean_sentence_repo(delete_only_copy=False)
+        errors, _metrics = validate_repository(self.root, run_external=False)
+        self.assertFalse(
+            any(
+                "unique sentence lost from the lean implement path:" in error["message"]
+                for error in errors
+            ),
+            errors,
+        )
+
 
 class MemoryIntegrityTest(unittest.TestCase):
     """Pin the two store signals that were recorded but never enforced.

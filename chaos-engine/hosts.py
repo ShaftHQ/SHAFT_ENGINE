@@ -4978,9 +4978,10 @@ def chaos_guard_locator_command(
 
     Hosts echo the hook command on every block. The previous inline polyglot was
     ~11KB / 241 lines. Locate/guard logic lives in ``launch.py``; this command
-    stays under ``HOOK_COMMAND_MAX_CHARS``. The command walks parent directories
-    for ``launch.py``. ``launch.py`` still walks parents / payload cwd for
-    ``guard.py`` (#6632).
+    stays under ``HOOK_COMMAND_MAX_CHARS``. Bash and Windows Grok walk parent
+    directories for ``launch.py`` (#7874). The PowerShell probe stays relative
+    because a parent walk there exceeds ``HOOK_COMMAND_MAX_CHARS``.
+    ``launch.py`` still walks parents / payload cwd for ``guard.py`` (#6632).
     """
     del managed_python
     if not re.fullmatch(r"[a-z0-9-]+", host):
@@ -4997,18 +4998,23 @@ def chaos_guard_locator_command(
         raise ValueError("hook launch command must stay single-quote safe")
     probe = _powershell_interpreter_probe(host, event, block)
     if windows and host == "grok":
+        # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
         script = (
-            "import os,pathlib,sys;q=chr(34);r='"
-            + HOOK_LAUNCH_PY
-            + "';d=pathlib.Path.cwd();"
-            "f=next((p/r for p in(d,*d.parents)if(p/r).is_file()),None);"
-            "j=q.join(['{','decision',':','block',',','reason',':','missing '+r+' cwd '+str(d),'}']);"
-            "os.execv(sys.executable,[sys.executable,str(f),*sys.argv[1:]]) if f else (print(j) or sys.exit(2))"
+            "import os,pathlib,sys; "
+            "r=pathlib.Path('.chaos-engine/hooks/launch.py'); "
+            "d=pathlib.Path.cwd(); "
+            "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None); "
+            "sys.stderr.write('missing .chaos-engine/hooks/launch.py\\n') if f is None else None; "
+            "sys.exit(2) if f is None else os.execv(sys.executable,[sys.executable,str(f),*sys.argv[1:]])"
         )
+        if "$" in script:
+            raise ValueError("windows grok walker must stay $-free")
         command = f'py -3 -c "{script}" {args}'
     elif windows:
         command = probe
     else:
+        # Copilot CLI runs the unix `command` through PowerShell (#7831). The
+        # same string is bash on Linux (#7830). `>` must not name a file.
         command = _unix_powershell_polyglot(target, block, probe)
     targets = powershell_out_file_targets(command)
     if targets:
@@ -5060,48 +5066,48 @@ def powershell_out_file_targets(command: str, drive: str = "D") -> list[str]:
 
 
 def _powershell_interpreter_probe(host: str, event: str | None, block: str) -> str:
-    """Walk parents for launch.py, then probe python3, py, python."""
-    args = f"'{host}'" if event is None else f"'{host}','{event}'"
+    """Probe python3, py, then python. Fail closed only when none of them start."""
+    if event is None:
+        arr = f"'{HOOK_LAUNCH_PY}','{host}'"
+    else:
+        arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
     return (
-        "$a='';"
-        f"$r='{HOOK_LAUNCH_PY}';$o=$pwd.path;$d=$o;"
-        'for(;$d -and -not (Test-Path ($f="$d/$r"));$d=Split-Path $d){};'
-        'if(-not $d){Write-Output "{`"decision`":`"block`",`"reason`":`"missing $r cwd $o`"}";exit 2};'
-        f"$a=$f,{args};"
+        f"$a={arr};"
         "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
-        "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}};"
-        f"Write-Output '{block}';exit 2"
+        "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
+        f";Write-Output '{block}';exit 2"
     )
 
 
 def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
-    """Bash/dash parent walk plus the PowerShell probe. Dash never runs shopt.
+    """One command: bash exec-chain, PowerShell foreach. No file Out-File target.
 
-    ``execfail`` is set only when this string is already running under bash.
-    A missing launcher exits 2 with the path and the original cwd. ``exec``
-    still replaces the process so a real interpreter failure is not retried.
+    ``<#`` is a bash syntax error, so the comment starts after ``echo``.
+    The opener's newline goes to stderr (``>&2``), so a failed launch leaves
+    stdout empty. ``>&`` is not an Out-File target.
+    ``exec`` replaces the process, so a real hook deny (exit 2) does not try
+    the next interpreter. The command walks parents for ``launch.py`` and, when
+    it is absent, exits 2 on stderr before ``shopt``.
+    A non-interactive bash exits on a failed ``exec`` before ``||`` can try
+    the next name, so ``execfail`` is set when ``BASH_VERSION`` is set.
+    Dash leaves ``shopt`` unexecuted. PowerShell never sees those lines:
+    they are inside ``<# #>``.
+    ``LASTEXITCODE=`` and ``n=`` satisfy Grok's ``$NAME`` scanner for the probe.
     """
-    args = target.split(" ", 1)[1]
-    walker = (
-        '[ -n "$BASH_VERSION" ]&&shopt -s execfail;'
-        f"r={HOOK_LAUNCH_PY};o=$PWD;d=$o;"
-        'while [ -n "$d" ]&&[ ! -f "$d/$r" ];do [ "$d" = / ]&&break;d=${d%/*};done;'
-        '[ -n "$d" ]&&[ -f "$d/$r" ]||{ echo "{\\"decision\\":\\"block\\",\\"reason\\":\\"missing $r cwd $o\\"}"; exit 2; };'
-        'f="$d/$r";'
-        f"set -- {args};"
-        'exec python3 "$f" "$@"||exec py -3 "$f" "$@"||{ echo \''
-        + block
-        + "'; exit 2; };"
-        "BASH_VERSION=;PWD="
-    )
     return (
         "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
-        "pwd=\n"
-        + walker
-        + "\n#> > $null\n"
-        + probe
+        'd=$(pwd); while [ ! -f "$d/.chaos-engine/hooks/launch.py" ] && [ -n "$d" ]; do d=${d%/*}; done; '
+        '[ -n "$d" ] && [ -f "$d/.chaos-engine/hooks/launch.py" ] || { echo \'missing .chaos-engine/hooks/launch.py\' >&2; exit 2; }\n'
+        '[ -n "${BASH_VERSION-}" ] && shopt -s execfail\n'
+        'exec python3 "$d/.chaos-engine/hooks/launch.py" '
+        f"{target.partition(' ')[2]} || exec py -3 \"$d/.chaos-engine/hooks/launch.py\" "
+        f"{target.partition(' ')[2]} || exec python \"$d/.chaos-engine/hooks/launch.py\" "
+        f"{target.partition(' ')[2]} "
+        f"|| {{ echo '{block}'; exit 2; }}\n"
+        "#> > $null\n"
+        f"{probe}"
     )
 
 

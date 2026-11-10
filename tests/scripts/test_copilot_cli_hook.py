@@ -722,4 +722,90 @@ class TerminalReflectionOnce7667Test(unittest.TestCase):
                 self.assertFalse(self.reflection.has_valid_terminal_receipt(session))
 
 
+class UnixPolyglotLaunchFileTest(unittest.TestCase):
+    """#7885: a missing launch.py is named before dash can fail on shopt."""
+
+    def _command(self) -> str:
+        return HOSTS.chaos_guard_locator_command(
+            windows=False, host="copilot", event="userPromptSubmitted"
+        )
+
+    def test_unix_polyglot_checks_launch_file_before_shopt(self) -> None:
+        command = self._command()
+        self.assertLess(
+            command.index('[ -f "$d/.chaos-engine/hooks/launch.py" ]'),
+            command.index("shopt"),
+        )
+
+    def _missing_launch(self, shell: str) -> None:
+        executable = shutil.which(shell)
+        if not executable:
+            self.skipTest(f"{shell} is required")
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run(  # nosec B603 - fixed shell argv, no shell.
+                [executable, "-c", self._command()],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+                cwd=temporary,
+            )
+        combined = result.stdout + result.stderr
+        self.assertNotEqual(0, result.returncode, combined)
+        self.assertNotIn("missing .chaos-engine/hooks/launch.py", result.stdout)
+        self.assertIn("missing .chaos-engine/hooks/launch.py", result.stderr)
+        self.assertNotIn("shopt:", combined)
+
+    def test_unix_polyglot_missing_launch_under_sh(self) -> None:
+        self._missing_launch("sh")
+
+    def test_unix_polyglot_missing_launch_under_bash(self) -> None:
+        self._missing_launch("bash")
+
+    def test_unix_polyglot_bash_reaches_python3_when_launch_exists(self) -> None:
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("bash is required")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / "python3-ran"
+            bindir = root / "bin"
+            bindir.mkdir()
+            python3 = bindir / "python3"
+            python3.write_text(
+                "#!/bin/sh\nprintf '%s\\n' invoked > \"$PYTHON3_RAN\"\nexit 0\n",
+                encoding="utf-8",
+            )
+            python3.chmod(0o755)  # nosec B103 - fixture interpreter the test itself runs.
+            launch = root / ".chaos-engine" / "hooks"
+            launch.mkdir(parents=True)
+            (launch / "launch.py").write_text("", encoding="utf-8")
+            environment = os.environ.copy()
+            environment["PATH"] = str(bindir)
+            environment["PYTHON3_RAN"] = str(marker)
+            result = subprocess.run(  # nosec B603 - fixed bash argv, no shell.
+                [bash, "-c", self._command()],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+                cwd=temporary,
+                env=environment,
+            )
+            combined = result.stdout + result.stderr
+            self.assertEqual(0, result.returncode, combined)
+            self.assertEqual("invoked\n", marker.read_text(encoding="utf-8"))
+
+    def test_copilot_hooks_document_longest_bash_fits_1024(self) -> None:
+        document = json.loads(HOSTS.copilot_hooks_document())
+        bash_commands = [
+            handler["bash"]
+            for handlers in document["hooks"].values()
+            for handler in handlers
+            if "bash" in handler
+        ]
+        self.assertTrue(bash_commands)
+        self.assertLessEqual(max(len(bash) for bash in bash_commands), 1024)
+
+
 
