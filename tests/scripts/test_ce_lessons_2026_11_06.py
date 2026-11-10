@@ -984,6 +984,7 @@ class OperationBoundaryTest(TestCase):
                 "rm -f /tmp/note.md; git push origin HEAD:ChaosEngine/example",
                 "set +e; git push origin SOME_BRANCH",
                 "set +e && git push origin SOME_BRANCH",
+                "git push origin 'feature;wip'",
             ):
                 self.assertIsNone(boundary.force_push_block(root, allowed), allowed)
             for denied in (
@@ -992,6 +993,9 @@ class OperationBoundaryTest(TestCase):
                 "git push --force-with-lease",
                 "git push origin +refs/heads/a:refs/heads/a",
                 "git push -f origin && rm -f /tmp/note.md",
+                "git push origin 'feature;wip' --force",
+                "git push origin 'feature;wip' -f",
+                'git push origin "release;hotfix" --force-with-lease',
             ):
                 self.assertEqual(
                     "force-push-without-approval",

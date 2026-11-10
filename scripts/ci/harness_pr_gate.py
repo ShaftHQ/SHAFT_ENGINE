@@ -558,6 +558,7 @@ CHECKS = {
             "tests.scripts.test_delivery_cleanup",
             "tests.scripts.test_pre_done_review",
             "tests.scripts.test_job_apply_skill", "tests.scripts.test_job_search_skill",
+            "tests.scripts.test_profile_absorption_7896_7897",
         ),
     ),
     "ce-h2-gates-contract": Check(
@@ -1224,6 +1225,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/process-owner-scrum-master.md",
         "chaos-engine/references/router-contract.md",
         "chaos-engine/references/roles.md",
+        "chaos-engine/references/profiles/designer.md",
+        "chaos-engine/references/profiles/coach.md",
+        "tests/scripts/test_profile_absorption_7896_7897.py",
         "chaos-engine/references/orchestrator-follow-through.md",
         "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",

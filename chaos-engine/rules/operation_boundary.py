@@ -16,7 +16,6 @@ from typing import Any
 # `set +e` is a shell option. A force refspec is a plus argument that does not follow `set`.
 # `-f` counts only on the git push statement, not on another program in the same shell (#7901).
 _FORCE = re.compile(r"(--force\b|--force-with-lease\b|(?:^|\s)-f(?:\s|$)|(?<!set)\s\+\S+)")
-_STATEMENTS = re.compile(r"&&|\|\||;")
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
@@ -45,9 +44,44 @@ def _normalized(command: str) -> str:
     return " ".join((command or "").split())
 
 
+def _shell_statements(command: str) -> list[str]:
+    """Split on ``&&``, ``||``, and ``;`` outside quotes. A quoted ref may contain ``;``."""
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if quote:
+            buf.append(char)
+            if char == quote and command[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            buf.append(char)
+            index += 1
+            continue
+        if command.startswith("&&", index) or command.startswith("||", index):
+            parts.append("".join(buf))
+            buf = []
+            index += 2
+            continue
+        if char == ";":
+            parts.append("".join(buf))
+            buf = []
+            index += 1
+            continue
+        buf.append(char)
+        index += 1
+    parts.append("".join(buf))
+    return [part.strip() for part in parts if part.strip()]
+
+
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
-    segments = [part for part in _STATEMENTS.split(text) if _PUSH.search(part)]
+    segments = [part for part in _shell_statements(text) if _PUSH.search(part)]
     if not any(_FORCE.search(part) for part in segments):
         return None
     path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
