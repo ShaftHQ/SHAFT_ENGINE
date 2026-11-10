@@ -18,11 +18,23 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Process boundary that prevents a managed native runtime from outliving the SHAFT JVM. */
 public final class ManagedLocalAiProcessSupervisor {
     private static final AtomicInteger LIVE_CONTROL_MONITORS = new AtomicInteger();
+    private static final AtomicReference<String> CONTROL_PIPE_FOR_TEST = new AtomicReference<>();
 
     private ManagedLocalAiProcessSupervisor() { }
 
     static int liveControlMonitors() {
         return LIVE_CONTROL_MONITORS.get();
+    }
+
+    /** Test seam. Null reads {@code SHAFT_LOCAL_AI_CONTROL_PIPE} from the environment. */
+    static void controlPipeForTest(String value) {
+        CONTROL_PIPE_FOR_TEST.set(value);
+    }
+
+    private static boolean controlPipeRequested() {
+        String forced = CONTROL_PIPE_FOR_TEST.get();
+        String value = forced != null ? forced : System.getenv("SHAFT_LOCAL_AI_CONTROL_PIPE");
+        return "1".equals(value);
     }
 
     /** Internal process entrypoint. */
@@ -99,7 +111,7 @@ public final class ManagedLocalAiProcessSupervisor {
                 parent.onExit().join();
                 ownerLost();
             });
-            if ("1".equals(System.getenv("SHAFT_LOCAL_AI_CONTROL_PIPE"))) {
+            if (controlPipeRequested()) {
                 LIVE_CONTROL_MONITORS.incrementAndGet();
                 controlMonitor = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
                     try {

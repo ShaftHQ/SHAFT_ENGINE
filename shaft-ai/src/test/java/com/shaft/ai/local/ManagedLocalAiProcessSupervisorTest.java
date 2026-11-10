@@ -5,12 +5,16 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -158,6 +162,55 @@ class ManagedLocalAiProcessSupervisorTest {
     }
 
     @Test
+    void controlPipeReaderRunsWhenTheSupervisorIsGivenThePipe() throws Exception {
+        Path directory = Files.createDirectories(temp.resolve("control-pipe"));
+        Path child = directory.resolve("child.sh");
+        Files.writeString(child, "#!/bin/sh\nexit 0\n");
+        assertTrue(child.toFile().setExecutable(true));
+        InputStream previousIn = System.in;
+        PipedOutputStream pipe = new PipedOutputStream();
+        System.setIn(new PipedInputStream(pipe));
+        ManagedLocalAiProcessSupervisor.controlPipeForTest("1");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread supervisor = new Thread(() -> {
+            try {
+                String[] parent = currentParent();
+                ManagedLocalAiProcessSupervisor.main(new String[] {
+                        parent[0], parent[1],
+                        directory.toAbsolutePath().toString(),
+                        child.toAbsolutePath().toString()
+                });
+            } catch (Throwable thrown) {
+                failure.set(thrown);
+            }
+        });
+        try {
+            pipe.write(1);
+            pipe.flush();
+            supervisor.start();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (ManagedLocalAiProcessSupervisor.liveControlMonitors() == 0
+                    && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
+            assertEquals(1, ManagedLocalAiProcessSupervisor.liveControlMonitors());
+        } finally {
+            pipe.close();
+            System.setIn(previousIn);
+            ManagedLocalAiProcessSupervisor.controlPipeForTest(null);
+        }
+        supervisor.join(TimeUnit.SECONDS.toMillis(5));
+        assertTrue(!supervisor.isAlive());
+        assertEquals(null, failure.get());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (ManagedLocalAiProcessSupervisor.liveControlMonitors() != 0
+                && System.nanoTime() < deadline) {
+            Thread.sleep(5);
+        }
+        assertEquals(0, ManagedLocalAiProcessSupervisor.liveControlMonitors());
+    }
+
+    @Test
     void rejectsInvalidParentPidBeforePathValidation() {
         assertThrows(IllegalArgumentException.class,
                 () -> ManagedLocalAiProcessSupervisor.main(new String[] {
@@ -174,4 +227,5 @@ class ManagedLocalAiProcessSupervisorTest {
                 current.info().startInstant().orElseThrow().toString()
         };
     }
+
 }
