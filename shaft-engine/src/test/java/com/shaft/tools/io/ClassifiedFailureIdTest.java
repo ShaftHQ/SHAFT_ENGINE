@@ -38,4 +38,10 @@ public class ClassifiedFailureIdTest {
         Assert.assertFalse(ClassifiedFailureId.accepts("Zephyrus-G14-GA401", ticket));
         Assert.assertFalse(ClassifiedFailureId.accepts("SessionNotCreated TICKET-15", ticket));
     }
+
+    @Test
+    public void rejectsNullAndBlank() {
+        Assert.assertFalse(ClassifiedFailureId.accepts(null));
+        Assert.assertFalse(ClassifiedFailureId.accepts("  "));
+    }
 }

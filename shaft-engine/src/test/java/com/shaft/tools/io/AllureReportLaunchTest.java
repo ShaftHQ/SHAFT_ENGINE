@@ -106,6 +106,55 @@ public class AllureReportLaunchTest {
         Assert.assertTrue(AllureReportLaunch.engineJavaMajor() >= 21);
     }
 
+    @Test
+    public void shortHeaderAndUnrecognizedJavacAreRejected() {
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> AllureReportLaunch.javaMajorRequiredBy(new byte[] {0, 1, 2, 3, 4, 5, 6}));
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> AllureReportLaunch.javaMajorFromJavacOutput(null));
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> AllureReportLaunch.javaMajorFromJavacOutput("not javac"));
+    }
+
+    @Test
+    public void jdkMajorOfNullIsUnknown() {
+        Assert.assertEquals(AllureReportLaunch.jdkMajor(null), -1);
+    }
+
+    @Test
+    public void blankJavaHomeSelectsTheFirstFallbackThatMeetsTheMajor() {
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> AllureReportLaunch.resolveJdkHome("/jdks/temurin-25", List.of(), 0, path -> 25));
+        Path older = Path.of("/jdks/temurin-21");
+        Path newer = Path.of("/jdks/temurin-25");
+        Path resolved = AllureReportLaunch.resolveJdkHome(" ", List.of(older, newer), 25,
+                path -> path.equals(newer) ? 25 : 21);
+        Assert.assertEquals(resolved, newer);
+    }
+
+    @Test
+    public void nullRepositoryAndSourcesJarDoNotUseOffline() throws IOException {
+        List<String> online = AllureReportLaunch.mavenClasspathCommand(null);
+        Assert.assertFalse(online.contains("-o"), online.toString());
+
+        Path repository = Files.createTempDirectory("shaft-m2-sources");
+        Path sources = repository.resolve("io/github/shafthq/shaft-engine/10.4/shaft-engine-10.4-sources.jar");
+        Files.createDirectories(sources.getParent());
+        Files.write(sources, new byte[] {0});
+        List<String> command = AllureReportLaunch.mavenClasspathCommand(repository);
+        Assert.assertFalse(command.contains("-o"), command.toString());
+    }
+
+    @Test
+    public void requireShaftClassAcceptsADirectoryEntryAndRejectsNull() throws IOException {
+        Assert.expectThrows(IllegalStateException.class, () -> AllureReportLaunch.requireShaftClass(null));
+        Path root = Files.createTempDirectory("shaft-classes");
+        Path classFile = root.resolve(AllureReportLaunch.SHAFT_CLASS_ENTRY);
+        Files.createDirectories(classFile.getParent());
+        Files.write(classFile, new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE, 0, 0, 0, 69});
+        AllureReportLaunch.requireShaftClass(List.of(root));
+    }
+
     private static Path jarWith(Path jar, String entryName) throws IOException {
         Files.createDirectories(jar.getParent() == null ? Path.of(".") : jar.getParent());
         try (JarOutputStream output = new JarOutputStream(Files.newOutputStream(jar))) {
