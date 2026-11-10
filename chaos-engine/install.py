@@ -1000,6 +1000,8 @@ def is_origin_only(relative: Path) -> bool:
         # Full lesson transcripts cite the product repo. They stay in git and
         # out of the portable adopter payload (#7767 lessons ledger).
         or relative.parts[:3] == ("references", "details", "ce-lessons-2026-11-06")
+        # The 2026-11-09 study cites this repo's follow-up issues.
+        or relative.parts[:3] == ("references", "details", "ce-study-2026-11-09")
         # Token-opt retrospectives name a person. They stay in git, not the portable payload.
         or relative.parts[:3] == ("references", "details", "token-opt-retro-2026-11-06")
         or relative.as_posix() in {

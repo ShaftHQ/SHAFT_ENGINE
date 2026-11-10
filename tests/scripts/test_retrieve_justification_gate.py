@@ -531,6 +531,131 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 )
             self.assertIsNone(gate.session_retrieve_gap(project, "cheap"))
 
+    def test_missed_receipt_stop_retry_does_not_repeat_the_retrieve_command(self):
+        """FR-002: a missed receipt must not loop the retrieve command on host retry."""
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_missed_receipt")
+        guard = load("chaos-engine/hooks/guard.py", "missed_receipt_guard")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            session = "missed-" + uuid.uuid4().hex
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"path": "src", "pattern": "class"},
+                    commands=(),
+                    session_id=session,
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("find src -name Foo.java", "rg -g '*.py' Foo"),
+                    session_id=session,
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
+            retry = {
+                "hook_event_name": "Stop",
+                "cwd": str(project),
+                "stop_hook_active": True,
+            }
+            self.assertFalse(guard._open_pull_request_reason(session, retry))
+            self.assertIsNone(guard.learning_session_reason(session, retry))
+            first = guard._stop_block_reason(retry, session)
+            second = guard._stop_block_reason(retry, session)
+            self.assertNotEqual(_OWED_RETRIEVE, first)
+            self.assertNotEqual(_OWED_RETRIEVE, second)
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
+            unset = {"hook_event_name": "Stop", "cwd": str(project)}
+            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(unset, session))
+
+    def test_direct_graphify_used_receipt_clears_the_awaiting_session(self):
+        """FR-001: one direct Graphify used receipt clears awaitingReceipt. Dry-run does not."""
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_direct_used")
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_direct_used")
+        guard = load("chaos-engine/hooks/guard.py", "direct_used_guard")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            session = "direct-used-" + uuid.uuid4().hex
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"path": "src", "pattern": "class"},
+                    commands=(),
+                    session_id=session,
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=('python3 .chaos-engine/tool.py retrieve --store graphify "callers"',),
+                    session_id=session,
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
+            ledger_path = project / ".chaos-engine-state" / "retrieve-justification.json"
+            env = {key: value for key, value in os.environ.items() if key != "CHAOS_ENGINE_SESSION_ID"}
+            with unittest.mock.patch.dict(os.environ, env, clear=True):
+                dry = retrieve.retrieve(
+                    "ManagedLocalAiProvider.java",
+                    store="graphify",
+                    project=project,
+                    dry_run=True,
+                )
+            self.assertEqual("skipped", dry["status"])
+            self.assertEqual("dry-run", dry["reason"])
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
+            before = json.loads(ledger_path.read_text(encoding="utf-8"))
+            self.assertEqual(session, before.get("awaitingReceipt"))
+            used = {
+                "status": "used",
+                "reason": "hits",
+                "hits": [
+                    {
+                        "path": "shaft-ai/src/main/java/com/shaft/ai/local/ManagedLocalAiProvider.java",
+                        "line": 40,
+                    }
+                ],
+                "excerpt": "shaft-ai/src/main/java/com/shaft/ai/local/ManagedLocalAiProvider.java",
+                "bytes": 68,
+            }
+            with (
+                unittest.mock.patch.dict(os.environ, env, clear=True),
+                unittest.mock.patch.object(retrieve, "_graphify_direct", return_value=used),
+            ):
+                receipt = retrieve.retrieve(
+                    "ManagedLocalAiProvider.java",
+                    store="graphify",
+                    project=project,
+                )
+            self.assertEqual("used", receipt["status"])
+            self.assertIsNone(gate.session_retrieve_gap(project, session))
+            payload = json.loads(ledger_path.read_text(encoding="utf-8"))
+            row = payload["sessions"][session]
+            self.assertTrue(row["retrieved"])
+            self.assertFalse(row["retrieveOwed"])
+            self.assertNotIn("awaitingReceipt", payload)
+            stop = {"hook_event_name": "Stop", "cwd": str(project)}
+            self.assertNotEqual(_OWED_RETRIEVE, guard._stop_block_reason(stop, session))
+
     def test_broad_search_without_retrieve_fails_stop_and_clears_after_one_retrieve(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_stop")
         retrieve = load("chaos-engine/retrieve.py", "retrieve_stop")
@@ -567,7 +692,10 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 "cwd": str(project),
                 "stop_hook_active": True,
             }
-            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(event, "task"))
+            # FR-002: stop_hook_active skips the retrieve gap. The first ask, flag unset, still returns the command.
+            self.assertNotEqual(_OWED_RETRIEVE, guard._stop_block_reason(event, "task"))
+            first_ask = {"hook_event_name": "Stop", "cwd": str(project)}
+            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(first_ask, "task"))
             completed = unittest.mock.Mock(returncode=0, stdout="", stderr="")
             with (
                 unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_SESSION_ID": "task"}),
@@ -604,7 +732,8 @@ NODE install [src=chaos-engine/install.py loc=L12]
             self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
             quiet = {"hook_event_name": "Stop", "cwd": str(project), "stop_hook_active": True}
             self.assertIsNone(guard.learning_session_reason("never-delivered", quiet))
-            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(quiet, session))
+            # FR-002: before learning is requested, a retry is not the retrieve command.
+            self.assertNotEqual(_OWED_RETRIEVE, guard._stop_block_reason(quiet, session))
             guard.reflection.record_activity(session, "delivery-complete")
             guard.reflection.record_activity(session, "learning-requested")
             reason = guard._stop_block_reason(quiet, session)

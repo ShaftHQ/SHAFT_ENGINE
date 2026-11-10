@@ -228,6 +228,11 @@ class HostParity5698Tests(unittest.TestCase):
         self.assertIn("CLI over MCP when both exist", block)
         self.assertIn("Default MCP catalog never includes GitHub MCP", block)
         self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", block)
+        self.assertIn(
+            "Use `.chaos-engine/tool.py` for the project-local Memory, "
+            "MemPalace, and Graphify tools.",
+            block,
+        )
 
     def test_copilot_cloud_ide_share_cli_policy_pointer(self):
         capability = self.kernel.HOST_CAPABILITIES["copilot"]

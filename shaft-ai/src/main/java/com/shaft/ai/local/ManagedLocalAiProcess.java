@@ -640,6 +640,7 @@ final class ManagedLocalAiProcess {
         builder.environment().clear();
         builder.environment().putAll(environment);
         builder.environment().put("CLASSPATH", classPath);
+        builder.environment().put("SHAFT_LOCAL_AI_CONTROL_PIPE", "1");
         builder.redirectErrorStream(true);
         Process supervisor = builder.start();
         SUPERVISED_PROCESSES.add(supervisor);

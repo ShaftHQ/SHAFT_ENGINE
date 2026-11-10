@@ -89,6 +89,10 @@ SKILLS = (
      "Use when searching for jobs: two-channel discovery, eligibility-first filter, "
      "verify work mode on the job page, End-key scroll, share-profile approval gate, "
      "and tracker hygiene. On demand only.", "on-demand"),
+    # On demand only: reached through the level-1 catalog for multi-channel applications.
+    ("job-applications", "portable", "skills/job-applications/SKILL.md",
+     "Use when applying to jobs for the user by email, LinkedIn, or an ATS form.",
+     "on-demand"),
     # On demand only: source-of-truth docs, status vocabulary, journey maps (#7726).
     ("docs-hygiene", "portable", "skills/docs-hygiene/SKILL.md",
      "Use when editing source-of-truth docs or status tables: three sources, "

@@ -55,7 +55,7 @@ See [references/test-driven-development.LICENSE](references/test-driven-developm
 - License: MIT
 - Copyright (c) vshulcz and contributors
 - Upstream: https://github.com/vshulcz/deja-vu
-- Pinned release: v0.23.4 CLI archives only (per-platform sha256 in `dependencies.json`). Not vendored.
+- Pinned release: v0.24.1 CLI archives only (per-platform sha256 in `dependencies.json`). Not vendored.
 - ChaosEngine does not register its MCP server, hooks, or user-home skills, and does not run its upstream installer.
 
 ## DeepSeek Harness patterns

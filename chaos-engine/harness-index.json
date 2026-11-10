@@ -163,6 +163,24 @@
       "path": "skills/job-search/SKILL.md"
     },
     {
+      "description": "Use when applying to jobs for the user by email, LinkedIn, or an ATS form.",
+      "family": "on-demand",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "job-applications",
+      "path": "skills/job-applications/SKILL.md"
+    },
+    {
       "description": "Use when editing source-of-truth docs or status tables: three sources, Done / In progress / Not started, and live hour formulas. On demand only.",
       "family": "on-demand",
       "hosts": {

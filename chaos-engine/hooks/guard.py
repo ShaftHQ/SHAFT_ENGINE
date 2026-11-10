@@ -1406,7 +1406,13 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
         loop_reason = learning_session_reason(session_id, event)
         if loop_reason:
             return loop_reason
-    if justification is not None and event.get("hook_event_name") != "SubagentStop":
+    # FR-002: a host retry skips the retrieve gap. It does not skip the checks above.
+    hook_retry = bool(event.get("stop_hook_active") or event.get("stopHookActive"))
+    if (
+        justification is not None
+        and event.get("hook_event_name") != "SubagentStop"
+        and not hook_retry
+    ):
         root = justification.project_root(Path(str(event.get("cwd") or Path.cwd())))
         gap = justification.session_retrieve_gap(root, session_id)
         if gap:
