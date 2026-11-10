@@ -81,4 +81,35 @@ public class AllureHtmlChromeTest {
             Assert.assertFalse(failure.getMessage().isBlank(), failure.getMessage());
         }
     }
+
+    @Test
+    public void noConfiguredPathSystemFileOrCacheNamesChromePath() throws IOException {
+        Path root = Files.createTempDirectory("allure-chrome-miss");
+        IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
+                () -> AllureHtmlChrome.resolve(null, List.of(root.resolve("missing-chrome")),
+                        root.resolve("ms-playwright"), directory -> List.of()));
+        Assert.assertTrue(failure.getMessage().contains("CHROME_PATH"), failure.getMessage());
+    }
+
+    @Test
+    public void playwrightCacheSuppliesTheChromeFileTheListerReturns() throws IOException {
+        Path root = Files.createTempDirectory("allure-chrome-listed");
+        Path cache = root.resolve("ms-playwright");
+        Files.createDirectories(cache);
+        Path chrome = cache.resolve("chromium-1/chrome-linux/chrome");
+        Files.createDirectories(chrome.getParent());
+        Files.writeString(chrome, "chrome");
+        Path resolved = AllureHtmlChrome.resolve(" ", List.of(root.resolve("missing-chrome")), cache,
+                directory -> List.of(chrome));
+        Assert.assertEquals(resolved, chrome);
+    }
+
+    @Test
+    public void listPlaywrightChromeAcceptsChromeExe() throws IOException {
+        Path cache = Files.createTempDirectory("pw-cache-exe");
+        Path chrome = cache.resolve("chromium-1/chrome-win/chrome.exe");
+        Files.createDirectories(chrome.getParent());
+        Files.writeString(chrome, "chrome");
+        Assert.assertEquals(AllureHtmlChrome.listPlaywrightChrome(cache), List.of(chrome));
+    }
 }

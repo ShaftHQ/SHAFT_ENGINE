@@ -139,7 +139,7 @@ public final class BrowserStackAppPlatform {
             throw new IllegalArgumentException(
                     "BrowserStack credentials are required to classify browserStack.appUrl, and none are configured.");
         }
-        String name = appNameFromRecentApps(readRecentApps(username, accessKey), appUrl);
+        String name = appNameFromRecentApps(readRecentApps(RECENT_APPS, username, accessKey), appUrl);
         if (name.isBlank()) {
             throw new IllegalArgumentException(
                     "browserStack.appUrl was not found in recent BrowserStack apps, so its platform could not be checked.");
@@ -147,9 +147,18 @@ public final class BrowserStackAppPlatform {
         return name;
     }
 
-    private static String readRecentApps(String username, String accessKey) {
+    /**
+     * Reads the recent-apps body from {@code endpoint}. The username and access key are not included
+     * in the failure message.
+     *
+     * @param endpoint  recent-apps URL
+     * @param username  {@code browserStack.userName}
+     * @param accessKey {@code browserStack.accessKey}
+     * @return the response body when the status is successful
+     */
+    static String readRecentApps(URI endpoint, String username, String accessKey) {
         String token = Base64.getEncoder().encodeToString((username + ":" + accessKey).getBytes(StandardCharsets.UTF_8));
-        HttpRequest request = HttpRequest.newBuilder(RECENT_APPS)
+        HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .timeout(Duration.ofSeconds(20))
                 .header("Authorization", "Basic " + token)
                 .GET()
