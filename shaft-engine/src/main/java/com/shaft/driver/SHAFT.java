@@ -2141,6 +2141,18 @@ public class SHAFT {
          * cleans the results, never rewrites {@code environment.xml}, and warns about attachment files
          * the results reference but the directory lacks.
          *
+         * <p>This method runs in the current JVM and its signature stays source-compatible. An
+         * out-of-process launcher, including a consumer script that regenerates the report, must use
+         * {@link com.shaft.tools.io.AllureReportLaunch}: resolve {@code JAVA_HOME} to a JDK whose
+         * major version is at least {@link com.shaft.tools.io.AllureReportLaunch#engineJavaMajor()}
+         * (class-file major 69, Java 25), rebuild the Maven classpath without {@code -o} unless
+         * {@code shaft-engine} is already in the local repository, fail when
+         * {@code com/shaft/driver/SHAFT.class} is absent, and pass {@code -cp} through a
+         * {@code java @argfile} so a Windows command line stays within the process limit.
+         * Opening that single-file HTML in Chromium uses
+         * {@link com.shaft.tools.io.AllureHtmlChrome}, which tries {@code CHROME_PATH}, then system
+         * Chrome, and lists Playwright's cache only when that directory exists.
+         *
          * <pre>{@code
          * Path report = SHAFT.Report.generateAllureReport(Path.of("target/merged-allure-results"));
          * }</pre>

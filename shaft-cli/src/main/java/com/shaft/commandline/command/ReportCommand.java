@@ -23,6 +23,11 @@ import java.util.concurrent.Callable;
  * Curated Reporting-stage shortcuts. Most actions alias MCP {@code report_*} tools
  * (issues #5967 / S3-01, #5968 / S3-02, #5969 / S3-03, #5972 / S3-06, #5974 / S3-08, #5975 / S3-09).
  * {@code generate} rebuilds the Allure report locally from an existing results directory (#7837).
+ * It runs inside this process via {@link com.shaft.driver.SHAFT.Report#generateAllureReport}.
+ * A launcher that starts a new JVM for that call must use {@link com.shaft.tools.io.AllureReportLaunch}:
+ * JDK major at least the SHAFT class file (25), Maven {@code -o} only when {@code shaft-engine} is
+ * already in the local repository, a hard stop when {@code com/shaft/driver/SHAFT.class} is absent,
+ * and {@code -cp} passed through a {@code java @argfile}.
  */
 @Command(mixinStandardHelpOptions = true,
         name = "report",

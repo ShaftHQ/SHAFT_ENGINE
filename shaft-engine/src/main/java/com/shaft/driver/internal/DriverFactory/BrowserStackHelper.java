@@ -6,6 +6,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.BrowserStackAppPlatform;
 import com.shaft.driver.internal.CloudAppBinary;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -60,6 +61,7 @@ public class BrowserStackHelper {
                 helper.initializeDriver(browserStackOptions);
             } else {
                 // this is the new native app scenario
+                requireNativeAppMatchesTargetOs(SHAFT.Properties.browserStack.appRelativeFilePath());
                 browserStackOptions = withNativeLocal(setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                         SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions));
                 // Generate browserstack.yml after app upload updates app capability property
@@ -68,6 +70,7 @@ public class BrowserStackHelper {
             }
         } else {
             // this is the existing version from a native app scenario
+            requireNativeAppMatchesTargetOs(appUrl);
             browserStackOptions = withNativeLocal(setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
                     SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions));
             // Generate browserstack.yml from the final resolved SHAFT properties for SDK integration
@@ -75,6 +78,25 @@ public class BrowserStackHelper {
             helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
         return helper;
+    }
+
+    /**
+     * Rejects a native app whose binary does not match {@code targetOperatingSystem} before upload
+     * or session creation. A {@code bs://} id is classified from recent apps. Web sessions are not checked.
+     *
+     * @param appReference local path or remote app URL
+     */
+    private static void requireNativeAppMatchesTargetOs(String appReference) {
+        String target = SHAFT.Properties.platform.targetPlatform();
+        if (!BrowserStackAppPlatform.isMobileTarget(target)) {
+            return;
+        }
+        String resolvedName = null;
+        if (appReference != null && appReference.startsWith("bs://")) {
+            resolvedName = BrowserStackAppPlatform.lookupAppName(appReference,
+                    SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey());
+        }
+        BrowserStackAppPlatform.requireMatch(appReference, target, resolvedName);
     }
 
     private static String resolveBrowserStackAppUrl() {
