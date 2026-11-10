@@ -244,6 +244,18 @@ example a folder that merges several runs. Uses the managed Allure 3 CLI, the
 cleans the results, never rewrites <code>environment.xml</code>, and warns about attachment files
 the results reference but the directory lacks.
 
+<p>This method runs in the current JVM and its signature stays source-compatible. An
+out-of-process launcher, including a consumer script that regenerates the report, must use
+<a href="../tools/io/AllureReportLaunch.html" title="class in com.shaft.tools.io"><code>AllureReportLaunch</code></a>: resolve <code>JAVA_HOME</code> to a JDK whose
+major version is at least <a href="../tools/io/AllureReportLaunch.html#engineJavaMajor()"><code>AllureReportLaunch.engineJavaMajor()</code></a>
+(class-file major 69, Java 25), rebuild the Maven classpath without <code>-o</code> unless
+<code>shaft-engine</code> is already in the local repository, fail when
+<code>com/shaft/driver/SHAFT.class</code> is absent, and pass <code>-cp</code> through a
+<code>java @argfile</code> so a Windows command line stays within the process limit.
+Opening that single-file HTML in Chromium uses
+<a href="../tools/io/AllureHtmlChrome.html" title="class in com.shaft.tools.io"><code>AllureHtmlChrome</code></a>, which tries <code>CHROME_PATH</code>, then system
+Chrome, and lists Playwright's cache only when that directory exists.
+
 <pre><code>Path report = SHAFT.Report.generateAllureReport(Path.of("target/merged-allure-results"));
 </code></pre></div>
 <dl class="notes">
