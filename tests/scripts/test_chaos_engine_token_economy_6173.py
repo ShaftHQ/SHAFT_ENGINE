@@ -92,6 +92,14 @@ class LeanBootstrapTest(unittest.TestCase):
         self.assertTrue(before, "origin/main merge-base texts are required")
         self.assertTrue(after)
         self.assertEqual([], setup.unique_sentence_loss(before, after))
+        self.assertEqual(
+            frozenset({
+                "- One blocking CI wait per push; retry at most once.",
+                "Stop and report.",
+                "- An in-tree copy is not a resolved upstream adapter, even when its unit test passes.",
+            }),
+            setup.RETIRED_LEAN_SENTENCES,
+        )
 
     def test_implement_max_bytes_is_16384(self):
         self.assertEqual(16384, BUDGET["lean_chain"]["implement_max_bytes"])

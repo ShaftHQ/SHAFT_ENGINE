@@ -1054,12 +1054,23 @@ def _normalized_sentences(text: str) -> set[str]:
     return found
 
 
+# Owner order: pull-request babysitting has no one-retry cap. These exact
+# sentences left the lean implement path on purpose. Do not add to this set
+# to hide a different deletion.
+RETIRED_LEAN_SENTENCES = frozenset({
+    "- One blocking CI wait per push; retry at most once.",
+    "Stop and report.",
+    # Same rule as identity and the caveman card; the extra clause was bytes only.
+    "- An in-tree copy is not a resolved upstream adapter, even when its unit test passes.",
+})
+
+
 def unique_sentence_loss(
     before: dict[str, str], after: dict[str, str]
 ) -> list[tuple[str, str]]:
     """``(path, sentence)`` for each sentence in exactly one ``before`` file and in zero ``after`` files.
 
-    ``path`` is that ``before`` key. No second lookup.
+    ``path`` is that ``before`` key. No second lookup. ``RETIRED_LEAN_SENTENCES`` are the only exception.
     """
     counts: dict[str, int] = {}
     owners: dict[str, str] = {}
@@ -1073,7 +1084,9 @@ def unique_sentence_loss(
     return sorted(
         (owners[sentence], sentence)
         for sentence, count in counts.items()
-        if count == 1 and sentence not in after_sentences
+        if count == 1
+        and sentence not in after_sentences
+        and sentence not in RETIRED_LEAN_SENTENCES
     )
 
 

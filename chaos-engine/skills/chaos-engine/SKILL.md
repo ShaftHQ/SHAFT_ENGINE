@@ -66,7 +66,7 @@ Companions at task start via `tool.py entry` ([bot entry](../../references/bot-e
 
 - One Check: new, edited, and impacted tests.
 - Architect, at most 3 PDCA, then two independent adversarial reviews (delivery-cycle.md).
-- One blocking CI wait per push; retry at most once. Stop and report.
+- Babysit every pull request: no retry cap. Stop and report a true external blocker.
   Repeat-fail PDCA (bot-entry).
 - Status reports are always a Markdown table: deltas, at most 15 lines.
   `tool.py usage`.

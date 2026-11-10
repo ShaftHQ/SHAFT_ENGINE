@@ -412,6 +412,41 @@ def _read_body_file(value: str) -> str | None:
         return None
 
 
+def _shell_statements(command: str) -> list[str]:
+    """Split on ``&&``, ``||``, and ``;`` outside quotes."""
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    index = 0
+    while index < len(command):
+        char = command[index]
+        if quote:
+            buf.append(char)
+            if char == quote and command[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            buf.append(char)
+            index += 1
+            continue
+        if command.startswith("&&", index) or command.startswith("||", index):
+            parts.append("".join(buf))
+            buf = []
+            index += 2
+            continue
+        if char == ";":
+            parts.append("".join(buf))
+            buf = []
+            index += 1
+            continue
+        buf.append(char)
+        index += 1
+    parts.append("".join(buf))
+    return [part.strip() for part in parts if part.strip()]
+
+
 def _pr_body_argument(arguments: list[str]) -> str | None:
     """Body text of ``gh pr create|edit`` arguments; None when absent or unreadable."""
     body = None
@@ -453,17 +488,18 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
     old event body, so a fix then costs a push and a full CI round trip.
     """
     for command in commands:
-        head, arguments = command_head(shell_tokens(command))
-        if head != "gh" or arguments[:2] not in (["pr", "create"], ["pr", "edit"]):
-            continue
-        body = _pr_body_argument(arguments)
-        errors = _assumption_errors(body) if body is not None else []
-        if errors:
-            return (
-                "PR body would fail the CI PR Body guard: " + errors[0] + ". It needs `## Riskiest assumption` "
-                "(one targeted test in backticks, or N/A), `## Plan`, "
-                "`retrieve: [store] used|skipped(<reason>)` lines, and `<!-- chaos-engine:agentic -->`; then rerun."
-            )
+        for statement in _shell_statements(command):
+            head, arguments = command_head(shell_tokens(statement))
+            if head != "gh" or arguments[:2] not in (["pr", "create"], ["pr", "edit"]):
+                continue
+            body = _pr_body_argument(arguments)
+            errors = _assumption_errors(body) if body is not None else []
+            if errors:
+                return (
+                    "PR body would fail the CI PR Body guard: " + errors[0] + ". It needs `## Riskiest assumption` "
+                    "(one targeted test in backticks, or N/A), `## Plan`, "
+                    "`retrieve: [store] used|skipped(<reason>)` lines, and `<!-- chaos-engine:agentic -->`; then rerun."
+                )
     return ""
 
 

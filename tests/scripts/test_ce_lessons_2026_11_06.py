@@ -974,6 +974,47 @@ class OperationBoundaryTest(TestCase):
                 boundary.force_push_block(root, "git push origin +SOME_BRANCH"),
             )
 
+    def test_other_program_dash_f_does_not_force_the_push(self) -> None:
+        boundary = _load("ce_operation_boundary_force_flag_7901", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for allowed in (
+                "rm -f /tmp/note.md && git push origin HEAD:ChaosEngine/example",
+                "rm -f /tmp/note.md || git push origin HEAD:ChaosEngine/example",
+                "rm -f /tmp/note.md; git push origin HEAD:ChaosEngine/example",
+                "set +e; git push origin SOME_BRANCH",
+                "set +e && git push origin SOME_BRANCH",
+                "git push origin 'feature;wip'",
+                "rm -f /tmp/note.md|git push origin SOME_BRANCH",
+                "git push origin SOME_BRANCH 2>&1",
+            ):
+                self.assertIsNone(boundary.force_push_block(root, allowed), allowed)
+            for denied in (
+                "git push -f",
+                "git push --force",
+                "git push --force-with-lease",
+                "git push origin +refs/heads/a:refs/heads/a",
+                "git push -f origin && rm -f /tmp/note.md",
+                "git push origin 'feature;wip' --force",
+                "git push origin 'feature;wip' -f",
+                'git push origin "release;hotfix" --force-with-lease',
+                "git push $(echo; echo --force)",
+                "git push -uf",
+                "git push -fu",
+                "git push origin changeset +refs/heads/main",
+                "git push origin set +refs/heads/main",
+                "git push origin refs/heads/set +refs/heads/main",
+                "git push -uf|cat",
+                "git push $(echo; echo -f)",
+                "git push `echo -f`",
+                "git push -uf>out",
+            ):
+                self.assertEqual(
+                    "force-push-without-approval",
+                    boundary.force_push_block(root, denied),
+                    denied,
+                )
+
     def test_push_force_remote_delete_and_secrets_use_disk_evidence(self) -> None:
         boundary = _load("ce_operation_boundary_1106", CE / "rules/operation_boundary.py")
         overlay = _load("ce_overlay_boundary_1106", ROOT / "scripts/ci/overlay_pre_push.py")

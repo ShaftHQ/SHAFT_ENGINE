@@ -13,8 +13,15 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# `set +e` is a shell option. A force refspec is a plus argument that does not follow `set`.
-_FORCE = re.compile(r"(--force\b|--force-with-lease\b|(?:^|\s)-f(?:\s|$)|(?<!set)\s\+\S+)")
+# `set +e` is a separate shell statement, so it is not part of the git push
+# statement. Any plus argument on the push statement is a force refspec.
+# A short option cluster that contains f counts only on that statement (#7901).
+# The cluster may end at a substitution closer or a redirect, not only at whitespace.
+_FORCE = re.compile(
+    r"(--force\b|--force-with-lease\b"
+    r"|(?:^|\s)-[A-Za-z]*f[A-Za-z]*(?=[\s)|`<>]|$)"
+    r"|\s\+\S+)"
+)
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
@@ -43,9 +50,77 @@ def _normalized(command: str) -> str:
     return " ".join((command or "").split())
 
 
+def _shell_statements(command: str) -> list[str]:
+    """Split on ``&&``, ``||``, ``;``, ``|``, and ``&`` outside quotes and substitutions.
+
+    A quoted ref, ``$(...)``, or a backtick command may contain those separators.
+    """
+    parts: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    index = 0
+
+    def append_quoted(mark: str, cursor: int) -> int:
+        buf.append(command[cursor])
+        cursor += 1
+        while cursor < len(command):
+            buf.append(command[cursor])
+            if command[cursor] == mark and command[cursor - 1] != "\\":
+                return cursor + 1
+            cursor += 1
+        return cursor
+
+    while index < len(command):
+        char = command[index]
+        if quote:
+            buf.append(char)
+            if char == quote and command[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            buf.append(char)
+            index += 1
+            continue
+        if command.startswith("$(", index):
+            depth = 1
+            buf.append("$(")
+            index += 2
+            while index < len(command) and depth:
+                if command[index] in {"'", '"'}:
+                    index = append_quoted(command[index], index)
+                    continue
+                buf.append(command[index])
+                if command[index] == "(":
+                    depth += 1
+                elif command[index] == ")":
+                    depth -= 1
+                index += 1
+            continue
+        if char == "`":
+            index = append_quoted("`", index)
+            continue
+        if command.startswith("&&", index) or command.startswith("||", index):
+            parts.append("".join(buf))
+            buf = []
+            index += 2
+            continue
+        if char in {"|", "&", ";"}:
+            parts.append("".join(buf))
+            buf = []
+            index += 1
+            continue
+        buf.append(char)
+        index += 1
+    parts.append("".join(buf))
+    return [part.strip() for part in parts if part.strip()]
+
+
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
-    if not _PUSH.search(text) or not _FORCE.search(text):
+    segments = [part for part in _shell_statements(text) if _PUSH.search(part)]
+    if not any(_FORCE.search(part) for part in segments):
         return None
     path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
     recorded: set[str] = set()

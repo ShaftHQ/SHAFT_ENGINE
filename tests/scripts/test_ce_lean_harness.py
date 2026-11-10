@@ -181,7 +181,12 @@ class BudgetTests(unittest.TestCase):
             else:
                 before[relative] = show.stdout
             after[relative] = (ROOT / relative).read_text(encoding="utf-8")
-        self.assertEqual([], lost_unique_sentences(before, after))
+        setup = _load("ce_retired_lean_sentences", ROOT / "scripts/ci/validate_agent_setup.py")
+        lost = [
+            sentence for sentence in lost_unique_sentences(before, after)
+            if sentence not in setup.RETIRED_LEAN_SENTENCES
+        ]
+        self.assertEqual([], lost)
 
 
 class CompanionTests(unittest.TestCase):
@@ -225,12 +230,14 @@ class FlowTests(unittest.TestCase):
     def test_core_card_encodes_locked_decisions(self):
         text = " ".join(_router_text().split())
         for phrase in ("at most 3 PDCA", "two independent adversarial reviews",
-                       "Learning Session after every final delivery", "One blocking CI wait per push",
-                       "retry at most once", "Every finding ends fixed",
+                       "Learning Session after every final delivery", "no retry cap",
+                       "every pull request", "true external blocker",
+                       "Every finding ends fixed",
                        "not critical, blocker, or high", "Measure thrice",
                        "Status reports are always a Markdown table"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
+        self.assertNotIn("retry at most once", text)
 
     def test_identity_is_lean_and_agnostic(self):
         text = (CE / "identity.md").read_text(encoding="utf-8")

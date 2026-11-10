@@ -111,6 +111,41 @@ def load_config(root: Path) -> dict:
     return budget["harness_reachability"]
 
 
+def _record_overlay_pointer(
+    root: Path,
+    path: Path,
+    current: str,
+    raw: str,
+    target: str,
+    reached: set[str],
+    broken: list[str],
+    queue: list[str],
+) -> bool:
+    """Record a `.chaos-engine/` link by its spelling, before symlink resolution.
+
+    A writer worktree may symlink `.chaos-engine` to the primary overlay so
+    hooks load. Resolving that symlink leaves the worktree and used to fail
+    the push. The source twin under `chaos-engine/` is the file the pointer means.
+    """
+    lexical = path.parent / target
+    try:
+        relative = lexical.relative_to(root).as_posix()
+    except ValueError:
+        return False
+    if relative != ".chaos-engine" and not relative.startswith(".chaos-engine/"):
+        return False
+    if ".." in Path(relative).parts:
+        return False
+    twin = root / "chaos-engine" / relative.removeprefix(".chaos-engine/")
+    if lexical.exists() or twin.exists():
+        reached.add(relative)
+        if twin.is_file():
+            queue.append(twin.relative_to(root).as_posix())
+        return True
+    broken.append(f"{current} -> {raw}")
+    return True
+
+
 def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
     """Walk markdown links from the entrypoint, returning reached paths and broken links.
 
@@ -145,6 +180,8 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
         for raw in MARKDOWN_LINK.findall(path.read_text(encoding="utf-8")):
             target = raw.strip().strip("<>").split("#", 1)[0]
             if not target or URI_SCHEME.match(target):
+                continue
+            if _record_overlay_pointer(root, path, current, raw, target, reached, broken, queue):
                 continue
             resolved = (path.parent / target).resolve()
             try:

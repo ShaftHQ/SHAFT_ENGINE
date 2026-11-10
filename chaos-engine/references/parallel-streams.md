@@ -56,8 +56,12 @@ Lint with `worker_ce_entry.py lint`. Hand every implementer: goal, acceptance, o
 riskiest assumption with a **named** test (red on base / green on head),
 false-positive and live-behaviour cases the gate must pass, harness entry
 (`doctor`, `entry`, `retrieve`, worktree overlay materialize), push rule
-(`overlay_pre_push` then push; **no force-push**), disk budget and allowed
-scratch paths, and the short report contract (head SHA, files, checks, leftovers).
+(the writer pushes only its own stream branch, with explicit paths; never
+`git add -A`, `git commit -a`, or the pull-request branch; **no force-push**),
+disk budget and allowed scratch paths, and the short report contract (head SHA,
+files, checks, leftovers). A `.chaos-engine` symlink is for hooks and stays
+untracked. The orchestrator merges stream branches and is the only one who
+pushes the pull-request branch.
 
 ## Reviewer independence
 

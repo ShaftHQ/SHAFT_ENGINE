@@ -82,6 +82,8 @@ ALLOWED_EXACT = {
     "chaos-engine/INSTALL.md",
     "chaos-engine/identity.md",
     "chaos-engine/THIRD_PARTY_NOTICES.md",
+    # Classpath contract packaged beside ClassifiedFailureId. Not a public guide.
+    "shaft-engine/src/main/resources/META-INF/shaft/classified-failure-ids.md",
     # Internal mega-PR throughput lesson (agent ops); not a public product guide.
     "scripts/ci/mega-pr-throughput-20261102.md",
     "scripts/ci/mega-pr-throughput-20261102b.md",

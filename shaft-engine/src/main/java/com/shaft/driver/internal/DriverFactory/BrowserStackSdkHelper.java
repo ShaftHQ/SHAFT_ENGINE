@@ -1,6 +1,7 @@
 package com.shaft.driver.internal.DriverFactory;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.BrowserStackAppPlatform;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
@@ -336,6 +337,9 @@ public class BrowserStackSdkHelper {
         if (!appUrl.isEmpty()) {
             config.put("app", appUrl);
         } else if (!appRelativePath.isEmpty()) {
+            // Local .apk/.aab/.ipa only. A bs:// id is classified in BrowserStackHelper before the
+            // session starts, so writing this file does not call BrowserStack.
+            BrowserStackAppPlatform.requireMatch(appRelativePath, SHAFT.Properties.platform.targetPlatform(), null);
             config.put("app", appRelativePath);
             if (!customId.isEmpty()) {
                 config.put("appStoreConfiguration", Map.of("customId", customId));

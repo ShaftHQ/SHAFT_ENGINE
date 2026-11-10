@@ -66,7 +66,7 @@ Orchestrator retains decomposition, architecture, consultation, assignment,
 synthesis, integration, and final verification. Stay available to the owner
 for realignment and delegate questions. Select and switch modes only through
 [execution workflows](execution-workflows.md); this file does not redefine
-their criteria or writer limits. Each writer owns an isolated worktree. Before dispatching a second writer, run the ownership and conflict checks in [parallel streams](parallel-streams.md) and hand the brief template from that card. While
+their criteria or writer limits. Each writer owns an isolated worktree and its own branch. Before dispatching a second writer, run the ownership and conflict checks in [parallel streams](parallel-streams.md) and hand the brief template from that card. A `.chaos-engine` symlink stays untracked. The orchestrator alone pushes the pull-request branch. While
 a writer, subagent, or required check is live, automatically follow
 [orchestrator follow-through](orchestrator-follow-through.md); never a
 heartbeat.

@@ -1053,6 +1053,20 @@ def reject_nested_project(project: Path) -> None:
         )
 
 
+def lift_consumer_project(project: Path) -> Path:
+    """Install into the parent consumer when the path is the overlay or portable tree (#7907)."""
+    resolved = Path(project).resolve()
+
+    def overlay_or_portable(path: Path) -> bool:
+        return INSTALL_DIRECTORY in path.parts or (path / "skills/chaos-engine/SKILL.md").is_file()
+
+    while overlay_or_portable(resolved) and resolved.parent != resolved:
+        resolved = resolved.parent
+    if overlay_or_portable(resolved) and resolved.parent == resolved:
+        reject_nested_project(resolved)
+    return resolved
+
+
 def remove_nested_install_artifacts(target: Path) -> list[str]:
     """Delete overlay top-level dot entries and drop them from the manifest (#6225).
 
@@ -3164,7 +3178,7 @@ def _prepare_install_inputs(
     source_record: dict[str, str] | None,
 ) -> tuple[Path, Path, dict[str, object]]:
     """Resolve/validate project+source and build the desired source record."""
-    project = project.resolve()
+    project = lift_consumer_project(project)
     reject_link_or_reparse(source.absolute())
     source = source.resolve()
     if not project.is_dir():
@@ -4908,6 +4922,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         if not _running_under_tests():
             refresh_stale_graph(project)
         return target
+
+
+_install_with_dependencies_body = install_with_dependencies
+
+
+def _lifted_install_with_dependencies(project, *args, **kwargs):
+    """Lift a portable tree or overlay, then run the dependency install (#7907)."""
+    return _install_with_dependencies_body(lift_consumer_project(Path(project)), *args, **kwargs)
+
+
+install_with_dependencies = _lifted_install_with_dependencies
 
 
 def default_bundle_options() -> dict[str, bool]:
@@ -9087,6 +9112,7 @@ def completion_targets_from_args(args) -> tuple[str, ...] | None:
 
 def _run_install_command(args, requested, removed) -> object:
     """The `install` subcommand: the JSON result, or ``_HANDLED`` for an unchanged no-op."""
+    args.project = lift_consumer_project(Path(args.project))
     if args.from_bundle is not None:
         args.source, args.commit = extract_bundle(
             args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
