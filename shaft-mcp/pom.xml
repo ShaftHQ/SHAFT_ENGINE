@@ -111,7 +111,7 @@
             <dependency>
                 <groupId>org.postgresql</groupId>
                 <artifactId>postgresql</artifactId>
-                <version>42.7.13</version>
+                <version>42.7.14</version>
             </dependency>
             <!-- Boot 4.1.0 manages log4j-api/core at 2.25.4 (GHSA-qv9r-c865-cp47 / #183) and
                  httpcore5/httpcore5-h2 at 5.4.2 (GHSA-hf6x-8p5f-cgmf / #181,
