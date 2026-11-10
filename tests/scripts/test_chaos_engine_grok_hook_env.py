@@ -52,6 +52,10 @@ class GrokHookEnvRefTest(unittest.TestCase):
         for command, expected in cases.items():
             self.assertEqual(expected, HOSTS.grok_unresolved_env_refs(command), command)
 
+    def test_unix_grok_command_has_no_unresolved_env_refs(self):
+        command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
+        self.assertEqual([], HOSTS.grok_unresolved_env_refs(command))
+
     def test_grok_command_has_no_unresolved_refs_and_other_hosts_keep_the_branch(self):
         grok = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
         claude = HOSTS.chaos_guard_locator_command(windows=False, host="claude")

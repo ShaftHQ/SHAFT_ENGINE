@@ -1022,6 +1022,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/worktree_overlay.py",
         "chaos-engine/mcp_policy.py",
         "chaos-engine/identity.md",
+        "chaos-engine/companions/caveman-ultra.md",
+        "chaos-engine/companions/ponytail-ultra.md",
+        "shaft-skills/ce-pack/entrypoint.md",
         "chaos-engine/hooks/retrieve_justification.py",
         "chaos-engine/hooks/guard.py",
         "chaos-engine/hooks/lifecycle.py",
@@ -1203,6 +1206,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_omniroute_calibration.py",
     ),
     "process-owner": (
+        "chaos-engine/references/work-github-playbook.md",
         "chaos-engine/references/process-owner-scrum-master.md",
         "chaos-engine/references/router-contract.md",
         "chaos-engine/references/roles.md",

@@ -118,12 +118,18 @@ records its terminal reflection receipt before the Learning Session.
    Secrets never enter `.memory/memory`; they stay in `.memory/private/`
    (gitignored).
 
-Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
+Promotion, orchestrated-runtime membership, nightly recovery, ROG machineId, and `repair-or-revert` stay in
 [work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
 
 
 ## 7. Push, PR, green, merge, compact
 
+- A large delivery (more than one module, or more than one issue) opens a
+  draft pull request on the first commit and pushes again after each locally green slice.
+  The draft stays a draft until that exact head is green and the
+  required reviews have passed. This rule does not arm auto-merge. Auto-merge,
+  where the playbook already requires it, waits until that exact head is green and the required reviews have passed.
+  A one-file reversible fix is not a large delivery.
 - After the implementation and Check/Act batch, push the branch and open or
   update the agreed PR shape with a
   description that lists each sub-item and its commit. Keep that description
@@ -132,15 +138,6 @@ Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue
   this PR does not fully resolve, unlink it from the PR's Development sidebar.
-- A nightly-failure tracker (label prefix `nightly-failure:`) is recovered only
-  when its owning workflow concludes success with a full job set (`jobs=all`,
-  nothing skipped). A merge, a closing keyword, a manual `gh issue close`, and
-  a partial `workflow_dispatch` are not recovery. A product pull request must
-  not use a closing keyword on that tracker. Say `Related to #N`.
-  Decision: `scripts/ci/validate_pr_closing_keywords.py` `nightly_tracker_recovered`.
-- ROG writes go through the parent Shell that has `machineId`. A Task child
-  has no `machineId` and must not be described as ROG delivery.
-  The platform schema is outside this repository.
 - Merge only within granted authority. A companion PR in another publishing
   repository needs its own authority.
 - Compact after a confirmed merge if the host supports it.
@@ -155,7 +152,7 @@ request was already open, and a session that only pushes new commits.
 `delivery-status` does not clear the block. A delivery goal keeps babysitting
 until that merge.
 When attendance is fully unattended (default) or the owner says babysit and merge it when green, follow this PR-merger
-(arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
+(arm auto-merge, watch, fix, confirm). Arm auto-merge only once that exact head is green and the required reviews have passed, not while the pull request is still a draft or the head is red. Bundled `pr-babysit` forbids merge;
 do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
 
 This repository uses merge commits so a delivered branch remains identifiable

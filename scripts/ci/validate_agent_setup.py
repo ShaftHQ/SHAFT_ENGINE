@@ -1035,6 +1035,121 @@ def validate_iterative_flow_rule(root: Path) -> list[dict[str, str]]:
                   f"does not load the always-on rule {FLOW_RULE_DOC}")]
 
 
+_PARAGRAPH_BREAK = re.compile(r"\n[^\S\n]*\n")
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+")
+
+
+def _normalized_sentences(text: str) -> set[str]:
+    """Sentences in one file: blank-line paragraphs, wrapped lines joined, then ``[.!?]``."""
+    found: set[str] = set()
+    for paragraph in _PARAGRAPH_BREAK.split(text):
+        lines = [line.strip() for line in paragraph.split("\n")]
+        lines = [line for line in lines if line]
+        if not lines:
+            continue
+        for sentence in _SENTENCE_BREAK.split(" ".join(lines)):
+            sentence = sentence.strip()
+            if sentence:
+                found.add(sentence)
+    return found
+
+
+def unique_sentence_loss(
+    before: dict[str, str], after: dict[str, str]
+) -> list[tuple[str, str]]:
+    """``(path, sentence)`` for each sentence in exactly one ``before`` file and in zero ``after`` files.
+
+    ``path`` is that ``before`` key. No second lookup.
+    """
+    counts: dict[str, int] = {}
+    owners: dict[str, str] = {}
+    for path, text in before.items():
+        for sentence in _normalized_sentences(text):
+            counts[sentence] = counts.get(sentence, 0) + 1
+            owners.setdefault(sentence, path)
+    after_sentences: set[str] = set()
+    for text in after.values():
+        after_sentences.update(_normalized_sentences(text))
+    return sorted(
+        (owners[sentence], sentence)
+        for sentence, count in counts.items()
+        if count == 1 and sentence not in after_sentences
+    )
+
+
+def _lean_implement_paths(root: Path) -> list[str]:
+    """Union of lean implement-path files. Not orchestrate, on_trigger, or the playbook."""
+    budget_path = root / "scripts/ci/agent_guidance_budget.json"
+    try:
+        budget = load_budget(budget_path)
+    except (OSError, json.JSONDecodeError):
+        return []
+    chain = budget.get("lean_chain")
+    if not isinstance(chain, dict):
+        return []
+    paths: list[str] = []
+    common = chain.get("common")
+    if isinstance(common, list):
+        paths.extend(item for item in common if isinstance(item, str))
+    profile = chain.get("profile")
+    if isinstance(profile, str) and profile:
+        paths.append(profile)
+    hosts = chain.get("hosts")
+    if isinstance(hosts, dict):
+        for host_paths in hosts.values():
+            if isinstance(host_paths, list):
+                paths.extend(item for item in host_paths if isinstance(item, str))
+    return list(dict.fromkeys(paths))
+
+
+def _git_show_path(root: Path, spec: str) -> str | None:
+    """Blob text at ``spec``, or None when git or that blob is absent."""
+    git = shutil.which("git")
+    if git is None:
+        return None
+    result = subprocess.run(  # nosec B603 - fixed git show of a budget path.
+        [git, "show", spec],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _lean_implement_texts(root: Path) -> tuple[dict[str, str], dict[str, str]]:
+    """``(before, after)`` texts. No merge-base means both are the HEAD texts."""
+    paths = _lean_implement_paths(root)
+    if shutil.which("git") is None:
+        return {}, {}
+    after: dict[str, str] = {}
+    for path in paths:
+        shown = _git_show_path(root, f"HEAD:{path}")
+        after[path] = "" if shown is None else shown
+    base_result = subprocess.run(  # nosec B603 - fixed merge-base against origin/main.
+        [shutil.which("git") or "git", "merge-base", "HEAD", "origin/main"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if base_result.returncode != 0:
+        return dict(after), dict(after)
+    base = base_result.stdout.strip()
+    if not base:
+        return dict(after), dict(after)
+    before: dict[str, str] = {}
+    for path in paths:
+        shown = _git_show_path(root, f"{base}:{path}")
+        if shown is not None:
+            before[path] = shown
+    return before, after
+
+
 def validate_repository(
     root: Path = ROOT, *, run_external: bool = True
 ) -> tuple[list[dict[str, str]], dict]:
@@ -1071,6 +1186,9 @@ def validate_repository(
             from scripts.ci.overlay_in_temp import cleanup_overlay
 
             cleanup_overlay(overlay_root)
+    before, after = _lean_implement_texts(root)
+    for path, sentence in unique_sentence_loss(before, after):
+        errors.append(issue("unique-sentence", path, "unique sentence lost from the lean implement path: " + sentence))
     if run_external:
         errors.extend(run_memory_check(root))
         errors.extend(run_command(root, ["git", "diff", "--check"], "diff-check"))
