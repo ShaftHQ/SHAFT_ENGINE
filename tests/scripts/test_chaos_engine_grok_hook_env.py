@@ -34,6 +34,11 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSTS = _load_hosts()
 
 
+def _py_launcher_rejected(returncode: int, words: list[str]) -> bool:
+    """A Windows py launcher exits 0 and does not echo the -3 selector."""
+    return returncode != 0 or "-3" in words
+
+
 class GrokHookEnvRefTest(unittest.TestCase):
     def test_scanner_matches_the_runner(self):
         cases = {
@@ -88,6 +93,13 @@ class GrokHookEnvRefTest(unittest.TestCase):
         command = HOSTS.chaos_guard_locator_command(windows=True, host="grok")
         self._assert_guard(command, posix=False, executable=executable)
 
+    def test_windows_launcher_probe_accepts_cpython_version_without_the_word_python(self):
+        version = "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]\n"
+        self.assertNotIn("Python", version)
+        self.assertFalse(_py_launcher_rejected(0, version.split()))
+        self.assertTrue(_py_launcher_rejected(0, version.split() + ["-3"]))
+        self.assertTrue(_py_launcher_rejected(1, ["py:", "error:"]))
+
     def _skip_unless_windows_py_launcher(self) -> None:
         probe = subprocess.run(  # nosec B603 - fixed py launcher probe, no shell.
             ["py", "-3", "-c", "import sys; print(sys.version)"],
@@ -97,7 +109,7 @@ class GrokHookEnvRefTest(unittest.TestCase):
             check=False,
         )
         words = probe.stdout.split() + probe.stderr.split()
-        if probe.returncode != 0 or "Python" not in probe.stdout or "-3" in words:
+        if _py_launcher_rejected(probe.returncode, words):
             self.skipTest("py is not the Windows launcher")
 
     def _assert_guard(self, command: str, *, posix: bool = True, windows: bool = False, executable: str | None = None):
