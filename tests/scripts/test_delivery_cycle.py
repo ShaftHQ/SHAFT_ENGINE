@@ -178,3 +178,20 @@ class DeliveryCycleContractTest(unittest.TestCase):
             self.assertNotIn(term, lowered)
         self.assertIn("Waiting on others", text)
         self.assertIn("Won't do", text)
+
+    def test_large_delivery_opens_a_draft_at_the_first_commit(self) -> None:
+        path = REFS / "work-github-playbook.md"
+        raw = path.read_bytes()
+        text = raw.decode("utf-8")
+        phrases = (
+            "draft pull request on the first commit",
+            "pushes again after each locally green slice",
+            "does not arm auto-merge",
+            "where the playbook already requires it, waits until that exact head is green and the required reviews have passed",
+            "one-file reversible fix is not a large delivery",
+            "not while the pull request is still a draft or the head is red",
+        )
+        for phrase in phrases:
+            self.assertEqual(1, text.count(phrase), phrase)
+        self.assertLessEqual(len(raw), 16384)
+        self.assertEqual(0, text.count("This rule does not auto-merge."))

@@ -5073,16 +5073,19 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
     The opener's newline goes to stderr (``>&2``), so a failed launch leaves
     stdout empty. ``>&`` is not an Out-File target.
     ``exec`` replaces the process, so a real hook deny (exit 2) does not try
-    the next interpreter. A non-interactive bash exits on a failed ``exec``
-    before ``||`` can try the next name, so ``execfail`` is set first.
-    PowerShell never sees those lines: they are inside ``<# #>``.
+    the next interpreter. A missing launch file exits 2 before ``shopt``.
+    A non-interactive bash exits on a failed ``exec`` before ``||`` can try
+    the next name, so ``execfail`` is set when ``BASH_VERSION`` is set.
+    Dash leaves ``shopt`` unexecuted. PowerShell never sees those lines:
+    they are inside ``<# #>``.
     ``LASTEXITCODE=`` and ``n=`` satisfy Grok's ``$NAME`` scanner for the probe.
     """
     return (
         "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
-        "shopt -s execfail\n"
+        "[ -f .chaos-engine/hooks/launch.py ] || { echo 'missing .chaos-engine/hooks/launch.py'; exit 2; }\n"
+        '[ -n "${BASH_VERSION-}" ] && shopt -s execfail\n'
         f"exec python3 {target} || exec py -3 {target} || exec python {target} "
         f"|| {{ echo '{block}'; exit 2; }}\n"
         "#> > $null\n"

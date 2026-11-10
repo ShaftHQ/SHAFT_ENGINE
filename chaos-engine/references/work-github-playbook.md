@@ -124,6 +124,12 @@ Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
 
 ## 7. Push, PR, green, merge, compact
 
+- A large delivery (more than one module, or more than one issue) opens a
+  draft pull request on the first commit and pushes again after each locally green slice.
+  The draft stays a draft until that exact head is green and the
+  required reviews have passed. This rule does not arm auto-merge. Auto-merge,
+  where the playbook already requires it, waits until that exact head is green and the required reviews have passed.
+  A one-file reversible fix is not a large delivery.
 - After the implementation and Check/Act batch, push the branch and open or
   update the agreed PR shape with a
   description that lists each sub-item and its commit. Keep that description
@@ -155,7 +161,7 @@ request was already open, and a session that only pushes new commits.
 `delivery-status` does not clear the block. A delivery goal keeps babysitting
 until that merge.
 When attendance is fully unattended (default) or the owner says babysit and merge it when green, follow this PR-merger
-(arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
+(arm auto-merge, watch, fix, confirm). Arm auto-merge only once that exact head is green and the required reviews have passed, not while the pull request is still a draft or the head is red. Bundled `pr-babysit` forbids merge;
 do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
 
 This repository uses merge commits so a delivered branch remains identifiable

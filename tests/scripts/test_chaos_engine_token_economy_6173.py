@@ -58,6 +58,48 @@ class LeanBootstrapTest(unittest.TestCase):
         self.assertLessEqual(chain["max_bytes"], 24576)
         self.assertEqual([], guidance.mandated_chain_errors(ROOT, BUDGET))
 
+    def test_unique_sentence_loss_quotes_deleted_only_copy(self):
+        setup = load_module(
+            "ce_unique_sentence_only", ROOT / "scripts/ci/validate_agent_setup.py"
+        )
+        sentence = "Zed unique sentence loss fixture marker 7886."
+        path = "chaos-engine/identity.md"
+        before = {
+            path: f"Keep the rest.\n\n{sentence}\n",
+            "other.md": "Nothing unique lives here.\n",
+        }
+        after = {path: "Keep the rest.\n", "other.md": "Nothing unique lives here.\n"}
+        self.assertEqual([(path, sentence)], setup.unique_sentence_loss(before, after))
+
+    def test_unique_sentence_loss_passes_when_a_duplicate_remains(self):
+        setup = load_module(
+            "ce_unique_sentence_dup", ROOT / "scripts/ci/validate_agent_setup.py"
+        )
+        sentence = "The duplicate marker stays in the surviving file."
+        before = {
+            "a.md": f"Intro.\n\n{sentence}\n",
+            "b.md": f"Other.\n\n{sentence}\n",
+        }
+        after = {"a.md": "Intro.\n", "b.md": f"Other.\n\n{sentence}\n"}
+        self.assertEqual([], setup.unique_sentence_loss(before, after))
+
+    def test_unique_sentence_loss_current_tree_is_empty(self):
+        setup = load_module(
+            "ce_unique_sentence_tree", ROOT / "scripts/ci/validate_agent_setup.py"
+        )
+        chain = BUDGET["lean_chain"]
+        paths = [*chain["common"], chain["profile"]]
+        for host_paths in chain["hosts"].values():
+            paths.extend(host_paths)
+        texts = {
+            path: (ROOT / path).read_text(encoding="utf-8")
+            for path in dict.fromkeys(paths)
+        }
+        self.assertEqual([], setup.unique_sentence_loss(texts, texts))
+
+    def test_implement_max_bytes_is_16384(self):
+        self.assertEqual(16384, BUDGET["lean_chain"]["implement_max_bytes"])
+
     def test_old_chain_would_fail_the_budget(self):
         guidance = load_module("ce_c_guidance_old", ROOT / "scripts/ci/validate_agent_guidance.py")
         errors = guidance.mandated_chain_errors(ROOT, {**BUDGET, "mandated_chain": {**BUDGET["mandated_chain"], "max_bytes": 1000}})
