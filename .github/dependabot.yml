@@ -127,6 +127,12 @@ updates:
       # REST Assured 6.3.0 and openapi-request-validator-core 3.0.0 still call SchemaRegistry.getSchema(com.fasterxml.jackson.databind.JsonNode).
       - dependency-name: "com.networknt:json-schema-validator"
         update-types: ["version-update:semver-major"]
+      # #7908: Surefire 3.6.x removed TestRequest.getSuiteXmlFiles and stopped
+      # publishing surefire-testng. Provider 3.5.6 does not run on plugin 3.6.1.
+      - dependency-name: "org.apache.maven.plugins:maven-surefire-plugin"
+        versions: ["3.6.x"]
+      - dependency-name: "org.apache.maven.surefire:surefire-testng"
+        versions: ["3.6.x"]
     groups:
       # Google API / gRPC / protobuf artifacts pin each other's upper bounds, so a
       # lone bump fails RequireUpperBoundDeps (e.g. kms-v1 needing common-protos).

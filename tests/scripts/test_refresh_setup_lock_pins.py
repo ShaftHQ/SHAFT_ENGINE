@@ -125,6 +125,9 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
             self.assertIn(name, security)
         self.assertIn("com.networknt:json-schema-validator", maven)
         self.assertIn("version-update:semver-major", maven)
+        self.assertIn("org.apache.maven.plugins:maven-surefire-plugin", maven)
+        self.assertIn("org.apache.maven.surefire:surefire-testng", maven)
+        self.assertIn('versions: ["3.6.x"]', maven)
         self.assertNotIn("multi-ecosystem-groups", text)
 
     def test_refresh_job_guards_bot_token_and_names_fallback(self):
