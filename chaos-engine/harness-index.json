@@ -235,7 +235,7 @@
       "path": "skills/ci-cd/SKILL.md"
     },
     {
-      "description": "Use when auditing a repository we own. A finding stays unconfirmed until a second pass verifies it. Refuse a target we do not own.",
+      "description": "Use when auditing a repository we own. A second pass confirms.",
       "family": "on-demand",
       "hosts": {
         "antigravity": "catalog",

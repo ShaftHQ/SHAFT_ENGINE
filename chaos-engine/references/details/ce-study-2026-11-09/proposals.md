@@ -63,3 +63,10 @@ The owner named four follow-ups. These are recorded and left unfiled.
 | `multica-ai/andrej-karpathy-skills` | No license file. License API HTTP 404. | Skill edit and vendoring blocked. |
 | `debpalash/VoiceStudio` | AGPL-3.0. This repository is MIT. | Skill edit and vendoring blocked. Follow-up is #7881. |
 | `bilawalsidhu/gods-eye-view` | SPDX `NOASSERTION`. LICENSE is an MIT grant for code only, plus non-MIT data. | Skill edit and vendoring blocked. Follow-up is #7884. |
+| `Donchitos/Claude-Code-Game-Studios` | MIT for code. A game studio is a new product. | Do not vendor it and do not build a game studio. |
+
+## Studied repositories that stay out
+
+VoiceStudio is AGPL. Do not vendor it and do not build a voice cloner. gods-eye-view is NOASSERTION. A code grant is not a data grant. Do not vendor it and do not build a spatial globe. Claude-Code-Game-Studios stays out. Do not vendor it and do not build a game studio.
+
+No skill until a later owner ask plus a fresh license check.

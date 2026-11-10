@@ -140,6 +140,7 @@ CHECKS = {
             "tests.scripts.test_copilot_cli_hook",
             "tests.scripts.test_chaos_engine_grok_hook_env",
             "tests.scripts.test_open_queue_hooks_and_impact",
+            "tests.scripts.test_hook_launch_cwd",
         ),
         True,
     ),
@@ -165,10 +166,16 @@ CHECKS = {
             "tests.scripts.test_ce_hook_bot_parity",
             "tests.scripts.test_doctor_origin_only_7100",
             "tests.scripts.test_ce_personality_load",
+            "tests.scripts.test_large_delivery_draft_pr",
         ),
     ),
     "skill-contract": Check(
-        "skill-contract", "guidance", ("tests.scripts.test_validate_skills",)
+        "skill-contract",
+        "guidance",
+        (
+            "tests.scripts.test_validate_skills",
+            "tests.scripts.test_security_audit_skill",
+        ),
     ),
     "guidance-reachability-contract": Check(
         "guidance-reachability-contract",
@@ -835,6 +842,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_copilot_cli_hook.py",
         "tests/scripts/test_chaos_engine_grok_hook_env.py",
         "tests/scripts/test_open_queue_hooks_and_impact.py",
+        "tests/scripts/test_hook_launch_cwd.py",
     ),
     "lifecycle": (
         "chaos-engine/hooks/*",
@@ -888,6 +896,8 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_lessons_2026_11_06.py",
         "tests/scripts/test_ce_lessons_repeat_failure_pdca.py",
         "tests/scripts/test_harness_isolated_imports.py",
+        "tests/scripts/test_large_delivery_draft_pr.py",
+        "tests/scripts/test_security_audit_skill.py",
         "chaos-engine/references/bot-entry.md",
         "chaos-engine/always-loaded-budget.json",
         ".agents/skills/README.md",

@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
-STUDIED = ROOT / "chaos-engine/references/studied-repos-not-adopted.md"
+STUDIED = ROOT / "chaos-engine/references/details/ce-study-2026-11-09/proposals.md"
 ROLES = ROOT / "chaos-engine/references/roles.md"
 
 PLAYBOOK_SENTENCES = (
