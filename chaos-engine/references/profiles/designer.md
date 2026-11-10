@@ -1,6 +1,6 @@
 # Designer profile
 
-On-demand profile for the design lane (#7896). Not an always-loaded router route, and not a second policy authority. Core ChaosEngine policy stays the entrypoint. Load this file only when the task is design work. Installation without the design add-on stays on core ui-delivery.
+On-demand profile for the design lane. Not an always-loaded router route, and not a second policy authority. Core ChaosEngine policy stays the entrypoint. Load this file only when the task is design work. Installation without the design add-on stays on core ui-delivery.
 
 ## Lane
 
@@ -21,10 +21,10 @@ Every row is reuse of a path in this repo, or deferred (private source, not port
 | 23 D-cards (D01–D23) | reuse | `chaos-engine/addons/design-skills/SKILL.md` and `chaos-engine/addons/design-skills/references/` |
 | Training-deck workflow skill | reuse | `chaos-engine/addons/design-skills/references/craft/training-decks.md` |
 | Hookless bot-entry workflow | reuse | `chaos-engine/references/bot-entry.md` |
-| delegate-via-grok-cli | deferred | Private local handoff, not ported |
+| host-cli-handoff | deferred | Private local handoff, not ported |
 | automatest-voice | deferred | Private local handoff, not ported |
 | Objective QC | reuse | `chaos-engine/addons/design-skills/scripts/design_qc.py` |
 | Add-on install contract | reuse | `chaos-engine/references/addons.md` |
 | Landed design lesson cards | reuse | `chaos-engine/addons/design-skills/references/lessons/` (not restated) |
 | Private raw knowledge dump | deferred | Private source, not ported |
-| Private will | deferred | Private source, not ported. The private will permalink is not published. |
+| Private will | deferred | Designer profile does not publish the private will permalink. |

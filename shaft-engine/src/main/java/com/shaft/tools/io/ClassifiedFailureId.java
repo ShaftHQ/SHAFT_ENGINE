@@ -38,6 +38,8 @@ public final class ClassifiedFailureId {
     }
 
     /**
+     * Accepts a message that names a default classified id after the session has started.
+     *
      * @param message failure, skip, or log text; {@code null} is unclassified
      * @return {@code true} when {@code message} names a default classified id and the session started
      */
@@ -46,6 +48,8 @@ public final class ClassifiedFailureId {
     }
 
     /**
+     * Accepts a message that names a default or caller-supplied classified id.
+     *
      * @param message   failure, skip, or log text
      * @param extension extra whole-token pattern, or {@code null} to use only the default contract
      * @return {@code true} when a default or extension id matches and the session is not never-started

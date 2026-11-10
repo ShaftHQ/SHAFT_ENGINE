@@ -47,6 +47,8 @@ public final class AllureReportLaunch {
     }
 
     /**
+     * Reads the Java major required by the running engine class file.
+     *
      * @return the Java major version required by the running {@code SHAFT.class}
      */
     public static int engineJavaMajor() {
@@ -61,6 +63,8 @@ public final class AllureReportLaunch {
     }
 
     /**
+     * Parses the major version from {@code javac -version} output.
+     *
      * @param javacOutput combined stdout and stderr of {@code javac -version}
      * @return the javac major version; legacy {@code 1.8} is returned as 8
      */
@@ -201,6 +205,8 @@ public final class AllureReportLaunch {
     }
 
     /**
+     * Builds the {@code java} command that launches the report from an argument file.
+     *
      * @param argFile  file produced by {@link #writeClasspathArgFile}
      * @param trailing arguments that follow the argument file, such as the source file and results directory
      * @return {@code java @argfile ...} with no inline classpath
@@ -271,6 +277,8 @@ public final class AllureReportLaunch {
     @FunctionalInterface
     public interface JdkMajorProbe {
         /**
+         * Reads the javac major for one JDK home.
+         *
          * @param jdkHome JDK home to inspect
          * @return the javac major, or a value below the required major when the home does not qualify
          */

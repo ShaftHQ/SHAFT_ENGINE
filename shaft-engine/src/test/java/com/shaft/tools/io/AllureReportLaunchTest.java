@@ -103,6 +103,7 @@ public class AllureReportLaunchTest {
         Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'javac 25.0.1' 1>&2\n", StandardCharsets.UTF_8);
         Files.setPosixFilePermissions(javac, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), 25);
+        Assert.assertTrue(AllureReportLaunch.engineJavaMajor() >= 21);
     }
 
     private static Path jarWith(Path jar, String entryName) throws IOException {

@@ -29,6 +29,8 @@ public final class BrowserStackAppPlatform {
     }
 
     /**
+     * Classifies a native app from the file name, ignoring earlier path segments and a query string.
+     *
      * @param name file name, URL, or BrowserStack app name
      * @return {@code ANDROID}, {@code IOS}, or blank when the name has no known app suffix
      */
@@ -51,6 +53,8 @@ public final class BrowserStackAppPlatform {
     }
 
     /**
+     * Reports whether the configured target is a mobile operating system.
+     *
      * @param targetOperatingSystem configured {@code targetOperatingSystem}
      * @return {@code true} when the target is Android or iOS
      */

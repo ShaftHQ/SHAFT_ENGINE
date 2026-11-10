@@ -55,4 +55,30 @@ public class AllureHtmlChromeTest {
                         root.resolve("absent-cache"), directory -> List.of()));
         Assert.assertTrue(failure.getMessage().contains("CHROME_PATH"), failure.getMessage());
     }
+
+    @Test
+    public void defaultSystemCandidatesIncludeTheLinuxChromePath() {
+        Assert.assertTrue(AllureHtmlChrome.defaultSystemCandidates().contains(Path.of("/usr/bin/google-chrome")));
+    }
+
+    @Test
+    public void listPlaywrightChromeReadsAnExistingCacheAndSkipsAMissingOne() throws IOException {
+        Assert.assertTrue(AllureHtmlChrome.listPlaywrightChrome(Path.of("missing-playwright-cache")).isEmpty());
+        Path cache = Files.createTempDirectory("pw-cache");
+        Path chrome = cache.resolve("chromium-1/chrome-linux/chrome");
+        Files.createDirectories(chrome.getParent());
+        Files.writeString(chrome, "chrome");
+        Files.writeString(cache.resolve("readme.txt"), "skip");
+        Assert.assertEquals(AllureHtmlChrome.listPlaywrightChrome(cache), List.of(chrome));
+    }
+
+    @Test
+    public void resolveFromEnvironmentReturnsAFileOrExplainsTheMiss() throws IOException {
+        try {
+            Path resolved = AllureHtmlChrome.resolveFromEnvironment();
+            Assert.assertTrue(Files.isRegularFile(resolved));
+        } catch (IllegalStateException | IllegalArgumentException failure) {
+            Assert.assertFalse(failure.getMessage().isBlank(), failure.getMessage());
+        }
+    }
 }

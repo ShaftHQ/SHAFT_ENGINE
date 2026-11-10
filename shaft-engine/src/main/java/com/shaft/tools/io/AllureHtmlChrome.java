@@ -20,6 +20,8 @@ public final class AllureHtmlChrome {
     }
 
     /**
+     * Returns the first Chromium executable in the documented order.
+     *
      * @param chromePath        value of {@code CHROME_PATH}; blank means unset
      * @param systemCandidates  system Chrome paths, already chosen by the caller
      * @param playwrightCache   Playwright cache directory, usually under {@code .cache/ms-playwright}
@@ -112,6 +114,8 @@ public final class AllureHtmlChrome {
     @FunctionalInterface
     public interface ChromeLister {
         /**
+         * Lists Chromium executables in a directory the caller has already proven to exist.
+         *
          * @param directory an existing directory
          * @return candidate executables
          * @throws IOException when the directory cannot be read

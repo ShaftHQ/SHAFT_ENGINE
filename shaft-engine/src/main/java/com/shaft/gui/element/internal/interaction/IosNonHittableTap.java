@@ -203,7 +203,7 @@ public final class IosNonHittableTap {
         String normalized = STATUS_BAR_SUBTREE.matcher(source).replaceAll("<XCUIElementTypeStatusBar/>");
         normalized = STATUS_BAR_EMPTY.matcher(normalized).replaceAll("<XCUIElementTypeStatusBar/>");
         Matcher progress = PROGRESS_OR_ACTIVITY_OPEN.matcher(normalized);
-        StringBuffer progressBuf = new StringBuffer();
+        StringBuilder progressBuf = new StringBuilder();
         while (progress.find()) {
             String attrs = VALUE_OR_LABEL_ATTR.matcher(progress.group(2)).replaceAll("");
             progress.appendReplacement(progressBuf,

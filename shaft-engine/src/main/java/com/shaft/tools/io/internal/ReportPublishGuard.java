@@ -221,7 +221,7 @@ public final class ReportPublishGuard {
 
     private static String replaceShape(Shape shape, StringBuilder redacted, Set<String> classes) {
         Matcher secret = shape.pattern().matcher(redacted);
-        StringBuffer replaced = new StringBuffer();
+        StringBuilder replaced = new StringBuilder();
         boolean found = false;
         while (secret.find()) {
             found = true;
