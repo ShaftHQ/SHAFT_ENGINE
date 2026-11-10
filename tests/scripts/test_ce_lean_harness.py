@@ -181,7 +181,12 @@ class BudgetTests(unittest.TestCase):
             else:
                 before[relative] = show.stdout
             after[relative] = (ROOT / relative).read_text(encoding="utf-8")
-        self.assertEqual([], lost_unique_sentences(before, after))
+        setup = _load("ce_retired_lean_sentences", ROOT / "scripts/ci/validate_agent_setup.py")
+        lost = [
+            sentence for sentence in lost_unique_sentences(before, after)
+            if sentence not in setup.RETIRED_LEAN_SENTENCES
+        ]
+        self.assertEqual([], lost)
 
 
 class CompanionTests(unittest.TestCase):
