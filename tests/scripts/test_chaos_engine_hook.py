@@ -1371,6 +1371,58 @@ process.stderr.write(result.stderr || '');
             )
             self.assertNotIn("until merged", cleared.stdout.casefold())
 
+    def test_merge_queue_enqueue_is_not_a_merged_pull_request(self):
+        """Exit 0 with only the merge-queue warning leaves the pull request open."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "queue-enqueue"
+            number = 7888
+            opened = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                    "tool_response": {
+                        "status": "success",
+                        "exit_code": 0,
+                        "stdout": f"https://github.com/ShaftHQ/SHAFT_ENGINE/pull/{number}\n",
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, opened.returncode)
+            queued = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": f"gh pr merge {number} --merge"},
+                    "tool_response": {
+                        "status": "success",
+                        "exit_code": 0,
+                        "stdout": "! The merge strategy for main is set by the merge queue\n",
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, queued.returncode)
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertEqual(2, stopped.returncode)
+            self.assertIn("until merged", stopped.stdout.casefold())
+            self.assertTrue((root / ".chaos-engine-state" / "open-pull-request.json").is_file())
+
     def test_numberless_open_pull_request_mark_does_not_demand_until_merged(self):
         """#7443: numberless open-PR state is not an identity."""
         with tempfile.TemporaryDirectory() as temporary:

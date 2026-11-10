@@ -1996,6 +1996,29 @@ def _mobile_retro_post_run(event: dict, commands: tuple) -> None:
 
 
 
+def _tool_stdout(event: dict) -> str:
+    result = event.get("tool_response")
+    if result is None:
+        result = event.get("toolResponse")
+    if isinstance(result, dict):
+        return str(result.get("stdout") or "")
+    return ""
+
+
+def merge_queue_not_merged(event: dict, commands: tuple[str, ...]) -> bool:
+    """True when ``gh pr merge`` only entered the merge queue.
+
+    Exit 0 plus the queue warning is not a merged pull request. Empty output
+    stays a confirmed merge: hosts do not always forward stdout.
+    """
+    if not any(pull_request_merged_command(candidate) for candidate in commands):
+        return False
+    text = _tool_stdout(event).casefold()
+    if "merge queue" not in text:
+        return False
+    return "merged" not in text.replace("merge queue", "")
+
+
 def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_id: str, receipt_command: bool, mutation: bool) -> None:
     if event_name != "PostToolUse" or receipt_command:
         return
@@ -2005,6 +2028,8 @@ def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_i
             reflection.record_activity(session_id, "learning-session-complete")
         return
     if any(confirmed_delivery_command(candidate) for candidate in commands):
+        if merge_queue_not_merged(event, commands):
+            return
         reflection.record_activity(session_id, "delivery-complete")
         if any(pull_request_merged_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "pull-request-merged")
