@@ -4909,20 +4909,24 @@ class NestedOverlayTree6225Test(unittest.TestCase):
             )
             self.assertEqual([], leaked)
 
-    def test_install_refuses_an_overlay_or_portable_tree_as_the_project(self):
+    def test_install_lifts_an_overlay_or_portable_tree_to_its_parent(self):
         with tempfile.TemporaryDirectory() as temporary:
-            parent = Path(temporary) / "consumer"
+            parent = (Path(temporary) / "consumer").resolve()
             overlay = parent / ".chaos-engine"
             overlay.mkdir(parents=True)
-            with self.assertRaisesRegex(ValueError, "nested"):
-                MODULE.install(overlay, SOURCE, TEST_COMMIT)
-            with self.assertRaisesRegex(ValueError, "nested"):
-                MODULE.install_with_dependencies(overlay, SOURCE, TEST_COMMIT)
+            self.assertEqual(parent, MODULE.lift_consumer_project(overlay))
+            self.assertEqual(parent / ".chaos-engine", MODULE.install(overlay, SOURCE, TEST_COMMIT))
             portable = copy_source(Path(temporary) / "portable-copy")
-            with self.assertRaisesRegex(ValueError, "nested"):
-                MODULE.install(portable, SOURCE, TEST_COMMIT)
+            self.assertEqual(portable.parent.resolve(), MODULE.lift_consumer_project(portable))
+            self.assertEqual(
+                portable.parent.resolve() / ".chaos-engine",
+                MODULE.install(portable, SOURCE, TEST_COMMIT),
+            )
             self.assertFalse((overlay / ".chaos-engine").exists())
             self.assertFalse((portable / ".chaos-engine").exists())
+            consumer = (Path(temporary) / "plain-consumer").resolve()
+            consumer.mkdir()
+            self.assertEqual(consumer, MODULE.lift_consumer_project(consumer))
 
     def _polluted_install(self, temporary: str) -> Path:
         project = Path(temporary) / "consumer"
