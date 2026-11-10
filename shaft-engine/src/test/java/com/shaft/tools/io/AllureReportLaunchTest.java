@@ -4,10 +4,12 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.jar.JarEntry;
@@ -153,6 +155,135 @@ public class AllureReportLaunchTest {
         Files.createDirectories(classFile.getParent());
         Files.write(classFile, new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE, 0, 0, 0, 69});
         AllureReportLaunch.requireShaftClass(List.of(root));
+    }
+
+    @Test
+    public void privateConstructorAndNullClassHeaderAreRejected() throws Exception {
+        Constructor<AllureReportLaunch> constructor = AllureReportLaunch.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        constructor.newInstance();
+        Assert.expectThrows(IllegalArgumentException.class, () -> AllureReportLaunch.javaMajorRequiredBy(null));
+    }
+
+    @Test
+    public void javacWithoutAMinorOrAUsableBinaryStaysUnknown() throws IOException {
+        Assert.assertEquals(AllureReportLaunch.javaMajorFromJavacOutput("javac 1"), 1);
+
+        Path home = Files.createTempDirectory("fake-jdk-gaps");
+        Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+
+        Path javac = home.resolve("bin/javac");
+        Files.createDirectories(javac.getParent());
+        Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'not a version'\n", StandardCharsets.UTF_8);
+        Files.setPosixFilePermissions(javac, EnumSet.of(PosixFilePermission.OWNER_READ));
+        Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+
+        Files.setPosixFilePermissions(javac, EnumSet.of(
+                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+        Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'not a version'\n", StandardCharsets.UTF_8);
+        Files.setPosixFilePermissions(javac, EnumSet.of(
+                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+        Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+    }
+
+    @Test
+    public void anInterruptedJdkProbeReturnsUnknown() throws IOException {
+        Path home = Files.createTempDirectory("fake-jdk-interrupt");
+        Path javac = home.resolve("bin/javac");
+        Files.createDirectories(javac.getParent());
+        Files.writeString(javac, """
+                #!/bin/sh
+                printf '%s\\n' 'javac 25.0.1'
+                exec 1>&-
+                sleep 1
+                """, StandardCharsets.UTF_8);
+        Files.setPosixFilePermissions(javac, EnumSet.of(
+                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+        Thread.currentThread().interrupt();
+        try {
+            Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    public void resolveJdkHomeIgnoresNullHomeNullFallbacksAndNullCandidates() {
+        Path preferred = Path.of("/jdks/temurin-25");
+        Assert.assertEquals(AllureReportLaunch.resolveJdkHome(preferred.toString(), null, 25, path -> 25), preferred);
+
+        Path fallback = Path.of("/jdks/temurin-25");
+        Path resolved = AllureReportLaunch.resolveJdkHome(null, Arrays.asList(null, fallback), 25,
+                path -> fallback.equals(path) ? 25 : 1);
+        Assert.assertEquals(resolved, fallback);
+
+        IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
+                () -> AllureReportLaunch.resolveJdkHome(null, null, 25, path -> 1));
+        Assert.assertTrue(failure.getMessage().contains("25"), failure.getMessage());
+    }
+
+    @Test
+    public void javadocAndNonJarFilesDoNotEnableOffline() throws IOException {
+        Path repository = Files.createTempDirectory("shaft-m2-javadoc");
+        Path engine = repository.resolve("io/github/shafthq/shaft-engine/10.4");
+        Files.createDirectories(engine);
+        Files.write(engine.resolve("shaft-engine-10.4-javadoc.jar"), new byte[] {0});
+        Files.writeString(engine.resolve("notes.txt"), "not an engine jar");
+        Files.writeString(engine.resolve("shaft-engine-10.4.txt"), "not a jar");
+        List<String> command = AllureReportLaunch.mavenClasspathCommand(repository);
+        Assert.assertFalse(command.contains("-o"), command.toString());
+
+        Path fileAsEngine = Files.createTempDirectory("shaft-m2-file");
+        Path engineFile = fileAsEngine.resolve("io/github/shafthq/shaft-engine");
+        Files.createDirectories(engineFile.getParent());
+        Files.writeString(engineFile, "not a directory");
+        List<String> online = AllureReportLaunch.mavenClasspathCommand(fileAsEngine);
+        Assert.assertFalse(online.contains("-o"), online.toString());
+    }
+
+    @Test
+    public void requireShaftClassRejectsMissingPlainEmptyAndCorruptEntries() throws IOException {
+        Path root = Files.createTempDirectory("shaft-cp-gaps");
+        Path plain = root.resolve("notes.txt");
+        Files.writeString(plain, "not a jar");
+        Path emptyDir = Files.createDirectories(root.resolve("classes"));
+        Path corrupt = root.resolve("corrupt.jar");
+        Files.writeString(corrupt, "this is not a zip");
+        IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
+                () -> AllureReportLaunch.requireShaftClass(Arrays.asList(
+                        null, root.resolve("missing.jar"), plain, emptyDir, corrupt)));
+        Assert.assertTrue(failure.getMessage().contains(AllureReportLaunch.SHAFT_CLASS_ENTRY), failure.getMessage());
+    }
+
+    @Test
+    public void argfileSkipsBlankTrailingAndQuotesOnlyWhenNeeded() throws IOException {
+        Path root = Files.createTempDirectory("shaft-args-plain");
+        Path plain = root.resolve("plain.args");
+        AllureReportLaunch.writeClasspathArgFile(plain, List.of("a.jar", "b.jar"), " ");
+        String plainText = Files.readString(plain);
+        Assert.assertTrue(plainText.contains("a.jar" + java.io.File.pathSeparator + "b.jar"), plainText);
+        Assert.assertFalse(plainText.contains("\""), plainText);
+        Assert.assertEquals(plainText.lines().count(), 2);
+
+        Path tabbed = root.resolve("tabbed.args");
+        AllureReportLaunch.writeClasspathArgFile(tabbed, List.of("a\tb.jar"), null);
+        Assert.assertTrue(Files.readString(tabbed).contains("\""), Files.readString(tabbed));
+
+        Path quoted = root.resolve("quoted.args");
+        AllureReportLaunch.writeClasspathArgFile(quoted, List.of("jar \"name\".jar"), "");
+        Assert.assertTrue(Files.readString(quoted).contains("\\\""), Files.readString(quoted));
+
+        Path bare = Path.of("shaft-report-launch-coverage.args");
+        Assert.assertNull(bare.getParent());
+        try {
+            AllureReportLaunch.writeClasspathArgFile(bare, List.of(), null);
+            Assert.assertTrue(Files.readString(bare).startsWith("-cp"), Files.readString(bare));
+        } finally {
+            Files.deleteIfExists(bare);
+        }
+
+        Assert.assertEquals(AllureReportLaunch.javaCommand(plain, (String[]) null),
+                List.of("java", "@" + plain.toAbsolutePath().normalize()));
     }
 
     private static Path jarWith(Path jar, String entryName) throws IOException {

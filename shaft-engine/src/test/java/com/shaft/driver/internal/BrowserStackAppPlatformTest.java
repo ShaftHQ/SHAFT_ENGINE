@@ -6,6 +6,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -147,6 +148,32 @@ public class BrowserStackAppPlatformTest {
         IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
                 () -> BrowserStackAppPlatform.requireMatch(id, "IOS", " "));
         Assert.assertFalse(failure.getMessage().contains(id.substring("bs://".length())), failure.getMessage());
+    }
+
+    @Test
+    public void blankNamesBackslashPathsAndNonArrayRecentAppsStayUnclassified() throws Exception {
+        Constructor<BrowserStackAppPlatform> constructor = BrowserStackAppPlatform.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        constructor.newInstance();
+
+        Assert.assertEquals(BrowserStackAppPlatform.platformFromName("  "), "");
+        Assert.assertEquals(BrowserStackAppPlatform.platformFromName("dir\\app.apk"), "ANDROID");
+        Assert.assertFalse(BrowserStackAppPlatform.isMobileTarget(null));
+        Assert.assertFalse(BrowserStackAppPlatform.isMobileTarget(" "));
+        Assert.assertTrue(BrowserStackAppPlatform.isMobileTarget("IOS 17"));
+        Assert.assertTrue(BrowserStackAppPlatform.isMobileTarget("ios-17"));
+        BrowserStackAppPlatform.requireMatch(null, "ANDROID", null);
+
+        Assert.assertEquals(BrowserStackAppPlatform.appNameFromRecentApps("{\"count\":1}", "bs://id"), "");
+        String id = "bs://ffffffffffffffffffffffffffffffffffffffff";
+        String blank = """
+                [{"app_name":"","filename":"","app_url":"%s"}]
+                """.formatted(id);
+        Assert.assertEquals(BrowserStackAppPlatform.appNameFromRecentApps(blank, id), "");
+
+        IllegalArgumentException missingCredentials = Assert.expectThrows(IllegalArgumentException.class,
+                () -> BrowserStackAppPlatform.lookupAppName(id, null, null));
+        Assert.assertFalse(missingCredentials.getMessage().contains(id), missingCredentials.getMessage());
     }
 
     @Test

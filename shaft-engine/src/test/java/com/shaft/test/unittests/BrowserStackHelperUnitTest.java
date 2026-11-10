@@ -296,6 +296,23 @@ public class BrowserStackHelperUnitTest {
     }
 
     @Test
+    public void localOrNullNativeAppOnAndroidSkipsTheRemoteNameLookup() throws Exception {
+        SHAFT.Properties.browserStack.set().userName("user").accessKey("key");
+        SHAFT.Properties.platform.set().targetPlatform("ANDROID");
+        try (MockedStatic<BrowserStackAppPlatform> appPlatform = Mockito.mockStatic(
+                BrowserStackAppPlatform.class, Mockito.CALLS_REAL_METHODS)) {
+            invokePrivate("requireNativeAppMatchesTargetOs", new Class[]{String.class},
+                    "src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+            Method method = BrowserStackHelper.class.getDeclaredMethod(
+                    "requireNativeAppMatchesTargetOs", String.class);
+            method.setAccessible(true);
+            method.invoke(null, new Object[] {null});
+            appPlatform.verify(() -> BrowserStackAppPlatform.lookupAppName(
+                    Mockito.anyString(), Mockito.anyString(), Mockito.anyString()), Mockito.never());
+        }
+    }
+
+    @Test
     public void failActionShouldThrowFailureReporterException() {
         Assert.assertThrows(Exception.class, () -> invokePrivate("failAction",
                 new Class[]{String.class, Throwable[].class},

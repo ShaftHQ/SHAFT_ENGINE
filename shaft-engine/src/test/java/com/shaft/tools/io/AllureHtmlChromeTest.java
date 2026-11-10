@@ -4,9 +4,11 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -102,6 +104,44 @@ public class AllureHtmlChromeTest {
         Path resolved = AllureHtmlChrome.resolve(" ", List.of(root.resolve("missing-chrome")), cache,
                 directory -> List.of(chrome));
         Assert.assertEquals(resolved, chrome);
+    }
+
+    @Test
+    public void nullInputsAndEveryChromeFileNameStillResolve() throws Exception {
+        Constructor<AllureHtmlChrome> constructor = AllureHtmlChrome.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        constructor.newInstance();
+        Assert.assertTrue(AllureHtmlChrome.listPlaywrightChrome(null).isEmpty());
+
+        IllegalStateException missing = Assert.expectThrows(IllegalStateException.class,
+                () -> AllureHtmlChrome.resolve(null, null, null, null));
+        Assert.assertTrue(missing.getMessage().contains("CHROME_PATH"), missing.getMessage());
+
+        Path root = Files.createTempDirectory("allure-chrome-names");
+        Path cache = root.resolve("ms-playwright");
+        Files.createDirectories(cache);
+        List<String> names = List.of(
+                "chrome", "chrome.exe", "chromium", "chromium.exe", "google-chrome", "chromium-browser");
+        for (String name : names) {
+            Files.writeString(cache.resolve(name), "chrome");
+        }
+        Files.writeString(cache.resolve("readme.txt"), "skip");
+        List<String> found = AllureHtmlChrome.listPlaywrightChrome(cache).stream()
+                .map(path -> path.getFileName().toString())
+                .toList();
+        Assert.assertTrue(found.containsAll(names), found.toString());
+
+        Path resolved = AllureHtmlChrome.resolve(null, null, cache, null);
+        Assert.assertTrue(names.contains(resolved.getFileName().toString()), resolved.toString());
+
+        Path chrome = cache.resolve("chrome");
+        Path notAFile = root.resolve("missing-chrome");
+        Assert.assertEquals(AllureHtmlChrome.resolve(" ", Arrays.asList(null, notAFile), cache,
+                directory -> Arrays.asList(null, notAFile, chrome)), chrome);
+
+        IllegalStateException empty = Assert.expectThrows(IllegalStateException.class,
+                () -> AllureHtmlChrome.resolve(null, List.of(), cache, directory -> List.of()));
+        Assert.assertTrue(empty.getMessage().contains("CHROME_PATH"), empty.getMessage());
     }
 
     @Test
