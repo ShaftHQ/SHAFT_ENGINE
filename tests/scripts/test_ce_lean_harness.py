@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -32,6 +33,61 @@ def _size(relative: str) -> int:
 
 def _chain() -> dict:
     return BUDGET.get("lean_chain", {})
+
+
+def implement_path_files() -> list[str]:
+    chain = _chain()
+    paths = set(chain["common"])
+    paths.add(chain["profile"])
+    for host_paths in chain["hosts"].values():
+        paths.update(host_paths)
+    return sorted(paths)
+
+
+def _paragraphs(text: str) -> list[str]:
+    blocks: list[str] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        if buf:
+            blocks.append(" ".join(buf))
+            buf.clear()
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if (
+            not stripped
+            or stripped.startswith("#")
+            or stripped.startswith("|")
+            or stripped.startswith("```")
+        ):
+            flush()
+            continue
+        if stripped.startswith(("- ", "* ")) and buf:
+            flush()
+        buf.append(stripped)
+    flush()
+    return blocks
+
+
+def sentences_of(text: str) -> set[str]:
+    found: set[str] = set()
+    for paragraph in _paragraphs(text):
+        for part in re.split(r"(?<=[.!?])\s+", paragraph):
+            part = part.strip()
+            if part:
+                found.add(part)
+    return found
+
+
+def lost_unique_sentences(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    before_all: set[str] = set()
+    after_all: set[str] = set()
+    for text in before.values():
+        before_all |= sentences_of(text)
+    for text in after.values():
+        after_all |= sentences_of(text)
+    return sorted(before_all - after_all)
 
 
 def _session_start_bytes() -> int:
@@ -80,6 +136,52 @@ class BudgetTests(unittest.TestCase):
             target = (ROUTER.parent / link).resolve().relative_to(ROOT.resolve()).as_posix()
             with self.subTest(link=link):
                 self.assertIn(target, declared)
+
+    def test_deleted_unique_sentence_is_named(self):
+        before = {"a.md": "Use the tool for memory."}
+        after = {"a.md": ""}
+        self.assertEqual(["Use the tool for memory."], lost_unique_sentences(before, after))
+
+    def test_duplicate_sentence_may_be_deleted_once(self):
+        sentence = "Use the tool for memory."
+        before = {"a.md": sentence, "b.md": sentence}
+        after = {"a.md": "", "b.md": sentence}
+        self.assertEqual([], lost_unique_sentences(before, after))
+
+    def test_hard_wrap_is_one_sentence(self):
+        before = {"a.md": "Use the tool\nfor memory."}
+        after = {"a.md": "Use the tool for memory."}
+        self.assertEqual([], lost_unique_sentences(before, after))
+        gone = lost_unique_sentences(before, {"a.md": ""})
+        self.assertEqual(1, len(gone))
+        self.assertIn("Use the tool for memory.", gone[0])
+
+    def test_current_implement_path_loses_no_sentence_against_itself(self):
+        texts = {
+            relative: (ROOT / relative).read_text(encoding="utf-8")
+            for relative in implement_path_files()
+        }
+        self.assertEqual([], lost_unique_sentences(texts, texts))
+        self.assertEqual(16384, _chain()["implement_max_bytes"])
+
+    def test_branch_diff_keeps_unique_implement_sentences(self):
+        before: dict[str, str] = {}
+        after: dict[str, str] = {}
+        for relative in implement_path_files():
+            show = subprocess.run(
+                ["git", "show", f"origin/main:{relative}"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+            if show.returncode != 0:
+                before[relative] = ""
+            else:
+                before[relative] = show.stdout
+            after[relative] = (ROOT / relative).read_text(encoding="utf-8")
+        self.assertEqual([], lost_unique_sentences(before, after))
 
 
 class CompanionTests(unittest.TestCase):
