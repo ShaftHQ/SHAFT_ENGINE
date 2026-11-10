@@ -4449,7 +4449,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     bundle_options: dict[str, bool] | None = None,
     addons: tuple[str, ...] = (),
 ) -> Path:
-    project = lift_consumer_project(project)
+    project = project.resolve()
+    reject_nested_project(project)
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
@@ -4921,6 +4922,17 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         if not _running_under_tests():
             refresh_stale_graph(project)
         return target
+
+
+_install_with_dependencies_body = install_with_dependencies
+
+
+def _lifted_install_with_dependencies(project, *args, **kwargs):
+    """Lift a portable tree or overlay, then run the dependency install (#7907)."""
+    return _install_with_dependencies_body(lift_consumer_project(Path(project)), *args, **kwargs)
+
+
+install_with_dependencies = _lifted_install_with_dependencies
 
 
 def default_bundle_options() -> dict[str, bool]:

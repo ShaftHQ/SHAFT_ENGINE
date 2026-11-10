@@ -687,6 +687,32 @@ class HarnessReachabilityTest(unittest.TestCase):
             found = path_tokens(root, {".agents/page.md"}, roots)
         self.assertEqual(sorted(found), ["AGENTS.md", "scripts/ci/thing.py"])
 
+    def test_overlay_symlink_outside_the_worktree_is_not_an_escape(self):
+        """A worktree symlink of `.chaos-engine` must not fail the push.
+
+        Hooks need the primary overlay. Resolving that symlink leaves the
+        worktree. The walk judges the `.chaos-engine/` spelling and follows
+        the `chaos-engine/` twin.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "worktree"
+            outside = Path(temporary) / "primary-overlay"
+            twin = root / "chaos-engine" / "skills" / "chaos-engine"
+            twin.mkdir(parents=True)
+            (twin / "SKILL.md").write_text("# Skill\n", encoding="utf-8")
+            (outside / "skills" / "chaos-engine").mkdir(parents=True)
+            (outside / "skills" / "chaos-engine" / "SKILL.md").write_text(
+                "# Snap\n", encoding="utf-8"
+            )
+            (root / ".chaos-engine").symlink_to(outside, target_is_directory=True)
+            (root / "AGENTS.md").write_text(
+                "[skill](.chaos-engine/skills/chaos-engine/SKILL.md)\n",
+                encoding="utf-8",
+            )
+            _reached, broken = link_walk(root, "AGENTS.md")
+        self.assertEqual([], broken)
+        self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", _reached)
+
     def test_copied_template_links_are_workspace_examples_not_harness_links(self):
         """A starter under `templates/` is reached. Its own links are not.
 

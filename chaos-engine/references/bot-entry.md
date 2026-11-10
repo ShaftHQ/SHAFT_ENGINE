@@ -144,8 +144,11 @@ Gate `tests/scripts/test_ce_entry_coverage.py` (in `harness_pr_gate`). Index: [C
 ## Repeat-failure PDCA
 
 Two fails on one stage/gate, budget overrun, or distinct fails on one stage:
-**STOP** → note in `.chaos-engine-state/repeat-failure-pdca/` → one change →
-check. No fix-after-fail.
+write a note in `.chaos-engine-state/repeat-failure-pdca/`, then change and
+check. Pull-request test and required-check failures have no retry cap on
+any repository: keep fixing the cause and rechecking until the pull request
+is merged or a true external blocker stops the work. The note records the
+cause. It does not end that repair.
 [rule](../rules/lessons_repeat_failure_pdca.py) ·
 [card](details/ce-repeat-failure-pdca/repeat-failure-pdca.md) ·
 [SPEC](ce-repeat-failure-pdca-SPEC.md) ·
