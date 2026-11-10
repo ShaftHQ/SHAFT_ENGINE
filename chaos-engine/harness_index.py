@@ -105,6 +105,9 @@ SKILLS = (
      "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up: "
      "targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue, release and "
      "privileged workflows.", "delivery"),
+    ("security-audit", "portable", "skills/security-audit/SKILL.md",
+     "Use when auditing a repository we own. A finding stays unconfirmed until a "
+     "second pass verifies it. Refuse a target we do not own.", "on-demand"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
      "Use when the adopter asks to delegate to local OSS agents (OpenCode) on a READY local runtime.", "delegation"),
     ("local-runtimes", "portable", "skills/local-runtimes/SKILL.md",
