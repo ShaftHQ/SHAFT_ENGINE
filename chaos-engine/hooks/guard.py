@@ -800,8 +800,62 @@ def _installer_url(url: str) -> tuple[str, str] | None:
     return owner, repo
 
 
+# Same ids as bootstrap.INSTALL_HOST_IDS. Closed set so a host token cannot
+# hide a substitution. Fail closed if the installer list grows.
+_INSTALL_HOST_IDS = frozenset({
+    "claude",
+    "codex",
+    "grok",
+    "gemini",
+    "copilot",
+    "opencode",
+    "cursor",
+    "grok-bot",
+})
+_STDOUT_REDIRECT_OPS = frozenset({">", ">>", "1>", "1>>", "2>", "2>>", "&>", "&>>"})
+_STDOUT_DUP = frozenset({"2>&1", "1>&2"})
+_ATTACHED_STDOUT = re.compile(r"(?:&>>?|[12]?>>?)[^$`<>()|&;\s]+\Z")
+_PLAIN_REDIRECT_TARGET = re.compile(r"[A-Za-z0-9_./~@+=,:-]+\Z")
+
+
+def _without_trailing_stdout_redirects(argv: list[str]) -> list[str]:
+    """Drop a trailing stdout redirect. Leave stdin and substitutions in place."""
+    items = list(argv)
+    while items:
+        last = items[-1]
+        if last in _STDOUT_DUP:
+            items.pop()
+            continue
+        if _ATTACHED_STDOUT.fullmatch(last):
+            items.pop()
+            continue
+        if (
+            len(items) >= 2
+            and items[-2] in _STDOUT_REDIRECT_OPS
+            and _PLAIN_REDIRECT_TARGET.fullmatch(items[-1])
+        ):
+            items = items[:-2]
+            continue
+        break
+    return items
+
+
+def _installer_shell(shell: list[str], url: str) -> bool:
+    """True for ``bash -s -- URL`` plus optional ``--hosts <id>`` and stdout redirects."""
+    if len(shell) < 4 or shell[:4] != ["bash", "-s", "--", url]:
+        return False
+    extra = _without_trailing_stdout_redirects(shell[4:])
+    if not extra:
+        return True
+    return len(extra) == 2 and extra[0] == "--hosts" and extra[1] in _INSTALL_HOST_IDS
+
+
 def documented_installer_command(command: str) -> tuple[str, str] | None:
-    """Owner and repo when command is exactly ``curl -fsSL URL | bash -s -- URL``."""
+    """Owner and repo when one statement is ``curl -fsSL URL | bash -s -- URL``.
+
+    The tail may be ``--hosts <install client id>`` and stdout redirects.
+    Compounds are not one statement; the scope check walks those separately.
+    """
     statements = [part.strip() for part in re.split(r"&&|\|\||;|\r?\n", command) if part.strip()]
     if len(statements) != 1:
         return None
@@ -815,7 +869,7 @@ def documented_installer_command(command: str) -> tuple[str, str] | None:
         return None
     if len(download) != 3 or download[0] != "curl" or download[1] != "-fsSL":
         return None
-    if shell != ["bash", "-s", "--", download[2]]:
+    if not _installer_shell(shell, download[2]):
         return None
     return _installer_url(download[2])
 
@@ -1543,6 +1597,29 @@ def _command_guard_state(
     return receipt_command, mutation, ""
 
 
+def _compound_installer_reason(command: str, project: Path) -> str | None:
+    """Allow a compound whose only destructive statements are this project's installer.
+
+    ``""`` allows. A denial string blocks. ``None`` means this is not that shape.
+    """
+    statements = [part.strip() for part in re.split(r"&&|\|\||;|\r?\n", command) if part.strip()]
+    if len(statements) <= 1:
+        return None
+    saw_installer = False
+    for statement in statements:
+        if not _command_is_destructive(statement):
+            continue
+        if documented_installer_for_project(statement, project):
+            saw_installer = True
+            continue
+        if documented_installer_command(statement) is not None:
+            return _INSTALLER_ORIGIN_DENIAL
+        return "ChaosEngine rejected destructive broad scope."
+    if not saw_installer:
+        return None
+    return ""
+
+
 def _destructive_scope_reason(commands: tuple[str, ...], project: Path, uninspectable: bool) -> str:
     if uninspectable:
         return "ChaosEngine rejected destructive broad scope."
@@ -1551,6 +1628,11 @@ def _destructive_scope_reason(commands: tuple[str, ...], project: Path, uninspec
             continue
         if documented_installer_command(candidate) is not None:
             return _INSTALLER_ORIGIN_DENIAL
+        compound = _compound_installer_reason(candidate, project)
+        if compound == "":
+            continue
+        if compound:
+            return compound
         return "ChaosEngine rejected destructive broad scope."
     return ""
 
