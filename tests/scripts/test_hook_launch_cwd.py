@@ -104,6 +104,8 @@ class HookLaunchCwdTest(unittest.TestCase):
         self.assertTrue(command.startswith(prefix))
         script, separator, tail = command[len(prefix):].partition('"')
         self.assertEqual(separator, '"')
+        self.assertIn("subprocess.call", script)
+        self.assertNotIn("os.execv", script)
         args = tail.split()
         with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
             root = Path(temporary)

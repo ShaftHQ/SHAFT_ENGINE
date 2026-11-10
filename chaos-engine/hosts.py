@@ -4979,8 +4979,10 @@ def chaos_guard_locator_command(
     Hosts echo the hook command on every block. The previous inline polyglot was
     ~11KB / 241 lines. Locate/guard logic lives in ``launch.py``; this command
     stays under ``HOOK_COMMAND_MAX_CHARS``. Bash and Windows Grok walk parent
-    directories for ``launch.py`` (#7874). The PowerShell probe stays relative
-    because a parent walk there exceeds ``HOOK_COMMAND_MAX_CHARS``.
+    directories for ``launch.py`` (#7874). The Windows walker waits with
+    ``subprocess.call`` because ``os.execv`` does not keep the child exit code
+    on Windows. The PowerShell probe stays relative because a parent walk
+    there exceeds ``HOOK_COMMAND_MAX_CHARS``.
     ``launch.py`` still walks parents / payload cwd for ``guard.py`` (#6632).
     """
     del managed_python
@@ -5000,12 +5002,12 @@ def chaos_guard_locator_command(
     if windows and host == "grok":
         # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
         script = (
-            "import os,pathlib,sys; "
+            "import pathlib,subprocess,sys; "
             "r=pathlib.Path('.chaos-engine/hooks/launch.py'); "
             "d=pathlib.Path.cwd(); "
             "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None); "
             "sys.stderr.write('missing .chaos-engine/hooks/launch.py\\n') if f is None else None; "
-            "sys.exit(2) if f is None else os.execv(sys.executable,[sys.executable,str(f),*sys.argv[1:]])"
+            "sys.exit(2 if f is None else subprocess.call([sys.executable,str(f),*sys.argv[1:]]))"
         )
         if "$" in script:
             raise ValueError("windows grok walker must stay $-free")

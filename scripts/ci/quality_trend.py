@@ -5,7 +5,8 @@ Reads the ``Codacy Static Code Analysis`` check run on the last N ``main``
 commits (conclusion plus new-issue count from its title) and the Codecov
 coverage total. Exits 2 on a regression, meaning any failing Codacy run in the
 window or coverage below the floor, so the workflow can open or update one
-tracker issue. Quality layers are never removed; this report keeps the
+tracker issue. Exit 3 means the coverage total was not read. That is not a
+recovery, and the open tracker stays open. Quality layers are never removed; this report keeps the
 non-blocking Codacy reporter visible on ``main``.
 """
 
@@ -79,12 +80,27 @@ def fetch(repo: str, limit: int) -> tuple[list[dict], float | None]:
     return runs, float(coverage) if coverage is not None else None
 
 
+def trend_exit(summary: dict) -> int:
+    """2 when the trend regressed, 3 when coverage was not read, else 0."""
+    if summary["regression"]:
+        return 2
+    if summary["coverage"] is None:
+        return 3
+    return 0
+
+
 def tracker_action(exit_code: int, open_issue: int | None) -> str:
-    """What the weekly workflow should do with the ci-quality issue."""
+    """What the weekly workflow should do with the ci-quality issue.
+
+    Exit 3 is a missing coverage sample. That is not a recovery, so an open
+    tracker stays open.
+    """
     if exit_code == 0:
         return "close" if open_issue else "noop"
     if exit_code == 2:
         return "comment" if open_issue else "create"
+    if exit_code == 3:
+        return "noop"
     return "fail"
 
 
@@ -105,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = summarize(codacy_rows(runs), coverage, args.coverage_floor)
     print(render(summary))
     print(json.dumps(summary))
-    return 2 if summary["regression"] else 0
+    return trend_exit(summary)
 
 
 if __name__ == "__main__":
