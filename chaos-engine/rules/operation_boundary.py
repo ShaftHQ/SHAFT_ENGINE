@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any
 
 # `set +e` is a shell option. A force refspec is a plus argument that does not follow `set`.
+# `-f` counts only on the git push statement, not on another program in the same shell (#7901).
 _FORCE = re.compile(r"(--force\b|--force-with-lease\b|(?:^|\s)-f(?:\s|$)|(?<!set)\s\+\S+)")
+_STATEMENTS = re.compile(r"&&|\|\||;")
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
@@ -45,7 +47,8 @@ def _normalized(command: str) -> str:
 
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
-    if not _PUSH.search(text) or not _FORCE.search(text):
+    segments = [part for part in _STATEMENTS.split(text) if _PUSH.search(part)]
+    if not any(_FORCE.search(part) for part in segments):
         return None
     path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
     recorded: set[str] = set()

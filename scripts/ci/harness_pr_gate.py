@@ -506,7 +506,10 @@ CHECKS = {
     "icm-architect-contract": Check(
         "icm-architect-contract",
         "icm-architect",
-        ("tests.scripts.test_chaos_engine_icm_architect_6001",),
+        (
+            "tests.scripts.test_chaos_engine_icm_architect_6001",
+            "tests.scripts.test_design_loop_writer_reseed",
+        ),
     ),
     "identity-companions-contract": Check(
         "identity-companions-contract",
@@ -1173,6 +1176,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/skills/chaos-engine/SKILL.md",
         "chaos-engine/hooks/lifecycle.py",
         "tests/scripts/test_chaos_engine_icm_architect_6001.py",
+        "tests/scripts/test_design_loop_writer_reseed.py",
     ),
     "identity-companions": (
         "chaos-engine/references/router-contract.md",

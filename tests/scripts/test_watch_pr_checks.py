@@ -505,6 +505,90 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("RED", bucket)
         self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
 
+    def test_nonrequired_codacy_action_required_is_green_and_not_blocking(self):
+        checks = [
+            {
+                "name": "Codacy Static Code Analysis",
+                "state": "ACTION_REQUIRED",
+                "link": "https://app.codacy.com/done",
+            },
+            {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+        ]
+        bucket, failing = watch_pr_checks.classify_checks(
+            checks, required_status_names=["PR Gate Summary"]
+        )
+        self.assertEqual("GREEN", bucket)
+        self.assertEqual([], failing)
+        digest = watch_pr_checks.build_digest("a" * 40, bucket, checks, failing)
+        self.assertNotIn("(blocking)", watch_pr_checks.format_digest_line(digest))
+        self.assertEqual([], digest["static_analysis_action_required"])
+
+    def test_required_codacy_action_required_stays_red_and_blocking(self):
+        checks = [
+            {
+                "name": "Codacy Static Code Analysis",
+                "state": "ACTION_REQUIRED",
+                "link": "https://app.codacy.com/req",
+            },
+            {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+        ]
+        bucket, failing = watch_pr_checks.classify_checks(
+            checks, required_status_names=["PR Gate Summary", "Codacy Static Code Analysis"]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
+        digest = watch_pr_checks.build_digest("b" * 40, bucket, checks, failing)
+        self.assertIn("(blocking)", watch_pr_checks.format_digest_line(digest))
+
+    def test_failed_pr_gate_summary_stays_red_beside_codacy(self):
+        checks = [
+            {"name": "PR Gate Summary", "state": "FAILURE", "link": "https://checks/gate"},
+            {
+                "name": "Codacy Static Code Analysis",
+                "state": "ACTION_REQUIRED",
+                "link": "https://app.codacy.com/x",
+            },
+        ]
+        bucket, failing = watch_pr_checks.classify_checks(
+            checks, required_status_names=["PR Gate Summary"]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertTrue(any(item["name"] == "PR Gate Summary" for item in failing))
+
+    def test_codacy_failure_stays_red_when_the_ruleset_does_not_require_it(self):
+        checks = [
+            {
+                "name": "Codacy Static Code Analysis",
+                "state": "FAILURE",
+                "link": "https://app.codacy.com/fail",
+            },
+            {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+        ]
+        bucket, _failing = watch_pr_checks.classify_checks(
+            checks, required_status_names=["PR Gate Summary"]
+        )
+        self.assertEqual("RED", bucket)
+
+    def test_check_payload_is_not_parsed_as_a_ruleset(self):
+        self.assertIsNone(
+            watch_pr_checks.parse_required_status_names(
+                [{"name": "Codacy Static Code Analysis", "state": "ACTION_REQUIRED"}]
+            )
+        )
+        self.assertEqual(
+            ["PR Gate Summary"],
+            watch_pr_checks.parse_required_status_names(
+                [
+                    {
+                        "type": "required_status_checks",
+                        "parameters": {
+                            "required_status_checks": [{"context": "PR Gate Summary"}]
+                        },
+                    }
+                ]
+            ),
+        )
+
     def test_completed_codacy_failure_stays_red_while_another_check_runs(self):
         bucket, failing = watch_pr_checks.classify_checks(
             [

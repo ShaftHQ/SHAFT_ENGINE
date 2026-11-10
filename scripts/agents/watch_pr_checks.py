@@ -25,7 +25,10 @@
 #                ``ACTION_REQUIRED``, which GitHub Apps such as Codacy use
 #                for a completed-but-failing run). Codacy ``ACTION_REQUIRED``
 #                does not end the watch while another check is still
-#                pending. It is RED once the other checks have completed.
+#                pending. It is RED once the other checks have completed,
+#                unless required checks succeeded and no ruleset
+#                required-status name is Codacy (#7903). A required Codacy
+#                check stays RED.
 #     GREEN   -- all effective checks are completed and none are RED.
 #     PENDING -- otherwise (some check is still queued/running); sleep
 #                ``--interval`` seconds and poll again, unless the poll
@@ -157,7 +160,12 @@ def reject_repeated_status_table(text: str) -> None:
         raise CheckWatchError("repeated PR status table in one watch")
 
 
-def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, list[dict]]:
+def classify_unattended(
+    checks: list[dict],
+    pull: dict | None,
+    *,
+    required_status_names: list[str] | None = None,
+) -> tuple[str, list[dict]]:
     """Pending stays pending while auto-merge is armed. Merged is its own line."""
     view = pull or {}
     state = str(view.get("state") or "").upper()
@@ -166,7 +174,7 @@ def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, lis
     merge_state = str(view.get("mergeStateStatus") or "").upper()
     if merge_state in {"DIRTY", "BEHIND"}:
         return "RED", [{"name": "mergeStateStatus", "link": merge_state}]
-    bucket, failing = classify_checks(checks)
+    bucket, failing = classify_checks(checks, required_status_names=required_status_names)
     # Green but BLOCKED by unresolved review threads never merges on its own.
     unresolved = int(view.get("unresolvedReviewThreads") or 0)
     if bucket == "GREEN" and merge_state == "BLOCKED":
@@ -632,6 +640,65 @@ def count_unresolved_threads(gh_executable: str, root: Path, repo: str, pr: int)
         return 0
 
 
+def parse_required_status_names(payload: object) -> list[str] | None:
+    """Required status contexts from a ruleset rules list, or None if it is not one."""
+    if isinstance(payload, dict):
+        rules = payload.get("rules")
+        if not isinstance(rules, list):
+            return None
+        payload = rules
+    if not isinstance(payload, list):
+        return None
+    names: list[str] = []
+    for rule in payload:
+        if not isinstance(rule, dict) or "type" not in rule:
+            return None
+        if str(rule.get("type") or "") != "required_status_checks":
+            continue
+        params = rule.get("parameters") if isinstance(rule.get("parameters"), dict) else {}
+        checks = params.get("required_status_checks") or []
+        if not isinstance(checks, list):
+            continue
+        for item in checks:
+            if isinstance(item, dict):
+                context = item.get("context")
+            elif isinstance(item, str):
+                context = item
+            else:
+                context = ""
+            if isinstance(context, str) and context.strip():
+                names.append(context.strip())
+    return names
+
+
+def fetch_required_status_names(gh_executable: str, root: Path, repo: str, pr: int) -> list[str] | None:
+    """Ruleset required-status names for the PR base, or None when unknown."""
+    try:
+        view = run_gh(gh_executable, ["pr", "view", str(pr), "--repo", repo, "--json", "baseRefName"], root)
+    except OSError:
+        return None
+    if view.returncode != 0:
+        return None
+    try:
+        payload = json.loads(view.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    branch = payload.get("baseRefName") if isinstance(payload, dict) else None
+    if not isinstance(branch, str) or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or ".." in branch:
+        return None
+    try:
+        api = run_gh(gh_executable, ["api", f"repos/{repo}/rules/branches/{branch}"], root)
+    except OSError:
+        return None
+    if api.returncode != 0:
+        return None
+    try:
+        payload = json.loads(api.stdout or "")
+    except json.JSONDecodeError:
+        return None
+    return parse_required_status_names(payload)
+
+
 def fetch_head_sha(gh_executable: str, root: Path, repo: str, pr: int) -> str | None:
     """Head SHA for the digest only; a lookup failure degrades to None, never to exit 3."""
     proc = run_gh(gh_executable, ["pr", "view", str(pr), "--repo", repo, "--json", "headRefOid"], root)
@@ -818,7 +885,9 @@ def _deferred_while_other_checks_pending(check: dict) -> bool:
 
     A PR Gate Summary failure during a live run is the cancelled workflow's
     summary. Codacy posts ``ACTION_REQUIRED`` before analysis finishes. That
-    state stays pending until the other checks complete, then it is RED.
+    state stays pending until the other checks complete. It is RED after that
+    when Codacy is required or the ruleset is unknown. When required checks
+    succeeded and no required-status name is Codacy, it is not RED (#7903).
     ``codecov/patch`` can post FAILURE at 0% while a later unit shard has not
     uploaded yet, then update the same check to success. That early failure
     stays pending. A patch failure after every other check has completed is RED.
@@ -830,11 +899,49 @@ def _deferred_while_other_checks_pending(check: dict) -> bool:
     return CODACY_NAME_MARKER in name.lower() and state == "ACTION_REQUIRED"
 
 
-def classify_checks(checks: list[dict], *, registration_grace: bool = False) -> tuple[str, list[dict]]:
+def _is_codacy_action_required(check: dict) -> bool:
+    name = str(check.get("name", "")).lower()
+    state = str(check.get("state", "")).upper()
+    return CODACY_NAME_MARKER in name and state == "ACTION_REQUIRED"
+
+
+def _ruleset_requires_codacy(required_status_names: list[str]) -> bool:
+    return any(CODACY_NAME_MARKER in name.lower() for name in required_status_names)
+
+
+def _required_checks_succeeded(effective: list[dict], required_status_names: list[str]) -> bool:
+    by_name = {str(check.get("name", "")): str(check.get("state", "")).upper() for check in effective}
+    return all(by_name.get(name) in SUCCESS_STATES for name in required_status_names)
+
+
+def _nonrequired_codacy_only(
+    failing: list[dict],
+    effective: list[dict],
+    required_status_names: list[str] | None,
+    pending: bool,
+) -> bool:
+    """True when a finished Codacy ACTION_REQUIRED must not fail the watch (#7903)."""
+    if required_status_names is None or pending or not failing:
+        return False
+    if not all(_is_codacy_action_required(check) for check in failing):
+        return False
+    if _ruleset_requires_codacy(required_status_names):
+        return False
+    return _required_checks_succeeded(effective, required_status_names)
+
+
+def classify_checks(
+    checks: list[dict],
+    *,
+    registration_grace: bool = False,
+    required_status_names: list[str] | None = None,
+) -> tuple[str, list[dict]]:
     """Classify one poll's checks into RED, GREEN, or PENDING.
 
     With ``registration_grace`` a RED made only of CANCELLED checks is PENDING:
     the superseding run has not registered its replacement check yet (#6196).
+    ``required_status_names`` is the ruleset list. None means the ruleset is
+    unknown and a finished Codacy ``ACTION_REQUIRED`` stays RED.
     """
     # Returns (bucket, failing_checks); failing_checks is only populated
     # for RED. An empty check list (nothing reported yet) is PENDING, not
@@ -854,6 +961,8 @@ def classify_checks(checks: list[dict], *, registration_grace: bool = False) -> 
         str(check.get("state", "")).upper() == "CANCELLED" for check in failing
     ):
         return "PENDING", []
+    if _nonrequired_codacy_only(failing, effective, required_status_names, pending):
+        return "GREEN", []
     if failing:
         return "RED", failing
     if pending:
@@ -885,6 +994,8 @@ def build_digest(sha: str | None, bucket: str, checks: list[dict], failing: list
         if CODACY_NAME_MARKER in str(check.get("name", "")).lower()
         and str(check.get("state", "")).upper() == "ACTION_REQUIRED"
     )
+    if str(bucket).upper() == "GREEN":
+        codacy = []
     rows = [
         {"name": _clip(check.get("name"), DIGEST_NAME_CHARS), "url": _clip(check.get("link"), DIGEST_URL_CHARS)}
         for check in failing[:DIGEST_FAILING_CAP]
@@ -1075,6 +1186,7 @@ def _watch(args: argparse.Namespace) -> int:
         root = context.root
         wants_digest = args.digest or args.digest_out or args.status_lease
         head_sha = fetch_head_sha(gh_executable, root, repo, pr) if wants_digest else None
+        required_status_names = fetch_required_status_names(gh_executable, root, repo, pr)
     except (CheckWatchError, RepositoryContextError) as error:
         print(f"watch_pr_checks: {error}", file=sys.stderr)
         return 3
@@ -1109,11 +1221,15 @@ def _watch(args: argparse.Namespace) -> int:
             return 3
 
         if args.until_merged:
-            bucket, failing = classify_unattended(checks, pull)
+            bucket, failing = classify_unattended(
+                checks, pull, required_status_names=required_status_names
+            )
             _note_queue_position(pull)
         else:
             grace = time.monotonic() - started < REGISTRATION_GRACE_SECONDS and not args.poll_once
-            bucket, failing = classify_checks(checks, registration_grace=grace)
+            bucket, failing = classify_checks(
+                checks, registration_grace=grace, required_status_names=required_status_names
+            )
         digest = build_digest(head_sha, bucket, checks, failing)
         if bucket != last_bucket:
             _publish(args, root, pr, digest)

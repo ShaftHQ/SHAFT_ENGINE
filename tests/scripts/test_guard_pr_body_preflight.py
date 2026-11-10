@@ -55,6 +55,28 @@ class PrBodyPreflightTest(unittest.TestCase):
         self.assertEqual("", self.guard._pr_body_block(("gh pr create --fill",)))
         self.assertEqual("", self.guard._pr_body_block(("gh pr create --body-file /no/such/file",)))
 
+    def test_comment_body_does_not_replace_the_pull_request_body(self) -> None:
+        valid = (
+            "<!-- chaos-engine:agentic -->\n\n## Plan\nsteps\n\n"
+            "retrieve: mempalace used\n\n## Riskiest assumption\nN/A\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            body = Path(temporary, "body.md")
+            body.write_text(valid, encoding="utf-8")
+            for separator in ("&&", "||", ";"):
+                command = f"gh pr edit 1 --body-file {body} {separator} gh pr comment 1 --body note"
+                self.assertEqual("", self.guard._pr_body_block((command,)), separator)
+        replaced = (
+            "gh pr edit 1 --body 'just text' && gh pr comment 1 --body "
+            "'<!-- chaos-engine:agentic -->\n## Plan\nsteps\nretrieve: mempalace used\n\n"
+            "## Riskiest assumption\nN/A'"
+        )
+        reason = self.guard._pr_body_block((replaced,))
+        self.assertIn("missing the Riskiest assumption", reason)
+        self.assertEqual("", self.guard._pr_body_block(("gh pr comment 1 --body note",)))
+        lone = self.guard._pr_body_block(("gh pr edit 2 --body 'just text'",))
+        self.assertIn("missing the Riskiest assumption", lone)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -34,6 +34,8 @@ spec.
 - Keep one design-doc path, one summary path, and one review path for the
   whole loop. Every claimed spawn is a real dispatch in the same turn.
 
+When the design file is still absent and the writer has finished the citations the prompt required, the orchestrator stops that writer and reseeds once with those citations, telling it to write the files before any further search. There is no numeric tool-call cap. A second absence is reported to the owner. A writer still reading a file the prompt named is not stalled.
+
 Video briefs, storyboards, and visual-direction documents from the optional
 `design-skills` [add-on](addons.md) use this same loop.
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess  # nosec B404 - fixed hook command under test.
 import tempfile
 import unittest
@@ -23,6 +24,13 @@ ROOT = Path(__file__).resolve().parents[2]
 HOSTS = _load_hosts()
 
 _LAUNCH_BODY = "import sys\nprint('found-launch')\nprint(sys.argv[1:])\n"
+
+
+def _python3() -> str:
+    found = shutil.which("python3")
+    if not found:
+        raise unittest.SkipTest("python3 is not on PATH")
+    return found
 
 
 class HookLaunchCwdTest(unittest.TestCase):
@@ -114,8 +122,8 @@ class HookLaunchCwdTest(unittest.TestCase):
             (launch / "launch.py").write_text(_LAUNCH_BODY, encoding="utf-8")
             nested = root / "nested"
             nested.mkdir()
-            found = subprocess.run(  # nosec B603 - python3 -c of the generated script.
-                ["python3", "-c", script, *args],
+            found = subprocess.run(  # nosec B603 - absolute python3 from shutil.which.
+                [_python3(), "-c", script, *args],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -123,8 +131,8 @@ class HookLaunchCwdTest(unittest.TestCase):
                 cwd=nested,
             )
         with tempfile.TemporaryDirectory(dir="/tmp") as empty:
-            missing = subprocess.run(  # nosec B603 - python3 -c of the generated script.
-                ["python3", "-c", script, *args],
+            missing = subprocess.run(  # nosec B603 - absolute python3 from shutil.which.
+                [_python3(), "-c", script, *args],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -136,3 +144,32 @@ class HookLaunchCwdTest(unittest.TestCase):
         self.assertEqual(2, missing.returncode, missing.stdout + missing.stderr)
         self.assertNotIn("missing", missing.stdout)
         self.assertIn("missing .chaos-engine/hooks/launch.py", missing.stderr)
+
+    def test_windows_claude_command_walks_parents_for_launch_py(self):
+        command = HOSTS.chaos_guard_locator_command(windows=True, host="claude")
+        self.assertIn("Split-Path", command)
+        self.assertIn(HOSTS.HOOK_LAUNCH_PY, command)
+        self.assertNotEqual(command.strip(), f"$a='{HOSTS.HOOK_LAUNCH_PY}','claude';")
+        self.assertLessEqual(len(command), HOSTS.HOOK_COMMAND_MAX_CHARS)
+        self.assertIsNone(HOSTS.powershell_hook_parse_error(command))
+        self.assertEqual([], HOSTS.powershell_out_file_targets(command))
+        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        if pwsh is None:
+            return
+        with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
+            root = Path(temporary)
+            launch = root / ".chaos-engine/hooks"
+            launch.mkdir(parents=True)
+            (launch / "launch.py").write_text(_LAUNCH_BODY, encoding="utf-8")
+            nested = root / "nested"
+            nested.mkdir()
+            found = subprocess.run(  # nosec B603 - generated hook command under pwsh.
+                [pwsh, "-NoProfile", "-Command", command],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+                cwd=nested,
+            )
+        self.assertEqual(0, found.returncode, found.stdout + found.stderr)
+        self.assertIn("found-launch", found.stdout)

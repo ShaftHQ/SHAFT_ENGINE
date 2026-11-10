@@ -4981,8 +4981,9 @@ def chaos_guard_locator_command(
     stays under ``HOOK_COMMAND_MAX_CHARS``. Bash and Windows Grok walk parent
     directories for ``launch.py`` (#7874). The Windows walker waits with
     ``subprocess.call`` because ``os.execv`` does not keep the child exit code
-    on Windows. The PowerShell probe stays relative because a parent walk
-    there exceeds ``HOOK_COMMAND_MAX_CHARS``.
+    on Windows. The Windows non-Grok PowerShell command walks parents for
+    ``launch.py``. The unix polyglot keeps a short probe so the combined
+    command stays within ``HOOK_COMMAND_MAX_CHARS``.
     ``launch.py`` still walks parents / payload cwd for ``guard.py`` (#6632).
     """
     del managed_python
@@ -4999,6 +5000,7 @@ def chaos_guard_locator_command(
     if "'" in block or "'" in target:
         raise ValueError("hook launch command must stay single-quote safe")
     probe = _powershell_interpreter_probe(host, event, block)
+    windows_probe = _powershell_interpreter_probe(host, event, block, walk=True)
     if windows and host == "grok":
         # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
         script = (
@@ -5013,7 +5015,7 @@ def chaos_guard_locator_command(
             raise ValueError("windows grok walker must stay $-free")
         command = f'py -3 -c "{script}" {args}'
     elif windows:
-        command = probe
+        command = windows_probe
     else:
         # Copilot CLI runs the unix `command` through PowerShell (#7831). The
         # same string is bash on Linux (#7830). `>` must not name a file.
@@ -5067,14 +5069,29 @@ def powershell_out_file_targets(command: str, drive: str = "D") -> list[str]:
     return found
 
 
-def _powershell_interpreter_probe(host: str, event: str | None, block: str) -> str:
-    """Probe python3, py, then python. Fail closed only when none of them start."""
+def _powershell_interpreter_probe(host: str, event: str | None, block: str, *, walk: bool = False) -> str:
+    """Probe python3, py, then python. Fail closed only when none of them start.
+
+    ``walk`` searches parent directories for ``launch.py``. The unix polyglot
+    keeps ``walk`` off so the combined command stays within the char cap.
+    """
     if event is None:
         arr = f"'{HOOK_LAUNCH_PY}','{host}'"
     else:
         arr = f"'{HOOK_LAUNCH_PY}','{host}','{event}'"
+    parent = ""
+    if walk:
+        parent = (
+            "$d=$PWD.Path;"
+            "while($d -and -not (Test-Path -LiteralPath (Join-Path $d $a[0]))){"
+            "$n=Split-Path $d;"
+            "if(-not $n -or $n -eq $d){$d='';break};"
+            "$d=$n};"
+            "if(-not $d){Write-Output '" + block + "';exit 2};"
+            "$a[0]=(Join-Path $d $a[0]);"
+        )
     return (
-        f"$a={arr};"
+        f"$a={arr};{parent}"
         "foreach($n in 'python3','py','python'){$c=Get-Command $n -ea 0;if($c){"
         "if($n -eq 'py'){& $c -3 @a}else{& $c @a};exit $LASTEXITCODE}}"
         f";Write-Output '{block}';exit 2"
