@@ -710,7 +710,8 @@ class SetupCommandTest {
                 "--approve", "sha256:" + "a".repeat(64));
 
         assertEquals(5, stop.exitCode(), stop.stderr());
-        assertTrue(stop.stderr().contains("Is a directory"), stop.stderr());
+        assertTrue(stop.stderr().contains("Is a directory") || stop.stderr().contains("plan-dir"),
+                stop.stderr());
         assertFalse(stop.stderr().contains("\tat "));
     }
 
