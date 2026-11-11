@@ -5007,15 +5007,18 @@ def chaos_guard_locator_command(
     if windows and host == "grok":
         # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
         script = (
-            "import pathlib,subprocess,sys,shutil; "
-            "r=pathlib.Path('.chaos-engine/hooks/launch.py'); "
-            "d=pathlib.Path.cwd(); "
-            "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None); "
-            "g=shutil.which('git') if f is None else None; "
-            "c=subprocess.run([g,'rev-parse','--show-toplevel'],capture_output=True,text=True) if g else None; "
-            "subprocess.call([sys.executable,str(pathlib.Path(c.stdout.strip())/'chaos-engine'/'worktree_overlay.py'),'adopt']) if c is not None and c.returncode==0 else None; "
-            "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None) if f is None else f; "
-            "sys.stderr.write('missing .chaos-engine/hooks/launch.py\\n') if f is None else None; "
+            "import pathlib,subprocess,sys,shutil;"
+            "r=pathlib.Path('.chaos-engine/hooks/launch.py');"
+            "d=pathlib.Path.cwd();"
+            "f=next((x/r for x in (d,*d.parents) if (x/r).is_file()), None);"
+            "g=shutil.which('git') if f is None else '';"
+            "c=subprocess.run([g,'rev-parse','--path-format=absolute','--git-common-dir'],capture_output=True,text=True) if g else None;"
+            "q=pathlib.Path(c.stdout.strip()) if c is not None and c.returncode==0 else None;"
+            "q=q.parent if q is not None and q.name=='.git' else q;"
+            "s=next((q/n for n in ('.chaos-engine/worktree_overlay.py','chaos-engine/worktree_overlay.py') if q is not None and (q/n).is_file()), None);"
+            "subprocess.call([sys.executable,str(s),'adopt']) if s else None;"
+            "f=next((x/r for x in (d,*d.parents) if (x/r).is_file()), None) if f is None else f;"
+            "sys.stderr.write('missing .chaos-engine/hooks/launch.py\\n') if f is None else None;"
             "sys.exit(2 if f is None else subprocess.call([sys.executable,str(f),*sys.argv[1:]]))"
         )
         if "$" in script:
@@ -5095,9 +5098,13 @@ def _powershell_interpreter_probe(host: str, event: str | None, block: str, *, w
             "if(-not $n -or $n -eq $d){$d='';break};"
             "$d=$n};"
             "if(-not $d){"
-            "$t=git rev-parse --show-toplevel 2>$null;"
-            "if($t){python3 (Join-Path $t 'chaos-engine/worktree_overlay.py') adopt;"
-            "$d=$t;if(-not (Test-Path -LiteralPath (Join-Path $d $a[0]))){$d=''}};"
+            "$c=git rev-parse --path-format=absolute --git-common-dir 2>$null;"
+            "if($c){$p=if($c -match '\\.git$'){Split-Path $c}else{$c};"
+            "$s=Join-Path $p '.chaos-engine/worktree_overlay.py';"
+            "if(-not (Test-Path -LiteralPath $s)){$s=Join-Path $p 'chaos-engine/worktree_overlay.py'};"
+            "if(Test-Path -LiteralPath $s){python3 $s adopt};"
+            "$d=git rev-parse --show-toplevel 2>$null;"
+            "if(-not (Test-Path -LiteralPath (Join-Path $d $a[0]))){$d=''}};"
             "if(-not $d){Write-Output '" + block + "';exit 2}};"
             "$a[0]=(Join-Path $d $a[0]);"
         )
@@ -5129,14 +5136,16 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
         "echo `# <#` >&2\n"
         "LASTEXITCODE=\n"
         "n=\n"
-        'd=$(pwd); while [ ! -f "$d/.chaos-engine/hooks/launch.py" ] && [ -n "$d" ]; do d=${d%/*}; done; '
-        '[ -f "$d/.chaos-engine/hooks/launch.py" ] || { t=$(git rev-parse --show-toplevel 2>&1) && python3 "$t/chaos-engine/worktree_overlay.py" adopt && d=$t; }; '
-        '[ -n "$d" ] && [ -f "$d/.chaos-engine/hooks/launch.py" ] || { echo \'missing .chaos-engine/hooks/launch.py\' >&2; exit 2; }\n'
+        'h=.chaos-engine/hooks/launch.py;d=$(pwd);while [ ! -f "$d/$h" ]&&[ -n "$d" ];do d=${d%/*};done;'
+        '[ -f "$d/.chaos-engine/hooks/launch.py" ]||{ p=$(git rev-parse --path-format=absolute --git-common-dir);p=${p%/.git};'
+        'python3 "$p/.chaos-engine/worktree_overlay.py" adopt||python3 "$p/chaos-engine/worktree_overlay.py" adopt;'
+        'd=$(git rev-parse --show-toplevel); };'
+        '[ -n "$d" ]&&[ -f "$d/$h" ]||{ echo \'missing .chaos-engine/hooks/launch.py\' >&2; exit 2; }\n'
         '[ -n "${BASH_VERSION-}" ] && shopt -s execfail\n'
-        'f="$d/.chaos-engine/hooks/launch.py";a="'
+        'f="$d/$h";a="'
         f"{target.partition(' ')[2]}"
-        '";exec python3 "$f" $a || exec py -3 "$f" $a || exec python "$f" $a '
-        f"|| {{ echo '{block}'; exit 2; }}\n"
+        '";exec python3 "$f" $a||exec py -3 "$f" $a'
+        f"||{{ echo '{block}'; exit 2; }}\n"
         "#> > $null\n"
         f"{probe}"
     )
