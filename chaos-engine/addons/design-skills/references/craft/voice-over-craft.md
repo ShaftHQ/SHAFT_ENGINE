@@ -41,7 +41,7 @@ Narration is written, directed, recorded, or synthesised. Load after the matchin
 
 - Hype words (revolutionise, seamless, supercharge).
 - Monotone TTS with no direction.
-- Breaths and clicks left in.
+- Clicks, a noise bed, and a breath taken inside a word.
 
 ## Rubric
 
@@ -58,3 +58,4 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 ## References
 
 Twenty verified references with techniques: [research/voice-over-craft.md](../research/voice-over-craft.md).
+Spoken-introduction acceptance: [narration-review.md](../../../../references/narration-review.md).

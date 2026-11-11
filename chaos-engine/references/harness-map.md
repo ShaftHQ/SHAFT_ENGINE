@@ -118,6 +118,7 @@ By [harness_map.py](../harness_map.py).
 - `references/mobile-retro-harness.md`: Mobile-retro harness lessons
 - `references/moving-channel-pin.md`: Moving-channel version pin policy
 - `references/multi-agent-pdca.md`: Multi-agent PDCA loop
+- `references/narration-review.md`: Use when a spoken introduction is scripted, synthesi…
 - `references/no-proxy.md`: Use when a task would install, pin, or wrap a traffi…
 - `references/orchestrator-bootstrap.md`: Orchestrator bootstrap
 - `references/orchestrator-follow-through.md`: Orchestrator follow-through
