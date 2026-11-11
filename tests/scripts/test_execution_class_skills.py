@@ -134,6 +134,12 @@ class ExecutionClassSkillTest(unittest.TestCase):
             "shaft-defect-reporting/references/playbook.md": [
                 "whole tokens",
                 "#6947",
+                "Every inventoried id has YYYY-MM-DD on its own catalogue row (still-open, unblocked, or closed).",
+                'A parent "blocks these ids" sentence is not a status for the children.',
+            ],
+            "shaft-test-completion/references/playbook.md": [
+                "Every inventoried id has YYYY-MM-DD on its own catalogue row (still-open, unblocked, or closed).",
+                'A parent "blocks these ids" sentence is not a status for the children.',
             ],
             "ce-pack/references/shaft-mastery/allure-internals.md": [
                 "include suite identity",

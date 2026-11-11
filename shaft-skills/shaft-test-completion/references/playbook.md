@@ -13,6 +13,11 @@
 9. Release test environments, devices, accounts, and data, following retention and privacy rules. [`ISTQB-CTFL`]
 10. Publish one timestamped completion record that links each claim to its source. [`ISTQB-TM`, `SHAFT-REPORTING`]
 
+## Catalogue status
+
+- Every inventoried id has YYYY-MM-DD on its own catalogue row (still-open, unblocked, or closed).
+- A parent "blocks these ids" sentence is not a status for the children.
+
 ## Examples
 
 - Close a release regression cycle: exit criteria met except one waived criterion, with its owner and expiry.
