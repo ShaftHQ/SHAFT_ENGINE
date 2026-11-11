@@ -9,10 +9,9 @@ import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
@@ -97,14 +96,18 @@ public class AllureReportLaunchTest {
     }
 
     @Test
-    public void javacVersionParserReadsModernAndLegacyMajors() throws IOException {
+    public void javacVersionParserReadsModernAndLegacyMajors() throws Exception {
         Assert.assertEquals(AllureReportLaunch.javaMajorFromJavacOutput("javac 25.0.1"), 25);
         Assert.assertEquals(AllureReportLaunch.javaMajorFromJavacOutput("javac 1.8.0_422"), 8);
         Path home = Files.createTempDirectory("fake-jdk");
-        Path javac = home.resolve("bin/javac");
-        Files.createDirectories(javac.getParent());
-        Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'javac 25.0.1' 1>&2\n", StandardCharsets.UTF_8);
-        Files.setPosixFilePermissions(javac, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+        if (windowsOs()) {
+            Path shell = home.resolve("bin/javac");
+            Files.createDirectories(shell.getParent());
+            Files.writeString(shell, "#!/bin/sh\nprintf '%s\\n' 'javac 25.0.1' 1>&2\n", StandardCharsets.UTF_8);
+            shell.toFile().setExecutable(true);
+            Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+        }
+        writeFakeJavac(home, "javac 25.0.1", true);
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), 25);
         Assert.assertTrue(AllureReportLaunch.engineJavaMajor() >= 21);
     }
@@ -190,42 +193,30 @@ public class AllureReportLaunchTest {
     }
 
     @Test
-    public void javacWithoutAMinorOrAUsableBinaryStaysUnknown() throws IOException {
+    public void javacWithoutAMinorOrAUsableBinaryStaysUnknown() throws Exception {
         Assert.assertEquals(AllureReportLaunch.javaMajorFromJavacOutput("javac 1"), 1);
 
         Path home = Files.createTempDirectory("fake-jdk-gaps");
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
 
-        Path javac = home.resolve("bin/javac");
-        Files.createDirectories(javac.getParent());
-        Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'not a version'\n", StandardCharsets.UTF_8);
-        Files.setPosixFilePermissions(javac, EnumSet.of(PosixFilePermission.OWNER_READ));
+        writeFakeJavac(home, "not a version", false);
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
 
-        Files.setPosixFilePermissions(javac, EnumSet.of(
-                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
-        Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' 'not a version'\n", StandardCharsets.UTF_8);
-        Files.setPosixFilePermissions(javac, EnumSet.of(
-                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+        Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
+        Assert.assertTrue(javac.toFile().setExecutable(true) || windowsOs(), javac.toString());
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
     }
 
     @Test
-    public void anInterruptedJdkProbeReturnsUnknown() throws IOException {
+    public void anInterruptedJdkProbeReturnsUnknown() throws Exception {
         Path home = Files.createTempDirectory("fake-jdk-interrupt");
-        Path javac = home.resolve("bin/javac");
-        Files.createDirectories(javac.getParent());
-        Files.writeString(javac, """
-                #!/bin/sh
-                printf '%s\\n' 'javac 25.0.1'
-                exec 1>&-
-                sleep 1
-                """, StandardCharsets.UTF_8);
-        Files.setPosixFilePermissions(javac, EnumSet.of(
-                PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
+        // Exit immediately. A still-running child makes waitFor throw, which already returned -1
+        // and hid the clean-exit hole.
+        writeFakeJavac(home, "javac 25.0.1", true);
         Thread.currentThread().interrupt();
         try {
             Assert.assertEquals(AllureReportLaunch.jdkMajor(home), -1);
+            Assert.assertTrue(Thread.currentThread().isInterrupted());
         } finally {
             Thread.interrupted();
         }
@@ -319,6 +310,60 @@ public class AllureReportLaunchTest {
 
         Assert.assertEquals(AllureReportLaunch.javaCommand(plain, (String[]) null),
                 List.of("java", "@" + plain.toAbsolutePath().normalize()));
+    }
+
+    private static boolean windowsOs() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    /**
+     * Windows CreateProcess does not run a batch file stored as {@code javac.exe}.
+     * The live probe there is a console image with that name; other systems use a shell script.
+     */
+    private static void writeFakeJavac(Path home, String versionLine, boolean executable)
+            throws IOException, InterruptedException {
+        Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
+        Files.createDirectories(javac.getParent());
+        if (windowsOs()) {
+            writeWindowsConsoleExe(javac, versionLine);
+        } else {
+            Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' '" + versionLine + "' 1>&2\n",
+                    StandardCharsets.UTF_8);
+        }
+        boolean marked = javac.toFile().setExecutable(executable);
+        if (!windowsOs()) {
+            Assert.assertTrue(marked, javac.toString());
+        }
+    }
+
+    private static void writeWindowsConsoleExe(Path exe, String versionLine)
+            throws IOException, InterruptedException {
+        Path source = exe.resolveSibling("FakeJavac.cs");
+        String program = """
+                public class FakeJavac {
+                    public static void Main() {
+                        System.Console.Error.WriteLine("%s");
+                    }
+                }
+                """.formatted(versionLine.replace("\\", "\\\\").replace("\"", "\\\""));
+        Files.writeString(source, program, StandardCharsets.UTF_8);
+        String windir = System.getenv("WINDIR");
+        Path root = Path.of(windir == null || windir.isBlank() ? "C:\\Windows" : windir);
+        Path csc = root.resolve("Microsoft.NET").resolve("Framework64").resolve("v4.0.30319").resolve("csc.exe");
+        if (!Files.isRegularFile(csc)) {
+            csc = root.resolve("Microsoft.NET").resolve("Framework").resolve("v4.0.30319").resolve("csc.exe");
+        }
+        if (!Files.isRegularFile(csc)) {
+            throw new IOException("csc.exe was not found to build " + exe);
+        }
+        Process process = new ProcessBuilder(csc.toString(), "/nologo", "/t:exe",
+                "/out:" + exe.toAbsolutePath(), source.toAbsolutePath().toString())
+                .redirectErrorStream(true)
+                .start();
+        String log = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (process.waitFor() != 0 || !Files.isRegularFile(exe)) {
+            throw new IOException("csc failed for " + exe + ": " + log);
+        }
     }
 
     private static Path jarWith(Path jar, String entryName) throws IOException {
