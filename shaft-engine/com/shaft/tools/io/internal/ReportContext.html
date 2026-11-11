@@ -50,6 +50,8 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#start(com.shaft.listeners.internal.TestExecutionInfo)" tabindex="0">start(TestExecutionInfo)</a></li>
+<li><a href="#noteInfoLine(java.lang.String)" tabindex="0">noteInfoLine(String)</a></li>
+<li><a href="#lastInfoLine()" tabindex="0">lastInfoLine()</a></li>
 <li><a href="#update(com.shaft.listeners.internal.TestExecutionInfo)" tabindex="0">update(TestExecutionInfo)</a></li>
 <li><a href="#append(java.lang.String)" tabindex="0">append(String)</a></li>
 <li><a href="#snapshotOutput()" tabindex="0">snapshotOutput()</a></li>
@@ -142,6 +144,16 @@
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Gets current test method name.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#lastInfoLine()" class="member-name-link">lastInfoLine</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the latest ReportManager info line for this thread.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#noteInfoLine(java.lang.String)" class="member-name-link">noteInfoLine</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;line)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Remembers the latest <a href="../ReportManager.html" title="class in com.shaft.tools.io"><code>ReportManager</code></a> info line for this thread.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordAttachment(java.lang.String,java.lang.String,java.lang.String,java.lang.String,long)" class="member-name-link">recordAttachment</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contentType,
@@ -207,6 +219,34 @@
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>info</code> - current test metadata</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="noteInfoLine(java.lang.String)">
+<h3>noteInfoLine</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">noteInfoLine</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;line)</span></div>
+<div class="block">Remembers the latest <a href="../ReportManager.html" title="class in com.shaft.tools.io"><code>ReportManager</code></a> info line for this thread.
+Cleared when the next test starts, not when the runner buffer is cleared, so Allure can
+still read it after the runner result is released.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>line</code> - info text, ignored when blank</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="lastInfoLine()">
+<h3>lastInfoLine</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">lastInfoLine</span>()</div>
+<div class="block">Returns the latest ReportManager info line for this thread.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>info text, or <code>null</code> when none was recorded</dd>
 </dl>
 </div>
 </section>
