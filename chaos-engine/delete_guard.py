@@ -515,13 +515,22 @@ def _scratch_has_copy(path: Path) -> bool:
     return False
 
 
+def _remote_default_rev(top: Path) -> str | None:
+    """Remote default from ``refs/remotes/origin/HEAD``. No hard-coded branch name."""
+    proc = _git(top, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if proc.returncode != 0:
+        return None
+    ref = proc.stdout.strip()
+    return ref or None
+
+
 def _recreatable_untracked(path: Path, top: Path, rev: str | None) -> bool:
     revs = ["HEAD"]
-    if rev:
+    if rev and rev not in revs:
         revs.append(rev)
-    for name in ("origin/main", "main", "origin/master", "master"):
-        if name not in revs:
-            revs.append(name)
+    remote = _remote_default_rev(top)
+    if remote and remote not in revs:
+        revs.append(remote)
     if any(_bytes_match_rev(path, top, item) for item in revs):
         return True
     return _scratch_has_copy(path)
@@ -2015,6 +2024,26 @@ def consume_code(code: str, paths: list[Path]) -> str:
     return ""
 
 
+def _checkout_rev(command: str) -> str | None:
+    """Rev named by ``git switch`` or ``git checkout``.
+
+    ``switch -c <name> <start>`` and ``checkout -b <name> <start>`` keep the
+    start point. A new branch name does not hold the bytes being recreated.
+    """
+    match = re.search(
+        r"\bgit\s+(?:switch|checkout)\s+(?:-\S+\s+)*(\S+)(?:\s+(\S+))?",
+        command or "",
+    )
+    if match is None:
+        return None
+    first, second = match.group(1), match.group(2)
+    if first.startswith("-"):
+        return None
+    if second and not second.startswith("-"):
+        return second
+    return first
+
+
 def check(command: str, cwd: Path | None = None, project: Path | None = None, code: str | None = None) -> tuple[str, list[str]]:
     """(refusal or '', warnings). A matching owner code turns git/allow-list refusals into warnings."""
     if not (DELETE_WORD.search(command) or RMTREE.search(command) or PATHLIB_DELETE.search(command)):
@@ -2027,8 +2056,7 @@ def check(command: str, cwd: Path | None = None, project: Path | None = None, co
         hit = never_touch(target)
         if hit:
             return f"Delete guard (#7343): refused `{target}`: {hit}. No code unlocks it.", []
-    rev_match = re.search(r"\bgit\s+(?:switch|checkout)\s+(?:-\S+\s+)*(\S+)", command or "")
-    rev = rev_match.group(1) if rev_match and not rev_match.group(1).startswith("-") else None
+    rev = _checkout_rev(command)
     reasons = [(target, reason) for target in targets for reason in [path_reason(target, project, rev)] if reason]
     if not reasons:
         return "", []

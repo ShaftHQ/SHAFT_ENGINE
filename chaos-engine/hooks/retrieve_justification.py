@@ -1522,21 +1522,63 @@ def _scratch_edit(project: Path, tool_input: dict | None) -> bool:
     return True
 
 
+_EXPLICIT_STALE = re.compile(
+    r"""(?i)(?:"status"\s*:\s*"stale"|'status'\s*:\s*'stale'|freshness\s*[:=]\s*['\"]?stale\b)"""
+)
+
+
+def _explicit_stale(text: str) -> bool:
+    """True only for a freshness status marker, not the bare word stale."""
+    return _EXPLICIT_STALE.search(text or "") is not None
+
+
+def _hit_paths(text: str) -> list[str] | None:
+    """Hit paths when the receipt lists them. None when it does not list hits."""
+    match = re.search(r"""(?i)["']hits["']\s*:\s*(\[[\s\S]*?\])""", text or "")
+    if match is None:
+        return None
+    try:
+        payload = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, list):
+        return None
+    paths: list[str] = []
+    for item in payload:
+        if isinstance(item, str) and item.strip():
+            paths.append(item.strip())
+        elif isinstance(item, dict):
+            raw = item.get("path") or item.get("file")
+            if isinstance(raw, str) and raw.strip():
+                paths.append(raw.strip())
+    return paths
+
+
+def _path_cited(paths: list[str], listed: list[str]) -> bool:
+    hits = [item.replace("\\", "/") for item in listed]
+    for path in paths:
+        folded = path.replace("\\", "/")
+        if any(folded == hit or folded.endswith("/" + hit) or hit.endswith("/" + folded) for hit in hits):
+            return True
+    return False
+
+
 def _receipt_covers(text: str, tool_input: dict | None) -> bool:
-    """A stale index, or hits that miss the target path, are not `used`."""
-    folded = (text or "").casefold()
-    if "freshness" in folded and "stale" in folded:
-        return False
+    """A bare ``retrieve: used`` counts. A stale index, or listed hits that miss the path, do not."""
     field = retrieve_receipt_field(text) or ""
     if field.startswith("skipped("):
         return True
     if field != "used":
         return False
+    if _explicit_stale(text):
+        return False
+    listed = _hit_paths(text)
+    if not listed:
+        return True
     paths = _input_paths(tool_input or {})
     if not paths:
         return True
-    normalized = (text or "").replace("\\", "/")
-    return any(path.replace("\\", "/") in normalized for path in paths)
+    return _path_cited(paths, listed)
 
 
 def impact_edit_block_reason(
@@ -1550,15 +1592,14 @@ def impact_edit_block_reason(
     """Deny the first edit until this session has an impact receipt.
 
     ``retrieved: True`` counts, as does a research-receipt line
-    ``retrieve: used`` or ``retrieve: skipped(<reason>)``. Reads do not deny.
-    A write under the declared scratch directory needs no receipt.
+    ``retrieve: used`` or ``retrieve: skipped(<reason>)``. A used receipt whose
+    freshness is stale, or whose listed hits miss this path, still says
+    refresh first. Reads do not deny. A write under the declared scratch
+    directory needs no receipt.
     """
     if event_name != "PreToolUse" or tool_name not in EDIT_TOOLS:
         return None
     if _scratch_edit(project, tool_input):
-        return None
-    row = _live_sessions(_load_payload(project)).get(_session_key(session_id))
-    if isinstance(row, dict) and row.get("retrieved"):
         return None
     sink = project / ".chaos-engine-state" / "research-receipt.md"
     try:
@@ -1567,8 +1608,12 @@ def impact_edit_block_reason(
         text = ""
     if _receipt_covers(text, tool_input):
         return None
-    if retrieve_receipt_field(text) == "used" or ("stale" in text.casefold()):
+    field = retrieve_receipt_field(text) or ""
+    if field == "used" and (_explicit_stale(text) or _hit_paths(text)):
         return STALE_EDIT_BLOCK
+    row = _live_sessions(_load_payload(project)).get(_session_key(session_id))
+    if isinstance(row, dict) and row.get("retrieved"):
+        return None
     return IMPACT_EDIT_BLOCK
 
 

@@ -47,6 +47,12 @@ class ForcePushSingleUseTest(unittest.TestCase):
             (approval / "force-push-approval.txt").write_text(push + "\n", encoding="utf-8")
             self.assertIsNone(boundary.force_push_block(root, push))
             self.assertEqual("force-push-without-approval", boundary.force_push_block(root, push))
+            approve = "python3 .chaos-engine/tool.py force-push-approve -- " + push
+            self.assertIsNone(boundary.force_push_block(root, approve))
+            self.assertEqual(
+                "force-push-without-approval",
+                boundary.force_push_block(root, approve + " && " + push),
+            )
 
     def test_force_push_approve_writes_the_temp_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -102,6 +108,59 @@ class SecretGuardDoctorTest(unittest.TestCase):
         self.assertIn("doctor", section)
 
 
+class ImpactReceiptTest(unittest.TestCase):
+    def test_bare_used_allows_and_stale_or_missing_hits_ask_to_refresh(self) -> None:
+        gate = _load("ce_retrieve_7957", CE / "hooks/retrieve_justification.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            sink = project / ".chaos-engine-state" / "research-receipt.md"
+            sink.parent.mkdir(parents=True)
+            target = "chaos-engine/delete_guard.py"
+            call = dict(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Write",
+                tool_input={"file_path": target},
+            )
+            sink.write_text("retrieve: used\n", encoding="utf-8")
+            self.assertIsNone(gate.impact_edit_block_reason(**call))
+            sink.write_text("retrieve: used\nthis note says the word stale in prose\n", encoding="utf-8")
+            self.assertIsNone(gate.impact_edit_block_reason(**call))
+            sink.write_text(
+                'retrieve: used\n{"freshness": {"status": "stale"}, "hits": []}\n',
+                encoding="utf-8",
+            )
+            stale = gate.impact_edit_block_reason(**call)
+            self.assertIsNotNone(stale)
+            self.assertIn("refresh first", stale)
+            sink.write_text(
+                'retrieve: used\n{"hits": [{"path": "chaos-engine/hosts.py"}]}\n',
+                encoding="utf-8",
+            )
+            missed = gate.impact_edit_block_reason(**call)
+            self.assertIsNotNone(missed)
+            self.assertIn("refresh first", missed)
+            sink.write_text(
+                'retrieve: used\n{"hits": [{"path": "chaos-engine/delete_guard.py"}]}\n',
+                encoding="utf-8",
+            )
+            self.assertIsNone(gate.impact_edit_block_reason(**call))
+            absolute = dict(call)
+            absolute["tool_input"] = {"file_path": str(project / target)}
+            self.assertIsNone(gate.impact_edit_block_reason(**absolute))
+            gate._mark_session(project, "retrieved-stale", retrieved=True)
+            marked = dict(call, session_id="retrieved-stale")
+            sink.write_text("retrieve: used\n", encoding="utf-8")
+            self.assertIsNone(gate.impact_edit_block_reason(**marked))
+            sink.write_text(
+                'retrieve: used\n{"freshness": {"status": "stale"}, "hits": [{"path": "chaos-engine/delete_guard.py"}]}\n',
+                encoding="utf-8",
+            )
+            blocked = gate.impact_edit_block_reason(**marked)
+            self.assertIsNotNone(blocked)
+            self.assertIn("refresh first", blocked)
+
+
 class IgnoreAndDeleteTest(unittest.TestCase):
     def test_gitignore_classifies_rules_and_secrets_without_star_text_auto(self) -> None:
         hosts = _load("ce_hosts_7959", CE / "hosts.py")
@@ -121,6 +180,21 @@ class IgnoreAndDeleteTest(unittest.TestCase):
             target.write_text("same\n", encoding="utf-8")
             _git(root, "add", "hello.txt")
             _git(root, "commit", "-m", "add hello")
+            tip = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            name = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            remote = f"refs/remotes/origin/{name}"
+            _git(root, "update-ref", remote, tip)
+            _git(root, "symbolic-ref", "refs/remotes/origin/HEAD", remote)
             _git(root, "checkout", "-b", "feature")
             _git(root, "rm", "hello.txt")
             _git(root, "commit", "-m", "remove hello")
@@ -133,6 +207,25 @@ class IgnoreAndDeleteTest(unittest.TestCase):
             self.assertIn("untracked", guard.path_reason(unique, root))
             refused = guard.check("rm -- " + str(unique), root, root)
             self.assertIn("untracked", refused[0])
+
+    def test_switch_create_uses_the_start_point(self) -> None:
+        guard = _load("ce_delete_7960_switch", CE / "delete_guard.py")
+        with tempfile.TemporaryDirectory() as temporary, unittest.mock.patch.object(guard, "DEFAULT_ALLOW", ()):
+            root = Path(temporary)
+            _git(root, "init")
+            _git(root, "config", "user.email", "dev@example.com")
+            _git(root, "config", "user.name", "Dev")
+            target = root / "hello.txt"
+            target.write_text("same\n", encoding="utf-8")
+            _git(root, "add", "hello.txt")
+            _git(root, "commit", "-m", "add hello")
+            _git(root, "branch", "-M", "release")
+            _git(root, "checkout", "-b", "feature")
+            _git(root, "rm", "hello.txt")
+            _git(root, "commit", "-m", "remove hello")
+            target.write_text("same\n", encoding="utf-8")
+            command = "git switch -c other release && rm -- " + str(target)
+            self.assertEqual("", guard.check(command, root, root)[0])
 
 
 if __name__ == "__main__":

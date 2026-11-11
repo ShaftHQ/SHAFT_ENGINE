@@ -462,7 +462,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -789,6 +789,7 @@ SCRIPT_TOOLS = {
     "delete-check": "delete_guard.py",
     "backups-watch": "backups_watch.py",
     "pre-done": "pre_done_review.py",
+    "force-push-approve": "force_push_approve.py",
 }
 
 
@@ -837,25 +838,6 @@ def main() -> int:
                 import json
 
                 print(json.dumps(rows, sort_keys=True))
-            return 0
-        if tool == "force-push-approve":
-            if arguments[:1] != ["--"] or len(arguments) < 2:
-                print("usage: tool.py force-push-approve -- <command>", file=sys.stderr)
-                return 2
-            approved = " ".join(arguments[1:]).strip()
-            top = subprocess.run(
-                ["git", "rev-parse", "--show-toplevel"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if top.returncode != 0 or not top.stdout.strip():
-                print("force-push-approve: not a git repository", file=sys.stderr)
-                return 2
-            dest = Path(top.stdout.strip()) / ".chaos-engine-state" / "force-push-approval.txt"
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(approved + "\n", encoding="utf-8")
-            print("force-push-approve: recorded one use")
             return 0
         if tool in SCRIPT_TOOLS:
             return script_tool(installed_root, tool, arguments)

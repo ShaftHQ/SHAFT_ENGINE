@@ -26,6 +26,7 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
+_APPROVE_INVOCATION = re.compile(r"\b(?:python3?|py)\b[\s\S]*\btool\.py\s+force-push-approve\b")
 
 
 def _load(path: Path, name: str) -> Any:
@@ -117,9 +118,18 @@ def _shell_statements(command: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
+def _is_approve_invocation(part: str) -> bool:
+    """The approval command quotes a push. It does not push."""
+    return _APPROVE_INVOCATION.search(part) is not None
+
+
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
-    segments = [part for part in _shell_statements(text) if _PUSH.search(part)]
+    segments = [
+        part
+        for part in _shell_statements(text)
+        if _PUSH.search(part) and not _is_approve_invocation(part)
+    ]
     if not any(_FORCE.search(part) for part in segments):
         return None
     path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"

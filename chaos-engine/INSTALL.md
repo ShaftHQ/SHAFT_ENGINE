@@ -584,7 +584,7 @@ Doctor row `mempalace-backend` flags a backend selection other than
 
 Supported components: `plugins`, `hosts`, `core`, `mempalace`,
 `graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`,
-`maven-tools-mcp`, `policy-overlay`. One-command
+`maven-tools-mcp`, `policy-overlay`, `secret-guard`. One-command
 **update** is the same install one-liner (repair/reinstall semantics aligned with
 this health truth).
 

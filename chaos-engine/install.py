@@ -7237,8 +7237,6 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
             + "; choose one of "
             + ", ".join(sorted(REPAIRABLE_COMPONENTS))
         )
-    if name == "secret-guard":
-        return _repair_secret_guard(project)
     runner = runner or subprocess.run
     with project_lock(project):
         _recover_transaction(project)
@@ -7363,11 +7361,14 @@ _repair_component_locked = repair_component
 
 
 def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
-    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
-    if str(component).strip().casefold() == "policy-overlay":
+    """Zero-LLM targeted repair for one component; policy-overlay and secret-guard reinstall outside the lock."""
+    name = str(component).strip().casefold()
+    if name == "policy-overlay":
         import subprocess
 
         return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
+    if name == "secret-guard":
+        return _repair_secret_guard(Path(project).resolve())
     return _repair_component_locked(project, component, runner=runner)
 
 
@@ -8604,7 +8605,7 @@ def _eol_doctor_lines(project: Path | None) -> list[str]:
         return []
     if "# CHAOSENGINE-EOL:START" not in text:
         return []
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
         ["git", "-C", str(project), "config", "--get", "core.autocrlf"],
         capture_output=True,
         text=True,
@@ -8619,7 +8620,7 @@ def _harness_porcelain_dirty(project: Path | None) -> bool:
     """True when an untracked `.grok/rules/` file is still unclassified."""
     if project is None:
         return False
-    proc = subprocess.run(
+    proc = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
         ["git", "-C", str(project), "status", "--porcelain", "--", ".grok/rules"],
         capture_output=True,
         text=True,
