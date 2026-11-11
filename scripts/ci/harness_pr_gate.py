@@ -695,6 +695,7 @@ CHECKS = {
         (
             "tests.scripts.test_ce_pre_push_guidance_7791",
             "tests.scripts.test_ce_harness_retrieve_7792",
+            "tests.scripts.test_ce_retrieve_query_7943",
             "tests.scripts.test_ce_enhancement_disposition_7793",
         ),
     ),
@@ -1457,6 +1458,7 @@ SURFACE_PATTERNS = {
         "scripts/agents/guard.py",
         "tests/scripts/test_ce_pre_push_guidance_7791.py",
         "tests/scripts/test_ce_harness_retrieve_7792.py",
+        "tests/scripts/test_ce_retrieve_query_7943.py",
         "tests/scripts/test_ce_enhancement_disposition_7793.py",
     ),
 }
