@@ -33,6 +33,15 @@ checks are green on that head. A new commit still invalidates earlier
 passes. Do not review an unchanged head a third time unless that same
 instruction lifts that sentence too.
 
+## Complex media
+
+Complex video or audio editing follows the standing rule in
+[design-review-video-checklist.md](design-review-video-checklist.md).
+That rule is not limited to the active session. The cap in this file
+stays as written. For a complex video or audio edit, one accepted Check is not final.
+Other work still stops when Check accepts. A new cut is a new head, so an
+unchanged head is still not reviewed a third time.
+
 ## Adoption
 
 The core card, kanban Definition of Done, router contract, and delegation

@@ -41,6 +41,9 @@ hashes in the manifest.
 Run every step with the [runbook](runbook.md): detached builds with
 `STATUS.md` checkpoints, fast gates per target, ASR and full QC on an idle
 machine, an independent review, then delivery.
+A complex video or audio edit follows
+[design-review-video-checklist.md](../../../../references/design-review-video-checklist.md)
+before delivery.
 Run the [QC script](../../scripts/design_qc.py) `doctor` command first and list missing tools in the
 PR. Append every gate's JSON line to `qc-results.jsonl`. A design document
 for the video (brief plus storyboard) can go through the core
