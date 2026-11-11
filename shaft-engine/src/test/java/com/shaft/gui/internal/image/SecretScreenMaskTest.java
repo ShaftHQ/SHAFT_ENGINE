@@ -126,7 +126,7 @@ public class SecretScreenMaskTest {
     }
 
     @Test
-    public void captureIsDroppedWhenALiveSecretCannotBeHidden() {
+    public void captureIsDroppedWhenALiveSecretCannotBeHidden() throws IOException {
         JsDriver driver = mock(JsDriver.class);
         when(driver.executeScript(contains("transparent"), any())).thenThrow(new WebDriverException("no js"));
         SecretScreenMask.register(driver, mock(WebElement.class));
@@ -135,7 +135,9 @@ public class SecretScreenMaskTest {
             captures.incrementAndGet();
             return IMAGE;
         });
-        Assert.assertEquals(image.length, 0);
+        Assert.assertNotEquals(image.length, 0, "redaction failure still leaves a placeholder frame");
+        Assert.assertFalse(java.util.Arrays.equals(image, IMAGE), "original pixels must not be published");
+        Assert.assertNotNull(ImageIO.read(new ByteArrayInputStream(image)), "placeholder is a real image");
         Assert.assertEquals(captures.get(), 0, "nothing is captured while the secret is visible");
     }
 
@@ -235,10 +237,14 @@ public class SecretScreenMaskTest {
     }
 
     @Test
-    public void paintingOverAnUnreadableImageDropsIt() {
+    public void paintingOverAnUnreadableImageDropsIt() throws IOException {
         WebDriver driver = mock(WebDriver.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         SecretScreenMask.register(driver, mock(WebElement.class));
-        Assert.assertEquals(SecretScreenMask.masked(driver, () -> new byte[]{1, 2, 3}).length, 0);
+        byte[] original = new byte[]{1, 2, 3};
+        byte[] withheld = SecretScreenMask.masked(driver, () -> original);
+        Assert.assertNotEquals(withheld.length, 0);
+        Assert.assertFalse(java.util.Arrays.equals(withheld, original), "original pixels must not be published");
+        Assert.assertNotNull(ImageIO.read(new ByteArrayInputStream(withheld)), "placeholder is a real image");
         Assert.assertEquals(SecretScreenMask.masked(driver, () -> new byte[0]).length, 0);
     }
 

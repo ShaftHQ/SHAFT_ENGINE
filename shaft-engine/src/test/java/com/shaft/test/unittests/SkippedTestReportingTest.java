@@ -1,10 +1,14 @@
 package com.shaft.test.unittests;
 
 import com.shaft.listeners.AllureListener;
+import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.TestResult;
+import org.mockito.Mockito;
+import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -76,6 +80,64 @@ public class SkippedTestReportingTest {
         assertEquals(result.getStatus(), Status.SKIPPED,
                 "An intentional SkipException should not be promoted to BROKEN");
         TestNGListenerHelper.getAndClearPendingConfigFailure(); // cleanup
+    }
+
+    /**
+     * A skip that wraps an {@link AssertionError} stays skipped and keeps both the assertion text
+     * and the last ReportManager info line in the Allure status details.
+     */
+    @Test
+    public void assertionSkipKeepsLastReportManagerInfoLine() {
+        ReportManager.log("earlier info that must not win");
+        ReportManager.log("Transient network alert after session-id submit; tapping Please try Again");
+        String assertion = "Assertion failed; expected true, but found false\n"
+                + "Root cause: java.lang.AssertionError: ❌ Assertion Failed at Line: 71";
+        TestResult result = new TestResult()
+                .setStatus(Status.SKIPPED)
+                .setStatusDetails(new StatusDetails()
+                        .setMessage(assertion)
+                        .setTrace("org.testng.SkipException: skipped\nCaused by: java.lang.AssertionError: "
+                                + "❌ Assertion Failed at Line: 71"));
+
+        listener.beforeTestStop(result);
+
+        assertEquals(result.getStatus(), Status.SKIPPED,
+                "A skip that wraps an AssertionError stays skipped");
+        String message = result.getStatusDetails().getMessage();
+        assertTrue(message.contains("Transient network alert after session-id submit; tapping Please try Again"),
+                message);
+        assertTrue(message.contains("Assertion failed; expected true, but found false"), message);
+        assertTrue(message.contains("AssertionError"), message);
+        assertFalse(message.contains("earlier info that must not win"), message);
+    }
+
+    /**
+     * The assertion text is redacted before it is appended. {@code redactStatusDetails} already ran,
+     * so a raw throwable message must not be written back into the published skip.
+     */
+    @Test
+    public void beforeTestStopRedactsAssertionTextAndKeepsLastInfoLine() throws Exception {
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+        ReportManager.log("Transient network alert after session-id submit; tapping Please try Again");
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("expected true but token " + jwt));
+        TestNGListener.bindITestResult(testResult);
+        try {
+            TestResult result = new TestResult()
+                    .setStatus(Status.SKIPPED)
+                    .setStatusDetails(new StatusDetails().setMessage("skipped after assertion"));
+            listener.beforeTestStop(result);
+
+            assertEquals(result.getStatus(), Status.SKIPPED);
+            String message = result.getStatusDetails().getMessage();
+            assertFalse(message.contains(jwt), message);
+            assertTrue(message.contains("********"), message);
+            assertTrue(message.contains("expected true but token"), message);
+            assertTrue(message.contains("Transient network alert after session-id submit; tapping Please try Again"),
+                    message);
+        } finally {
+            TestNGListener.bindITestResult(null);
+        }
     }
 
     /**

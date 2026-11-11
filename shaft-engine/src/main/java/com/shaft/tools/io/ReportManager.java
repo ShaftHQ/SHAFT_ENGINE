@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.tools.io.internal.ReportContext;
 import io.qameta.allure.model.Status;
 import org.apache.logging.log4j.Level;
 
@@ -32,6 +33,7 @@ public class ReportManager {
      */
     public static void log(String logText) {
         if (logText != null && !logText.isBlank()) {
+            ReportContext.noteInfoLine(logText);
             writeStepToReport(logText);
         }
     }
@@ -44,6 +46,9 @@ public class ReportManager {
      */
     public static void log(String logText, Level logLevel) {
         if (logText != null && !logText.isBlank()) {
+            if (Level.INFO.equals(logLevel)) {
+                ReportContext.noteInfoLine(logText);
+            }
             writeStepToReport(logText, logLevel);
         }
     }
@@ -61,6 +66,9 @@ public class ReportManager {
     public static void log(String logText, Status stepStatus) {
         if (logText != null && !logText.isBlank()) {
             boolean isFailure = Status.FAILED.equals(stepStatus) || Status.BROKEN.equals(stepStatus);
+            if (!isFailure) {
+                ReportContext.noteInfoLine(logText);
+            }
             writeStepToReport(logText, isFailure ? Level.ERROR : Level.INFO, stepStatus);
         }
     }
@@ -71,7 +79,11 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void logDiscrete(String logText) {
-        logDiscrete(logText, isInternalStep() ? Level.DEBUG : Level.INFO);
+        Level level = isInternalStep() ? Level.DEBUG : Level.INFO;
+        if (Level.INFO.equals(level)) {
+            ReportContext.noteInfoLine(logText);
+        }
+        logDiscrete(logText, level);
     }
 
     /**
@@ -83,6 +95,9 @@ public class ReportManager {
      * @param logLevel the log level to use (e.g., {@link Level#INFO}, {@link Level#DEBUG})
      */
     public static void logDiscrete(String logText, Level logLevel) {
+        if (Level.INFO.equals(logLevel)) {
+            ReportContext.noteInfoLine(logText);
+        }
         createLogEntry(logText, logLevel);
     }
 

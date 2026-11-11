@@ -403,7 +403,7 @@ public class DriverFactoryHelper {
     }
 
     private static RuntimeException createSessionInitializationTimeoutFailure(String sessionDescription, long timeoutInSeconds, long startTimeInMillis, Throwable primaryCause, List<Throwable> priorFailures, String targetEndpoint) {
-        var message = "Timed out while " + sessionDescription + ".";
+        var message = "BS-TIMEOUT. Timed out while " + sessionDescription + ".";
         var failureCategory = RemoteGridPreflight.classifyRemoteSessionFailure(primaryCause);
         if (isActionableRemoteFailureCategory(failureCategory)) {
             message = message + " Category: " + failureCategory + ".";

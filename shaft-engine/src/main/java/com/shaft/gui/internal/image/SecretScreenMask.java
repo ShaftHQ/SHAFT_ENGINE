@@ -34,9 +34,9 @@ import java.util.function.Supplier;
  * secret value or a JWT-shaped token) is registered for the current thread. Every evidence capture
  * then hides that element's text while the element is on the page: on the web its text is made
  * transparent for the capture and restored afterwards; on native mobile the element's rectangle is
- * painted black, and the capture is dropped when the field is scrollable or its text can wrap outside
- * that rectangle (#7282); in Playwright the locator is passed as a screenshot mask. When hiding fails while
- * a secret element is still live, the capture is dropped rather than published.
+ * painted black, and the capture is replaced with a placeholder when the field is scrollable or its text
+ * can wrap outside that rectangle (#7282); in Playwright the locator is passed as a screenshot mask. When
+ * hiding fails while a secret element is still live, a placeholder is returned rather than the original pixels.
  */
 public final class SecretScreenMask {
     private static final String MASK_SCRIPT = """
@@ -56,6 +56,7 @@ public final class SecretScreenMask {
     private static final ThreadLocal<List<Locator>> SECRET_LOCATORS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[1]);
     private static final ThreadLocal<Boolean> VIDEO_WARNED = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final byte[] WITHHELD_PNG = withheldPng();
 
     private record Secret(WebDriver driver, WebElement element) {
     }
@@ -149,7 +150,7 @@ public final class SecretScreenMask {
      *
      * @param driver  the driver that takes the screenshot
      * @param capture the capture to run
-     * @return the captured image, or an empty array when a live secret could not be hidden
+     * @return the captured image, or a placeholder when a live secret could not be hidden
      */
     public static byte[] masked(WebDriver driver, Supplier<byte[]> capture) {
         return masked(driver, capture, true);
@@ -160,7 +161,7 @@ public final class SecretScreenMask {
      *
      * @param driver  the driver that takes the screenshot
      * @param capture the capture to run
-     * @return the captured image, or an empty array when a live secret could not be hidden
+     * @return the captured image, or an empty array when an element screenshot cannot be painted
      */
     public static byte[] maskedElement(WebDriver driver, Supplier<byte[]> capture) {
         return masked(driver, capture, false);
@@ -229,7 +230,7 @@ public final class SecretScreenMask {
         try {
             saved = js.executeScript(MASK_SCRIPT, elements);
         } catch (RuntimeException e) {
-            return dropped(e);
+            return dropped();
         }
         try {
             return capture.get();
@@ -249,7 +250,7 @@ public final class SecretScreenMask {
         try {
             for (WebElement element : elements) {
                 if (mayDrawOutsideRect(element)) {
-                    return dropped(new IllegalStateException("multi-line or scrollable secret field"));
+                    return dropped();
                 }
             }
             BufferedImage picture = ImageIO.read(new ByteArrayInputStream(image));
@@ -267,7 +268,7 @@ public final class SecretScreenMask {
             ImageIO.write(picture, "png", out);
             return out.toByteArray();
         } catch (IOException | RuntimeException e) {
-            return dropped(e);
+            return dropped();
         }
     }
 
@@ -291,10 +292,24 @@ public final class SecretScreenMask {
         return (text.indexOf('\n') >= 0 || text.length() > MAX_SINGLE_LINE_SECRET);
     }
 
-    private static byte[] dropped(Exception cause) {
-        ReportManagerHelper.logDiscrete("Dropped a screenshot because a typed secret could not be hidden in it: "
-                + cause.getClass().getSimpleName(), Level.WARN);
-        return new byte[0];
+    private static byte[] dropped() {
+        ReportManagerHelper.logDiscrete("screenshot withheld: typed secret", Level.WARN);
+        return WITHHELD_PNG.clone();
+    }
+
+    private static byte[] withheldPng() {
+        try {
+            BufferedImage image = new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = image.createGraphics();
+            graphics.setColor(Color.BLACK);
+            graphics.fillRect(0, 0, 8, 8);
+            graphics.dispose();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new ExceptionInInitializerError(e);
+        }
     }
 
     private static void warnIfRecordingVideo() {

@@ -3,6 +3,8 @@ package com.shaft.tools.io.internal;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import io.qameta.allure.model.Status;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -17,6 +19,7 @@ public final class ReportContext {
     private static final ThreadLocal<List<AttachmentRecord>> attachments = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Consumer<String>> logSink = new ThreadLocal<>();
     private static final ThreadLocal<Status> status = new ThreadLocal<>();
+    private static final ThreadLocal<String> lastInfoLine = new ThreadLocal<>();
 
     private ReportContext() {
         throw new IllegalStateException("Utility class");
@@ -35,6 +38,43 @@ public final class ReportContext {
         BrowserObservabilityRecorder.startSession();
         logSink.remove();
         status.remove();
+        lastInfoLine.remove();
+    }
+
+    /**
+     * Remembers the latest {@link com.shaft.tools.io.ReportManager} info line for this thread.
+     * Cleared when the next test starts, not when the runner buffer is cleared, so Allure can
+     * still read it after the runner result is released.
+     *
+     * @param line info text, ignored when blank
+     */
+    public static void noteInfoLine(String line) {
+        if (line != null && !line.isBlank()) {
+            lastInfoLine.set(line.trim());
+        }
+    }
+
+    /**
+     * Replaces the remembered info line. {@code null} clears it. A blank value is stored as given.
+     * {@link #noteInfoLine(String)} still ignores null and blank.
+     *
+     * @param line replacement text, or {@code null} to clear
+     */
+    static void replaceLastInfoLine(@Nullable String line) {
+        if (line == null) {
+            lastInfoLine.remove();
+        } else {
+            lastInfoLine.set(line);
+        }
+    }
+
+    /**
+     * Returns the latest ReportManager info line for this thread.
+     *
+     * @return info text, or {@code null} when none was recorded
+     */
+    public static String lastInfoLine() {
+        return lastInfoLine.get();
     }
 
     /**
