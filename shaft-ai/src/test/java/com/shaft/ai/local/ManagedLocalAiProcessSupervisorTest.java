@@ -211,6 +211,60 @@ class ManagedLocalAiProcessSupervisorTest {
     }
 
     @Test
+    void finishedSupervisorDoesNotLeaveALiveControlMonitor() throws Exception {
+        InputStream previousIn = System.in;
+        // A native pipe ignores interruption. The first read points System.in at
+        // that pipe; only a reader bound to this stream itself can observe EOF.
+        InputStream blocksWithoutEof = new InputStream() {
+            @Override
+            public synchronized int read() {
+                while (true) {
+                    try {
+                        wait();
+                    } catch (InterruptedException ignored) {
+                        // Interrupt must not finish the read.
+                    }
+                }
+            }
+        };
+        InputStream control = new InputStream() {
+            private int reads;
+
+            @Override
+            public synchronized int read() {
+                if (reads++ == 0) {
+                    System.setIn(blocksWithoutEof);
+                    return 0;
+                }
+                return -1;
+            }
+        };
+        System.setIn(control);
+        ManagedLocalAiProcessSupervisor.controlPipeForTest("1");
+        try {
+            Path directory = Files.createDirectories(temp.resolve("finished-monitor"));
+            Path child = directory.resolve("child.sh");
+            Files.writeString(child, "#!/bin/sh\nexit 0\n");
+            assertTrue(child.toFile().setExecutable(true));
+            String[] parent = currentParent();
+            ManagedLocalAiProcessSupervisor.main(new String[] {
+                    parent[0], parent[1],
+                    directory.toAbsolutePath().toString(),
+                    child.toAbsolutePath().toString()
+            });
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (ManagedLocalAiProcessSupervisor.liveControlMonitors() != 0
+                    && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
+            assertEquals(0, ManagedLocalAiProcessSupervisor.liveControlMonitors());
+        } finally {
+            System.setIn(previousIn);
+            ManagedLocalAiProcessSupervisor.controlPipeForTest(null);
+        }
+    }
+
+    @Test
     void rejectsInvalidParentPidBeforePathValidation() {
         assertThrows(IllegalArgumentException.class,
                 () -> ManagedLocalAiProcessSupervisor.main(new String[] {
