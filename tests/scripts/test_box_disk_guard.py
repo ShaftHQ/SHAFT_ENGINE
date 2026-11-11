@@ -65,7 +65,15 @@ class DiskGateTest(unittest.TestCase):
             "disk-free-below-10giB",
             new_worker_blockers(".", free=5 * GiB),
         )
-        self.assertFalse(refuse_new_worker(".", free=20 * GiB, linked_count=0))
+        self.assertFalse(
+            refuse_new_worker(
+                ".",
+                free=20 * GiB,
+                linked_count=0,
+                available_ram=None,
+                gpu_free_mib=None,
+            )
+        )
 
     def test_refuse_new_worker_on_linked_cap(self) -> None:
         blockers = new_worker_blockers(
@@ -89,6 +97,8 @@ class DiskGateTest(unittest.TestCase):
                 repo_root=".",
                 free=50 * GiB,
                 linked_count=MAX_LINKED_WORKTREES - 1,
+                available_ram=None,
+                gpu_free_mib=None,
             )
         )
 
@@ -149,6 +159,76 @@ class DiskGateTest(unittest.TestCase):
             gpu_free_mib=5792,
         )
         self.assertEqual(["ram-available-below-2giB"], blockers)
+
+    def test_omitted_ram_and_gpu_follow_the_sampler(self) -> None:
+        disk = {"free": 20 * GiB, "linked_count": 0}
+        with (
+            unittest.mock.patch(
+                "scripts.ci.box_disk_guard.available_ram_bytes", return_value=1 * GiB
+            ),
+            unittest.mock.patch("scripts.ci.box_disk_guard.gpu_free_mib", return_value=5792),
+        ):
+            self.assertTrue(refuse_new_worker(".", **disk))
+            self.assertEqual(
+                ["ram-available-below-2giB"],
+                new_worker_blockers(".", **disk),
+            )
+            self.assertIn(
+                "ram-available-below-2giB",
+                refuse_dispatch([], [], workspace=".", **disk),
+            )
+        with (
+            unittest.mock.patch(
+                "scripts.ci.box_disk_guard.available_ram_bytes", return_value=14 * GiB
+            ),
+            unittest.mock.patch("scripts.ci.box_disk_guard.gpu_free_mib", return_value=100),
+        ):
+            self.assertTrue(refuse_new_worker(".", **disk))
+            self.assertEqual(["gpu-free-below-256mib"], new_worker_blockers(".", **disk))
+        with (
+            unittest.mock.patch(
+                "scripts.ci.box_disk_guard.available_ram_bytes", return_value=14 * GiB
+            ),
+            unittest.mock.patch("scripts.ci.box_disk_guard.gpu_free_mib", return_value=5792),
+        ):
+            self.assertFalse(refuse_new_worker(".", **disk))
+            self.assertEqual([], new_worker_blockers(".", repo_root=".", **disk))
+            self.assertEqual(
+                [],
+                refuse_dispatch([], [], workspace=".", repo_root=".", **disk),
+            )
+        with (
+            unittest.mock.patch(
+                "scripts.ci.box_disk_guard.available_ram_bytes", return_value=None
+            ),
+            unittest.mock.patch("scripts.ci.box_disk_guard.gpu_free_mib", return_value=None),
+        ):
+            self.assertFalse(refuse_new_worker(".", **disk))
+        with (
+            unittest.mock.patch(
+                "scripts.ci.box_disk_guard.available_ram_bytes", return_value=1 * GiB
+            ),
+            unittest.mock.patch("scripts.ci.box_disk_guard.gpu_free_mib", return_value=100),
+        ):
+            self.assertFalse(
+                refuse_new_worker(
+                    ".",
+                    available_ram=14 * GiB,
+                    gpu_free_mib=5792,
+                    **disk,
+                )
+            )
+            self.assertEqual(
+                [],
+                refuse_dispatch(
+                    [],
+                    [],
+                    workspace=".",
+                    available_ram=14 * GiB,
+                    gpu_free_mib=5792,
+                    **disk,
+                ),
+            )
 
 
 class CachePruneTest(unittest.TestCase):

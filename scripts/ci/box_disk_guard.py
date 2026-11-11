@@ -219,6 +219,14 @@ def linked_worktree_count(repo_root: Path | str) -> int | None:
     return linked
 
 
+_UNSET = object()
+
+
+def _sampled_gpu_free_mib() -> int | None:
+    """Call the module sampler so a test patch of ``gpu_free_mib`` is visible."""
+    return gpu_free_mib()
+
+
 def new_worker_blockers(
     workspace: Path | str,
     *,
@@ -226,14 +234,19 @@ def new_worker_blockers(
     free: int | None = None,
     linked_count: int | None = None,
     max_linked: int = MAX_LINKED_WORKTREES,
-    available_ram: int | None = None,
-    gpu_free_mib: int | None = None,
+    available_ram: int | None | object = _UNSET,
+    gpu_free_mib: int | None | object = _UNSET,
 ) -> list[str]:
     """Return reasons a new worktree/clone/worker must not start.
 
-    ``available_ram`` and ``gpu_free_mib`` refuse only when a number is passed.
-    ``None`` does not sample the machine and does not refuse.
+    Omitting ``available_ram`` or ``gpu_free_mib`` samples the machine and
+    passes that number. An injected number wins. ``None`` from the caller or
+    from a sampler does not refuse.
     """
+    if available_ram is _UNSET:
+        available_ram = available_ram_bytes()
+    if gpu_free_mib is _UNSET:
+        gpu_free_mib = _sampled_gpu_free_mib()
     blockers: list[str] = []
     level = disk_level(workspace, free=free)
     if level == "block":
@@ -262,8 +275,8 @@ def refuse_new_worker(
     free: int | None = None,
     linked_count: int | None = None,
     max_linked: int = MAX_LINKED_WORKTREES,
-    available_ram: int | None = None,
-    gpu_free_mib: int | None = None,
+    available_ram: int | None | object = _UNSET,
+    gpu_free_mib: int | None | object = _UNSET,
 ) -> bool:
     """True when a new worker/worktree/clone must be refused."""
     return bool(

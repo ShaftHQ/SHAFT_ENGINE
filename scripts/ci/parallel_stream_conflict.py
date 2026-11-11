@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.ci.box_disk_guard import (  # noqa: E402
+    _UNSET,
     disk_warn,
     new_worker_blockers,
     refuse_new_worker,
@@ -270,17 +271,17 @@ def refuse_dispatch(
     repo_root: Path | str | None = None,
     free: int | None = None,
     linked_count: int | None = None,
-    available_ram: int | None = None,
-    gpu_free_mib: int | None = None,
+    available_ram: int | None | object = _UNSET,
+    gpu_free_mib: int | None | object = _UNSET,
     proposed: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Return every dispatch blocker: ownership, design-kind WIP, disk/RAM/GPU/worktree.
 
-    When ``workspace`` is omitted, resource caps are skipped. ``available_ram``
-    and ``gpu_free_mib`` use the same ``None``-does-not-refuse contract as
-    ``new_worker_blockers``. When ``proposed`` is omitted, design-kind WIP is
-    skipped (path-only callers). Pass both before creating a new worktree or
-    design stream.
+    When ``workspace`` is omitted, resource caps are skipped. Omitting
+    ``available_ram`` or ``gpu_free_mib`` samples the machine. An injected
+    number wins. ``None`` from the caller or from a sampler does not refuse.
+    When ``proposed`` is omitted, design-kind WIP is skipped (path-only
+    callers). Pass both before creating a new worktree or design stream.
     """
     blockers: list[str] = []
     conflicts = conflicting_peer_stream_ids(

@@ -129,6 +129,64 @@ class DelegateWorktreeHooksTest(unittest.TestCase):
             self.assertFalse(copied.is_symlink())
             self.assertEqual(guard_bytes, copied.read_bytes())
 
+    def test_host_locator_copies_hooks_into_fresh_linked_worktree(self) -> None:
+        """The host command seeds before exit 2. A parent walk never sees the primary."""
+        hosts = _load(ROOT / "chaos-engine" / "hosts.py", "ce_hosts_delegate_hooks")
+        guard_bytes = (
+            b"#!/usr/bin/env python3\n"
+            b"# real portable guard copied by the host locator\n"
+            b"print('guard-host-7916')\n"
+        )
+        launch_bytes = (
+            b"#!/usr/bin/env python3\n"
+            b"import sys\n"
+            b"print('launch-host-7916')\n"
+            b"print(sys.argv[1:])\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            primary, session = _primary_with_worktree(root, guard_bytes, launch_bytes)
+            self._run_host_locator(hosts, primary, session, windows=False, host="claude")
+            windows_session = root / "session-windows"
+            _git(primary, "worktree", "add", "--detach", str(windows_session), "HEAD")
+            self._run_host_locator(hosts, primary, windows_session, windows=True, host="grok")
+
+    def _run_host_locator(self, hosts, primary: Path, session: Path, *, windows: bool, host: str) -> None:
+        overlay_dir = session / "chaos-engine"
+        overlay_dir.mkdir()
+        shutil.copy2(OVERLAY_SOURCE, overlay_dir / "worktree_overlay.py")
+        command = hosts.chaos_guard_locator_command(windows=windows, host=host)
+        if windows:
+            prefix = 'py -3 -c "'
+            self.assertTrue(command.startswith(prefix))
+            script, separator, tail = command[len(prefix) :].partition('"')
+            self.assertEqual('"', separator)
+            python3 = shutil.which("python3")
+            if not python3:
+                self.fail("python3 is not on PATH")
+            result = subprocess.run(
+                [python3, "-c", script, *tail.split()],
+                cwd=session,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        else:
+            result = subprocess.run(
+                ["/bin/sh", "-c", command],
+                cwd=session,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        for name in ("guard.py", "launch.py"):
+            copied = session / ".chaos-engine" / "hooks" / name
+            source = primary / ".chaos-engine" / "hooks" / name
+            self.assertTrue(copied.is_file(), name)
+            self.assertFalse(copied.is_symlink(), name)
+            self.assertEqual(source.read_bytes(), copied.read_bytes(), name)
+
 
 if __name__ == "__main__":
     unittest.main()

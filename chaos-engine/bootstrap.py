@@ -4285,13 +4285,32 @@ def _process_text(value: object) -> str:
     return str(value)
 
 
-def _still_unpacking_account_timeout(error: BaseException) -> bool:
-    """True when graphifyy timed out while unpacking, not while waiting on the network.
+def _graphify_uv_install_timeout(error: BaseException) -> bool:
+    """True when ``uv`` was installing graphifyy and the wait expired.
 
-    ``TimeoutExpired`` keeps the still-running output off ``str(error)``. A
-    dedicated error must say the command exceeded its budget while work was
-    still in progress and include unpacking or wheel output.
+    Prepared, Installed, Downloading, or empty output still means the process
+    was killed while work was in progress. That is not a network outage.
+    ``TimeoutExpired`` keeps the captured text off ``str(error)``.
     """
+    if not isinstance(error, subprocess.TimeoutExpired):
+        return False
+    command = error.cmd
+    text = command if isinstance(command, str) else " ".join(str(part) for part in command)
+    folded = text.casefold()
+    return "graphifyy" in folded and "uv" in folded and "install" in folded
+
+
+def _still_unpacking_account_timeout(error: BaseException) -> bool:
+    """True when a graphify account command timed out while work was still running.
+
+    A graphifyy ``uv`` install that times out is over budget even when the
+    captured text says Prepared, Installed, or Downloading, and when the
+    output is empty because the process was killed while still running.
+    Other graphify timeouts still need unpacking or wheel output.
+    ``TimeoutExpired`` keeps the still-running output off ``str(error)``.
+    """
+    if _graphify_uv_install_timeout(error):
+        return True
     chunks: list[str] = []
     if isinstance(error, subprocess.TimeoutExpired):
         command = error.cmd

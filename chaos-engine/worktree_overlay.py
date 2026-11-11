@@ -14,6 +14,8 @@ linked git worktree or a fresh clone starts without them. This module:
 * `ensure_delegate_hooks(primary, session)` copies the real launcher and guard
   into a fresh linked worktree with that same copy. A missing, symlinked, or
   exit-0 stub primary guard is refused. The seeded directory stays gitignored.
+* `adopt` locates the primary checkout with git and runs that copy. Host
+  locator commands run it before they exit 2.
 * `upgrade_session(primary, session)` is the one fast command that brings a
   worktree to the primary CE version: transactional materialize (preflight,
   backup, VERSION last) plus host/plugin repair. CE-owned host adapters are
@@ -546,6 +548,30 @@ def ensure_delegate_hooks(primary: Path, session: Path) -> list[str]:
     if copied_guard.read_bytes() != guard.read_bytes():
         raise RuntimeError("delegate guard bytes do not match the primary")
     return copied + upgraded
+
+
+def adopt_delegate_hooks(start: Path | None = None) -> int:
+    """Locate the primary checkout with git and copy the real launcher and guard.
+
+    Host locator commands run this before they exit 2. A linked worktree is not
+    a child of the primary tree, so a parent walk never starts the launcher.
+    Returns 0 when both hooks are regular files. Never writes a symlink or stub.
+    """
+    try:
+        session = checkout_root(Path.cwd() if start is None else Path(start))
+        primary = primary_checkout(session)
+        if primary is None:
+            return 1
+        ensure_delegate_hooks(primary, session)
+    except (OSError, RuntimeError):
+        return 1
+    launch = session / ".chaos-engine" / "hooks" / "launch.py"
+    guard = session / ".chaos-engine" / "hooks" / "guard.py"
+    if launch.is_symlink() or guard.is_symlink():
+        return 1
+    if not launch.is_file() or not guard.is_file():
+        return 1
+    return 0
 
 
 def _backup_session_targets(
@@ -1269,7 +1295,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     recover.add_argument("--primary", type=Path, required=True)
     recover.add_argument("--session", type=Path, required=True)
+    adopt = commands.add_parser(
+        "adopt",
+        help="Copy the primary launcher and guard into this checkout.",
+    )
+    adopt.add_argument("--session", type=Path, default=None)
     args = parser.parse_args(argv)
+    if args.command == "adopt":
+        return adopt_delegate_hooks(args.session)
     if args.command == "verify":
         report = verify_ce_loads(args.cwd)
         failing = {host: reason for host, reason in report.items() if reason != "ok"}

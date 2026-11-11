@@ -4985,6 +4985,9 @@ def chaos_guard_locator_command(
     ``launch.py``. The unix polyglot keeps a short probe so the combined
     command stays within ``HOOK_COMMAND_MAX_CHARS``.
     ``launch.py`` still walks parents / payload cwd for ``guard.py`` (#6632).
+    A linked worktree is not under the primary tree, so a miss runs
+    ``worktree_overlay.py adopt`` before exit 2. That locates the primary
+    checkout with git and copies the real launcher and guard.
     """
     del managed_python
     if not re.fullmatch(r"[a-z0-9-]+", host):
@@ -5004,10 +5007,14 @@ def chaos_guard_locator_command(
     if windows and host == "grok":
         # Grok's runner rejects unresolved `$NAME` (#7667 keeps Windows Grok `$`-free).
         script = (
-            "import pathlib,subprocess,sys; "
+            "import pathlib,subprocess,sys,shutil; "
             "r=pathlib.Path('.chaos-engine/hooks/launch.py'); "
             "d=pathlib.Path.cwd(); "
             "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None); "
+            "g=shutil.which('git') if f is None else None; "
+            "c=subprocess.run([g,'rev-parse','--show-toplevel'],capture_output=True,text=True) if g else None; "
+            "subprocess.call([sys.executable,str(pathlib.Path(c.stdout.strip())/'chaos-engine'/'worktree_overlay.py'),'adopt']) if c is not None and c.returncode==0 else None; "
+            "f=next((p/r for p in (d,*d.parents) if (p/r).is_file()), None) if f is None else f; "
             "sys.stderr.write('missing .chaos-engine/hooks/launch.py\\n') if f is None else None; "
             "sys.exit(2 if f is None else subprocess.call([sys.executable,str(f),*sys.argv[1:]]))"
         )
@@ -5087,7 +5094,11 @@ def _powershell_interpreter_probe(host: str, event: str | None, block: str, *, w
             "$n=Split-Path $d;"
             "if(-not $n -or $n -eq $d){$d='';break};"
             "$d=$n};"
-            "if(-not $d){Write-Output '" + block + "';exit 2};"
+            "if(-not $d){"
+            "$t=git rev-parse --show-toplevel 2>$null;"
+            "if($t){python3 (Join-Path $t 'chaos-engine/worktree_overlay.py') adopt;"
+            "$d=$t;if(-not (Test-Path -LiteralPath (Join-Path $d $a[0]))){$d=''}};"
+            "if(-not $d){Write-Output '" + block + "';exit 2}};"
             "$a[0]=(Join-Path $d $a[0]);"
         )
     return (
@@ -5105,8 +5116,9 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
     The opener's newline goes to stderr (``>&2``), so a failed launch leaves
     stdout empty. ``>&`` is not an Out-File target.
     ``exec`` replaces the process, so a real hook deny (exit 2) does not try
-    the next interpreter. The command walks parents for ``launch.py`` and, when
-    it is absent, exits 2 on stderr before ``shopt``.
+    the next interpreter. The command walks parents for ``launch.py``. On a
+    miss it runs ``worktree_overlay.py adopt`` (git primary, real hook copy)
+    and, when the launcher is still absent, exits 2 on stderr before ``shopt``.
     A non-interactive bash exits on a failed ``exec`` before ``||`` can try
     the next name, so ``execfail`` is set when ``BASH_VERSION`` is set.
     Dash leaves ``shopt`` unexecuted. PowerShell never sees those lines:
@@ -5118,12 +5130,12 @@ def _unix_powershell_polyglot(target: str, block: str, probe: str) -> str:
         "LASTEXITCODE=\n"
         "n=\n"
         'd=$(pwd); while [ ! -f "$d/.chaos-engine/hooks/launch.py" ] && [ -n "$d" ]; do d=${d%/*}; done; '
+        '[ -f "$d/.chaos-engine/hooks/launch.py" ] || { t=$(git rev-parse --show-toplevel 2>&1) && python3 "$t/chaos-engine/worktree_overlay.py" adopt && d=$t; }; '
         '[ -n "$d" ] && [ -f "$d/.chaos-engine/hooks/launch.py" ] || { echo \'missing .chaos-engine/hooks/launch.py\' >&2; exit 2; }\n'
         '[ -n "${BASH_VERSION-}" ] && shopt -s execfail\n'
-        'exec python3 "$d/.chaos-engine/hooks/launch.py" '
-        f"{target.partition(' ')[2]} || exec py -3 \"$d/.chaos-engine/hooks/launch.py\" "
-        f"{target.partition(' ')[2]} || exec python \"$d/.chaos-engine/hooks/launch.py\" "
-        f"{target.partition(' ')[2]} "
+        'f="$d/.chaos-engine/hooks/launch.py";a="'
+        f"{target.partition(' ')[2]}"
+        '";exec python3 "$f" $a || exec py -3 "$f" $a || exec python "$f" $a '
         f"|| {{ echo '{block}'; exit 2; }}\n"
         "#> > $null\n"
         f"{probe}"
