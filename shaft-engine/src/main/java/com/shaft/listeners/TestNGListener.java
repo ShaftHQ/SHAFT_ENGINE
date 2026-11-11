@@ -76,7 +76,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static ITestResult iTestResult;
 
     /**
-     * Binds the result tests read through {@link #getITestResult()}.
+     * Binds the result tests read through {@code getITestResult()}.
      * {@code beforeInvocation} still assigns the field for real runs.
      *
      * @param result current result, or {@code null} to clear it
