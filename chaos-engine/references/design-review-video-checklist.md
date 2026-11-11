@@ -82,6 +82,9 @@ The author is neither reviewer.
 A failed cycle is fixed before a later cycle counts, and the cut is not uploaded while a cycle is failed.
 Required checks are green before those reviews start.
 A new cut invalidates earlier passes.
+When one span of an accepted recording is wrong, keep the correct audio and replace only that span.
+An owner recording used as a spoken token is the pronunciation. An automatic transcript spelling does not reject that token.
+Do not alter copied samples from an accepted recording to meet a silence floor.
 This does not turn the general "at most 3 PDCA" cap into a quota for other work.
 
 ## Follow-up
