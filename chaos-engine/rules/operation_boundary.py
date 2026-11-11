@@ -141,6 +141,110 @@ def _strip_unquoted_comment(part: str) -> str:
     return "".join(out).strip()
 
 
+def _comment_is_open(part: str) -> bool:
+    """True when an unquoted word-starting hash has already started a comment."""
+    quote = ""
+    for index, char in enumerate(part):
+        if quote:
+            if char == quote and part[index - 1] != "\\":
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            continue
+        if char == "#" and (index == 0 or part[index - 1] in " \t"):
+            return True
+    return False
+
+
+def _heredoc_delimiter(text: str, index: int) -> tuple[str, int] | None:
+    """Return the delimiter and the index after ``<<word`` when one starts here."""
+    if not text.startswith("<<", index):
+        return None
+    cursor = index + 2
+    if cursor < len(text) and text[cursor] == "-":
+        cursor += 1
+    while cursor < len(text) and text[cursor] in " \t":
+        cursor += 1
+    if cursor >= len(text) or text[cursor] in "\n\r;&|<>()":
+        return None
+    if text[cursor] in {"'", '"'}:
+        mark = text[cursor]
+        cursor += 1
+        start = cursor
+        while cursor < len(text) and text[cursor] != mark:
+            cursor += 1
+        delim = text[start:cursor]
+        if cursor < len(text):
+            cursor += 1
+        return delim, cursor
+    start = cursor
+    while cursor < len(text) and text[cursor] not in " \t\n\r;&|<>()":
+        cursor += 2 if text[cursor] == "\\" and cursor + 1 < len(text) else 1
+    delim = text[start:cursor].replace("\\", "")
+    if not delim:
+        return None
+    return delim, cursor
+
+
+def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
+    """Append one here-document body. ``index`` is the first body character."""
+    line: list[str] = []
+    while index < len(text):
+        char = text[index]
+        buf.append(char)
+        index += 1
+        if char == "\r" and index < len(text) and text[index] == "\n":
+            buf.append("\n")
+            index += 1
+            char = "\n"
+        if char in "\n\r":
+            if "".join(line) == delim:
+                return index
+            line = []
+            continue
+        line.append(char)
+    return index
+
+
+def _fold_command_syntax(
+    text: str,
+    index: int,
+    buf: list[str],
+    pieces: list[str],
+    pending: list[str],
+    quote: str,
+    ticks: bool,
+) -> int | None:
+    """Advance past a continuation or here-doc. None means take this character."""
+    if ticks or quote == "'":
+        return None
+    if text.startswith("\\\r\n", index) or text.startswith("\\\n", index):
+        step = 3 if text.startswith("\\\r\n", index) else 2
+        if _comment_is_open("".join(buf)):
+            pieces.append("".join(buf))
+            buf.clear()
+        return index + step
+    if quote:
+        return None
+    found = _heredoc_delimiter(text, index)
+    if found is not None:
+        delim, end = found
+        buf.append(text[index:end])
+        pending.append(delim)
+        return end
+    if pending and text[index] in "\n\r":
+        buf.append(text[index])
+        index += 1
+        if text[index - 1] == "\r" and index < len(text) and text[index] == "\n":
+            buf.append("\n")
+            index += 1
+        while pending:
+            index = _consume_heredoc(text, index, pending.pop(0), buf)
+        return index
+    return None
+
+
 def _is_approve_invocation(part: str) -> bool:
     """True only for a literal approval command. Shell syntax still runs a push."""
     code = _strip_unquoted_comment(part).strip()
@@ -155,21 +259,22 @@ def _is_approve_invocation(part: str) -> bool:
 def _command_pieces(command: str) -> list[str]:
     """One shell statement per piece.
 
-    A backslash-newline is removed, matching bash line continuation.
-    A newline inside quotes, ``$(...)``, backticks, or parentheses stays.
+    A backslash-newline is removed, except inside a comment, where the next
+    line is a new command. A newline inside quotes, ``$(...)``, backticks,
+    parentheses, or a here-document stays in that command.
     """
     text = command or ""
     pieces: list[str] = []
     buf: list[str] = []
+    pending: list[str] = []
     quote = ""
     depth = 0
     ticks = False
     index = 0
     while index < len(text):
-        if not ticks and quote != "'" and (
-            text.startswith("\\\r\n", index) or text.startswith("\\\n", index)
-        ):
-            index += 3 if text.startswith("\\\r\n", index) else 2
+        folded = _fold_command_syntax(text, index, buf, pieces, pending, quote, ticks)
+        if folded is not None:
+            index = folded
             continue
         char = text[index]
         if ticks:

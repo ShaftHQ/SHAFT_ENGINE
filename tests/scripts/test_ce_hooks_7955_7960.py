@@ -114,6 +114,8 @@ class ForcePushSingleUseTest(unittest.TestCase):
             split_plus = "git push $(\n echo +HEAD)"
             hash_join = "python3 .chaos-engine/tool.py force-push-approve -- x\\\n#$(git push --force origin HEAD)"
             hash_join_tick = "python3 .chaos-engine/tool.py force-push-approve -- x\\\n#`git push --force origin HEAD`"
+            comment_cont = "python3 .chaos-engine/tool.py force-push-approve -- true # comment \\\ngit push --force origin HEAD"
+            heredoc = "git push $(cat <<EOF\n)\n--force\nEOF\n) origin HEAD"
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -126,6 +128,7 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 escaped, single, doubled, continued, echoed, hashed, hashed_ticks,
                 hashed_in, hashed_out, hashed_quote, split_sub, split_tick,
                 split_short, split_plus, hash_join, hash_join_tick,
+                comment_cont, heredoc,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
