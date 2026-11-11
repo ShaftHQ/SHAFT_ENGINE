@@ -97,6 +97,9 @@ class ForcePushSingleUseTest(unittest.TestCase):
             out_of = "python3 .chaos-engine/tool.py force-push-approve -- >(git push --force origin HEAD)"
             redirect = "python3 .chaos-engine/tool.py force-push-approve -- true < <(git push --force origin HEAD)"
             quoted = """python3 .chaos-engine/tool.py force-push-approve -- $(python3 -c 'print(")")'; git push --force origin HEAD)"""
+            escaped = "python3 .chaos-engine/tool.py force-push-approve -- \\' ; git push --force origin HEAD"
+            single = "python3 .chaos-engine/tool.py force-push-approve -- 'x\\' ; git push --force origin HEAD"
+            doubled = 'python3 .chaos-engine/tool.py force-push-approve -- "x\\\\" ; git push --force origin HEAD'
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -104,7 +107,7 @@ class ForcePushSingleUseTest(unittest.TestCase):
             approval.mkdir()
             recorded = approval / "force-push-approval.txt"
             recorded.write_text(push + "\n", encoding="utf-8")
-            for command in (substituted, backticks, newline, into, out_of, redirect, quoted):
+            for command in (substituted, backticks, newline, into, out_of, redirect, quoted, escaped, single, doubled):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
             self.assertIsNone(boundary.force_push_block(root, windows))

@@ -26,10 +26,10 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
-_SHELL_EXEC = re.compile(r"\$|`|<\(|>\(")
-_APPROVE_TOOL = re.compile(
-    r"\b(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\b"
+_APPROVE_ONLY = re.compile(
+    r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
 )
+_UNSAFE_ARG = re.compile(r"[$`\\;&|<>\n\r()]")
 
 
 def _load(path: Path, name: str) -> Any:
@@ -140,25 +140,15 @@ def _strip_unquoted_comment(part: str) -> str:
     return "".join(out).strip()
 
 
-def _runs_a_push(code: str) -> bool:
-    """A ``git push`` beside ``$()``, backticks, or process substitution actually runs."""
-    return _PUSH.search(code) is not None and _SHELL_EXEC.search(code) is not None
-
-
 def _is_approve_invocation(part: str) -> bool:
-    """True only when this statement records approval and does not run a push."""
-    code = _strip_unquoted_comment(part)
-    if _runs_a_push(code):
+    """True only for a literal approval command. Shell syntax still runs a push."""
+    code = _strip_unquoted_comment(part).strip()
+    if _APPROVE_ONLY.match(code) is None:
         return False
-    match = _APPROVE_TOOL.search(code)
-    if match is None:
+    marker = code.find(" -- ")
+    if marker < 0:
         return False
-    if _PUSH.search(code[: match.start()]):
-        return False
-    after = code[match.end() :]
-    marker = after.find(" -- ")
-    head = after if marker < 0 else after[:marker]
-    return _PUSH.search(head) is None
+    return _UNSAFE_ARG.search(code[marker + 4 :]) is None
 
 
 def _command_pieces(command: str) -> list[str]:
