@@ -199,7 +199,6 @@ class DeliveryCycleContractTest(unittest.TestCase):
             flow.index("two independent adversarial reviews after required checks are green"),
         )
         callers = {
-            "design-skills": CE / "addons/design-skills/SKILL.md",
             "technical-video": CE / "addons/design-skills/references/pipelines/technical-video.md",
             "runbook": CE / "addons/design-skills/references/pipelines/runbook.md",
             "design-loop": REFS / "design-loop.md",

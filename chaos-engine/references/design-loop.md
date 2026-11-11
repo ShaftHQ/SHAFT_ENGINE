@@ -26,9 +26,8 @@ spec.
   / video / caption** loops: freeze a committed `METHOD.md` plus measurement
   script **before** round 1 (L53);
   cap **2 fix rounds**, then the orchestrator adjudicates (do not open a
-  third silent fix). A complex video or audio edit is not closed by this
-  document loop. Its close is
-  [design-review-video-checklist.md](design-review-video-checklist.md).
+  third silent fix). A complex video or audio edit is not closed by this document loop.
+  Its close is the standing section of design-review-video-checklist.md.
   Other design docs keep the open-ended loop, but a writer
   `wontfix` that the reviewer reopens is a stalemate: escalate to the owner once.
 - Every design document includes **Key Decisions** (with rationale) and a
