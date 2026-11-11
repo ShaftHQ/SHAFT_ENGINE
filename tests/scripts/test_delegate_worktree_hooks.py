@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -25,6 +26,9 @@ def _load(path: Path, name: str):
 
 
 def _git(cwd: Path, *args: str) -> None:
+    git = shutil.which("git")
+    if not git:
+        raise RuntimeError("git is not on PATH")
     env = os.environ.copy()
     env.update(
         {
@@ -35,7 +39,7 @@ def _git(cwd: Path, *args: str) -> None:
         }
     )
     subprocess.run(
-        ["git", "-c", "user.name=Harness Test", "-c", "user.email=harness@example.com", *args],
+        [git, "-c", "user.name=Harness Test", "-c", "user.email=harness@example.com", *args],
         cwd=cwd,
         check=True,
         capture_output=True,
