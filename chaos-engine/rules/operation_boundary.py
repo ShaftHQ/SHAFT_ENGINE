@@ -26,6 +26,7 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
+_FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
 _APPROVE_ONLY = re.compile(
     r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
 )
@@ -215,6 +216,7 @@ def _fold_command_syntax(
     pending: list[str],
     quote: str,
     ticks: bool,
+    depth: int,
 ) -> int | None:
     """Advance past a continuation or here-doc. None means take this character."""
     if ticks or quote == "'":
@@ -222,8 +224,11 @@ def _fold_command_syntax(
     if text.startswith("\\\r\n", index) or text.startswith("\\\n", index):
         step = 3 if text.startswith("\\\r\n", index) else 2
         if _comment_is_open("".join(buf)):
-            pieces.append("".join(buf))
-            buf.clear()
+            if depth == 0:
+                pieces.append("".join(buf))
+                buf.clear()
+            else:
+                buf.append("\n")
         return index + step
     if quote:
         return None
@@ -272,7 +277,7 @@ def _command_pieces(command: str) -> list[str]:
     ticks = False
     index = 0
     while index < len(text):
-        folded = _fold_command_syntax(text, index, buf, pieces, pending, quote, ticks)
+        folded = _fold_command_syntax(text, index, buf, pieces, pending, quote, ticks, depth)
         if folded is not None:
             index = folded
             continue
@@ -348,7 +353,7 @@ def force_push_block(root: Path, command: str) -> str | None:
         for part in _command_pieces(command or "")
         if _PUSH.search(part) and not _is_approve_invocation(part)
     ]
-    if not any(_FORCE.search(part) for part in segments):
+    if not any(_FORCE.search(part) for part in segments) and not (segments and _FORCE_WORD.search(text)):
         return None
     path = _approval_root(root) / ".chaos-engine-state" / "force-push-approval.txt"
     recorded: list[str] = []
