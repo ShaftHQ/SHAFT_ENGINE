@@ -85,9 +85,12 @@ public final class AllureReportLaunch {
      * The image is the absolute path from {@link #javacVersionCommand(Path)}. The JDK home is not used
      * as the process working directory, because Windows resolves a relative application name from the
      * parent directory.
+     * A caller that is already interrupted gets {@code -1} even when the process exits cleanly.
+     * {@code waitFor} does not throw in that case, and the interrupt status is restored.
      *
      * @param jdkHome a JDK home directory, not a JRE
-     * @return the javac major, or {@code -1} when javac is missing or its output cannot be read
+     * @return the javac major, or {@code -1} when javac is missing, its output cannot be read,
+     *         or the calling thread is interrupted
      */
     public static int jdkMajor(Path jdkHome) {
         if (jdkHome == null) {
@@ -97,16 +100,31 @@ public final class AllureReportLaunch {
         if (!Files.isRegularFile(Path.of(command.get(0)))) {
             return -1;
         }
+        // Captured before the probe. A pre-set flag makes waitFor throw while the reaper is still
+        // publishing a clean exit, which hides that path. Clear it only for the wait.
+        boolean callerInterrupted = Thread.currentThread().isInterrupted();
         try {
             // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            process.waitFor();
-            return javaMajorFromJavacOutput(output);
-        } catch (IOException | InterruptedException | IllegalArgumentException exception) {
-            if (exception instanceof InterruptedException) {
+            try {
+                String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                if (callerInterrupted) {
+                    Thread.interrupted();
+                }
+                process.waitFor();
+                if (callerInterrupted) {
+                    Thread.currentThread().interrupt();
+                    return -1;
+                }
+                return javaMajorFromJavacOutput(output);
+            } catch (InterruptedException exception) {
+                process.destroyForcibly();
                 Thread.currentThread().interrupt();
+                return -1;
             }
+        } catch (IOException exception) {
+            return -1;
+        } catch (IllegalArgumentException exception) {
             return -1;
         }
     }
