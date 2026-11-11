@@ -17,7 +17,7 @@ the letters in each token.
 The default pattern is:
 
 ```text
-(?<![A-Za-z0-9])(?:DEF-\d+|G\d+(?![A-Za-z0-9-])|SHAFT#\d+|BS-[A-Z0-9]+(?:-[A-Z0-9]+)*|ADB-[A-Z0-9]+(?:-[A-Z0-9]+)*|FUNC-[A-Z0-9]+(?:-[A-Z0-9]+)*|J\d{2}-BUG-\d+)(?![A-Za-z0-9])
+(?<![A-Za-z0-9])(?:DEF-\d+|G\d+(?![A-Za-z0-9-])|SHAFT#\d+|BS-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}|ADB-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}|FUNC-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}|J\d{2}-BUG-\d+)(?![A-Za-z0-9])
 ```
 
 ## Built-in extension

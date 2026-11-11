@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -106,6 +107,29 @@ public class AllureReportLaunchTest {
         Files.setPosixFilePermissions(javac, EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE));
         Assert.assertEquals(AllureReportLaunch.jdkMajor(home), 25);
         Assert.assertTrue(AllureReportLaunch.engineJavaMajor() >= 21);
+    }
+
+    @Test
+    public void javacVersionCommandUsesTheAbsoluteExecutable() throws IOException {
+        Path home = Files.createTempDirectory("fake-jdk-cmd");
+        String previous = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Windows 11");
+            List<String> windows = AllureReportLaunch.javacVersionCommand(home);
+            Assert.assertEquals(windows.get(0),
+                    home.resolve("bin/javac.exe").toAbsolutePath().normalize().toString());
+            Assert.assertNotEquals(windows.get(0), "bin\\javac.exe");
+            Assert.assertEquals(windows.get(1), "-version");
+
+            System.setProperty("os.name", "Linux");
+            List<String> unix = AllureReportLaunch.javacVersionCommand(home);
+            Assert.assertEquals(unix.get(0),
+                    home.resolve("bin/javac").toAbsolutePath().normalize().toString());
+            Assert.assertNotEquals(unix.get(0), "bin/javac");
+            Assert.assertEquals(unix.get(1), "-version");
+        } finally {
+            System.setProperty("os.name", previous);
+        }
     }
 
     @Test
@@ -220,6 +244,17 @@ public class AllureReportLaunchTest {
         IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
                 () -> AllureReportLaunch.resolveJdkHome(null, null, 25, path -> 1));
         Assert.assertTrue(failure.getMessage().contains("25"), failure.getMessage());
+    }
+
+    @Test
+    public void rootPathIsNotAnEngineJar() throws Exception {
+        Method engineJar = AllureReportLaunch.class.getDeclaredMethod("isEngineJar", Path.class);
+        engineJar.setAccessible(true);
+        Assert.assertFalse((Boolean) engineJar.invoke(null, Path.of("/")));
+
+        Method shaftClass = AllureReportLaunch.class.getDeclaredMethod("containsShaftClass", Path.class);
+        shaftClass.setAccessible(true);
+        Assert.assertFalse((Boolean) shaftClass.invoke(null, Path.of("/")));
     }
 
     @Test

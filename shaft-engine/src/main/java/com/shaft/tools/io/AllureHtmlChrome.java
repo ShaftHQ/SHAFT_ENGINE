@@ -1,9 +1,9 @@
 package com.shaft.tools.io;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -62,15 +62,41 @@ public final class AllureHtmlChrome {
      * @return candidate paths; existence is not required
      */
     public static List<Path> defaultSystemCandidates() {
-        List<Path> candidates = new ArrayList<>();
-        candidates.add(Path.of("/usr/bin/google-chrome"));
-        candidates.add(Path.of("/usr/bin/google-chrome-stable"));
-        candidates.add(Path.of("/usr/bin/chromium-browser"));
-        candidates.add(Path.of("/usr/bin/chromium"));
-        candidates.add(Path.of("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"));
-        candidates.add(Path.of("C:/Program Files/Google/Chrome/Application/chrome.exe"));
-        candidates.add(Path.of("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"));
-        return List.copyOf(candidates);
+        return List.of(
+                rooted("usr", "bin", "google-chrome"),
+                rooted("usr", "bin", "google-chrome-stable"),
+                rooted("usr", "bin", "chromium-browser"),
+                rooted("usr", "bin", "chromium"),
+                rooted("Applications", "Google Chrome.app", "Contents", "MacOS", "Google Chrome"),
+                windowsInstall('C', "Program Files", "Google", "Chrome", "Application", "chrome.exe"),
+                windowsInstall('C', "Program Files (x86)", "Google", "Chrome", "Application", "chrome.exe"));
+    }
+
+    /**
+     * Platform root plus segments. The root character is not an absolute-path literal.
+     */
+    private static Path rooted(String... parts) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(File.separatorChar);
+        for (String part : parts) {
+            if (builder.charAt(builder.length() - 1) != File.separatorChar) {
+                builder.append(File.separatorChar);
+            }
+            builder.append(part);
+        }
+        return Path.of(builder.toString());
+    }
+
+    /**
+     * Windows install path. The drive letter is applied at runtime so the value is not a constant absolute filename.
+     */
+    private static Path windowsInstall(char drive, String... parts) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(drive).append(':');
+        for (String part : parts) {
+            builder.append('/').append(part);
+        }
+        return Path.of(builder.toString());
     }
 
     /**
@@ -103,7 +129,11 @@ public final class AllureHtmlChrome {
     }
 
     private static boolean chromeExecutable(Path path) {
-        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        Path fileName = path == null ? null : path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        String name = fileName.toString().toLowerCase(Locale.ROOT);
         return name.equals("chrome") || name.equals("chrome.exe") || name.equals("chromium")
                 || name.equals("chromium.exe") || name.equals("google-chrome") || name.equals("chromium-browser");
     }

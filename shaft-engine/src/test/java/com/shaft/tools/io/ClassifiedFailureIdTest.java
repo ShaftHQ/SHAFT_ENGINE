@@ -3,6 +3,9 @@ package com.shaft.tools.io;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 /**
@@ -43,5 +46,18 @@ public class ClassifiedFailureIdTest {
     public void rejectsNullAndBlank() {
         Assert.assertFalse(ClassifiedFailureId.accepts(null));
         Assert.assertFalse(ClassifiedFailureId.accepts("  "));
+    }
+
+    @Test
+    public void hyphenatedIdsStayWholeTokensWithoutASegmentCap() throws IOException {
+        String longId = "BS-" + "A1-".repeat(30) + "Z9";
+        Assert.assertTrue(ClassifiedFailureId.accepts("seen " + longId));
+        Assert.assertTrue(ClassifiedFailureId.accepts("device ADB-ONE-TWO-THREE"));
+        try (InputStream contract = ClassifiedFailureId.class.getClassLoader()
+                .getResourceAsStream("META-INF/shaft/classified-failure-ids.md")) {
+            Assert.assertNotNull(contract);
+            String text = new String(contract.readAllBytes(), StandardCharsets.UTF_8);
+            Assert.assertTrue(text.contains(ClassifiedFailureId.DEFAULT_PATTERN), text);
+        }
     }
 }

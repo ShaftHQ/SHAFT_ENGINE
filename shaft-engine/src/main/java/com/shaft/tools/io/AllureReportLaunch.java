@@ -82,6 +82,9 @@ public final class AllureReportLaunch {
 
     /**
      * Runs {@code bin/javac -version} when that executable exists.
+     * The image is the absolute path from {@link #javacVersionCommand(Path)}. The JDK home is not used
+     * as the process working directory, because Windows resolves a relative application name from the
+     * parent directory.
      *
      * @param jdkHome a JDK home directory, not a JRE
      * @return the javac major, or {@code -1} when javac is missing or its output cannot be read
@@ -90,14 +93,13 @@ public final class AllureReportLaunch {
         if (jdkHome == null) {
             return -1;
         }
-        String executable = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
-                ? "javac.exe" : "javac";
-        Path javac = jdkHome.resolve("bin").resolve(executable);
-        if (!Files.isRegularFile(javac)) {
+        List<String> command = javacVersionCommand(jdkHome);
+        if (!Files.isRegularFile(Path.of(command.get(0)))) {
             return -1;
         }
         try {
-            Process process = new ProcessBuilder(javac.toString(), "-version").redirectErrorStream(true).start();
+            // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             process.waitFor();
             return javaMajorFromJavacOutput(output);
@@ -107,6 +109,21 @@ public final class AllureReportLaunch {
             }
             return -1;
         }
+    }
+
+    /**
+     * Builds the {@code javac -version} command for one JDK home.
+     * Element 0 is the absolute normalized path of {@code bin/javac.exe} on Windows and {@code bin/javac}
+     * otherwise. It is never a relative {@code bin/javac} name.
+     *
+     * @param jdkHome a JDK home directory
+     * @return {@code javac -version} with an absolute executable
+     */
+    public static List<String> javacVersionCommand(Path jdkHome) {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        String executable = windows ? "javac.exe" : "javac";
+        Path javac = jdkHome.resolve("bin").resolve(executable).toAbsolutePath().normalize();
+        return List.of(javac.toString(), "-version");
     }
 
     /**
@@ -197,8 +214,9 @@ public final class AllureReportLaunch {
         if (trailingArgument != null && !trailingArgument.isBlank()) {
             content.append(trailingArgument).append(System.lineSeparator());
         }
-        if (argFile.getParent() != null) {
-            Files.createDirectories(argFile.getParent());
+        Path parent = argFile.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         Files.writeString(argFile, content.toString(), StandardCharsets.UTF_8);
         return argFile;
@@ -239,7 +257,11 @@ public final class AllureReportLaunch {
     }
 
     private static boolean isEngineJar(Path path) {
-        String name = path.getFileName().toString();
+        Path fileName = path == null ? null : path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        String name = fileName.toString();
         return Files.isRegularFile(path)
                 && name.startsWith("shaft-engine-")
                 && name.endsWith(".jar")
@@ -254,7 +276,8 @@ public final class AllureReportLaunch {
         if (Files.isDirectory(entry)) {
             return Files.isRegularFile(entry.resolve(SHAFT_CLASS_ENTRY));
         }
-        if (!entry.getFileName().toString().endsWith(".jar")) {
+        Path fileName = entry.getFileName();
+        if (fileName == null || !fileName.toString().endsWith(".jar")) {
             return false;
         }
         try (JarFile jar = new JarFile(entry.toFile())) {

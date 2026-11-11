@@ -20,14 +20,15 @@ import java.util.regex.Pattern;
 public final class ClassifiedFailureId {
     /**
      * Whole-token pattern. {@code G<digits>} refuses a following letter, digit, or hyphen so a hostname
-     * segment such as {@code G14-GA401} is not a locator id.
+     * segment such as {@code G14-GA401} is not a locator id. Repeated id segments use {@code {1,}} and
+     * {@code {0,}}, which match the same text as {@code +} and {@code *} without a nested quantifier.
      */
     public static final String DEFAULT_PATTERN = "(?<![A-Za-z0-9])(?:DEF-\\d+"
             + "|G\\d+(?![A-Za-z0-9-])"
             + "|SHAFT#\\d+"
-            + "|BS-[A-Z0-9]+(?:-[A-Z0-9]+)*"
-            + "|ADB-[A-Z0-9]+(?:-[A-Z0-9]+)*"
-            + "|FUNC-[A-Z0-9]+(?:-[A-Z0-9]+)*"
+            + "|BS-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}"
+            + "|ADB-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}"
+            + "|FUNC-[A-Z0-9]{1,}(?:-[A-Z0-9]{1,}){0,}"
             + "|J\\d{2}-BUG-\\d+)(?![A-Za-z0-9])";
 
     private static final Pattern DEFAULT = Pattern.compile(DEFAULT_PATTERN);
