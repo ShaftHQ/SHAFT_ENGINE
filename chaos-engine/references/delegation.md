@@ -71,11 +71,16 @@ a writer, subagent, or required check is live, automatically follow
 [orchestrator follow-through](orchestrator-follow-through.md); never a
 heartbeat.
 
-Treat agent lifetime as part of the assignment. Collect the writer's bounded
-failures, findings, and durable-learning candidates for the root session; a
-delegate never runs the terminal Learning Session. Then close every no-longer-needed agent and its descendants before
-moving to the next phase. Never use `followup_task` to reactivate a completed
-or finished assignment; a new review round gets a new reviewer instance.
+Treat agent lifetime as part of the assignment. Each delegated subagent runs the
+same entry path as the main agent before its first action, and on exit runs an
+end-of-stream retrospective in the same shape as the main agent. Collect the
+writer's bounded failures, findings, and durable-learning candidates for the
+root session. A delegate returns durable lessons to the root and does not open the terminal Learning Session pull request.
+The root session runs one delegation retrospective after the stream merges.
+Then close every no-longer-needed agent
+and its descendants before moving to the next phase. Never use `followup_task`
+to reactivate a completed or finished assignment; a new review round gets a new
+reviewer instance.
 Preserve the closed relationship as history instead of deleting it. A final
 answer with an unneeded live agent is incomplete.
 

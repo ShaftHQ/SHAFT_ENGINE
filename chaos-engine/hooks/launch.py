@@ -241,6 +241,74 @@ def run_guard(base: pathlib.Path, path: pathlib.Path, data: str | None) -> None:
         if error.errno in _E_CODES:
             deny(CWD_UNAVAILABLE)
         raise
+
+
+def _overlay_module():
+    import importlib.util
+
+    here = pathlib.Path(__file__).resolve()
+    candidates = [here.parent.parent / "worktree_overlay.py"]
+    try:
+        start = pathlib.Path.cwd()
+    except OSError:
+        start = here.parent
+    for root in (start, *list(start.parents)[:8]):
+        candidates.append(root / "chaos-engine" / "worktree_overlay.py")
+        if (root / ".git").exists():
+            break
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key in seen or not path.is_file():
+            seen.add(key)
+            continue
+        seen.add(key)
+        spec = importlib.util.spec_from_file_location(
+            "chaos_engine_worktree_overlay_launch", path
+        )
+        if spec is None or spec.loader is None:
+            continue
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    return None
+
+
+def seed_delegate_hooks_if_guard_missing(start: pathlib.Path) -> None:
+    """Copy the primary guard when this checkout has none beside the launcher.
+
+    A fresh linked worktree has no ``.chaos-engine/hooks``. Never write a stub.
+    """
+    try:
+        origin = pathlib.Path(start).resolve()
+    except OSError:
+        return
+    session = origin
+    for root in (origin, *origin.parents):
+        guard = root / ".chaos-engine" / "hooks" / "guard.py"
+        if guard.is_file() and not guard.is_symlink():
+            return
+        if (root / ".git").exists():
+            session = root
+            break
+    else:
+        return
+    module = _overlay_module()
+    if module is None:
+        return
+    session = module.checkout_root(session)
+    guard = session / ".chaos-engine" / "hooks" / "guard.py"
+    if guard.is_file() and not guard.is_symlink():
+        return
+    primary = module.primary_checkout(session)
+    if primary is None:
+        return
+    try:
+        module.ensure_delegate_hooks(primary, session)
+    except (OSError, RuntimeError):
+        return
+
+
 def main(argv: list[str]) -> None:
     if sys.version_info < HOOK_PYTHON_FLOOR:
         deny(PYTHON_UNAVAILABLE)
@@ -252,6 +320,12 @@ def main(argv: list[str]) -> None:
         deny("ChaosEngine launch.py event must be alphanumeric")
     os.environ["CHAOS_ENGINE_HOST"] = host
     data = read_payload(event)
+    start = usable_cwd()
+    if not installing(start):
+        try:
+            seed_delegate_hooks_if_guard_missing(start)
+        except (OSError, RuntimeError):
+            pass  # seed refusal must not replace the guard deny below
     found, data = find_guard(data)
     if found is None:
         found, data = wait_for_guard(data)

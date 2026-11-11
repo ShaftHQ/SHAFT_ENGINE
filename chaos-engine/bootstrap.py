@@ -4277,10 +4277,71 @@ def publish_installer_issue(
     return encode_issue_form_url(repository, title, fields, extra=extra)
 
 
+def _process_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return str(value)
+
+
+def _graphify_uv_install_timeout(error: BaseException) -> bool:
+    """True when ``uv`` was installing graphifyy and the wait expired.
+
+    Prepared, Installed, Downloading, or empty output still means the process
+    was killed while work was in progress. That is not a network outage.
+    ``TimeoutExpired`` keeps the captured text off ``str(error)``.
+    """
+    if not isinstance(error, subprocess.TimeoutExpired):
+        return False
+    command = error.cmd
+    text = command if isinstance(command, str) else " ".join(str(part) for part in command)
+    folded = text.casefold()
+    return "graphifyy" in folded and "uv" in folded and "install" in folded
+
+
+def _still_unpacking_account_timeout(error: BaseException) -> bool:
+    """True when a graphify account command timed out while work was still running.
+
+    A graphifyy ``uv`` install that times out is over budget even when the
+    captured text says Prepared, Installed, or Downloading, and when the
+    output is empty because the process was killed while still running.
+    Other graphify timeouts still need unpacking or wheel output.
+    ``TimeoutExpired`` keeps the still-running output off ``str(error)``.
+    """
+    if _graphify_uv_install_timeout(error):
+        return True
+    chunks: list[str] = []
+    if isinstance(error, subprocess.TimeoutExpired):
+        command = error.cmd
+        chunks.append(
+            command if isinstance(command, str) else " ".join(str(part) for part in command)
+        )
+        chunks.append(_process_text(error.output))
+        chunks.append(_process_text(getattr(error, "stderr", None)))
+    else:
+        chunks.append(str(error))
+        for attr in ("output", "stdout", "stderr", "full_output"):
+            chunks.append(_process_text(getattr(error, attr, None)))
+    blob = "\n".join(chunks).casefold()
+    if "graphifyy" not in blob:
+        return False
+    if "unpack" not in blob and "wheel" not in blob:
+        return False
+    if isinstance(error, subprocess.TimeoutExpired):
+        return True
+    return "exceeded its budget" in blob and "still in progress" in blob
+
+
 def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
     """Return exactly one actionable fix-next for every failure (#6325)."""
     cause = one_line_cause(error).casefold()
     rerun = "then rerun the same install one-liner."
+    if _still_unpacking_account_timeout(error):
+        return (
+            "the command exceeded its budget while work was still in progress; "
+            f"retry when the machine is less busy, {rerun}"
+        )
     rules = (
         (
             isinstance(error, InstallHealthError) or "doctor did not report" in cause,

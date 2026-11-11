@@ -11,6 +11,11 @@ linked git worktree or a fresh clone starts without them. This module:
   that still match the last materialized hash (or the current source) are left
   alone; stale pure-overlay copies are upgraded in place. Local edits that
   diverge from both refuse with a clear message. Idempotent and hash-based.
+* `ensure_delegate_hooks(primary, session)` copies the real launcher, guard,
+  and the sibling modules the guard imports. A missing, symlinked, or exit-0
+  stub primary hook is refused. The seeded directory stays gitignored.
+* `adopt` locates the primary checkout with git and runs that copy. Host
+  locator commands run it before they exit 2.
 * `upgrade_session(primary, session)` is the one fast command that brings a
   worktree to the primary CE version: transactional materialize (preflight,
   backup, VERSION last) plus host/plugin repair. CE-owned host adapters are
@@ -474,6 +479,128 @@ def materialize(primary: Path, session: Path, *, transactional: bool = True) -> 
         raise
     return list(dict.fromkeys(copied + upgraded))
 
+
+def _is_exit0_stub(path: Path) -> bool:
+    """True for a short file whose only job is to exit 0.
+
+    The real guard and launcher are large programs that may mention
+    ``SystemExit(0)`` on a filtered-tool path. Those are not stubs.
+    """
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return True
+    compact = " ".join(
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    if not compact:
+        return True
+    folded = compact.casefold()
+    exit0 = "systemexit(0)" in folded or "sys.exit(0)" in folded or "exit 0" in folded
+    if not exit0:
+        return False
+    if len(folded) >= 800 or "hook_event_name" in folded or "catastrophic" in folded:
+        return False
+    return True
+
+
+# guard.py loads these siblings by filename. A copy that omits one crashes
+# the shipped guard with "lifecycle core is unavailable" or the kernel equivalent.
+_REQUIRED_DELEGATE_HOOKS = (
+    "guard.py",
+    "launch.py",
+    "lifecycle.py",
+    "kernel.py",
+    "retrieve_justification.py",
+    "reflection.py",
+)
+
+
+def _reject_primary_hook(path: Path) -> None:
+    if path.is_symlink():
+        raise RuntimeError(f"primary hook is a symlink: {path.name}")
+    if not path.is_file():
+        raise RuntimeError(f"primary hook is missing: {path.name}")
+    if _is_exit0_stub(path):
+        raise RuntimeError(f"primary hook is an exit-0 stub: {path.name}")
+
+
+def _delegate_hook_names(primary: Path) -> tuple[str, ...]:
+    """Required hook siblings, plus any other real file in that directory."""
+    hooks = primary / TREE / "hooks"
+    for name in _REQUIRED_DELEGATE_HOOKS:
+        _reject_primary_hook(hooks / name)
+    names = list(_REQUIRED_DELEGATE_HOOKS)
+    if hooks.is_dir():
+        for path in sorted(hooks.iterdir()):
+            if path.name in names or path.is_symlink() or not path.is_file():
+                continue
+            if _is_exit0_stub(path):
+                continue
+            names.append(path.name)
+    return tuple(names)
+
+
+def ensure_delegate_hooks(primary: Path, session: Path) -> list[str]:
+    """Copy the primary launcher, guard, and sibling modules as regular files.
+
+    Uses the materialize file copy. Raises when a required primary hook is
+    missing, a symlink, or an exit-0 stub. Never writes a stub or a symlink.
+    """
+    primary = Path(primary).resolve()
+    session = Path(session).resolve()
+    relatives = tuple(f"{TREE}/hooks/{name}" for name in _delegate_hook_names(primary))
+    manifest = _load_manifest(session)
+    copied: list[str] = []
+    upgraded: list[str] = []
+    unchanged: list[str] = []
+    for relative in relatives:
+        destination = session / relative
+        if destination.is_symlink():
+            destination.unlink()
+        _sync_file(
+            primary / relative,
+            destination,
+            session=session,
+            manifest=manifest,
+            upgraded=upgraded,
+            copied=copied,
+            unchanged=unchanged,
+        )
+    _save_manifest(session, manifest)
+    for name in _REQUIRED_DELEGATE_HOOKS:
+        source = primary / TREE / "hooks" / name
+        copied_hook = session / TREE / "hooks" / name
+        if copied_hook.is_symlink() or not copied_hook.is_file():
+            raise RuntimeError(f"delegate hook was not written as a regular file: {name}")
+        if copied_hook.read_bytes() != source.read_bytes():
+            raise RuntimeError(f"delegate hook bytes do not match the primary: {name}")
+    return copied + upgraded
+
+
+def adopt_delegate_hooks(start: Path | None = None) -> int:
+    """Locate the primary checkout with git and copy the real launcher and guard.
+
+    Host locator commands run this before they exit 2. A linked worktree is not
+    a child of the primary tree, so a parent walk never starts the launcher.
+    Returns 0 when the required hook files are regular files. Never writes a symlink or stub.
+    """
+    try:
+        session = checkout_root(Path.cwd() if start is None else Path(start))
+        primary = primary_checkout(session)
+        if primary is None:
+            return 1
+        ensure_delegate_hooks(primary, session)
+    except (OSError, RuntimeError):
+        return 1
+    hooks = session / ".chaos-engine" / "hooks"
+    for name in _REQUIRED_DELEGATE_HOOKS:
+        path = hooks / name
+        if path.is_symlink() or not path.is_file():
+            return 1
+    return 0
 
 
 def _backup_session_targets(
@@ -1197,7 +1324,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     recover.add_argument("--primary", type=Path, required=True)
     recover.add_argument("--session", type=Path, required=True)
+    adopt = commands.add_parser(
+        "adopt",
+        help="Copy the primary launcher and guard into this checkout.",
+    )
+    adopt.add_argument("--session", type=Path, default=None)
     args = parser.parse_args(argv)
+    if args.command == "adopt":
+        return adopt_delegate_hooks(args.session)
     if args.command == "verify":
         report = verify_ce_loads(args.cwd)
         failing = {host: reason for host, reason in report.items() if reason != "ok"}
