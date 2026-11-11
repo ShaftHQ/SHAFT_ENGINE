@@ -26,6 +26,7 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
+_SHELL_EXEC = re.compile(r"\$|`|<\(|>\(")
 _APPROVE_TOOL = re.compile(
     r"\b(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\b"
 )
@@ -139,28 +140,15 @@ def _strip_unquoted_comment(part: str) -> str:
     return "".join(out).strip()
 
 
-def _executed_push(code: str) -> bool:
-    """True when a substitution or backtick would run ``git push``."""
-    index = 0
-    while index < len(code):
-        if code.startswith("$(", index) or code[index] == "`":
-            mark = ")" if code.startswith("$(", index) else "`"
-            start = index + (2 if mark == ")" else 1)
-            end = code.find(mark, start)
-            if end < 0:
-                end = len(code)
-            if _PUSH.search(code[start:end]):
-                return True
-            index = end + 1
-            continue
-        index += 1
-    return False
+def _runs_a_push(code: str) -> bool:
+    """A ``git push`` beside ``$()``, backticks, or process substitution actually runs."""
+    return _PUSH.search(code) is not None and _SHELL_EXEC.search(code) is not None
 
 
 def _is_approve_invocation(part: str) -> bool:
     """True only when this statement records approval and does not run a push."""
     code = _strip_unquoted_comment(part)
-    if _executed_push(code):
+    if _runs_a_push(code):
         return False
     match = _APPROVE_TOOL.search(code)
     if match is None:

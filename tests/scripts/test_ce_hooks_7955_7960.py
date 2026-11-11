@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import importlib.util
 import os
 import subprocess
@@ -92,16 +93,22 @@ class ForcePushSingleUseTest(unittest.TestCase):
             substituted = "python3 .chaos-engine/tool.py force-push-approve -- $(git push --force origin HEAD)"
             backticks = "python3 .chaos-engine/tool.py force-push-approve -- `git push --force origin HEAD`"
             newline = "python3 .chaos-engine/tool.py force-push-approve -- true\n" + push
+            into = "python3 .chaos-engine/tool.py force-push-approve -- <(git push --force origin HEAD)"
+            out_of = "python3 .chaos-engine/tool.py force-push-approve -- >(git push --force origin HEAD)"
+            redirect = "python3 .chaos-engine/tool.py force-push-approve -- true < <(git push --force origin HEAD)"
+            quoted = """python3 .chaos-engine/tool.py force-push-approve -- $(python3 -c 'print(")")'; git push --force origin HEAD)"""
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
-            for command in (substituted, backticks, newline):
-                self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
-            self.assertIsNone(boundary.force_push_block(root, windows))
             nested = root / "nested"
             nested.mkdir()
             approval = root / ".chaos-engine-state"
             approval.mkdir()
             recorded = approval / "force-push-approval.txt"
             recorded.write_text(push + "\n", encoding="utf-8")
+            for command in (substituted, backticks, newline, into, out_of, redirect, quoted):
+                self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
+                self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
+            self.assertIsNone(boundary.force_push_block(root, windows))
+            self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"))
             self.assertIsNone(boundary.force_push_block(nested, push))
             self.assertEqual("", recorded.read_text(encoding="utf-8"))
             self.assertEqual("force-push-without-approval", boundary.force_push_block(nested, push))
@@ -259,6 +266,29 @@ class IgnoreAndDeleteTest(unittest.TestCase):
         self.assertIn("src/main/resources/secrets.properties", block)
         self.assertIn(".grok/rules/*.md", block)
         self.assertNotIn("* text=auto", block)
+
+    def test_every_published_grok_rule_is_ignored(self) -> None:
+        hosts = _load("ce_hosts_7959_publish", CE / "hosts.py")
+        publisher = _load("ce_grok_publish_7959", CE / "grok_model_load.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            skill = project / "chaos-engine" / "skills" / "chaos-engine"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("# skill\n", encoding="utf-8")
+            (project / "chaos-engine" / "identity.md").write_text("# id\n", encoding="utf-8")
+            written = publisher.publish(project)
+            self.assertTrue(written)
+            patterns = [
+                line.strip()
+                for line in hosts.gitignore_content(None).decode("utf-8").splitlines()
+                if line.strip() and not line.startswith("#") and not line.startswith("!")
+            ]
+            for path in written:
+                relative = Path(path).resolve().relative_to(project.resolve()).as_posix()
+                self.assertTrue(
+                    any(fnmatch.fnmatch(relative, pattern) for pattern in patterns),
+                    relative,
+                )
 
     def test_identical_untracked_file_needs_no_code(self) -> None:
         guard = _load("ce_delete_7960", CE / "delete_guard.py")
