@@ -13,11 +13,11 @@ design-skills add-on lesson index; load them on demand from that add-on.
 1. **Plan** first (options, riskiest assumption + check). Live/external: think-first.
 2. **Do** — one implementer.
 3. **Self-check** against the gates below. Stop at most 3 PDCA iterations, then escalate. A complex video or audio edit does not stop after one accepted cycle. It follows [Complex video or audio editing](#complex-video-or-audio-editing).
-4. **Independent adversarial reviews**: two independent adversarial reviews after required checks are green (not the implementer), then sign-off. The author is neither reviewer.
+4. **Independent adversarial reviews**: two independent adversarial reviews after required checks are green (not the implementer), then sign-off. The author is neither reviewer. A complex video or audio edit does not sign off, publish, or share on that single pair.
 5. **Orchestrator SIGN** after the two adversarial reviews in [delivery cycle](delivery-cycle.md) pass, plus gate JSON.
-6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads.
+6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads. A complex video or audio edit is not uploaded while a cycle is failed.
 7. **Retro** defects → ChaosEngine gate + review-brief block.
-8. **Share only approved deliverables** — after the two independent adversarial reviews + owner approval (named acceptance gate when applicable). Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).
+8. **Share only approved deliverables** — after the two independent adversarial reviews + owner approval (named acceptance gate when applicable). A complex video or audio edit is shared only after the standing section is satisfied. Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).
 
 ### Video / caption (build + review + SIGN)
 - Ear-lock title to kept speech; spoken-lock keeps **scope words** (design L41);
@@ -76,12 +76,13 @@ on the worker brief (`ce_load: required` + `tool.py entry`).
 
 ## Complex video or audio editing
 
-A complex video or audio edit runs three PDCA cycles before it is called
-final. Each cycle has two independent adversarial reviewers. The author is
-neither reviewer. A failed cycle is fixed before a later cycle counts, and
-the cut is not uploaded while a cycle is failed. Required checks are green
-before those reviews start. A new cut invalidates earlier passes. This does
-not turn the general "at most 3 PDCA" cap into a quota for other work.
+A complex video or audio edit runs three PDCA cycles before it is called final.
+Each cycle has two independent adversarial reviewers.
+The author is neither reviewer.
+A failed cycle is fixed before a later cycle counts, and the cut is not uploaded while a cycle is failed.
+Required checks are green before those reviews start.
+A new cut invalidates earlier passes.
+This does not turn the general "at most 3 PDCA" cap into a quota for other work.
 
 ## Follow-up
 

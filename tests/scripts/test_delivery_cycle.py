@@ -173,13 +173,42 @@ class DeliveryCycleContractTest(unittest.TestCase):
         self.assertIn("not limited to the active session", cycle)
         self.assertNotIn("at least three", cycle.lower())
         self.assertNotIn("minimum 3", cycle.lower())
+        self.assertIn("one accepted Check is not final", cycle)
+        self.assertIn("Other work still stops when Check accepts", cycle)
+        self.assertIn("Stop when Check accepts", cycle)
+        section = checklist.split("## Complex video or audio editing", 1)[1]
+        section = section.split("## Follow-up", 1)[0]
+        for sentence in (
+            "runs three PDCA cycles before it is called final",
+            "Each cycle has two independent adversarial reviewers",
+            "The author is neither reviewer",
+            "A failed cycle is fixed before a later cycle counts",
+            "not uploaded while a cycle is failed",
+            "Required checks are green before those reviews start",
+            "A new cut invalidates earlier passes",
+        ):
+            self.assertIn(sentence, section)
         flow = checklist.split("## Why", 1)[0]
         self.assertIn("does not stop after one accepted cycle", flow)
+        self.assertIn("does not sign off, publish, or share on that single pair", flow)
+        self.assertIn("is not uploaded while a cycle is failed", flow)
+        self.assertIn("shared only after the standing section is satisfied", flow)
         self.assertIn("#complex-video-or-audio-editing", flow)
         self.assertLess(
             flow.index("at most 3 PDCA"),
             flow.index("two independent adversarial reviews after required checks are green"),
         )
+        callers = {
+            "design-skills": CE / "addons/design-skills/SKILL.md",
+            "technical-video": CE / "addons/design-skills/references/pipelines/technical-video.md",
+            "runbook": CE / "addons/design-skills/references/pipelines/runbook.md",
+            "design-loop": REFS / "design-loop.md",
+        }
+        for name, path in callers.items():
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(caller=name):
+                self.assertIn("complex video or audio edit", text)
+                self.assertIn("design-review-video-checklist.md", text)
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")

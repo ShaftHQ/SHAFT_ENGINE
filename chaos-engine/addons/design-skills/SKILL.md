@@ -25,6 +25,9 @@ only with `--with-design-skills`. Without it, use core
 5. Licences first: record every font, track, voice, model, footage
    source in the asset manifest before using it.
 6. Deliver after QC and an independent review pass; earlier files are DRAFT.
+   A complex video or audio edit follows
+   [design-review-video-checklist.md](../../references/design-review-video-checklist.md)
+   before delivery.
 7. A design document (brief, storyboard, visual direction) runs the core
    [design loop](../../references/design-loop.md) when the owner asks for review.
 

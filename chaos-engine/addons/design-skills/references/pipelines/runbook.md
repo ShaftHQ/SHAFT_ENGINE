@@ -119,7 +119,9 @@ moderate or worse.
 ## 5. Deliver
 
 Upload when full QC passes and `findings` says `deliver` (or `owner` at the
-cap), with the QC report and review log beside the files. A file sent
+cap), with the QC report and review log beside the files. A complex video or audio edit follows
+[design-review-video-checklist.md](../../../../references/design-review-video-checklist.md)
+and is not uploaded while a cycle of that rule is failed. A file sent
 earlier is named and labelled DRAFT with its open failures; superseded
 drafts move to an archive folder.
 
