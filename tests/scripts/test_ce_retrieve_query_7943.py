@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -203,8 +204,11 @@ class RareClassifiedIdTest(unittest.TestCase):
 
 
 def _git(root: Path, *args: str) -> None:
-    subprocess.run(  # nosec B603 - fixed git argv in a temp repo, no shell.
-        ["git", "-c", "core.hooksPath=", *args],
+    git = shutil.which("git")
+    if git is None:
+        raise AssertionError("git is not on PATH")
+    subprocess.run(  # nosec B603 - absolute git from shutil.which, fixed argv.
+        [git, "-c", "core.hooksPath=", *args],
         cwd=root,
         check=True,
         capture_output=True,
