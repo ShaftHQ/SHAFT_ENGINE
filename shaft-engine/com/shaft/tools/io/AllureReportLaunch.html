@@ -59,6 +59,7 @@
 <li><a href="#engineJavaMajor()" tabindex="0">engineJavaMajor()</a></li>
 <li><a href="#javaMajorFromJavacOutput(java.lang.String)" tabindex="0">javaMajorFromJavacOutput(String)</a></li>
 <li><a href="#jdkMajor(java.nio.file.Path)" tabindex="0">jdkMajor(Path)</a></li>
+<li><a href="#javacVersionCommand(java.nio.file.Path)" tabindex="0">javacVersionCommand(Path)</a></li>
 <li><a href="#resolveJdkHome(java.lang.String,java.util.List,int,com.shaft.tools.io.AllureReportLaunch.JdkMajorProbe)" tabindex="0">resolveJdkHome(String, List, int, AllureReportLaunch.JdkMajorProbe)</a></li>
 <li><a href="#mavenClasspathCommand(java.nio.file.Path)" tabindex="0">mavenClasspathCommand(Path)</a></li>
 <li><a href="#requireShaftClass(java.util.List)" tabindex="0">requireShaftClass(List)</a></li>
@@ -147,45 +148,50 @@ repository, a hard failure when <code>com/shaft/driver/SHAFT.class</code> is mis
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Builds the <code>java</code> command that launches the report from an argument file.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#javaMajorFromJavacOutput(java.lang.String)" class="member-name-link">javaMajorFromJavacOutput</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;javacOutput)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#javacVersionCommand(java.nio.file.Path)" class="member-name-link">javacVersionCommand</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;jdkHome)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Parses the major version from <code>javac -version</code> output.</div>
+<div class="block">Builds the <code>javac -version</code> command for one JDK home.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#javaMajorRequiredBy(byte%5B%5D)" class="member-name-link">javaMajorRequiredBy</a><wbr>(byte[]&nbsp;classBytes)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#javaMajorFromJavacOutput(java.lang.String)" class="member-name-link">javaMajorFromJavacOutput</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;javacOutput)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Reads the Java major version required by a class-file header.</div>
+<div class="block">Parses the major version from <code>javac -version</code> output.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#jdkMajor(java.nio.file.Path)" class="member-name-link">jdkMajor</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;jdkHome)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#javaMajorRequiredBy(byte%5B%5D)" class="member-name-link">javaMajorRequiredBy</a><wbr>(byte[]&nbsp;classBytes)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reads the Java major version required by a class-file header.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#jdkMajor(java.nio.file.Path)" class="member-name-link">jdkMajor</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;jdkHome)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Runs <code>bin/javac -version</code> when that executable exists.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#mavenClasspathCommand(java.nio.file.Path)" class="member-name-link">mavenClasspathCommand</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;localRepository)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#mavenClasspathCommand(java.nio.file.Path)" class="member-name-link">mavenClasspathCommand</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;localRepository)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Maven classpath rebuild for a report launcher.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#requireShaftClass(java.util.List)" class="member-name-link">requireShaftClass</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;classpathEntries)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#requireShaftClass(java.util.List)" class="member-name-link">requireShaftClass</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;classpathEntries)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Fails when no classpath entry contains <code>com/shaft/driver/SHAFT.class</code>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolveJdkHome(java.lang.String,java.util.List,int,com.shaft.tools.io.AllureReportLaunch.JdkMajorProbe)" class="member-name-link">resolveJdkHome</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;javaHome,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolveJdkHome(java.lang.String,java.util.List,int,com.shaft.tools.io.AllureReportLaunch.JdkMajorProbe)" class="member-name-link">resolveJdkHome</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;javaHome,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;fallbacks,
  int&nbsp;minimumMajor,
  <a href="AllureReportLaunch.JdkMajorProbe.html" title="interface in com.shaft.tools.io">AllureReportLaunch.JdkMajorProbe</a>&nbsp;probe)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Selects <code>javaHome</code> when its javac major is at least <code>minimumMajor</code>; otherwise the
 first fallback that qualifies.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#writeClasspathArgFile(java.nio.file.Path,java.util.List,java.lang.String)" class="member-name-link">writeClasspathArgFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;argFile,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#writeClasspathArgFile(java.nio.file.Path,java.util.List,java.lang.String)" class="member-name-link">writeClasspathArgFile</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;argFile,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;classpathEntries,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;trailingArgument)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Writes a Java argument file whose first argument is <code>-cp</code>.</div>
 </div>
 </div>
@@ -279,12 +285,32 @@ which is Java 25.</div>
 <h3>jdkMajor</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">jdkMajor</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;jdkHome)</span></div>
-<div class="block">Runs <code>bin/javac -version</code> when that executable exists.</div>
+<div class="block">Runs <code>bin/javac -version</code> when that executable exists.
+The image is the absolute path from <a href="#javacVersionCommand(java.nio.file.Path)"><code>javacVersionCommand(Path)</code></a>. The JDK home is not used
+as the process working directory, because Windows resolves a relative application name from the
+parent directory.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>jdkHome</code> - a JDK home directory, not a JRE</dd>
 <dt>Returns:</dt>
 <dd>the javac major, or <code>-1</code> when javac is missing or its output cannot be read</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="javacVersionCommand(java.nio.file.Path)">
+<h3>javacVersionCommand</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">javacVersionCommand</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;jdkHome)</span></div>
+<div class="block">Builds the <code>javac -version</code> command for one JDK home.
+Element 0 is the absolute normalized path of <code>bin/javac.exe</code> on Windows and <code>bin/javac</code>
+otherwise. It is never a relative <code>bin/javac</code> name.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>jdkHome</code> - a JDK home directory</dd>
+<dt>Returns:</dt>
+<dd><code>javac -version</code> with an absolute executable</dd>
 </dl>
 </div>
 </section>

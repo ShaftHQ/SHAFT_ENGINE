@@ -152,7 +152,8 @@ Pass another whole-token <a href="https://docs.oracle.com/en/java/javase/25/docs
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static final</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">DEFAULT_PATTERN</span></div>
 <div class="block">Whole-token pattern. <code>G&lt;digits&gt;</code> refuses a following letter, digit, or hyphen so a hostname
-segment such as <code>G14-GA401</code> is not a locator id.</div>
+segment such as <code>G14-GA401</code> is not a locator id. Repeated id segments use <code>{1,}</code> and
+<code>{0,}</code>, which match the same text as <code>+</code> and <code>*</code> without a nested quantifier.</div>
 <dl class="notes">
 <dt>See Also:</dt>
 <dd>
