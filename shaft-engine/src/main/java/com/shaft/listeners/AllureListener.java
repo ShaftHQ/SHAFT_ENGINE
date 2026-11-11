@@ -27,6 +27,8 @@ import io.qameta.allure.model.TestResultContainer;
 import org.opentest4j.TestAbortedException;
 import org.testng.SkipException;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -410,6 +412,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         return text != null && text.contains("AssertionError");
     }
 
+    @Nullable
     private static AssertionError assertionThrowable() {
         var testResult = TestNGListener.getITestResult();
         Throwable throwable = testResult == null ? null : testResult.getThrowable();
@@ -428,7 +431,11 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         if (error == null || error.getMessage() == null) {
             return "";
         }
-        return error.getMessage().trim();
+        String safe = ReportSecrets.redact(FailureTraceReporter.redactInvocationText(error.getMessage().trim()));
+        if (safe == null) {
+            return "";
+        }
+        return safe;
     }
 
     /**

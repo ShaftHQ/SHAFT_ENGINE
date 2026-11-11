@@ -1,14 +1,19 @@
 package com.shaft.test.unittests;
 
 import com.shaft.listeners.AllureListener;
+import com.shaft.listeners.TestNGListener;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.TestResult;
+import org.mockito.Mockito;
+import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Field;
 
 import static org.testng.Assert.*;
 
@@ -106,6 +111,41 @@ public class SkippedTestReportingTest {
         assertTrue(message.contains("Assertion failed; expected true, but found false"), message);
         assertTrue(message.contains("AssertionError"), message);
         assertFalse(message.contains("earlier info that must not win"), message);
+    }
+
+    /**
+     * The assertion text is redacted before it is appended. {@code redactStatusDetails} already ran,
+     * so a raw throwable message must not be written back into the published skip.
+     */
+    @Test
+    public void beforeTestStopRedactsAssertionTextAndKeepsLastInfoLine() throws Exception {
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.sig";
+        ReportManager.log("Transient network alert after session-id submit; tapping Please try Again");
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("expected true but token " + jwt));
+        setITestResult(testResult);
+        try {
+            TestResult result = new TestResult()
+                    .setStatus(Status.SKIPPED)
+                    .setStatusDetails(new StatusDetails().setMessage("skipped after assertion"));
+            listener.beforeTestStop(result);
+
+            assertEquals(result.getStatus(), Status.SKIPPED);
+            String message = result.getStatusDetails().getMessage();
+            assertFalse(message.contains(jwt), message);
+            assertTrue(message.contains("********"), message);
+            assertTrue(message.contains("expected true but token"), message);
+            assertTrue(message.contains("Transient network alert after session-id submit; tapping Please try Again"),
+                    message);
+        } finally {
+            setITestResult(null);
+        }
+    }
+
+    private static void setITestResult(ITestResult testResult) throws Exception {
+        Field iTestResultField = TestNGListener.class.getDeclaredField("iTestResult");
+        iTestResultField.setAccessible(true);
+        iTestResultField.set(null, testResult);
     }
 
     /**

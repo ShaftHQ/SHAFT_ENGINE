@@ -25,6 +25,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -315,6 +316,141 @@ public class AllureListenerCoverageUnitTest {
         assertTrue(result.getStatusDetails().getMessage().contains("kill switch"));
         assertEquals(result.getStatusDetails().getTrace(), result.getStatusDetails().getMessage());
         assertNull(TestNGListenerHelper.getAndClearPendingConfigFailure());
+    }
+
+    @Test
+    public void beforeTestStopCreatesStatusDetailsWhenAssertionSkipHasNone() throws Exception {
+        setLastInfoLine(null);
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(
+                new RuntimeException("wrapper", new AssertionError("assertion meaning")));
+        setITestResult(testResult);
+        TestResult result = new TestResult().setStatus(Status.SKIPPED);
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        assertNotNull(result.getStatusDetails());
+        assertEquals(result.getStatusDetails().getMessage(), "assertion meaning");
+    }
+
+    @Test
+    public void beforeTestStopLeavesSkipUnchangedWhenCauseChainHasNoAssertion() throws Exception {
+        setLastInfoLine(null);
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new RuntimeException("not an assertion"));
+        setITestResult(testResult);
+        TestResult result = skippedResult("ordinary skip");
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        assertEquals(result.getStatusDetails().getMessage(), "ordinary skip");
+    }
+
+    @Test
+    public void beforeTestStopIgnoresBlankAssertionTextAndBlankInfoLine() throws Exception {
+        setLastInfoLine("   ");
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("   "));
+        setITestResult(testResult);
+        TestResult result = skippedResult("kept skip");
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        assertEquals(result.getStatusDetails().getMessage(), "kept skip");
+    }
+
+    @Test
+    public void beforeTestStopIgnoresAssertionWhoseMessageIsNull() throws Exception {
+        setLastInfoLine(null);
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError());
+        setITestResult(testResult);
+        TestResult result = new TestResult()
+                .setStatus(Status.SKIPPED)
+                .setStatusDetails(new StatusDetails()
+                        .setMessage("kept skip")
+                        .setTrace("java.lang.AssertionError"));
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        assertEquals(result.getStatusDetails().getMessage(), "kept skip");
+        assertTrue(result.getStatusDetails().getTrace().contains("AssertionError"));
+    }
+
+    @Test
+    public void beforeTestStopLeavesSkipUnchangedWhenTestNgResultWasCleared() throws Exception {
+        setITestResult(null);
+        setLastInfoLine(null);
+        TestResult result = skippedResult("ordinary skip");
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        assertEquals(result.getStatusDetails().getMessage(), "ordinary skip");
+    }
+
+    @Test
+    public void beforeTestStopDropsAppendedTextWhenRedactionReturnsNull() throws Exception {
+        setLastInfoLine("info line that redaction drops");
+        ITestResult testResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("assertion meaning"));
+        setITestResult(testResult);
+        TestResult result = skippedResult("base skip");
+
+        try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class);
+             MockedStatic<com.shaft.tools.io.internal.ReportSecrets> secrets =
+                     Mockito.mockStatic(com.shaft.tools.io.internal.ReportSecrets.class, Mockito.CALLS_REAL_METHODS)) {
+            driverFactoryHelper.when(DriverFactoryHelper::isKillSwitch).thenReturn(false);
+            secrets.when(() -> com.shaft.tools.io.internal.ReportSecrets.redact(org.mockito.ArgumentMatchers.any()))
+                    .thenReturn(null);
+            listener.beforeTestStop(result);
+        }
+
+        assertEquals(result.getStatus(), Status.SKIPPED);
+        String message = result.getStatusDetails().getMessage();
+        assertTrue(message == null || message.isEmpty(), message);
+    }
+
+    @Test
+    public void appendIfMissingKeepsMessageWhenExtraIsNullBlankOrAlreadyPresent() throws Exception {
+        Method appendIfMissing = AllureListener.class.getDeclaredMethod("appendIfMissing", String.class, String.class);
+        appendIfMissing.setAccessible(true);
+        assertEquals(appendIfMissing.invoke(null, "kept", null), "kept");
+        assertEquals(appendIfMissing.invoke(null, "kept", "   "), "kept");
+        assertEquals(appendIfMissing.invoke(null, "already tail", "tail"), "already tail");
+        assertEquals(appendIfMissing.invoke(null, "   ", "added"), "added");
+        assertEquals(appendIfMissing.invoke(null, "head", "tail"), "head\ntail");
+    }
+
+    private static void setLastInfoLine(String value) throws Exception {
+        Field field = ReportContext.class.getDeclaredField("lastInfoLine");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ThreadLocal<String> lastInfoLine = (ThreadLocal<String>) field.get(null);
+        if (value == null) {
+            lastInfoLine.remove();
+        } else {
+            lastInfoLine.set(value);
+        }
     }
 
     private static TestResult skippedResult(String message) {
