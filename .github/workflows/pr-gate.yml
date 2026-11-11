@@ -746,8 +746,9 @@ jobs:
   # own parallel job. The verifier IDEs resolve through Gradle artifact
   # transforms that setup-gradle already restores from the Gradle User Home
   # cache, so no second multi-GB cache is added. The two jobs together run
-  # exactly `check buildPlugin verifyPlugin`; release workflows still run the
-  # single combined, retried build.
+  # exactly `check buildPlugin verifyPlugin`. shaft-pilot-release.yml runs the
+  # same two modes in parallel (#7835). mavenCentral_cd.yml keeps the combined
+  # retried build on the sequential deploy path.
   intellij-verify-plugin:
     name: Verify IntelliJ plugin (Plugin Verifier)
     needs: changes

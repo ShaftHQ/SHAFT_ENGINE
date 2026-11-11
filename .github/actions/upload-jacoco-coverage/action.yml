@@ -188,14 +188,79 @@ runs:
           exit 1
         fi
 
-    - name: Upload coverage to Codecov
-      id: codecov
+    # Download the pinned Codecov CLI once so the upload step can record the
+    # exact argv. binary: skips the action's own download; this step is the
+    # GPG verification that skip replaces. A 429 stays non-fatal here, matching
+    # the upload step's continue-on-error (#5172).
+    - name: Stage verified Codecov CLI
+      id: codecov-cli
       if: >-
         steps.gate.outputs.enabled == 'true' &&
         steps.resolve.outcome == 'success' &&
         steps.resolve.outputs.has-files == 'true'
       continue-on-error: true
+      shell: bash
+      run: |
+        set -euo pipefail
+        pin=303a32d7a59b442fa8d48b6a1cc6825c09c847a5
+        script="${RUNNER_TEMP}/codecov-action-${pin}.sh"
+        dest="${RUNNER_TEMP}/codecov-cli-${pin}"
+        receipt="${RUNNER_TEMP}/codecov-upload-receipt.txt"
+        wrap="${RUNNER_TEMP}/codecov-receipt-wrapper"
+        curl -fsSL -o "$script" \
+          "https://raw.githubusercontent.com/codecov/codecov-action/${pin}/dist/codecov.sh"
+        # CLEANUP keeps the checksum files out of the workspace. The verified
+        # binary is moved to CC_BINARY_LOCATION before the temp dir is removed.
+        CC_DOWNLOAD_ONLY=true CC_BINARY_LOCATION="$dest" CC_CLEANUP=true bash "$script"
+        real=""
+        for candidate in "$dest/codecov" "$dest/codecov.exe"; do
+          if [ -f "$candidate" ]; then
+            real="$candidate"
+            break
+          fi
+        done
+        if [ -z "$real" ]; then
+          echo "verified Codecov CLI was not staged" >&2
+          exit 1
+        fi
+        cat > "$wrap" << 'EOF'
+        #!/usr/bin/env bash
+        set -euo pipefail
+        receipt="${CODECOV_RECEIPT:?}"
+        real="${CODECOV_REAL_BIN:?}"
+        script="${CODECOV_RECEIPT_SCRIPT:?}"
+        if command -v python3 >/dev/null 2>&1; then
+          py=(python3)
+        elif command -v py >/dev/null 2>&1; then
+          py=(py -3)
+        else
+          echo "python3 is required to record the Codecov upload receipt" >&2
+          exit 1
+        fi
+        "${py[@]}" "$script" --record-receipt "$receipt" -- "$@"
+        exec "$real" "$@"
+        EOF
+        chmod +x "$wrap"
+        : > "$receipt"
+        {
+          echo "real-bin=$real"
+          echo "receipt=$receipt"
+          echo "wrapper=$wrap"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Upload coverage to Codecov
+      id: codecov
+      if: >-
+        steps.gate.outputs.enabled == 'true' &&
+        steps.resolve.outcome == 'success' &&
+        steps.resolve.outputs.has-files == 'true' &&
+        steps.codecov-cli.outcome == 'success'
+      continue-on-error: true
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
+      env:
+        CODECOV_REAL_BIN: ${{ steps.codecov-cli.outputs.real-bin }}
+        CODECOV_RECEIPT: ${{ steps.codecov-cli.outputs.receipt }}
+        CODECOV_RECEIPT_SCRIPT: ${{ github.workspace }}/scripts/ci/upload_jacoco_coverage.py
       with:
         token: ${{ inputs.codecov-token }}
         fail_ci_if_error: true
@@ -212,6 +277,7 @@ runs:
         # point the parent at the PR base: main, which uploads every flag.
         commit_parent: ${{ github.event.pull_request.base.sha }}
         verbose: true
+        binary: ${{ steps.codecov-cli.outputs.wrapper }}
 
     - name: Summarize coverage result
       id: summarize
@@ -225,6 +291,8 @@ runs:
         HAS_FILES: ${{ steps.resolve.outputs.has-files }}
         RESOLVED_FILES: ${{ steps.resolve.outputs.files }}
         SOURCE_ID_INPUT: ${{ inputs.source-id }}
+        REQUESTED_FLAG: ${{ inputs.flags || (github.event_name != 'pull_request' && 'main-suites' || '') }}
+        CODECOV_RECEIPT: ${{ steps.codecov-cli.outputs.receipt }}
       run: |
         set -euo pipefail
         source_id="${SOURCE_ID_INPUT:-$GITHUB_JOB}"
@@ -244,6 +312,19 @@ runs:
         [ "$RESOLVE_OUTCOME" != "failure" ] || failed_phases+=(resolution)
         if [ "$HAS_FILES" = "true" ] && [ "$CODECOV_OUTCOME" != "success" ]; then
           failed_phases+=(upload)
+        fi
+        # #7924: HTTP 200 is not success when the receipt omits the requested flag.
+        if [ -n "$REQUESTED_FLAG" ] && [ "$HAS_FILES" = "true" ] && [ "$CODECOV_OUTCOME" = "success" ]; then
+          pybin=()
+          if command -v python3 >/dev/null 2>&1; then
+            pybin=(python3)
+          elif command -v py >/dev/null 2>&1; then
+            pybin=(py -3)
+          fi
+          if [ "${#pybin[@]}" -eq 0 ] || ! "${pybin[@]}" scripts/ci/upload_jacoco_coverage.py --flag "$REQUESTED_FLAG" --receipt "${CODECOV_RECEIPT:-}"; then
+            echo "::error::Codecov receipt does not name requested flag ${REQUESTED_FLAG}"
+            failed_phases+=(receipt)
+          fi
         fi
         if [ "${#failed_phases[@]}" -gt 0 ]; then
           status=failure
