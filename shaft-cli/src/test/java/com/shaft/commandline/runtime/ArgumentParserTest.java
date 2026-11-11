@@ -58,4 +58,21 @@ class ArgumentParserTest {
     void rejectsNonObjectArgsJson() {
         assertThrows(McpException.class, () -> ArgumentParser.parse("[1,2,3]", null));
     }
+
+    @Test
+    void rejectsArgsJsonThatIsNotJson() {
+        McpException failure = assertThrows(McpException.class, () -> ArgumentParser.parse("{", null));
+        assertTrue(failure.getMessage().contains("--args is not valid JSON"), failure.getMessage());
+        assertTrue(failure.getCause() != null);
+    }
+
+    @Test
+    void emptyAndBrokenStructuredValuesStayText() {
+        ObjectNode node = ArgumentParser.parse(null, List.of("empty=", "filter= {", "flag=false"));
+        assertEquals("", node.path("empty").asText());
+        assertTrue(node.path("filter").isTextual());
+        assertEquals(" {", node.path("filter").asText());
+        assertTrue(node.path("flag").isBoolean());
+        assertEquals(false, node.path("flag").asBoolean());
+    }
 }
