@@ -32,7 +32,7 @@ _SECRET = re.compile(
 )
 _PASSWORD = re.compile(r"\b(?:password|token)\s*[:=]\s*(\S+)", re.I)
 _PLACEHOLDER_VALUE = re.compile(
-    r"^(?:#.*|//.*|\$(?:\{[^}]*\}|\w+)|<[^>]*>|changeme|placeholder|todo|\*+|x{3,}|your_token)$",
+    r"^(?:#.*|//.*|\$(?:\{[^}]*\}|\w+)|<[^>]*>|changeme|placeholder|todo|\*+|x{3,}|your_token|['\"]+)$",
     re.I,
 )
 _JWT = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")

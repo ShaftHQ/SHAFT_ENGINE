@@ -83,6 +83,29 @@ class ForcePushSingleUseTest(unittest.TestCase):
             self.assertIsNone(boundary.force_push_block(root, approve))
             self.assertEqual(approve + "\n", recorded.read_text(encoding="utf-8"))
 
+    def test_a_substitution_or_following_line_still_pushes(self) -> None:
+        boundary = _load("ce_boundary_7955_subst", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _git(root, "init")
+            push = "git push --force origin HEAD"
+            substituted = "python3 .chaos-engine/tool.py force-push-approve -- $(git push --force origin HEAD)"
+            backticks = "python3 .chaos-engine/tool.py force-push-approve -- `git push --force origin HEAD`"
+            newline = "python3 .chaos-engine/tool.py force-push-approve -- true\n" + push
+            windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
+            for command in (substituted, backticks, newline):
+                self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
+            self.assertIsNone(boundary.force_push_block(root, windows))
+            nested = root / "nested"
+            nested.mkdir()
+            approval = root / ".chaos-engine-state"
+            approval.mkdir()
+            recorded = approval / "force-push-approval.txt"
+            recorded.write_text(push + "\n", encoding="utf-8")
+            self.assertIsNone(boundary.force_push_block(nested, push))
+            self.assertEqual("", recorded.read_text(encoding="utf-8"))
+            self.assertEqual("force-push-without-approval", boundary.force_push_block(nested, push))
+
     def test_force_push_approve_writes_the_temp_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -107,6 +130,8 @@ class SecretsTextTest(unittest.TestCase):
         for sample in ("password=", "password=//p", "password=$VAR", "token=${TOKEN}", "token=changeme", "password=<password>"):
             self.assertFalse(lessons._password_hit(sample), sample)
         self.assertTrue(lessons._password_hit("password: hunter2"))
+        self.assertTrue(lessons._password_hit('password="hunter2"'))
+        self.assertEqual([], boundary.command_blocks(Path("."), 'grep -n "password=" file.sh'))
         withheld = boundary.output_secret_block(
             {"exit_code": 17, "stdout": "ghp_abcdefghij123456\n"},
         )

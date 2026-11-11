@@ -26,7 +26,9 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
-_APPROVE_TOOL = re.compile(r"\b(?:python3?|py)\s+\S*tool\.py\s+force-push-approve\b")
+_APPROVE_TOOL = re.compile(
+    r"\b(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\b"
+)
 
 
 def _load(path: Path, name: str) -> Any:
@@ -137,9 +139,29 @@ def _strip_unquoted_comment(part: str) -> str:
     return "".join(out).strip()
 
 
+def _executed_push(code: str) -> bool:
+    """True when a substitution or backtick would run ``git push``."""
+    index = 0
+    while index < len(code):
+        if code.startswith("$(", index) or code[index] == "`":
+            mark = ")" if code.startswith("$(", index) else "`"
+            start = index + (2 if mark == ")" else 1)
+            end = code.find(mark, start)
+            if end < 0:
+                end = len(code)
+            if _PUSH.search(code[start:end]):
+                return True
+            index = end + 1
+            continue
+        index += 1
+    return False
+
+
 def _is_approve_invocation(part: str) -> bool:
-    """True only when this statement is the approval tool, not a push that mentions it."""
+    """True only when this statement records approval and does not run a push."""
     code = _strip_unquoted_comment(part)
+    if _executed_push(code):
+        return False
     match = _APPROVE_TOOL.search(code)
     if match is None:
         return False
@@ -151,16 +173,53 @@ def _is_approve_invocation(part: str) -> bool:
     return _PUSH.search(head) is None
 
 
+def _command_pieces(command: str) -> list[str]:
+    """Shell statements, with a newline outside quotes kept as a separator."""
+    pieces: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    text = command or ""
+    for index, char in enumerate(text):
+        if quote:
+            buf.append(char)
+            if char == quote and text[index - 1] != "\\":
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            buf.append(char)
+            continue
+        if char in {"\n", "\r"}:
+            pieces.append("".join(buf))
+            buf = []
+            continue
+        buf.append(char)
+    pieces.append("".join(buf))
+    statements: list[str] = []
+    for piece in pieces:
+        statements.extend(_shell_statements(piece))
+    return statements
+
+
+def _approval_root(root: Path) -> Path:
+    """Git toplevel, so a subdirectory tool call sees the recorded approval."""
+    current = Path(root)
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return current
+
+
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
     segments = [
         part
-        for part in _shell_statements(text)
+        for part in _command_pieces(command or "")
         if _PUSH.search(part) and not _is_approve_invocation(part)
     ]
     if not any(_FORCE.search(part) for part in segments):
         return None
-    path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
+    path = _approval_root(root) / ".chaos-engine-state" / "force-push-approval.txt"
     recorded: list[str] = []
     if path.is_file():
         recorded = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
