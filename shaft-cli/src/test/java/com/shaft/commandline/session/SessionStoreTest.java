@@ -1,5 +1,6 @@
 package com.shaft.commandline.session;
 
+import com.shaft.commandline.mcp.McpException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -12,6 +13,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -92,5 +94,42 @@ class SessionStoreTest {
         store.save(replacement);
 
         assertEquals(Optional.of(replacement), store.load());
+    }
+
+    @Test
+    void saveRejectsAFileUsedAsTheSessionDirectory(@TempDir Path temp) throws IOException {
+        Path file = temp.resolve("not-a-directory");
+        Files.writeString(file, "x");
+        SessionStore store = new SessionStore(file);
+
+        McpException failure = assertThrows(McpException.class,
+                () -> store.save(new SessionInfo(1, 2L, "jar", "2026-11-11T00:00:00Z")));
+
+        assertTrue(failure.getMessage().contains("Could not create session directory"), failure.getMessage());
+        assertTrue(failure.getMessage().contains(file.toString()), failure.getMessage());
+    }
+
+    @Test
+    void saveRejectsWhenTheSessionPathIsADirectory(@TempDir Path baseDir) throws IOException {
+        SessionStore store = new SessionStore(baseDir);
+        Files.createDirectories(store.path());
+
+        McpException failure = assertThrows(McpException.class,
+                () -> store.save(new SessionInfo(1, 2L, "jar", "2026-11-11T00:00:00Z")));
+
+        assertTrue(failure.getMessage().contains("Could not write session file"), failure.getMessage());
+        assertTrue(failure.getMessage().contains(store.path().toString()), failure.getMessage());
+    }
+
+    @Test
+    void clearRejectsANonEmptyDirectoryAtTheSessionPath(@TempDir Path baseDir) throws IOException {
+        SessionStore store = new SessionStore(baseDir);
+        Files.createDirectories(store.path());
+        Files.writeString(store.path().resolve("child"), "x");
+
+        McpException failure = assertThrows(McpException.class, store::clear);
+
+        assertTrue(failure.getMessage().contains("Could not remove session file"), failure.getMessage());
+        assertTrue(failure.getMessage().contains(store.path().toString()), failure.getMessage());
     }
 }

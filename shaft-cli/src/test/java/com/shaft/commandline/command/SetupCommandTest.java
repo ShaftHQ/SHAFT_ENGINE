@@ -1,6 +1,14 @@
 package com.shaft.commandline.command;
 
 import com.shaft.commandline.ShaftCli;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.SetupMode;
+import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupPlan;
+import com.shaft.infrastructure.SetupPlanStore;
+import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.SetupSelection;
+import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -9,11 +17,14 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupCommandTest {
@@ -490,6 +501,236 @@ class SetupCommandTest {
         } finally {
             com.shaft.properties.internal.Properties.clearForCurrentThread();
         }
+    }
+
+    @Test
+    void bareSetupPrintsUsage() {
+        CommandResult result = execute("setup");
+
+        assertEquals(0, result.exitCode(), result.stderr());
+        assertTrue(result.stdout().contains("catalog"), result.stdout());
+        assertTrue(result.stdout().contains("Usage") || result.stdout().contains("usage"), result.stdout());
+    }
+
+    @Test
+    void catalogPrintsProfilesAsTextAndJson() throws Exception {
+        CommandResult text = execute("setup", "catalog");
+        CommandResult json = execute("setup", "profiles", "--json");
+
+        assertEquals(0, text.exitCode(), text.stderr());
+        assertTrue(text.stdout().contains("WEB_LOCAL\t"), text.stdout());
+        assertTrue(text.stdout().contains("REPORTING\t"), text.stdout());
+        assertEquals(0, json.exitCode(), json.stderr());
+        JsonNode catalog = JSON.readTree(json.stdout());
+        assertTrue(catalog.toString().contains("WEB_LOCAL"), catalog.toString());
+    }
+
+    @Test
+    void planWithoutJsonPrintsPathAndDigest(@TempDir Path temp) throws Exception {
+        Path planFile = temp.resolve("text-plan.json").toAbsolutePath();
+
+        CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--output", planFile.toString());
+
+        assertEquals(0, result.exitCode(), result.stderr());
+        assertTrue(result.stdout().contains("Plan:"), result.stdout());
+        assertTrue(result.stdout().contains("Digest:"), result.stdout());
+        assertTrue(result.stdout().contains("sha256:"), result.stdout());
+        assertTrue(Files.isRegularFile(planFile));
+    }
+
+    @Test
+    void relativePlanOutputIsRejectedBeforeWriting() throws Exception {
+        Path relative = Path.of("shaft-cli-relative-plan-7836.json");
+        try {
+            CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                    "--output", relative.toString());
+
+            assertEquals(2, result.exitCode(), result.stderr());
+            assertTrue(result.stderr().contains("absolute path"), result.stderr());
+            assertTrue(Files.notExists(relative));
+        } finally {
+            Files.deleteIfExists(relative);
+        }
+    }
+
+    @Test
+    void reportingStatusWithoutJsonPrintsTargetRows(@TempDir Path temp) {
+        CommandResult result = execute("setup", "status", "--profile", "REPORTING",
+                "--cache-root", temp.resolve("cache").toAbsolutePath().toString(),
+                "--data-root", temp.resolve("data").toAbsolutePath().toString());
+
+        assertEquals(3, result.exitCode(), result.stderr());
+        assertTrue(result.stdout().contains("NODE\t"), result.stdout());
+        assertTrue(result.stdout().contains("ALLURE\t"), result.stdout());
+    }
+
+    @Test
+    void unsupportedProfileFailsClosedForPlanStatusAndLogs(@TempDir Path temp) {
+        String cache = temp.resolve("cache").toAbsolutePath().toString();
+        String data = temp.resolve("data").toAbsolutePath().toString();
+
+        CommandResult plan = execute("setup", "plan", "--profile", "WEB_LOCAL", "--output",
+                temp.resolve("web-local.json").toAbsolutePath().toString());
+        CommandResult status = execute("setup", "status", "--profile", "WEB_LOCAL",
+                "--cache-root", cache, "--data-root", data);
+        CommandResult logs = execute("setup", "logs", "--profile", "WEB_LOCAL",
+                "--cache-root", cache, "--data-root", data);
+
+        assertEquals(4, plan.exitCode(), plan.stderr());
+        assertTrue(plan.stderr().contains("No setup provider is available for profile WEB_LOCAL"), plan.stderr());
+        assertEquals(4, status.exitCode(), status.stderr());
+        assertTrue(status.stderr().contains("No lifecycle provider is available for profile WEB_LOCAL"),
+                status.stderr());
+        assertEquals(4, logs.exitCode(), logs.stderr());
+        assertTrue(logs.stderr().contains("No lifecycle provider is available for profile WEB_LOCAL"), logs.stderr());
+        assertTrue(Files.notExists(temp.resolve("web-local.json")));
+    }
+
+    @Test
+    void ocrLogsAreNotExposedByTheProvider(@TempDir Path temp) {
+        CommandResult logs = execute("setup", "logs", "--profile", "OCR",
+                "--cache-root", temp.resolve("cache").toAbsolutePath().toString(),
+                "--data-root", temp.resolve("data").toAbsolutePath().toString());
+
+        assertEquals(4, logs.exitCode(), logs.stderr());
+        assertTrue(logs.stderr().contains("No lifecycle provider is available for profile OCR"), logs.stderr());
+    }
+
+    @Test
+    void invalidStartupTimeoutIsRejectedBeforeAPlanIsWritten(@TempDir Path temp) {
+        Path planFile = temp.resolve("bad-timeout.json").toAbsolutePath();
+
+        CommandResult result = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--startup-timeout", "nope");
+
+        assertEquals(2, result.exitCode(), result.stderr());
+        assertTrue(result.stderr().contains("ISO-8601"), result.stderr());
+        assertTrue(Files.notExists(planFile));
+    }
+
+    @Test
+    void nonOcrLanguageOnInstallAndStartIsRejected(@TempDir Path temp) throws Exception {
+        Path planFile = temp.resolve("reporting-plan.json").toAbsolutePath();
+        CommandResult planned = execute("setup", "plan", "--profile", "REPORTING", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--json");
+        assertEquals(0, planned.exitCode(), planned.stderr());
+        String digest = JSON.readTree(planned.stdout()).get("digest").asText();
+
+        CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
+                "--approve", digest, "--language", "eng");
+        CommandResult start = execute("setup", "start", "--plan", planFile.toString(),
+                "--approve", digest, "--language", "eng");
+
+        assertEquals(2, install.exitCode(), install.stderr());
+        assertTrue(install.stderr().contains("only for profile OCR"), install.stderr());
+        assertEquals(2, start.exitCode(), start.stderr());
+        assertTrue(start.stderr().contains("only for profile OCR"), start.stderr());
+    }
+
+    @Test
+    void ocrInstallRejectsLanguagesThatAreNotInTheReviewedPlan(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("ocr-plan.json").toAbsolutePath();
+        CommandResult planned = execute("setup", "plan", "--profile", "OCR", "--mode", "MANAGED",
+                "--language", "fra", "--output", planFile.toString(), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--offline", "--json");
+        assertEquals(0, planned.exitCode(), planned.stderr());
+        String digest = JSON.readTree(planned.stdout()).get("digest").asText();
+
+        CommandResult mismatch = execute("setup", "install", "--plan", planFile.toString(),
+                "--approve", digest, "--language", "eng", "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--offline");
+        assertEquals(2, mismatch.exitCode(), mismatch.stderr());
+        assertTrue(mismatch.stderr().contains("does not match the reviewed OCR plan"), mismatch.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void androidInstallRejectsSelectorsThatDifferFromTheReviewedPlan(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        Path planFile = temp.resolve("android-plan.json").toAbsolutePath();
+        CommandResult planned = execute("setup", "plan", "--profile", "MOBILE_ANDROID", "--mode", "MANAGED",
+                "--output", planFile.toString(), "--cache-root", cache.toString(), "--data-root", data.toString(),
+                "--offline", "--avd-name", "cli_avd", "--ram-mb", "6144", "--cores", "4", "--port", "4823", "--json");
+        assertEquals(0, planned.exitCode(), planned.stderr());
+        String digest = JSON.readTree(planned.stdout()).get("digest").asText();
+
+        CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
+                "--approve", digest, "--avd-name", "other_avd", "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--offline");
+
+        assertEquals(2, install.exitCode(), install.stderr());
+        assertTrue(install.stderr().contains("do not match the reviewed plan"), install.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    @Test
+    void healeniumSelectionIsRebuiltBeforeAStaleApprovalIsRejected(@TempDir Path temp) throws Exception {
+        Path cache = temp.resolve("cache").toAbsolutePath();
+        Path data = temp.resolve("data").toAbsolutePath();
+        SetupSelection chosen = new SetupSelection(List.of("backend_8888", "imitate_9000"));
+        SetupOptions options = SetupOptions.defaults(SetupProfile.HEALENIUM, new ShaftCachePaths(
+                cache, data, cache.resolve("downloads"), data.resolve("tools"),
+                data.resolve("state"), data.resolve("receipts"))).withMode(SetupMode.MANAGED);
+        SetupPlan plan = InfrastructureSetupService.builtIn().plan(options, chosen);
+        SetupSelection rebuilt = selectionFromPlan(plan);
+        assertEquals(chosen, rebuilt);
+        assertNotEquals(SetupSelection.defaults(), rebuilt);
+
+        Path planFile = temp.resolve("healenium-plan.json").toAbsolutePath();
+        SetupPlanStore.write(planFile, plan);
+        CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
+                "--approve", "sha256:" + "0".repeat(64), "--cache-root", cache.toString(),
+                "--data-root", data.toString(), "--offline");
+
+        assertEquals(2, install.exitCode(), install.stderr());
+        assertTrue(install.stderr().contains("approval is stale"), install.stderr());
+        assertTrue(Files.notExists(cache));
+        assertTrue(Files.notExists(data));
+    }
+
+    private static SetupSelection selectionFromPlan(SetupPlan plan) throws Exception {
+        Method method = SetupCommand.class.getDeclaredMethod("selectionFromPlan",
+                SetupPlan.class, List.class, SetupCommand.AndroidOptions.class);
+        method.setAccessible(true);
+        return (SetupSelection) method.invoke(null, plan, List.of(), new SetupCommand.AndroidOptions());
+    }
+
+    @Test
+    void stopOfAnUnreadablePlanFailsClosed(@TempDir Path temp) throws Exception {
+        Path planDir = temp.resolve("plan-dir");
+        Files.createDirectories(planDir);
+
+        CommandResult stop = execute("setup", "stop", "--plan", planDir.toString(),
+                "--approve", "sha256:" + "a".repeat(64));
+
+        assertEquals(5, stop.exitCode(), stop.stderr());
+        assertTrue(stop.stderr().contains("Is a directory"), stop.stderr());
+        assertFalse(stop.stderr().contains("\tat "));
+    }
+
+    @Test
+    void directUnsupportedLifecycleReportsTheProfile() {
+        StringWriter err = new StringWriter();
+        int exit = new CommandLine(new SetupCommand.UnsupportedLifecycle())
+                .setErr(new PrintWriter(err, true))
+                .execute("--profile", "WEB_LOCAL");
+
+        assertEquals(4, exit);
+        assertTrue(err.toString().contains("No lifecycle provider is available for profile WEB_LOCAL"), err.toString());
+    }
+
+    @Test
+    void failureDetailsUsesTheTypeNameWhenEveryMessageIsBlank() {
+        assertEquals("NullPointerException", SetupCommand.failureDetails(new NullPointerException()));
+        assertEquals("IllegalStateException", SetupCommand.failureDetails(new IllegalStateException(" ")));
+        assertEquals("RuntimeException",
+                SetupCommand.failureDetails(new RuntimeException("RuntimeException", new IllegalStateException(" "))));
     }
 
     private static CommandResult execute(String... arguments) {
