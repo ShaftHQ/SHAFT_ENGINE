@@ -191,7 +191,7 @@ sends you there; the rest by
 - [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): read-only queue diagnostic; no re-arm after eviction; no scheduled soft-fail
 - [mobile client automation](../../chaos-engine/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
 - [design review / video worker checklist](../../chaos-engine/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
-- [narration review](../../chaos-engine/references/narration-review.md): spoken-introduction loudness, noise, one-take, and script checks
+- [narration review](../../chaos-engine/references/details/narration-review.md): spoken-introduction loudness, noise, one-take, and script checks
 - [harness learn](../../chaos-engine/references/harness-learn.md)
 - [learn traces](../../chaos-engine/references/learn-traces.md)
 - [design loop](../../chaos-engine/references/design-loop.md)

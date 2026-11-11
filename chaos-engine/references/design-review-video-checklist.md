@@ -85,7 +85,7 @@ A new cut invalidates earlier passes.
 When one span of an accepted recording is wrong, keep the correct audio and replace only that span.
 An owner recording used as a spoken token is the pronunciation. An automatic transcript spelling does not reject that token.
 Do not alter copied samples from an accepted recording to meet a silence floor.
-A spoken introduction follows [narration-review.md](narration-review.md).
+A spoken introduction follows [narration-review.md](details/narration-review.md).
 A spoken introduction is one synthesis of the whole script.
 Do not splice a louder take into it.
 Loudness is one gain for the whole file.

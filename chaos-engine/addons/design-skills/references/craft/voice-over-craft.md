@@ -58,4 +58,4 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 ## References
 
 Twenty verified references with techniques: [research/voice-over-craft.md](../research/voice-over-craft.md).
-Spoken-introduction acceptance: [narration-review.md](../../../../references/narration-review.md).
+Spoken-introduction acceptance: [narration-review.md](../../../../references/details/narration-review.md).

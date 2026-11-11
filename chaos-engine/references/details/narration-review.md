@@ -5,7 +5,7 @@ description: Use when a spoken introduction is scripted, synthesized, or reviewe
 # Narration review
 
 Spoken introductions use this list together with the standing section of
-[design-review-video-checklist.md](design-review-video-checklist.md).
+[design-review-video-checklist.md](../design-review-video-checklist.md).
 The owner's bar is stable loudness, no noise bed, no torn or interrupted word,
 no gibberish, breaths and pauses at clause boundaries, fillers scattered
 rather than clustered, and one performance of the whole script.
