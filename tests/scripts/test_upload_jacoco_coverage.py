@@ -87,7 +87,15 @@ class UploadJacocoCoverageReceiptTest(unittest.TestCase):
         action = ACTION.read_text(encoding="utf-8")
         self.assertIn("scripts/ci/upload_jacoco_coverage.py", action)
         self.assertIn("--record-receipt", action)
-        self.assertIn("--receipt", action)
+        # --receipt is a substring of --record-receipt. The summarize gate is
+        # the call that turns a missing flag into failed_phases+=(receipt).
+        self.assertIn(
+            'scripts/ci/upload_jacoco_coverage.py --flag "$REQUESTED_FLAG" '
+            '--receipt "${CODECOV_RECEIPT:-}"',
+            action,
+        )
+        self.assertIn("failed_phases+=(receipt)", action)
+        self.assertIn('CC_FAIL_ON_ERROR=true bash "$script"', action)
         pin = "303a32d7a59b442fa8d48b6a1cc6825c09c847a5"
         self.assertGreaterEqual(action.count(pin), 2)
         self.assertIn(

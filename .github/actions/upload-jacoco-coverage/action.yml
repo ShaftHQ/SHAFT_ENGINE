@@ -211,7 +211,9 @@ runs:
           "https://raw.githubusercontent.com/codecov/codecov-action/${pin}/dist/codecov.sh"
         # CLEANUP keeps the checksum files out of the workspace. The verified
         # binary is moved to CC_BINARY_LOCATION before the temp dir is removed.
-        CC_DOWNLOAD_ONLY=true CC_BINARY_LOCATION="$dest" CC_CLEANUP=true bash "$script"
+        # A failed GPG or SHA256 check exits 1 only when CC_FAIL_ON_ERROR=true.
+        # binary: skips the action's own check, so a bad checksum must not exit 0.
+        CC_DOWNLOAD_ONLY=true CC_BINARY_LOCATION="$dest" CC_CLEANUP=true CC_FAIL_ON_ERROR=true bash "$script"
         real=""
         for candidate in "$dest/codecov" "$dest/codecov.exe"; do
           if [ -f "$candidate" ]; then
