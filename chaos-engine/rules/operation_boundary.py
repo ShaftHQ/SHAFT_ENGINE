@@ -27,6 +27,7 @@ _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
+_ASSIGN = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*=|set\s+--(?=\s|$))")
 _APPROVE_ONLY = re.compile(
     r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
 )
@@ -208,6 +209,36 @@ def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
     return index
 
 
+def _matching_brace(text: str, index: int) -> int:
+    """Index after the ``${...}`` that starts at ``index``. Unclosed runs to the end."""
+    depth = 1
+    quote = ""
+    cursor = index + 2
+    while cursor < len(text):
+        char = text[cursor]
+        if quote:
+            if char == quote and text[cursor - 1] != "\\":
+                quote = ""
+            cursor += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            cursor += 1
+            continue
+        if text.startswith("${", cursor) or char == "{":
+            depth += 1
+            cursor += 2 if text.startswith("${", cursor) else 1
+            continue
+        if char == "}" and depth:
+            depth -= 1
+            cursor += 1
+            if depth == 0:
+                return cursor
+            continue
+        cursor += 1
+    return cursor
+
+
 def _fold_command_syntax(
     text: str,
     index: int,
@@ -232,6 +263,10 @@ def _fold_command_syntax(
         return index + step
     if quote:
         return None
+    if text.startswith("${", index):
+        end = _matching_brace(text, index)
+        buf.append(text[index:end])
+        return end
     found = _heredoc_delimiter(text, index)
     if found is not None:
         delim, end = found
@@ -348,12 +383,21 @@ def _approval_root(root: Path) -> Path:
 
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
+    pieces = _command_pieces(command or "")
     segments = [
         part
-        for part in _command_pieces(command or "")
+        for part in pieces
         if _PUSH.search(part) and not _is_approve_invocation(part)
     ]
-    if not any(_FORCE.search(part) for part in segments) and not (segments and _FORCE_WORD.search(text)):
+    borrowed = any(re.search(r"[`$]", part) for part in segments) and any(
+        _ASSIGN.match(part.strip()) is not None and _FORCE.search(part) is not None
+        for part in pieces
+    )
+    if (
+        not any(_FORCE.search(part) for part in segments)
+        and not (segments and _FORCE_WORD.search(text))
+        and not borrowed
+    ):
         return None
     path = _approval_root(root) / ".chaos-engine-state" / "force-push-approval.txt"
     recorded: list[str] = []

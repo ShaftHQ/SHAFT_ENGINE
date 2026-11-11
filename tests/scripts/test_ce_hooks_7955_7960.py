@@ -119,6 +119,12 @@ class ForcePushSingleUseTest(unittest.TestCase):
             expanded = "f=--force\ngit push $f origin HEAD"
             arrayed = 'args=(--force origin HEAD)\ngit push "${args[@]}"'
             inner = "git push origin HEAD $(: # \\\n) --force"
+            short_var = "f=$(\n echo -f)\ngit push $f origin HEAD"
+            short_array = 'args=(\n-f origin HEAD)\ngit push "${args[@]}"'
+            plus_array = 'args=(\n+HEAD)\ngit push "${args[@]}"'
+            setdash = 'set -- -f origin HEAD\ngit push "$@"'
+            setplus = 'set -- +HEAD\ngit push "$@"'
+            word_split = "${x:-git\npush --force origin HEAD}"
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -131,7 +137,8 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 escaped, single, doubled, continued, echoed, hashed, hashed_ticks,
                 hashed_in, hashed_out, hashed_quote, split_sub, split_tick,
                 split_short, split_plus, hash_join, hash_join_tick,
-                comment_cont, heredoc, expanded, arrayed, inner,
+                comment_cont, heredoc, expanded, arrayed, inner, short_var,
+                short_array, plus_array, setdash, setplus, word_split,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
