@@ -16,6 +16,7 @@ SPEC.loader.exec_module(MODULE)
 WORKFLOW_PATH = ROOT / ".github/workflows/shaft-pilot-release.yml"
 ISOLATED_SLICES = (
     "intellij-verify",
+    "intellij-verify-plugin",
     "release-contracts",
     "pilot-tests",
     "capture-journey",
@@ -219,6 +220,16 @@ def _needs_list(job: dict) -> list[str]:
     return list(needs)
 
 
+def _verify_modes(job: dict) -> list[str]:
+    modes = []
+    for step in job.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        if str(step.get("uses") or "").rstrip("/").endswith("intellij-verify"):
+            modes.append(str((step.get("with") or {}).get("verify") or ""))
+    return modes
+
+
 def _step_blob(job: dict) -> str:
     parts = []
     for step in job.get("steps") or []:
@@ -268,6 +279,19 @@ jobs:
 def _minimal_isolated_workflow_text() -> str:
     slice_jobs = []
     for name in ISOLATED_SLICES:
+        verify_step = ""
+        if name == "intellij-verify":
+            verify_step = (
+                "      - uses: ./.github/actions/intellij-verify\n"
+                "        with:\n"
+                "          verify: build\n"
+            )
+        elif name == "intellij-verify-plugin":
+            verify_step = (
+                "      - uses: ./.github/actions/intellij-verify\n"
+                "        with:\n"
+                "          verify: plugin\n"
+            )
         slice_jobs.append(
             f"""  {name}:
     needs: detect-shaft-version-change
@@ -276,7 +300,7 @@ def _minimal_isolated_workflow_text() -> str:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-"""
+{verify_step}"""
         )
     needs_lines = "\n".join(f"      - {name}" for name in ISOLATED_SLICES)
     return f"""name: SHAFT Pilot Release Candidate
@@ -301,6 +325,7 @@ jobs:
           DETECT_RESULT: ${{{{ needs.detect-shaft-version-change.result }}}}
           DETECT_CHANGED: ${{{{ needs.detect-shaft-version-change.outputs.changed }}}}
           INTELLIJ_RESULT: ${{{{ needs.intellij-verify.result }}}}
+          INTELLIJ_PLUGIN_RESULT: ${{{{ needs.intellij-verify-plugin.result }}}}
           CONTRACTS_RESULT: ${{{{ needs.release-contracts.result }}}}
           PILOT_RESULT: ${{{{ needs.pilot-tests.result }}}}
           CAPTURE_RESULT: ${{{{ needs.capture-journey.result }}}}
@@ -316,7 +341,7 @@ jobs:
             exit 0
           fi
           status=0
-          for result in "${{INTELLIJ_RESULT}}" "${{CONTRACTS_RESULT}}" "${{PILOT_RESULT}}" "${{CAPTURE_RESULT}}" "${{PACKAGE_RESULT}}" "${{CONTAINER_RESULT}}"; do
+          for result in "${{INTELLIJ_RESULT}}" "${{INTELLIJ_PLUGIN_RESULT}}" "${{CONTRACTS_RESULT}}" "${{PILOT_RESULT}}" "${{CAPTURE_RESULT}}" "${{PACKAGE_RESULT}}" "${{CONTAINER_RESULT}}"; do
             case "$result" in
               success) ;;
               *)
@@ -680,6 +705,29 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
         self.assertIn("success)", blob)
         self.assertNotIn("mvn --batch-mode", blob)
         self.assertNotIn("./.github/actions/intellij-verify", blob)
+
+    def test_serial_combined_intellij_verify_is_rejected(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        jobs = workflow["jobs"]
+        self.assertEqual(["build"], _verify_modes(jobs["intellij-verify"]))
+        self.assertEqual(["plugin"], _verify_modes(jobs["intellij-verify-plugin"]))
+        self.assertEqual(
+            ["detect-shaft-version-change"],
+            _needs_list(jobs["intellij-verify-plugin"]),
+        )
+        self.assertEqual(
+            SLICE_CHANGED_IF,
+            jobs["intellij-verify-plugin"].get("if"),
+        )
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assertEqual([], MODULE.validate_release_candidate_isolation(text))
+        serial = text.replace("verify: build", "verify: 'true'", 1)
+        self.assertNotEqual(text, serial)
+        errors = MODULE.validate_release_candidate_isolation(serial)
+        self.assertTrue(
+            any("verify: build" in error or "serial" in error for error in errors),
+            errors,
+        )
 
     def test_isolated_slices_keep_the_named_release_checks(self):
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))

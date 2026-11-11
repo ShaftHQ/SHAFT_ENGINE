@@ -299,6 +299,7 @@ def validate_static(root: Path = ROOT) -> list[str]:
 
 ISOLATED_RELEASE_CANDIDATE_JOBS = (
     "intellij-verify",
+    "intellij-verify-plugin",
     "release-contracts",
     "pilot-tests",
     "capture-journey",
@@ -318,6 +319,36 @@ def _workflow_job_block(workflow_text: str, job_id: str) -> str | None:
     return workflow_text[match.start() : end]
 
 
+def _verify_mode(job_block: str) -> str | None:
+    match = re.search(
+        r"(?m)^[ \t]+verify:[ \t]*['\"]?([A-Za-z]+)['\"]?[ \t]*$",
+        job_block,
+    )
+    return match.group(1) if match else None
+
+
+def _parallel_intellij_verify_errors(workflow_text: str) -> list[str]:
+    """Reject folding verifyPlugin back into the serial combined Gradle command.
+
+    Run 42514437022 spent 8m10s in one ``check buildPlugin verifyPlugin`` step.
+    ``verify: build`` and ``verify: plugin`` are the same tasks on two runners.
+    """
+    errors: list[str] = []
+    build = _workflow_job_block(workflow_text, "intellij-verify")
+    plugin = _workflow_job_block(workflow_text, "intellij-verify-plugin")
+    if build is not None and _verify_mode(build) != "build":
+        errors.append(
+            "shaft-pilot-release.yml intellij-verify must use verify: build so "
+            "check buildPlugin verifyPlugin does not run as one serial command"
+        )
+    if plugin is not None and _verify_mode(plugin) != "plugin":
+        errors.append(
+            "shaft-pilot-release.yml intellij-verify-plugin must use verify: plugin "
+            "in parallel with intellij-verify"
+        )
+    return errors
+
+
 def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
     """Reject a serialized release-candidate job when the file is a real workflow.
 
@@ -330,6 +361,7 @@ def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
         ]
 
     errors: list[str] = []
+    errors.extend(_parallel_intellij_verify_errors(workflow_text))
     slice_changed_if = (
         "if: needs.detect-shaft-version-change.outputs.changed == 'true'"
     )
@@ -372,6 +404,15 @@ def validate_release_candidate_isolation(workflow_text: str) -> list[str]:
         errors.append(
             "shaft-pilot-release.yml release-candidate aggregator must stay fail-closed "
             "on DETECT_RESULT/DETECT_CHANGED and isolated slice success"
+        )
+    if "needs.intellij-verify-plugin.result" not in aggregator:
+        errors.append(
+            "release-candidate aggregator must fail closed on intellij-verify-plugin"
+        )
+    loop = re.search(r"for result in .+", aggregator)
+    if loop is None or "INTELLIJ_PLUGIN_RESULT" not in loop.group(0):
+        errors.append(
+            "release-candidate aggregator must include intellij-verify-plugin in the fail-closed result loop"
         )
     return errors
 

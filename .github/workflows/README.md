@@ -129,8 +129,10 @@ table. Remove a row only in the same change that deletes its workflow.
   version in `COMPATIBILITY.md` (#6222).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
-  through `intellij-verify` modes `build`/`plugin`, both retried. Release
-  workflows keep the combined `verify: true` build (#6189).
+  through `intellij-verify` modes `build`/`plugin`, both retried (#6189).
+  `shaft-pilot-release.yml` uses those same two modes as parallel release
+  jobs (#7835). `mavenCentral_cd.yml` keeps the combined `verify: true`
+  build on the sequential deploy path.
 
 ### ChaosEngine fresh-installer tiers (#6187)
 
