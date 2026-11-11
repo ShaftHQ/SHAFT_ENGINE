@@ -122,6 +122,7 @@ def _shell_statements(command: str) -> list[str]:
 
 
 def _strip_unquoted_comment(part: str) -> str:
+    """Drop a bash comment. A hash starts one only at the beginning of a word."""
     quote = ""
     out: list[str] = []
     for index, char in enumerate(part):
@@ -134,7 +135,7 @@ def _strip_unquoted_comment(part: str) -> str:
             quote = char
             out.append(char)
             continue
-        if char == "#":
+        if char == "#" and (index == 0 or part[index - 1] in " \t"):
             break
         out.append(char)
     return "".join(out).strip()
@@ -152,11 +153,11 @@ def _is_approve_invocation(part: str) -> bool:
 
 
 def _command_pieces(command: str) -> list[str]:
-    """Shell statements, with a newline outside quotes kept as a separator."""
+    """Shell statements. A backslash-newline stays one command. A bare newline does not."""
     pieces: list[str] = []
     buf: list[str] = []
     quote = ""
-    text = command or ""
+    text = re.sub(r"\\\r?\n", " ", command or "")
     for index, char in enumerate(text):
         if quote:
             buf.append(char)

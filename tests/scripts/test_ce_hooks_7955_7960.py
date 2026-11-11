@@ -100,6 +100,13 @@ class ForcePushSingleUseTest(unittest.TestCase):
             escaped = "python3 .chaos-engine/tool.py force-push-approve -- \\' ; git push --force origin HEAD"
             single = "python3 .chaos-engine/tool.py force-push-approve -- 'x\\' ; git push --force origin HEAD"
             doubled = 'python3 .chaos-engine/tool.py force-push-approve -- "x\\\\" ; git push --force origin HEAD'
+            continued = "git push \\\n--force origin HEAD"
+            echoed = "echo $(git push \\\n--force origin HEAD)"
+            hashed = "python3 .chaos-engine/tool.py force-push-approve -- x#$(git push --force origin HEAD)"
+            hashed_ticks = "python3 .chaos-engine/tool.py force-push-approve -- x#`git push --force origin HEAD`"
+            hashed_in = "python3 .chaos-engine/tool.py force-push-approve -- x#<(git push --force origin HEAD)"
+            hashed_out = "python3 .chaos-engine/tool.py force-push-approve -- x#>(git push --force origin HEAD)"
+            hashed_quote = 'python3 .chaos-engine/tool.py force-push-approve -- "x"#$(git push --force origin HEAD)'
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -107,7 +114,11 @@ class ForcePushSingleUseTest(unittest.TestCase):
             approval.mkdir()
             recorded = approval / "force-push-approval.txt"
             recorded.write_text(push + "\n", encoding="utf-8")
-            for command in (substituted, backticks, newline, into, out_of, redirect, quoted, escaped, single, doubled):
+            for command in (
+                substituted, backticks, newline, into, out_of, redirect, quoted,
+                escaped, single, doubled, continued, echoed, hashed, hashed_ticks,
+                hashed_in, hashed_out, hashed_quote,
+            ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
             self.assertIsNone(boundary.force_push_block(root, windows))
