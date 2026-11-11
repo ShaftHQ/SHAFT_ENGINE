@@ -96,30 +96,36 @@ public final class AllureReportLaunch {
         if (jdkHome == null) {
             return -1;
         }
-        boolean interrupted = Thread.currentThread().isInterrupted();
         List<String> command = javacVersionCommand(jdkHome);
         if (!Files.isRegularFile(Path.of(command.get(0)))) {
             return -1;
         }
+        // Captured before the probe. A pre-set flag makes waitFor throw while the reaper is still
+        // publishing a clean exit, which hides that path. Clear it only for the wait.
+        boolean callerInterrupted = Thread.currentThread().isInterrupted();
         try {
             // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            process.waitFor();
-            // A finished child makes waitFor return without throwing, so a pre-set interrupt stays set.
-            if (interrupted || Thread.currentThread().isInterrupted()) {
+            try {
+                String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                if (callerInterrupted) {
+                    Thread.interrupted();
+                }
+                process.waitFor();
+                if (callerInterrupted) {
+                    Thread.currentThread().interrupt();
+                    return -1;
+                }
+                return javaMajorFromJavacOutput(output);
+            } catch (InterruptedException exception) {
+                process.destroyForcibly();
+                Thread.currentThread().interrupt();
                 return -1;
             }
-            return javaMajorFromJavacOutput(output);
-        } catch (IOException | InterruptedException | IllegalArgumentException exception) {
-            if (exception instanceof InterruptedException) {
-                interrupted = true;
-            }
+        } catch (IOException exception) {
             return -1;
-        } finally {
-            if (interrupted || Thread.currentThread().isInterrupted()) {
-                Thread.currentThread().interrupt();
-            }
+        } catch (IllegalArgumentException exception) {
+            return -1;
         }
     }
 

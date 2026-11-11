@@ -223,6 +223,37 @@ public class AllureReportLaunchTest {
     }
 
     @Test
+    public void anInterruptedWaitForReturnsUnknown() throws Exception {
+        Path home = Files.createTempDirectory("fake-jdk-wait");
+        Path started = home.resolve("started");
+        writeBlockingFakeJavac(home, started);
+        int[] major = {Integer.MIN_VALUE};
+        boolean[] restored = {false};
+        Thread caller = new Thread(() -> {
+            major[0] = AllureReportLaunch.jdkMajor(home);
+            restored[0] = Thread.currentThread().isInterrupted();
+        });
+        caller.setDaemon(true);
+        caller.start();
+        try {
+            long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+            while (Files.notExists(started)) {
+                Assert.assertTrue(caller.isAlive(), "probe ended before the sleeper signaled");
+                Assert.assertTrue(System.nanoTime() < deadline, "sleeper did not signal");
+                Thread.sleep(5);
+            }
+            caller.interrupt();
+            caller.join(java.time.Duration.ofSeconds(5).toMillis());
+            Assert.assertFalse(caller.isAlive(), "probe did not finish after interrupt");
+            Assert.assertEquals(major[0], -1);
+            Assert.assertTrue(restored[0]);
+        } finally {
+            caller.interrupt();
+            caller.join(java.time.Duration.ofSeconds(2).toMillis());
+        }
+    }
+
+    @Test
     public void resolveJdkHomeIgnoresNullHomeNullFallbacksAndNullCandidates() {
         Path preferred = Path.of("/jdks/temurin-25");
         Assert.assertEquals(AllureReportLaunch.resolveJdkHome(preferred.toString(), null, 25, path -> 25), preferred);
@@ -320,12 +351,30 @@ public class AllureReportLaunchTest {
      * Windows CreateProcess does not run a batch file stored as {@code javac.exe}.
      * The live probe there is a console image with that name; other systems use a shell script.
      */
+    private static void writeBlockingFakeJavac(Path home, Path started) throws IOException, InterruptedException {
+        Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
+        Files.createDirectories(javac.getParent());
+        if (windowsOs()) {
+            writeWindowsConsoleExe(javac, "javac 25.0.1", started);
+        } else {
+            String signal = started.toAbsolutePath().toString().replace("'", "'\\''");
+            Files.writeString(javac, """
+                    #!/bin/sh
+                    printf '%%s\\n' 'javac 25.0.1' >&2
+                    exec >/dev/null 2>/dev/null
+                    touch '%s'
+                    sleep 30
+                    """.formatted(signal), StandardCharsets.UTF_8);
+        }
+        Assert.assertTrue(javac.toFile().setExecutable(true) || windowsOs(), javac.toString());
+    }
+
     private static void writeFakeJavac(Path home, String versionLine, boolean executable)
             throws IOException, InterruptedException {
         Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
         Files.createDirectories(javac.getParent());
         if (windowsOs()) {
-            writeWindowsConsoleExe(javac, versionLine);
+            writeWindowsConsoleExe(javac, versionLine, null);
         } else {
             Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' '" + versionLine + "' 1>&2\n",
                     StandardCharsets.UTF_8);
@@ -336,16 +385,28 @@ public class AllureReportLaunchTest {
         }
     }
 
-    private static void writeWindowsConsoleExe(Path exe, String versionLine)
+    private static void writeWindowsConsoleExe(Path exe, String versionLine, Path started)
             throws IOException, InterruptedException {
         Path source = exe.resolveSibling("FakeJavac.cs");
+        String afterWrite = "";
+        if (started != null) {
+            String signal = started.toAbsolutePath().toString().replace("\\", "\\\\").replace("\"", "\\\"");
+            afterWrite = """
+                        System.Console.Out.Flush();
+                        System.Console.Error.Flush();
+                        System.Console.OpenStandardOutput().Close();
+                        System.Console.OpenStandardError().Close();
+                        System.IO.File.WriteAllText("%s", "started");
+                        System.Threading.Thread.Sleep(30000);
+                    """.formatted(signal);
+        }
         String program = """
                 public class FakeJavac {
                     public static void Main() {
                         System.Console.Error.WriteLine("%s");
-                    }
+                %s    }
                 }
-                """.formatted(versionLine.replace("\\", "\\\\").replace("\"", "\\\""));
+                """.formatted(versionLine.replace("\\", "\\\\").replace("\"", "\\\""), afterWrite);
         Files.writeString(source, program, StandardCharsets.UTF_8);
         String windir = System.getenv("WINDIR");
         Path root = Path.of(windir == null || windir.isBlank() ? "C:\\Windows" : windir);
