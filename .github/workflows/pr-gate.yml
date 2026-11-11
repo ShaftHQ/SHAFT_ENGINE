@@ -456,6 +456,10 @@ jobs:
               - 'tests/scripts/test_assert_intellij_marketplace_receipt.py'
               - 'scripts/ci/validate_shaft_pilot_release.py'
               - 'tests/scripts/test_validate_shaft_pilot_release.py'
+              # #7924: the Codecov receipt guard must re-run when the script or
+              # its test changes, not only when a workflow file changes.
+              - 'scripts/ci/upload_jacoco_coverage.py'
+              - 'tests/scripts/test_upload_jacoco_coverage.py'
               # Issue #4529: the timeout guard's own implementation and test
               # were in no filter, so a timeout could not be lowered unnoticed
               # but the check preventing it could be gutted green. A guard
@@ -1301,6 +1305,7 @@ jobs:
           tests.scripts.test_jmh_compare
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
+          tests.scripts.test_upload_jacoco_coverage
           tests.scripts.test_codecov_status_gate
           tests.scripts.test_branch_uptodate_removed
           tests.scripts.test_main_red_reaction
