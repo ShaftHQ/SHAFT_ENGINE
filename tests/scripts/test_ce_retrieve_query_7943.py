@@ -5,7 +5,9 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -179,6 +181,35 @@ class RareClassifiedIdTest(unittest.TestCase):
                     receipt = module.retrieve(query, project=ROOT, store="graphify")
                 self.assertNotEqual("no-rare-token", receipt.get("reason"))
         self.assertTrue(module._skip_no_rare_before_store("graphify", "failure tail"))
+
+    def test_short_classified_id_is_a_checkout_text_hit(self) -> None:
+        split = _split()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _git(root, "init", "-q")
+            _git(root, "config", "user.email", "t@t")
+            _git(root, "config", "user.name", "t")
+            (root / "j06.txt").write_text("see J06 here\n", encoding="utf-8")
+            (root / "func.txt").write_text("see func-j01 here\n", encoding="utf-8")
+            _git(root, "add", "j06.txt", "func.txt")
+            _git(root, "commit", "-qm", "ids")
+            j06 = [hit["path"] for hit in split.resolve_hits(root, "J06")]
+            func = [hit["path"] for hit in split.resolve_hits(root, "func-j01")]
+            self.assertEqual(["j06.txt"], j06)
+            self.assertEqual(["func.txt"], func)
+            outcome = split.direct_graphify_outcome(root, "J06")
+        self.assertIsNotNone(outcome)
+        self.assertEqual(["j06.txt"], [hit["path"] for hit in outcome["hits"]])
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(  # nosec B603 - fixed git argv in a temp repo, no shell.
+        ["git", "-c", "core.hooksPath=", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 if __name__ == "__main__":
