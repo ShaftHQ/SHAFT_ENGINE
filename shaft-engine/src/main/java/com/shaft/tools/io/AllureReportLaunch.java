@@ -82,6 +82,9 @@ public final class AllureReportLaunch {
 
     /**
      * Runs {@code bin/javac -version} when that executable exists.
+     * The image is the absolute path from {@link #javacVersionCommand(Path)}. The JDK home is not used
+     * as the process working directory, because Windows resolves a relative application name from the
+     * parent directory.
      *
      * @param jdkHome a JDK home directory, not a JRE
      * @return the javac major, or {@code -1} when javac is missing or its output cannot be read
@@ -90,19 +93,13 @@ public final class AllureReportLaunch {
         if (jdkHome == null) {
             return -1;
         }
-        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-        String executable = windows ? "javac.exe" : "javac";
-        if (!Files.isRegularFile(jdkHome.resolve("bin").resolve(executable))) {
+        List<String> command = javacVersionCommand(jdkHome);
+        if (!Files.isRegularFile(Path.of(command.get(0)))) {
             return -1;
         }
-        // Constant relative command. jdkHome is only the working directory, not a shell string.
         try {
-            ProcessBuilder builder = windows
-                    ? new ProcessBuilder("bin\\javac.exe", "-version")
-                    : new ProcessBuilder("bin/javac", "-version");
-            builder.directory(jdkHome.toFile());
-            builder.redirectErrorStream(true);
-            Process process = builder.start();
+            // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             process.waitFor();
             return javaMajorFromJavacOutput(output);
@@ -112,6 +109,21 @@ public final class AllureReportLaunch {
             }
             return -1;
         }
+    }
+
+    /**
+     * Builds the {@code javac -version} command for one JDK home.
+     * Element 0 is the absolute normalized path of {@code bin/javac.exe} on Windows and {@code bin/javac}
+     * otherwise. It is never a relative {@code bin/javac} name.
+     *
+     * @param jdkHome a JDK home directory
+     * @return {@code javac -version} with an absolute executable
+     */
+    public static List<String> javacVersionCommand(Path jdkHome) {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        String executable = windows ? "javac.exe" : "javac";
+        Path javac = jdkHome.resolve("bin").resolve(executable).toAbsolutePath().normalize();
+        return List.of(javac.toString(), "-version");
     }
 
     /**

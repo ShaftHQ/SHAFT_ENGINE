@@ -110,6 +110,29 @@ public class AllureReportLaunchTest {
     }
 
     @Test
+    public void javacVersionCommandUsesTheAbsoluteExecutable() throws IOException {
+        Path home = Files.createTempDirectory("fake-jdk-cmd");
+        String previous = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Windows 11");
+            List<String> windows = AllureReportLaunch.javacVersionCommand(home);
+            Assert.assertEquals(windows.get(0),
+                    home.resolve("bin/javac.exe").toAbsolutePath().normalize().toString());
+            Assert.assertNotEquals(windows.get(0), "bin\\javac.exe");
+            Assert.assertEquals(windows.get(1), "-version");
+
+            System.setProperty("os.name", "Linux");
+            List<String> unix = AllureReportLaunch.javacVersionCommand(home);
+            Assert.assertEquals(unix.get(0),
+                    home.resolve("bin/javac").toAbsolutePath().normalize().toString());
+            Assert.assertNotEquals(unix.get(0), "bin/javac");
+            Assert.assertEquals(unix.get(1), "-version");
+        } finally {
+            System.setProperty("os.name", previous);
+        }
+    }
+
+    @Test
     public void shortHeaderAndUnrecognizedJavacAreRejected() {
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> AllureReportLaunch.javaMajorRequiredBy(new byte[] {0, 1, 2, 3, 4, 5, 6}));
