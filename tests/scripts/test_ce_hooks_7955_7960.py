@@ -133,6 +133,9 @@ class ForcePushSingleUseTest(unittest.TestCase):
             appended_plus = 'args+=(\n+HEAD)\ngit push "${args[@]}"'
             exported = "export f=$(\n echo -f)\ngit push $f origin HEAD"
             exported_plus = "export f=$(\n echo +HEAD)\ngit push origin $f"
+            heredoc_hash = "cat <<EOF\n # x\nEOF\ngit push \\\n-f origin HEAD"
+            builtin_set = 'builtin set -- -f origin HEAD\ngit push "$@"'
+            command_set = 'command set -- +HEAD\ngit push "$@"'
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -148,7 +151,8 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 comment_cont, heredoc, expanded, arrayed, inner, short_var,
                 short_array, plus_array, setdash, setplus, word_split,
                 comment_paren, comment_short, comment_plus, declared, appended,
-                appended_plus, exported, exported_plus,
+                appended_plus, exported, exported_plus, heredoc_hash,
+                builtin_set, command_set,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)

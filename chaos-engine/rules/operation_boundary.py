@@ -28,7 +28,7 @@ _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.
 _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
 _ASSIGN = re.compile(
-    r"^(?:set\s+--(?=\s|$)|"
+    r"^(?:(?:builtin|command)\s+)*(?:set\s+--(?=\s|$)|"
     r"(?:(?:declare|export|local|readonly|typeset)(?:\s+-[A-Za-z]+)*\s+)?"
     r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
 )
@@ -148,17 +148,18 @@ def _strip_unquoted_comment(part: str) -> str:
 
 
 def _comment_is_open(part: str) -> bool:
-    """True when an unquoted word-starting hash has already started a comment."""
+    """True when the current line has an unquoted word-starting hash."""
+    line = part.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
     quote = ""
-    for index, char in enumerate(part):
+    for index, char in enumerate(line):
         if quote:
-            if char == quote and part[index - 1] != "\\":
+            if char == quote and line[index - 1] != "\\":
                 quote = ""
             continue
         if char in {"'", '"'}:
             quote = char
             continue
-        if char == "#" and (index == 0 or part[index - 1] in " \t"):
+        if char == "#" and (index == 0 or line[index - 1] in " \t"):
             return True
     return False
 
