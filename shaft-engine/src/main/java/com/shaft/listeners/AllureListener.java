@@ -8,6 +8,7 @@ import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.ReportContext;
 import com.shaft.tools.io.internal.ReportSecrets;
 import com.shaft.tools.io.internal.SourceCodeAttachment;
 import io.qameta.allure.Allure;
@@ -331,9 +332,103 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
                         "text/plain",
                         new ByteArrayInputStream(trace.getBytes(StandardCharsets.UTF_8)),
                         AttachmentOptions.withFileExtension(".txt"));
+            } else {
+                keepLastInfoLineOnAssertionSkip(result);
             }
         }
         TestLifecycleListener.super.beforeTestStop(result);
+    }
+
+    /**
+     * A skip whose throwable is, or wraps, an {@link AssertionError} keeps the assertion text and
+     * the last ReportManager info line in {@code statusDetails.message}. Intentional
+     * {@link SkipException} skips are unchanged.
+     */
+    private static void keepLastInfoLineOnAssertionSkip(TestResult result) {
+        if (!skipWrapsAssertionError(result)) {
+            return;
+        }
+        StatusDetails details = statusDetails(result);
+        details.setMessage(appendIfMissing(appendIfMissing(messageText(details), assertionText()), redactedInfoLine()));
+    }
+
+    private static StatusDetails statusDetails(TestResult result) {
+        StatusDetails details = result.getStatusDetails();
+        if (details != null) {
+            return details;
+        }
+        details = new StatusDetails();
+        result.setStatusDetails(details);
+        return details;
+    }
+
+    private static String messageText(StatusDetails details) {
+        String message = details.getMessage();
+        if (message == null) {
+            return "";
+        }
+        return message;
+    }
+
+    private static String appendIfMissing(String message, String extra) {
+        if (extra == null || extra.isBlank() || message.contains(extra)) {
+            return message;
+        }
+        if (message.isBlank()) {
+            return extra;
+        }
+        return message + "\n" + extra;
+    }
+
+    private static String redactedInfoLine() {
+        String info = ReportContext.lastInfoLine();
+        if (info == null || info.isBlank()) {
+            return "";
+        }
+        String safeInfo = ReportSecrets.redact(FailureTraceReporter.redactInvocationText(info));
+        if (safeInfo == null) {
+            return "";
+        }
+        return safeInfo;
+    }
+
+    private static boolean skipWrapsAssertionError(TestResult result) {
+        if (detailsMentionAssertion(result.getStatusDetails())) {
+            return true;
+        }
+        return assertionThrowable() != null;
+    }
+
+    private static boolean detailsMentionAssertion(StatusDetails details) {
+        if (details == null) {
+            return false;
+        }
+        return containsAssertion(details.getMessage()) || containsAssertion(details.getTrace());
+    }
+
+    private static boolean containsAssertion(String text) {
+        return text != null && text.contains("AssertionError");
+    }
+
+    private static AssertionError assertionThrowable() {
+        var testResult = TestNGListener.getITestResult();
+        Throwable throwable = testResult == null ? null : testResult.getThrowable();
+        AssertionError found = null;
+        while (throwable != null) {
+            if (throwable instanceof AssertionError assertionError) {
+                found = assertionError;
+            }
+            throwable = throwable.getCause();
+        }
+        return found;
+    }
+
+    private static String assertionText() {
+        AssertionError error = assertionThrowable();
+        if (error == null || error.getMessage() == null) {
+            return "";
+        }
+        return error.getMessage().trim();
     }
 
     /**

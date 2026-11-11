@@ -13,6 +13,7 @@ import org.testng.annotations.Test;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -31,7 +32,7 @@ public class SecretScreenMaskWrappedTextUnitTest {
     }
 
     @Test
-    public void wrappedNativeSecretFieldDropsTheCapture() {
+    public void wrappedNativeSecretFieldDropsTheCapture() throws IOException {
         WebDriver driver = mock(WebDriver.class, Mockito.RETURNS_DEEP_STUBS);
         when(driver.manage().window().getSize()).thenReturn(new Dimension(50, 40));
         WebElement field = mock(WebElement.class);
@@ -39,7 +40,17 @@ public class SecretScreenMaskWrappedTextUnitTest {
         // token built at runtime so the repo secret guard sees no literal
         when(field.getText()).thenReturn(String.join(".", "eyJ0eXAi" + "OiJKV1Qi", "a".repeat(600), "sig"));
         SecretScreenMask.register(driver, field);
-        Assert.assertEquals(SecretScreenMask.masked(driver, () -> whitePng(100, 80)).length, 0);
+        byte[] original = whitePng(100, 80);
+        byte[] withheld = SecretScreenMask.masked(driver, () -> original);
+        Assert.assertNotEquals(withheld.length, 0);
+        Assert.assertFalse(java.util.Arrays.equals(withheld, original), "original pixels must not be published");
+        BufferedImage placeholder = ImageIO.read(new ByteArrayInputStream(withheld));
+        Assert.assertNotNull(placeholder, "withheld screenshot is a real image");
+        Assert.assertTrue(placeholder.getWidth() > 0 && placeholder.getHeight() > 0);
+        String log = String.join("\n", com.shaft.tools.io.internal.ReportContext.snapshotOutput());
+        Assert.assertTrue(log.contains("screenshot withheld: typed secret"), log);
+        Assert.assertFalse(log.contains("eyJ0eXAi"), "the withheld log must not contain the secret");
+        Assert.assertFalse(log.contains("Dropped a screenshot"), log);
     }
 
     @Test

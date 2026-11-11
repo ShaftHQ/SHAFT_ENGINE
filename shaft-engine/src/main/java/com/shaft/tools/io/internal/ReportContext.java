@@ -17,6 +17,7 @@ public final class ReportContext {
     private static final ThreadLocal<List<AttachmentRecord>> attachments = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<Consumer<String>> logSink = new ThreadLocal<>();
     private static final ThreadLocal<Status> status = new ThreadLocal<>();
+    private static final ThreadLocal<String> lastInfoLine = new ThreadLocal<>();
 
     private ReportContext() {
         throw new IllegalStateException("Utility class");
@@ -35,6 +36,29 @@ public final class ReportContext {
         BrowserObservabilityRecorder.startSession();
         logSink.remove();
         status.remove();
+        lastInfoLine.remove();
+    }
+
+    /**
+     * Remembers the latest {@link com.shaft.tools.io.ReportManager} info line for this thread.
+     * Cleared when the next test starts, not when the runner buffer is cleared, so Allure can
+     * still read it after the runner result is released.
+     *
+     * @param line info text, ignored when blank
+     */
+    public static void noteInfoLine(String line) {
+        if (line != null && !line.isBlank()) {
+            lastInfoLine.set(line.trim());
+        }
+    }
+
+    /**
+     * Returns the latest ReportManager info line for this thread.
+     *
+     * @return info text, or {@code null} when none was recorded
+     */
+    public static String lastInfoLine() {
+        return lastInfoLine.get();
     }
 
     /**

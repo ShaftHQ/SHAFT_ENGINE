@@ -277,6 +277,11 @@ public interface Timeouts extends EngineProperties<Timeouts> {
      * this single value simultaneously bounded the per-attempt HTTP client timeout, the outer retry
      * budget, and the progress bar, so one hung attempt could silently consume the entire budget
      * without the retry loop ever getting a chance to retry (issue #3811).
+     *
+     * <p>A cloud iOS session start is often longer than 90 seconds and can approach this cap.
+     * The default stays 5 minutes, the 300 second instantiate cap in {@code DriverFactoryHelper}.
+     * When SHAFT's own timeout fires, the failure message includes {@code BS-TIMEOUT}. An external
+     * SIGKILL cannot be classified after the process is dead.
      */
     @Key("remoteServerInstanceCreationTimeout")
     @DefaultValue("5")

@@ -426,7 +426,12 @@ public class DriverFactoryHelperCoverageUnitTest {
         var timeoutFailure = (TimeoutException) initializationFailure.getCause();
         SHAFT.Validations.assertThat().object(timeoutFailure.getCause()).isEqualTo(primaryCause).perform();
         SHAFT.Validations.assertThat().object(initializationFailure.getMessage()).contains("Timed out while remote session").perform();
+        SHAFT.Validations.assertThat().object(initializationFailure.getMessage()).contains("BS-TIMEOUT").perform();
         SHAFT.Validations.assertThat().object(timeoutFailure.getMessage()).contains("Timed out while remote session").perform();
+        SHAFT.Validations.assertThat().object(timeoutFailure.getMessage()).contains("BS-TIMEOUT").perform();
+        SHAFT.Validations.assertThat().object(com.shaft.properties.internal.Timeouts.class
+                .getMethod("remoteServerInstanceCreationTimeout")
+                .getAnnotation(org.aeonbits.owner.Config.DefaultValue.class).value()).isEqualTo("5").perform();
         SHAFT.Validations.assertThat().object(timeoutFailure.getSuppressed()[0]).isEqualTo(secondarySuppressed).perform();
     }
 
