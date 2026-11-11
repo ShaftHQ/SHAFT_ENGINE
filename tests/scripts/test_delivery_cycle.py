@@ -186,6 +186,10 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "not uploaded while a cycle is failed",
             "Required checks are green before those reviews start",
             "A new cut invalidates earlier passes",
+            "When one span of an accepted recording is wrong, keep the correct audio and replace only that span.",
+            "An owner recording used as a spoken token is the pronunciation.",
+            "An automatic transcript spelling does not reject that token.",
+            "Do not alter copied samples from an accepted recording to meet a silence floor.",
         ):
             self.assertIn(sentence, section)
         flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]
