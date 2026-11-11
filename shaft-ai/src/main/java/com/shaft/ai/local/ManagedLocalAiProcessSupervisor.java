@@ -1,6 +1,7 @@
 package com.shaft.ai.local;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.nio.file.Files;
@@ -112,10 +113,13 @@ public final class ManagedLocalAiProcessSupervisor {
                 ownerLost();
             });
             if (controlPipeRequested()) {
+                // Fix the pipe before publishing the count. A later System.setIn must
+                // not move this reader onto the host standard input.
+                InputStream control = System.in;
                 LIVE_CONTROL_MONITORS.incrementAndGet();
                 controlMonitor = Thread.ofVirtual().name("shaft-local-ai-control-monitor").start(() -> {
                     try {
-                        awaitControlPipeClosure();
+                        awaitControlPipeClosure(control);
                         ownerLost();
                     } finally {
                         LIVE_CONTROL_MONITORS.decrementAndGet();
@@ -182,12 +186,12 @@ public final class ManagedLocalAiProcessSupervisor {
             }
         }
 
-        private void awaitControlPipeClosure() {
+        private void awaitControlPipeClosure(InputStream control) {
             try {
-                while (System.in.read() != -1) {
+                while (control.read() != -1) {
                     // The private control pipe carries no data; EOF revokes launch ownership.
                 }
-            } catch (java.io.IOException ignored) {
+            } catch (IOException ignored) {
                 // A broken control pipe has the same meaning as EOF.
             }
         }
