@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 import tempfile
@@ -53,6 +54,32 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 "force-push-without-approval",
                 boundary.force_push_block(root, approve + " && " + push),
             )
+
+    def test_a_mention_of_the_approve_tool_is_still_a_force_push(self) -> None:
+        boundary = _load("ce_boundary_7955_mention", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            commented = (
+                "git push --force origin HEAD"
+                " # python3 .chaos-engine/tool.py force-push-approve"
+            )
+            substituted = (
+                "git push --force origin HEAD"
+                " $(python3 .chaos-engine/tool.py force-push-approve -- true)"
+            )
+            for command in (commented, substituted):
+                self.assertEqual(
+                    "force-push-without-approval",
+                    boundary.force_push_block(root, command),
+                    command,
+                )
+            approve = "python3 .chaos-engine/tool.py force-push-approve -- git push --force origin HEAD"
+            approval = root / ".chaos-engine-state"
+            approval.mkdir()
+            recorded = approval / "force-push-approval.txt"
+            recorded.write_text(approve + "\n", encoding="utf-8")
+            self.assertIsNone(boundary.force_push_block(root, approve))
+            self.assertEqual(approve + "\n", recorded.read_text(encoding="utf-8"))
 
     def test_force_push_approve_writes_the_temp_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -160,6 +187,43 @@ class ImpactReceiptTest(unittest.TestCase):
             self.assertIsNotNone(blocked)
             self.assertIn("refresh first", blocked)
 
+    def test_nested_hit_labels_and_a_stale_skip_ask_to_refresh(self) -> None:
+        gate = _load("ce_retrieve_7957_nested", CE / "hooks/retrieve_justification.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            sink = project / ".chaos-engine-state" / "research-receipt.md"
+            sink.parent.mkdir(parents=True)
+            call = dict(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Write",
+                tool_input={"file_path": "chaos-engine/delete_guard.py"},
+            )
+            sink.write_text(
+                "retrieve: used\n"
+                '{"hits": [{"path": "chaos-engine/hosts.py", "labels": ["Doctor", "Install"]}]}\n',
+                encoding="utf-8",
+            )
+            missed = gate.impact_edit_block_reason(**call)
+            self.assertIsNotNone(missed)
+            self.assertIn("refresh first", missed)
+            cited = dict(call)
+            cited["tool_input"] = {"file_path": "chaos-engine/hosts.py"}
+            self.assertIsNone(gate.impact_edit_block_reason(**cited))
+            sink.write_text('retrieve: used\n"hits": not-json\n', encoding="utf-8")
+            unparsable = gate.impact_edit_block_reason(**call)
+            self.assertIsNotNone(unparsable)
+            self.assertIn("refresh first", unparsable)
+            gate._mark_session(project, "skipped-stale", retrieved=True)
+            marked = dict(call, session_id="skipped-stale")
+            sink.write_text(
+                'retrieve: skipped(no-rare-token)\n{"freshness": {"status": "stale"}}\n',
+                encoding="utf-8",
+            )
+            blocked = gate.impact_edit_block_reason(**marked)
+            self.assertIsNotNone(blocked)
+            self.assertIn("refresh first", blocked)
+
 
 class IgnoreAndDeleteTest(unittest.TestCase):
     def test_gitignore_classifies_rules_and_secrets_without_star_text_auto(self) -> None:
@@ -226,6 +290,43 @@ class IgnoreAndDeleteTest(unittest.TestCase):
             target.write_text("same\n", encoding="utf-8")
             command = "git switch -c other release && rm -- " + str(target)
             self.assertEqual("", guard.check(command, root, root)[0])
+
+    def test_a_session_worktree_copy_does_not_make_a_unique_file_deletable(self) -> None:
+        guard = _load("ce_delete_7960_scratch", CE / "delete_guard.py")
+        with tempfile.TemporaryDirectory() as temporary, unittest.mock.patch.object(guard, "DEFAULT_ALLOW", ()):
+            root = Path(temporary) / "repo"
+            scratch = Path(temporary) / "scratch"
+            root.mkdir()
+            scratch.mkdir()
+            _git(root, "init")
+            _git(root, "config", "user.email", "dev@example.com")
+            _git(root, "config", "user.name", "Dev")
+            keep = root / "keep.txt"
+            keep.write_text("keep\n", encoding="utf-8")
+            _git(root, "add", "keep.txt")
+            _git(root, "commit", "-m", "add keep")
+            unique = root / "unique.txt"
+            unique.write_text("only-here\n", encoding="utf-8")
+            (scratch / "unique.txt").write_text("only-here\n", encoding="utf-8")
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_SESSION_WORKTREE": str(scratch)}):
+                self.assertIn("untracked", guard.path_reason(unique, root))
+                refused = guard.check("rm -- " + str(unique), root, root)
+                self.assertIn("untracked", refused[0])
+
+
+class GateSelectionTest(unittest.TestCase):
+    def test_changed_hook_paths_select_this_module(self) -> None:
+        from scripts.ci.harness_pr_gate import classify_paths
+
+        module = "tests.scripts.test_ce_hooks_7955_7960"
+        for path in (
+            "chaos-engine/rules/operation_boundary.py",
+            "chaos-engine/hooks/retrieve_justification.py",
+            "chaos-engine/force_push_approve.py",
+            "tests/scripts/test_ce_hooks_7955_7960.py",
+        ):
+            plan = classify_paths([path])
+            self.assertIn(module, plan.test_modules, path)
 
 
 if __name__ == "__main__":

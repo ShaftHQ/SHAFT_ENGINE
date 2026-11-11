@@ -489,32 +489,6 @@ def _bytes_match_rev(path: Path, top: Path, rev: str) -> bool:
     return blob is not None and blob == data
 
 
-def _scratch_has_copy(path: Path) -> bool:
-    scratch = os.environ.get(SESSION_WORKTREE_ENV, "").strip()
-    if not scratch:
-        return False
-    root = Path(scratch)
-    if not root.is_dir():
-        return False
-    try:
-        data = path.read_bytes()
-    except OSError:
-        return False
-    checked = 0
-    for candidate in root.rglob("*"):
-        checked += 1
-        if checked > 200:
-            break
-        if not candidate.is_file():
-            continue
-        try:
-            if candidate.resolve() != path.resolve() and candidate.read_bytes() == data:
-                return True
-        except OSError:
-            continue
-    return False
-
-
 def _remote_default_rev(top: Path) -> str | None:
     """Remote default from ``refs/remotes/origin/HEAD``. No hard-coded branch name."""
     proc = _git(top, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
@@ -531,9 +505,7 @@ def _recreatable_untracked(path: Path, top: Path, rev: str | None) -> bool:
     remote = _remote_default_rev(top)
     if remote and remote not in revs:
         revs.append(remote)
-    if any(_bytes_match_rev(path, top, item) for item in revs):
-        return True
-    return _scratch_has_copy(path)
+    return any(_bytes_match_rev(path, top, item) for item in revs)
 
 
 def _git_reason(path: Path, top: Path, rev: str | None = None) -> str:

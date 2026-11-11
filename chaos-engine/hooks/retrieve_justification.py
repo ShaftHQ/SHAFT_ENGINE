@@ -1532,26 +1532,60 @@ def _explicit_stale(text: str) -> bool:
     return _EXPLICIT_STALE.search(text or "") is not None
 
 
-def _hit_paths(text: str) -> list[str] | None:
-    """Hit paths when the receipt lists them. None when it does not list hits."""
-    match = re.search(r"""(?i)["']hits["']\s*:\s*(\[[\s\S]*?\])""", text or "")
+def _json_span(text: str, start: int) -> str | None:
+    """One JSON value starting at ``[`` or ``{``, with strings left intact."""
+    if start >= len(text) or text[start] not in "[{":
+        return None
+    depth = 0
+    quote = False
+    escape = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if quote:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                quote = False
+            continue
+        if char == '"':
+            quote = True
+            continue
+        if char in "[{":
+            depth += 1
+        elif char in "]}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return None
+
+
+def _listed_hits(text: str) -> tuple[bool, list[str] | None]:
+    """(listed, paths). paths is None when a hits value is present but unparsable."""
+    match = re.search(r"""(?i)["']hits["']\s*:\s*""", text or "")
     if match is None:
-        return None
+        return False, None
+    tail = (text or "")[match.end() :]
+    start = match.end() + len(tail) - len(tail.lstrip())
+    raw = _json_span(text or "", start)
+    if raw is None or not raw.startswith("["):
+        return True, None
     try:
-        payload = json.loads(match.group(1))
+        payload = json.loads(raw)
     except json.JSONDecodeError:
-        return None
+        return True, None
     if not isinstance(payload, list):
-        return None
+        return True, None
     paths: list[str] = []
     for item in payload:
         if isinstance(item, str) and item.strip():
             paths.append(item.strip())
         elif isinstance(item, dict):
-            raw = item.get("path") or item.get("file")
-            if isinstance(raw, str) and raw.strip():
-                paths.append(raw.strip())
-    return paths
+            value = item.get("path") or item.get("file")
+            if isinstance(value, str) and value.strip():
+                paths.append(value.strip())
+    return True, paths
 
 
 def _path_cited(paths: list[str], listed: list[str]) -> bool:
@@ -1563,22 +1597,27 @@ def _path_cited(paths: list[str], listed: list[str]) -> bool:
     return False
 
 
+def _needs_refresh(text: str, tool_input: dict | None) -> bool:
+    """Stale freshness, an unparsable hits list, or listed hits that miss the path."""
+    if _explicit_stale(text):
+        return True
+    listed, paths = _listed_hits(text)
+    if not listed or not paths:
+        return paths is None and listed
+    targets = _input_paths(tool_input or {})
+    if not targets:
+        return False
+    return not _path_cited(targets, paths)
+
+
 def _receipt_covers(text: str, tool_input: dict | None) -> bool:
     """A bare ``retrieve: used`` counts. A stale index, or listed hits that miss the path, do not."""
+    if _needs_refresh(text, tool_input):
+        return False
     field = retrieve_receipt_field(text) or ""
-    if field.startswith("skipped("):
+    if field.startswith("skipped(") or field == "used":
         return True
-    if field != "used":
-        return False
-    if _explicit_stale(text):
-        return False
-    listed = _hit_paths(text)
-    if not listed:
-        return True
-    paths = _input_paths(tool_input or {})
-    if not paths:
-        return True
-    return _path_cited(paths, listed)
+    return False
 
 
 def impact_edit_block_reason(
@@ -1608,8 +1647,7 @@ def impact_edit_block_reason(
         text = ""
     if _receipt_covers(text, tool_input):
         return None
-    field = retrieve_receipt_field(text) or ""
-    if field == "used" and (_explicit_stale(text) or _hit_paths(text)):
+    if _needs_refresh(text, tool_input):
         return STALE_EDIT_BLOCK
     row = _live_sessions(_load_payload(project)).get(_session_key(session_id))
     if isinstance(row, dict) and row.get("retrieved"):

@@ -26,7 +26,7 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
-_APPROVE_INVOCATION = re.compile(r"\b(?:python3?|py)\b[\s\S]*\btool\.py\s+force-push-approve\b")
+_APPROVE_TOOL = re.compile(r"\b(?:python3?|py)\s+\S*tool\.py\s+force-push-approve\b")
 
 
 def _load(path: Path, name: str) -> Any:
@@ -118,9 +118,37 @@ def _shell_statements(command: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
+def _strip_unquoted_comment(part: str) -> str:
+    quote = ""
+    out: list[str] = []
+    for index, char in enumerate(part):
+        if quote:
+            out.append(char)
+            if char == quote and part[index - 1] != "\\":
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            out.append(char)
+            continue
+        if char == "#":
+            break
+        out.append(char)
+    return "".join(out).strip()
+
+
 def _is_approve_invocation(part: str) -> bool:
-    """The approval command quotes a push. It does not push."""
-    return _APPROVE_INVOCATION.search(part) is not None
+    """True only when this statement is the approval tool, not a push that mentions it."""
+    code = _strip_unquoted_comment(part)
+    match = _APPROVE_TOOL.search(code)
+    if match is None:
+        return False
+    if _PUSH.search(code[: match.start()]):
+        return False
+    after = code[match.end() :]
+    marker = after.find(" -- ")
+    head = after if marker < 0 else after[:marker]
+    return _PUSH.search(head) is None
 
 
 def force_push_block(root: Path, command: str) -> str | None:

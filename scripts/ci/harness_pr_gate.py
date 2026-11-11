@@ -123,7 +123,10 @@ CHECKS = {
     "lifecycle-contract": Check(
         "lifecycle-contract",
         "lifecycle",
-        ("tests.scripts.test_chaos_engine_hook",),
+        (
+            "tests.scripts.test_chaos_engine_hook",
+            "tests.scripts.test_ce_hooks_7955_7960",
+        ),
         True,
     ),
     "eval-parity-contract": Check(
@@ -816,6 +819,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/token_economy.py",
         "tests/scripts/test_chaos_engine_delete_guard_7251.py",
         "chaos-engine/delete_guard.py",
+        "chaos-engine/rules/operation_boundary.py",
+        "chaos-engine/force_push_approve.py",
+        "tests/scripts/test_ce_hooks_7955_7960.py",
         "tests/scripts/test_chaos_engine_register_rule_7242.py",
         "tests/scripts/test_chaos_engine_retrieve_marker_7242.py",
         "tests/scripts/test_chaos_engine_mempalace_privacy_7242.py",
