@@ -471,7 +471,7 @@ jobs:
 
   Ubuntu_Playwright_WebKit:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_WebKit,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -519,7 +519,7 @@ jobs:
 
   Ubuntu_Playwright_Firefox:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_Firefox,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -558,7 +558,7 @@ jobs:
 
   Ubuntu_Playwright_GalaxyS26Ultra:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_GalaxyS26Ultra,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -597,7 +597,7 @@ jobs:
 
   Ubuntu_Playwright_IPhone17ProMax:
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.jobs == '' || github.event.inputs.jobs == 'all' || contains(format(',{0},', github.event.inputs.jobs), ',Ubuntu_Playwright_IPhone17ProMax,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read

@@ -58,6 +58,17 @@ class PlaywrightSetupWorkflowTest(unittest.TestCase):
             self.assertEqual(cache_indexes[0] + 1, dependency_indexes[0], job_name)
             self.assertLess(dependency_indexes[0], test_index, job_name)
 
+    def test_managed_playwright_jobs_stay_on_ubuntu_24_04(self):
+        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+
+        for job_name in (
+            "Ubuntu_Playwright_WebKit",
+            "Ubuntu_Playwright_Firefox",
+            "Ubuntu_Playwright_GalaxyS26Ultra",
+            "Ubuntu_Playwright_IPhone17ProMax",
+        ):
+            self.assertEqual("ubuntu-24.04", jobs[job_name]["runs-on"], job_name)
+
 
 if __name__ == "__main__":
     unittest.main()
