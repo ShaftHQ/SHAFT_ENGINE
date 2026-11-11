@@ -1136,6 +1136,53 @@ def heuristics_retrieve(top: int = 3, project: Path | None = None) -> dict[str, 
     }
 
 
+_QUERY_FORM = 'tool.py retrieve --store graphify "<query>"'
+_OPTION_VALUES = frozenset({"--store", "--project", "--host", "--mode", "--top", "--query"})
+
+
+def _positional_indexes(argv: list[str]) -> list[int]:
+    indexes: list[int] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token in _OPTION_VALUES:
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        indexes.append(index)
+        index += 1
+    return indexes
+
+
+def _flag_value(argv: list[str], name: str) -> str | None:
+    prefix = f"{name}="
+    for index, token in enumerate(argv):
+        if token == name and index + 1 < len(argv):
+            return argv[index + 1]
+        if token.startswith(prefix):
+            return token[len(prefix) :]
+    return None
+
+
+def _promote_leading_store(argv: list[str]) -> list[str]:
+    """A store name plus a following query is ``--store``. A lone store name stays the query."""
+    indexes = _positional_indexes(argv)
+    if (
+        len(indexes) < 2
+        or argv[indexes[0]] not in STORES
+        or _flag_value(argv, "--store") is not None
+    ):
+        return argv
+    store = argv[indexes[0]]
+    query = " ".join(argv[index] for index in indexes[1:])
+    drop = set(indexes)
+    kept = [token for index, token in enumerate(argv) if index not in drop]
+    kept.extend(["--store", store, query])
+    return kept
+
+
 def main(argv: list[str] | None = None) -> int:
     raw = list(sys.argv[1:] if argv is None else argv)
     if raw and raw[0] == "heuristics":
@@ -1150,8 +1197,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(receipt, sort_keys=True))
         return 0
+    raw = _promote_leading_store(raw)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("query", nargs="?", default="")
+    parser.add_argument(
+        "--query",
+        dest="query_flag",
+        default=None,
+        help="alias of the positional query",
+    )
     parser.add_argument("--store", choices=STORES, default=None)
     parser.add_argument("--project", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
@@ -1161,9 +1215,13 @@ def main(argv: list[str] | None = None) -> int:
         "--recheck", action="store_true", help="re-probe MemPalace after a backend repair"
     )
     args = parser.parse_args(raw)
+    if args.query_flag is not None and args.query and args.query != args.query_flag:
+        print(_QUERY_FORM, file=sys.stderr)
+        return 2
+    query = args.query_flag if args.query_flag is not None else args.query
     try:
         receipt = retrieve(
-            args.query,
+            query,
             store=args.store,
             project=args.project,
             dry_run=args.dry_run,

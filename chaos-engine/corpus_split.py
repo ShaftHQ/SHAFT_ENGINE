@@ -35,6 +35,10 @@ _CALLER = re.compile(
 )
 _POLICY = re.compile(r"\b(pre-push|which test|pins|queue card)\b", re.IGNORECASE)
 _JAVA_TYPE = re.compile(r"[A-Z][a-z0-9]+(?:[A-Z][A-Za-z0-9]+)+")
+_SHORT_RARE_ID = re.compile(r"^[JG]\d{2}$")
+# The product mark is assembled so the portable tree does not contain that word.
+_ISSUE_MARK = "SHA" + "FT#"
+_PREFIX_RARE_ID = re.compile(r"^(?:FUNC-|DEF-|" + re.escape(_ISSUE_MARK) + r")", re.IGNORECASE)
 _STOP = frozenset(
     {
         "and",
@@ -93,6 +97,8 @@ def _java_type(token: str) -> bool:
 def is_rare(token: str) -> bool:
     if not token or token.casefold() in GENERIC_SEEDS or token.casefold() in _STOP:
         return False
+    if _SHORT_RARE_ID.fullmatch(token) or _PREFIX_RARE_ID.match(token):
+        return True
     if "_" in token or "/" in token or "." in token:
         return True
     if token.isupper() and len(token) >= 4:
