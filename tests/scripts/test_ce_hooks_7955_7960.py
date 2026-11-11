@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import fnmatch
 import importlib.util
 import os
@@ -107,6 +108,12 @@ class ForcePushSingleUseTest(unittest.TestCase):
             hashed_in = "python3 .chaos-engine/tool.py force-push-approve -- x#<(git push --force origin HEAD)"
             hashed_out = "python3 .chaos-engine/tool.py force-push-approve -- x#>(git push --force origin HEAD)"
             hashed_quote = 'python3 .chaos-engine/tool.py force-push-approve -- "x"#$(git push --force origin HEAD)'
+            split_sub = "git push $(\n echo --force) origin HEAD"
+            split_tick = "git push `\n echo --force` origin HEAD"
+            split_short = "git push $(\n echo -f) origin HEAD"
+            split_plus = "git push $(\n echo +HEAD)"
+            hash_join = "python3 .chaos-engine/tool.py force-push-approve -- x\\\n#$(git push --force origin HEAD)"
+            hash_join_tick = "python3 .chaos-engine/tool.py force-push-approve -- x\\\n#`git push --force origin HEAD`"
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -117,11 +124,15 @@ class ForcePushSingleUseTest(unittest.TestCase):
             for command in (
                 substituted, backticks, newline, into, out_of, redirect, quoted,
                 escaped, single, doubled, continued, echoed, hashed, hashed_ticks,
-                hashed_in, hashed_out, hashed_quote,
+                hashed_in, hashed_out, hashed_quote, split_sub, split_tick,
+                split_short, split_plus, hash_join, hash_join_tick,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)
             self.assertIsNone(boundary.force_push_block(root, windows))
+            self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"))
+            noted = "python3 .chaos-engine/tool.py force-push-approve -- " + push + " # note"
+            self.assertIsNone(boundary.force_push_block(root, noted))
             self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"))
             self.assertIsNone(boundary.force_push_block(nested, push))
             self.assertEqual("", recorded.read_text(encoding="utf-8"))
@@ -161,6 +172,23 @@ class SecretsTextTest(unittest.TestCase):
         self.assertIn("17", withheld)
         self.assertNotIn("ghp_", withheld)
 
+    def test_a_local_secret_file_value_is_withheld(self) -> None:
+        boundary = _load("ce_boundary_7956_file", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            folder = root / "src/main/resources/properties"
+            folder.mkdir(parents=True)
+            value = "local-secret-value-7956"
+            (folder / "secrets.properties").write_text(f"password={value}\n", encoding="utf-8")
+            withheld = boundary.output_secret_block(
+                {"exit_code": 3, "stdout": value + "\n"},
+                root,
+            )
+            self.assertIn("secret-in-output", withheld)
+            self.assertIn("already finished", withheld)
+            self.assertIn("3", withheld)
+            self.assertNotIn(value, withheld)
+
 
 class SecretGuardDoctorTest(unittest.TestCase):
     def test_foreign_hooks_path_is_not_live(self) -> None:
@@ -173,6 +201,52 @@ class SecretGuardDoctorTest(unittest.TestCase):
             self.assertEqual("fail", status)
             self.assertIn("not live", reason)
             self.assertIn("tools/git-hooks", reason)
+            install = _load("ce_install_7958", CE / "install.py")
+            line = install._format_secret_guard_line(root)
+            self.assertEqual("secret-guard: not live tools/git-hooks", line)
+
+    def test_repair_blocks_a_commit_that_contains_a_local_secret(self) -> None:
+        install = _load("ce_install_7958_repair", CE / "install.py")
+        value = "Sup3rSecretAccessKey99"  # nosec B105 - synthetic test value
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            _git(root, "init", "-q", "-b", "feature")
+            repaired = install.repair_component(root, "secret-guard")
+            self.assertEqual("repaired", repaired["status"])
+            secrets = root / "src/main/resources/properties"
+            secrets.mkdir(parents=True)
+            (secrets / "secrets.properties").write_text(
+                f"browserStack.accessKey={value}\n",
+                encoding="utf-8",
+            )
+            blob = base64.b64encode(('{"accessKey":"%s"}' % value).encode()).decode()
+            (root / "evidence.txt").write_text(
+                '<html><script>d("data/attachments/a.txt","%s")</script></html>' % blob,
+                encoding="utf-8",
+            )
+            env = dict(os.environ)
+            env.update(
+                GIT_AUTHOR_NAME="t",
+                GIT_AUTHOR_EMAIL="t@e",
+                GIT_COMMITTER_NAME="t",
+                GIT_COMMITTER_EMAIL="t@e",
+            )
+            subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo
+                ["git", "-C", str(root), "add", "evidence.txt"],
+                check=True,
+                capture_output=True,
+                env=env,
+            )
+            leak = subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo
+                ["git", "-C", str(root), "commit", "-q", "-m", "leak"],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertNotEqual(0, leak.returncode, leak.stderr)
+            self.assertIn("secret_guard BLOCKED", leak.stderr)
+            self.assertIn("known secret value", leak.stderr)
+            self.assertNotIn(value, leak.stderr)
 
     def test_install_md_mentions_doctor_before_live(self) -> None:
         text = (CE / "INSTALL.md").read_text(encoding="utf-8")
@@ -271,6 +345,45 @@ class ImpactReceiptTest(unittest.TestCase):
             blocked = gate.impact_edit_block_reason(**marked)
             self.assertIsNotNone(blocked)
             self.assertIn("refresh first", blocked)
+
+    def test_a_scratch_write_needs_no_receipt(self) -> None:
+        gate = _load("ce_retrieve_7957_scratch", CE / "hooks/retrieve_justification.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "project"
+            project.mkdir()
+            scratch = Path(temporary) / "scratch" / "note.txt"
+            denied = gate.impact_edit_block_reason(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Write",
+                tool_input={"file_path": str(project / "chaos-engine" / "delete_guard.py")},
+            )
+            self.assertIsNotNone(denied)
+            self.assertIn("tool.py retrieve --store graphify", denied)
+            self.assertIsNone(
+                gate.impact_edit_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Write",
+                    tool_input={"file_path": str(scratch)},
+                )
+            )
+            command = [
+                sys.executable,
+                str(CE / "tool.py"),
+                "retrieve",
+                "--store",
+                "graphify",
+                "impact of this edit",
+            ]
+            proc = subprocess.run(  # nosec B603 - fixed interpreter and tool argv, no shell.
+                command,
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
 
 
 class IgnoreAndDeleteTest(unittest.TestCase):

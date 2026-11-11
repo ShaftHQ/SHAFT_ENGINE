@@ -153,26 +153,73 @@ def _is_approve_invocation(part: str) -> bool:
 
 
 def _command_pieces(command: str) -> list[str]:
-    """Shell statements. A backslash-newline stays one command. A bare newline does not."""
+    """One shell statement per piece.
+
+    A backslash-newline is removed, matching bash line continuation.
+    A newline inside quotes, ``$(...)``, backticks, or parentheses stays.
+    """
+    text = command or ""
     pieces: list[str] = []
     buf: list[str] = []
     quote = ""
-    text = re.sub(r"\\\r?\n", " ", command or "")
-    for index, char in enumerate(text):
+    depth = 0
+    ticks = False
+    index = 0
+    while index < len(text):
+        if not ticks and quote != "'" and (
+            text.startswith("\\\r\n", index) or text.startswith("\\\n", index)
+        ):
+            index += 3 if text.startswith("\\\r\n", index) else 2
+            continue
+        char = text[index]
+        if ticks:
+            buf.append(char)
+            if char == "`":
+                ticks = False
+            index += 1
+            continue
         if quote:
             buf.append(char)
             if char == quote and text[index - 1] != "\\":
                 quote = ""
+            index += 1
             continue
         if char in {"'", '"'}:
             quote = char
             buf.append(char)
+            index += 1
             continue
-        if char in {"\n", "\r"}:
+        if char == "`":
+            ticks = True
+            buf.append(char)
+            index += 1
+            continue
+        if (
+            text.startswith("$(", index)
+            or text.startswith("<(", index)
+            or text.startswith(">(", index)
+        ):
+            depth += 1
+            buf.append(text[index : index + 2])
+            index += 2
+            continue
+        if char == "(":
+            depth += 1
+            buf.append(char)
+            index += 1
+            continue
+        if char == ")" and depth:
+            depth -= 1
+            buf.append(char)
+            index += 1
+            continue
+        if char in {"\n", "\r"} and depth == 0:
             pieces.append("".join(buf))
             buf = []
+            index += 1
             continue
         buf.append(char)
+        index += 1
     pieces.append("".join(buf))
     statements: list[str] = []
     for piece in pieces:
