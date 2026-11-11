@@ -190,8 +190,30 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "An owner recording used as a spoken token is the pronunciation.",
             "An automatic transcript spelling does not reject that token.",
             "Do not alter copied samples from an accepted recording to meet a silence floor.",
+            "A spoken introduction follows [narration-review.md](details/narration-review.md).",
+            "A spoken introduction is one synthesis of the whole script.",
+            "Do not splice a louder take into it.",
+            "Loudness is one gain for the whole file.",
+            "The opening sentence is not louder than the rest.",
+            "Short-term speech loudness stays within 3 LU of the integrated loudness.",
+            "True peak stays at or below -1 dBTP.",
+            "A pause of at least 200 ms is at or below -70 dBFS RMS.",
+            "Do not zero a dip shorter than 200 ms.",
+            "An automatic transcript catches gibberish, a torn word, and an interrupted word.",
+            "A proper noun is judged against the owner's recording, not against transcript spelling.",
+            "A breath or a pause sits at a clause boundary.",
+            "A filler is not clustered: no two fillers inside eight seconds.",
         ):
             self.assertIn(sentence, section)
+        narration = (REFS / "details" / "narration-review.md").read_text(encoding="utf-8")
+        for sentence in (
+            "One gain for the whole file",
+            "no two fillers inside eight seconds",
+            "one synthesis of the whole script",
+            "150 to 190 words",
+            "A proper noun is judged against the owner's recording, not against\n  transcript spelling.",
+        ):
+            self.assertIn(sentence, narration)
         flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]
         self.assertIn("does not stop after one accepted cycle", flow)
         self.assertIn("does not sign off, publish, or share on that single pair", flow)
