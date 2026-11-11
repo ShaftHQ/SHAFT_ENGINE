@@ -90,14 +90,19 @@ public final class AllureReportLaunch {
         if (jdkHome == null) {
             return -1;
         }
-        String executable = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
-                ? "javac.exe" : "javac";
-        Path javac = jdkHome.resolve("bin").resolve(executable);
-        if (!Files.isRegularFile(javac)) {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        String executable = windows ? "javac.exe" : "javac";
+        if (!Files.isRegularFile(jdkHome.resolve("bin").resolve(executable))) {
             return -1;
         }
+        // Constant relative command. jdkHome is only the working directory, not a shell string.
         try {
-            Process process = new ProcessBuilder(javac.toString(), "-version").redirectErrorStream(true).start();
+            ProcessBuilder builder = windows
+                    ? new ProcessBuilder("bin\\javac.exe", "-version")
+                    : new ProcessBuilder("bin/javac", "-version");
+            builder.directory(jdkHome.toFile());
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
             String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             process.waitFor();
             return javaMajorFromJavacOutput(output);
@@ -197,8 +202,9 @@ public final class AllureReportLaunch {
         if (trailingArgument != null && !trailingArgument.isBlank()) {
             content.append(trailingArgument).append(System.lineSeparator());
         }
-        if (argFile.getParent() != null) {
-            Files.createDirectories(argFile.getParent());
+        Path parent = argFile.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
         }
         Files.writeString(argFile, content.toString(), StandardCharsets.UTF_8);
         return argFile;
@@ -239,7 +245,11 @@ public final class AllureReportLaunch {
     }
 
     private static boolean isEngineJar(Path path) {
-        String name = path.getFileName().toString();
+        Path fileName = path == null ? null : path.getFileName();
+        if (fileName == null) {
+            return false;
+        }
+        String name = fileName.toString();
         return Files.isRegularFile(path)
                 && name.startsWith("shaft-engine-")
                 && name.endsWith(".jar")
@@ -254,7 +264,8 @@ public final class AllureReportLaunch {
         if (Files.isDirectory(entry)) {
             return Files.isRegularFile(entry.resolve(SHAFT_CLASS_ENTRY));
         }
-        if (!entry.getFileName().toString().endsWith(".jar")) {
+        Path fileName = entry.getFileName();
+        if (fileName == null || !fileName.toString().endsWith(".jar")) {
             return false;
         }
         try (JarFile jar = new JarFile(entry.toFile())) {

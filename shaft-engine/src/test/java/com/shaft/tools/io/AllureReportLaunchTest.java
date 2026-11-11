@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -220,6 +221,17 @@ public class AllureReportLaunchTest {
         IllegalStateException failure = Assert.expectThrows(IllegalStateException.class,
                 () -> AllureReportLaunch.resolveJdkHome(null, null, 25, path -> 1));
         Assert.assertTrue(failure.getMessage().contains("25"), failure.getMessage());
+    }
+
+    @Test
+    public void rootPathIsNotAnEngineJar() throws Exception {
+        Method engineJar = AllureReportLaunch.class.getDeclaredMethod("isEngineJar", Path.class);
+        engineJar.setAccessible(true);
+        Assert.assertFalse((Boolean) engineJar.invoke(null, Path.of("/")));
+
+        Method shaftClass = AllureReportLaunch.class.getDeclaredMethod("containsShaftClass", Path.class);
+        shaftClass.setAccessible(true);
+        Assert.assertFalse((Boolean) shaftClass.invoke(null, Path.of("/")));
     }
 
     @Test

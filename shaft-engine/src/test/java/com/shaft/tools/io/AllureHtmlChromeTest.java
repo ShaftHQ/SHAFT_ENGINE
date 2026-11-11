@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -59,8 +60,15 @@ public class AllureHtmlChromeTest {
     }
 
     @Test
-    public void defaultSystemCandidatesIncludeTheLinuxChromePath() {
-        Assert.assertTrue(AllureHtmlChrome.defaultSystemCandidates().contains(Path.of("/usr/bin/google-chrome")));
+    public void defaultSystemCandidatesUseConventionalInstallPaths() {
+        Assert.assertEquals(AllureHtmlChrome.defaultSystemCandidates(), List.of(
+                Path.of("/usr/bin/google-chrome"),
+                Path.of("/usr/bin/google-chrome-stable"),
+                Path.of("/usr/bin/chromium-browser"),
+                Path.of("/usr/bin/chromium"),
+                Path.of("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                Path.of("C:/Program Files/Google/Chrome/Application/chrome.exe"),
+                Path.of("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe")));
     }
 
     @Test
@@ -142,6 +150,13 @@ public class AllureHtmlChromeTest {
         IllegalStateException empty = Assert.expectThrows(IllegalStateException.class,
                 () -> AllureHtmlChrome.resolve(null, List.of(), cache, directory -> List.of()));
         Assert.assertTrue(empty.getMessage().contains("CHROME_PATH"), empty.getMessage());
+    }
+
+    @Test
+    public void rootPathIsNotAChromeExecutable() throws Exception {
+        Method method = AllureHtmlChrome.class.getDeclaredMethod("chromeExecutable", Path.class);
+        method.setAccessible(true);
+        Assert.assertFalse((Boolean) method.invoke(null, Path.of("/")));
     }
 
     @Test
