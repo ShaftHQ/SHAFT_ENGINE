@@ -12,7 +12,7 @@ design-skills add-on lesson index; load them on demand from that add-on.
 ### Flow
 1. **Plan** first (options, riskiest assumption + check). Live/external: think-first.
 2. **Do** — one implementer.
-3. **Self-check** against the gates below. Stop at most 3 PDCA iterations, then escalate.
+3. **Self-check** against the gates below. Stop at most 3 PDCA iterations, then escalate. A complex video or audio edit does not stop after one accepted cycle. It follows [Complex video or audio editing](#complex-video-or-audio-editing).
 4. **Independent adversarial reviews**: two independent adversarial reviews after required checks are green (not the implementer), then sign-off. The author is neither reviewer.
 5. **Orchestrator SIGN** after the two adversarial reviews in [delivery cycle](delivery-cycle.md) pass, plus gate JSON.
 6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads.

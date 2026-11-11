@@ -173,6 +173,13 @@ class DeliveryCycleContractTest(unittest.TestCase):
         self.assertIn("not limited to the active session", cycle)
         self.assertNotIn("at least three", cycle.lower())
         self.assertNotIn("minimum 3", cycle.lower())
+        flow = checklist.split("## Why", 1)[0]
+        self.assertIn("does not stop after one accepted cycle", flow)
+        self.assertIn("#complex-video-or-audio-editing", flow)
+        self.assertLess(
+            flow.index("at most 3 PDCA"),
+            flow.index("two independent adversarial reviews after required checks are green"),
+        )
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
