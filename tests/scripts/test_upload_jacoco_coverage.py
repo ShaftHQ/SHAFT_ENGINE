@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.upload_jacoco_coverage import receipt_errors, record_codecov_receipt
-
 ROOT = Path(__file__).resolve().parents[2]
 ACTION = ROOT / ".github/actions/upload-jacoco-coverage/action.yml"
+_SPEC = importlib.util.spec_from_file_location(
+    "upload_jacoco_coverage",
+    ROOT / "scripts/ci/upload_jacoco_coverage.py",
+)
+assert _SPEC is not None and _SPEC.loader is not None
+_RECEIPT = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_RECEIPT)
+receipt_errors = _RECEIPT.receipt_errors
+record_codecov_receipt = _RECEIPT.record_codecov_receipt
 
 # Shard-2 on run 42912520949 queued this command and HTTP 200. The PR comment
 # still omitted the flag; that processing gap is upstream. This receipt is valid.
