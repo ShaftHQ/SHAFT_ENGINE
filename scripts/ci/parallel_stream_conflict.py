@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse parallel-stream dispatch on ownership overlap, design-kind WIP, or disk caps."""
+"""Refuse parallel-stream dispatch on ownership overlap, design-kind WIP, or resource caps."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -270,13 +270,17 @@ def refuse_dispatch(
     repo_root: Path | str | None = None,
     free: int | None = None,
     linked_count: int | None = None,
+    available_ram: int | None = None,
+    gpu_free_mib: int | None = None,
     proposed: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """Return every dispatch blocker: ownership, design-kind WIP, disk/worktree.
+    """Return every dispatch blocker: ownership, design-kind WIP, disk/RAM/GPU/worktree.
 
-    When ``workspace`` is omitted, disk/worktree caps are skipped. When
-    ``proposed`` is omitted, design-kind WIP is skipped (path-only callers).
-    Pass both before creating a new worktree or design stream.
+    When ``workspace`` is omitted, resource caps are skipped. ``available_ram``
+    and ``gpu_free_mib`` use the same ``None``-does-not-refuse contract as
+    ``new_worker_blockers``. When ``proposed`` is omitted, design-kind WIP is
+    skipped (path-only callers). Pass both before creating a new worktree or
+    design stream.
     """
     blockers: list[str] = []
     conflicts = conflicting_peer_stream_ids(
@@ -301,6 +305,8 @@ def refuse_dispatch(
                 repo_root=repo_root,
                 free=free,
                 linked_count=linked_count,
+                available_ram=available_ram,
+                gpu_free_mib=gpu_free_mib,
             )
         )
     return blockers

@@ -7,6 +7,7 @@ reviewer at once on a shared box. Complements [iterative flow](iterative-flow.md
 
 ## When to fan out
 
+Group work into the fewest non-overlapping streams, one subagent per stream.
 Fan out only for **file-disjoint** work. Same subsystem or shared always-loaded
 card → serialize or [stack](bot-entry.md#delivery-ledger) on the previous
 branch. Research URLs are canonicalized before a second research dispatch.
@@ -144,6 +145,10 @@ Rules:
    `refuse_dispatch_on_same_kind_wip` can enforce the cap before dispatch.
 
 ## Disk gate
+
+Run a resource check before extra parallelism: check disk, RAM, GPU memory, and
+the worktree cap before starting another parallel worker. A low reading refuses
+that worker.
 
 Shared box, before creating a worktree or clone. **Executable** check:
 `scripts/ci/box_disk_guard.py` (`disk_level` / `refuse_new_worker` /

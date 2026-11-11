@@ -80,8 +80,9 @@ would start without ChaosEngine.
    an invariant, not each symptom; do not interrupt implementation with review,
    test, commit, push, or validation gates.
 5. After the final scope commit, triage automated CI, annotations, bots, and PR
-   comments first. Then the two adversarial reviews in
-   [delivery cycle](delivery-cycle.md).
+   comments first; two independent adversarial reviews, neither of them the
+   author, must pass on the same head SHA before orchestrator sign-off
+   ([delivery cycle](delivery-cycle.md)).
 6. Report outcome, exact checks, failures, and every finding as fixed or filed.
 
 Consult [field heuristics](heuristics.md) only for deeper

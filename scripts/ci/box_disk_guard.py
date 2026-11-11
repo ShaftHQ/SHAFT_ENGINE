@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-    Executable shared-box disk gate, worktree cap, cache caps, and scratch TTL.
+    Executable shared-box disk, RAM, and GPU gate, worktree cap, cache caps, and scratch TTL.
 
 Extends the parallel-streams protocol from advisory docs into callable
 gates (cleanup-at-close). Delete-guard never-touch paths stay refused.
@@ -44,6 +44,8 @@ GiB = 1024**3
 # Replaces the #7615 doc-only "20 GiB" refuse line with executable thresholds.
 FREE_WARN_BYTES = 15 * GiB
 FREE_BLOCK_BYTES = 10 * GiB
+RAM_BLOCK_BYTES = 2 * GiB
+GPU_FREE_BLOCK_MIB = 256
 # Linked worktrees per primary (excludes the main worktree). Crisis: 140 stale.
 MAX_LINKED_WORKTREES = 24
 DEFAULT_SCRATCH_TTL_HOURS = 24
@@ -97,6 +99,57 @@ CACHE_SPECS = (
 def free_bytes(path: Path | str) -> int:
     """Return free bytes on the filesystem that holds ``path``."""
     return int(shutil.disk_usage(Path(path)).free)
+
+
+def _memavailable_bytes(text: str) -> int | None:
+    for line in text.splitlines():
+        if not line.startswith("MemAvailable:"):
+            continue
+        parts = line.split()
+        if len(parts) < 2 or not parts[1].isdigit():
+            return None
+        return int(parts[1]) * 1024
+    return None
+
+
+def available_ram_bytes() -> int | None:
+    """Return MemAvailable bytes from ``/proc/meminfo``, or None when absent."""
+    try:
+        text = Path("/proc/meminfo").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return _memavailable_bytes(text)
+
+
+def _gpu_free_mib_from_csv(text: str) -> int | None:
+    values: list[int] = []
+    for line in text.splitlines():
+        token = line.strip().split(",")[0].strip()
+        if token.lstrip("-").isdigit():
+            values.append(int(token))
+    if not values:
+        return None
+    return min(values)
+
+
+def gpu_free_mib() -> int | None:
+    """Return free GPU MiB from ``nvidia-smi``, or None when it is absent."""
+    nvidia = shutil.which("nvidia-smi")
+    if not nvidia:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - resolved nvidia-smi, fixed argv
+            [nvidia, "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    return _gpu_free_mib_from_csv(completed.stdout)
 
 
 def disk_level(path: Path | str, *, free: int | None = None) -> str:
@@ -173,8 +226,14 @@ def new_worker_blockers(
     free: int | None = None,
     linked_count: int | None = None,
     max_linked: int = MAX_LINKED_WORKTREES,
+    available_ram: int | None = None,
+    gpu_free_mib: int | None = None,
 ) -> list[str]:
-    """Return reasons a new worktree/clone/worker must not start."""
+    """Return reasons a new worktree/clone/worker must not start.
+
+    ``available_ram`` and ``gpu_free_mib`` refuse only when a number is passed.
+    ``None`` does not sample the machine and does not refuse.
+    """
     blockers: list[str] = []
     level = disk_level(workspace, free=free)
     if level == "block":
@@ -189,6 +248,10 @@ def new_worker_blockers(
             blockers.append("worktree-count-unavailable")
         elif count >= max_linked:
             blockers.append("linked-worktree-cap")
+    if available_ram is not None and int(available_ram) < RAM_BLOCK_BYTES:
+        blockers.append("ram-available-below-2giB")
+    if gpu_free_mib is not None and int(gpu_free_mib) < GPU_FREE_BLOCK_MIB:
+        blockers.append("gpu-free-below-256mib")
     return blockers
 
 
@@ -199,6 +262,8 @@ def refuse_new_worker(
     free: int | None = None,
     linked_count: int | None = None,
     max_linked: int = MAX_LINKED_WORKTREES,
+    available_ram: int | None = None,
+    gpu_free_mib: int | None = None,
 ) -> bool:
     """True when a new worker/worktree/clone must be refused."""
     return bool(
@@ -208,6 +273,8 @@ def refuse_new_worker(
             free=free,
             linked_count=linked_count,
             max_linked=max_linked,
+            available_ram=available_ram,
+            gpu_free_mib=gpu_free_mib,
         )
     )
 

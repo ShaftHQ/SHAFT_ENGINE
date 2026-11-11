@@ -92,6 +92,64 @@ class DiskGateTest(unittest.TestCase):
             )
         )
 
+    def test_healthy_disk_ram_gpu_and_worktrees_allow_worker(self) -> None:
+        blockers = new_worker_blockers(
+            ".",
+            repo_root=".",
+            free=127 * GiB,
+            linked_count=6,
+            available_ram=14 * GiB,
+            gpu_free_mib=5792,
+        )
+        self.assertEqual([], blockers)
+        self.assertFalse(
+            refuse_new_worker(
+                ".",
+                repo_root=".",
+                free=127 * GiB,
+                linked_count=6,
+                available_ram=14 * GiB,
+                gpu_free_mib=5792,
+            )
+        )
+
+    def test_low_disk_ram_or_gpu_refuses_on_its_own(self) -> None:
+        healthy = {
+            "repo_root": ".",
+            "free": 127 * GiB,
+            "linked_count": 6,
+            "available_ram": 14 * GiB,
+            "gpu_free_mib": 5792,
+        }
+        disk = new_worker_blockers(".", **{**healthy, "free": 9 * GiB})
+        self.assertEqual(["disk-free-below-10giB"], disk)
+        ram = new_worker_blockers(".", **{**healthy, "available_ram": 1 * GiB})
+        self.assertEqual(["ram-available-below-2giB"], ram)
+        gpu = new_worker_blockers(".", **{**healthy, "gpu_free_mib": 100})
+        self.assertEqual(["gpu-free-below-256mib"], gpu)
+        skipped = new_worker_blockers(
+            ".",
+            repo_root=".",
+            free=127 * GiB,
+            linked_count=6,
+            available_ram=None,
+            gpu_free_mib=None,
+        )
+        self.assertEqual([], skipped)
+
+    def test_refuse_dispatch_threads_ram_and_gpu(self) -> None:
+        blockers = refuse_dispatch(
+            ["chaos-engine/**"],
+            [],
+            workspace=".",
+            repo_root=".",
+            free=127 * GiB,
+            linked_count=6,
+            available_ram=1 * GiB,
+            gpu_free_mib=5792,
+        )
+        self.assertEqual(["ram-available-below-2giB"], blockers)
+
 
 class CachePruneTest(unittest.TestCase):
     def test_inventory_marks_over_cap(self) -> None:

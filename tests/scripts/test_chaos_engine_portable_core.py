@@ -1132,7 +1132,15 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("sole owner of workflow names, selection, switching, capacity fallback, and writer limits", skill)
         self.assertIn("A missing peer does not weaken the workflow", skill)  # #6216 wording
         workflows = (CORE / "references/execution-workflows.md").read_text(encoding="utf-8")
-        self.assertIn("Default to `ORCHESTRATOR + SINGLE IMPLEMENTER`", workflows)
+        self.assertIn(
+            "`ORCHESTRATOR + SINGLE IMPLEMENTER` stays valid when there is only one unit",
+            workflows,
+        )
+        self.assertIn(
+            "not the default when several file-disjoint streams fit the resource check",
+            workflows,
+        )
+        self.assertNotIn("Default to `ORCHESTRATOR + SINGLE IMPLEMENTER`", workflows)
         self.assertIn("four parallel\nagents", workflows)
 
     def test_delegation_pins_status_table_serial_cap_and_learning_session_before_kill(self):
@@ -1148,13 +1156,32 @@ class OrchestratorModeContractTest(unittest.TestCase):
         ):
             with self.subTest(status=status):
                 self.assertIn(status, delegation)
-        self.assertIn("delegate never runs the terminal Learning Session", delegation)
         self.assertIn("durable-learning candidates for the root session", delegation)
+        self.assertNotIn("delegate never runs the terminal Learning Session", delegation)
         workflows = (CORE / "references/execution-workflows.md").read_text(encoding="utf-8")
         compact_workflows = re.sub(r"\s+", " ", workflows)
         self.assertIn("cap writers at four", compact_workflows)
         self.assertIn("independent, file-disjoint implementation units", compact_workflows)
-        self.assertIn("Reduce parallel work to one implementer", compact_workflows)
+        self.assertNotIn("Reduce parallel work to one implementer", compact_workflows)
+
+    def test_portable_delegation_sentences_live_in_their_owning_files(self):
+        delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
+        cleanup = (CORE / "references/cleanup-at-close.md").read_text(encoding="utf-8")
+        contract = (CORE / "references/router-contract.md").read_text(encoding="utf-8")
+        streams = (CORE / "references/parallel-streams.md").read_text(encoding="utf-8")
+        self.assertIn("same entry path as the main agent", delegation)
+        self.assertIn("end-of-stream retrospective", delegation)
+        self.assertIn(
+            "returns durable lessons to the root and does not open the terminal Learning Session pull request",
+            delegation,
+        )
+        self.assertIn("one delegation retrospective", delegation)
+        self.assertIn("clean only artifacts", cleanup)
+        self.assertIn("two independent adversarial reviews", contract)
+        self.assertIn("before orchestrator sign-off", contract)
+        self.assertIn("fewest non-overlapping streams", streams)
+        self.assertIn("one subagent per stream", streams)
+        self.assertIn("disk, RAM, GPU", streams)
 
     def test_portable_orchestrator_groups_fewest_prs_and_keeps_working(self):
         delegation = self._delegation()

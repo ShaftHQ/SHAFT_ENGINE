@@ -4277,10 +4277,52 @@ def publish_installer_issue(
     return encode_issue_form_url(repository, title, fields, extra=extra)
 
 
+def _process_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", "replace")
+    return str(value)
+
+
+def _still_unpacking_account_timeout(error: BaseException) -> bool:
+    """True when graphifyy timed out while unpacking, not while waiting on the network.
+
+    ``TimeoutExpired`` keeps the still-running output off ``str(error)``. A
+    dedicated error must say the command exceeded its budget while work was
+    still in progress and include unpacking or wheel output.
+    """
+    chunks: list[str] = []
+    if isinstance(error, subprocess.TimeoutExpired):
+        command = error.cmd
+        chunks.append(
+            command if isinstance(command, str) else " ".join(str(part) for part in command)
+        )
+        chunks.append(_process_text(error.output))
+        chunks.append(_process_text(getattr(error, "stderr", None)))
+    else:
+        chunks.append(str(error))
+        for attr in ("output", "stdout", "stderr", "full_output"):
+            chunks.append(_process_text(getattr(error, attr, None)))
+    blob = "\n".join(chunks).casefold()
+    if "graphifyy" not in blob:
+        return False
+    if "unpack" not in blob and "wheel" not in blob:
+        return False
+    if isinstance(error, subprocess.TimeoutExpired):
+        return True
+    return "exceeded its budget" in blob and "still in progress" in blob
+
+
 def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
     """Return exactly one actionable fix-next for every failure (#6325)."""
     cause = one_line_cause(error).casefold()
     rerun = "then rerun the same install one-liner."
+    if _still_unpacking_account_timeout(error):
+        return (
+            "the command exceeded its budget while work was still in progress; "
+            f"retry when the machine is less busy, {rerun}"
+        )
     rules = (
         (
             isinstance(error, InstallHealthError) or "doctor did not report" in cause,

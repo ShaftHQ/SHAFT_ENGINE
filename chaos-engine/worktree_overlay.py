@@ -11,6 +11,9 @@ linked git worktree or a fresh clone starts without them. This module:
   that still match the last materialized hash (or the current source) are left
   alone; stale pure-overlay copies are upgraded in place. Local edits that
   diverge from both refuse with a clear message. Idempotent and hash-based.
+* `ensure_delegate_hooks(primary, session)` copies the real launcher and guard
+  into a fresh linked worktree with that same copy. A missing, symlinked, or
+  exit-0 stub primary guard is refused. The seeded directory stays gitignored.
 * `upgrade_session(primary, session)` is the one fast command that brings a
   worktree to the primary CE version: transactional materialize (preflight,
   backup, VERSION last) plus host/plugin repair. CE-owned host adapters are
@@ -474,6 +477,75 @@ def materialize(primary: Path, session: Path, *, transactional: bool = True) -> 
         raise
     return list(dict.fromkeys(copied + upgraded))
 
+
+def _is_exit0_stub(path: Path) -> bool:
+    """True for a short file whose only job is to exit 0.
+
+    The real guard and launcher are large programs that may mention
+    ``SystemExit(0)`` on a filtered-tool path. Those are not stubs.
+    """
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return True
+    compact = " ".join(
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    if not compact:
+        return True
+    folded = compact.casefold()
+    exit0 = "systemexit(0)" in folded or "sys.exit(0)" in folded or "exit 0" in folded
+    if not exit0:
+        return False
+    if len(folded) >= 800 or "hook_event_name" in folded or "catastrophic" in folded:
+        return False
+    return True
+
+
+def ensure_delegate_hooks(primary: Path, session: Path) -> list[str]:
+    """Copy the primary launcher and guard into ``session`` as regular files.
+
+    Uses the materialize file copy. Raises when the primary guard or launcher
+    is missing, a symlink, or an exit-0 stub. Never writes a stub or a symlink.
+    """
+    primary = Path(primary).resolve()
+    session = Path(session).resolve()
+    relatives = (GUARD, f"{TREE}/hooks/launch.py")
+    for relative in relatives:
+        path = primary / relative
+        if path.is_symlink():
+            raise RuntimeError(f"primary hook is a symlink: {path.name}")
+        if not path.is_file():
+            raise RuntimeError(f"primary hook is missing: {path.name}")
+        if _is_exit0_stub(path):
+            raise RuntimeError(f"primary hook is an exit-0 stub: {path.name}")
+    manifest = _load_manifest(session)
+    copied: list[str] = []
+    upgraded: list[str] = []
+    unchanged: list[str] = []
+    for relative in relatives:
+        destination = session / relative
+        if destination.is_symlink():
+            destination.unlink()
+        _sync_file(
+            primary / relative,
+            destination,
+            session=session,
+            manifest=manifest,
+            upgraded=upgraded,
+            copied=copied,
+            unchanged=unchanged,
+        )
+    _save_manifest(session, manifest)
+    guard = primary / GUARD
+    copied_guard = session / GUARD
+    if copied_guard.is_symlink() or not copied_guard.is_file():
+        raise RuntimeError("delegate guard was not written as a regular file")
+    if copied_guard.read_bytes() != guard.read_bytes():
+        raise RuntimeError("delegate guard bytes do not match the primary")
+    return copied + upgraded
 
 
 def _backup_session_targets(
