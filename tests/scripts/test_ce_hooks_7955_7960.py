@@ -25,7 +25,9 @@ def _load(name: str, path: Path):
 
 
 def _git(root: Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True)
+    subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
+        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
+    )
 
 
 class ForcePushSingleUseTest(unittest.TestCase):
@@ -86,7 +88,7 @@ class ForcePushSingleUseTest(unittest.TestCase):
             root = Path(temporary)
             _git(root, "init")
             command = "git push --force origin HEAD"
-            proc = subprocess.run(
+            proc = subprocess.run(  # nosec B603 - fixed interpreter and tool argv, no shell.
                 [sys.executable, str(CE / "tool.py"), "force-push-approve", "--", command],
                 cwd=root,
                 capture_output=True,
@@ -244,13 +246,13 @@ class IgnoreAndDeleteTest(unittest.TestCase):
             target.write_text("same\n", encoding="utf-8")
             _git(root, "add", "hello.txt")
             _git(root, "commit", "-m", "add hello")
-            tip = subprocess.run(
+            tip = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
                 ["git", "-C", str(root), "rev-parse", "HEAD"],
                 check=True,
                 capture_output=True,
                 text=True,
             ).stdout.strip()
-            name = subprocess.run(
+            name = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
                 ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
                 check=True,
                 capture_output=True,
