@@ -2,11 +2,13 @@ package com.shaft.commandline.runtime;
 
 import com.shaft.commandline.mcp.McpException;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -69,7 +71,11 @@ class ArgumentParserTest {
     @Test
     void emptyAndBrokenStructuredValuesStayText() {
         ObjectNode node = ArgumentParser.parse(null, List.of("empty=", "filter= {", "flag=false"));
-        assertEquals("", node.path("empty").asText());
+        assertTrue(node.has("empty"), node.toString());
+        JsonNode empty = node.get("empty");
+        assertNotNull(empty);
+        assertTrue(empty.isTextual(), empty.toString());
+        assertEquals("", empty.asText());
         assertTrue(node.path("filter").isTextual());
         assertEquals(" {", node.path("filter").asText());
         assertTrue(node.path("flag").isBoolean());

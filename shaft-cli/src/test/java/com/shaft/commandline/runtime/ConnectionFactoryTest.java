@@ -1,5 +1,8 @@
 package com.shaft.commandline.runtime;
 
+import com.shaft.commandline.command.BrowserCommand;
+import com.shaft.commandline.command.ElementCommand;
+import com.shaft.commandline.command.GuideCommand;
 import com.shaft.commandline.mcp.HttpMcpClient;
 import com.shaft.commandline.mcp.McpClient;
 import com.shaft.commandline.mcp.McpException;
@@ -10,9 +13,13 @@ import com.shaft.commandline.session.SessionStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +53,14 @@ class ConnectionFactoryTest {
     }
 
     @Test
+    void noArgConstructorsWireTheRealSessionManager() throws Exception {
+        assertRealSessionManager(new ConnectionFactory());
+        assertRealSessionManager(factoryOf(new BrowserCommand()));
+        assertRealSessionManager(factoryOf(new ElementCommand()));
+        assertRealSessionManager(factoryOf(new GuideCommand()));
+    }
+
+    @Test
     void missingSessionRejectsAStatefulCommandBeforeSpawningStdio(@TempDir Path dir) {
         ConnectionFactory factory = factory(new SessionStore(dir));
 
@@ -56,5 +71,27 @@ class ConnectionFactoryTest {
 
     private static ConnectionFactory factory(SessionStore store) {
         return new ConnectionFactory(new SessionManager(new McpLauncherLocator(), store), new McpLauncherLocator());
+    }
+
+    private static ConnectionFactory factoryOf(Object command) throws Exception {
+        Object wired = read(command, "factory");
+        assertInstanceOf(ConnectionFactory.class, wired);
+        return (ConnectionFactory) wired;
+    }
+
+    private static void assertRealSessionManager(ConnectionFactory factory) throws Exception {
+        SessionManager manager = assertInstanceOf(SessionManager.class, read(factory, "sessionManager"));
+        SessionStore store = assertInstanceOf(SessionStore.class, read(manager, "store"));
+        assertEquals(Path.of(System.getProperty("user.home"), ".shaft", "cli-session.json"), store.path());
+        McpLauncherLocator locator = assertInstanceOf(McpLauncherLocator.class, read(factory, "locator"));
+        assertSame(System.getenv(), read(locator, "env"));
+        assertNull(read(locator, "versionsRootOverride"));
+        assertNull(read(locator, "devRepoRootOverride"));
+    }
+
+    private static Object read(Object target, String name) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
     }
 }

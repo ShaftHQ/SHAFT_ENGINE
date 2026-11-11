@@ -1,6 +1,14 @@
 package com.shaft.commandline.command;
 
 import com.shaft.commandline.ShaftCli;
+import com.shaft.infrastructure.InfrastructureSetupService;
+import com.shaft.infrastructure.SetupMode;
+import com.shaft.infrastructure.SetupOptions;
+import com.shaft.infrastructure.SetupPlan;
+import com.shaft.infrastructure.SetupPlanStore;
+import com.shaft.infrastructure.SetupProfile;
+import com.shaft.infrastructure.SetupSelection;
+import com.shaft.infrastructure.ShaftCachePaths;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -9,11 +17,14 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SetupCommandTest {
@@ -662,12 +673,17 @@ class SetupCommandTest {
     void healeniumSelectionIsRebuiltBeforeAStaleApprovalIsRejected(@TempDir Path temp) throws Exception {
         Path cache = temp.resolve("cache").toAbsolutePath();
         Path data = temp.resolve("data").toAbsolutePath();
-        Path planFile = temp.resolve("healenium-plan.json").toAbsolutePath();
-        CommandResult planned = execute("setup", "plan", "--profile", "HEALENIUM", "--mode", "MANAGED",
-                "--output", planFile.toString(), "--cache-root", cache.toString(), "--data-root", data.toString(),
-                "--offline", "--json");
-        assertEquals(0, planned.exitCode(), planned.stderr());
+        SetupSelection chosen = new SetupSelection(List.of("backend_8888", "imitate_9000"));
+        SetupOptions options = SetupOptions.defaults(SetupProfile.HEALENIUM, new ShaftCachePaths(
+                cache, data, cache.resolve("downloads"), data.resolve("tools"),
+                data.resolve("state"), data.resolve("receipts"))).withMode(SetupMode.MANAGED);
+        SetupPlan plan = InfrastructureSetupService.builtIn().plan(options, chosen);
+        SetupSelection rebuilt = selectionFromPlan(plan);
+        assertEquals(chosen, rebuilt);
+        assertNotEquals(SetupSelection.defaults(), rebuilt);
 
+        Path planFile = temp.resolve("healenium-plan.json").toAbsolutePath();
+        SetupPlanStore.write(planFile, plan);
         CommandResult install = execute("setup", "install", "--plan", planFile.toString(),
                 "--approve", "sha256:" + "0".repeat(64), "--cache-root", cache.toString(),
                 "--data-root", data.toString(), "--offline");
@@ -676,6 +692,13 @@ class SetupCommandTest {
         assertTrue(install.stderr().contains("approval is stale"), install.stderr());
         assertTrue(Files.notExists(cache));
         assertTrue(Files.notExists(data));
+    }
+
+    private static SetupSelection selectionFromPlan(SetupPlan plan) throws Exception {
+        Method method = SetupCommand.class.getDeclaredMethod("selectionFromPlan",
+                SetupPlan.class, List.class, SetupCommand.AndroidOptions.class);
+        method.setAccessible(true);
+        return (SetupSelection) method.invoke(null, plan, List.of(), new SetupCommand.AndroidOptions());
     }
 
     @Test
