@@ -265,6 +265,39 @@ class ManagedLocalAiProcessSupervisorTest {
     }
 
     @Test
+    void brokenControlPipeReleasesTheLiveMonitor() throws Exception {
+        InputStream previousIn = System.in;
+        System.setIn(new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("control pipe broken");
+            }
+        });
+        ManagedLocalAiProcessSupervisor.controlPipeForTest("1");
+        try {
+            Path directory = Files.createDirectories(temp.resolve("broken-control"));
+            Path child = directory.resolve("child.sh");
+            Files.writeString(child, "#!/bin/sh\nexit 0\n");
+            assertTrue(child.toFile().setExecutable(true));
+            String[] parent = currentParent();
+            ManagedLocalAiProcessSupervisor.main(new String[] {
+                    parent[0], parent[1],
+                    directory.toAbsolutePath().toString(),
+                    child.toAbsolutePath().toString()
+            });
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (ManagedLocalAiProcessSupervisor.liveControlMonitors() != 0
+                    && System.nanoTime() < deadline) {
+                Thread.sleep(5);
+            }
+            assertEquals(0, ManagedLocalAiProcessSupervisor.liveControlMonitors());
+        } finally {
+            System.setIn(previousIn);
+            ManagedLocalAiProcessSupervisor.controlPipeForTest(null);
+        }
+    }
+
+    @Test
     void rejectsInvalidParentPidBeforePathValidation() {
         assertThrows(IllegalArgumentException.class,
                 () -> ManagedLocalAiProcessSupervisor.main(new String[] {
