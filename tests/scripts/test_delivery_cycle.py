@@ -188,7 +188,7 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "A new cut invalidates earlier passes",
         ):
             self.assertIn(sentence, section)
-        flow = checklist.split("## Why", 1)[0]
+        flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]
         self.assertIn("does not stop after one accepted cycle", flow)
         self.assertIn("does not sign off, publish, or share on that single pair", flow)
         self.assertIn("is not uploaded while a cycle is failed", flow)
