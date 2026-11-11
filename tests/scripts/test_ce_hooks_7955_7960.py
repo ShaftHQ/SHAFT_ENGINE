@@ -125,6 +125,14 @@ class ForcePushSingleUseTest(unittest.TestCase):
             setdash = 'set -- -f origin HEAD\ngit push "$@"'
             setplus = 'set -- +HEAD\ngit push "$@"'
             word_split = "${x:-git\npush --force origin HEAD}"
+            comment_paren = "python3 .chaos-engine/tool.py force-push-approve -- true # (\ngit push --force origin HEAD"
+            comment_short = "python3 .chaos-engine/tool.py force-push-approve -- true # (\ngit push -f origin HEAD"
+            comment_plus = "python3 .chaos-engine/tool.py force-push-approve -- true # (\ngit push origin +HEAD"
+            declared = 'declare -a args=(\n-f origin HEAD)\ngit push "${args[@]}"'
+            appended = 'args+=(\n-f origin HEAD)\ngit push "${args[@]}"'
+            appended_plus = 'args+=(\n+HEAD)\ngit push "${args[@]}"'
+            exported = "export f=$(\n echo -f)\ngit push $f origin HEAD"
+            exported_plus = "export f=$(\n echo +HEAD)\ngit push origin $f"
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -139,6 +147,8 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 split_short, split_plus, hash_join, hash_join_tick,
                 comment_cont, heredoc, expanded, arrayed, inner, short_var,
                 short_array, plus_array, setdash, setplus, word_split,
+                comment_paren, comment_short, comment_plus, declared, appended,
+                appended_plus, exported, exported_plus,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)

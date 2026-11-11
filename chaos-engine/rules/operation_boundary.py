@@ -27,7 +27,11 @@ _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
-_ASSIGN = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*=|set\s+--(?=\s|$))")
+_ASSIGN = re.compile(
+    r"^(?:set\s+--(?=\s|$)|"
+    r"(?:(?:declare|export|local|readonly|typeset)(?:\s+-[A-Za-z]+)*\s+)?"
+    r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
+)
 _APPROVE_ONLY = re.compile(
     r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
 )
@@ -263,6 +267,12 @@ def _fold_command_syntax(
         return index + step
     if quote:
         return None
+    if text[index] == "#" and (not buf or buf[-1] in " \t"):
+        end = index
+        while end < len(text) and text[end] not in "\n\r":
+            end += 1
+        buf.append(text[index:end])
+        return end
     if text.startswith("${", index):
         end = _matching_brace(text, index)
         buf.append(text[index:end])
