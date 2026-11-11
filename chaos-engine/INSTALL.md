@@ -324,7 +324,9 @@ is present and the lean-skills flag was not used — never recovery-required.
 ### Secret guard git hooks
 
 `install` wires `secret_guard.py` into git `pre-commit` and `pre-push` for the clone. The
-hooks live in `<git common dir>/chaos-engine-hooks`, which is untracked and shared by every
+guard is not live until `doctor` prints a passing secret-guard row. A different
+`core.hooksPath` reports `secret-guard: not live` followed by the current value.
+The hooks live in `<git common dir>/chaos-engine-hooks`, which is untracked and shared by every
 worktree, and `core.hooksPath` points there. A hooks setup that already exists is chained:
 the old `core.hooksPath` (or a populated `.git/hooks`) is kept in
 `chaosengine.chainedHooksPath`, and it still runs after the guard passes. Other hook names

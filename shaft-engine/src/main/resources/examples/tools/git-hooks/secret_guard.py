@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, Iterator
 
-DEFAULT_GUARDED_FILES = "src/main/resources/properties/secrets.properties,browserstack.yml"  # nosec B105 - file paths, not a secret
+DEFAULT_GUARDED_FILES = "src/main/resources/properties/secrets.properties,src/main/resources/secrets.properties,browserstack.yml"  # nosec B105 - file paths, not a secret
 ALLOW_FILE = ".secret-guard-allow"
 PATHS_FILE = ".secret-guard-paths"
 PROTECTED_REFS = ("refs/heads/main", "refs/heads/master")

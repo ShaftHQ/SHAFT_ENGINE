@@ -23,6 +23,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess  # nosec B404 - fixed git argv for worktree scope
+import tempfile
 import time
 from pathlib import Path
 
@@ -922,12 +924,52 @@ def exploratory_project_path(project: Path, raw: str) -> bool:
     return False
 
 
+def _git_common_dir(path: Path) -> str | None:
+    start = path if path.is_dir() else path.parent
+    proc = subprocess.run(  # nosec B603 B607 - fixed git argv
+        ["git", "-C", str(start), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
+def _worktree_relative(project: Path, candidate: Path) -> str | None:
+    """Repo-relative path when ``candidate`` is another worktree of ``project``."""
+    try:
+        candidate = candidate.resolve()
+    except OSError:
+        return None
+    project_common = _git_common_dir(Path(project))
+    other_common = _git_common_dir(candidate)
+    if not project_common or project_common != other_common:
+        return None
+    top = subprocess.run(  # nosec B603 B607 - fixed git argv
+        ["git", "-C", str(candidate if candidate.is_dir() else candidate.parent), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if top.returncode != 0 or not top.stdout.strip():
+        return None
+    try:
+        return candidate.relative_to(Path(top.stdout.strip()).resolve()).as_posix()
+    except ValueError:
+        return None
+
+
 def _ledger_path(project: Path, raw: str) -> str:
     """Checkout-relative path so harness exemptions apply in linked worktrees."""
     text = _unquote(raw)
     local = _file_url_path(text) or text
     candidate = Path(local)
     if not candidate.is_absolute():
+        shared = _worktree_relative(project, (Path(project) / candidate))
+        if shared:
+            return shared
         return _norm(local)
     resolved = _resolved_absolute(text)
     if resolved is None:
@@ -1435,10 +1477,66 @@ def _input_paths(tool_input: dict) -> list[str]:
 EDIT_TOOLS = frozenset({"Write", "Edit", "StrReplace", "MultiEdit"})
 IMPACT_EDIT_BLOCK = (
     "Impact receipt missing for this task area. "
-    "Run `python3 .chaos-engine/tool.py retrieve --mode impact` "
+    "Run `python3 .chaos-engine/tool.py retrieve --store graphify \"impact of this edit\"` "
     "and record `retrieve: used` or `retrieve: skipped(<reason>)` before the first edit."
 )
+STALE_EDIT_BLOCK = (
+    "refresh first. The retrieve receipt does not cite this path or its index is stale. "
+    "Run `python3 .chaos-engine/tool.py retrieve --store graphify \"impact of this edit\"`."
+)
 INSTRUCTION_ONLY_HOSTS = ("cursor", "opencode", "grok-bot")
+
+
+def _scratch_edit(project: Path, tool_input: dict | None) -> bool:
+    """True when every edited path is outside the repo and inside the scratch dir."""
+    paths = _input_paths(tool_input or {})
+    if not paths:
+        return False
+    scratch = os.environ.get("CHAOS_SESSION_WORKTREE", "").strip()
+    bases: list[Path] = []
+    if scratch:
+        bases.append(Path(scratch))
+    bases.append(Path(tempfile.gettempdir()))
+    try:
+        root = Path(project).resolve()
+    except OSError:
+        return False
+    resolved_bases = []
+    for base in bases:
+        try:
+            resolved_bases.append(base.resolve())
+        except OSError:
+            continue
+    for raw in paths:
+        candidate = Path(raw)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+        try:
+            candidate = candidate.resolve()
+        except OSError:
+            return False
+        if candidate == root or root in candidate.parents:
+            return False
+        if not any(candidate == base or base in candidate.parents for base in resolved_bases):
+            return False
+    return True
+
+
+def _receipt_covers(text: str, tool_input: dict | None) -> bool:
+    """A stale index, or hits that miss the target path, are not `used`."""
+    folded = (text or "").casefold()
+    if "freshness" in folded and "stale" in folded:
+        return False
+    field = retrieve_receipt_field(text) or ""
+    if field.startswith("skipped("):
+        return True
+    if field != "used":
+        return False
+    paths = _input_paths(tool_input or {})
+    if not paths:
+        return True
+    normalized = (text or "").replace("\\", "/")
+    return any(path.replace("\\", "/") in normalized for path in paths)
 
 
 def impact_edit_block_reason(
@@ -1447,13 +1545,17 @@ def impact_edit_block_reason(
     event_name: str,
     tool_name: str,
     session_id: str | None = None,
+    tool_input: dict | None = None,
 ) -> str | None:
     """Deny the first edit until this session has an impact receipt.
 
     ``retrieved: True`` counts, as does a research-receipt line
     ``retrieve: used`` or ``retrieve: skipped(<reason>)``. Reads do not deny.
+    A write under the declared scratch directory needs no receipt.
     """
     if event_name != "PreToolUse" or tool_name not in EDIT_TOOLS:
+        return None
+    if _scratch_edit(project, tool_input):
         return None
     row = _live_sessions(_load_payload(project)).get(_session_key(session_id))
     if isinstance(row, dict) and row.get("retrieved"):
@@ -1463,9 +1565,10 @@ def impact_edit_block_reason(
         text = sink.read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         text = ""
-    field = retrieve_receipt_field(text) or ""
-    if field == "used" or field.startswith("skipped("):
+    if _receipt_covers(text, tool_input):
         return None
+    if retrieve_receipt_field(text) == "used" or ("stale" in text.casefold()):
+        return STALE_EDIT_BLOCK
     return IMPACT_EDIT_BLOCK
 
 

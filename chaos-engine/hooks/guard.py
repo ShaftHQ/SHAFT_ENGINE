@@ -516,7 +516,10 @@ def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
     for command in commands:
         hits = module.command_blocks(project, command)
         if hits:
-            return "operation boundary: " + str(hits[0])
+            hit = str(hits[0])
+            if hit == "force-push-without-approval":
+                return "operation boundary: force-push-without-approval: " + module.force_push_hint(command)
+            return "operation boundary: " + hit
     return ""
 
 
@@ -534,7 +537,7 @@ def _post_tool_boundary(project: Path, commands: tuple[str, ...], event: dict, e
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     result = event.get("tool_response") or event.get("toolResponse") or event.get("tool_result")
-    secret = module.output_secret_block(result)
+    secret = module.output_secret_block(result, project)
     if secret:
         return "operation boundary: " + secret
     problem = module.observe_commands(
@@ -1951,6 +1954,7 @@ def _kernel_block(event: dict, event_name: str, tool_name: str, tool_input: obje
             event_name=str(normalized.name or event_name),
             tool_name=str(normalized.tool_name or tool_name),
             session_id=session_id,
+            tool_input=tool_input if isinstance(tool_input, dict) else {},
         )
         if impact_reason:
             return _deny(event, event_name, tool_name, impact_reason), normalized

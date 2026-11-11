@@ -123,12 +123,25 @@ def force_push_block(root: Path, command: str) -> str | None:
     if not any(_FORCE.search(part) for part in segments):
         return None
     path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
-    recorded: set[str] = set()
+    recorded: list[str] = []
     if path.is_file():
-        recorded = {line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()}
-    if text not in recorded:
-        return "force-push-without-approval"
-    return None
+        recorded = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if text in recorded:
+        recorded.remove(text)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(f"{line}\n" for line in recorded), encoding="utf-8")
+        return None
+    return "force-push-without-approval"
+
+
+def force_push_hint(command: str) -> str:
+    """User-facing approval step. The denial token itself stays exact."""
+    text = _normalized(command)
+    lease = re.search(r"--force-with-lease=\S+:[0-9a-fA-F]{7,}", text) is not None
+    form = "--force-with-lease=<ref>:<sha>" if lease else "bare --force"
+    return (
+        f"{form}. Ask the user to run `python3 .chaos-engine/tool.py force-push-approve -- {text}`"
+    )
 
 
 def private_remote_block(root: Path, command: str) -> str | None:
@@ -216,13 +229,24 @@ def observe_commands(root: Path, commands: list[str] | tuple[str, ...], *, faile
     return None
 
 
-def output_secret_block(result: object) -> str | None:
+def output_secret_block(result: object, root: Path | None = None) -> str | None:
     """Scan tool stdout/stderr/output. The command string is not this evidence."""
     if not isinstance(result, dict):
         return None
     text = "\n".join(str(result.get(key) or "") for key in ("stdout", "stderr", "output"))
     hits = secret_failures(text, kind="output") if text.strip() else []
-    return hits[0] if hits else None
+    if root is not None and text.strip() and not hits:
+        guard = _load(Path(__file__).resolve().parents[1] / "secret_guard.py", "ce_boundary_secret_guard")
+        names = [part.strip() for part in str(guard.DEFAULT_GUARDED_FILES).split(",") if part.strip()]
+        encoded = text.encode("utf-8", errors="ignore")
+        for value in guard.secret_values(Path(root), names):
+            if value and value in encoded:
+                hits.append("secret-in-output")
+                break
+    if not hits:
+        return None
+    code = result.get("exit_code", result.get("exitCode", 0))
+    return f"{hits[0]}; output withheld; the command already finished with exit code {code}"
 
 
 def _git(root: Path, args: list[str]):

@@ -466,12 +466,75 @@ def allow_listed(path: Path, project: Path | None = None) -> bool:
     return any(_pattern_regex(pattern).match(text) for pattern in _patterns(project))
 
 
-def _git_reason(path: Path, top: Path) -> str:
+def _blob_bytes(top: Path, rev: str, relative: str) -> bytes | None:
+    proc = subprocess.run(  # nosec B603 B607 - fixed git show of one rev
+        ["git", "-C", str(top), "show", f"{rev}:{relative}"],
+        capture_output=True,
+        check=False,
+        timeout=30,
+        env=_git_subprocess_env(),
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
+
+
+def _bytes_match_rev(path: Path, top: Path, rev: str) -> bool:
+    try:
+        relative = path.resolve().relative_to(top.resolve()).as_posix()
+        data = path.read_bytes()
+    except (OSError, ValueError):
+        return False
+    blob = _blob_bytes(top, rev, relative)
+    return blob is not None and blob == data
+
+
+def _scratch_has_copy(path: Path) -> bool:
+    scratch = os.environ.get(SESSION_WORKTREE_ENV, "").strip()
+    if not scratch:
+        return False
+    root = Path(scratch)
+    if not root.is_dir():
+        return False
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return False
+    checked = 0
+    for candidate in root.rglob("*"):
+        checked += 1
+        if checked > 200:
+            break
+        if not candidate.is_file():
+            continue
+        try:
+            if candidate.resolve() != path.resolve() and candidate.read_bytes() == data:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _recreatable_untracked(path: Path, top: Path, rev: str | None) -> bool:
+    revs = ["HEAD"]
+    if rev:
+        revs.append(rev)
+    for name in ("origin/main", "main", "origin/master", "master"):
+        if name not in revs:
+            revs.append(name)
+    if any(_bytes_match_rev(path, top, item) for item in revs):
+        return True
+    return _scratch_has_copy(path)
+
+
+def _git_reason(path: Path, top: Path, rev: str | None = None) -> str:
     status = _git(top, "status", "--porcelain", "--ignored", "--untracked-files=all", "--", str(path))
     if status.returncode != 0:
         return "git status failed"
     dirty = [line for line in status.stdout.splitlines() if line.strip()]
     if dirty:
+        if all(line.startswith("??") for line in dirty) and _recreatable_untracked(path, top, rev):
+            return ""
         return f"{len(dirty)} untracked/modified/ignored file(s), e.g. {dirty[0][3:]}"
     if _git(top, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
         return "branch has no upstream (nothing pushed)"
@@ -1523,7 +1586,7 @@ def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool
     return False
 
 
-def path_reason(path: Path, project: Path | None = None) -> str:
+def path_reason(path: Path, project: Path | None = None, rev: str | None = None) -> str:
     """
     Empty string when deleting ``path`` loses nothing; else the refusal reason.
 
@@ -1547,7 +1610,7 @@ def path_reason(path: Path, project: Path | None = None) -> str:
     top = _git(probe, "rev-parse", "--show-toplevel")
     if top.returncode != 0:
         return "outside git and not on the delete allow-list"
-    return _git_reason(path, Path(top.stdout.strip()).resolve())
+    return _git_reason(path, Path(top.stdout.strip()).resolve(), rev)
 
 
 def _ack_store() -> Path:
@@ -1964,7 +2027,9 @@ def check(command: str, cwd: Path | None = None, project: Path | None = None, co
         hit = never_touch(target)
         if hit:
             return f"Delete guard (#7343): refused `{target}`: {hit}. No code unlocks it.", []
-    reasons = [(target, reason) for target in targets for reason in [path_reason(target, project)] if reason]
+    rev_match = re.search(r"\bgit\s+(?:switch|checkout)\s+(?:-\S+\s+)*(\S+)", command or "")
+    rev = rev_match.group(1) if rev_match and not rev_match.group(1).startswith("-") else None
+    reasons = [(target, reason) for target in targets for reason in [path_reason(target, project, rev)] if reason]
     if not reasons:
         return "", []
     code = code if code is not None else os.environ.get(ACK_ENV, "")
@@ -2122,10 +2187,14 @@ def main(arguments: list[str]) -> int:
         return 2
     if reason:
         print(reason, file=sys.stderr)
+        print("code required: yes", file=sys.stderr)
+        literal = " ".join(arguments)
+        print(f"next: tool.py delete-check --request-code {literal}", file=sys.stderr)
         return 1
     for warning in warnings:
         print(f"delete-check: warning: {warning}", file=sys.stderr)
     print("delete-check: allowed")
+    print("code required: no")
     return 0
 
 

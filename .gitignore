@@ -320,6 +320,10 @@ graphify-out/
 !.grok/
 !.grok/hooks/
 !.grok/hooks/*.json
+.grok/rules/*.md
+/secrets.properties
+src/main/resources/properties/secrets.properties
+src/main/resources/secrets.properties
 !.gemini/
 !.gemini/settings.json
 !.gemini/skills/
