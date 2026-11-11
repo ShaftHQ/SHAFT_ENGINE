@@ -3,6 +3,8 @@ package com.shaft.tools.io.internal;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import io.qameta.allure.model.Status;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -49,6 +51,20 @@ public final class ReportContext {
     public static void noteInfoLine(String line) {
         if (line != null && !line.isBlank()) {
             lastInfoLine.set(line.trim());
+        }
+    }
+
+    /**
+     * Replaces the remembered info line. {@code null} clears it. A blank value is stored as given.
+     * {@link #noteInfoLine(String)} still ignores null and blank.
+     *
+     * @param line replacement text, or {@code null} to clear
+     */
+    static void replaceLastInfoLine(@Nullable String line) {
+        if (line == null) {
+            lastInfoLine.remove();
+        } else {
+            lastInfoLine.set(line);
         }
     }
 

@@ -13,8 +13,6 @@ import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-
 import static org.testng.Assert.*;
 
 /**
@@ -123,7 +121,7 @@ public class SkippedTestReportingTest {
         ReportManager.log("Transient network alert after session-id submit; tapping Please try Again");
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("expected true but token " + jwt));
-        setITestResult(testResult);
+        TestNGListener.bindITestResult(testResult);
         try {
             TestResult result = new TestResult()
                     .setStatus(Status.SKIPPED)
@@ -138,14 +136,8 @@ public class SkippedTestReportingTest {
             assertTrue(message.contains("Transient network alert after session-id submit; tapping Please try Again"),
                     message);
         } finally {
-            setITestResult(null);
+            TestNGListener.bindITestResult(null);
         }
-    }
-
-    private static void setITestResult(ITestResult testResult) throws Exception {
-        Field iTestResultField = TestNGListener.class.getDeclaredField("iTestResult");
-        iTestResultField.setAccessible(true);
-        iTestResultField.set(null, testResult);
     }
 
     /**

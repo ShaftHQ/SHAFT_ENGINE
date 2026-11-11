@@ -372,7 +372,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         return message;
     }
 
-    private static String appendIfMissing(String message, String extra) {
+    static String appendIfMissing(String message, String extra) {
         if (extra == null || extra.isBlank() || message.contains(extra)) {
             return message;
         }

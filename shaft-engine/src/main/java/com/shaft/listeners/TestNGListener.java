@@ -74,6 +74,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final ThreadLocal<Class<?>> activeTestClass = new ThreadLocal<>();
     @Getter
     private static ITestResult iTestResult;
+
+    /**
+     * Binds the result tests read through {@link #getITestResult()}.
+     * {@code beforeInvocation} still assigns the field for real runs.
+     *
+     * @param result current result, or {@code null} to clear it
+     */
+    public static void bindITestResult(ITestResult result) {
+        iTestResult = result;
+    }
     private static long executionStartTime;
     @Getter
     private static boolean isReportPortalEnabled;

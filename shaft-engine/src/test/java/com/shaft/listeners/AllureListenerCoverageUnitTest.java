@@ -5,6 +5,7 @@ import com.shaft.listeners.internal.TestExecutionInfo;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportContext;
+import com.shaft.tools.io.internal.ReportContextTestAccess;
 import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
@@ -25,7 +26,6 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -320,7 +320,7 @@ public class AllureListenerCoverageUnitTest {
 
     @Test
     public void beforeTestStopCreatesStatusDetailsWhenAssertionSkipHasNone() throws Exception {
-        setLastInfoLine(null);
+        ReportContextTestAccess.replaceLastInfoLine(null);
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(
                 new RuntimeException("wrapper", new AssertionError("assertion meaning")));
@@ -339,7 +339,7 @@ public class AllureListenerCoverageUnitTest {
 
     @Test
     public void beforeTestStopLeavesSkipUnchangedWhenCauseChainHasNoAssertion() throws Exception {
-        setLastInfoLine(null);
+        ReportContextTestAccess.replaceLastInfoLine(null);
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(new RuntimeException("not an assertion"));
         setITestResult(testResult);
@@ -356,7 +356,7 @@ public class AllureListenerCoverageUnitTest {
 
     @Test
     public void beforeTestStopIgnoresBlankAssertionTextAndBlankInfoLine() throws Exception {
-        setLastInfoLine("   ");
+        ReportContextTestAccess.replaceLastInfoLine("   ");
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("   "));
         setITestResult(testResult);
@@ -373,7 +373,7 @@ public class AllureListenerCoverageUnitTest {
 
     @Test
     public void beforeTestStopIgnoresAssertionWhoseMessageIsNull() throws Exception {
-        setLastInfoLine(null);
+        ReportContextTestAccess.replaceLastInfoLine(null);
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError());
         setITestResult(testResult);
@@ -396,7 +396,7 @@ public class AllureListenerCoverageUnitTest {
     @Test
     public void beforeTestStopLeavesSkipUnchangedWhenTestNgResultWasCleared() throws Exception {
         setITestResult(null);
-        setLastInfoLine(null);
+        ReportContextTestAccess.replaceLastInfoLine(null);
         TestResult result = skippedResult("ordinary skip");
 
         try (MockedStatic<DriverFactoryHelper> driverFactoryHelper = Mockito.mockStatic(DriverFactoryHelper.class)) {
@@ -410,7 +410,7 @@ public class AllureListenerCoverageUnitTest {
 
     @Test
     public void beforeTestStopDropsAppendedTextWhenRedactionReturnsNull() throws Exception {
-        setLastInfoLine("info line that redaction drops");
+        ReportContextTestAccess.replaceLastInfoLine("info line that redaction drops");
         ITestResult testResult = Mockito.mock(ITestResult.class);
         Mockito.when(testResult.getThrowable()).thenReturn(new AssertionError("assertion meaning"));
         setITestResult(testResult);
@@ -431,26 +431,12 @@ public class AllureListenerCoverageUnitTest {
     }
 
     @Test
-    public void appendIfMissingKeepsMessageWhenExtraIsNullBlankOrAlreadyPresent() throws Exception {
-        Method appendIfMissing = AllureListener.class.getDeclaredMethod("appendIfMissing", String.class, String.class);
-        appendIfMissing.setAccessible(true);
-        assertEquals(appendIfMissing.invoke(null, "kept", null), "kept");
-        assertEquals(appendIfMissing.invoke(null, "kept", "   "), "kept");
-        assertEquals(appendIfMissing.invoke(null, "already tail", "tail"), "already tail");
-        assertEquals(appendIfMissing.invoke(null, "   ", "added"), "added");
-        assertEquals(appendIfMissing.invoke(null, "head", "tail"), "head\ntail");
-    }
-
-    private static void setLastInfoLine(String value) throws Exception {
-        Field field = ReportContext.class.getDeclaredField("lastInfoLine");
-        field.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        ThreadLocal<String> lastInfoLine = (ThreadLocal<String>) field.get(null);
-        if (value == null) {
-            lastInfoLine.remove();
-        } else {
-            lastInfoLine.set(value);
-        }
+    public void appendIfMissingKeepsMessageWhenExtraIsNullBlankOrAlreadyPresent() {
+        assertEquals(AllureListener.appendIfMissing("kept", null), "kept");
+        assertEquals(AllureListener.appendIfMissing("kept", "   "), "kept");
+        assertEquals(AllureListener.appendIfMissing("already tail", "tail"), "already tail");
+        assertEquals(AllureListener.appendIfMissing("   ", "added"), "added");
+        assertEquals(AllureListener.appendIfMissing("head", "tail"), "head\ntail");
     }
 
     private static TestResult skippedResult(String message) {
@@ -523,10 +509,8 @@ public class AllureListenerCoverageUnitTest {
         }
     }
 
-    private static void setITestResult(ITestResult testResult) throws Exception {
-        Field iTestResultField = TestNGListener.class.getDeclaredField("iTestResult");
-        iTestResultField.setAccessible(true);
-        iTestResultField.set(null, testResult);
+    private static void setITestResult(ITestResult testResult) {
+        TestNGListener.bindITestResult(testResult);
     }
 
     private static void setKillSwitch(boolean value) throws Exception {
