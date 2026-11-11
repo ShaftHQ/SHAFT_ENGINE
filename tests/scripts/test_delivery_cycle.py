@@ -162,6 +162,17 @@ class DeliveryCycleContractTest(unittest.TestCase):
             flow_raw.index("Run two independent adversarial reviews"),
         )
 
+    def test_complex_media_edit_keeps_a_standing_review_rule(self) -> None:
+        cycle = (REFS / "delivery-cycle.md").read_text(encoding="utf-8")
+        checklist = (REFS / "design-review-video-checklist.md").read_text(encoding="utf-8")
+        self.assertIn("## Complex video or audio editing", checklist)
+        self.assertIn("Each cycle has two independent adversarial reviewers", checklist)
+        self.assertIn("A failed cycle is fixed before a later cycle counts", checklist)
+        self.assertIn("not uploaded while a cycle is failed", checklist)
+        self.assertIn("design-review-video-checklist.md", cycle)
+        self.assertIn("not limited to the active session", cycle)
+        self.assertNotIn("at least three", cycle.lower())
+        self.assertNotIn("minimum 3", cycle.lower())
 
     def test_pdca_cap_matches_the_cycle(self) -> None:
         pdca = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")

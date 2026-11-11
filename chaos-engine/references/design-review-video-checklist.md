@@ -74,6 +74,15 @@ Indep review brief includes the automated gate block above. Orchestrator SIGN
 void without attached JSON + contact-sheet look. `worker_ce_entry.py lint` PASS
 on the worker brief (`ce_load: required` + `tool.py entry`).
 
+## Complex video or audio editing
+
+A complex video or audio edit runs three PDCA cycles before it is called
+final. Each cycle has two independent adversarial reviewers. The author is
+neither reviewer. A failed cycle is fixed before a later cycle counts, and
+the cut is not uploaded while a cycle is failed. Required checks are green
+before those reviews start. A new cut invalidates earlier passes. This does
+not turn the general "at most 3 PDCA" cap into a quota for other work.
+
 ## Follow-up
 
 [sequential WIP](sequential-wip.md), [multi-agent PDCA](multi-agent-pdca.md),
