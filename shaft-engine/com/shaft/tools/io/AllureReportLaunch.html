@@ -288,12 +288,15 @@ which is Java 25.</div>
 <div class="block">Runs <code>bin/javac -version</code> when that executable exists.
 The image is the absolute path from <a href="#javacVersionCommand(java.nio.file.Path)"><code>javacVersionCommand(Path)</code></a>. The JDK home is not used
 as the process working directory, because Windows resolves a relative application name from the
-parent directory.</div>
+parent directory.
+A caller that is already interrupted gets <code>-1</code> even when the process exits cleanly.
+<code>waitFor</code> does not throw in that case, and the interrupt status is restored.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>jdkHome</code> - a JDK home directory, not a JRE</dd>
 <dt>Returns:</dt>
-<dd>the javac major, or <code>-1</code> when javac is missing or its output cannot be read</dd>
+<dd>the javac major, or <code>-1</code> when javac is missing, its output cannot be read,
+        or the calling thread is interrupted</dd>
 </dl>
 </div>
 </section>
