@@ -200,6 +200,7 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "A pause of at least 200 ms is at or below -70 dBFS RMS.",
             "Do not zero a dip shorter than 200 ms.",
             "An automatic transcript catches gibberish, a torn word, and an interrupted word.",
+            "A proper noun is judged against the owner's recording, not against transcript spelling.",
             "A breath or a pause sits at a clause boundary.",
             "A filler is not clustered: no two fillers inside eight seconds.",
         ):
@@ -210,6 +211,7 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "no two fillers inside eight seconds",
             "one synthesis of the whole script",
             "150 to 190 words",
+            "A proper noun is judged against the owner's recording, not against\n  transcript spelling.",
         ):
             self.assertIn(sentence, narration)
         flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]
