@@ -25,6 +25,19 @@ class PlaywrightHostPlatformTest {
                         "ID=debian\nVERSION_ID=\"13\"\n"));
 
         assertTrue(failure.getMessage().contains("Unsupported Playwright host"));
+        assertTrue(failure.getMessage().contains("debian"));
+        assertTrue(failure.getMessage().contains("13"));
+
+        IllegalArgumentException ubuntu26 = assertThrows(IllegalArgumentException.class,
+                () -> PlaywrightHostPlatform.resolve(SetupPlatform.LINUX, SetupArchitecture.X64,
+                        "ID=ubuntu\nVERSION_ID=\"26.04\"\n"));
+        assertTrue(ubuntu26.getMessage().contains("ubuntu"));
+        assertTrue(ubuntu26.getMessage().contains("26.04"));
+
+        IllegalArgumentException missingVersion = assertThrows(IllegalArgumentException.class,
+                () -> PlaywrightHostPlatform.resolve(SetupPlatform.LINUX, SetupArchitecture.X64,
+                        "ID=debian\n"));
+        assertTrue(missingVersion.getMessage().contains("absent"));
     }
 
     @Test
