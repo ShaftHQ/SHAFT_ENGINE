@@ -462,7 +462,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve", "output-search", "output-resume", "output-stats", "output-purge"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve", "output-search", "output-resume", "output-stats", "output-purge", "ethics-check"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -471,6 +471,9 @@ def tool_help_text() -> str:
         "\n"
         "entry (bots without hooks: print core card, companions, retrieve step):\n"
         "  tool.py entry [--full] [stop phrase]  (one line while unchanged; --full reprints)\n"
+        "\n"
+        "ethics-check (no assessment submit and no live answer-feed without this receipt):\n"
+        "  tool.py ethics-check [receipt.json]  (exit 0 allow or alternative; exit 2 person-only submit, decline, or live_feed)\n"
         "\n"
         "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
         "  tool.py maintain\n"
@@ -834,6 +837,13 @@ def main() -> int:
             phrase = " ".join(arg for arg in arguments if arg != "--full")
             print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
             return 0
+        if tool == "ethics-check":
+            path = installed_root / "rules" / "ethics_check.py"
+            if not path.is_file():
+                print("rules/ethics_check.py missing from installed core", file=sys.stderr)
+                return 1
+            module = runpy.run_path(str(path), run_name="_chaos_engine_ethics_check")
+            return int(module["main"](arguments))
         if tool == "maintain":
             return maintain(installed_root)
         if tool == "siblings":

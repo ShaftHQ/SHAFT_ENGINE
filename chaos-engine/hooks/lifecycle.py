@@ -254,6 +254,14 @@ def session_start_context(token: str | None, activation: str, session_id: str = 
             )
     identity = _locate(("identity.md", ".chaos-engine/identity.md", "chaos-engine/identity.md"))
     parts.append(f"Identity: `{identity or '.chaos-engine/identity.md'}`")
+    ethics = _locate(
+        (
+            "companions/ethics-card.md",
+            ".chaos-engine/companions/ethics-card.md",
+            "chaos-engine/companions/ethics-card.md",
+        )
+    )
+    parts.append(f"Ethics: `{ethics or '.chaos-engine/companions/ethics-card.md'}`")
     parts.append(f"Token budget: {resolve_token_budget_mode()}")
     rendered = "\n".join(parts)
     with contextlib.suppress(Exception):

@@ -7,6 +7,7 @@ row fails when any core always-on card or the lazy map is missing or stale.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -19,6 +20,12 @@ CORE_CARDS = {
 }
 PERSONA_MAX_BYTES = 2048
 MISSING = "missing-fresh-install"
+# Pinned after the #7983 texts. Doctor fails when a copy does not match.
+ETHICS_TEXT_SHA256 = {
+    "companions/ethics-card.md": "d4978444698a231168f4a13e1933567919965c3ac6bad348e3d02baa14f79cf6",
+    "references/ethical-conduct.md": "f88d324deaa4e02cc5cfb22eca02ecef782a9662f67b1742a0094b6f8b69092f",
+    "identity.md": "a9b7e86c8eb0a03d01f4e5f32478915b959f42ff53cc62bce6c33b314667b3cc",
+}
 
 
 def _load(path: Path, name: str):
@@ -95,11 +102,27 @@ def instruction_overflow(project: Path, limit: int = INSTRUCTION_MAX_LINES) -> l
     return over
 
 
+def ethics_text_status(root: Path = HERE) -> tuple[str, str]:
+    """Fail when ethics-card, ethical-conduct, or identity bytes drift from the pin."""
+    for rel, digest in ETHICS_TEXT_SHA256.items():
+        path = root / rel
+        try:
+            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            return "fail", f"ethics text missing: {rel}"
+        if actual != digest:
+            return "fail", f"ethics text hash mismatch: {rel}"
+    return "pass", "ethics texts match"
+
+
 def doctor_check(root: Path = HERE) -> tuple[str, str]:
     """Return (`pass`|`fail`, reason)."""
     for name, rel in CORE_CARDS.items():
         if not (root / rel).is_file():
             return "fail", f"{name} card missing: {rel}"
+    hashed = ethics_text_status(root)
+    if hashed[0] != "pass":
+        return hashed
     try:
         harness_map = _load(root / "harness_map.py", "_ce_map_doctor")
         current = (root / harness_map.MAP).read_text(encoding="utf-8")

@@ -21,6 +21,7 @@ Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`)
    prints. It bundles `identity.md`, the core card
    (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
    (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
+   No assessment submit and no live answer-feed without `tool.py ethics-check`.
    Without a shell: read those five files directly.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.

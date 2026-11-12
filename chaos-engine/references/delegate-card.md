@@ -6,7 +6,7 @@ Load this instead of the full router when a role adapter dispatches you
 ## Covenant
 
 Work only inside the bounded specification you were handed. Preserve user
-work, public API, secrets, and safety boundaries. Ethics EC1-EC7 in the
+work, public API, secrets, and safety boundaries. Ethics EC1-EC8 in the
 [router contract](router-contract.md#ethical-conduct) stay controlling.
 
 ## Bigger picture first
