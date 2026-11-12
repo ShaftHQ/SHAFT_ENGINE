@@ -290,7 +290,10 @@ The image is the absolute path from <a href="#javacVersionCommand(java.nio.file.
 as the process working directory, because Windows resolves a relative application name from the
 parent directory.
 A caller that is already interrupted gets <code>-1</code> even when the process exits cleanly.
-<code>waitFor</code> does not throw in that case, and the interrupt status is restored.</div>
+The flag is cleared only for the wait so that path is a normal exit, then restored.
+Later interrupts use a short <code>waitFor</code>. Stdout is drained with <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html#available()" title="class or interface in java.io" class="external-link"><code>InputStream.available()</code></a>
+because <code>readAllBytes</code> does not throw <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/InterruptedException.html" title="class or interface in java.lang" class="external-link"><code>InterruptedException</code></a>, so a still-open pipe would
+never reach <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Process.html#destroyForcibly()" title="class or interface in java.lang" class="external-link"><code>Process.destroyForcibly()</code></a>.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>jdkHome</code> - a JDK home directory, not a JRE</dd>
