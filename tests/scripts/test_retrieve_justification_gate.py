@@ -554,6 +554,43 @@ NODE install [src=chaos-engine/install.py loc=L12]
             ):
                 self.assertIsNone(block(command, "still-allowed"), command)
 
+    def test_shell_outside_a_python_heredoc_is_still_scanned(self):
+        """The program body is not a shell. Commands around it still are.
+
+        `cat src/notes` has no dotted name, so the heredoc path scan cannot see
+        it. Bare `rg class` owes a retrieve. The same words inside the program
+        do not.
+        """
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_heredoc_prefix")
+        cat_around = "cat src/notes && venv/bin/python - <<'PY'\nprint(1)\nPY"
+        rg_around = "rg class && venv/bin/python - <<'PY'\nprint(1)\nPY"
+        inside = "venv/bin/python - <<'PY'\ncat src/notes\nrg class\nPY\n"
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+
+            def block(command: str, session_id: str):
+                return gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(command,),
+                    session_id=session_id,
+                )
+
+            self.assertEqual(gate.BLOCK_REASON, block("cat src/notes", "plain-cat"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_around, "heredoc-cat"))
+            self.assertIsNone(block(inside, "inside-program"))
+            self.assertIsNone(gate.session_retrieve_gap(project, "inside-program"))
+            self.assertIsNone(block("rg class", "plain-rg"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "plain-rg"))
+            self.assertIsNone(block(rg_around, "heredoc-rg"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg"))
+            ledger = json.loads(
+                (project / ".chaos-engine-state" / "retrieve-justification.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(ledger["sessions"]["heredoc-rg"]["retrieveOwed"])
+
     def test_outside_workspace_query_is_not_a_used_hit(self):
         retrieve = load("chaos-engine/retrieve.py", "retrieve_outside_query")
         with tempfile.TemporaryDirectory() as temporary:
