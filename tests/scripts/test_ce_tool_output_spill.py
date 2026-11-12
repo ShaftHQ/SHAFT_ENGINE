@@ -148,6 +148,26 @@ class ToolOutputStoreTests(unittest.TestCase):
         self.assertNotIn("The opening of a sentence", preview)
         self.assertEqual(body, self.mod.build_preview(body, len(body.encode("utf-8")) + len(pointer.encode("utf-8")), pointer))
 
+    def test_preview_keeps_a_fence_whole_after_unterminated_prose(self):
+        prose = "Command output:\n"
+        fence = "```\nError: file not found.\nMore details here.\n```\n"
+        sentence = (
+            "The opening of a sentence\n"
+            "continues on the next line and must stay whole."
+        )
+        pointer = " [id=7]"
+        body = prose + fence + sentence
+        partial = "```\nError: file not found.\n"
+        budget = len((prose + partial).encode("utf-8")) + len(pointer.encode("utf-8"))
+        preview = self.mod.build_preview(body, budget, pointer)
+        self.assertEqual(prose + pointer, preview)
+        self.assertNotIn("```", preview)
+        self.assertNotIn("file not found", preview)
+        fit = len((prose + fence).encode("utf-8")) + len(pointer.encode("utf-8"))
+        kept = self.mod.build_preview(body, fit, pointer)
+        self.assertEqual(prose + fence + pointer, kept)
+        self.assertEqual(2, kept.split(pointer)[0].count("```"))
+
     def test_store_error_returns_the_original_text(self):
         text = "Original sentence stays intact. " * 2000
         self.assertGreater(len(text.encode("utf-8")), self.mod.TRIGGER_BYTES)

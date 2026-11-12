@@ -183,6 +183,8 @@ def _sentence_end(text: str, start: int) -> int:
     index = start
     size = len(text)
     while index < size:
+        if index > start and text.startswith("```", index):
+            return index
         if text[index] in ".!?" and _boundary(text, index):
             index += 1
             while index < size and text[index] in " \t":
