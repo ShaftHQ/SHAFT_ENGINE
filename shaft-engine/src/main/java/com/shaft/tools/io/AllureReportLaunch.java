@@ -113,52 +113,70 @@ public final class AllureReportLaunch {
         try {
             // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            ByteArrayOutputStream captured = new ByteArrayOutputStream();
-            InputStream stdout = process.getInputStream();
-            byte[] buffer = new byte[256];
-            if (callerInterrupted) {
-                Thread.interrupted();
-            }
-            boolean interruptedDuringWait = false;
-            try {
-                while (true) {
-                    int ready = stdout.available();
-                    while (ready > 0) {
-                        int count = stdout.read(buffer, 0, Math.min(buffer.length, ready));
-                        if (count <= 0) {
-                            break;
-                        }
-                        captured.write(buffer, 0, count);
-                        ready = stdout.available();
-                    }
-                    if (process.waitFor(JDK_PROBE_POLL_MILLIS, TimeUnit.MILLISECONDS)) {
-                        break;
-                    }
-                    // A timed wait that returns without throwing must still notice the flag.
-                    if (Thread.currentThread().isInterrupted()) {
-                        interruptedDuringWait = true;
-                        break;
-                    }
-                }
-            } catch (InterruptedException exception) {
-                interruptedDuringWait = true;
-            }
-            if (interruptedDuringWait) {
-                process.destroyForcibly();
-                Thread.currentThread().interrupt();
+            String output = captureJavacOutput(process, callerInterrupted);
+            if (output == null) {
                 return -1;
             }
-            // The child has exited, so the remainder cannot block.
-            captured.write(stdout.readAllBytes());
             if (callerInterrupted) {
                 Thread.currentThread().interrupt();
                 return -1;
             }
-            return javaMajorFromJavacOutput(new String(captured.toByteArray(), StandardCharsets.UTF_8));
+            return javaMajorFromJavacOutput(output);
         } catch (IOException exception) {
             return -1;
         } catch (IllegalArgumentException exception) {
             return -1;
+        }
+    }
+
+    /**
+     * Drains a javac probe without blocking in {@code readAllBytes} while the child is alive.
+     *
+     * @return the version text, or {@code null} when the caller was interrupted and the child was destroyed
+     */
+    private static String captureJavacOutput(Process process, boolean callerInterrupted) throws IOException {
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        InputStream stdout = process.getInputStream();
+        if (callerInterrupted) {
+            Thread.interrupted();
+        }
+        if (waitForJavac(process, stdout, captured)) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+            return null;
+        }
+        captured.write(stdout.readAllBytes());
+        return captured.toString(StandardCharsets.UTF_8);
+    }
+
+    private static boolean waitForJavac(Process process, InputStream stdout, ByteArrayOutputStream captured)
+            throws IOException {
+        byte[] buffer = new byte[256];
+        try {
+            while (true) {
+                drainAvailable(stdout, captured, buffer);
+                if (process.waitFor(JDK_PROBE_POLL_MILLIS, TimeUnit.MILLISECONDS)) {
+                    return false;
+                }
+                if (Thread.currentThread().isInterrupted()) {
+                    return true;
+                }
+            }
+        } catch (InterruptedException exception) {
+            return true;
+        }
+    }
+
+    private static void drainAvailable(InputStream stdout, ByteArrayOutputStream captured, byte[] buffer)
+            throws IOException {
+        int ready = stdout.available();
+        while (ready > 0) {
+            int count = stdout.read(buffer, 0, Math.min(buffer.length, ready));
+            if (count <= 0) {
+                return;
+            }
+            captured.write(buffer, 0, count);
+            ready = stdout.available();
         }
     }
 
