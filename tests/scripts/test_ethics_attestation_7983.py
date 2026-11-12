@@ -265,8 +265,15 @@ class EthicsAttestationTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIsNone(ethics.assessment_block_reason((command,), {}, None))
         rows = (
+            (r"https://example.test/\;#exam/submit", True),
+            (r"foo\;#exam/submit", True),
+            (r"foo\|#closed-book", True),
+            (r"foo\&#exam/submit", True),
+            (r"foo\ #exam/submit", True),
+            (r"foo\#exam/submit", True),
             ('echo "foo\\" # exam/submit"', True),
             ("git push;#exam/submit", False),
+            (r"git push\\;#exam/submit", False),
         )
         for text, expect in rows:
             with self.subTest(text=text):
