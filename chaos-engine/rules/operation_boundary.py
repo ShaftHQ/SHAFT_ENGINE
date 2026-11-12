@@ -29,7 +29,7 @@ _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
 _ASSIGN = re.compile(
     r"^(?:(?:builtin|command)(?:\s+(?:--|\-\S+))*\s+)*(?:set\s+--(?=\s|$)|"
-    r"(?:(?:declare|export|local|readonly|typeset)(?:\s+-[A-Za-z]+)*\s+)?"
+    r"(?:(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+)?"
     r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
 )
 _APPROVE_ONLY = re.compile(
@@ -154,6 +154,16 @@ def _hash_starts_comment(part: str, index: int) -> bool:
     return index == 0 or part[index - 1] in " \t\n\r"
 
 
+def _escaped(text: str, index: int) -> bool:
+    """True when an odd run of backslashes precedes index."""
+    count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        count += 1
+        cursor -= 1
+    return count % 2 == 1
+
+
 def _skip_line_body(part: str, index: int, delim: str) -> int:
     """Index after the here-document body that starts at index."""
     line: list[str] = []
@@ -186,7 +196,7 @@ def _comment_is_open(part: str) -> bool:
             index += 1
             continue
         if ticks:
-            if char == "`":
+            if char == "`" and not _escaped(part, index):
                 ticks = False
             index += 1
             continue
@@ -216,7 +226,7 @@ def _comment_is_open(part: str) -> bool:
             quote = char
             index += 1
             continue
-        if char == "`":
+        if char == "`" and not _escaped(part, index):
             ticks = True
             index += 1
             continue
@@ -291,6 +301,19 @@ def _matching_brace(text: str, index: int) -> int:
         if char in {"'", '"'}:
             quote = char
             cursor += 1
+            continue
+        found = _heredoc_delimiter(text, cursor)
+        if found is not None:
+            delim, cursor = found
+            while cursor < len(text) and text[cursor] not in "\n\r":
+                cursor += 1
+            if cursor < len(text):
+                cursor += 1 + (
+                    text[cursor] == "\r"
+                    and cursor + 1 < len(text)
+                    and text[cursor + 1] == "\n"
+                )
+            cursor = _skip_line_body(text, cursor, delim)
             continue
         if text.startswith("${", cursor) or char == "{":
             depth += 1
@@ -392,7 +415,7 @@ def _command_pieces(command: str) -> list[str]:
         char = text[index]
         if ticks:
             buf.append(char)
-            if char == "`":
+            if char == "`" and not _escaped(text, index):
                 ticks = False
             index += 1
             continue
