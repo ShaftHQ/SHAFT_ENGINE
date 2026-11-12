@@ -533,7 +533,10 @@ CHECKS = {
     "wave-c-ledger-contract": Check(
         "wave-c-ledger-contract",
         "wave-c-ledger",
-        ("tests.scripts.test_chaos_engine_wave_c_ledger_retrieve_learning",),
+        (
+            "tests.scripts.test_chaos_engine_wave_c_ledger_retrieve_learning",
+            "tests.scripts.test_ce_tool_output_spill",
+        ),
     ),
     "freetoken-probe-contract": Check(
         "freetoken-probe-contract",
@@ -1215,8 +1218,10 @@ SURFACE_PATTERNS = {
     "wave-c-ledger": (
         "chaos-engine/retrieve.py",
         "chaos-engine/tool.py",
+        "chaos-engine/tool_output_store.py",
         "chaos-engine/learning.py",
         "tests/scripts/test_chaos_engine_wave_c_ledger_retrieve_learning.py",
+        "tests/scripts/test_ce_tool_output_spill.py",
     ),
     "freetoken-probe": (
         "chaos-engine/skills/freetoken/scripts/probe.py",

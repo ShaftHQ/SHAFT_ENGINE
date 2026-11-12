@@ -101,6 +101,25 @@ Checked-in memory for one-router / CLI-owned MCP / project-mode Caveman:
 See also the [hook trigger map](hook-trigger-map.md).
 
 
+## Tool-output replacement
+
+No supported host has a proven PostToolUse replacement for the tool-result
+body in this tree. Grok can adapt `additionalContext` for SessionStart and can
+show deny text. That does not replace the tool result. This delivery is a
+manual store ([tool_output_store.py](../tool_output_store.py), `tool.py output-search`).
+It does not claim the original bytes left the model window.
+
+| Host | PostToolUse tool-output replacement |
+| --- | --- |
+| Claude Code | not proven |
+| Codex | not proven |
+| Grok | not proven |
+| Gemini | not proven |
+| Copilot | not proven |
+| OpenCode | not proven |
+| Cursor | not proven |
+| Grok Bot | not proven |
+
 ## GAP-EXIT2 compensating UX checklist (Grok / Copilot)
 
 GAP-EXIT2-SENTENCE: GAP-EXIT2: ChaosEngine still emits decision=block or permissionDecision=deny and exit 2; verify host trust.
