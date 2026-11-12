@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import os
-import subprocess
+import subprocess  # nosec B404 - the repair test launches the repo interpreter on install.py
 import sys
 import tempfile
 import unittest
@@ -68,6 +68,22 @@ class MissingToolDoctorTest(unittest.TestCase):
             self.assertEqual("healthy", result["status"])
             self.assertNotIn(".chaos-engine/tool.py", result["components"])
 
+    def test_doctor_stays_healthy_when_the_project_has_no_overlay(self) -> None:
+        install = _load("ce_install_7964_no_overlay", CE / "install.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "proj"
+            project.mkdir()
+            healthy = {
+                "status": "healthy",
+                "components": {"core": {"status": "healthy"}},
+                "policySha256": "ab" * 32,
+            }
+            args = SimpleNamespace(command="doctor", project=project)
+            with unittest.mock.patch.object(install, "status_json", return_value=dict(healthy)):
+                result = install._command_result(args, [])
+            self.assertEqual("healthy", result["status"])
+            self.assertNotIn(".chaos-engine/tool.py", result["components"])
+
     def test_overlay_doctor_row_names_the_missing_file(self) -> None:
         guard = _load("ce_delete_7964_doctor", CE / "delete_guard.py")
         with tempfile.TemporaryDirectory() as temporary:
@@ -88,7 +104,7 @@ class MissingToolRepairTest(unittest.TestCase):
             source.write_bytes((CE / "tool.py").read_bytes())
             overlay = project / ".chaos-engine"
             overlay.mkdir()
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and install.py argv
                 [sys.executable, str(CE / "install.py"), "repair", "--project", str(project)],
                 capture_output=True,
                 text=True,
@@ -97,7 +113,7 @@ class MissingToolRepairTest(unittest.TestCase):
             self.assertEqual(0, completed.returncode, completed.stderr)
             restored = overlay / "tool.py"
             self.assertEqual(source.read_bytes(), restored.read_bytes())
-            again = subprocess.run(
+            again = subprocess.run(  # nosec B603 - fixed interpreter and install.py argv
                 [sys.executable, str(CE / "install.py"), "repair", "--project", str(project)],
                 capture_output=True,
                 text=True,

@@ -7364,7 +7364,8 @@ def _require_overlay_tool(result: dict, project: Path) -> None:
     """#7964: deleting `.chaos-engine/tool.py` fails doctor and names that file."""
     if not isinstance(result, dict):
         return
-    if (Path(project) / ".chaos-engine" / "tool.py").is_file():
+    overlay = Path(project) / ".chaos-engine"
+    if not overlay.is_dir() or (overlay / "tool.py").is_file():
         return
     result["status"] = "recovery-required"
     components = result.get("components")

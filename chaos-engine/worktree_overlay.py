@@ -240,7 +240,8 @@ def _diff_hint(source: Path, destination: Path, *, limit: int = 12) -> str:
 
 
 def _replace_with_copy(source: Path, destination: Path) -> None:
-    """Write the new bytes beside the destination, then replace it.
+    """
+    Write the new bytes beside the destination, then replace it.
 
     The old file stays on disk until the copy is complete (#7964).
     """
