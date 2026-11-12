@@ -127,6 +127,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_hook",
             "tests.scripts.test_ce_hooks_7955_7960",
             "tests.scripts.test_ce_tool_missing_7964",
+            "tests.scripts.test_ethics_attestation_7983",
         ),
         True,
     ),
@@ -871,6 +872,9 @@ SURFACE_PATTERNS = {
     "lifecycle": (
         "chaos-engine/hooks/*",
         "chaos-engine/evals/*",
+        "chaos-engine/rules/ethics_check.py",
+        "chaos-engine/companions/ethics-card.md",
+        "tests/scripts/test_ethics_attestation_7983.py",
         "scripts/agents/guard.py",
         "scripts/ci/chaos_engine_eval_parity.py",
         "tests/scripts/test_chaos_engine_hook.py",
