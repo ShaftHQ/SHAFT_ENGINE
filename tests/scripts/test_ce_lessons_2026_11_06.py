@@ -995,6 +995,9 @@ class OperationBoundaryTest(TestCase):
                 "(\necho # x\ncleanup --delete-code 123456\n)",
                 "bash <<EOF\necho # x\ncleanup --delete-code 123456\nEOF\n",
                 'python3 .chaos-engine/tool.py delete-check --code ABC123 --command "rm $(uname)"',
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'ab\\' && cleanup --delete-code 123456",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'ab\\\\' && cleanup --delete-code 123456",
+                'python3 .chaos-engine/tool.py delete-check --code ABC123 --command "ab\\\\" && cleanup --delete-code 123456',
             )
             for command in denied:
                 self.assertIn(

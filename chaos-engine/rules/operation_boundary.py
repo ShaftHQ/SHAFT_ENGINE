@@ -143,7 +143,8 @@ def _strip_unquoted_comment(part: str) -> str:
     """Drop a bash comment through the end of its line.
 
     A later line stays visible. ``_is_approve_invocation`` therefore still
-    sees it, and a newline there is not an approval.
+    sees it, and a newline there is not an approval. A single quote ends at
+    the next ``'``. A double quote ends only when ``_escaped`` is false.
     """
     quote = ""
     out: list[str] = []
@@ -152,7 +153,7 @@ def _strip_unquoted_comment(part: str) -> str:
         char = part[index]
         if quote:
             out.append(char)
-            if char == quote and part[index - 1] != "\\":
+            if char == quote and (quote == "'" or not _escaped(part, index)):
                 quote = ""
             index += 1
             continue
@@ -637,8 +638,10 @@ def private_remote_block(root: Path, command: str) -> str | None:
 def _exemption_is_unsafe(text: str) -> bool:
     """True when a delete-check exemption still carries shell syntax.
 
-    Single-quoted spans are payload. Double-quoted spans are unsafe only
-    when they contain ``$`` or a backtick. Unquoted text uses ``_UNSAFE_ARG``.
+    Single-quoted spans are payload, and ``'`` always ends one. Double-quoted
+    spans end only when ``_escaped`` is false, and are unsafe only when they
+    contain ``$`` or a backtick. After the quote ends, unquoted text uses
+    ``_UNSAFE_ARG``.
     """
     quote = ""
     start = 0
@@ -646,7 +649,7 @@ def _exemption_is_unsafe(text: str) -> bool:
     while index < len(text):
         char = text[index]
         if quote:
-            if char == quote and text[index - 1] != "\\":
+            if char == quote and (quote == "'" or not _escaped(text, index)):
                 if quote == '"' and ("$" in text[start:index] or "`" in text[start:index]):
                     return True
                 quote = ""
