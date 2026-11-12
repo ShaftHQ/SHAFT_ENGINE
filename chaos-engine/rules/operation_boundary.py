@@ -25,6 +25,13 @@ _FORCE = re.compile(
 _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
+# Documented owner-paste consumption is the check tool, not a relay (#7991).
+# Basename is exactly tool.py (not mytool.py). Subcommand is delete-check
+# plus space or end (not delete-check-extra). _UNSAFE_ARG still fails closed.
+_DELETE_CHECK_INVOCATION = re.compile(
+    r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:(?:python3?|py(?:\s+-3)?)\s+)?"
+    r"(?:[^\s=]+/)*tool\.py\s+delete-check(?:\s|$)"
+)
 _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
 _ASSIGN = re.compile(
@@ -617,10 +624,24 @@ def private_remote_block(root: Path, command: str) -> str | None:
 
 
 def relayed_delete_block(command: str) -> str | None:
-    """A delete code inside the agent command was relayed, not typed by the human."""
+    """A delete code inside the agent command was relayed, not typed by the human.
+
+    ``tool.py delete-check`` after an owner paste is the check tool, not a
+    relay. ``cleanup --delete-code`` and other non-check statements stay
+    refused. A check prefix with substitutions, process-subs, or a
+    lookalike basename is not an exemption (#7991).
+    """
     text = command or ""
-    if _DELETE.search(text) and _DELETE_CODE.search(text):
-        return "relayed-delete-code"
+    statements = _command_pieces(text) or [text]
+    for statement in statements:
+        stripped = _strip_unquoted_comment(statement)
+        if (
+            _DELETE_CHECK_INVOCATION.search(stripped)
+            and _UNSAFE_ARG.search(stripped) is None
+        ):
+            continue
+        if _DELETE.search(stripped) and _DELETE_CODE.search(stripped):
+            return "relayed-delete-code"
     return None
 
 

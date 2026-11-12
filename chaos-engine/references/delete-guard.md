@@ -47,6 +47,8 @@ Defaults: the system temp dir; `~/.cache`; `__pycache__`, `.pytest_cache`,
 (`render`, `renders`, `out`, `frames`, `clips` under a path segment containing
 `video`). Add patterns, one per line, to `.chaos-engine-state/delete-allow.txt`
 in the project or home dir (`**/` spans directories, `*` stays in one).
+Patterns are matched against the resolved absolute path, so a filename
+alone never matches; use `**/filename`.
 
 ## Owner override
 
@@ -59,9 +61,14 @@ The owner approves in chat with a one-time code; no terminal is needed.
 2. Bot shows the code to the owner in chat with the path list. The owner
    pastes it back. A code relayed by another agent is not approval.
 3. Bot: `python3 .chaos-engine/tool.py delete-check --code <code> <same paths>`
-   (or `CHAOS_DELETE_ACK=<code>`). It passes only for the same path list,
-   unexpired and unused, then the code is spent. Git and allow-list
-   refusals print as `warning:` lines instead of blocking.
+   (or `CHAOS_DELETE_ACK=<code>`). Hosts that refuse `--code` on argv
+   (the `relayed-delete-code` hook) use `CHAOS_DELETE_ACK`. Spend the code
+   on the same invocation as `--command 'rm …'` because the code is
+   one-use. The host hook allows this documented `tool.py delete-check`
+   consumption; it still refuses `cleanup --delete-code` and other
+   relayed codes. It passes only for the same path list, unexpired and
+   unused, then the code is spent. Git and allow-list refusals print as
+   `warning:` lines instead of blocking.
 
 Requests and uses are logged to
 `~/.local/state/chaos-engine/delete-overrides.jsonl`. Never route around a

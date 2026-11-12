@@ -18,7 +18,10 @@ data out of a workspace:
    script, or a renamed command.
 5. Prefer commit+push first, or `cp -a` to a backups directory outside the worktree and get owner
    OK. Owner override is only `--request-code` → the owner pastes the one-use
-   code in chat. An agent-relayed code is not approval.
+   code in chat. An agent-relayed code is not approval. After that paste,
+   run `tool.py delete-check` with `CHAOS_DELETE_ACK` when the host refuses
+   `--code` on argv, and spend the code on the same invocation as
+   `--command 'rm …'` because the code is one-use.
 
 Hookless bots load this via [bot entry](bot-entry.md) and the
 `chaosengine-bot-entry` skill. Implementation detail:
