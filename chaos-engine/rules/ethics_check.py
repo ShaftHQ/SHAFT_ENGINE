@@ -17,8 +17,8 @@ RECEIPT_KEYS = frozenset({"counterpart", "decision", "live_feed"})
 MAX_RECEIPT_BYTES = 1024
 DEFAULT_RECEIPT = Path(".chaos-engine-state") / "ethics-receipt.json"
 
-# Fixture-backed shapes. Not a web denylist. Job applications, git push, and
-# gh issue are excluded even when nearby text mentions an exam.
+# Fixture-backed shapes. Not a web denylist. The word "exam" alone is not a shape.
+# A safe marker does not hide a shape. A # comment does not run.
 ASSESSMENT_SHAPES = (
     "closed-book",
     "hiring-quiz",
@@ -93,10 +93,42 @@ def _blob(commands: tuple[str, ...], tool_input: object) -> str:
     return "\n".join(parts)
 
 
+def _without_unquoted_comment(text: str) -> str:
+    """Drop a # comment through end of line. A hash inside quotes stays.
+
+    A hash starts a comment at index 0 or after space, tab, LF, or CR.
+    """
+    kept: list[str] = []
+    quote = ""
+    index = 0
+    length = len(text)
+    while index < length:
+        char = text[index]
+        if quote:
+            kept.append(char)
+            if char == quote:
+                quote = ""
+            index += 1
+            continue
+        if char in "'\"":
+            quote = char
+            kept.append(char)
+            index += 1
+            continue
+        if char == "#" and (index == 0 or text[index - 1] in " \t\n\r"):
+            while index < length and text[index] not in "\n\r":
+                index += 1
+            continue
+        kept.append(char)
+        index += 1
+    return "".join(kept)
+
+
 def matches_assessment(text: str) -> bool:
-    folded = text.casefold()
-    if any(marker in folded for marker in SAFE_MARKERS):
-        return False
+    """True when operative text contains a shape. A safe marker never hides one."""
+    if not SAFE_MARKERS:
+        raise ValueError("SAFE_MARKERS empty")
+    folded = _without_unquoted_comment(text).casefold()
     return any(shape in folded for shape in ASSESSMENT_SHAPES)
 
 

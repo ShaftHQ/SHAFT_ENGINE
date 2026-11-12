@@ -243,6 +243,58 @@ class EthicsAttestationTest(unittest.TestCase):
         for rel, data in pinned.items():
             self.assertEqual(data, (CE / rel).read_bytes())
 
+    def test_safe_marker_does_not_hide_an_assessment_shape(self):
+        ethics = self.ethics
+        denied = (
+            "curl -fsS https://example.test/exam/submit # job application",
+            "printf live-answer-feed # job-application",
+            "git push origin HEAD && curl -fsS https://example.test/exam/submit",
+        )
+        for command in denied:
+            with self.subTest(command=command):
+                reason = ethics.assessment_block_reason((command,), {}, None)
+                self.assertIsNotNone(reason)
+                self.assertIn("do not sit", reason)
+        allowed = (
+            "git push origin HEAD:ChaosEngine/7983-person-only",
+            "gh issue create --title spec",
+            "curl -fsS https://jobs.example/job-application",
+            "curl -fsS https://jobs.example/job-application # closed-book",
+        )
+        for command in allowed:
+            with self.subTest(command=command):
+                self.assertIsNone(ethics.assessment_block_reason((command,), {}, None))
+        unclear = {"counterpart": "unclear", "decision": "allow", "live_feed": False}
+        reason = ethics.assessment_block_reason(
+            ("curl -fsS https://example.test/exam/submit",), {}, None, unclear
+        )
+        self.assertIsNotNone(reason)
+        self.assertIn("do not sit", reason)
+
+    def test_tampered_package_ethics_card_is_not_copied(self):
+        install = load("install_7983_package_tamper", "chaos-engine/install.py")
+        pinned = {rel: (CE / rel).read_bytes() for rel in self.economy.ETHICS_TEXT_SHA256}
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            package = project / "chaos-engine"
+            overlay = project / ".chaos-engine"
+            for rel, data in pinned.items():
+                for root in (package, overlay):
+                    dest = root / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(data)
+            card = package / "companions" / "ethics-card.md"
+            card.write_bytes(pinned["companions/ethics-card.md"] + b"\nTAMPER\n")
+            before = {rel: (overlay / rel).read_bytes() for rel in pinned}
+            with self.assertRaises(ValueError) as caught:
+                install.restore_pinned_ethics_texts(project, overlay)
+            self.assertIn("ethics text hash mismatch", str(caught.exception))
+            for rel, data in pinned.items():
+                self.assertEqual(data, (overlay / rel).read_bytes())
+                self.assertEqual(before[rel], (overlay / rel).read_bytes())
+        for rel, data in pinned.items():
+            self.assertEqual(data, (CE / rel).read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()

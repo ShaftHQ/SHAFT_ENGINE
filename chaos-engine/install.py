@@ -7232,11 +7232,23 @@ def _repair_dependency_component(
     raise ValueError(f"repair not implemented for component: {name}")
 
 
-PINNED_ETHICS_TEXTS = (
-    "companions/ethics-card.md",
-    "references/ethical-conduct.md",
-    "identity.md",
-)
+def _ethics_text_pins() -> dict[str, str]:
+    """ETHICS_TEXT_SHA256 from the sibling token_economy module. No second table."""
+    path = Path(__file__).resolve().parent / "token_economy.py"
+    spec = importlib.util.spec_from_file_location("_ce_ethics_text_pins", path)
+    if spec is None or spec.loader is None:
+        raise ValueError("ethics text hash mismatch: token_economy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    pins = getattr(module, "ETHICS_TEXT_SHA256", None)
+    if not isinstance(pins, dict) or not pins:
+        raise ValueError("ethics text hash mismatch: token_economy.py")
+    typed: dict[str, str] = {}
+    for relative, digest in pins.items():
+        if not isinstance(relative, str) or not isinstance(digest, str) or not relative:
+            raise ValueError("ethics text hash mismatch: token_economy.py")
+        typed[relative] = digest
+    return typed
 
 
 def restore_pinned_ethics_texts(project: Path, target: Path) -> list[str]:
@@ -7244,7 +7256,7 @@ def restore_pinned_ethics_texts(project: Path, target: Path) -> list[str]:
 
     The package is ``project/chaos-engine`` when that tree is present and is
     not the overlay itself. A missing package file is skipped. Links are not
-    followed.
+    followed. Every present source is hashed against the pin before any write.
     """
     package = project / "chaos-engine"
     try:
@@ -7252,14 +7264,28 @@ def restore_pinned_ethics_texts(project: Path, target: Path) -> list[str]:
             return []
     except OSError:
         return []
-    restored: list[str] = []
-    for relative in PINNED_ETHICS_TEXTS:
+    pending: list[tuple[str, bytes]] = []
+    mismatched: list[str] = []
+    for relative, digest in _ethics_text_pins().items():
         source = package / relative
-        destination = target / relative
-        if not source.is_file() or is_link_or_reparse(source) or is_link_or_reparse(destination):
+        if is_link_or_reparse(source) or not source.is_file():
             continue
         try:
             source_bytes = source.read_bytes()
+        except OSError:
+            continue
+        if hashlib.sha256(source_bytes).hexdigest() != digest:
+            mismatched.append(relative)
+            continue
+        pending.append((relative, source_bytes))
+    if mismatched:
+        raise ValueError("ethics text hash mismatch: " + ", ".join(mismatched))
+    restored: list[str] = []
+    for relative, source_bytes in pending:
+        destination = target / relative
+        if is_link_or_reparse(destination):
+            continue
+        try:
             current = destination.read_bytes() if destination.is_file() else None
         except OSError:
             continue
