@@ -45,6 +45,9 @@ outputs:
   failure-artifact:
     description: 'Artifact name containing failure evidence, empty on success/skip'
     value: ${{ steps.summarize.outputs.artifact-name }}
+  receipt-status:
+    description: 'ok, missing-flag, or unchecked for the requested Codecov flag'
+    value: ${{ steps.summarize.outputs.receipt-status }}
 runs:
   using: 'composite'
   steps:
@@ -305,6 +308,9 @@ runs:
         if [ "$ENABLED" != "true" ]; then
           echo "status=skipped" >> "$GITHUB_OUTPUT"
           echo "artifact-name=" >> "$GITHUB_OUTPUT"
+          if [ -z "$REQUESTED_FLAG" ]; then
+            echo "receipt-status=unchecked" >> "$GITHUB_OUTPUT"
+          fi
           exit 0
         fi
 
@@ -316,7 +322,11 @@ runs:
           failed_phases+=(upload)
         fi
         # #7924: HTTP 200 is not success when the receipt omits the requested flag.
-        if [ -n "$REQUESTED_FLAG" ] && [ "$HAS_FILES" = "true" ] && [ "$CODECOV_OUTCOME" = "success" ]; then
+        # missing-flag is the only receipt-status that fails the unit job.
+        # An outage or a missing report stays a non-exiting status=failure.
+        if [ -z "$REQUESTED_FLAG" ]; then
+          echo "receipt-status=unchecked" >> "$GITHUB_OUTPUT"
+        elif [ "$HAS_FILES" = "true" ] && [ "$CODECOV_OUTCOME" = "success" ]; then
           pybin=()
           if command -v python3 >/dev/null 2>&1; then
             pybin=(python3)
@@ -326,6 +336,9 @@ runs:
           if [ "${#pybin[@]}" -eq 0 ] || ! "${pybin[@]}" scripts/ci/upload_jacoco_coverage.py --flag "$REQUESTED_FLAG" --receipt "${CODECOV_RECEIPT:-}"; then
             echo "::error::Codecov receipt does not name requested flag ${REQUESTED_FLAG}"
             failed_phases+=(receipt)
+            echo "receipt-status=missing-flag" >> "$GITHUB_OUTPUT"
+          else
+            echo "receipt-status=ok" >> "$GITHUB_OUTPUT"
           fi
         fi
         if [ "${#failed_phases[@]}" -gt 0 ]; then

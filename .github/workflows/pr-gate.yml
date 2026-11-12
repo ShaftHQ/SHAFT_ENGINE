@@ -1029,6 +1029,7 @@ jobs:
           '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest,OcrImagePreprocessorTest,JavaCppTesseractBackendTest'
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Upload module coverage to Codecov
+        id: codecov
         if: always()
         continue-on-error: true
         uses: ./.github/actions/upload-jacoco-coverage
@@ -1037,6 +1038,11 @@ jobs:
           required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
           source-id: pr-gate-unit-${{ matrix.leg || matrix.module }}
           flags: ${{ matrix.leg || matrix.module }}
+      - name: Reject a queued Codecov upload whose receipt omits the flag
+        if: steps.codecov.outputs.receipt-status == 'missing-flag'
+        run: |
+          echo "::error::Codecov queued the unit coverage upload but the receipt omitted the shard flag"
+          exit 1
 
   template-coupling:
     name: Template Coupling Gate
