@@ -239,6 +239,22 @@ def _diff_hint(source: Path, destination: Path, *, limit: int = 12) -> str:
     return body.rstrip()
 
 
+def _replace_with_copy(source: Path, destination: Path) -> None:
+    """
+    Write the new bytes beside the destination, then replace it.
+
+    The old file stays on disk until the copy is complete (#7964).
+    """
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(destination.name + ".ce-write")
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def _sync_file(
     source: Path,
     destination: Path,
@@ -262,8 +278,7 @@ def _sync_file(
             if deferred is not None:
                 deferred.append((source, dest_abs, key))
             return
-        dest_abs.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, dest_abs)
+        _replace_with_copy(source, dest_abs)
         manifest[key] = src_hash
         copied.append(dest_abs.as_posix())
         return
@@ -279,7 +294,7 @@ def _sync_file(
             if deferred is not None:
                 deferred.append((source, dest_abs, key))
             return
-        shutil.copy2(source, dest_abs)
+        _replace_with_copy(source, dest_abs)
         manifest[key] = src_hash
         upgraded.append(dest_abs.as_posix())
         return
@@ -645,8 +660,7 @@ def _restore_session_backup(session: Path, backup_root: Path) -> None:
         if not src.is_file():
             continue
         dest = session / key
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
+        _replace_with_copy(src, dest)
 
 
 def _read_version(root: Path) -> str:

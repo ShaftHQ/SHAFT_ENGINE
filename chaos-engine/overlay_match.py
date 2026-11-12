@@ -371,6 +371,17 @@ def _rewrite_manifest_files(overlay: Path, install) -> None:
             temporary.unlink()
 
 
+def _replace_bytes(destination: Path, payload: bytes) -> None:
+    """Write payload beside ``destination``, then replace it (#7964)."""
+    temporary = destination.with_name(destination.name + ".ce-write")
+    try:
+        temporary.write_bytes(payload)
+        temporary.replace(destination)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def sync_overlay_from_source(project: Path) -> dict[str, object]:
     """Copy owned SOURCE files into overlay (byte-identical) and refresh digests.
 
@@ -408,7 +419,7 @@ def sync_overlay_from_source(project: Path) -> dict[str, object]:
         payload = path.read_bytes()
         if destination.is_file() and destination.read_bytes() == payload:
             continue
-        destination.write_bytes(payload)
+        _replace_bytes(destination, payload)
         copied.append(relative.as_posix())
     _rewrite_manifest_files(overlay, install)
     return {

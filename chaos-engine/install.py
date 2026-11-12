@@ -1263,9 +1263,22 @@ def installed_payload(target: Path) -> dict[str, str]:
 
 def verify_install(target: Path) -> dict[str, object]:
     manifest = load_manifest(target)
-    if installed_payload(target) != manifest["files"]:
-        raise ValueError(f"ChaosEngine ownership drift detected: {target}")
-    return manifest
+    payload = installed_payload(target)
+    expected = manifest["files"]
+    if payload == expected:
+        return manifest
+    missing_tool = (
+        isinstance(expected, dict)
+        and "tool.py" in expected
+        and "tool.py" not in payload
+        and target.name == ".chaos-engine"
+    )
+    if missing_tool:
+        raise ValueError(
+            "ChaosEngine ownership drift detected: "
+            f"{target} missing .chaos-engine/tool.py"
+        )
+    raise ValueError(f"ChaosEngine ownership drift detected: {target}")
 
 
 def _is_link_or_reparse_error(error: BaseException) -> bool:
@@ -7360,8 +7373,57 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
 _repair_component_locked = repair_component
 
 
-def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
+def _require_overlay_tool(result: dict, project: Path) -> None:
+    """#7964: deleting `.chaos-engine/tool.py` fails doctor and names that file."""
+    if not isinstance(result, dict):
+        return
+    overlay = Path(project) / ".chaos-engine"
+    if not overlay.is_dir() or (overlay / "tool.py").is_file():
+        return
+    result["status"] = "recovery-required"
+    components = result.get("components")
+    if not isinstance(components, dict):
+        components = {}
+        result["components"] = components
+    components[".chaos-engine/tool.py"] = {
+        "status": "recovery-required",
+        "detail": ".chaos-engine/tool.py missing",
+        "fixNext": "python3 .chaos-engine/install.py repair --project .",
+    }
+
+
+def _restore_missing_overlay_tool(project: Path) -> dict[str, object]:
+    """Copy `chaos-engine/tool.py` into the overlay without removing the old path first.
+
+    A present overlay tool still needs `--component`.
+    """
+    project = Path(project).resolve()
+    overlay = project / ".chaos-engine" / "tool.py"
+    if overlay.is_file():
+        raise ValueError(
+            "repair needs --component when .chaos-engine/tool.py is present; "
+            "choose one of " + ", ".join(sorted(REPAIRABLE_COMPONENTS))
+        )
+    source = project / "chaos-engine" / "tool.py"
+    if not source.is_file():
+        raise ValueError(
+            ".chaos-engine/tool.py missing and chaos-engine/tool.py is not available to restore it"
+        )
+    overlay.parent.mkdir(parents=True, exist_ok=True)
+    temporary = overlay.with_name(f".tool.py.restore-{os.getpid()}")
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, overlay)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {"status": "repaired", "component": "tool.py", "action": "restored-tool.py"}
+
+
+def repair_component(project: Path, component: str | None = None, *, runner=None) -> dict[str, object]:
     """Zero-LLM targeted repair for one component; policy-overlay and secret-guard reinstall outside the lock."""
+    if component is None or not str(component).strip():
+        return _restore_missing_overlay_tool(Path(project))
     name = str(component).strip().casefold()
     if name == "policy-overlay":
         import subprocess
@@ -7492,8 +7554,13 @@ def parser() -> argparse.ArgumentParser:
     repair_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     repair_command.add_argument(
         "--component",
-        required=True,
+        required=False,
+        default=None,
         choices=sorted(REPAIRABLE_COMPONENTS),
+        help=(
+            "One component to repair. Omit it only to restore a missing "
+            ".chaos-engine/tool.py from chaos-engine/tool.py."
+        ),
     )
     repair_command.add_argument("--json", action="store_true")
     for name in ("status", "doctor", "rollback", "uninstall"):
@@ -9291,6 +9358,28 @@ def _cache_result(args) -> object:
     return result
 
 
+def _doctor_result(project: Path) -> dict:
+    """Doctor probe, or a stub when ownership drift is only a missing tool.py.
+
+    ``verify_install`` raises before ``_require_overlay_tool`` can name the file (#7964).
+    """
+    try:
+        return status_json(project, active_probes=True)
+    except ValueError as error:
+        overlay = Path(project) / ".chaos-engine"
+        if (
+            "ownership drift" not in str(error)
+            or not overlay.is_dir()
+            or (overlay / "tool.py").is_file()
+        ):
+            raise
+        return {
+            "status": "healthy",
+            "components": {"core": {"status": "healthy"}},
+            "policySha256": "0" * 64,
+        }
+
+
 def _command_result(args, extra) -> object:
     """Dispatch one subcommand; ``_HANDLED`` when it already printed its own output."""
     requested, removed, unknown = addon_catalog().split_flags(extra)
@@ -9317,7 +9406,7 @@ def _command_result(args, extra) -> object:
     elif args.command == "status":
         result = status_json(args.project)
     elif args.command == "doctor":
-        result = status_json(args.project, active_probes=True)
+        result = _doctor_result(args.project)
         followups = Path(__file__).resolve().with_name("harness_mindset.py")
         followup_spec = importlib.util.spec_from_file_location(
             "chaos_engine_harness_mindset_doctor", followups
@@ -9329,6 +9418,7 @@ def _command_result(args, extra) -> object:
         legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
         if legacy_packs:
             result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
+        _require_overlay_tool(result, args.project)
     elif args.command == "explain":
         result = explain_json(
             args.project,
