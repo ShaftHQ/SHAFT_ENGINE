@@ -96,7 +96,9 @@ def _blob(commands: tuple[str, ...], tool_input: object) -> str:
 def _without_unquoted_comment(text: str) -> str:
     """Drop a # comment through end of line. A hash inside quotes stays.
 
-    A hash starts a comment at index 0 or after space, tab, LF, or CR.
+    A hash starts a comment at index 0 or after space, tab, LF, CR, semicolon,
+    pipe, or ampersand. A single quote always ends. A double quote ends only
+    when the preceding backslash run is even.
     """
     kept: list[str] = []
     quote = ""
@@ -104,10 +106,22 @@ def _without_unquoted_comment(text: str) -> str:
     length = len(text)
     while index < length:
         char = text[index]
-        if quote:
+        if quote == "'":
             kept.append(char)
-            if char == quote:
+            if char == "'":
                 quote = ""
+            index += 1
+            continue
+        if quote == '"':
+            kept.append(char)
+            if char == '"':
+                slashes = 0
+                look = index - 1
+                while look >= 0 and text[look] == "\\":
+                    slashes += 1
+                    look -= 1
+                if slashes % 2 == 0:
+                    quote = ""
             index += 1
             continue
         if char in "'\"":
@@ -115,7 +129,7 @@ def _without_unquoted_comment(text: str) -> str:
             kept.append(char)
             index += 1
             continue
-        if char == "#" and (index == 0 or text[index - 1] in " \t\n\r"):
+        if char == "#" and (index == 0 or text[index - 1] in " \t\n\r;|&"):
             while index < length and text[index] not in "\n\r":
                 index += 1
             continue

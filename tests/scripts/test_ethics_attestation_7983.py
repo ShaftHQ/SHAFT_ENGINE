@@ -264,6 +264,13 @@ class EthicsAttestationTest(unittest.TestCase):
         for command in allowed:
             with self.subTest(command=command):
                 self.assertIsNone(ethics.assessment_block_reason((command,), {}, None))
+        rows = (
+            ('echo "foo\\" # exam/submit"', True),
+            ("git push;#exam/submit", False),
+        )
+        for text, expect in rows:
+            with self.subTest(text=text):
+                self.assertEqual(expect, ethics.matches_assessment(text))
         unclear = {"counterpart": "unclear", "decision": "allow", "live_feed": False}
         reason = ethics.assessment_block_reason(
             ("curl -fsS https://example.test/exam/submit",), {}, None, unclear
