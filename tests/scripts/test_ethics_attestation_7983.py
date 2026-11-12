@@ -167,6 +167,82 @@ class EthicsAttestationTest(unittest.TestCase):
         digest = hashlib.sha256(before).hexdigest()
         self.assertEqual(digest, self.economy.ETHICS_TEXT_SHA256["companions/ethics-card.md"])
 
+    def test_repair_restores_pinned_texts_and_self_modify_cannot_rewrite_them(self):
+        install = load("install_7983_repair", "chaos-engine/install.py")
+        modify = load("self_modify_7983", "chaos-engine/self_modify.py")
+        pinned = {rel: (CE / rel).read_bytes() for rel in self.economy.ETHICS_TEXT_SHA256}
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            package = project / "chaos-engine"
+            overlay = project / ".chaos-engine"
+            owned = {
+                rel: hashlib.sha256(data).hexdigest() for rel, data in pinned.items()
+            }
+            for rel, data in pinned.items():
+                for root in (package, overlay):
+                    dest = root / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(data)
+                (overlay / rel).write_bytes(data + b"\nTAMPER\n")
+            (overlay / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "distribution": {"id": "portable", "policySha256": "0" * 64},
+                        "source": {"commit": "a" * 40, "kind": "local"},
+                        "hostToken": "b" * 64,
+                        "files": owned,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            result = install.repair_component(project, "core")
+            self.assertEqual("restored-ethics-texts", result["action"])
+            self.assertEqual(sorted(owned), sorted(result["restored"]))
+            for rel, data in pinned.items():
+                restored = (overlay / rel).read_bytes()
+                self.assertEqual(data, restored)
+                self.assertEqual(owned[rel], hashlib.sha256(restored).hexdigest())
+            (package / "install.py").write_text("# package marker\n", encoding="utf-8")
+            eval_manifest = project / "eval-manifest.json"
+            eval_manifest.write_text(
+                json.dumps(
+                    {
+                        "tasks": [
+                            {
+                                "id": "reg-self-modify-6518",
+                                "module": "tests.scripts.test_chaos_engine_self_modify_6518",
+                                "set": "regression",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            item = modify.propose(
+                "ethics-note",
+                "a candidate body that is not an ethics file",
+                project=project,
+            )
+            document = modify.load_index(project)
+            document["candidates"][0]["score"] = {"passed": True}
+            modify._save(document, project)
+            applied = modify.apply_candidate(
+                item["id"], project=project, eval_manifest=eval_manifest
+            )
+            self.assertTrue(str(applied["path"]).endswith("/applied/ethics-note.md"))
+            for rel, data in pinned.items():
+                self.assertEqual(data, (package / rel).read_bytes())
+                self.assertEqual(data, (overlay / rel).read_bytes())
+            with self.assertRaises(ValueError):
+                modify._refuse_protected_ethics_rewrite(package / "identity.md", project)
+            with self.assertRaises(ValueError):
+                modify._refuse_protected_ethics_rewrite(
+                    overlay / "companions" / "ethics-card.md", project
+                )
+        for rel, data in pinned.items():
+            self.assertEqual(data, (CE / rel).read_bytes())
+
 
 if __name__ == "__main__":
     unittest.main()

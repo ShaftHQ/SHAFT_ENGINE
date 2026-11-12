@@ -183,6 +183,26 @@ def score_candidate(
     return chosen
 
 
+PROTECTED_ETHICS_TEXTS = (
+    "identity.md",
+    "companions/ethics-card.md",
+    "references/ethical-conduct.md",
+)
+
+
+def _refuse_protected_ethics_rewrite(destination: Path, project: Path | None) -> None:
+    """Applied text stays under state/. Pinned ethics texts are not rewrite targets."""
+    resolved = destination.resolve()
+    root = project_root(project).resolve()
+    protected = [
+        (root / tree / suffix).resolve()
+        for tree in ("chaos-engine", ".chaos-engine")
+        for suffix in PROTECTED_ETHICS_TEXTS
+    ]
+    if resolved in protected:
+        raise ValueError("self-modify cannot rewrite pinned ethics text")
+
+
 def _applied_path(project: Path | None, label: str) -> Path:
     destination = index_path(project).parent / "applied" / f"{label}.md"
     root = index_path(project).parent.resolve()
@@ -223,6 +243,7 @@ def apply_candidate(
         raise ValueError("candidate has no passing suite score")
     _archive_current(document, chosen["label"], project)
     destination = _applied_path(project, chosen["label"])
+    _refuse_protected_ethics_rewrite(destination, project)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(chosen["text"] + "\n", encoding="utf-8")
     chosen["applied"] = True
@@ -235,6 +256,7 @@ def rollback(archive_id: str, *, project: Path | None = None) -> dict[str, Any]:
     chosen = _find(document["archive"], archive_id)
     _archive_current(document, chosen["label"], project)
     destination = _applied_path(project, chosen["label"])
+    _refuse_protected_ethics_rewrite(destination, project)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(chosen["text"] + "\n", encoding="utf-8")
     _save(document, project)

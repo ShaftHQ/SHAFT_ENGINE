@@ -225,7 +225,7 @@ def session_start_context(token: str | None, activation: str, session_id: str = 
         stamp_cards_loaded(session_id)
     parts = [f"ChaosEngine: {activation}"]
     if token:
-        parts.append(f"Reflection session token (never track it): {token}")
+        parts.append(f"Token (never track it): {token}")
     stopped = read_stopped_companions(session_id)
     cards = [
         _locate((card, f".chaos-engine/{card}", f"chaos-engine/{card}"))
@@ -249,19 +249,12 @@ def session_start_context(token: str | None, activation: str, session_id: str = 
         )
         if path is not None:
             parts.append(
-                f"Advisory companion (design/structure): load `{_workspace_locator(path)}` "
-                "for ICM / workspace-structure work."
+                "Advisory companion (design/structure): load "
+                f"`{_workspace_locator(path).removeprefix('chaos-engine/')}`"
             )
     identity = _locate(("identity.md", ".chaos-engine/identity.md", "chaos-engine/identity.md"))
     parts.append(f"Identity: `{identity or '.chaos-engine/identity.md'}`")
-    ethics = _locate(
-        (
-            "companions/ethics-card.md",
-            ".chaos-engine/companions/ethics-card.md",
-            "chaos-engine/companions/ethics-card.md",
-        )
-    )
-    parts.append(f"Ethics: `{ethics or '.chaos-engine/companions/ethics-card.md'}`")
+    parts.append("Ethics: `companions/ethics-card.md`")
     parts.append(f"Token budget: {resolve_token_budget_mode()}")
     rendered = "\n".join(parts)
     with contextlib.suppress(Exception):

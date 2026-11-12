@@ -28,7 +28,7 @@ ASSESSMENT_SHAPES = (
     "proctored-exam",
     "answer-on-your-own",
     "live-answer-feed",
-    "/exam/submit",
+    "exam/submit",
     "quiz/submit",
     "exam-submit",
 )

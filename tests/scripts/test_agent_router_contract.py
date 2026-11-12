@@ -270,6 +270,8 @@ available when the counterpart accepts AI assistance.
 
 `tool.py ethics-check` reads a receipt and does not persist it. The receipt is
 the log: counterpart, decision, and live_feed only. No quiz text.
+
+Checker: [ethics-check](../rules/ethics_check.py). Fixtures: [ethics-attestation-fixtures.json](../evals/ethics-attestation-fixtures.json).
 """
 
     @staticmethod

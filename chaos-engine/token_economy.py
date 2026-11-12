@@ -23,7 +23,7 @@ MISSING = "missing-fresh-install"
 # Pinned after the #7983 texts. Doctor fails when a copy does not match.
 ETHICS_TEXT_SHA256 = {
     "companions/ethics-card.md": "d4978444698a231168f4a13e1933567919965c3ac6bad348e3d02baa14f79cf6",
-    "references/ethical-conduct.md": "f88d324deaa4e02cc5cfb22eca02ecef782a9662f67b1742a0094b6f8b69092f",
+    "references/ethical-conduct.md": "ed67e2d48b93d1d7c1b260c2ca8f26e63f851f64f922443ee815127b29fae1d1",
     "identity.md": "a9b7e86c8eb0a03d01f4e5f32478915b959f42ff53cc62bce6c33b314667b3cc",
 }
 

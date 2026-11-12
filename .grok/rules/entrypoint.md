@@ -60,7 +60,7 @@ Ask only what sources cannot answer. [delivery ledger](../../chaos-engine/refere
 
 ## Implement
 
-Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/references/bot-entry.md)): [Caveman ultra](../../chaos-engine/companions/caveman-ultra.md), [Ponytail ultra](../../chaos-engine/companions/ponytail-ultra.md). Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on explicit invocation. Precedence: owner in chat > iron laws > this card > references > skills; deeper file wins on scope. Exception: person-only attestation outranks owner-in-chat for that class only (do not sit it, do not answer as the user, do not feed answers live).
+Companions at task start via `tool.py entry` ([bot entry](../../chaos-engine/references/bot-entry.md)): [Caveman ultra](../../chaos-engine/companions/caveman-ultra.md), [Ponytail ultra](../../chaos-engine/companions/ponytail-ultra.md). Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on explicit invocation. Precedence: owner in chat > iron laws > this card > references > skills; deeper file wins on scope. Person-only outranks owner-in-chat for that class only.
 
 ## Check and deliver
 
