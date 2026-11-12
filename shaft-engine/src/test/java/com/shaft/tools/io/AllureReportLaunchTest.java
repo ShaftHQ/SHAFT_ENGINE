@@ -226,7 +226,8 @@ public class AllureReportLaunchTest {
     public void anInterruptedWaitForReturnsUnknown() throws Exception {
         Path home = Files.createTempDirectory("fake-jdk-wait");
         Path started = home.resolve("started");
-        writeBlockingFakeJavac(home, started);
+        Path childPid = home.resolve("child.pid");
+        writeBlockingFakeJavac(home, started, childPid);
         int[] major = {Integer.MIN_VALUE};
         boolean[] restored = {false};
         Thread caller = new Thread(() -> {
@@ -237,19 +238,24 @@ public class AllureReportLaunchTest {
         caller.start();
         try {
             long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
-            while (Files.notExists(started)) {
+            while (Files.notExists(started) || Files.notExists(childPid)) {
                 Assert.assertTrue(caller.isAlive(), "probe ended before the sleeper signaled");
                 Assert.assertTrue(System.nanoTime() < deadline, "sleeper did not signal");
                 Thread.sleep(5);
             }
+            long child = Long.parseLong(Files.readString(childPid).trim());
+            Assert.assertTrue(ProcessHandle.of(child).map(ProcessHandle::isAlive).orElse(false),
+                    "sleeper was not alive when interrupted");
             caller.interrupt();
             caller.join(java.time.Duration.ofSeconds(5).toMillis());
             Assert.assertFalse(caller.isAlive(), "probe did not finish after interrupt");
             Assert.assertEquals(major[0], -1);
             Assert.assertTrue(restored[0]);
+            Assert.assertFalse(childStillRunning(child), "child left running after interrupt");
         } finally {
             caller.interrupt();
             caller.join(java.time.Duration.ofSeconds(2).toMillis());
+            destroyRecordedChild(childPid);
         }
     }
 
@@ -351,22 +357,51 @@ public class AllureReportLaunchTest {
      * Windows CreateProcess does not run a batch file stored as {@code javac.exe}.
      * The live probe there is a console image with that name; other systems use a shell script.
      */
-    private static void writeBlockingFakeJavac(Path home, Path started) throws IOException, InterruptedException {
+    private static void writeBlockingFakeJavac(Path home, Path started, Path childPid)
+            throws IOException, InterruptedException {
         Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
         Files.createDirectories(javac.getParent());
         if (windowsOs()) {
-            writeWindowsConsoleExe(javac, "javac 25.0.1", started);
+            writeWindowsConsoleExe(javac, "javac 25.0.1", started, childPid);
         } else {
+            // Keep the pipe open. Closing it lets readAllBytes return, which hides the Windows
+            // failure where the console close does not deliver EOF and the read never throws.
             String signal = started.toAbsolutePath().toString().replace("'", "'\\''");
+            String pid = childPid.toAbsolutePath().toString().replace("'", "'\\''");
             Files.writeString(javac, """
                     #!/bin/sh
                     printf '%%s\\n' 'javac 25.0.1' >&2
-                    exec >/dev/null 2>/dev/null
+                    printf '%%s\\n' "$$" > '%s'
                     touch '%s'
                     sleep 30
-                    """.formatted(signal), StandardCharsets.UTF_8);
+                    """.formatted(pid, signal), StandardCharsets.UTF_8);
         }
         Assert.assertTrue(javac.toFile().setExecutable(true) || windowsOs(), javac.toString());
+    }
+
+    private static boolean childStillRunning(long child) throws InterruptedException {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
+        boolean alive = true;
+        while (System.nanoTime() < deadline) {
+            alive = ProcessHandle.of(child).map(ProcessHandle::isAlive).orElse(false);
+            if (!alive) {
+                return false;
+            }
+            Thread.sleep(20);
+        }
+        return alive;
+    }
+
+    private static void destroyRecordedChild(Path childPid) {
+        if (Files.notExists(childPid)) {
+            return;
+        }
+        try {
+            long child = Long.parseLong(Files.readString(childPid).trim());
+            ProcessHandle.of(child).ifPresent(ProcessHandle::destroyForcibly);
+        } catch (IOException | NumberFormatException exception) {
+            // Best-effort cleanup so a failed probe does not leave the sleeper behind.
+        }
     }
 
     private static void writeFakeJavac(Path home, String versionLine, boolean executable)
@@ -374,7 +409,7 @@ public class AllureReportLaunchTest {
         Path javac = home.resolve(windowsOs() ? "bin/javac.exe" : "bin/javac");
         Files.createDirectories(javac.getParent());
         if (windowsOs()) {
-            writeWindowsConsoleExe(javac, versionLine, null);
+            writeWindowsConsoleExe(javac, versionLine, null, null);
         } else {
             Files.writeString(javac, "#!/bin/sh\nprintf '%s\\n' '" + versionLine + "' 1>&2\n",
                     StandardCharsets.UTF_8);
@@ -385,20 +420,27 @@ public class AllureReportLaunchTest {
         }
     }
 
-    private static void writeWindowsConsoleExe(Path exe, String versionLine, Path started)
+    private static void writeWindowsConsoleExe(Path exe, String versionLine, Path started, Path childPid)
             throws IOException, InterruptedException {
         Path source = exe.resolveSibling("FakeJavac.cs");
         String afterWrite = "";
         if (started != null) {
             String signal = started.toAbsolutePath().toString().replace("\\", "\\\\").replace("\"", "\\\"");
+            String pidStatement = "";
+            if (childPid != null) {
+                String pid = childPid.toAbsolutePath().toString().replace("\\", "\\\\").replace("\"", "\\\"");
+                pidStatement = "System.IO.File.WriteAllText(\"" + pid
+                        + "\", System.Diagnostics.Process.GetCurrentProcess().Id.ToString());";
+            }
             afterWrite = """
                         System.Console.Out.Flush();
                         System.Console.Error.Flush();
                         System.Console.OpenStandardOutput().Close();
                         System.Console.OpenStandardError().Close();
+                        %s
                         System.IO.File.WriteAllText("%s", "started");
                         System.Threading.Thread.Sleep(30000);
-                    """.formatted(signal);
+                    """.formatted(pidStatement, signal);
         }
         String program = """
                 public class FakeJavac {
