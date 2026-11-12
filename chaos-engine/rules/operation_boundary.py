@@ -552,14 +552,13 @@ def _collapsed_force(command: str) -> bool:
     """True when one collapsed statement still contains a force push.
 
     A newline is not a separator once there is no ``;`` or ``&&``.
-    The literal approval command is not a push.
+    A hash ends its own line, so a later line is still a push.
+    Only a one-line approval command is left out.
     """
+    if "\n" not in (command or "") and "\r" not in (command or "") and _is_approve_invocation(command):
+        return False
     text = _normalized(command)
-    segments = [
-        part
-        for part in _shell_statements(text)
-        if _PUSH.search(part) and not _is_approve_invocation(part)
-    ]
+    segments = [part for part in _shell_statements(text) if _PUSH.search(part)]
     return any(_FORCE.search(part) for part in segments)
 
 
