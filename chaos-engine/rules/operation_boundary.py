@@ -26,6 +26,21 @@ _REMOTE_ADD = re.compile(r"\bgit\s+remote\s+add\b")
 _DELETE = re.compile(r"\b(?:delete|cleanup)\b", re.I)
 _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.I)
 _PUSH = re.compile(r"\bgit\s+push\b")
+_FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
+_ASSIGN = re.compile(
+    r"^(?:(?:builtin|command)(?:\s+(?:--|\-\S+))*\s+)*(?:set\s+--(?=\s|$)|"
+    r"(?:(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+)?"
+    r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
+)
+_BURIED_ASSIGN = re.compile(
+    r"(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+"
+    r"[A-Za-z_][A-Za-z0-9_]*\+?="
+    r"|printf\s+-v\s+[A-Za-z_][A-Za-z0-9_]*\b"
+)
+_APPROVE_ONLY = re.compile(
+    r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
+)
+_UNSAFE_ARG = re.compile(r"[$`\\;&|<>\n\r()]")
 
 
 def _load(path: Path, name: str) -> Any:
@@ -117,18 +132,479 @@ def _shell_statements(command: str) -> list[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
-def force_push_block(root: Path, command: str) -> str | None:
+def _strip_unquoted_comment(part: str) -> str:
+    """Drop a bash comment. A hash starts one only at the beginning of a word."""
+    quote = ""
+    out: list[str] = []
+    for index, char in enumerate(part):
+        if quote:
+            out.append(char)
+            if char == quote and part[index - 1] != "\\":
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            out.append(char)
+            continue
+        if char == "#" and (index == 0 or part[index - 1] in " \t"):
+            break
+        out.append(char)
+    return "".join(out).strip()
+
+
+def _hash_starts_comment(part: str, index: int) -> bool:
+    """A hash starts a comment only at the beginning of a word."""
+    if part[index] != "#":
+        return False
+    return index == 0 or part[index - 1] in " \t\n\r"
+
+
+def _escaped(text: str, index: int) -> bool:
+    """True when an odd run of backslashes precedes index."""
+    count = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        count += 1
+        cursor -= 1
+    return count % 2 == 1
+
+
+def _skip_line_body(part: str, index: int, delim: str) -> int:
+    """Index after the here-document body that starts at index."""
+    line: list[str] = []
+    while index < len(part):
+        char = part[index]
+        index += 1
+        if char == "\r" and index < len(part) and part[index] == "\n":
+            index += 1
+            char = "\n"
+        if char in "\n\r":
+            if "".join(line) == delim:
+                return index
+            line = []
+            continue
+        line.append(char)
+    return index
+
+
+def _comment_is_open(part: str) -> bool:
+    """True when a word-starting hash is still open on the current line."""
+    quote = ""
+    ticks = False
+    comment = False
+    index = 0
+    while index < len(part):
+        char = part[index]
+        if comment:
+            if char in "\n\r":
+                comment = False
+            index += 1
+            continue
+        if ticks:
+            if char == "`" and not _escaped(part, index):
+                ticks = False
+            index += 1
+            continue
+        if quote:
+            if char == quote and part[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        ended = _advance_past_heredoc(part, index)
+        if ended is not None:
+            index = ended
+            continue
+        if part.startswith("${", index):
+            index = _matching_brace(part, index)
+            continue
+        if part.startswith("$'", index):
+            quote = "'"
+            index += 2
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if char == "`" and not _escaped(part, index):
+            ticks = True
+            index += 1
+            continue
+        if _hash_starts_comment(part, index):
+            comment = True
+        index += 1
+    return comment
+
+
+def _heredoc_delimiter(text: str, index: int) -> tuple[str, int] | None:
+    """Return the delimiter and the index after ``<<word`` when one starts here."""
+    if not text.startswith("<<", index):
+        return None
+    cursor = index + 2
+    if cursor < len(text) and text[cursor] == "-":
+        cursor += 1
+    while cursor < len(text) and text[cursor] in " \t":
+        cursor += 1
+    if cursor >= len(text) or text[cursor] in "\n\r;&|<>()":
+        return None
+    if text[cursor] in {"'", '"'}:
+        mark = text[cursor]
+        cursor += 1
+        start = cursor
+        while cursor < len(text) and text[cursor] != mark:
+            cursor += 1
+        delim = text[start:cursor]
+        if cursor < len(text):
+            cursor += 1
+        return delim, cursor
+    start = cursor
+    while cursor < len(text) and text[cursor] not in " \t\n\r;&|<>()":
+        cursor += 2 if text[cursor] == "\\" and cursor + 1 < len(text) else 1
+    delim = text[start:cursor].replace("\\", "")
+    if not delim:
+        return None
+    return delim, cursor
+
+
+def _advance_past_heredoc(text: str, index: int) -> int | None:
+    """Index after a here-document that starts at index, else None."""
+    found = _heredoc_delimiter(text, index)
+    if found is None:
+        return None
+    delim, cursor = found
+    while cursor < len(text) and text[cursor] not in "\n\r":
+        cursor += 1
+    if cursor < len(text):
+        cursor += 1 + (
+            text[cursor] == "\r"
+            and cursor + 1 < len(text)
+            and text[cursor + 1] == "\n"
+        )
+    return _skip_line_body(text, cursor, delim)
+
+
+def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
+    """Append one here-document body. ``index`` is the first body character."""
+    line: list[str] = []
+    while index < len(text):
+        char = text[index]
+        buf.append(char)
+        index += 1
+        if char == "\r" and index < len(text) and text[index] == "\n":
+            buf.append("\n")
+            index += 1
+            char = "\n"
+        if char in "\n\r":
+            if "".join(line) == delim:
+                return index
+            line = []
+            continue
+        line.append(char)
+    return index
+
+
+def _matching_brace(text: str, index: int) -> int:
+    """Index after the ``${...}`` that starts at ``index``. Unclosed runs to the end."""
+    return _scan_braces(text, index + 1)
+
+
+def _scan_braces(text: str, open_brace: int) -> int:
+    """``open_brace`` points at ``{``. Return the index after the matching ``}``."""
+    depth = 1
+    parens = 0
+    quote = ""
+    cursor = open_brace + 1
+    while cursor < len(text):
+        char = text[cursor]
+        if quote:
+            if char == quote and text[cursor - 1] != "\\":
+                quote = ""
+            cursor += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            cursor += 1
+            continue
+        ended = _advance_past_heredoc(text, cursor)
+        if ended is not None:
+            cursor = ended
+            continue
+        if (
+            text.startswith("$(", cursor)
+            or text.startswith("<(", cursor)
+            or text.startswith(">(", cursor)
+        ):
+            parens += 1
+            cursor += 2
+            continue
+        if char == "(":
+            parens += 1
+            cursor += 1
+            continue
+        if char == ")" and parens:
+            parens -= 1
+            cursor += 1
+            continue
+        if parens == 0 and (text.startswith("${", cursor) or char == "{"):
+            depth += 1
+            cursor += 2 if text.startswith("${", cursor) else 1
+            continue
+        if parens == 0 and char == "}" and depth:
+            depth -= 1
+            cursor += 1
+            if depth == 0:
+                return cursor
+            continue
+        cursor += 1
+    return cursor
+
+
+def _continued_dollar(text: str, index: int) -> tuple[str, int, int] | None:
+    """Join a backslash-newline between ``$`` and ``{`` or ``(``.
+
+    Returns the text to append, the next index, and how much nesting opened.
+    """
+    if index >= len(text) or text[index] != "$":
+        return None
+    cursor = index + 1
+    joined = False
+    while cursor < len(text) and (
+        text.startswith("\\\n", cursor) or text.startswith("\\\r\n", cursor)
+    ):
+        cursor += 3 if text.startswith("\\\r\n", cursor) else 2
+        joined = True
+    if not joined or cursor >= len(text):
+        return None
+    if text[cursor] == "{":
+        end = _scan_braces(text, cursor)
+        return "$" + text[cursor:end], end, 0
+    if text[cursor] == "(":
+        return "$(", cursor + 1, 1
+    return None
+
+
+def _keep_assignment_flag(text: str, index: int, step: int, buf: list[str]) -> None:
+    """Keep a continued ``+ref`` or short flag visible after ``name=``."""
+    nxt = index + step
+    if buf and buf[-1] == "=" and nxt < len(text) and text[nxt] in "+-":
+        buf.append(" ")
+
+
+def _fold_command_syntax(
+    text: str,
+    index: int,
+    buf: list[str],
+    pieces: list[str],
+    pending: list[str],
+    quote: str,
+    ticks: bool,
+    depth: int,
+) -> int | None:
+    """Advance past a continuation or here-doc. None means take this character."""
+    if ticks or quote == "'":
+        return None
+    if text.startswith("\\\r\n", index) or text.startswith("\\\n", index):
+        step = 3 if text.startswith("\\\r\n", index) else 2
+        if _comment_is_open("".join(buf)):
+            if depth == 0:
+                pieces.append("".join(buf))
+                buf.clear()
+            else:
+                buf.append("\n")
+        else:
+            _keep_assignment_flag(text, index, step, buf)
+        return index + step
+    if quote:
+        return None
+    if text[index] == "#" and (not buf or buf[-1] in " \t"):
+        end = index
+        while end < len(text) and text[end] not in "\n\r":
+            end += 1
+        buf.append(text[index:end])
+        return end
+    if text.startswith("${", index):
+        end = _matching_brace(text, index)
+        buf.append(text[index:end])
+        return end
+    found = _heredoc_delimiter(text, index)
+    if found is not None:
+        delim, end = found
+        buf.append(text[index:end])
+        pending.append(delim)
+        return end
+    if pending and text[index] in "\n\r":
+        buf.append(text[index])
+        index += 1
+        if text[index - 1] == "\r" and index < len(text) and text[index] == "\n":
+            buf.append("\n")
+            index += 1
+        while pending:
+            index = _consume_heredoc(text, index, pending.pop(0), buf)
+        if depth == 0:
+            pieces.append("".join(buf))
+            buf.clear()
+        return index
+    return None
+
+
+def _is_approve_invocation(part: str) -> bool:
+    """True only for a literal approval command. Shell syntax still runs a push."""
+    code = _strip_unquoted_comment(part).strip()
+    if _APPROVE_ONLY.match(code) is None:
+        return False
+    marker = code.find(" -- ")
+    if marker < 0:
+        return False
+    return _UNSAFE_ARG.search(code[marker + 4 :]) is None
+
+
+def _command_pieces(command: str) -> list[str]:
+    """One shell statement per piece.
+
+    A backslash-newline is removed, except inside a comment, where the next
+    line is a new command. A newline inside quotes, ``$(...)``, backticks,
+    parentheses, or a here-document stays in that command.
+    """
+    text = command or ""
+    pieces: list[str] = []
+    buf: list[str] = []
+    pending: list[str] = []
+    quote = ""
+    depth = 0
+    ticks = False
+    index = 0
+    while index < len(text):
+        continued = None if ticks or quote == "'" else _continued_dollar(text, index)
+        if continued is not None:
+            chunk, index, opened = continued
+            buf.append(chunk)
+            depth += opened
+            continue
+        folded = _fold_command_syntax(text, index, buf, pieces, pending, quote, ticks, depth)
+        if folded is not None:
+            index = folded
+            continue
+        char = text[index]
+        if ticks:
+            buf.append(char)
+            if char == "`" and not _escaped(text, index):
+                ticks = False
+            index += 1
+            continue
+        if quote:
+            buf.append(char)
+            if char == quote and text[index - 1] != "\\":
+                quote = ""
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            buf.append(char)
+            index += 1
+            continue
+        if char == "`":
+            ticks = True
+            buf.append(char)
+            index += 1
+            continue
+        if (
+            text.startswith("$(", index)
+            or text.startswith("<(", index)
+            or text.startswith(">(", index)
+        ):
+            depth += 1
+            buf.append(text[index : index + 2])
+            index += 2
+            continue
+        if char == "(":
+            depth += 1
+            buf.append(char)
+            index += 1
+            continue
+        if char == ")" and depth:
+            depth -= 1
+            buf.append(char)
+            index += 1
+            continue
+        if char in {"\n", "\r"} and depth == 0:
+            pieces.append("".join(buf))
+            buf = []
+            index += 1
+            continue
+        buf.append(char)
+        index += 1
+    pieces.append("".join(buf))
+    statements: list[str] = []
+    for piece in pieces:
+        statements.extend(_shell_statements(piece))
+    return statements
+
+
+def _approval_root(root: Path) -> Path:
+    """Git toplevel, so a subdirectory tool call sees the recorded approval."""
+    current = Path(root)
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return current
+
+
+def _collapsed_force(command: str) -> bool:
+    """True when one collapsed statement still contains a force push.
+
+    A newline is not a separator once there is no ``;`` or ``&&``.
+    A hash ends its own line, so a later line is still a push.
+    Only a one-line approval command is left out.
+    """
+    if "\n" not in (command or "") and "\r" not in (command or "") and _is_approve_invocation(command):
+        return False
     text = _normalized(command)
     segments = [part for part in _shell_statements(text) if _PUSH.search(part)]
-    if not any(_FORCE.search(part) for part in segments):
+    return any(_FORCE.search(part) for part in segments)
+
+
+def force_push_block(root: Path, command: str) -> str | None:
+    text = _normalized(command)
+    pieces = _command_pieces(command or "")
+    segments = [
+        part
+        for part in pieces
+        if _PUSH.search(part) and not _is_approve_invocation(part)
+    ]
+    borrowed = any(re.search(r"[`$]", part) for part in segments) and any(
+        (
+            _ASSIGN.match(part.strip()) is not None
+            or _BURIED_ASSIGN.search(part) is not None
+        )
+        and _FORCE.search(part) is not None
+        for part in pieces
+    )
+    if (
+        not any(_FORCE.search(part) for part in segments)
+        and not (segments and _FORCE_WORD.search(text))
+        and not borrowed
+        and not _collapsed_force(command)
+    ):
         return None
-    path = Path(root) / ".chaos-engine-state" / "force-push-approval.txt"
-    recorded: set[str] = set()
+    path = _approval_root(root) / ".chaos-engine-state" / "force-push-approval.txt"
+    recorded: list[str] = []
     if path.is_file():
-        recorded = {line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()}
-    if text not in recorded:
-        return "force-push-without-approval"
-    return None
+        recorded = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if text in recorded:
+        recorded.remove(text)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("".join(f"{line}\n" for line in recorded), encoding="utf-8")
+        return None
+    return "force-push-without-approval"
+
+
+def force_push_hint(command: str) -> str:
+    """User-facing approval step. The denial token itself stays exact."""
+    text = _normalized(command)
+    lease = re.search(r"--force-with-lease=\S+:[0-9a-fA-F]{7,}", text) is not None
+    form = "--force-with-lease=<ref>:<sha>" if lease else "bare --force"
+    return (
+        f"{form}. Ask the user to run `python3 .chaos-engine/tool.py force-push-approve -- {text}`"
+    )
 
 
 def private_remote_block(root: Path, command: str) -> str | None:
@@ -216,13 +692,24 @@ def observe_commands(root: Path, commands: list[str] | tuple[str, ...], *, faile
     return None
 
 
-def output_secret_block(result: object) -> str | None:
+def output_secret_block(result: object, root: Path | None = None) -> str | None:
     """Scan tool stdout/stderr/output. The command string is not this evidence."""
     if not isinstance(result, dict):
         return None
     text = "\n".join(str(result.get(key) or "") for key in ("stdout", "stderr", "output"))
     hits = secret_failures(text, kind="output") if text.strip() else []
-    return hits[0] if hits else None
+    if root is not None and text.strip() and not hits:
+        guard = _load(Path(__file__).resolve().parents[1] / "secret_guard.py", "ce_boundary_secret_guard")
+        names = [part.strip() for part in str(guard.DEFAULT_GUARDED_FILES).split(",") if part.strip()]
+        encoded = text.encode("utf-8", errors="ignore")
+        for value in guard.secret_values(Path(root), names):
+            if value and value in encoded:
+                hits.append("secret-in-output")
+                break
+    if not hits:
+        return None
+    code = result.get("exit_code", result.get("exitCode", 0))
+    return f"{hits[0]}; output withheld; the command already finished with exit code {code}"
 
 
 def _git(root: Path, args: list[str]):

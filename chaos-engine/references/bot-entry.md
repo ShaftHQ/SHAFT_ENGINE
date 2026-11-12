@@ -151,8 +151,9 @@ check. A pull request has no retry cap until merged or a true external blocker.
 [SPEC](ce-repeat-failure-pdca-SPEC.md) ·
 [guides](../guides/ce-repeat-failure-pdca-SPEC.md).
 Push, remotes, deletes, and secret-bearing output use the
-[operation boundary](../rules/operation_boundary.py). The Windows `py -3`
-launcher is [windows_py_shim.py](../windows_py_shim.py).
+[operation boundary](../rules/operation_boundary.py). One force-push approval
+is recorded by [force_push_approve.py](../force_push_approve.py). The Windows
+`py -3` launcher is [windows_py_shim.py](../windows_py_shim.py).
 
 ## Delivery ledger
 

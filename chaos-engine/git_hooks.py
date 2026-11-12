@@ -189,7 +189,7 @@ def guard_health(project: Path) -> tuple[str, str]:
         return "pass", "not installed"
     target = _absolute(project, current)
     if target.name != HOOKS_DIRECTORY:
-        return "pass", "not installed"
+        return "fail", f"not live {current}"
     guard = target / "secret_guard.py"
     try:
         compile(guard.read_text(encoding="utf-8"), str(guard), "exec")

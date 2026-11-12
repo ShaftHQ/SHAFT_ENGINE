@@ -140,6 +140,7 @@ REPAIRABLE_COMPONENTS = frozenset({
     "roles",
     "tools",
     "maven-tools-mcp",
+    "secret-guard",
 })
 # Doctor component keys that are not argparse repair choices (#2026.10.31.4).
 DOCTOR_CHECK_REPAIR_MAP = {
@@ -5285,6 +5286,19 @@ def _install_secret_guard(project: Path, target: Path) -> dict[str, object] | No
         sys.dont_write_bytecode = previous
 
 
+def _repair_secret_guard(project: Path) -> dict[str, object]:
+    """Point core.hooksPath at the generated directory, chaining the previous path."""
+    hooks = Path(__file__).resolve().with_name("git_hooks.py")
+    guard = Path(__file__).resolve().with_name("secret_guard.py")
+    spec = importlib.util.spec_from_file_location("ce_git_hooks_repair", hooks)
+    if spec is None or spec.loader is None:
+        return {"status": "failed", "component": "secret-guard", "reason": "git_hooks.py missing"}
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = module.install_secret_guard(Path(project), guard)
+    return {"status": "repaired", "component": "secret-guard", "action": "hooks-path", "guard": result}
+
+
 class _NoSecretGuard(argparse.Action):
     """``--no-secret-guard``: the same switch as ``CHAOS_ENGINE_SECRET_GUARD=0``."""
 
@@ -7347,11 +7361,14 @@ _repair_component_locked = repair_component
 
 
 def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
-    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
-    if str(component).strip().casefold() == "policy-overlay":
+    """Zero-LLM targeted repair for one component; policy-overlay and secret-guard reinstall outside the lock."""
+    name = str(component).strip().casefold()
+    if name == "policy-overlay":
         import subprocess
 
         return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
+    if name == "secret-guard":
+        return _repair_secret_guard(Path(project).resolve())
     return _repair_component_locked(project, component, runner=runner)
 
 
@@ -8475,14 +8492,16 @@ def format_agent_summary(document: dict[str, object]) -> str:
             "delete-guard: " + " ".join(delete_guard_status()),
             "backup-remote: " + " ".join(backup_remote_advisory(project)),
             "backups-watch: " + " ".join(backups_watch_advisory()),
-            "secret-guard: " + " ".join(secret_guard_status(project)),
+            _format_secret_guard_line(project),
             "remote-credential: " + " ".join(remote_credential_status(project)),
             "git-husk: " + " ".join(git_husk_status(project)),
         ]
     )
+    lines.extend(_eol_doctor_lines(project))
     if (
         delete_guard_status()[0] != "pass"
-        or any(line.startswith("secret-guard: fail") for line in lines)
+        or any(line.startswith("secret-guard: fail") or line.startswith("secret-guard: not live") for line in lines)
+        or _harness_porcelain_dirty(project)
         or any(line.startswith("remote-credential: fail") for line in lines)
         or any(line.startswith("git-husk: fail") for line in lines)
     ):
@@ -8564,6 +8583,52 @@ def remote_credential_status(project: Path | None, root: Path | None = None) -> 
     except Exception as error:  # nosec B110 - doctor reports, never crashes
         return ("fail", f"({type(error).__name__})")
     return (status,) if not reason else (status, f"({reason})")
+
+
+def _format_secret_guard_line(project: Path | None) -> str:
+    """`secret-guard: not live <hooksPath>` when the generated directory is not wired."""
+    parts = secret_guard_status(project)
+    text = " ".join(parts)
+    if "not live" in text:
+        current = text.split("not live", 1)[-1].strip(" ()")
+        return f"secret-guard: not live {current}".rstrip()
+    return "secret-guard: " + text
+
+
+def _eol_doctor_lines(project: Path | None) -> list[str]:
+    if project is None:
+        return []
+    attributes = Path(project) / ".gitattributes"
+    try:
+        text = attributes.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return []
+    if "# CHAOSENGINE-EOL:START" not in text:
+        return []
+    proc = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
+        ["git", "-C", str(project), "config", "--get", "core.autocrlf"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if (proc.stdout or "").strip().lower() != "true":
+        return []
+    return ["core.autocrlf=true"]
+
+
+def _harness_porcelain_dirty(project: Path | None) -> bool:
+    """True when an untracked `.grok/rules/` file is still unclassified."""
+    if project is None:
+        return False
+    proc = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
+        ["git", "-C", str(project), "status", "--porcelain", "--", ".grok/rules"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return False
+    return any(line.startswith("??") for line in proc.stdout.splitlines())
 
 
 def secret_guard_status(project: Path | None, root: Path | None = None) -> tuple[str, ...]:

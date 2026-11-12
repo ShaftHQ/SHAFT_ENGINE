@@ -466,12 +466,56 @@ def allow_listed(path: Path, project: Path | None = None) -> bool:
     return any(_pattern_regex(pattern).match(text) for pattern in _patterns(project))
 
 
-def _git_reason(path: Path, top: Path) -> str:
+def _blob_bytes(top: Path, rev: str, relative: str) -> bytes | None:
+    proc = subprocess.run(  # nosec B603 B607 - fixed git show of one rev
+        ["git", "-C", str(top), "show", f"{rev}:{relative}"],
+        capture_output=True,
+        check=False,
+        timeout=30,
+        env=_git_subprocess_env(),
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout
+
+
+def _bytes_match_rev(path: Path, top: Path, rev: str) -> bool:
+    try:
+        relative = path.resolve().relative_to(top.resolve()).as_posix()
+        data = path.read_bytes()
+    except (OSError, ValueError):
+        return False
+    blob = _blob_bytes(top, rev, relative)
+    return blob is not None and blob == data
+
+
+def _remote_default_rev(top: Path) -> str | None:
+    """Remote default from ``refs/remotes/origin/HEAD``. No hard-coded branch name."""
+    proc = _git(top, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if proc.returncode != 0:
+        return None
+    ref = proc.stdout.strip()
+    return ref or None
+
+
+def _recreatable_untracked(path: Path, top: Path, rev: str | None) -> bool:
+    revs = ["HEAD"]
+    if rev and rev not in revs:
+        revs.append(rev)
+    remote = _remote_default_rev(top)
+    if remote and remote not in revs:
+        revs.append(remote)
+    return any(_bytes_match_rev(path, top, item) for item in revs)
+
+
+def _git_reason(path: Path, top: Path, rev: str | None = None) -> str:
     status = _git(top, "status", "--porcelain", "--ignored", "--untracked-files=all", "--", str(path))
     if status.returncode != 0:
         return "git status failed"
     dirty = [line for line in status.stdout.splitlines() if line.strip()]
     if dirty:
+        if all(line.startswith("??") for line in dirty) and _recreatable_untracked(path, top, rev):
+            return ""
         return f"{len(dirty)} untracked/modified/ignored file(s), e.g. {dirty[0][3:]}"
     if _git(top, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
         return "branch has no upstream (nothing pushed)"
@@ -1523,7 +1567,7 @@ def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool
     return False
 
 
-def path_reason(path: Path, project: Path | None = None) -> str:
+def path_reason(path: Path, project: Path | None = None, rev: str | None = None) -> str:
     """
     Empty string when deleting ``path`` loses nothing; else the refusal reason.
 
@@ -1547,7 +1591,7 @@ def path_reason(path: Path, project: Path | None = None) -> str:
     top = _git(probe, "rev-parse", "--show-toplevel")
     if top.returncode != 0:
         return "outside git and not on the delete allow-list"
-    return _git_reason(path, Path(top.stdout.strip()).resolve())
+    return _git_reason(path, Path(top.stdout.strip()).resolve(), rev)
 
 
 def _ack_store() -> Path:
@@ -1952,6 +1996,26 @@ def consume_code(code: str, paths: list[Path]) -> str:
     return ""
 
 
+def _checkout_rev(command: str) -> str | None:
+    """Rev named by ``git switch`` or ``git checkout``.
+
+    ``switch -c <name> <start>`` and ``checkout -b <name> <start>`` keep the
+    start point. A new branch name does not hold the bytes being recreated.
+    """
+    match = re.search(
+        r"\bgit\s+(?:switch|checkout)\s+(?:-\S+\s+)*(\S+)(?:\s+(\S+))?",
+        command or "",
+    )
+    if match is None:
+        return None
+    first, second = match.group(1), match.group(2)
+    if first.startswith("-"):
+        return None
+    if second and not second.startswith("-"):
+        return second
+    return first
+
+
 def check(command: str, cwd: Path | None = None, project: Path | None = None, code: str | None = None) -> tuple[str, list[str]]:
     """(refusal or '', warnings). A matching owner code turns git/allow-list refusals into warnings."""
     if not (DELETE_WORD.search(command) or RMTREE.search(command) or PATHLIB_DELETE.search(command)):
@@ -1964,7 +2028,8 @@ def check(command: str, cwd: Path | None = None, project: Path | None = None, co
         hit = never_touch(target)
         if hit:
             return f"Delete guard (#7343): refused `{target}`: {hit}. No code unlocks it.", []
-    reasons = [(target, reason) for target in targets for reason in [path_reason(target, project)] if reason]
+    rev = _checkout_rev(command)
+    reasons = [(target, reason) for target in targets for reason in [path_reason(target, project, rev)] if reason]
     if not reasons:
         return "", []
     code = code if code is not None else os.environ.get(ACK_ENV, "")
@@ -2122,10 +2187,14 @@ def main(arguments: list[str]) -> int:
         return 2
     if reason:
         print(reason, file=sys.stderr)
+        print("code required: yes", file=sys.stderr)
+        literal = " ".join(arguments)
+        print(f"next: tool.py delete-check --request-code {literal}", file=sys.stderr)
         return 1
     for warning in warnings:
         print(f"delete-check: warning: {warning}", file=sys.stderr)
     print("delete-check: allowed")
+    print("code required: no")
     return 0
 
 

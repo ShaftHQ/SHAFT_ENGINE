@@ -30,7 +30,21 @@ def _load_sibling(name: str):
 _SECRET = re.compile(
     r"\b(?:ghp_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{8,})\b"
 )
-_PASSWORD = re.compile(r"\bpassword\s*[:=]\s*\S+", re.I)
+_PASSWORD = re.compile(r"\b(?:password|token)\s*[:=]\s*(\S+)", re.I)
+_PLACEHOLDER_VALUE = re.compile(
+    r"^(?:#.*|//.*|\$(?:\{[^}]*\}|\w+)|<[^>]*>|changeme|placeholder|todo|\*+|x{3,}|your_token|['\"]+)$",
+    re.I,
+)
+_JWT = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
+
+
+def _password_hit(text: str) -> bool:
+    """True for a real assignment value. Comments, env refs, and placeholders are not."""
+    for match in _PASSWORD.finditer(text or ""):
+        if _PLACEHOLDER_VALUE.match(match.group(1)):
+            continue
+        return True
+    return False
 _RETRIEVE = re.compile(
     r"retrieve:\s*(?:used|skipped\([^)\n]+\)|exempt\([^)\n]+\))",
     re.I,
@@ -294,9 +308,9 @@ def evaluate_cover_letter(
 # ----- secrets, force-push, relayed delete, private remotes -----
 def evaluate_secrets_text(text: str, *, kind: str = "lessons") -> dict[str, Any]:
     hits: list[str] = []
-    if _SECRET.search(text or ""):
+    if _SECRET.search(text or "") or _JWT.search(text or ""):
         hits.append(f"secret-in-{kind}")
-    if _PASSWORD.search(text or ""):
+    if _password_hit(text or ""):
         hits.append(f"password-in-{kind}")
     return _result(hits, "secrets gate failed")
 
