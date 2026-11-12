@@ -803,6 +803,7 @@ SCRIPT_TOOLS = {
     "output-resume": "tool_output_store.py",
     "output-stats": "tool_output_store.py",
     "output-purge": "tool_output_store.py",
+    "ethics-check": "rules/ethics_check.py",
 }
 
 
@@ -821,6 +822,92 @@ def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
     return int(module["main"](arguments))
 
 
+def _dispatch_core(installed_root: Path, tool: str, arguments: list[str]) -> int | None:
+    if tool == "entry":
+        phrase = " ".join(arg for arg in arguments if arg != "--full")
+        print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
+        return 0
+    if tool == "maintain":
+        return maintain(installed_root)
+    if tool == "siblings":
+        if not arguments:
+            print("usage: tool.py siblings nightly-failure:<workflow>", file=sys.stderr)
+            return 2
+        mindset = runpy.run_path(str(installed_root / "harness_mindset.py"))
+        signature = arguments[0]
+        print(mindset["sibling_tracker_query"](signature))
+        rows = mindset["sibling_trackers"](signature)
+        if rows:
+            import json
+
+            print(json.dumps(rows, sort_keys=True))
+        return 0
+    if tool in SCRIPT_TOOLS:
+        return script_tool(installed_root, tool, arguments)
+    if tool == "stores":
+        return stores_command(installed_root, arguments)
+    if tool == "retrieve":
+        path = installed_root / "retrieve.py"
+        if not path.is_file():
+            print("retrieve.py missing from installed core", file=sys.stderr)
+            return 1
+        # Re-exec as retrieve CLI (argv[0] style via runpy is awkward; call main).
+        spec_mod = runpy.run_path(str(path), run_name="_chaos_engine_retrieve")
+        return int(spec_mod["main"](arguments))
+    return None
+
+
+def _dispatch_process(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    if tool == "mempalace-mcp":
+        arguments = mempalace_mcp_arguments(installed_root, arguments)
+    if tool == "maven-tools-mcp":
+        command = resolve_maven_tools_command(installed_root)
+        environment = quiet_environment(os.environ.copy())
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        return subprocess.call(  # nosec B603
+            [*command, *arguments],
+            env=environment,
+            cwd=shared_project_root(installed_root.resolve().parent),
+        )
+    command = resolve_command(installed_root, tool, arguments)
+    environment = quiet_environment(os.environ.copy())
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    invocation = (
+        command
+        if isinstance(command, list)
+        else [str(command), *arguments]  # Compatibility for injected legacy tests.
+    )
+    project = shared_project_root(installed_root.resolve().parent)
+    invocation = bind_store_invocation(tool, invocation, project, installed_root)
+    if tool in _CAPTURE_STORES:
+        completed = subprocess.run(  # nosec B603
+            invocation,
+            env=environment,
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sys.stdout.write(completed.stdout)
+        sys.stderr.write(completed.stderr)
+        if completed.returncode == 0:
+            try:
+                _record_store_output(
+                    installed_root,
+                    tool,
+                    completed.stdout + "\n" + completed.stderr,
+                )
+            except (OSError, RuntimeError, ValueError):
+                # The store text already printed. A ledger write must not hide it.
+                pass
+        return completed.returncode
+    return subprocess.call(  # nosec B603
+        invocation,
+        env=environment,
+        cwd=project,
+    )
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
@@ -831,94 +918,10 @@ def main() -> int:
         return 0
     try:
         installed_root = Path(__file__).resolve().parent
-        tool = sys.argv[1]
-        arguments = sys.argv[2:]
-        if tool == "entry":
-            phrase = " ".join(arg for arg in arguments if arg != "--full")
-            print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
-            return 0
-        if tool == "ethics-check":
-            path = installed_root / "rules" / "ethics_check.py"
-            if not path.is_file():
-                print("rules/ethics_check.py missing from installed core", file=sys.stderr)
-                return 1
-            module = runpy.run_path(str(path), run_name="_chaos_engine_ethics_check")
-            return int(module["main"](arguments))
-        if tool == "maintain":
-            return maintain(installed_root)
-        if tool == "siblings":
-            if not arguments:
-                print("usage: tool.py siblings nightly-failure:<workflow>", file=sys.stderr)
-                return 2
-            mindset = runpy.run_path(str(installed_root / "harness_mindset.py"))
-            signature = arguments[0]
-            print(mindset["sibling_tracker_query"](signature))
-            rows = mindset["sibling_trackers"](signature)
-            if rows:
-                import json
-
-                print(json.dumps(rows, sort_keys=True))
-            return 0
-        if tool in SCRIPT_TOOLS:
-            return script_tool(installed_root, tool, arguments)
-        if tool == "stores":
-            return stores_command(installed_root, arguments)
-        if tool == "retrieve":
-            path = installed_root / "retrieve.py"
-            if not path.is_file():
-                print("retrieve.py missing from installed core", file=sys.stderr)
-                return 1
-            # Re-exec as retrieve CLI (argv[0] style via runpy is awkward; call main).
-            spec_mod = runpy.run_path(str(path), run_name="_chaos_engine_retrieve")
-            return int(spec_mod["main"](arguments))
-        if tool == "mempalace-mcp":
-            arguments = mempalace_mcp_arguments(installed_root, arguments)
-        if tool == "maven-tools-mcp":
-            command = resolve_maven_tools_command(installed_root)
-            environment = quiet_environment(os.environ.copy())
-            environment["PYTHONDONTWRITEBYTECODE"] = "1"
-            return subprocess.call(  # nosec B603
-                [*command, *arguments],
-                env=environment,
-                cwd=shared_project_root(installed_root.resolve().parent),
-            )
-        command = resolve_command(installed_root, tool, arguments)
-        environment = quiet_environment(os.environ.copy())
-        environment["PYTHONDONTWRITEBYTECODE"] = "1"
-        invocation = (
-            command
-            if isinstance(command, list)
-            else [str(command), *arguments]  # Compatibility for injected legacy tests.
-        )
-        project = shared_project_root(installed_root.resolve().parent)
-        invocation = bind_store_invocation(tool, invocation, project, installed_root)
-        if tool in _CAPTURE_STORES:
-            completed = subprocess.run(  # nosec B603
-                invocation,
-                env=environment,
-                cwd=project,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            sys.stdout.write(completed.stdout)
-            sys.stderr.write(completed.stderr)
-            if completed.returncode == 0:
-                try:
-                    _record_store_output(
-                        installed_root,
-                        tool,
-                        completed.stdout + "\n" + completed.stderr,
-                    )
-                except (OSError, RuntimeError, ValueError):
-                    # The store text already printed. A ledger write must not hide it.
-                    pass
-            return completed.returncode
-        return subprocess.call(  # nosec B603
-            invocation,
-            env=environment,
-            cwd=project,
-        )
+        local = _dispatch_core(installed_root, sys.argv[1], sys.argv[2:])
+        if local is not None:
+            return local
+        return _dispatch_process(installed_root, sys.argv[1], sys.argv[2:])
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1
