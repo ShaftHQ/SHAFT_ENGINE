@@ -114,15 +114,14 @@ public final class AllureReportLaunch {
             // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             String output = captureJavacOutput(process, callerInterrupted);
-            if (output == null) {
-                return -1;
-            }
             if (callerInterrupted) {
                 Thread.currentThread().interrupt();
                 return -1;
             }
             return javaMajorFromJavacOutput(output);
         } catch (IOException exception) {
+            return -1;
+        } catch (InterruptedException exception) {
             return -1;
         } catch (IllegalArgumentException exception) {
             return -1;
@@ -132,9 +131,11 @@ public final class AllureReportLaunch {
     /**
      * Drains a javac probe without blocking in {@code readAllBytes} while the child is alive.
      *
-     * @return the version text, or {@code null} when the caller was interrupted and the child was destroyed
+     * @return the version text
+     * @throws InterruptedException when the caller was interrupted and the child was destroyed
      */
-    private static String captureJavacOutput(Process process, boolean callerInterrupted) throws IOException {
+    private static String captureJavacOutput(Process process, boolean callerInterrupted)
+            throws IOException, InterruptedException {
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         InputStream stdout = process.getInputStream();
         if (callerInterrupted) {
@@ -143,7 +144,7 @@ public final class AllureReportLaunch {
         if (waitForJavac(process, stdout, captured)) {
             process.destroyForcibly();
             Thread.currentThread().interrupt();
-            return null;
+            throw new InterruptedException("javac probe interrupted");
         }
         captured.write(stdout.readAllBytes());
         return captured.toString(StandardCharsets.UTF_8);
