@@ -165,7 +165,7 @@ class ManagedLocalAiProcessSupervisorTest {
     void controlPipeReaderRunsWhenTheSupervisorIsGivenThePipe() throws Exception {
         Path directory = Files.createDirectories(temp.resolve("control-pipe"));
         Path child = directory.resolve("child.sh");
-        Files.writeString(child, "#!/bin/sh\nexit 0\n");
+        Files.writeString(child, "#!/bin/sh\nsleep 30\n");
         assertTrue(child.toFile().setExecutable(true));
         InputStream previousIn = System.in;
         PipedOutputStream pipe = new PipedOutputStream();
