@@ -32,6 +32,10 @@ _ASSIGN = re.compile(
     r"(?:(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+)?"
     r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
 )
+_BURIED_ASSIGN = re.compile(
+    r"(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+"
+    r"[A-Za-z_][A-Za-z0-9_]*\+?="
+)
 _APPROVE_ONLY = re.compile(
     r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
 )
@@ -205,18 +209,12 @@ def _comment_is_open(part: str) -> bool:
                 quote = ""
             index += 1
             continue
-        found = _heredoc_delimiter(part, index)
-        if found is not None:
-            delim, index = found
-            while index < len(part) and part[index] not in "\n\r":
-                index += 1
-            if index < len(part):
-                index += 1 + (
-                    part[index] == "\r"
-                    and index + 1 < len(part)
-                    and part[index + 1] == "\n"
-                )
-            index = _skip_line_body(part, index, delim)
+        ended = _advance_past_heredoc(part, index)
+        if ended is not None:
+            index = ended
+            continue
+        if part.startswith("${", index):
+            index = _matching_brace(part, index)
             continue
         if part.startswith("$'", index):
             quote = "'"
@@ -266,6 +264,23 @@ def _heredoc_delimiter(text: str, index: int) -> tuple[str, int] | None:
     return delim, cursor
 
 
+def _advance_past_heredoc(text: str, index: int) -> int | None:
+    """Index after a here-document that starts at index, else None."""
+    found = _heredoc_delimiter(text, index)
+    if found is None:
+        return None
+    delim, cursor = found
+    while cursor < len(text) and text[cursor] not in "\n\r":
+        cursor += 1
+    if cursor < len(text):
+        cursor += 1 + (
+            text[cursor] == "\r"
+            and cursor + 1 < len(text)
+            and text[cursor + 1] == "\n"
+        )
+    return _skip_line_body(text, cursor, delim)
+
+
 def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
     """Append one here-document body. ``index`` is the first body character."""
     line: list[str] = []
@@ -289,6 +304,7 @@ def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
 def _matching_brace(text: str, index: int) -> int:
     """Index after the ``${...}`` that starts at ``index``. Unclosed runs to the end."""
     depth = 1
+    parens = 0
     quote = ""
     cursor = index + 2
     while cursor < len(text):
@@ -302,24 +318,31 @@ def _matching_brace(text: str, index: int) -> int:
             quote = char
             cursor += 1
             continue
-        found = _heredoc_delimiter(text, cursor)
-        if found is not None:
-            delim, cursor = found
-            while cursor < len(text) and text[cursor] not in "\n\r":
-                cursor += 1
-            if cursor < len(text):
-                cursor += 1 + (
-                    text[cursor] == "\r"
-                    and cursor + 1 < len(text)
-                    and text[cursor + 1] == "\n"
-                )
-            cursor = _skip_line_body(text, cursor, delim)
+        ended = _advance_past_heredoc(text, cursor)
+        if ended is not None:
+            cursor = ended
             continue
-        if text.startswith("${", cursor) or char == "{":
+        if (
+            text.startswith("$(", cursor)
+            or text.startswith("<(", cursor)
+            or text.startswith(">(", cursor)
+        ):
+            parens += 1
+            cursor += 2
+            continue
+        if char == "(":
+            parens += 1
+            cursor += 1
+            continue
+        if char == ")" and parens:
+            parens -= 1
+            cursor += 1
+            continue
+        if parens == 0 and (text.startswith("${", cursor) or char == "{"):
             depth += 1
             cursor += 2 if text.startswith("${", cursor) else 1
             continue
-        if char == "}" and depth:
+        if parens == 0 and char == "}" and depth:
             depth -= 1
             cursor += 1
             if depth == 0:
@@ -377,6 +400,9 @@ def _fold_command_syntax(
             index += 1
         while pending:
             index = _consume_heredoc(text, index, pending.pop(0), buf)
+        if depth == 0:
+            pieces.append("".join(buf))
+            buf.clear()
         return index
     return None
 
@@ -486,7 +512,11 @@ def force_push_block(root: Path, command: str) -> str | None:
         if _PUSH.search(part) and not _is_approve_invocation(part)
     ]
     borrowed = any(re.search(r"[`$]", part) for part in segments) and any(
-        _ASSIGN.match(part.strip()) is not None and _FORCE.search(part) is not None
+        (
+            _ASSIGN.match(part.strip()) is not None
+            or _BURIED_ASSIGN.search(part) is not None
+        )
+        and _FORCE.search(part) is not None
         for part in pieces
     )
     if (
