@@ -168,6 +168,29 @@ class ToolOutputStoreTests(unittest.TestCase):
         self.assertEqual(prose + fence + pointer, kept)
         self.assertEqual(2, kept.split(pointer)[0].count("```"))
 
+    def test_preview_keeps_a_traceback_whole_after_unterminated_prose(self):
+        prose = "Lead in\n"
+        trace = (
+            "Traceback (most recent call last):\n"
+            "  File \"app.py\", line 3, in main\n"
+            "    value = \"hello. world\"\n"
+        )
+        pointer = " [id=7]"
+        body = prose + trace
+        partial = (
+            "Traceback (most recent call last):\n"
+            "  File \"app.py\", line 3, in main\n"
+            "    value = \"hello. "
+        )
+        budget = len((prose + partial).encode("utf-8")) + len(pointer.encode("utf-8"))
+        preview = self.mod.build_preview(body, budget, pointer)
+        self.assertEqual(prose + pointer, preview)
+        self.assertNotIn("hello", preview)
+        self.assertEqual(
+            body,
+            self.mod.build_preview(body, len(body.encode("utf-8")) + len(pointer.encode("utf-8")), pointer),
+        )
+
     def test_store_error_returns_the_original_text(self):
         text = "Original sentence stays intact. " * 2000
         self.assertGreater(len(text.encode("utf-8")), self.mod.TRIGGER_BYTES)
