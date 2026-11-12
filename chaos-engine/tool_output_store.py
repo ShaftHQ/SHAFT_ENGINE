@@ -175,7 +175,7 @@ def _traceback_end(text: str, start: int) -> int:
         if line.startswith((" ", "\t")) or _frame_line(line):
             index = line_end
             continue
-        return line_end
+        return index
     return index
 
 

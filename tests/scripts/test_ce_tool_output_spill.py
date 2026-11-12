@@ -129,6 +129,25 @@ class ToolOutputStoreTests(unittest.TestCase):
         self.assertEqual(ready + pointer, fence_preview)
         self.assertNotIn("hello", fence_preview)
 
+    def test_preview_does_not_cut_a_sentence_after_a_traceback(self):
+        trace = (
+            "Traceback (most recent call last):\n"
+            "  File \"app.py\", line 3, in main\n"
+            "    boom()\n"
+        )
+        sentence = (
+            "The opening of a sentence\n"
+            "continues on the next line and must stay whole."
+        )
+        pointer = " [id=7]"
+        body = trace + sentence
+        first_line = "The opening of a sentence\n"
+        budget = len((trace + first_line).encode("utf-8")) + len(pointer.encode("utf-8"))
+        preview = self.mod.build_preview(body, budget, pointer)
+        self.assertEqual(trace + pointer, preview)
+        self.assertNotIn("The opening of a sentence", preview)
+        self.assertEqual(body, self.mod.build_preview(body, len(body.encode("utf-8")) + len(pointer.encode("utf-8")), pointer))
+
     def test_store_error_returns_the_original_text(self):
         text = "Original sentence stays intact. " * 2000
         self.assertGreater(len(text.encode("utf-8")), self.mod.TRIGGER_BYTES)
