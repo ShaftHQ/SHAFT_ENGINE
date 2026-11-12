@@ -106,8 +106,8 @@ See also the [hook trigger map](hook-trigger-map.md).
 No supported host has a proven PostToolUse replacement for the tool-result
 body in this tree. Grok can adapt `additionalContext` for SessionStart and can
 show deny text. That does not replace the tool result. This delivery is a
-manual store (`tool.py output-search`). It does not claim the original bytes
-left the model window.
+manual store ([tool_output_store.py](../tool_output_store.py), `tool.py output-search`).
+It does not claim the original bytes left the model window.
 
 | Host | PostToolUse tool-output replacement |
 | --- | --- |
