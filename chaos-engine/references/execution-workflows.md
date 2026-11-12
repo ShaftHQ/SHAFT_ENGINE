@@ -22,6 +22,8 @@ stream. Finish or hand over owned implementation before switching workflows.
 Every orchestrated workflow loads and enforces
 [process-owner / Scrum-master](process-owner-scrum-master.md).
 
+Overlapping edits of one file use a single implementer and still delegate adversarial reviewers and consultants when needed. File-disjoint work prefers parallel implementers, capped by the resource check. A resource monitor runs while parallel work is in flight and is shut down when the session ends.
+
 ## Transport is orthogonal
 
 After workflow selection, choose the first available transport permitted by
