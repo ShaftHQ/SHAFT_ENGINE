@@ -5,7 +5,9 @@ Reads and searches run. A broad search records `retrieveOwed` for the hook
 session until that session has one `used`, `skipped`, or `degraded` retrieve.
 Cheap one-file reads do not owe a retrieve. A command that only touches paths
 outside this checkout, such as a log download and unzip into a scratch
-directory, is not a project read. Downloading a GitHub Actions job log
+directory, is not a project read. A Python stdin heredoc stays one program
+when the interpreter is a path (`venv/bin/python - <<`). The body is not
+split into shell commands. Downloading a GitHub Actions job log
 (`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`,
 or curl of that logs URL) is not a project read and does not require
 MemPalace or Graphify, including a pipeline that only filters that download
@@ -1224,7 +1226,11 @@ def _read_segment_block(project: Path, segment: str) -> bool:
     return head in _SEARCH_HEADS and not _no_project_index(project)
 
 
-_PY_HEREDOC = re.compile(r"(?:^|[\s;&|(])(?:py|python3?)(?:\.exe)?\s+-\s*<<")
+# Path-qualified interpreters (`venv/bin/python - <<`) are the same program.
+# A newline in the body is not a shell split; `tail = ...` is not `tail`.
+_PY_HEREDOC = re.compile(
+    r"(?:^|[\s;&|(/\\])(?:py3?|python\d*(?:\.\d+)*)(?:\.exe)?\s+-\s*<<"
+)
 
 
 _GLOB_FLAGS = frozenset({"-g", "--glob", "--include", "-G"})

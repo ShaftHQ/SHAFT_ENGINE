@@ -26,13 +26,19 @@ not pass the item.
 - For this voice, the private review listen is -20 LUFS ±2. The owner heard
   -15.8 LUFS as shouting. Do not master that listen back to -16. Apple's -16
   LKFS figure stays the podcast-publish figure, not this review gate.
+- Measure integrated loudness on the stereo programme, not on one channel of a
+  dual-mono file. On 2026-11-12 one channel of this voice read about 3 LU
+  quieter than the stereo file. EBU R 128 measures the programme as distributed
+  ([R 128-2023](https://tech.ebu.ch/docs/r/r128v5_0.pdf)).
 - One gain for the whole file. AES TD1008 treats loudness normalization as
   uniform gain, not a fader ride
   ([Production Advice on TD1008](https://productionadvice.co.uk/td1008/)).
   The opening sentence is not louder than the rest. Short-term speech
   loudness stays within 3 LU of the integrated loudness. That 3 LU window is
   the gate for the defect where one sentence was mastered hotter. It is not
-  an EBU number.
+  an EBU number. Short-term loudness is the 3-second window defined in EBU
+  Tech 3341 ([Tech 3341](https://tech.ebu.ch/docs/tech/tech3341.pdf)). Judge
+  it only while speech is present, so a pause does not fail the 3 LU window.
 - Do not compress phrase by phrase to hide an uneven read. Regenerate it.
 
 ## Noise and tears
@@ -54,6 +60,9 @@ not pass the item.
   interrupted word. Content words match the script.
 - A proper noun is judged against the owner's recording, not against
   transcript spelling. The reference transcript matches the reference audio.
+- Transcribe a 16 kHz resample, not the 48 kHz file samples. Whisper's audio
+  is 16 kHz ([Radford et al., 2022](https://arxiv.org/abs/2212.04356)). A
+  48 kHz pass on this voice returned a false Russian tag and an empty transcript.
 
 ## Cadence, breath, and fillers
 

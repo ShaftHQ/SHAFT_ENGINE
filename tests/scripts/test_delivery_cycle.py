@@ -217,6 +217,9 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "The gate is at or below 280.",
             "A full-file transcript can drop a real",
             "Do not time-stretch the file.",
+            "Measure integrated loudness on the stereo programme, not on one channel",
+            "Short-term loudness is the 3-second window defined in EBU",
+            "Transcribe a 16 kHz resample, not the 48 kHz file samples.",
         ):
             self.assertIn(sentence, narration)
         flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]
