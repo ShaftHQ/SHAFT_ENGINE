@@ -1142,6 +1142,18 @@ class OrchestratorModeContractTest(unittest.TestCase):
         )
         self.assertNotIn("Default to `ORCHESTRATOR + SINGLE IMPLEMENTER`", workflows)
         self.assertIn("four parallel\nagents", workflows)
+        self.assertIn(
+            "Overlapping edits of one file use a single implementer and still delegate adversarial reviewers and consultants when needed.",
+            workflows,
+        )
+        self.assertIn(
+            "File-disjoint work prefers parallel implementers, capped by the resource check.",
+            workflows,
+        )
+        self.assertIn(
+            "A resource monitor runs while parallel work is in flight and is shut down when the session ends.",
+            workflows,
+        )
 
     def test_delegation_pins_status_table_serial_cap_and_learning_session_before_kill(self):
         delegation = self._delegation()
