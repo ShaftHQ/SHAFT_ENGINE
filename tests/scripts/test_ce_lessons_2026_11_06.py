@@ -959,6 +959,57 @@ class QueueSnapshotTest(TestCase):
 
 
 class OperationBoundaryTest(TestCase):
+    def test_delete_check_owner_paste_is_not_relayed(self) -> None:
+        boundary = _load("ce_operation_boundary_delete_check_7991", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            allowed = (
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'rm /tmp/foo'",
+                "python3 chaos-engine/tool.py delete-check --code ABC123 /tmp/foo",
+                "CHAOS_DELETE_ACK=ABC123 python3 .chaos-engine/tool.py delete-check /tmp/foo",
+            )
+            for command in allowed:
+                self.assertNotIn(
+                    "relayed-delete-code",
+                    boundary.command_blocks(root, command),
+                    command,
+                )
+            denied = (
+                "cleanup --delete-code 123456",
+                "python3 scripts/cleanup.py --delete-code 123456",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo && cleanup --delete-code 123456",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo\ncleanup --delete-code 123456",
+                "cleanup --delete-code 123456 tool.py delete-check",
+                "cleanup --delete-code 123456 # tool.py delete-check",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo $(cleanup --delete-code 123456)",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo `cleanup --delete-code 123456`",
+                "python3 mytool.py delete-check --code ABC123 /tmp/foo",
+                "python3 .chaos-engine/tool.py delete-check-extra --code ABC123 /tmp/foo",
+                "python3=foo/tool.py delete-check --code ABC123 /tmp/foo",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo <(cleanup --delete-code 123456)",
+            )
+            for command in denied:
+                self.assertIn(
+                    "relayed-delete-code",
+                    boundary.command_blocks(root, command),
+                    command,
+                )
+            docs = (CE / "references" / "delete-guard.md").read_text(encoding="utf-8")
+            for needle in (
+                "CHAOS_DELETE_ACK",
+                "same invocation as `--command",
+                "`**/filename`",
+                "tool.py delete-check",
+                "cleanup --delete-code",
+            ):
+                self.assertIn(needle, docs, needle)
+            discipline = (CE / "references" / "delete-check-discipline.md").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("CHAOS_DELETE_ACK", discipline)
+            self.assertIn("same invocation as", discipline)
+
     def test_shell_set_plus_is_not_a_force_refspec(self) -> None:
         boundary = _load("ce_operation_boundary_set_plus_7819", CE / "rules/operation_boundary.py")
         with tempfile.TemporaryDirectory() as temporary:
