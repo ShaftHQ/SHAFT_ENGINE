@@ -28,7 +28,7 @@ _DELETE_CODE = re.compile(r"(?:--delete-code|--code)\s+\S+|DELETE_CODE=\S+", re.
 _PUSH = re.compile(r"\bgit\s+push\b")
 _FORCE_WORD = re.compile(r"--force(?:-with-lease)?\b")
 _ASSIGN = re.compile(
-    r"^(?:(?:builtin|command)\s+)*(?:set\s+--(?=\s|$)|"
+    r"^(?:(?:builtin|command)(?:\s+(?:--|\-\S+))*\s+)*(?:set\s+--(?=\s|$)|"
     r"(?:(?:declare|export|local|readonly|typeset)(?:\s+-[A-Za-z]+)*\s+)?"
     r"[A-Za-z_][A-Za-z0-9_]*\+?=)"
 )
@@ -147,21 +147,83 @@ def _strip_unquoted_comment(part: str) -> str:
     return "".join(out).strip()
 
 
+def _hash_starts_comment(part: str, index: int) -> bool:
+    """A hash starts a comment only at the beginning of a word."""
+    if part[index] != "#":
+        return False
+    return index == 0 or part[index - 1] in " \t\n\r"
+
+
+def _skip_line_body(part: str, index: int, delim: str) -> int:
+    """Index after the here-document body that starts at index."""
+    line: list[str] = []
+    while index < len(part):
+        char = part[index]
+        index += 1
+        if char == "\r" and index < len(part) and part[index] == "\n":
+            index += 1
+            char = "\n"
+        if char in "\n\r":
+            if "".join(line) == delim:
+                return index
+            line = []
+            continue
+        line.append(char)
+    return index
+
+
 def _comment_is_open(part: str) -> bool:
-    """True when the current line has an unquoted word-starting hash."""
-    line = part.rsplit("\n", 1)[-1].rsplit("\r", 1)[-1]
+    """True when a word-starting hash is still open on the current line."""
     quote = ""
-    for index, char in enumerate(line):
+    ticks = False
+    comment = False
+    index = 0
+    while index < len(part):
+        char = part[index]
+        if comment:
+            if char in "\n\r":
+                comment = False
+            index += 1
+            continue
+        if ticks:
+            if char == "`":
+                ticks = False
+            index += 1
+            continue
         if quote:
-            if char == quote and line[index - 1] != "\\":
+            if char == quote and part[index - 1] != "\\":
                 quote = ""
+            index += 1
+            continue
+        found = _heredoc_delimiter(part, index)
+        if found is not None:
+            delim, index = found
+            while index < len(part) and part[index] not in "\n\r":
+                index += 1
+            if index < len(part):
+                index += 1 + (
+                    part[index] == "\r"
+                    and index + 1 < len(part)
+                    and part[index + 1] == "\n"
+                )
+            index = _skip_line_body(part, index, delim)
+            continue
+        if part.startswith("$'", index):
+            quote = "'"
+            index += 2
             continue
         if char in {"'", '"'}:
             quote = char
+            index += 1
             continue
-        if char == "#" and (index == 0 or line[index - 1] in " \t"):
-            return True
-    return False
+        if char == "`":
+            ticks = True
+            index += 1
+            continue
+        if _hash_starts_comment(part, index):
+            comment = True
+        index += 1
+    return comment
 
 
 def _heredoc_delimiter(text: str, index: int) -> tuple[str, int] | None:
