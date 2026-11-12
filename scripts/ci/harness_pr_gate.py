@@ -126,6 +126,7 @@ CHECKS = {
         (
             "tests.scripts.test_chaos_engine_hook",
             "tests.scripts.test_ce_hooks_7955_7960",
+            "tests.scripts.test_ce_tool_missing_7964",
         ),
         True,
     ),
@@ -468,6 +469,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_delete_guard_7251",
             # #7955-#7960: force-push approval, secret values, impact receipt, hooks.
             "tests.scripts.test_ce_hooks_7955_7960",
+            # #7964: a missing overlay tool.py fails doctor and the next hook denial.
+            "tests.scripts.test_ce_tool_missing_7964",
             "tests.scripts.test_chaos_engine_separate_git_dir_7278",
             "tests.scripts.test_chaos_engine_register_rule_7242",
             "tests.scripts.test_chaos_engine_retrieve_marker_7242",
@@ -819,6 +822,8 @@ SURFACE_PATTERNS = {
         "chaos-engine/token_economy.py",
         "tests/scripts/test_chaos_engine_delete_guard_7251.py",
         "chaos-engine/delete_guard.py",
+        "chaos-engine/overlay_match.py",
+        "tests/scripts/test_ce_tool_missing_7964.py",
         "chaos-engine/rules/operation_boundary.py",
         "chaos-engine/force_push_approve.py",
         "tests/scripts/test_ce_hooks_7955_7960.py",
@@ -866,6 +871,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/chaos_engine_eval_parity.py",
         "tests/scripts/test_chaos_engine_hook.py",
         "tests/scripts/test_chaos_engine_eval_parity_fixtures.py",
+        "tests/scripts/test_ce_tool_missing_7964.py",
         "tests/scripts/test_guard*.py",
     ),
     "guidance": (

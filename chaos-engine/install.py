@@ -7360,8 +7360,56 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
 _repair_component_locked = repair_component
 
 
-def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
+def _require_overlay_tool(result: dict, project: Path) -> None:
+    """#7964: deleting `.chaos-engine/tool.py` fails doctor and names that file."""
+    if not isinstance(result, dict):
+        return
+    if (Path(project) / ".chaos-engine" / "tool.py").is_file():
+        return
+    result["status"] = "recovery-required"
+    components = result.get("components")
+    if not isinstance(components, dict):
+        components = {}
+        result["components"] = components
+    components[".chaos-engine/tool.py"] = {
+        "status": "recovery-required",
+        "detail": ".chaos-engine/tool.py missing",
+        "fixNext": "python3 .chaos-engine/install.py repair --project .",
+    }
+
+
+def _restore_missing_overlay_tool(project: Path) -> dict[str, object]:
+    """Copy `chaos-engine/tool.py` into the overlay without removing the old path first.
+
+    A present overlay tool still needs `--component`.
+    """
+    project = Path(project).resolve()
+    overlay = project / ".chaos-engine" / "tool.py"
+    if overlay.is_file():
+        raise ValueError(
+            "repair needs --component when .chaos-engine/tool.py is present; "
+            "choose one of " + ", ".join(sorted(REPAIRABLE_COMPONENTS))
+        )
+    source = project / "chaos-engine" / "tool.py"
+    if not source.is_file():
+        raise ValueError(
+            ".chaos-engine/tool.py missing and chaos-engine/tool.py is not available to restore it"
+        )
+    overlay.parent.mkdir(parents=True, exist_ok=True)
+    temporary = overlay.with_name(f".tool.py.restore-{os.getpid()}")
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, overlay)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {"status": "repaired", "component": "tool.py", "action": "restored-tool.py"}
+
+
+def repair_component(project: Path, component: str | None = None, *, runner=None) -> dict[str, object]:
     """Zero-LLM targeted repair for one component; policy-overlay and secret-guard reinstall outside the lock."""
+    if component is None or not str(component).strip():
+        return _restore_missing_overlay_tool(Path(project))
     name = str(component).strip().casefold()
     if name == "policy-overlay":
         import subprocess
@@ -7492,8 +7540,13 @@ def parser() -> argparse.ArgumentParser:
     repair_command.add_argument("--project", type=Path, default=Path("."), help="Project root (default: current working directory)")
     repair_command.add_argument(
         "--component",
-        required=True,
+        required=False,
+        default=None,
         choices=sorted(REPAIRABLE_COMPONENTS),
+        help=(
+            "One component to repair. Omit it only to restore a missing "
+            ".chaos-engine/tool.py from chaos-engine/tool.py."
+        ),
     )
     repair_command.add_argument("--json", action="store_true")
     for name in ("status", "doctor", "rollback", "uninstall"):
@@ -9329,6 +9382,7 @@ def _command_result(args, extra) -> object:
         legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
         if legacy_packs:
             result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
+        _require_overlay_tool(result, args.project)
     elif args.command == "explain":
         result = explain_json(
             args.project,

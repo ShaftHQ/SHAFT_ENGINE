@@ -2045,9 +2045,32 @@ def check(command: str, cwd: Path | None = None, project: Path | None = None, co
     ), []
 
 
+TOOL_REPAIR_COMMAND = "python3 .chaos-engine/install.py repair --project ."
+
+
+def _overlay_dir(start: Path) -> Path | None:
+    """The installed overlay at ``start`` or the nearest parent that has one."""
+    current = start.resolve()
+    for candidate in (current, *current.parents):
+        overlay = candidate / ".chaos-engine"
+        if overlay.is_dir():
+            return overlay
+    return None
+
+
+def denial_with_tool_repair(reason: str, project: Path | None) -> str:
+    """Point a tool.py denial at repair when that installed file is already gone (#7964)."""
+    if not reason or "tool.py" not in reason or TOOL_REPAIR_COMMAND in reason:
+        return reason
+    overlay = _overlay_dir(Path(project) if project is not None else Path.cwd())
+    if overlay is None or (overlay / "tool.py").is_file():
+        return reason
+    return f"{reason} .chaos-engine/tool.py is missing. Run `{TOOL_REPAIR_COMMAND}`."
+
+
 def block_reason(command: str, cwd: Path | None = None, project: Path | None = None) -> str:
     """Hook entry point: '' to allow, else a refusal message."""
-    return check(command, cwd, project)[0]
+    return denial_with_tool_repair(check(command, cwd, project)[0], project or cwd)
 
 
 def doctor_check(root: Path) -> tuple[str, str]:
@@ -2056,7 +2079,10 @@ def doctor_check(root: Path) -> tuple[str, str]:
     tool = root / "tool.py"
     if not hook.is_file() or "delete_guard" not in hook.read_text(encoding="utf-8"):
         return "fail", "hook not wired"
-    if not tool.is_file() or "delete-check" not in tool.read_text(encoding="utf-8"):
+    if not tool.is_file():
+        label = ".chaos-engine/tool.py" if root.name == ".chaos-engine" else "tool.py"
+        return "fail", f"{label} missing"
+    if "delete-check" not in tool.read_text(encoding="utf-8"):
         return "fail", "tool.py delete-check missing"
     return "pass", ""
 

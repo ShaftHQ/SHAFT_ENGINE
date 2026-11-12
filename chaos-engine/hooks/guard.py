@@ -1905,9 +1905,18 @@ def _parse_hook_event(event: dict) -> tuple:
     )
 
 
+def _repair_denial(reason: str, event: dict) -> str:
+    """#7964: a denial that names tool.py says how to restore it when the file is gone."""
+    guard = _delete_guard()
+    if guard is None or not hasattr(guard, "denial_with_tool_repair"):
+        return reason
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    return guard.denial_with_tool_repair(reason, cwd)
+
+
 def _deny(event: dict, event_name: str, tool_name: str, reason: str) -> int:
     _record_denial_with_significance(event, event_name, tool_name)
-    print(json.dumps({"decision": "block", "reason": reason}))
+    print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
     return 2
 
 
@@ -2187,7 +2196,7 @@ def _guarded_event(event: dict, host: str) -> int:
         reason = delete_guard_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
         if reason:
             _record_denial_with_significance(event, "PreToolUse", str(event.get("tool_name", "")))
-            print(json.dumps({"decision": "block", "reason": reason}))
+            print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
             return 2
     return _run_event(event, host)
 
