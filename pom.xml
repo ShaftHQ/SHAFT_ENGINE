@@ -117,7 +117,7 @@
         <axe.selenium.version>4.12.0</axe.selenium.version>
         <pdfbox.version>3.0.7</pdfbox.version>
         <guava.version>33.8.0-jre</guava.version>
-        <commons.lang3.version>3.21.0</commons.lang3.version>
+        <commons.lang3.version>3.22.0</commons.lang3.version>
         <commons.io.version>2.22.0</commons.io.version>
         <commons.codec.version>1.23.0</commons.codec.version>
         <snakeyaml.version>2.7</snakeyaml.version>
