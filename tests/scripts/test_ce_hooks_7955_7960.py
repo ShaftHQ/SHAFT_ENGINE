@@ -161,6 +161,12 @@ class ForcePushSingleUseTest(unittest.TestCase):
             printf_v = "printf -v f %s -f\ngit push $f origin HEAD"
             ref_plus = 'ref=\\\n+HEAD\ngit push origin "$ref"'
             ref_short = "f=\\\n-f\ngit push $f origin HEAD"
+            for_flag = "for f in \\\n-f\ndo\ngit push \"$f\" origin HEAD\ndone"
+            read_flag = "read f <<EOF\n-f\nEOF\ngit push origin \"$f\""
+            map_flag = "mapfile -t args <<EOF\n-f\norigin\nHEAD\nEOF\ngit push \"${args[@]}\""
+            arith_flag = "git push $[1+\n0] -f origin"
+            func_flag = "pushit() {\ngit push origin \"$@\"\n}\npushit -f"
+            while_flag = "while read f\ndo\ngit push origin \"$f\"\ndone <<< -f"
             windows = "py -3 .chaos-engine/tool.py force-push-approve -- " + push
             nested = root / "nested"
             nested.mkdir()
@@ -183,6 +189,7 @@ class ForcePushSingleUseTest(unittest.TestCase):
                 escaped_tick, brace_hash, brace_hash_plus, brace_hash_short,
                 subst_brace, subst_brace_plus, eval_export, heredoc_declare,
                 split_dollar, split_dollar_plus, printf_v, ref_plus, ref_short,
+                for_flag, read_flag, map_flag, arith_flag, func_flag, while_flag,
             ):
                 self.assertEqual("force-push-without-approval", boundary.force_push_block(root, command), command)
                 self.assertEqual(push + "\n", recorded.read_text(encoding="utf-8"), command)

@@ -548,6 +548,21 @@ def _approval_root(root: Path) -> Path:
     return current
 
 
+def _collapsed_force(command: str) -> bool:
+    """True when one collapsed statement still contains a force push.
+
+    A newline is not a separator once there is no ``;`` or ``&&``.
+    The literal approval command is not a push.
+    """
+    text = _normalized(command)
+    segments = [
+        part
+        for part in _shell_statements(text)
+        if _PUSH.search(part) and not _is_approve_invocation(part)
+    ]
+    return any(_FORCE.search(part) for part in segments)
+
+
 def force_push_block(root: Path, command: str) -> str | None:
     text = _normalized(command)
     pieces = _command_pieces(command or "")
@@ -568,6 +583,7 @@ def force_push_block(root: Path, command: str) -> str | None:
         not any(_FORCE.search(part) for part in segments)
         and not (segments and _FORCE_WORD.search(text))
         and not borrowed
+        and not _collapsed_force(command)
     ):
         return None
     path = _approval_root(root) / ".chaos-engine-state" / "force-push-approval.txt"
