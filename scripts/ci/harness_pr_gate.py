@@ -394,6 +394,7 @@ CHECKS = {
             "tests.scripts.test_architect_skill_parity",
             "tests.scripts.test_technical_presentations_skill_parity",
             "tests.scripts.test_guard_documented_installer",
+            "tests.scripts.test_ce_tool_missing_7964",
         ),
     ),
     # #6222: modules that only ran in the weekly acceptance run, each selected

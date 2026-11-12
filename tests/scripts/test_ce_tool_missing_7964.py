@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
+import json
 import os
 import subprocess  # nosec B404 - the repair test launches the repo interpreter on install.py
 import sys
@@ -83,6 +85,35 @@ class MissingToolDoctorTest(unittest.TestCase):
                 result = install._command_result(args, [])
             self.assertEqual("healthy", result["status"])
             self.assertNotIn(".chaos-engine/tool.py", result["components"])
+
+    def test_doctor_cli_names_the_file_when_only_tool_py_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "proj"
+            overlay = project / ".chaos-engine"
+            (overlay / "hooks").mkdir(parents=True)
+            guard = overlay / "hooks" / "guard.py"
+            guard.write_text("delete_guard\n", encoding="utf-8")
+            digest = hashlib.sha256(guard.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "distribution": {"id": "portable", "policySha256": "ab" * 32},
+                "source": {"commit": "c" * 40, "kind": "local"},
+                "files": {"hooks/guard.py": digest, "tool.py": "d" * 64},
+                "hostToken": "ab" * 32,
+            }
+            (overlay / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            command = [sys.executable, str(CE / "install.py"), "doctor", "--project", str(project)]
+            human = subprocess.run(command, capture_output=True, text=True, check=False)  # nosec B603
+            self.assertEqual(1, human.returncode, human.stderr)
+            self.assertIn(".chaos-engine/tool.py", human.stdout + human.stderr)
+            payload = subprocess.run(  # nosec B603 - fixed interpreter and install.py argv
+                [*command, "--json"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(1, payload.returncode, payload.stderr)
+            self.assertIn(".chaos-engine/tool.py", payload.stdout + payload.stderr)
 
     def test_overlay_doctor_row_names_the_missing_file(self) -> None:
         guard = _load("ce_delete_7964_doctor", CE / "delete_guard.py")
@@ -206,6 +237,37 @@ class AtomicToolReplaceTest(unittest.TestCase):
             self.assertEqual("new-tool\n", dest.read_text(encoding="utf-8"))
             self.assertFalse(list(dest.parent.glob("*.ce-write")))
 
+    def test_restore_keeps_the_old_file_until_the_backup_bytes_exist(self) -> None:
+        overlay = _load("ce_overlay_7964_restore", CE / "worktree_overlay.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            session = Path(temporary) / "session"
+            dest = session / ".chaos-engine" / "tool.py"
+            dest.parent.mkdir(parents=True)
+            dest.write_text("old-tool\n", encoding="utf-8")
+            backup = Path(temporary) / "backup"
+            source = backup / ".chaos-engine" / "tool.py"
+            source.parent.mkdir(parents=True)
+            source.write_text("backed-up\n", encoding="utf-8")
+            (backup / "MANIFEST.json").write_text(
+                json.dumps({"files": [".chaos-engine/tool.py"]}) + "\n",
+                encoding="utf-8",
+            )
+            seen: dict[str, str] = {}
+            real_replace = os.replace
+
+            def spy(src, dst):
+                if Path(dst) == dest:
+                    seen["before"] = dest.read_text(encoding="utf-8")
+                    seen["staged"] = Path(src).read_text(encoding="utf-8")
+                return real_replace(src, dst)
+
+            with unittest.mock.patch("os.replace", spy):
+                overlay._restore_session_backup(session, backup)
+            self.assertEqual("old-tool\n", seen["before"])
+            self.assertEqual("backed-up\n", seen["staged"])
+            self.assertEqual("backed-up\n", dest.read_text(encoding="utf-8"))
+            self.assertFalse(list(dest.parent.glob("*.ce-write")))
+
     def test_source_sync_keeps_the_old_file_until_the_new_bytes_exist(self) -> None:
         match = _load("ce_overlay_match_7964", CE / "overlay_match.py")
         with tempfile.TemporaryDirectory() as temporary:
@@ -226,6 +288,37 @@ class AtomicToolReplaceTest(unittest.TestCase):
             self.assertEqual("new-tool\n", dest.read_text(encoding="utf-8"))
             self.assertFalse(list(dest.parent.glob("*.ce-write")))
 
+    def test_source_sync_entry_replaces_tool_py_without_truncating_it(self) -> None:
+        match = _load("ce_overlay_match_7964_entry", CE / "overlay_match.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "proj"
+            source_tool = project / "chaos-engine" / "tool.py"
+            skill = project / "chaos-engine" / "skills" / "chaos-engine" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("router\n", encoding="utf-8")
+            source_tool.write_text("new-tool\n", encoding="utf-8")
+            dest = project / ".chaos-engine" / "tool.py"
+            dest.parent.mkdir(parents=True)
+            dest.write_text("old-tool\n", encoding="utf-8")
+            seen: dict[str, str] = {}
+            real_replace = Path.replace
+
+            def spy(self, target):
+                if Path(target) == dest:
+                    seen["before"] = dest.read_text(encoding="utf-8")
+                    seen["staged"] = self.read_text(encoding="utf-8")
+                return real_replace(self, target)
+
+            with (
+                unittest.mock.patch.object(match, "owned_source_files", return_value=(source_tool,)),
+                unittest.mock.patch.object(match, "_rewrite_manifest_files"),
+                unittest.mock.patch.object(Path, "replace", spy),
+            ):
+                match.sync_overlay_from_source(project)
+            self.assertEqual("old-tool\n", seen["before"])
+            self.assertEqual("new-tool\n", seen["staged"])
+            self.assertEqual("new-tool\n", dest.read_text(encoding="utf-8"))
+
 
 class GateSelectionTest(unittest.TestCase):
     def test_changed_tool_paths_select_this_module(self) -> None:
@@ -237,6 +330,7 @@ class GateSelectionTest(unittest.TestCase):
             "chaos-engine/install.py",
             "chaos-engine/hooks/guard.py",
             "chaos-engine/overlay_match.py",
+            "chaos-engine/worktree_overlay.py",
             "tests/scripts/test_ce_tool_missing_7964.py",
         ):
             plan = classify_paths([path])

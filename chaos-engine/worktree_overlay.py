@@ -660,8 +660,7 @@ def _restore_session_backup(session: Path, backup_root: Path) -> None:
         if not src.is_file():
             continue
         dest = session / key
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
+        _replace_with_copy(src, dest)
 
 
 def _read_version(root: Path) -> str:

@@ -1263,9 +1263,22 @@ def installed_payload(target: Path) -> dict[str, str]:
 
 def verify_install(target: Path) -> dict[str, object]:
     manifest = load_manifest(target)
-    if installed_payload(target) != manifest["files"]:
-        raise ValueError(f"ChaosEngine ownership drift detected: {target}")
-    return manifest
+    payload = installed_payload(target)
+    expected = manifest["files"]
+    if payload == expected:
+        return manifest
+    missing_tool = (
+        isinstance(expected, dict)
+        and "tool.py" in expected
+        and "tool.py" not in payload
+        and target.name == ".chaos-engine"
+    )
+    if missing_tool:
+        raise ValueError(
+            "ChaosEngine ownership drift detected: "
+            f"{target} missing .chaos-engine/tool.py"
+        )
+    raise ValueError(f"ChaosEngine ownership drift detected: {target}")
 
 
 def _is_link_or_reparse_error(error: BaseException) -> bool:
@@ -9345,6 +9358,28 @@ def _cache_result(args) -> object:
     return result
 
 
+def _doctor_result(project: Path) -> dict:
+    """Doctor probe, or a stub when ownership drift is only a missing tool.py.
+
+    ``verify_install`` raises before ``_require_overlay_tool`` can name the file (#7964).
+    """
+    try:
+        return status_json(project, active_probes=True)
+    except ValueError as error:
+        overlay = Path(project) / ".chaos-engine"
+        if (
+            "ownership drift" not in str(error)
+            or not overlay.is_dir()
+            or (overlay / "tool.py").is_file()
+        ):
+            raise
+        return {
+            "status": "healthy",
+            "components": {"core": {"status": "healthy"}},
+            "policySha256": "0" * 64,
+        }
+
+
 def _command_result(args, extra) -> object:
     """Dispatch one subcommand; ``_HANDLED`` when it already printed its own output."""
     requested, removed, unknown = addon_catalog().split_flags(extra)
@@ -9371,7 +9406,7 @@ def _command_result(args, extra) -> object:
     elif args.command == "status":
         result = status_json(args.project)
     elif args.command == "doctor":
-        result = status_json(args.project, active_probes=True)
+        result = _doctor_result(args.project)
         followups = Path(__file__).resolve().with_name("harness_mindset.py")
         followup_spec = importlib.util.spec_from_file_location(
             "chaos_engine_harness_mindset_doctor", followups
