@@ -66,8 +66,12 @@ The owner approves in chat with a one-time code; no terminal is needed.
    on the same invocation as `--command 'rm …'` because the code is
    one-use. The host hook allows this documented `tool.py delete-check`
    consumption; it still refuses `cleanup --delete-code` and other
-   relayed codes. It passes only for the same path list, unexpired and
-   unused, then the code is spent. Git and allow-list refusals print as
+   relayed codes. A `#` comment ends at that line, including inside
+   parentheses or a here-document. A quoted `--command` payload may
+   contain parentheses and `&&`, while an unquoted substitution,
+   backtick, or process substitution is still a relay. It passes only
+   for the same path list, unexpired and unused, then the code is spent.
+   Git and allow-list refusals print as
    `warning:` lines instead of blocking.
 
 Requests and uses are logged to

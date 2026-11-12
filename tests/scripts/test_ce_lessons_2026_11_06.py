@@ -968,6 +968,10 @@ class OperationBoundaryTest(TestCase):
                 "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'rm /tmp/foo'",
                 "python3 chaos-engine/tool.py delete-check --code ABC123 /tmp/foo",
                 "CHAOS_DELETE_ACK=ABC123 python3 .chaos-engine/tool.py delete-check /tmp/foo",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'rm /tmp/file (1).txt'",
+                "python3 .chaos-engine/tool.py delete-check --code ABC123 --command 'rm /tmp/a && rm /tmp/b'",
+                'python3 .chaos-engine/tool.py delete-check --code ABC123 --command "rm /tmp/file (1).txt"',
+                'python3 .chaos-engine/tool.py delete-check --code ABC123 --command "rm /tmp/a && rm /tmp/b"',
             )
             for command in allowed:
                 self.assertNotIn(
@@ -988,6 +992,9 @@ class OperationBoundaryTest(TestCase):
                 "python3 .chaos-engine/tool.py delete-check-extra --code ABC123 /tmp/foo",
                 "python3=foo/tool.py delete-check --code ABC123 /tmp/foo",
                 "python3 .chaos-engine/tool.py delete-check --code ABC123 /tmp/foo <(cleanup --delete-code 123456)",
+                "(\necho # x\ncleanup --delete-code 123456\n)",
+                "bash <<EOF\necho # x\ncleanup --delete-code 123456\nEOF\n",
+                'python3 .chaos-engine/tool.py delete-check --code ABC123 --command "rm $(uname)"',
             )
             for command in denied:
                 self.assertIn(
