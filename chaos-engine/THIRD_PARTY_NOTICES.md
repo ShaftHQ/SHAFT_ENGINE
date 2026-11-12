@@ -69,6 +69,13 @@ Capability seams, orthogonal outcomes, tool-result pruning, spill, and code
 mode were reimplemented as portable guidance and installer contracts. The
 Node runtime, Cordis kernel, session log, agent loop, and UI were not copied.
 
+## Context Mode (ideas only)
+
+- License: Elastic License 2.0
+- Upstream: https://github.com/mksglu/context-mode
+- Researched commit: `890a3f6b8015b0ca4ab5761db8335c02325b0470`
+- No files were copied. ChaosEngine did not vendor the plugin. The manual store in this tree is original code.
+
 ## Design skills add-on (optional)
 
 The optional `addons/design-skills/` cards re-express, in their own words and

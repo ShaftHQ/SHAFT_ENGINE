@@ -44,6 +44,11 @@ When a tool result is larger than the decision needs:
 Do not paste multi-thousand-line logs, HAR files, or report HTML into the
 transcript unless the user asked for the raw body.
 
+The manual store keeps every sentence, fenced block, and stack frame whole.
+A unit that does not fit the preview is omitted, and the preview keeps one
+pointer back to the stored text. Saving that copy does not remove the original
+tool result from the host window.
+
 ## Distill, then continue
 
 - A subagent returns a distillate: what changed, what was proved, what remains.

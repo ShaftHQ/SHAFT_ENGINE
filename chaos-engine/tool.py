@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve and run a ChaosEngine project-local tool."""
+"""Resolve and run a project-local tool."""
 
 from __future__ import annotations
 
@@ -462,7 +462,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve", "output-search", "output-resume", "output-stats", "output-purge"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -498,6 +498,12 @@ def tool_help_text() -> str:
         "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]  (exit 3 = past 35 min, stop)\n"
         "  tool.py checkpoint TASK --budget [35]  (exit 3 = wrap up now)\n"
         "  tool.py resume [TASK]  (short brief; exit 6 = no ledger)\n"
+        "\n"
+        "output store (manual search of saved tool output; it does not replace host output):\n"
+        "  tool.py output-search QUERY [--project PATH]\n"
+        "  tool.py output-resume ID [--project PATH]\n"
+        "  tool.py output-stats [--project PATH]\n"
+        "  tool.py output-purge [--project PATH]\n"
     )
 
 
@@ -790,6 +796,10 @@ SCRIPT_TOOLS = {
     "backups-watch": "backups_watch.py",
     "pre-done": "pre_done_review.py",
     "force-push-approve": "force_push_approve.py",
+    "output-search": "tool_output_store.py",
+    "output-resume": "tool_output_store.py",
+    "output-stats": "tool_output_store.py",
+    "output-purge": "tool_output_store.py",
 }
 
 
@@ -803,7 +813,7 @@ def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
     module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
     if tool == "usage":
         return int(module["main"](["usage", *arguments]))
-    if tool in {"checkpoint", "resume"}:
+    if tool in {"checkpoint", "resume", "output-search", "output-resume", "output-stats", "output-purge"}:
         return int(module["main"](arguments, tool))
     return int(module["main"](arguments))
 
