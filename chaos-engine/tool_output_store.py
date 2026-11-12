@@ -319,7 +319,7 @@ def _search_rows(conn: sqlite3.Connection, query: str) -> list[tuple[int, str]]:
                 )
             )
         except sqlite3.OperationalError:
-            pass
+            pass  # MATCH can raise; the LIKE query below is the fallback
     return list(
         conn.execute(
             "SELECT id, body FROM outputs WHERE body LIKE ? ESCAPE '\\'",
