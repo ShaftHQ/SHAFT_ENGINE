@@ -140,22 +140,34 @@ def _shell_statements(command: str) -> list[str]:
 
 
 def _strip_unquoted_comment(part: str) -> str:
-    """Drop a bash comment. A hash starts one only at the beginning of a word."""
+    """Drop a bash comment through the end of its line.
+
+    A later line stays visible. ``_is_approve_invocation`` therefore still
+    sees it, and a newline there is not an approval. A single quote ends at
+    the next ``'``. A double quote ends only when ``_escaped`` is false.
+    """
     quote = ""
     out: list[str] = []
-    for index, char in enumerate(part):
+    index = 0
+    while index < len(part):
+        char = part[index]
         if quote:
             out.append(char)
-            if char == quote and part[index - 1] != "\\":
+            if char == quote and (quote == "'" or not _escaped(part, index)):
                 quote = ""
+            index += 1
             continue
         if char in {"'", '"'}:
             quote = char
             out.append(char)
+            index += 1
             continue
-        if char == "#" and (index == 0 or part[index - 1] in " \t"):
-            break
+        if _hash_starts_comment(part, index):
+            while index < len(part) and part[index] not in "\n\r":
+                index += 1
+            continue
         out.append(char)
+        index += 1
     return "".join(out).strip()
 
 
@@ -623,13 +635,50 @@ def private_remote_block(root: Path, command: str) -> str | None:
     return None
 
 
+def _exemption_is_unsafe(text: str) -> bool:
+    """True when a delete-check exemption still carries shell syntax.
+
+    Single-quoted spans are payload, and ``'`` always ends one. Double-quoted
+    spans end only when ``_escaped`` is false, and are unsafe only when they
+    contain ``$`` or a backtick. After the quote ends, unquoted text uses
+    ``_UNSAFE_ARG``.
+    """
+    quote = ""
+    start = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if quote:
+            if char == quote and (quote == "'" or not _escaped(text, index)):
+                if quote == '"' and ("$" in text[start:index] or "`" in text[start:index]):
+                    return True
+                quote = ""
+                start = index + 1
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            if _UNSAFE_ARG.search(text[start:index]) is not None:
+                return True
+            quote = char
+            index += 1
+            start = index
+            continue
+        index += 1
+    if quote == "'":
+        return False
+    if quote == '"':
+        return "$" in text[start:] or "`" in text[start:]
+    return _UNSAFE_ARG.search(text[start:]) is not None
+
+
 def relayed_delete_block(command: str) -> str | None:
     """A delete code inside the agent command was relayed, not typed by the human.
 
     ``tool.py delete-check`` after an owner paste is the check tool, not a
     relay. ``cleanup --delete-code`` and other non-check statements stay
     refused. A check prefix with substitutions, process-subs, or a
-    lookalike basename is not an exemption (#7991).
+    lookalike basename is not an exemption (#7991). A ``#`` comment ends
+    on its line, so a later line in the same group stays visible.
     """
     text = command or ""
     statements = _command_pieces(text) or [text]
@@ -637,7 +686,7 @@ def relayed_delete_block(command: str) -> str | None:
         stripped = _strip_unquoted_comment(statement)
         if (
             _DELETE_CHECK_INVOCATION.search(stripped)
-            and _UNSAFE_ARG.search(stripped) is None
+            and not _exemption_is_unsafe(stripped)
         ):
             continue
         if _DELETE.search(stripped) and _DELETE_CODE.search(stripped):
