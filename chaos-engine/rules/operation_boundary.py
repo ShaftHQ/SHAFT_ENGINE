@@ -35,6 +35,7 @@ _ASSIGN = re.compile(
 _BURIED_ASSIGN = re.compile(
     r"(?:declare|export|local|readonly|typeset)(?:\s+(?:--|\-[A-Za-z]+))*\s+"
     r"[A-Za-z_][A-Za-z0-9_]*\+?="
+    r"|printf\s+-v\s+[A-Za-z_][A-Za-z0-9_]*\b"
 )
 _APPROVE_ONLY = re.compile(
     r"^(?:python3?|py(?:\s+-3)?)\s+\S*tool\.py\s+force-push-approve\s+--\s+\S"
@@ -303,10 +304,15 @@ def _consume_heredoc(text: str, index: int, delim: str, buf: list[str]) -> int:
 
 def _matching_brace(text: str, index: int) -> int:
     """Index after the ``${...}`` that starts at ``index``. Unclosed runs to the end."""
+    return _scan_braces(text, index + 1)
+
+
+def _scan_braces(text: str, open_brace: int) -> int:
+    """``open_brace`` points at ``{``. Return the index after the matching ``}``."""
     depth = 1
     parens = 0
     quote = ""
-    cursor = index + 2
+    cursor = open_brace + 1
     while cursor < len(text):
         char = text[cursor]
         if quote:
@@ -352,6 +358,37 @@ def _matching_brace(text: str, index: int) -> int:
     return cursor
 
 
+def _continued_dollar(text: str, index: int) -> tuple[str, int, int] | None:
+    """Join a backslash-newline between ``$`` and ``{`` or ``(``.
+
+    Returns the text to append, the next index, and how much nesting opened.
+    """
+    if index >= len(text) or text[index] != "$":
+        return None
+    cursor = index + 1
+    joined = False
+    while cursor < len(text) and (
+        text.startswith("\\\n", cursor) or text.startswith("\\\r\n", cursor)
+    ):
+        cursor += 3 if text.startswith("\\\r\n", cursor) else 2
+        joined = True
+    if not joined or cursor >= len(text):
+        return None
+    if text[cursor] == "{":
+        end = _scan_braces(text, cursor)
+        return "$" + text[cursor:end], end, 0
+    if text[cursor] == "(":
+        return "$(", cursor + 1, 1
+    return None
+
+
+def _keep_assignment_flag(text: str, index: int, step: int, buf: list[str]) -> None:
+    """Keep a continued ``+ref`` or short flag visible after ``name=``."""
+    nxt = index + step
+    if buf and buf[-1] == "=" and nxt < len(text) and text[nxt] in "+-":
+        buf.append(" ")
+
+
 def _fold_command_syntax(
     text: str,
     index: int,
@@ -373,6 +410,8 @@ def _fold_command_syntax(
                 buf.clear()
             else:
                 buf.append("\n")
+        else:
+            _keep_assignment_flag(text, index, step, buf)
         return index + step
     if quote:
         return None
@@ -434,6 +473,12 @@ def _command_pieces(command: str) -> list[str]:
     ticks = False
     index = 0
     while index < len(text):
+        continued = None if ticks or quote == "'" else _continued_dollar(text, index)
+        if continued is not None:
+            chunk, index, opened = continued
+            buf.append(chunk)
+            depth += opened
+            continue
         folded = _fold_command_syntax(text, index, buf, pieces, pending, quote, ticks, depth)
         if folded is not None:
             index = folded
