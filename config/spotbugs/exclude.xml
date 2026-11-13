@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <Match>
+        <Class name="com.shaft.tools.io.AllureReportLaunch"/>
+        <Method name="jdkMajor"/>
+        <Bug pattern="COMMAND_INJECTION"/>
+    </Match>
+</FindBugsFilter>

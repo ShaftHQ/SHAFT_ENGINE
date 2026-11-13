@@ -136,6 +136,18 @@ public class AllureReportLaunchTest {
     }
 
     @Test
+    public void javacImageRejectsRelativeAndNonBinNames() throws Exception {
+        Method javacImage = AllureReportLaunch.class.getDeclaredMethod("javacImage", Path.class);
+        javacImage.setAccessible(true);
+        Path home = Files.createTempDirectory("javac-image");
+        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/javac").toAbsolutePath().normalize()), true);
+        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/javac.exe").toAbsolutePath().normalize()), true);
+        Assert.assertEquals(javacImage.invoke(null, Path.of("bin").resolve("javac")), false);
+        Assert.assertEquals(javacImage.invoke(null, home.resolve("lib/javac").toAbsolutePath().normalize()), false);
+        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/java").toAbsolutePath().normalize()), false);
+    }
+
+    @Test
     public void shortHeaderAndUnrecognizedJavacAreRejected() {
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> AllureReportLaunch.javaMajorRequiredBy(new byte[] {0, 1, 2, 3, 4, 5, 6}));
