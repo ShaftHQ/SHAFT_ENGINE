@@ -38,6 +38,25 @@ def db_path(project: Path) -> Path:
     return project.resolve() / ".chaos-engine-state" / "tool-output" / "output.db"
 
 
+def has_row(project: Path | None = None) -> bool:
+    """True when the store file exists and has a row. Does not create the file."""
+    path = db_path(project or Path.cwd())
+    if not path.is_file():
+        return False
+    try:
+        conn = sqlite3.connect(path, timeout=1)
+    except sqlite3.Error:
+        return False
+    try:
+        conn.execute("PRAGMA query_only=ON")
+        row = conn.execute("SELECT 1 FROM outputs LIMIT 1").fetchone()
+    except sqlite3.Error:
+        return False
+    finally:
+        conn.close()
+    return row is not None
+
+
 def trigger_for(name: str) -> int:
     if Path(name).suffix.lower() in DUMP_SUFFIXES:
         return DUMP_TRIGGER_BYTES
