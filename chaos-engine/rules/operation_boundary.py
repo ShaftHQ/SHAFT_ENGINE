@@ -710,10 +710,11 @@ def head_destination_block(root: Path, command: str) -> str | None:
 
     An explicit commit or branch name is not the token HEAD, so it stays
     allowed. HEAD with no destination names the checked-out branch.
+    Options between git and push, including a directory flag, still count.
     Force-push stays a separate block. This read is local rev-parse only.
     """
     for part in _command_pieces(command or ""):
-        if not _PUSH.search(part) or _is_approve_invocation(part):
+        if _is_approve_invocation(part):
             continue
         workdir, destinations = _head_push_pairs(part)
         if not destinations:

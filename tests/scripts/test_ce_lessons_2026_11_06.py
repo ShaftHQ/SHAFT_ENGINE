@@ -1444,6 +1444,11 @@ class OperationBoundaryTest(TestCase):
                 "head-destination-mismatch",
                 boundary.command_blocks(root, via_checkout),
             )
+            wrong_checkout = f"git -C {other} push origin HEAD:narration-pace-gate"
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, wrong_checkout),
+            )
             self.assertIn(
                 "head-destination-mismatch",
                 boundary.command_blocks(root, mismatch),
