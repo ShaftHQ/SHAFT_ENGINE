@@ -298,6 +298,15 @@
       "module": "tests.scripts.test_ethics_attestation_7983",
       "k": 1,
       "runner": "unittest"
+    },
+    {
+      "id": "reg-ethics-attestation-7983",
+      "set": "regression",
+      "area": "hooks",
+      "source_issue": 7983,
+      "module": "tests.scripts.test_ethics_attestation_7983",
+      "k": 1,
+      "runner": "unittest"
     }
   ]
 }

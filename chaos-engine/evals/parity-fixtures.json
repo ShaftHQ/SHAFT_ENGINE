@@ -202,6 +202,24 @@
       }
     },
     {
+      "id": "precompact-ethics-card",
+      "policy": "precompact-ethics-locator",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PreCompact",
+        "session_id": "eval-precompact-ethics"
+      },
+      "expect": {
+        "exit_code": 0,
+        "decision": "allow",
+        "context_max_bytes": 600,
+        "context_must_include": [
+          "companions/ethics-card.md"
+        ],
+        "identical_context_across_hosts": true
+      }
+    },
+    {
       "id": "deny-ethics-exam-submit",
       "policy": "person-only-attestation",
       "ratchet": "hooks",
@@ -218,7 +236,8 @@
         "decision": "deny",
         "reason_substrings": [
           "do not sit",
-          "Person-only"
+          "Person-only",
+          "companions/ethics-card.md"
         ]
       }
     }

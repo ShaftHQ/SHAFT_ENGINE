@@ -2160,8 +2160,7 @@ def _session_start_output(event: dict, event_name: str, session_id: str, token) 
         if checkpoint is not None:
             prompt = module.resume_prompt(checkpoint)
             if event_name == "PreCompact":
-                locator = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
-                prompt = f"{prompt}\n{locator}"
+                prompt = f"{prompt}\nEthics: `companions/ethics-card.md`"
             print(json.dumps({"additionalContext": prompt}))
             return 0
         if event_name == "PreCompact":
