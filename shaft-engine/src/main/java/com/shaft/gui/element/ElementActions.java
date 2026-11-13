@@ -4,6 +4,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.Actions;
+import com.shaft.gui.element.internal.PageSourcePresence;
 import com.shaft.gui.internal.aria.AriaSnapshotHelper;
 import com.shaft.gui.internal.ocr.OcrWebDriverPointerActions;
 import com.shaft.gui.ocr.OcrTarget;
@@ -108,8 +109,8 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      *
      * <p>A match is a {@code findElements} hit. {@code isDisplayed()} is not required, so a hidden
      * match still counts. A node missing from {@code findElements} is absent even if a page-source
-     * dump lists it. Scrolling a below-fold control into view is {@code swipeElementIntoView}, not
-     * a presence check.
+     * dump lists it. Count that node with {@link #getPageSourceElementsCount(By)}. Scrolling a
+     * below-fold control into view is {@code swipeElementIntoView}, not a presence check.
      *
      * @param elementLocator the locator used to find elements (e.g. {@code By.cssSelector(".item")})
      * @return the count of matching elements, or {@code 0} if none are found
@@ -121,14 +122,42 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     /**
+     * Counts elements in the current page source, including a node whose {@code displayed}
+     * attribute is {@code false}. {@code findElements} is not used, and this read does not poll.
+     *
+     * @param elementLocator an id, name, accessibility id, or xpath locator
+     * @return how many page-source nodes match
+     */
+    @Override
+    public int getPageSourceElementsCount(By elementLocator) {
+        String pageSource = driverFactoryHelper.getDriver().getPageSource();
+        if (pageSource == null) {
+            return 0;
+        }
+        return PageSourcePresence.count(pageSource, elementLocator);
+    }
+
+    /**
+     * Reports whether the current page source contains a match, including a node whose
+     * {@code displayed} attribute is {@code false}. This does not call {@code findElements} and does not poll.
+     *
+     * @param elementLocator an id, name, accessibility id, or xpath locator
+     * @return {@code true} when {@link #getPageSourceElementsCount(By)} is at least one
+     */
+    @Override
+    public boolean isPresentInPageSource(By elementLocator) {
+        return getPageSourceElementsCount(elementLocator) > 0;
+    }
+
+    /**
      * Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.
      * This is a query, not an assertion: an absent element returns {@code false} without a failed step, and the
      * wait is the explicit {@code timeout}, not the element-identification timeout. Works for web and native sessions.
      *
      * <p>A match is a {@code findElements} hit. {@code isDisplayed()} is not required, including a match
      * whose {@code isDisplayed()} is {@code false}. A node missing from {@code findElements} is absent
-     * even if a page-source dump lists it. Scrolling a below-fold control into view is
-     * {@code swipeElementIntoView}, not a presence check.
+     * even if a page-source dump lists it. Count that node with {@link #isPresentInPageSource(By)}.
+     * Scrolling a below-fold control into view is {@code swipeElementIntoView}, not a presence check.
      *
      * @param elementLocator the locator of the optional element
      * @param timeout        how long to poll; {@link Duration#ZERO} checks once

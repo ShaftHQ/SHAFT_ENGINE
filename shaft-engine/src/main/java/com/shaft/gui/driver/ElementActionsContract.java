@@ -75,6 +75,22 @@ public interface ElementActionsContract {
     }
 
     /**
+     * Counts matches in the current page source, including nodes with {@code displayed=false}.
+     * This does not call {@code findElements} and does not poll.
+     */
+    default int getPageSourceElementsCount(By elementLocator) {
+        throw new UnsupportedOperationException(
+                "Page-source presence is not supported by this element actions implementation.");
+    }
+
+    /**
+     * Reports whether page source contains a match, including a node with {@code displayed=false}.
+     */
+    default boolean isPresentInPageSource(By elementLocator) {
+        return getPageSourceElementsCount(elementLocator) > 0;
+    }
+
+    /**
      * Runs a native mobile command with the given parameters.
      */
     ElementActionsContract executeNativeMobileCommand(String command, Map<String, String> parameters);

@@ -95,6 +95,18 @@ public class ElementActionsContractOfflineTest {
         Assert.assertTrue(parent.getMessage().contains("switchToParentFrame is not supported"), parent.getMessage());
     }
 
+    @Test
+    public void pageSourceDefaultsStayUnsupported() {
+        UnsupportedOperationException count = Assert.expectThrows(
+                UnsupportedOperationException.class,
+                () -> actions.getPageSourceElementsCount(By.id("footer")));
+        Assert.assertTrue(count.getMessage().contains("Page-source presence is not supported"), count.getMessage());
+        UnsupportedOperationException present = Assert.expectThrows(
+                UnsupportedOperationException.class,
+                () -> actions.isPresentInPageSource(By.id("footer")));
+        Assert.assertTrue(present.getMessage().contains("Page-source presence is not supported"), present.getMessage());
+    }
+
     private void assertDelegated(ElementActionsContract returned, String name) {
         Assert.assertSame(returned, actions);
         Assert.assertEquals(actions.lastName, name);
