@@ -1007,6 +1007,8 @@ def is_origin_only(relative: Path) -> bool:
         or relative.parts[:3] == ("references", "details", "token-opt-retro-2026-11-06")
         # The likeness read-aloud names a person. Git only, not the portable payload.
         or relative.as_posix() == "references/details/likeness_record_train.py"
+        # The English showcase slate names the product. Git only (#7906).
+        or relative.as_posix() == "references/details/showcase-film-slate.md"
         or relative.as_posix() in {
             "README.md",
             "INSTALL.md",
