@@ -368,6 +368,8 @@ class LargeReadDenyTests(unittest.TestCase):
         self.assertEqual([], block_reasons(stdout), stdout + stderr)
 
     def test_pretooluse_denies_unranged_dumps_and_huge_files_only(self):
+        economy = (CE / "references/context-economy.md").read_text(encoding="utf-8")
+        self.assertIn("rules/large_read_deny.py", economy)
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for name in ("report.html", "report.xml", "run.log", "trace.har", "Report.HTML"):

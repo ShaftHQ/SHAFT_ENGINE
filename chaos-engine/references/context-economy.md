@@ -16,7 +16,7 @@ RESEARCH (repo-only `chaos-engine/RESEARCH.md`).
 Every token competes for attention. Gather only the evidence that can change
 the next decision. Stop exploring when that decision is supported.
 
-- Bound every read (`offset`/`limit`, `head_limit`, ripgrep context).
+- Bound every read (`offset`/`limit`, `head_limit`, ripgrep context). An unranged Read of a `.html`, `.xml`, `.log`, or `.har` file at or above 8192 bytes, or of any file at or above 262144 bytes, is denied by [large-read deny](../rules/large_read_deny.py). A ranged Read stays allowed.
 - After truncation, narrow once. Do not repeat the same broad query.
 - Do not reread an unchanged input.
 - Prefer a path plus a discriminating excerpt over a full dump.
