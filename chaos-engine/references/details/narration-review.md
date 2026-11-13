@@ -131,6 +131,8 @@ and not a training clip.
 Do not spell a dropped word in another writing system to force the token.
 That changes the accent. Regenerate from the owner's recording.
 
+The read-aloud and the refuse list are [likeness_record_train.py](likeness_record_train.py).
+
 ## Not used
 
 - Broadcast -23 LUFS, and the AES speech-distribution -18 LUFS, are not this

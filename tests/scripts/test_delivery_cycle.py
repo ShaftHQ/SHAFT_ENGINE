@@ -222,6 +222,7 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "The two adversarial reviewers load this file and the standing section",
             "Do not train a likeness, and do not patch a take, from a synthesized file.",
             "Do not spell a dropped word in another writing system to force the token.",
+            "The read-aloud and the refuse list are [likeness_record_train.py](likeness_record_train.py).",
             "the private review listen is -20 LUFS ±2",
             "The gate is 140 to 175 words a minute.",
             "The gate is at or below 280.",
