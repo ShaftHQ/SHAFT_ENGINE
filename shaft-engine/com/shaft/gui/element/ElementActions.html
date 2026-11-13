@@ -535,7 +535,12 @@ Failures are collected and reported at the end of the test rather than stopping 
 <h3>getElementsCount</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">getElementsCount</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
-<div class="block">Returns the number of elements on the current page that match the given locator.</div>
+<div class="block">Returns the number of elements on the current page that match the given locator.
+
+<p>A match is a <code>findElements</code> hit. <code>isDisplayed()</code> is not required, so a hidden
+match still counts. A node missing from <code>findElements</code> is absent even if a page-source
+dump lists it. Scrolling a below-fold control into view is <code>swipeElementIntoView</code>, not
+a presence check.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../driver/ElementActionsContract.html#getElementsCount(org.openqa.selenium.By)">getElementsCount</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
@@ -561,7 +566,12 @@ Failures are collected and reported at the end of the test rather than stopping 
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span></div>
 <div class="block">Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.
 This is a query, not an assertion: an absent element returns <code>false</code> without a failed step, and the
-wait is the explicit <code>timeout</code>, not the element-identification timeout. Works for web and native sessions.</div>
+wait is the explicit <code>timeout</code>, not the element-identification timeout. Works for web and native sessions.
+
+<p>A match is a <code>findElements</code> hit. <code>isDisplayed()</code> is not required, including a match
+whose <code>isDisplayed()</code> is <code>false</code>. A node missing from <code>findElements</code> is absent
+even if a page-source dump lists it. Scrolling a below-fold control into view is
+<code>swipeElementIntoView</code>, not a presence check.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>elementLocator</code> - the locator of the optional element</dd>
