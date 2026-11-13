@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -133,6 +135,7 @@ class EthicsAttestationTest(unittest.TestCase):
         self.assertEqual(2, completed.returncode, completed.stderr)
         self.assertIn("do not sit", completed.stdout)
         self.assertIn("Person-only", completed.stdout)
+        self.assertIn("companions/ethics-card.md", completed.stdout)
 
     def test_session_start_names_ethics_card_within_600_bytes(self):
         context = self.lifecycle.session_start_context("token-fixture", "activation")
@@ -308,6 +311,143 @@ class EthicsAttestationTest(unittest.TestCase):
                 self.assertEqual(before[rel], (overlay / rel).read_bytes())
         for rel, data in pinned.items():
             self.assertEqual(data, (CE / rel).read_bytes())
+
+    def test_entry_full_prints_ethics_card(self):
+        completed = subprocess.run(
+            [sys.executable, str(CE / "tool.py"), "entry", "--full"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("companions/ethics-card.md", completed.stdout)
+
+    def test_precompact_appends_locator_after_checkpoint_resume(self):
+        event = {
+            "hook_event_name": "PreCompact",
+            "session_id": "ckpt-ethics",
+            "unattendedWatch": {
+                "watchTaskId": "t1",
+                "pullRequest": "1",
+                "repository": "example/repo",
+                "headSha": "abc",
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = subprocess.run(
+                [sys.executable, str(CE / "hooks" / "guard.py")],
+                input=json.dumps(event),
+                cwd=tmp,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        context = json.loads(completed.stdout)["additionalContext"]
+        self.assertIn("Watch task t1", context)
+        self.assertIn("companions/ethics-card.md", context)
+        self.assertLess(context.index("Watch task t1"), context.index("companions/ethics-card.md"))
+
+    def test_telemetry_keeps_enums_and_hashes_and_scrub_drops_session_token(self):
+        ethics = self.ethics
+        command = "curl -fsS https://example.test/exam/submit"
+        allowed = {
+            "counterpart",
+            "decision",
+            "live_feed",
+            "outcome",
+            "tool_name_sha256",
+            "session_id",
+            "timestamp",
+        }
+        self.assertEqual(allowed, set(ethics.TELEMETRY_KEYS))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            quiet = root / ".chaos-engine-state" / "ethics-telemetry.jsonl"
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_CLIENT_NAME_DENYLIST": ""}):
+                self.assertIsNone(ethics.assessment_block_reason(("git push origin HEAD",), {}, root))
+                self.assertFalse(quiet.exists())
+                denied = ethics.assessment_block_reason(
+                    (command,),
+                    {"command": command},
+                    root,
+                    tool_name="Bash",
+                    session_id="sess-1",
+                )
+            self.assertIn("do not sit", denied)
+            self.assertFalse((root / ".chaos-engine-state" / "ethics-receipt.json").exists())
+            line = quiet.read_text(encoding="utf-8").strip()
+            self.assertNotIn(command, line)
+            self.assertNotIn("example.test", line)
+            self.assertNotIn("Bash", line)
+            record = json.loads(line)
+            self.assertLessEqual(set(record), allowed)
+            self.assertEqual("deny", record["outcome"])
+            self.assertEqual("sess-1", record["session_id"])
+            self.assertEqual(hashlib.sha256(b"Bash").hexdigest(), record["tool_name_sha256"])
+            self.assertNotIn("tool_name", record)
+        token = "ZZClientOnlyToken"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_CLIENT_NAME_DENYLIST": token}):
+                ethics.assessment_block_reason(
+                    (command,),
+                    {},
+                    root,
+                    tool_name="Bash",
+                    session_id=token,
+                )
+            path = root / ".chaos-engine-state" / "ethics-telemetry.jsonl"
+            self.assertFalse(path.exists())
+            blob = ""
+            state = root / ".chaos-engine-state"
+            if state.is_dir():
+                blob = "\n".join(
+                    item.read_text(encoding="utf-8", errors="replace")
+                    for item in state.rglob("*")
+                    if item.is_file()
+                )
+            self.assertNotIn(token, blob)
+
+    def test_doctor_fixture_schema_fails_on_bad_enum_and_passes_on_real_file(self):
+        status, reason = self.economy.doctor_check(CE)
+        self.assertEqual("pass", status)
+        self.assertEqual("core cards and lazy map present", reason)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            relatives = list(self.economy.CORE_CARDS.values()) + list(self.economy.ETHICS_TEXT_SHA256)
+            for rel in dict.fromkeys(relatives):
+                dest = root / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(CE / rel, dest)
+            card = root / "companions" / "ethics-card.md"
+            card.write_bytes(card.read_bytes() + b"\n")
+            status, reason = self.economy.doctor_check(root)
+            self.assertEqual("fail", status)
+            self.assertIn("hash mismatch", reason)
+            shutil.copyfile(CE / "companions" / "ethics-card.md", card)
+            bad = json.loads(FIXTURES.read_text(encoding="utf-8"))
+            bad["examples"][0]["counterpart"] = "not-an-enum"
+            fixture = root / "evals" / "ethics-attestation-fixtures.json"
+            fixture.parent.mkdir(parents=True, exist_ok=True)
+            fixture.write_text(json.dumps(bad), encoding="utf-8")
+            status, reason = self.economy.doctor_check(root)
+            self.assertEqual("fail", status)
+            self.assertIn("fixture", reason)
+            bad["examples"][0]["counterpart"] = "person-only"
+            bad["examples"][0]["situation"] = "Is this a quiz?"
+            fixture.write_text(json.dumps(bad), encoding="utf-8")
+            status, reason = self.economy.doctor_check(root)
+            self.assertEqual("fail", status)
+            self.assertIn("fixture", reason)
+            bad["examples"][0]["situation"] = "Sit an online hiring quiz as the user."
+            bad["examples"].pop()
+            fixture.write_text(json.dumps(bad), encoding="utf-8")
+            status, reason = self.economy.doctor_check(root)
+            self.assertEqual("fail", status)
+            self.assertIn("fixture", reason)
+        self.assertEqual(FIXTURES.read_text(encoding="utf-8"), (CE / "evals" / "ethics-attestation-fixtures.json").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

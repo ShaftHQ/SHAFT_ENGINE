@@ -2,13 +2,17 @@
 """Person-only attestation receipt check.
 
 The receipt is the log: counterpart, decision, and live_feed only. This tool
-reads it and does not persist a copy, and it rejects quiz text.
+reads it and does not persist a copy, and it rejects quiz text. Telemetry is
+a separate enum-and-hash line, not a second receipt.
 """
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 COUNTERPARTS = frozenset({"ai-accepted", "person-only", "unclear"})
@@ -42,8 +46,19 @@ SAFE_MARKERS = (
 DENY_REASON = (
     "Person-only attestation: do not sit the assessment, do not answer as the user would, "
     "and do not feed answers live. Offer preparation beforehand. "
-    "A receipt with counterpart person-only or live_feed is not a submit."
+    "A receipt with counterpart person-only or live_feed is not a submit. "
+    "Card: companions/ethics-card.md."
 )
+TELEMETRY_RELATIVE = Path(".chaos-engine-state") / "ethics-telemetry.jsonl"
+TELEMETRY_KEYS = frozenset({
+    "counterpart",
+    "decision",
+    "live_feed",
+    "outcome",
+    "tool_name_sha256",
+    "session_id",
+    "timestamp",
+})
 
 
 def _validate(data: object) -> dict:
@@ -178,11 +193,74 @@ def blocks_submit(receipt: dict | None) -> bool:
     return False
 
 
+def _client_name_scrub():
+    cached = getattr(_client_name_scrub, "module", None)
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().parents[1] / "client_name_scrub.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_client_name_scrub", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _client_name_scrub.module = module
+    return module
+
+
+def _telemetry_record(
+    receipt: dict | None,
+    outcome: str,
+    tool_name: str,
+    session_id: str,
+) -> dict:
+    record = {
+        "outcome": outcome,
+        "tool_name_sha256": hashlib.sha256(tool_name.encode("utf-8")).hexdigest(),
+        "session_id": session_id,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    if isinstance(receipt, dict):
+        for key in ("counterpart", "decision", "live_feed"):
+            if key in receipt:
+                record[key] = receipt[key]
+    enums = [key for key in ("counterpart", "decision", "live_feed") if key in record]
+    if not enums and outcome not in {"allow", "deny"}:
+        return {}
+    return {key: record[key] for key in TELEMETRY_KEYS if key in record}
+
+
+def _append_ethics_telemetry(cwd: Path | None, record: dict | None) -> None:
+    """Enums and hashes only. A denylist hit writes nothing."""
+    if not isinstance(record, dict) or not record:
+        return
+    enums = [key for key in ("counterpart", "decision", "live_feed") if key in record]
+    if not enums and record.get("outcome") not in {"allow", "deny"}:
+        return
+    slim = {key: record[key] for key in TELEMETRY_KEYS if key in record}
+    text = json.dumps(slim, sort_keys=True, separators=(",", ":"))
+    root = Path(cwd) if cwd is not None else Path.cwd()
+    scrub = _client_name_scrub()
+    if scrub is None:
+        return
+    if scrub.findings_in_text(text, scrub.load_denylist(root), surface="ethics-telemetry"):
+        return
+    path = root / TELEMETRY_RELATIVE
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+    except OSError:
+        return
+
+
 def assessment_block_reason(
     commands: tuple[str, ...],
     tool_input: object,
     cwd: Path | None = None,
     receipt: dict | None = None,
+    *,
+    tool_name: str = "",
+    session_id: str = "",
 ) -> str | None:
     """Deny an assessment-shaped command or URL unless the receipt allows it."""
     blob = _blob(commands, tool_input)
@@ -190,7 +268,17 @@ def assessment_block_reason(
         return None
     if receipt is None and cwd is not None:
         receipt = read_receipt_or_none(Path(cwd) / DEFAULT_RECEIPT)
-    if blocks_submit(receipt):
+    blocked = blocks_submit(receipt)
+    _append_ethics_telemetry(
+        cwd,
+        _telemetry_record(
+            receipt if isinstance(receipt, dict) else None,
+            "deny" if blocked else "allow",
+            tool_name,
+            session_id,
+        ),
+    )
+    if blocked:
         return DENY_REASON
     return None
 
@@ -204,6 +292,10 @@ def main(arguments: list[str] | None = None) -> int:
         print(f"ethics-check: {error}", file=sys.stderr)
         return 2
     code = exit_code(receipt)
+    _append_ethics_telemetry(
+        Path.cwd(),
+        _telemetry_record(receipt, "deny" if code else "allow", "", ""),
+    )
     if code != 0:
         print(DENY_REASON, file=sys.stderr)
         return code

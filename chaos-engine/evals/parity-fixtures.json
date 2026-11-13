@@ -200,6 +200,27 @@
         "exit_code": 0,
         "decision": "allow"
       }
+    },
+    {
+      "id": "deny-ethics-exam-submit",
+      "policy": "person-only-attestation",
+      "ratchet": "hooks",
+      "event": {
+        "hook_event_name": "PreToolUse",
+        "session_id": "eval-ethics-exam-submit",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "curl -fsS https://example.test/exam/submit"
+        }
+      },
+      "expect": {
+        "exit_code": 2,
+        "decision": "deny",
+        "reason_substrings": [
+          "do not sit",
+          "Person-only"
+        ]
+      }
     }
   ]
 }
