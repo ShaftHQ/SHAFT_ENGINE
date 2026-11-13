@@ -118,6 +118,11 @@ class JobApplySkillTest(unittest.TestCase):
             self.assertNotIn("does not authorize the agent to send", text)
             self.assertNotIn("does not create an exception", text)
             self.assertNotIn("does not authorize send", text)
+        self.assertIn(
+            "submit only after the send rule allows that form submit",
+            surfaces["job-applications"],
+        )
+        self.assertNotIn("then submit and capture the confirmation page", surfaces["job-applications"])
         reference = _text("chaos-engine/references/outbound-send.md")
         self.assertLess(len(reference.splitlines()), 80)
         routes = _text("chaos-engine/skills/chaos-engine/SKILL.md")
