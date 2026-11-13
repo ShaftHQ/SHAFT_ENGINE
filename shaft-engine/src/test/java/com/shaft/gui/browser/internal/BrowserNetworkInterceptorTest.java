@@ -104,6 +104,26 @@ public class BrowserNetworkInterceptorTest {
         late.close();
     }
 
+    @Test
+    public void addRuleOnNonHasDevToolsDriverShouldRefuseBeforeInstall() {
+        WebDriver driver = Mockito.mock(WebDriver.class);
+        AtomicBoolean askedToInstall = new AtomicBoolean();
+        BrowserNetworkInterceptor interceptor = new BrowserNetworkInterceptor(driver, (ignored, filter) -> {
+            askedToInstall.set(true);
+            return () -> { };
+        });
+        try {
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    () -> interceptor.addRule(BrowserNetworkInterceptionRule.mock(
+                            request -> true, request -> new HttpResponse())));
+            Assert.assertEquals(failure.getMessage(),
+                    "Network Interceptor is not supported by the current driver type.");
+            Assert.assertFalse(askedToInstall.get());
+        } finally {
+            interceptor.close();
+        }
+    }
+
 }
 
 final class EqualWebDriver implements WebDriver, HasDevTools {

@@ -28,11 +28,12 @@ frame is its own context with its own lifecycle.
   paths) — feature-detect, degrade gracefully, never assume.
 
 ## Network capture
-`network.addIntercept` + `continueRequest/continueResponse` for mutation;
-passive capture via `network.responseCompleted` events. Response bodies need
-`network.getData`/data collectors (size-capped) — capture headers/timings
-eagerly, bodies lazily. SHAFT's `BrowserNetworkInterceptor` (DevTools) and
-`HttpContractRecorder` already normalize contracts — compose, don't rebuild.
+SHAFT mutation is CDP Fetch in `BrowserNetworkInterceptor` for `HasDevTools`
+only. BiDi `network.addIntercept` is not that path. Passive BiDi
+(`network.responseCompleted`, then size-capped `network.getData`) does not
+mock: capture headers and timings eagerly, bodies lazily. Native Appium
+traffic is out of band. `BrowserNetworkInterceptor` and `HttpContractRecorder`
+already normalize contracts — compose, don't rebuild.
 
 ## Debugging
 - Enable BiDi wire logging first (`-Dwebdriver.remote.verbose` /
