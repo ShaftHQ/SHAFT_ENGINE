@@ -1353,6 +1353,50 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertFalse(any("ghp_" in item for item in hits))
 
+    def test_merging_published_token_assignment_is_not_a_new_secret(self) -> None:
+        boundary = _load("ce_operation_upstream_merge_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo.
+                    ["git", *args], cwd=root, check=True, capture_output=True, text=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "-b", "main")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            (root / "README.md").write_text("clean\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-m", "root")
+            git("checkout", "-b", "feature")
+            (root / "feature.md").write_text("feature\n", encoding="utf-8")
+            git("add", "feature.md")
+            git("commit", "-m", "feature")
+            git("checkout", "main")
+            source = root / "rules.py"
+            source.write_text(
+                "token = tokens[index]\n"
+                "if token == directory_flag and index + 1 < len(tokens):\n"
+                "    remember(tokens[index + 1])\n",
+                encoding="utf-8",
+            )
+            git("add", "rules.py")
+            git("commit", "-m", "published tokenizer")
+            published = git("rev-parse", "HEAD")
+            git("checkout", "feature")
+            git("merge", "main", "--no-edit")
+            git("update-ref", "refs/remotes/origin/main", published)
+            git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+            quiet = boundary.committed_secret_failures(root)
+            self.assertEqual([], quiet)
+            (root / "note.txt").write_text("password: hunter2\n", encoding="utf-8")
+            git("add", "note.txt")
+            git("commit", "-m", "real secret")
+            leaked = boundary.committed_secret_failures(root)
+            self.assertIn("password-in-commit", leaked)
+
     def test_long_history_without_upstream_uses_remote_default_branch(self) -> None:
         boundary = _load("ce_operation_remote_base_1106", CE / "rules/operation_boundary.py")
         with tempfile.TemporaryDirectory() as temporary:

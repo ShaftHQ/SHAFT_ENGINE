@@ -997,6 +997,51 @@ def _added_diff_text(patch: str) -> str:
     return "\n".join(added)
 
 
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    probe = _git(root, ["merge-base", "--is-ancestor", ancestor, descendant])
+    return probe is not None and probe.returncode == 0
+
+
+def _merge_resolution_patch(root: Path, commit: str, base: str, exclude: list[str]) -> str | None:
+    """Diff a merge against its upstream parent.
+
+    Merging the published branch into a feature branch makes the first parent
+    the feature tip. A first-parent patch then shows published lines, including
+    a variable named ``token``, as if this branch had added them. Diff against
+    the parent that is already on the outgoing base instead. When neither
+    parent is on that base, keep the first parent so a secret that exists only
+    in the merge is still visible after a later merge removes it.
+    """
+    parents = _git(root, ["rev-parse", f"{commit}^@"])
+    if parents is None or parents.returncode != 0:
+        return None
+    names = [item for item in (parents.stdout or "").split() if item]
+    if not names:
+        return ""
+    chosen = next((parent for parent in names if _is_ancestor(root, parent, base)), names[0])
+    diff = _git(root, ["diff", "--no-color", chosen, commit, "--", *exclude])
+    if diff is None or diff.returncode != 0:
+        return None
+    return diff.stdout or ""
+
+
+def _outgoing_patches(root: Path, base: str, exclude: list[str]) -> str | None:
+    history = _git(
+        root,
+        ["log", "-p", "--no-merges", "--no-color", f"{base}..HEAD", "--", *exclude],
+    )
+    merges = _git(root, ["rev-list", "--merges", f"{base}..HEAD"])
+    if history is None or merges is None or history.returncode != 0 or merges.returncode != 0:
+        return None
+    parts = [history.stdout or ""]
+    for commit in (merges.stdout or "").split():
+        patch = _merge_resolution_patch(root, commit, base, exclude)
+        if patch is None:
+            return None
+        parts.append(patch)
+    return "\n".join(parts)
+
+
 def committed_secret_failures(root: Path) -> list[str]:
     """Scan outgoing commit and index blobs. A clean worktree does not clear a committed secret."""
     if not (Path(root) / ".git").exists():
@@ -1007,20 +1052,14 @@ def committed_secret_failures(root: Path) -> list[str]:
     if not base:
         return []
     exclude = [".", ":(exclude)tests", ":(exclude)tests/**"]
-    # Every outgoing commit, including merge resolutions. Default `git log -p`
-    # omits merge patches, so a secret that exists only in a merge commit would
-    # disappear after a later merge removes it. Only added lines count: deleting
-    # a line that already existed on the base is not a new secret.
-    history = _git(
-        Path(root),
-        ["log", "-p", "--diff-merges=first-parent", "--no-color", f"{base}..HEAD", "--", *exclude],
-    )
+    history = _outgoing_patches(Path(root), base, exclude)
     head = _git(Path(root), ["diff", "--no-color", f"{base}..HEAD", "--", *exclude])
     staged = _git(Path(root), ["diff", "--cached", "--no-color", "--", *exclude])
-    scans = (history, head, staged)
-    if any(item is None or item.returncode != 0 for item in scans):
+    if history is None or head is None or staged is None or head.returncode != 0 or staged.returncode != 0:
         return ["outgoing-diff-unavailable"]
-    text = "\n".join(_added_diff_text(item.stdout or "") for item in scans)
+    text = "\n".join(
+        _added_diff_text(item) for item in (history, head.stdout or "", staged.stdout or "")
+    )
     return secret_failures(text, kind="commit")
 
 
