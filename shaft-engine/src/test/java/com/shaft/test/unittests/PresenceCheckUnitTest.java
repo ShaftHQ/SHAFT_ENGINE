@@ -3,6 +3,7 @@ package com.shaft.test.unittests;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.internal.PresenceProbe;
+import com.shaft.gui.internal.locator.Locator;
 import com.shaft.properties.internal.Properties;
 import org.mockito.Mockito;
 import org.openqa.selenium.By;
@@ -87,5 +88,31 @@ public class PresenceCheckUnitTest {
         Assert.assertTrue(actions.isPresent(PROMPT, Duration.ZERO));
         Assert.assertEquals(actions.getElementsCount(PROMPT), 1);
         verify(hidden, never()).isDisplayed();
+    }
+
+    /** A page-source node with {@code displayed=false} counts only on the page-source path. */
+    @Test
+    public void displayedFalsePageSourceNodeCountsWithoutFindElements() {
+        SHAFT.Properties.timeouts.set().waitForLazyLoading(false);
+        By checkbox = Locator.accessibilityId("generic_termsAndConditions_checkBox");
+        WebDriver driver = driver();
+        when(driver.getPageSource()).thenReturn("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <hierarchy>
+                  <android.widget.CheckBox resource-id="com.example:id/generic_termsAndConditions_checkBox" content-desc="generic_termsAndConditions_checkBox" displayed="false" clickable="true"/>
+                  <android.view.View resource-id="com.example:id/other" displayed="false"/>
+                </hierarchy>
+                """);
+        ElementActions actions = new ElementActions(driver, true);
+
+        Assert.assertFalse(actions.isPresent(checkbox, Duration.ZERO));
+        Assert.assertEquals(actions.getElementsCount(checkbox), 0);
+        Assert.assertTrue(actions.isPresentInPageSource(checkbox));
+        Assert.assertEquals(actions.getPageSourceElementsCount(checkbox), 1);
+        Assert.assertEquals(actions.getPageSourceElementsCount(By.id("generic_termsAndConditions_checkBox")), 1);
+        Assert.assertEquals(actions.getPageSourceElementsCount(
+                By.xpath("//*[@displayed='false' and @clickable='true']")), 1);
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> actions.getPageSourceElementsCount(By.cssSelector(".missing")));
     }
 }
