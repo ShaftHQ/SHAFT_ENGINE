@@ -1,9 +1,9 @@
 ---
 name: job-apply
 description: >-
-  Use when anyone wants to apply for a job: classify the posting, gather inputs
-  once, draft (never send) a researched cover email with a verified CV, and pass
-  the gate checklist. On demand only.
+  Use when anyone wants to apply for a job. Default is draft only. A recorded
+  owner standing send permission that names the channel class may send only
+  after the shared gate passes on the exact final text.
 license: MIT
 permissions:
   - bash
@@ -15,7 +15,10 @@ permissions:
 # Job apply
 
 Load this skill when the deliverable is **apply for a job** (email a recruiter,
-ATS form, Easy Apply, or similar). Draft only; the human presses Send.
+ATS form, Easy Apply, or similar). Default is draft only. A recorded owner
+standing send permission that names the channel class may send only after the
+shared gate passes on the exact final text. See
+[outbound-send.md](../../references/outbound-send.md).
 
 **Applicant profile (private):** identity, education, experience counts, form
 defaults, cover-letter priorities, title exclusions, base country, and remote
@@ -70,12 +73,15 @@ bash chaos-engine/skills/job-apply/scripts/check_abstraction.sh
    facts in the private profile before attaching. Lead later copy with
    user-ranked priorities from that profile; omit titles the user excluded and
    flag CV conflicts.
-7. **Draft, never send** (email path). An email that needs an attachment becomes
-   a draft in the user's own mailbox with the PDF attached. The user presses
-   Send. For non-home-country roles, state base country and that they seek a
-   remote role near the top of the body.
+7. **Draft, then the send rule** (email path). An email that needs an attachment
+   becomes a draft in the user's own mailbox with the PDF attached. Default is
+   draft only. A recorded owner standing send permission that names the channel
+   class may send only after the shared gate passes on the exact final text.
+   For non-home-country roles, state base country and that they seek a remote
+   role near the top of the body.
 7b. **Forms path:** fill known fields → screenshot the filled form → get an
-    explicit "yes" → submit exactly once → capture confirmation text + screenshot
+    explicit "yes" unless the standing permission names this form channel →
+    submit exactly once → capture confirmation text + screenshot
     + any application ID. Duplicate required fields: reuse the first value only
     if required; else leave blank. Missing checkbox option: tick Other and type
     the value. Single-page forms may have no Next; trust viewport capture and
@@ -105,16 +111,16 @@ Detail cards: [research](references/research.md),
 
 ## Hard rules
 
-- A recorded standing order changes which drafts are produced, inside the scope that order names. The scope text stays in the private store. It does not authorize the agent to send.
+- A recorded standing order changes which drafts are produced, inside the scope that order names. The scope text stays in the private store. A draft-scope order is not a send permission.
 - Distinct contacts or channels are separate drafts.
 - The remote ask goes in the subject and in the body.
-- Two independent reviewers must each record PASS on the current draft, and neither reviewer is the writer. One signature. The signature text stays in the private store. The human sends from their own mailbox. Read the Sent folder back after that human send.
+- Two independent reviewers must each record PASS on the exact final text, and neither reviewer is the writer. If the text changes, re-review. A review sign-off is not a send license. Read the Sent folder back after a send. The checklist is [outbound-send.md](../../references/outbound-send.md).
 - Public-by-link happens through the browser share dialog and is confirmed this turn. The agent does not publish.
 - After two identical ATS verification errors, stop and draft the next channel. Do not submit it.
 - The ledger is a cache. Read the tracker back after every write. The sheet location stays in the private store.
 - Search the Sent folder before any resend.
 - Cover letters and emails do not use founder or CEO titles, client names, or tool claims that are not in the CV or a project README.
-- Never send the application; drafts only (forms: submit only after an explicit human yes). A standing order does not create an exception.
+- Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text. A form submit the permission did not name still needs an explicit yes.
 - Application forms stay allowed. A hiring quiz or answer-on-your-own assessment is person-only: do not sit it and do not feed answers live ([ethics card](../../companions/ethics-card.md)).
 - Never invent achievements, features, or metrics.
 - Never put applicant names, emails, phones, employers, or personal stats into

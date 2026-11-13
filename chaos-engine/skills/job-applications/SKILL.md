@@ -11,7 +11,11 @@ permissions:
 
 # Job applications, all channels
 
+Send authority is [outbound-send.md](../../references/outbound-send.md). Research cards and the gate checklist stay in [job-apply](../job-apply/SKILL.md). This skill only routes channels.
+
 Apply end to end through whichever route each posting offers. Email, LinkedIn and web forms are all in scope; never drop a fitting role just because it has no email.
+
+The shared send rule: Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.
 
 ## 1. Inputs (read first)
 
@@ -32,9 +36,9 @@ Apply end to end through whichever route each posting offers. Email, LinkedIn an
 
 ## 4. Apply by route
 
-- **Email:** send from the user's mail connector with the CV attached, to an address printed on the official posting or careers page only. If no standing send permission covers it, save drafts with the attachment and get one yes for the batch.
-- **LinkedIn:** prefer Easy Apply. Read the resume file name and date LinkedIn will attach and make sure it's the current CV. For a recruiter or hiring-manager message or connection note, use the reviewed text word for word.
-- **Web form:** open the posting in the browser the user chose (the user's own desktop browser when they named it, otherwise your own browser). Fill fields from memory's form answers and upload the CV. Answer salary and demographic questions only from facts the user gave (for example, "negotiable"). Leave optional demographic fields at "prefer not to say" or blank unless the user chose an answer. Before you press submit, take a screenshot of the filled form and check every field against your plan. Then submit and capture the confirmation page.
+- **Email:** CV attached, to an address printed on the official posting or careers page only. Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.
+- **LinkedIn:** prefer Easy Apply. Read the resume file name and date LinkedIn will attach and make sure it's the current CV. For a recruiter or hiring-manager message or connection note, use the reviewed text word for word. Easy Apply and a recruiter message follow the send rule.
+- **Web form:** open the posting in the browser the user chose (the user's own desktop browser when they named it, otherwise your own browser). Fill fields from memory's form answers and upload the CV. Answer salary and demographic questions only from facts the user gave (for example, "negotiable"). Leave optional demographic fields at "prefer not to say" or blank unless the user chose an answer. Before you press submit, take a screenshot of the filled form and check every field against your plan. Submit only after the send rule allows that form submit, then capture the confirmation page.
   - Web forms use the browser the user named, or the host's own browser tools. Do not prescribe an OS input API. A run stays on local tools unless the user approves a named cloud agent or an extra machine. Never restart the user's browser; open a new tab.
   - A sign-in, captcha, one-time code, or new ATS account that needs the user goes to them as one step. Do the rest of the batch and come back.
 
