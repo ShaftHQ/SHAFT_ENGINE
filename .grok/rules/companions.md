@@ -7,6 +7,7 @@ Roles are one source at `chaos-engine/references/roles.md`. Before the first act
 A headed owner request overrides the Tester headless rule. Say so before the browser starts.
 A role name that file does not contain is mapped to the nearest role or reported absent. Product skill routing is additional to that role.
 Companions are already on (caveman=ultra; ponytail=ultra; off only: stop caveman, stop ponytail, normal mode).
+Ethics card (always on): `chaos-engine/companions/ethics-card.md`.
 Before work, run `python3 .chaos-engine/tool.py entry`, then `python3 .chaos-engine/tool.py retrieve`.
 Follow chaos-engine/references/iterative-flow.md, including its session-close checklist.
 Memory, MemPalace, and Graphify are the tools that entry reports.

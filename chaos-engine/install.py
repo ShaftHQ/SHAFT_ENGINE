@@ -7232,6 +7232,107 @@ def _repair_dependency_component(
     raise ValueError(f"repair not implemented for component: {name}")
 
 
+def _ethics_text_pins() -> dict[str, str]:
+    """ETHICS_TEXT_SHA256 from the sibling token_economy module. No second table."""
+    path = Path(__file__).resolve().parent / "token_economy.py"
+    spec = importlib.util.spec_from_file_location("_ce_ethics_text_pins", path)
+    if spec is None or spec.loader is None:
+        raise ValueError("ethics text hash mismatch: token_economy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    pins = getattr(module, "ETHICS_TEXT_SHA256", None)
+    if not isinstance(pins, dict) or not pins:
+        raise ValueError("ethics text hash mismatch: token_economy.py")
+    typed: dict[str, str] = {}
+    for relative, digest in pins.items():
+        if not isinstance(relative, str) or not isinstance(digest, str) or not relative:
+            raise ValueError("ethics text hash mismatch: token_economy.py")
+        typed[relative] = digest
+    return typed
+
+
+def restore_pinned_ethics_texts(project: Path, target: Path) -> list[str]:
+    """Copy pinned ethics texts from the package tree onto the overlay.
+
+    The package is ``project/chaos-engine`` when that tree is present and is
+    not the overlay itself. A missing package file is skipped. Links are not
+    followed. Every present source is hashed against the pin before any write.
+    """
+    package = project / "chaos-engine"
+    try:
+        if not package.is_dir() or package.resolve() == target.resolve():
+            return []
+    except OSError:
+        return []
+    pending: list[tuple[str, bytes]] = []
+    mismatched: list[str] = []
+    for relative, digest in _ethics_text_pins().items():
+        source = package / relative
+        if is_link_or_reparse(source) or not source.is_file():
+            continue
+        try:
+            source_bytes = source.read_bytes()
+        except OSError:
+            continue
+        if hashlib.sha256(source_bytes).hexdigest() != digest:
+            mismatched.append(relative)
+            continue
+        pending.append((relative, source_bytes))
+    if mismatched:
+        raise ValueError("ethics text hash mismatch: " + ", ".join(mismatched))
+    restored: list[str] = []
+    for relative, source_bytes in pending:
+        destination = target / relative
+        if is_link_or_reparse(destination):
+            continue
+        try:
+            current = destination.read_bytes() if destination.is_file() else None
+        except OSError:
+            continue
+        if current == source_bytes:
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_name(f"{destination.name}.restore-{os.getpid()}")
+        try:
+            temporary.write_bytes(source_bytes)
+            os.replace(temporary, destination)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+        restored.append(relative)
+    return restored
+
+
+def _repair_core_component(project: Path, target: Path, name: str) -> dict[str, object]:
+    """Verify core after putting pinned ethics texts back from the package."""
+    if not target.exists():
+        raise ValueError(
+            "core is missing; rerun the ChaosEngine install one-liner "
+            "(repair --component core cannot recreate an absent tree)"
+        )
+    restored = restore_pinned_ethics_texts(project, target)
+    removed = remove_nested_install_artifacts(target)
+    verify_install(target)
+    if removed:
+        payload: dict[str, object] = {
+            "status": "repaired",
+            "component": name,
+            "action": "removed-nested-overlay",
+            "removed": removed,
+        }
+        if restored:
+            payload["restored"] = restored
+        return payload
+    if restored:
+        return {
+            "status": "repaired",
+            "component": name,
+            "action": "restored-ethics-texts",
+            "restored": restored,
+        }
+    return {"status": "repaired", "component": name, "action": "verified"}
+
+
 def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
@@ -7255,21 +7356,7 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
         _recover_transaction(project)
         target = project / INSTALL_DIRECTORY
         if name == "core":
-            if not target.exists():
-                raise ValueError(
-                    "core is missing; rerun the ChaosEngine install one-liner "
-                    "(repair --component core cannot recreate an absent tree)"
-                )
-            removed = remove_nested_install_artifacts(target)
-            verify_install(target)
-            if removed:
-                return {
-                    "status": "repaired",
-                    "component": name,
-                    "action": "removed-nested-overlay",
-                    "removed": removed,
-                }
-            return {"status": "repaired", "component": name, "action": "verified"}
+            return _repair_core_component(project, target, name)
         if not target.exists():
             raise ValueError(
                 "ChaosEngine core is missing; rerun the install one-liner before repair"

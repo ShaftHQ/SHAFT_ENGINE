@@ -60,7 +60,7 @@ Ask only what sources cannot answer. [delivery ledger](../../references/bot-entr
 
 ## Implement
 
-Companions at task start via `tool.py entry` ([bot entry](../../references/bot-entry.md)): [Caveman ultra](../../companions/caveman-ultra.md), [Ponytail ultra](../../companions/ponytail-ultra.md). Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on explicit invocation. Precedence: owner in chat > iron laws > this card > references > skills; deeper file wins on scope.
+Companions at task start via `tool.py entry` ([bot entry](../../references/bot-entry.md)): [Caveman ultra](../../companions/caveman-ultra.md), [Ponytail ultra](../../companions/ponytail-ultra.md). Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on explicit invocation. Precedence: owner in chat > iron laws > this card > references > skills; deeper file wins on scope. Person-only outranks owner-in-chat for that class only.
 
 ## Check and deliver
 

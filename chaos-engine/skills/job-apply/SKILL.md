@@ -115,6 +115,7 @@ Detail cards: [research](references/research.md),
 - Search the Sent folder before any resend.
 - Cover letters and emails do not use founder or CEO titles, client names, or tool claims that are not in the CV or a project README.
 - Never send the application; drafts only (forms: submit only after an explicit human yes). A standing order does not create an exception.
+- Application forms stay allowed. A hiring quiz or answer-on-your-own assessment is person-only: do not sit it and do not feed answers live ([ethics card](../../companions/ethics-card.md)).
 - Never invent achievements, features, or metrics.
 - Never put applicant names, emails, phones, employers, or personal stats into
   this skill tree; keep them in the private per-user applicant profile / live

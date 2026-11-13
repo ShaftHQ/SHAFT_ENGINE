@@ -30,7 +30,8 @@ class TokenEconomyTests(unittest.TestCase):
 
     def _root(self, tmp: Path) -> Path:
         root = tmp / ".chaos-engine"
-        for relative in self.economy.CORE_CARDS.values():
+        relatives = list(self.economy.CORE_CARDS.values()) + list(self.economy.ETHICS_TEXT_SHA256)
+        for relative in dict.fromkeys(relatives):
             (root / relative).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(CE / relative, root / relative)
         shutil.copy(CE / "harness_map.py", root / "harness_map.py")
