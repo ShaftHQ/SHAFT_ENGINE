@@ -627,10 +627,11 @@ def force_push_hint(command: str) -> str:
 
 
 def _shell_tokens(text: str) -> list[str]:
-    """Split one statement on whitespace. Quotes do not change the token text."""
+    """Split one statement on whitespace. An empty quoted argument stays empty."""
     tokens: list[str] = []
     buf: list[str] = []
     quote = ""
+    started = False
     for char in text:
         if quote:
             if char == quote:
@@ -640,14 +641,17 @@ def _shell_tokens(text: str) -> list[str]:
             continue
         if char in {"'", '"'}:
             quote = char
+            started = True
             continue
         if char.isspace():
-            if buf:
+            if started:
                 tokens.append("".join(buf))
                 buf = []
+                started = False
             continue
         buf.append(char)
-    if buf:
+        started = True
+    if started:
         tokens.append("".join(buf))
     return tokens
 
@@ -663,16 +667,29 @@ def _checked_out_branch(root: Path) -> str | None:
     return name
 
 
-def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
+def _head_push_pairs(statement: str, root: Path) -> tuple[str | None, list[str | None]]:
     """
     Return the directory flag path and destinations whose source is HEAD.
 
     None in the destination list means a push of HEAD with no colon.
-    A source that is not the token HEAD is ignored.
+    A source that is not the token HEAD is ignored. A later relative
+    directory flag is relative to the earlier one. An empty one keeps it.
     """
     tokens = _shell_tokens(statement)
-    workdir: str | None = None
+    workdir: Path | None = None
     directory_flag = "-" + "C"
+
+    def remember(argument: str) -> None:
+        nonlocal workdir
+        if argument == "":
+            return
+        candidate = Path(argument)
+        if candidate.is_absolute():
+            workdir = candidate
+            return
+        base = workdir if workdir is not None else Path(root)
+        workdir = base / candidate
+
     index = 0
     while index < len(tokens) and tokens[index] != "git":
         index += 1
@@ -682,16 +699,16 @@ def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
     while index < len(tokens) and tokens[index] != "push":
         token = tokens[index]
         if token == directory_flag and index + 1 < len(tokens):
-            workdir = tokens[index + 1]
+            remember(tokens[index + 1])
             index += 2
             continue
         if token.startswith(directory_flag) and len(token) > len(directory_flag):
-            workdir = token[len(directory_flag) :]
+            remember(token[len(directory_flag) :])
             index += 1
             continue
         index += 1
     if index >= len(tokens):
-        return workdir, []
+        return None if workdir is None else str(workdir), []
     destinations: list[str | None] = []
     for token in tokens[index + 1 :]:
         if token.startswith("-"):
@@ -701,7 +718,7 @@ def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
             destinations.append(None)
         elif bare.startswith("HEAD:"):
             destinations.append(bare.split(":", 1)[1])
-    return workdir, destinations
+    return None if workdir is None else str(workdir), destinations
 
 
 def head_destination_block(root: Path, command: str) -> str | None:
@@ -716,7 +733,7 @@ def head_destination_block(root: Path, command: str) -> str | None:
     for part in _command_pieces(command or ""):
         if _is_approve_invocation(part):
             continue
-        workdir, destinations = _head_push_pairs(part)
+        workdir, destinations = _head_push_pairs(part, Path(root))
         if not destinations:
             continue
         base = Path(root)

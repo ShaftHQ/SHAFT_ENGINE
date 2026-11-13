@@ -1449,6 +1449,23 @@ class OperationBoundaryTest(TestCase):
                 "head-destination-mismatch",
                 boundary.command_blocks(root, wrong_checkout),
             )
+            # A later relative -C is relative to the earlier one, including ".".
+            chained = f"git -C {other} -C . push origin HEAD:narration-pace-gate"
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, chained),
+            )
+            chained_match = f"git -C {other} -C . push origin HEAD:ChaosEngine/8008-spotbugs"
+            self.assertNotIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, chained_match),
+            )
+            # An empty -C leaves the previous directory unchanged.
+            empty_flag = f'git -C {other} -C "" push origin HEAD:narration-pace-gate'
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, empty_flag),
+            )
             self.assertIn(
                 "head-destination-mismatch",
                 boundary.command_blocks(root, mismatch),
