@@ -23,13 +23,22 @@ not pass the item.
   -1 dBTP ([R 128-2023](https://tech.ebu.ch/docs/r/r128v5_0.pdf)).
 - True peak stays at or below -1 dBTP. Sample peak stays at or below 0.89,
   about -1 dBFS.
+- For this voice, the private review listen is -20 LUFS ±2. The owner heard
+  -15.8 LUFS as shouting. Do not master that listen back to -16. Apple's -16
+  LKFS figure stays the podcast-publish figure, not this review gate.
+- Measure integrated loudness on the stereo programme, not on one channel of a
+  dual-mono file. On 2026-11-12 one channel of this voice read about 3 LU
+  quieter than the stereo file. EBU R 128 measures the programme as distributed
+  ([R 128-2023](https://tech.ebu.ch/docs/r/r128v5_0.pdf)).
 - One gain for the whole file. AES TD1008 treats loudness normalization as
   uniform gain, not a fader ride
   ([Production Advice on TD1008](https://productionadvice.co.uk/td1008/)).
   The opening sentence is not louder than the rest. Short-term speech
   loudness stays within 3 LU of the integrated loudness. That 3 LU window is
   the gate for the defect where one sentence was mastered hotter. It is not
-  an EBU number.
+  an EBU number. Short-term loudness is the 3-second window defined in EBU
+  Tech 3341 ([Tech 3341](https://tech.ebu.ch/docs/tech/tech3341.pdf)). Judge
+  it only while speech is present, so a pause does not fail the 3 LU window.
 - Do not compress phrase by phrase to hide an uneven read. Regenerate it.
 
 ## Noise and tears
@@ -51,6 +60,9 @@ not pass the item.
   interrupted word. Content words match the script.
 - A proper noun is judged against the owner's recording, not against
   transcript spelling. The reference transcript matches the reference audio.
+- Transcribe a 16 kHz resample, not the 48 kHz file samples. Whisper's audio
+  is 16 kHz ([Radford et al., 2022](https://arxiv.org/abs/2212.04356)). A
+  48 kHz pass on this voice returned a false Russian tag and an empty transcript.
 
 ## Cadence, breath, and fillers
 
@@ -60,6 +72,25 @@ not pass the item.
 - A filler is not clustered: no two fillers inside eight seconds, and no
   sentence carries more than one. Eight seconds is this project's scatter
   rule, about twenty words at a conversational pace.
+- A scripted filler is checked on a short slice around its boundary, with
+  previous-text conditioning off. A full-file transcript can drop a real
+  "Um". On 2026-11-12 the full file had no filler token, and a 1.2 second
+  slice of the same file heard "Um" at 43.16 s. Absence on the full pass is
+  not absence in the audio.
+- Speaking rate is words divided by the whole duration, pauses included.
+  The gate is 140 to 175 words a minute. Tauroza and Allison (Applied
+  Linguistics, 1990) place an average lecture at 125 to 160 and call a
+  lecture faster than normal above 185. The take the owner liked measured
+  168. The take he called simply too fast measured 210, with the words
+  themselves at about 302 once pauses were removed.
+- Articulation rate is words divided by the time whose 10 ms frames sit
+  above -40 dBFS. The gate is at or below 280. Do not pass a file whose
+  pauses hide a rushed read.
+- Do not time-stretch the file. `atempo`, rubberband, and sox tempo are
+  failures even when the resulting rate falls inside the gate. The owner
+  heard a whole-file slowdown as inhuman. Pace comes from the reference
+  recording, not from a later stretch. There is no speech-rate control on
+  `generate_voice_clone`.
 
 ## Script
 
