@@ -1,7 +1,7 @@
 ---
 name: learn-from-external-harnesses
 description: >-
-  Use when asked to scan, analyze, or learn from an external repository, skill set, or agent harness, so the local harness can adopt useful ideas without bloat, duplicates, or untracked skills.
+  Use when asked to scan, analyze, or learn from an external repository, skill set, or agent harness.
 ---
 # Learn from external harnesses
 

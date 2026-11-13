@@ -1,8 +1,7 @@
 ---
 name: pre-done-self-review
 description: >-
-  Use before claiming Done, signing off, or handing off: reconcile every item
-  with all standing rules, cite rule and alternative for each gap, check views.
+  Use before claiming Done, signing off, or handing off: reconcile every item.
   On demand only.
 license: MIT
 permissions:
@@ -67,5 +66,5 @@ Converged and does not add an empty convergence section. Unrequested files
 are listed and left in place.
 
 ```bash
-python3 chaos-engine/intent_converge.py converge work-item.md tree-dir
+python3 .chaos-engine/intent_converge.py converge work-item.md tree-dir
 ```
