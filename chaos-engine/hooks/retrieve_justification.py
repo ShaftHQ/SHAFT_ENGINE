@@ -1438,8 +1438,10 @@ def _segment_reads_project(project: Path, segment: str) -> bool:
 def _strip_py_heredoc_bodies(command: str) -> str:
     """Drop each python-stdin heredoc body. The shell around the opener stays.
 
-    The closer is a line that is only the delimiter. Without a closer, the rest
-    of the command is the body and is not split into shell segments.
+    Bash starts the body on the next line. Text after the delimiter on the
+    opener line, such as ``&& cat``, is shell and stays. The closer is a line
+    that is only the delimiter. Without a closer, lines after the opener are
+    the body and are not split into shell segments.
     """
     text = command or ""
     pieces: list[str] = []
@@ -1454,9 +1456,13 @@ def _strip_py_heredoc_bodies(command: str) -> str:
             pieces.append(text[cursor:])
             break
         delimiter = next(group for group in delim.groups() if group)
-        body_start = delim.end()
+        line_end = text.find("\n", delim.end())
+        if line_end == -1:
+            pieces.append(text[cursor:])
+            break
+        pieces.append(text[cursor:line_end + 1])
+        body_start = line_end + 1
         closer = re.search(rf"(?m)^[ \t]*{re.escape(delimiter)}[ \t]*$", text[body_start:])
-        pieces.append(text[cursor:body_start])
         if not closer:
             break
         cursor = body_start + closer.end()

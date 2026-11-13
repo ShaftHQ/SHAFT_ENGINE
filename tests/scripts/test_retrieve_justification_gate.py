@@ -559,12 +559,19 @@ NODE install [src=chaos-engine/install.py loc=L12]
 
         `cat src/notes` has no dotted name, so the heredoc path scan cannot see
         it. Bare `rg class` owes a retrieve. The same words inside the program
-        do not.
+        do not. Bash runs text after the delimiter on the opener line, so that
+        tail is shell too.
         """
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_heredoc_prefix")
         cat_around = "cat src/notes && venv/bin/python - <<'PY'\nprint(1)\nPY"
         rg_around = "rg class && venv/bin/python - <<'PY'\nprint(1)\nPY"
         inside = "venv/bin/python - <<'PY'\ncat src/notes\nrg class\nPY\n"
+        # Bash runs the opener-line tail. The body starts on the next line.
+        cat_tail = "venv/bin/python - <<'PY' && cat src/notes"
+        rg_tail = "venv/bin/python - <<'PY' && rg class"
+        cat_tail_body = "venv/bin/python - <<'PY' && cat src/notes\nprint(1)\nPY\n"
+        rg_tail_body = "venv/bin/python - <<'PY' && rg class\nprint(1)\nPY\n"
+        unclosed_body = "venv/bin/python - <<'PY'\ncat src/notes\nrg class\n"
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
 
@@ -580,12 +587,20 @@ NODE install [src=chaos-engine/install.py loc=L12]
 
             self.assertEqual(gate.BLOCK_REASON, block("cat src/notes", "plain-cat"))
             self.assertEqual(gate.BLOCK_REASON, block(cat_around, "heredoc-cat"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_tail, "heredoc-cat-tail"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_tail_body, "heredoc-cat-tail-body"))
             self.assertIsNone(block(inside, "inside-program"))
             self.assertIsNone(gate.session_retrieve_gap(project, "inside-program"))
+            self.assertIsNone(block(unclosed_body, "unclosed-body"))
+            self.assertIsNone(gate.session_retrieve_gap(project, "unclosed-body"))
             self.assertIsNone(block("rg class", "plain-rg"))
             self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "plain-rg"))
             self.assertIsNone(block(rg_around, "heredoc-rg"))
             self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg"))
+            self.assertIsNone(block(rg_tail, "heredoc-rg-tail"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg-tail"))
+            self.assertIsNone(block(rg_tail_body, "heredoc-rg-tail-body"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg-tail-body"))
             ledger = json.loads(
                 (project / ".chaos-engine-state" / "retrieve-justification.json").read_text(encoding="utf-8")
             )
