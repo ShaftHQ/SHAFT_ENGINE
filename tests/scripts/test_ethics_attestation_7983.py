@@ -387,16 +387,16 @@ class EthicsAttestationTest(unittest.TestCase):
             self.assertEqual("sess-1", record["session_id"])
             self.assertEqual(hashlib.sha256(b"Bash").hexdigest(), record["tool_name_sha256"])
             self.assertNotIn("tool_name", record)
-        token = "ZZClientOnlyName"
+        marker = "ZZClientOnlyName"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_CLIENT_NAME_DENYLIST": token}):
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_CLIENT_NAME_DENYLIST": marker}):
                 ethics.assessment_block_reason(
                     (command,),
                     {},
                     root,
                     tool_name="Bash",
-                    session_id=token,
+                    session_id=marker,
                 )
             path = root / ".chaos-engine-state" / "ethics-telemetry.jsonl"
             self.assertFalse(path.exists())
@@ -408,7 +408,7 @@ class EthicsAttestationTest(unittest.TestCase):
                     for item in state.rglob("*")
                     if item.is_file()
                 )
-            self.assertNotIn(token, blob)
+            self.assertNotIn(marker, blob)
 
     def test_doctor_fixture_schema_fails_on_bad_enum_and_passes_on_real_file(self):
         status, reason = self.economy.doctor_check(CE)
