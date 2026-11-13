@@ -664,13 +664,15 @@ def _checked_out_branch(root: Path) -> str | None:
 
 
 def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
-    """Work tree from ``git -C``, and destinations for source token HEAD.
+    """
+    Return the directory flag path and destinations whose source is HEAD.
 
-    ``None`` in the destination list means ``git push ... HEAD`` with no colon.
+    None in the destination list means a push of HEAD with no colon.
     A source that is not the token HEAD is ignored.
     """
     tokens = _shell_tokens(statement)
     workdir: str | None = None
+    directory_flag = "-" + "C"
     index = 0
     while index < len(tokens) and tokens[index] != "git":
         index += 1
@@ -679,12 +681,12 @@ def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
     index += 1
     while index < len(tokens) and tokens[index] != "push":
         token = tokens[index]
-        if token == "-C" and index + 1 < len(tokens):
+        if token == directory_flag and index + 1 < len(tokens):
             workdir = tokens[index + 1]
             index += 2
             continue
-        if token.startswith("-C") and len(token) > 2:
-            workdir = token[2:]
+        if token.startswith(directory_flag) and len(token) > len(directory_flag):
+            workdir = token[len(directory_flag) :]
             index += 1
             continue
         index += 1
@@ -703,11 +705,12 @@ def _head_push_pairs(statement: str) -> tuple[str | None, list[str | None]]:
 
 
 def head_destination_block(root: Path, command: str) -> str | None:
-    """Refuse ``git push ... HEAD:other`` when this checkout is not ``other``.
+    """
+    Refuse a HEAD push whose destination branch is not the checked-out branch.
 
     An explicit commit or branch name is not the token HEAD, so it stays
-    allowed. ``HEAD`` with no destination names the checked-out branch.
-    Force-push stays a separate block. This read is local ``rev-parse`` only.
+    allowed. HEAD with no destination names the checked-out branch.
+    Force-push stays a separate block. This read is local rev-parse only.
     """
     for part in _command_pieces(command or ""):
         if not _PUSH.search(part) or _is_approve_invocation(part):
