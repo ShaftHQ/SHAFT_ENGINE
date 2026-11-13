@@ -69,6 +69,14 @@ Capability seams, orthogonal outcomes, tool-result pruning, spill, and code
 mode were reimplemented as portable guidance and installer contracts. The
 Node runtime, Cordis kernel, session log, agent loop, and UI were not copied.
 
+## Spec Kit (ideas only)
+
+- License: MIT
+- Copyright GitHub, Inc.
+- Upstream: https://github.com/github/spec-kit
+- Researched commit: `2ee2b1e8005905db05f5717300a469b3068b908f`
+- No files were copied. ChaosEngine did not vendor the CLI or the templates. The intent checks in this tree are original code.
+
 ## Context Mode (ideas only)
 
 - License: Elastic License 2.0

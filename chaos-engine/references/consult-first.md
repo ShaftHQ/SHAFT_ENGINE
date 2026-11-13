@@ -9,6 +9,9 @@ before touching anything. No edits yet.
 - [Full pass](#full-pass)
 - [Executable specification for consequential work](#executable-specification-for-consequential-work)
 - [Plan artifact destination](#plan-artifact-destination)
+- [Cross-artifact consistency](#cross-artifact-consistency)
+- [Constitution Check](#constitution-check)
+- [New-product decision](#new-product-decision)
 - [Lifecycle](#lifecycle)
 - [Output](#output)
 
@@ -95,6 +98,29 @@ implementation plan on the target GitHub issue. For non-issue work, keep them
 transient unless the owner explicitly approves an existing operational-guidance
 location. Never create or write `docs/superpowers/**` in this repository; this
 rule overrides an imported skill's default path.
+
+## Cross-artifact consistency
+
+The analyze phase is read-only. Check the work item against its task list for
+duplication, ambiguity, underspecification, alignment with `identity.md` and
+the iron laws, coverage of every `FR-*` and `SC-*`, and inconsistency between
+obligations. Report id, category, severity, locations, summary, and
+recommendation. Cap the table at 50 rows. Do not modify files in this pass.
+The mechanical check is [intent_converge.py](../intent_converge.py).
+
+## Constitution Check
+
+A consequential plan on the GitHub issue includes this gate before research
+and re-checks it after design. Cite `identity.md` Principles and the iron laws.
+Pass, or fill the table. Fill the table only when a principle or iron law is
+violated. A passing plan may omit the table. Do not add a second constitution
+file. `identity.md` remains the only source of principles.
+
+## New-product decision
+
+An idea that would be a new product records exactly one of `decision: go`,
+`decision: needs-clarification`, or `decision: kill`, plus the evidence and
+the reason. `kill` closes the question. `go` may open a work item.
 
 ## Lifecycle
 

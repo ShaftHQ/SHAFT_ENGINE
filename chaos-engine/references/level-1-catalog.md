@@ -69,6 +69,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Context rot | Character budget check and keep-only compaction | [`context-rot.md`](context-rot.md) |
 | GenAI spans | Local OpenTelemetry GenAI invoke_agent and execute_tool spans | [`genai-spans.md`](genai-spans.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
+| Learn from external harnesses | Deep pass over one external harness: inventory the local registry, map each idea, and file a ticket | [`../skills/learn-from-external-harnesses/SKILL.md`](../skills/learn-from-external-harnesses/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |
 | FreeToken | Optional standalone local MoE companion (`:1919`); never CE-installed; not OmniRoute | [`../skills/freetoken/SKILL.md`](../skills/local-runtimes/references/freetoken.md) · guide (repo-only `chaos-engine/guides/freetoken.md`) |

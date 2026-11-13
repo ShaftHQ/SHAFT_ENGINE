@@ -2,8 +2,7 @@
 name: ci-cd
 description: >-
   Use when PR merge waits are long or CI/CD is being designed, audited, or sped
-  up: targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue,
-  release and privileged workflows.
+  up.
 license: MIT
 permissions:
   - bash

@@ -66,6 +66,10 @@ SKILLS = (
     ("self-improve", "portable", "skills/self-improve/SKILL.md",
      "Use when running ChaosEngine Learning Session self-improve. Harness lessons "
      "are GitHub issues only. Product lessons may queue after delivery or on request.", "learning"),
+    ("learn-from-external-harnesses", "portable", "skills/learn-from-external-harnesses/SKILL.md",
+     "Use when asked to scan, analyze, or learn from an external repository, "
+     "skill set, or agent harness.",
+     "on-demand"),
     ("kanban", "portable", "skills/kanban/SKILL.md",
      "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 "
      "review, pull rule, Definition of Done, findings fixed or filed.", "delivery"),
@@ -77,8 +81,8 @@ SKILLS = (
      "story arc, claim titles, visual evidence, code slides, checkpoints. On demand only.", "on-demand"),
     # On demand only: linked from bot-entry, iterative-flow and multi-agent-pdca done/handoff paths.
     ("pre-done-self-review", "portable", "skills/pre-done-self-review/SKILL.md",
-     "Use before claiming Done, signing off, or handing off: reconcile every item with all standing "
-     "rules, cite rule and alternative for each gap, check views. On demand only.", "on-demand"),
+     "Use before claiming Done, signing off, or handing off: reconcile every item. "
+     "On demand only.", "on-demand"),
     # On demand only: reached through the level-1 catalog when applying for a job.
     ("job-apply", "portable", "skills/job-apply/SKILL.md",
      "Use when anyone wants to apply for a job: classify the posting, gather inputs once, "
@@ -102,9 +106,8 @@ SKILLS = (
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
     ("ci-cd", "portable", "skills/ci-cd/SKILL.md",
-     "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up: "
-     "targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue, release and "
-     "privileged workflows.", "delivery"),
+     "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up.",
+     "delivery"),
     ("security-audit", "portable", "skills/security-audit/SKILL.md",
      "Use when auditing a repository we own. A second pass confirms.",
      "on-demand"),

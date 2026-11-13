@@ -64,6 +64,7 @@ and loads them at task start on every host; they are not optional at runtime.
 | Just-in-time retrieval | Adopted | Query a store only when it can shorten the task; one bounded attempt. |
 | Tool-result prune and spill | Adopted as guidance | [context-economy](references/context-economy.md) |
 | Manual tool-output store | Adopted as a manual CLI | `tool_output_store.py` stores text for later search. The Context Mode plugin was not vendored. |
+| Spec Kit intent checks | Adopted as original checks | `intent_converge.py` inventories FR and SC text against the current tree. No upstream file was copied. Issue #8023. Researched commit `2ee2b1e8005905db05f5717300a469b3068b908f`. |
 | Script over long tool chains | Adopted as guidance | [script-first](references/script-first.md) |
 | Auto-load companion bodies every mutation | Rejected | SessionStart injects each vendor `SKILL.md` once. Do not re-inject on every tool. Companions stay active at ultra until off. |
 
