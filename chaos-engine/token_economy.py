@@ -102,6 +102,49 @@ def instruction_overflow(project: Path, limit: int = INSTRUCTION_MAX_LINES) -> l
     return over
 
 
+_ETHICS_FIXTURE = Path("evals/ethics-attestation-fixtures.json")
+_FIXTURE_COUNT = 13
+_FIXTURE_COUNTERPARTS = frozenset({"ai-accepted", "person-only", "unclear"})
+_FIXTURE_DECISIONS = frozenset({"allow", "decline", "alternative"})
+
+
+def _fixture_example_ok(example: object) -> bool:
+    if not isinstance(example, dict):
+        return False
+    counterpart = example.get("counterpart")
+    decision = example.get("decision")
+    expect = example.get("expect")
+    live_feed = example.get("live_feed")
+    situation = example.get("situation")
+    return (
+        counterpart in _FIXTURE_COUNTERPARTS
+        and decision in _FIXTURE_DECISIONS
+        and expect in _FIXTURE_DECISIONS
+        and expect == decision
+        and isinstance(live_feed, bool)
+        and isinstance(situation, str)
+        and "?" not in situation
+    )
+
+
+def ethics_fixture_status(root: Path) -> tuple[str, str]:
+    """Validate the attestation fixture when the file is installed. Absent is not a failure."""
+    path = root / _ETHICS_FIXTURE
+    if not path.is_file():
+        return "pass", ""
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return "fail", f"ethics fixture schema: {_ETHICS_FIXTURE.as_posix()}"
+    examples = document.get("examples") if isinstance(document, dict) else None
+    if not isinstance(examples, list) or len(examples) != _FIXTURE_COUNT:
+        return "fail", f"ethics fixture schema: {_ETHICS_FIXTURE.as_posix()}"
+    for example in examples:
+        if not _fixture_example_ok(example):
+            return "fail", f"ethics fixture schema: {_ETHICS_FIXTURE.as_posix()}"
+    return "pass", ""
+
+
 def ethics_text_status(root: Path = HERE) -> tuple[str, str]:
     """Fail when ethics-card, ethical-conduct, or identity bytes drift from the pin."""
     for rel, digest in ETHICS_TEXT_SHA256.items():
@@ -123,6 +166,9 @@ def doctor_check(root: Path = HERE) -> tuple[str, str]:
     hashed = ethics_text_status(root)
     if hashed[0] != "pass":
         return hashed
+    fixture = ethics_fixture_status(root)
+    if fixture[0] != "pass":
+        return fixture
     try:
         harness_map = _load(root / "harness_map.py", "_ce_map_doctor")
         current = (root / harness_map.MAP).read_text(encoding="utf-8")

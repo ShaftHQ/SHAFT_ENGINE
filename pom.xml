@@ -1053,6 +1053,7 @@
                             <effort>Default</effort>
                             <threshold>Medium</threshold>
                             <failOnError>false</failOnError>
+                            <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs/exclude.xml</excludeFilterFile>
                             <xmlOutput>true</xmlOutput>
                             <sarifOutput>true</sarifOutput>
                             <onlyAnalyze>com.shaft.-</onlyAnalyze>

@@ -22,6 +22,8 @@ import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.IResultListener2;
 import org.testng.xml.XmlSuite;
 
+import javax.annotation.Nullable;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -72,18 +74,37 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final AtomicInteger REPORT_PORTAL_INSTANCES = new AtomicInteger(0);
     /** Tracks the test class currently active on each thread to detect class boundaries. */
     private static final ThreadLocal<Class<?>> activeTestClass = new ThreadLocal<>();
-    @Getter
-    private static ITestResult iTestResult;
+    // Not a static ITestResult: EI_EXPOSE_STATIC_REP2 flags a static store of the caller's instance.
+    private static final BoundResult BOUND_RESULT = new BoundResult();
 
     /**
      * Binds the result tests read through {@code getITestResult()}.
-     * {@code beforeInvocation} still assigns the field for real runs.
+     * {@code beforeInvocation} writes through this method for real runs.
      *
      * @param result current result, or {@code null} to clear it
      */
     public static void bindITestResult(ITestResult result) {
-        iTestResult = result;
+        BOUND_RESULT.store(result);
     }
+
+    /** Returns the result bound by {@link #bindITestResult(ITestResult)}, or null when none is bound. */
+    @Nullable
+    public static ITestResult getITestResult() {
+        return BOUND_RESULT.current();
+    }
+
+    private static final class BoundResult {
+        private ITestResult result;
+
+        private void store(ITestResult value) {
+            result = value;
+        }
+
+        private ITestResult current() {
+            return result;
+        }
+    }
+
     private static long executionStartTime;
     @Getter
     private static boolean isReportPortalEnabled;
@@ -360,7 +381,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         TestNGListenerHelper.logTestInformation(iTestResult);
         TestNGListenerHelper.failFast(iTestResult);
         TestNGListenerHelper.skipTestsWithLinkedIssues(iTestResult);
-        TestNGListener.iTestResult = iTestResult;
+        TestNGListener.bindITestResult(iTestResult);
     }
 
     /**

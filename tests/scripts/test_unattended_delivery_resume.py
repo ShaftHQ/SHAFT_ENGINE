@@ -74,6 +74,11 @@ class UnattendedDeliveryResumeTest(unittest.TestCase):
         self.assertIn("ShaftHQ/SHAFT_ENGINE", context)
         self.assertIn("abc123", context)
         self.assertIn("not done until merged", context)
+        self.assertIn("companions/ethics-card.md", context)
+        self.assertLess(
+            context.index("not done until merged"),
+            context.index("Ethics: `companions/ethics-card.md`"),
+        )
         self.assertNotIn("chaos-engine/skills/chaos-engine/SKILL.md", context)
 
     def test_watch_running_claim_is_rejected(self):
