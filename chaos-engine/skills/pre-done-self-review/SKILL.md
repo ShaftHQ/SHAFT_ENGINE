@@ -58,3 +58,14 @@ body, handoff note, or status doc). Run
 
 The gate cannot judge step 1 or the quality of step 4. Those stay manual and
 belong in the reviewer's PDCA Check.
+
+## Intent inventory
+
+When the delivery has a work item, run [intent_converge.py](../../intent_converge.py)
+before Done. A checked task is not evidence. A clean inventory reports
+Converged and does not add an empty convergence section. Unrequested files
+are listed and left in place.
+
+```bash
+python3 chaos-engine/intent_converge.py converge work-item.md tree-dir
+```

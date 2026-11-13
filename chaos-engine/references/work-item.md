@@ -24,6 +24,22 @@ own acceptance via `rewrite_body_spec_kit`. Do not stamp
 `Deliver the stated acceptance` (or identical FR/SC boilerplate) onto unrelated
 issues. Trackers may keep a campaign-level story. Closed issues need no rewrite.
 
+## Clarification
+
+Ask at most five questions, and only when the answer would change architecture,
+data, tests, or acceptance. Zero questions is the right count when the item is
+already decision-ready. Prefer a recommended option and a short choice. Write
+each resolved answer into the work item and remove any `NEEDS CLARIFICATION`
+marker. The chat is not the only record. If the owner skips clarification for
+a spike, say so on the issue. Do not ask what a source file can answer.
+
+## Requirements quality
+
+- Each success criterion is measurable and technology-agnostic.
+- Each story is independently testable and specific to this issue.
+- A vague unmeasured adjective is not the only acceptance.
+- Do not stamp `Deliver the stated acceptance` across unrelated issues.
+
 ## Taxonomy rules
 
 - Exactly one primary type.

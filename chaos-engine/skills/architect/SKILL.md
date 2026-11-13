@@ -26,6 +26,10 @@ When a review of a change already in scope needs structure vocabulary, load the 
 3. Record `retrieve: used`. Contradicts a prior decision: cite it, supersede it
    in the ADR, never silently diverge.
 
+A cross-artifact consistency pass stays read-only. The plan's Constitution
+Check cites `identity.md` and does not add a second principles file. See
+[consult-first](../../references/consult-first.md).
+
 ## Tier → cards
 
 | Triage tier | Use |

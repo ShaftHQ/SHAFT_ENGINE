@@ -66,6 +66,11 @@ SKILLS = (
     ("self-improve", "portable", "skills/self-improve/SKILL.md",
      "Use when running ChaosEngine Learning Session self-improve. Harness lessons "
      "are GitHub issues only. Product lessons may queue after delivery or on request.", "learning"),
+    ("learn-from-external-harnesses", "portable", "skills/learn-from-external-harnesses/SKILL.md",
+     "Use when asked to scan, analyze, or learn from an external repository, "
+     "skill set, or agent harness, so the local harness can adopt useful ideas "
+     "without bloat, duplicates, or untracked skills.",
+     "on-demand"),
     ("kanban", "portable", "skills/kanban/SKILL.md",
      "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 "
      "review, pull rule, Definition of Done, findings fixed or filed.", "delivery"),

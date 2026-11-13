@@ -10,5 +10,6 @@ Continuous improvement stays on this cadence. It is not a new GitHub Actions sch
 - Adopt ideas. Never copy third-party code. Do not vendor a harness.
 - Record the license check before any small skill edit. File a follow-up issue when the change would be a new product.
 - The 2026-11-09 pass is the first record. The next pass is the following month on this machine.
+- A deep pass uses [learn-from-external-harnesses](../../../skills/learn-from-external-harnesses/SKILL.md). A one-note skim is not that pass.
 
 The identity principle that points here is in [identity.md](../../../identity.md).

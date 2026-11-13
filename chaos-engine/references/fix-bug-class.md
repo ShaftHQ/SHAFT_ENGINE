@@ -26,3 +26,12 @@ sibling path before a consumer does.
 
 `tests/scripts/test_ce_bugfix_*` / `test_ce_retro_*` matrix hops include the
 new VERSION and fail if any hop leaves `doctor_ok` false or half-applied hosts.
+
+## Verdict
+
+A bug-fixing delivery records the symptom, the suspected cause, the
+remediation, the files, the tests, and the risks. The verification verdict is
+`verified`, `partial`, or `failed`. Do not write `verified` unless the original
+reproduction was exercised. `failed` returns to assessment with the new
+evidence. Assess and verify stay in this reference. Fix the owned-path class
+still applies.

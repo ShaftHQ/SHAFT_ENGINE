@@ -487,6 +487,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
 - [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
 - [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
+- [learn-from-external-harnesses](../../chaos-engine/skills/learn-from-external-harnesses/SKILL.md) (portable)
 - [kanban](../../chaos-engine/skills/kanban/SKILL.md) (portable)
 - [architect](../../chaos-engine/skills/architect/SKILL.md) (portable)
 - [technical-presentations](../../chaos-engine/skills/technical-presentations/SKILL.md) (portable)
