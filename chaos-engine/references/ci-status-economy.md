@@ -147,6 +147,9 @@ run to finish (or `gh run cancel <run-id>`), then rerun.
 - Run `scripts/ci/code_quality_preflight.py` before the first push. Touching a
   function already over the complexity gate fails diff-scoped static analysis;
   wrap it (a new caller or helper) instead of editing it.
+- `mvn` and `code_quality_preflight.py` read the process cwd.
+  A pass from the primary checkout does not prove the worktree.
+  Run them in the worktree, or pass `mvn -f` that pom.
 - Code-quality bots flag `import subprocess` (B404) without a `nosec` reason,
   bare `assert` (B101), `xml.etree` parsing (use `re` on known text), partial
   executable paths (B607: `shutil.which`), and D213 docstrings, in tests too.
