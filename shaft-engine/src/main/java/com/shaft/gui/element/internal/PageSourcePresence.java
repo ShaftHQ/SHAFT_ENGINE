@@ -96,12 +96,13 @@ public final class PageSourcePresence {
     }
 
     private static boolean matches(Element element, String strategy, String value) {
-        return switch (strategy) {
-            case "id" -> idMatches(element, value);
-            case "accessibilityId" -> accessibilityMatches(element, value);
-            case "name" -> nameMatches(element, value);
-            default -> throw new IllegalArgumentException("Unsupported page-source locator strategy: " + strategy);
-        };
+        if ("id".equals(strategy)) {
+            return idMatches(element, value);
+        }
+        if ("accessibilityId".equals(strategy)) {
+            return accessibilityMatches(element, value);
+        }
+        return nameMatches(element, value);
     }
 
     private static boolean idMatches(Element element, String value) {
