@@ -115,4 +115,15 @@ public class PresenceCheckUnitTest {
         Assert.assertThrows(IllegalArgumentException.class,
                 () -> actions.getPageSourceElementsCount(By.cssSelector(".missing")));
     }
+
+    /** A null page source is an empty document on the page-source path. */
+    @Test
+    public void nullPageSourceCountsAsZero() {
+        WebDriver driver = driver();
+        when(driver.getPageSource()).thenReturn(null);
+        ElementActions actions = new ElementActions(driver, true);
+
+        Assert.assertFalse(actions.isPresentInPageSource(By.id("any")));
+        Assert.assertEquals(actions.getPageSourceElementsCount(By.id("any")), 0);
+    }
 }

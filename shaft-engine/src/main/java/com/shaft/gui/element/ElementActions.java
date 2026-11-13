@@ -130,7 +130,11 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      */
     @Override
     public int getPageSourceElementsCount(By elementLocator) {
-        return PageSourcePresence.count(driverFactoryHelper.getDriver().getPageSource(), elementLocator);
+        String pageSource = driverFactoryHelper.getDriver().getPageSource();
+        if (pageSource == null) {
+            return 0;
+        }
+        return PageSourcePresence.count(pageSource, elementLocator);
     }
 
     /**

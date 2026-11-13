@@ -26,6 +26,8 @@ public final class PageSourcePresence {
     }
 
     /**
+     * Counts matches for {@code locator} in {@code pageSource}.
+     *
      * @param pageSource the driver page source, or blank when the session has none
      * @param locator    an id, name, accessibility id, or xpath locator
      * @return how many elements in {@code pageSource} match {@code locator}
