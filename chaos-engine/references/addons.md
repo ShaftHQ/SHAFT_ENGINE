@@ -70,3 +70,7 @@ changes the installed profile instead of adding files there.
   documents use [design-loop](design-loop.md).
 - An add-on route named in a task but not installed: say so and give the
   install flag; do not improvise its rules.
+
+The ordered English films after the accepted install film are the
+[showcase film slate](showcase-film-slate.md). That page does not shoot or
+regenerate the install film.

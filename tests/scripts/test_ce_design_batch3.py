@@ -474,5 +474,19 @@ class Batch3MediaChecksTest(unittest.TestCase):
         self.assertEqual(0, run_qc("capluma", str(self.white), "--cues", str(self.ok_cues), "--box", "20,200,140,40")[0])
 
 
+class ShowcaseFilmSlateTest(unittest.TestCase):
+    def test_english_slate_freezes_the_install_film_and_orders_six_films(self) -> None:
+        text = (ROOT / "chaos-engine/references/showcase-film-slate.md").read_text(encoding="utf-8")
+        self.assertIn("Do not regenerate it", text)
+        self.assertIn("No media file is produced here", text)
+        self.assertNotIn("Mohab", text)
+        self.assertNotIn("Automatest", text)
+        positions = [text.index(f"## Film {number}.") for number in range(1, 7)]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn("shaft-heal", text)
+        self.assertIn("-Dallure.automaticallyOpen=false", text)
+        self.assertIn("only after the owner names the next number to shoot", text)
+
+
 if __name__ == "__main__":
     unittest.main()
