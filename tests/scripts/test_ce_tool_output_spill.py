@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
+import os
 import sqlite3
 import subprocess  # nosec B404 - runs this repo's tool.py with a fixed argv.
 import sys
@@ -248,6 +252,190 @@ class ToolOutputStoreTests(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stderr)
         for verb in ("output-search", "output-resume", "output-stats", "output-purge"):
             self.assertIn(verb, completed.stdout)
+
+
+LOCATOR = "tool-output: ready; python3 .chaos-engine/tool.py output-search QUERY"
+
+
+def load_named(name: str, relative: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / relative)
+    if spec is None or spec.loader is None:
+        raise ImportError(relative)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ToolOutputLocatorTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.store = load()
+        cls.lifecycle = load_named("ce_lifecycle_7976", "chaos-engine/hooks/lifecycle.py")
+
+    def test_locator_appears_only_when_the_store_has_a_row(self):
+        previous = Path.cwd()
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                empty = Path(temporary) / "empty"
+                empty.mkdir()
+                os.chdir(empty)
+                missing = self.lifecycle.session_start_context("token", "activation")
+                self.assertNotIn("tool-output:", missing)
+                self.assertFalse((empty / ".chaos-engine-state" / "tool-output" / "output.db").exists())
+                self.store.connect(empty)
+                still_empty = self.lifecycle.session_start_context("token", "activation")
+                self.assertNotIn("tool-output:", still_empty)
+                self.assertFalse(self.store.has_row(empty))
+                planted = Path(temporary) / "planted"
+                planted.mkdir()
+                os.chdir(planted)
+                self.store.store_text("One planted sentence.", name="tool.txt", project=planted)
+                self.assertTrue(self.store.has_row(planted))
+                context = self.lifecycle.session_start_context("token", "activation")
+                again = self.lifecycle.session_start_context("token", "activation")
+                self.assertEqual(context, again)
+                self.assertIn(LOCATOR, context.splitlines())
+                self.assertNotIn("\n", LOCATOR)
+                self.assertLess(len(LOCATOR.encode("utf-8")), 256)
+                self.assertNotRegex(LOCATOR, r"\d{4}-\d{2}-\d{2}")
+                self.assertLessEqual(len(context.encode("utf-8")), self.lifecycle.SESSION_START_MAX_BYTES)
+                real_cap = self.lifecycle.SESSION_START_MAX_BYTES
+                self.lifecycle.SESSION_START_MAX_BYTES = len(context.encode("utf-8")) - 1
+                try:
+                    capped = self.lifecycle.session_start_context("token", "activation")
+                finally:
+                    self.lifecycle.SESSION_START_MAX_BYTES = real_cap
+                self.assertNotIn(LOCATOR, capped)
+        finally:
+            os.chdir(previous)
+
+
+def block_reasons(stdout: str) -> list[str]:
+    reasons = []
+    for line in stdout.splitlines():
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("decision") == "block":
+            reasons.append(str(payload.get("reason") or ""))
+    return reasons
+
+
+class LargeReadDenyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.guard = load_named("ce_guard_7976_read", "chaos-engine/hooks/guard.py")
+
+    def _run(self, event: dict, process_cwd: Path | None = None) -> tuple[int, str, str]:
+        previous = Path.cwd()
+        os.chdir(process_cwd or Path(event["cwd"]))
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = self.guard._guarded_event(event, "claude")
+        finally:
+            os.chdir(previous)
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def _read(self, root: Path, path: Path, tool_name: str = "Read", **extra: object) -> dict:
+        tool_input = {"file_path": str(path)}
+        tool_input.update(extra)
+        return {
+            "hook_event_name": "PreToolUse",
+            "tool_name": tool_name,
+            "session_id": "7976-read",
+            "cwd": str(root),
+            "tool_input": tool_input,
+        }
+
+    def _assert_denied(self, event: dict, size: int) -> None:
+        code, stdout, stderr = self._run(event)
+        self.assertEqual(2, code, stdout + stderr)
+        reasons = block_reasons(stdout)
+        self.assertEqual(1, len(reasons), stdout + stderr)
+        reason = reasons[0]
+        self.assertIn(str(size), reason)
+        self.assertIn("ranged Read", reason)
+        self.assertIn("rg", reason)
+        self.assertIn("tail", reason)
+        self.assertIn("script that prints only the answer", reason)
+
+    def _assert_allowed(self, event: dict) -> None:
+        code, stdout, stderr = self._run(event)
+        self.assertEqual(0, code, stdout + stderr)
+        self.assertEqual([], block_reasons(stdout), stdout + stderr)
+
+    def test_pretooluse_denies_unranged_dumps_and_huge_files_only(self):
+        economy = (CE / "references/context-economy.md").read_text(encoding="utf-8")
+        self.assertIn("rules/large_read_deny.py", economy)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("report.html", "report.xml", "run.log", "trace.har", "Report.HTML"):
+                path = root / name
+                path.write_bytes(b"x" * 8192)
+                self._assert_denied(self._read(root, path), 8192)
+            small = root / "small.html"
+            small.write_bytes(b"x" * 8191)
+            self._assert_allowed(self._read(root, small))
+            java = root / "App.java"
+            java.write_bytes(b"x" * (40 * 1024))
+            self.assertEqual(40 * 1024, java.stat().st_size)
+            self._assert_allowed(self._read(root, java))
+            borderline = root / "Border.java"
+            borderline.write_bytes(b"x" * 8192)
+            self._assert_allowed(self._read(root, borderline))
+            huge_java = root / "Huge.java"
+            huge_java.write_bytes(b"x" * 262144)
+            self._assert_denied(self._read(root, huge_java), 262144)
+            huge_text = root / "notes.txt"
+            huge_text.write_bytes(b"x" * 262144)
+            self._assert_denied(self._read(root, huge_text), 262144)
+            under = root / "under.txt"
+            under.write_bytes(b"x" * 262143)
+            self._assert_allowed(self._read(root, under))
+            ranged = root / "ranged.html"
+            ranged.write_bytes(b"x" * 8192)
+            self._assert_allowed(self._read(root, ranged, offset=1, limit=20))
+            self._assert_allowed(self._read(root, huge_java, startLine=1, endLine=40))
+            viewed = root / "viewed.log"
+            viewed.write_bytes(b"x" * 9000)
+            self._assert_allowed(self._read(root, viewed, view_range=[1, 10]))
+            self._assert_denied(self._read(root, viewed, offset=""), 9000)
+            elsewhere = root / "elsewhere"
+            elsewhere.mkdir()
+            relative = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "read_file",
+                "session_id": "7976-read",
+                "cwd": str(root),
+                "tool_input": {"filePath": "report.html"},
+            }
+            code, stdout, stderr = self._run(relative, process_cwd=elsewhere)
+            self.assertEqual(2, code, stdout + stderr)
+            self.assertIn("8192", block_reasons(stdout)[0])
+            missing = root / "gone.html"
+            self._assert_allowed(self._read(root, missing))
+            self._assert_allowed(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Grep",
+                    "session_id": "7976-grep",
+                    "cwd": str(root),
+                    "tool_input": {"path": str(viewed), "pattern": "x"},
+                }
+            )
+            safety = {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "session_id": "7976-rm",
+                "cwd": str(root),
+                "tool_input": {"command": "rm -rf /"},
+            }
+            code, stdout, stderr = self._run(safety)
+            self.assertEqual(2, code, stdout + stderr)
+            self.assertNotIn("ranged Read", stdout)
 
 
 if __name__ == "__main__":

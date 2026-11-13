@@ -1353,6 +1353,50 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in hits))
             self.assertFalse(any("ghp_" in item for item in hits))
 
+    def test_merging_published_token_assignment_is_not_a_new_secret(self) -> None:
+        boundary = _load("ce_operation_upstream_merge_1106", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo.
+                    ["git", *args], cwd=root, check=True, capture_output=True, text=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "-b", "main")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            (root / "README.md").write_text("clean\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-m", "root")
+            git("checkout", "-b", "feature")
+            (root / "feature.md").write_text("feature\n", encoding="utf-8")
+            git("add", "feature.md")
+            git("commit", "-m", "feature")
+            git("checkout", "main")
+            source = root / "rules.py"
+            source.write_text(
+                "token = tokens[index]\n"
+                "if token == directory_flag and index + 1 < len(tokens):\n"
+                "    remember(tokens[index + 1])\n",
+                encoding="utf-8",
+            )
+            git("add", "rules.py")
+            git("commit", "-m", "published tokenizer")
+            published = git("rev-parse", "HEAD")
+            git("checkout", "feature")
+            git("merge", "main", "--no-edit")
+            git("update-ref", "refs/remotes/origin/main", published)
+            git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+            quiet = boundary.committed_secret_failures(root)
+            self.assertEqual([], quiet)
+            (root / "note.txt").write_text("password: hunter2\n", encoding="utf-8")
+            git("add", "note.txt")
+            git("commit", "-m", "real secret")
+            leaked = boundary.committed_secret_failures(root)
+            self.assertIn("password-in-commit", leaked)
+
     def test_long_history_without_upstream_uses_remote_default_branch(self) -> None:
         boundary = _load("ce_operation_remote_base_1106", CE / "rules/operation_boundary.py")
         with tempfile.TemporaryDirectory() as temporary:
@@ -1393,6 +1437,88 @@ class OperationBoundaryTest(TestCase):
             self.assertTrue(any(item.startswith("secret-in-commit") for item in without_head))
             self.assertNotIn("outgoing-diff-unavailable", without_head)
             self.assertFalse(any("ghp_" in item for item in without_head))
+
+    def test_head_push_refuses_a_different_destination_branch(self) -> None:
+        boundary = _load("ce_operation_boundary_head_dest_8018", CE / "rules/operation_boundary.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            other = root / "feature-checkout"
+
+            def git(*args: str, cwd: Path = root) -> subprocess.CompletedProcess[str]:
+                return subprocess.run(  # nosec B603 B607 - fixed git argv in a temp repo.
+                    ["git", *args],
+                    cwd=cwd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+
+            git("init", "-b", "narration-pace-gate")
+            git("config", "user.email", "dev@example.com")
+            git("config", "user.name", "Dev")
+            git("commit", "--allow-empty", "-m", "base")
+            remotes = git("remote")
+            self.assertEqual("", remotes.stdout.strip())
+            self.assertEqual([], git("remote", "-v").stdout.split())
+            mismatch = "git push origin HEAD:ChaosEngine/8008-spotbugs"
+            hits = boundary.command_blocks(root, mismatch)
+            self.assertIn("head-destination-mismatch", hits)
+            self.assertNotIn("force-push-without-approval", hits)
+            quoted = "git push origin 'HEAD:ChaosEngine/8008-spotbugs'"
+            self.assertIn("head-destination-mismatch", boundary.command_blocks(root, quoted))
+            for allowed in (
+                "git push origin HEAD:narration-pace-gate",
+                "git push origin HEAD:refs/heads/narration-pace-gate",
+                "git push origin HEAD",
+                "git push origin narration-pace-gate",
+                "git push origin 0123456789abcdef:ChaosEngine/8008-spotbugs",
+            ):
+                self.assertNotIn(
+                    "head-destination-mismatch",
+                    boundary.command_blocks(root, allowed),
+                    allowed,
+                )
+            forced = "git push --force origin HEAD:ChaosEngine/8008-spotbugs"
+            both = boundary.command_blocks(root, forced)
+            self.assertIn("head-destination-mismatch", both)
+            self.assertIn("force-push-without-approval", both)
+            git("worktree", "add", "-b", "ChaosEngine/8008-spotbugs", str(other))
+            via_checkout = f"git -C {other} push origin HEAD:ChaosEngine/8008-spotbugs"
+            self.assertNotIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, via_checkout),
+            )
+            wrong_checkout = f"git -C {other} push origin HEAD:narration-pace-gate"
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, wrong_checkout),
+            )
+            # A later relative -C is relative to the earlier one, including ".".
+            chained = f"git -C {other} -C . push origin HEAD:narration-pace-gate"
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, chained),
+            )
+            chained_match = f"git -C {other} -C . push origin HEAD:ChaosEngine/8008-spotbugs"
+            self.assertNotIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, chained_match),
+            )
+            # An empty -C leaves the previous directory unchanged.
+            empty_flag = f'git -C {other} -C "" push origin HEAD:narration-pace-gate'
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, empty_flag),
+            )
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, mismatch),
+            )
+            git("checkout", "--detach")
+            self.assertIn(
+                "head-destination-mismatch",
+                boundary.command_blocks(root, "git push origin HEAD:narration-pace-gate"),
+            )
 
 
 class AdversarialEvidenceTest(TestCase):

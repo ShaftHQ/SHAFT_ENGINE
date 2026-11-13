@@ -1920,6 +1920,33 @@ def _deny(event: dict, event_name: str, tool_name: str, reason: str) -> int:
     return 2
 
 
+def _large_read_api():
+    cached = getattr(_large_read_api, "module", None)
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().parents[1] / "rules" / "large_read_deny.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_large_read_deny", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _large_read_api.module = module
+    return module
+
+
+def _large_read_reason(event: dict, tool_name: str, tool_input: object) -> str | None:
+    event_name = str(event.get("hook_event_name") or event.get("hookEventName") or "")
+    if event_name != "PreToolUse":
+        return None
+    module = _large_read_api()
+    if module is None:
+        return None
+    cwd = event.get("cwd")
+    return module.deny_reason(tool_name, tool_input, cwd=str(cwd) if cwd else None)
+
+
 def _ethics_api():
     cached = getattr(_ethics_api, "module", None)
     if cached is not None:
@@ -2103,6 +2130,7 @@ def merge_queue_not_merged(event: dict, commands: tuple[str, ...]) -> bool:
 
 
 def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_id: str, receipt_command: bool, mutation: bool) -> None:
+    # Spill stays off. No PostToolUse body replacement: hosts cannot prove the original bytes left the window.
     if event_name != "PostToolUse" or receipt_command:
         return
     _mobile_retro_post_run(event, commands)
@@ -2210,6 +2238,9 @@ def _run_event(event: dict, _host: str) -> int:
     )
     if kernel_blocked is not None:
         return kernel_blocked
+    large_read = _large_read_reason(event, tool_name, tool_input)
+    if large_read:
+        return _deny(event, event_name, tool_name, large_read)
     token = _session_token(event_name, session_id)
     injected = _prompt_entry(event, event_name, session_id, _host)
     if injected is not None:
