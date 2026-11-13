@@ -488,6 +488,124 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 )
             )
 
+    def test_path_qualified_python_heredoc_outside_the_checkout_is_not_a_project_read(self):
+        """A venv interpreter heredoc is one program. `tail =` is not the tail reader.
+
+        Outside wavs are not a project read. An in-repo path in that same
+        command still needs a citation. Cheap files and harness paths do not.
+        """
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_qualified_heredoc")
+        body = (
+            'src = "/home/mohab/grokbot-dm-v5-voice/samples/qwen-cv-intro-20261112.wav"\n'
+            'ref = "/home/mohab/grokbot-dm-v5-voice/refs/cadence-read-20261112-tokens.wav"\n'
+            "tail = np.ascontiguousarray(y[int((len(out)/48000-1.2)*16000):])\n"
+        )
+        interpreters = (
+            "python - <<'PY'\n",
+            "python3 - <<'PY'\n",
+            "/media/mohab/Data/agent-tmp/qwen3-tts/venv/bin/python - <<'PY'\n",
+            "venv/bin/python - <<'PY'\n",
+            "venv\\Scripts\\python.exe - <<'PY'\n",
+            "/usr/bin/python3.12 - <<'PY'\n",
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src" / "hooks.bak").mkdir(parents=True)
+            secret = project / "src" / "Foo.java"
+            secret.write_text("class Foo {}\n", encoding="utf-8")
+            scratch = Path(tempfile.gettempdir()) / "retrieve-heredoc-scratch.txt"
+
+            def block(command: str, session_id: str):
+                return gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(command,),
+                    session_id=session_id,
+                )
+
+            for interpreter in interpreters:
+                command = interpreter + body + "PY\n"
+                self.assertIsNone(block(command, "outside-heredoc"), command)
+            project_only = "venv/bin/python - <<'PY'\nPath(\"src/hooks.bak\").read_text()\nPY\n"
+            mixed = (
+                "venv/bin/python - <<'PY'\n"
+                'open("/tmp/outside-only.wav").read()\n'
+                'Path("src/hooks.bak").read_text()\n'
+                "PY\n"
+            )
+            followed = "venv/bin/python - <<'PY'\nprint(1)\nPY\n && cat src/hooks.bak"
+            for command in (
+                project_only,
+                mixed,
+                followed,
+                "cat src/hooks.bak",
+                "sed -n '1,20p' src/hooks.bak",
+                f"venv/bin/python - <<'PY'\nopen('file://{secret}').read()\nPY\n",
+            ):
+                self.assertEqual(gate.BLOCK_REASON, block(command, "still-denied"), command)
+            for command in (
+                "venv/bin/python - <<'PY'\nPath('src/Foo.java').read_text()\nPY\n",
+                "venv/bin/python - <<'PY'\nPath('chaos-engine/hooks/guard.py').read_text()\nPY\n",
+                f"venv/bin/python - <<'PY'\nPath('{scratch}').read_text()\nPY\n",
+                "cat src/Foo.java",
+                "rg class src/Foo.java",
+            ):
+                self.assertIsNone(block(command, "still-allowed"), command)
+
+    def test_shell_outside_a_python_heredoc_is_still_scanned(self):
+        """The program body is not a shell. Commands around it still are.
+
+        `cat src/notes` has no dotted name, so the heredoc path scan cannot see
+        it. Bare `rg class` owes a retrieve. The same words inside the program
+        do not. Bash runs text after the delimiter on the opener line, so that
+        tail is shell too.
+        """
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_heredoc_prefix")
+        cat_around = "cat src/notes && venv/bin/python - <<'PY'\nprint(1)\nPY"
+        rg_around = "rg class && venv/bin/python - <<'PY'\nprint(1)\nPY"
+        inside = "venv/bin/python - <<'PY'\ncat src/notes\nrg class\nPY\n"
+        # Bash runs the opener-line tail. The body starts on the next line.
+        cat_tail = "venv/bin/python - <<'PY' && cat src/notes"
+        rg_tail = "venv/bin/python - <<'PY' && rg class"
+        cat_tail_body = "venv/bin/python - <<'PY' && cat src/notes\nprint(1)\nPY\n"
+        rg_tail_body = "venv/bin/python - <<'PY' && rg class\nprint(1)\nPY\n"
+        unclosed_body = "venv/bin/python - <<'PY'\ncat src/notes\nrg class\n"
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+
+            def block(command: str, session_id: str):
+                return gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(command,),
+                    session_id=session_id,
+                )
+
+            self.assertEqual(gate.BLOCK_REASON, block("cat src/notes", "plain-cat"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_around, "heredoc-cat"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_tail, "heredoc-cat-tail"))
+            self.assertEqual(gate.BLOCK_REASON, block(cat_tail_body, "heredoc-cat-tail-body"))
+            self.assertIsNone(block(inside, "inside-program"))
+            self.assertIsNone(gate.session_retrieve_gap(project, "inside-program"))
+            self.assertIsNone(block(unclosed_body, "unclosed-body"))
+            self.assertIsNone(gate.session_retrieve_gap(project, "unclosed-body"))
+            self.assertIsNone(block("rg class", "plain-rg"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "plain-rg"))
+            self.assertIsNone(block(rg_around, "heredoc-rg"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg"))
+            self.assertIsNone(block(rg_tail, "heredoc-rg-tail"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg-tail"))
+            self.assertIsNone(block(rg_tail_body, "heredoc-rg-tail-body"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "heredoc-rg-tail-body"))
+            ledger = json.loads(
+                (project / ".chaos-engine-state" / "retrieve-justification.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue(ledger["sessions"]["heredoc-rg"]["retrieveOwed"])
+
     def test_outside_workspace_query_is_not_a_used_hit(self):
         retrieve = load("chaos-engine/retrieve.py", "retrieve_outside_query")
         with tempfile.TemporaryDirectory() as temporary:

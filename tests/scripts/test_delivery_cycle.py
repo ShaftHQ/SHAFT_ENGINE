@@ -212,6 +212,14 @@ class DeliveryCycleContractTest(unittest.TestCase):
             "one synthesis of the whole script",
             "150 to 190 words",
             "A proper noun is judged against the owner's recording, not against\n  transcript spelling.",
+            "the private review listen is -20 LUFS ±2",
+            "The gate is 140 to 175 words a minute.",
+            "The gate is at or below 280.",
+            "A full-file transcript can drop a real",
+            "Do not time-stretch the file.",
+            "Measure integrated loudness on the stereo programme, not on one channel",
+            "Short-term loudness is the 3-second window defined in EBU",
+            "Transcribe a 16 kHz resample, not the 48 kHz file samples.",
         ):
             self.assertIn(sentence, narration)
         flow = checklist.split("### Flow", 1)[1].split("###", 1)[0]

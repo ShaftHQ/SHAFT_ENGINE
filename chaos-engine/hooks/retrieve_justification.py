@@ -5,7 +5,9 @@ Reads and searches run. A broad search records `retrieveOwed` for the hook
 session until that session has one `used`, `skipped`, or `degraded` retrieve.
 Cheap one-file reads do not owe a retrieve. A command that only touches paths
 outside this checkout, such as a log download and unzip into a scratch
-directory, is not a project read. Downloading a GitHub Actions job log
+directory, is not a project read. A Python stdin heredoc stays one program
+when the interpreter is a path (`venv/bin/python - <<`). The body is not
+split into shell commands. Downloading a GitHub Actions job log
 (`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`,
 or curl of that logs URL) is not a project read and does not require
 MemPalace or Graphify, including a pipeline that only filters that download
@@ -782,9 +784,9 @@ def _command_head(tokens: list[str]) -> tuple[str, list[str]]:
 def _segments(command: str) -> list[str]:
     """Split on &&, ||, ;, and newlines outside quotes. A quoted separator stays put.
 
-    A backslash-newline is a shell continuation, not a split. The python-heredoc
-    check in ``_shell_block`` still sees the whole command, so that body stays
-    one program.
+    A backslash-newline is a shell continuation, not a split. ``_shell_block``
+    removes a python heredoc body before this split, so that program stays one
+    program and the shell around it is still scanned.
     """
     parts: list[str] = []
     buf: list[str] = []
@@ -1224,7 +1226,12 @@ def _read_segment_block(project: Path, segment: str) -> bool:
     return head in _SEARCH_HEADS and not _no_project_index(project)
 
 
-_PY_HEREDOC = re.compile(r"(?:^|[\s;&|(])(?:py|python3?)(?:\.exe)?\s+-\s*<<")
+# Path-qualified interpreters (`venv/bin/python - <<`) are the same program.
+# A newline in the body is not a shell split; `tail = ...` is not `tail`.
+_PY_HEREDOC = re.compile(
+    r"(?:^|[\s;&|(/\\])(?:py3?|python\d*(?:\.\d+)*)(?:\.exe)?\s+-\s*<<"
+)
+_HEREDOC_DELIM = re.compile(r"\s*(?:'([^'\n]+)'|\"([^\"\n]+)\"|([A-Za-z_]\w*))")
 
 
 _GLOB_FLAGS = frozenset({"-g", "--glob", "--include", "-G"})
@@ -1428,6 +1435,40 @@ def _segment_reads_project(project: Path, segment: str) -> bool:
     return any(exploratory_project_path(project, path) for path in paths)
 
 
+def _strip_py_heredoc_bodies(command: str) -> str:
+    """Drop each python-stdin heredoc body. The shell around the opener stays.
+
+    Bash starts the body on the next line. Text after the delimiter on the
+    opener line, such as ``&& cat``, is shell and stays. The closer is a line
+    that is only the delimiter. Without a closer, lines after the opener are
+    the body and are not split into shell segments.
+    """
+    text = command or ""
+    pieces: list[str] = []
+    cursor = 0
+    while True:
+        match = _PY_HEREDOC.search(text, cursor)
+        if not match:
+            pieces.append(text[cursor:])
+            break
+        delim = _HEREDOC_DELIM.match(text, match.end())
+        if not delim:
+            pieces.append(text[cursor:])
+            break
+        delimiter = next(group for group in delim.groups() if group)
+        line_end = text.find("\n", delim.end())
+        if line_end == -1:
+            pieces.append(text[cursor:])
+            break
+        pieces.append(text[cursor:line_end + 1])
+        body_start = line_end + 1
+        closer = re.search(rf"(?m)^[ \t]*{re.escape(delimiter)}[ \t]*$", text[body_start:])
+        if not closer:
+            break
+        cursor = body_start + closer.end()
+    return "".join(pieces)
+
+
 def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | None = None) -> str | None:
     for command in commands:
         if downloads_job_log(command):
@@ -1438,13 +1479,13 @@ def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | Non
                     return BLOCK_REASON
             continue
         if _PY_HEREDOC.search(command or ""):
-            # A heredoc body is one program; `;` inside it is not a shell split.
-            # Named files do not owe a retrieve. A directory or heal log still does.
+            # The body is one program. Paths inside it still count. Shell outside
+            # it is scanned below; `;` and newlines in the body are not segments.
             heredoc_paths = _shell_read_paths(command)
             cheap = _cheap_named_files(project, heredoc_paths) and "file://" not in command.casefold()
             if not cheap and _ungated(project, heredoc_paths):
                 return BLOCK_REASON
-            continue
+            command = _strip_py_heredoc_bodies(command)
         for segment in _pipeline_parts(command):
             if _retrieve_attempt(segment):
                 _mark_awaiting_receipt(project, session_id)
