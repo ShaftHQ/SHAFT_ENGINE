@@ -1945,7 +1945,13 @@ def _ethics_pretool_reason(event: dict, commands: tuple, tool_input: object) -> 
     if module is None:
         return None
     cwd = Path(str(event.get("cwd") or Path.cwd()))
-    return module.assessment_block_reason(commands, tool_input, cwd)
+    return module.assessment_block_reason(
+        commands,
+        tool_input,
+        cwd,
+        tool_name=str(event.get("tool_name") or ""),
+        session_id=str(event.get("session_id") or event.get("sessionId") or ""),
+    )
 
 
 def _stash_block(event: dict, event_name: str, tool_name: str, commands: tuple) -> int | None:
@@ -2152,7 +2158,14 @@ def _session_start_output(event: dict, event_name: str, session_id: str, token) 
         module = _unattended_delivery()
         checkpoint = module.checkpoint_from_event(event) if module is not None else None
         if checkpoint is not None:
-            print(json.dumps({"additionalContext": module.resume_prompt(checkpoint)}))
+            prompt = module.resume_prompt(checkpoint)
+            if event_name == "PreCompact":
+                prompt = f"{prompt}\nEthics: `companions/ethics-card.md`"
+            print(json.dumps({"additionalContext": prompt}))
+            return 0
+        if event_name == "PreCompact":
+            locator = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
+            print(json.dumps({"additionalContext": locator}))
             return 0
     if event_name != "SessionStart":
         return None
@@ -2185,6 +2198,9 @@ def _emit_notes(event: dict, event_name: str, session_id: str, mutation: bool, t
 
 def _run_event(event: dict, _host: str) -> int:
     tool_input, tool_name, functions_source, functions_direct, commands, event_name = _parse_hook_event(event)
+    ethics_reason = _ethics_pretool_reason(event, commands, tool_input)
+    if ethics_reason:
+        return _deny(event, event_name, tool_name, ethics_reason)
     blocked = _stash_block(event, event_name, tool_name, commands)
     if blocked is not None:
         return blocked
@@ -2226,9 +2242,6 @@ def _guarded_event(event: dict, host: str) -> int:
             _record_denial_with_significance(event, "PreToolUse", str(event.get("tool_name", "")))
             print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
             return 2
-        ethics_reason = _ethics_pretool_reason(event, commands, tool_input)
-        if ethics_reason:
-            return _deny(event, "PreToolUse", str(event.get("tool_name", "")), ethics_reason)
     return _run_event(event, host)
 
 
