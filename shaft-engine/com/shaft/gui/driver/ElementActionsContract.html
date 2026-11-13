@@ -57,6 +57,8 @@
 <li><a href="#verifyThat(com.shaft.gui.driver.ElementTarget)" tabindex="0">verifyThat(ElementTarget)</a></li>
 <li><a href="#getElementsCount(org.openqa.selenium.By)" tabindex="0">getElementsCount(By)</a></li>
 <li><a href="#getElementsCount(com.shaft.gui.driver.ShaftLocator)" tabindex="0">getElementsCount(ShaftLocator)</a></li>
+<li><a href="#getPageSourceElementsCount(org.openqa.selenium.By)" tabindex="0">getPageSourceElementsCount(By)</a></li>
+<li><a href="#isPresentInPageSource(org.openqa.selenium.By)" tabindex="0">isPresentInPageSource(By)</a></li>
 <li><a href="#executeNativeMobileCommand(java.lang.String,java.util.Map)" tabindex="0">executeNativeMobileCommand(String, Map)</a></li>
 <li><a href="#click(org.openqa.selenium.By)" tabindex="0">click(By)</a></li>
 <li><a href="#click(com.shaft.gui.ocr.OcrTarget)" tabindex="0">click(OcrTarget)</a></li>
@@ -293,37 +295,47 @@ locators.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns how many elements match the locator.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getTableRowsData(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">getTableRowsData</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;tableLocator)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getPageSourceElementsCount(org.openqa.selenium.By)" class="member-name-link">getPageSourceElementsCount</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Counts matches in the current page source, including nodes with <code>displayed=false</code>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#getTableRowsData(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">getTableRowsData</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;tableLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Reads the table found by the SHAFT locator into a list of rows, each mapping a column header
 to its cell text.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getTableRowsData(org.openqa.selenium.By)" class="member-name-link">getTableRowsData</a><wbr>(org.openqa.selenium.By&nbsp;tableLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getTableRowsData(org.openqa.selenium.By)" class="member-name-link">getTableRowsData</a><wbr>(org.openqa.selenium.By&nbsp;tableLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Reads the located table into a list of rows, each mapping a column header to its cell text.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#hover(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">hover</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#hover(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">hover</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Hovers over the element found by the SHAFT locator.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#hover(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">hover</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#hover(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">hover</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Moves the pointer to visible text recognized in the current screenshot.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Hovers over the located element.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
  org.openqa.selenium.By&nbsp;clickableElementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Hovers over each element in order, then clicks the final element.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#isPresentInPageSource(org.openqa.selenium.By)" class="member-name-link">isPresentInPageSource</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Reports whether page source contains a match, including a node with <code>displayed=false</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#scrollToElement(com.shaft.gui.driver.ShaftLocator)" class="member-name-link">scrollToElement</a><wbr>(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</code></div>
@@ -563,6 +575,25 @@ SHAFT locator.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">getElementsCount</span><wbr><span class="parameters">(<a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a>&nbsp;elementLocator)</span></div>
 <div class="block">Returns how many elements match the SHAFT locator.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="getPageSourceElementsCount(org.openqa.selenium.By)">
+<h3>getPageSourceElementsCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">getPageSourceElementsCount</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Counts matches in the current page source, including nodes with <code>displayed=false</code>.
+This does not call <code>findElements</code> and does not poll.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isPresentInPageSource(org.openqa.selenium.By)">
+<h3>isPresentInPageSource</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isPresentInPageSource</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Reports whether page source contains a match, including a node with <code>displayed=false</code>.</div>
 </div>
 </section>
 </li>

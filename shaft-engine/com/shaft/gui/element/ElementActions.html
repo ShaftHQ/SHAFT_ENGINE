@@ -61,6 +61,8 @@
 <li><a href="#assertThat(org.openqa.selenium.By)" tabindex="0">assertThat(By)</a></li>
 <li><a href="#verifyThat(org.openqa.selenium.By)" tabindex="0">verifyThat(By)</a></li>
 <li><a href="#getElementsCount(org.openqa.selenium.By)" tabindex="0">getElementsCount(By)</a></li>
+<li><a href="#getPageSourceElementsCount(org.openqa.selenium.By)" tabindex="0">getPageSourceElementsCount(By)</a></li>
+<li><a href="#isPresentInPageSource(org.openqa.selenium.By)" tabindex="0">isPresentInPageSource(By)</a></li>
 <li><a href="#isPresent(org.openqa.selenium.By,java.time.Duration)" tabindex="0">isPresent(By, Duration)</a></li>
 <li><a href="#waitUntilAnyPresent(java.time.Duration,org.openqa.selenium.By...)" tabindex="0">waitUntilAnyPresent(Duration, By...)</a></li>
 <li><a href="#executeNativeMobileCommand(java.lang.String,java.util.Map)" tabindex="0">executeNativeMobileCommand(String, Map)</a></li>
@@ -269,33 +271,45 @@ commands found herein: <a href="http://appium.io/docs/en/commands/mobile-command
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the number of elements on the current page that match the given locator.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getTableRowsData(org.openqa.selenium.By)" class="member-name-link">getTableRowsData</a><wbr>(org.openqa.selenium.By&nbsp;tableLocator)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPageSourceElementsCount(org.openqa.selenium.By)" class="member-name-link">getPageSourceElementsCount</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Counts elements in the current page source, including a node whose <code>displayed</code>
+attribute is <code>false</code>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getTableRowsData(org.openqa.selenium.By)" class="member-name-link">getTableRowsData</a><wbr>(org.openqa.selenium.By&nbsp;tableLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Get any simple table rows' data that has
 thead which include all the column labels and tbody which includes all table data</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">hover</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(com.shaft.gui.ocr.OcrTarget)" class="member-name-link">hover</a><wbr>(<a href="../ocr/OcrTarget.html" title="class in com.shaft.gui.ocr">OcrTarget</a>&nbsp;target)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Moves the pointer to visible text recognized in the current screenshot.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hover(org.openqa.selenium.By)" class="member-name-link">hover</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hovers over target element.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#hoverAndClick(java.util.List,org.openqa.selenium.By)" class="member-name-link">hoverAndClick</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.openqa.selenium.By&gt;&nbsp;hoverElementLocators,
  org.openqa.selenium.By&nbsp;clickableElementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hovers over the hoverElements in sequence then clicks the clickableElement</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isPresent(org.openqa.selenium.By,java.time.Duration)" class="member-name-link">isPresent</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isPresent(org.openqa.selenium.By,java.time.Duration)" class="member-name-link">isPresent</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isPresentInPageSource(org.openqa.selenium.By)" class="member-name-link">isPresentInPageSource</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports whether the current page source contains a match, including a node whose
+<code>displayed</code> attribute is <code>false</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToElement(org.openqa.selenium.By)" class="member-name-link">scrollToElement</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
@@ -539,8 +553,8 @@ Failures are collected and reported at the end of the test rather than stopping 
 
 <p>A match is a <code>findElements</code> hit. <code>isDisplayed()</code> is not required, so a hidden
 match still counts. A node missing from <code>findElements</code> is absent even if a page-source
-dump lists it. Scrolling a below-fold control into view is <code>swipeElementIntoView</code>, not
-a presence check.</div>
+dump lists it. Count that node with <a href="#getPageSourceElementsCount(org.openqa.selenium.By)"><code>getPageSourceElementsCount(By)</code></a>. Scrolling a
+below-fold control into view is <code>swipeElementIntoView</code>, not a presence check.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../driver/ElementActionsContract.html#getElementsCount(org.openqa.selenium.By)">getElementsCount</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
@@ -559,6 +573,42 @@ a presence check.</div>
 </section>
 </li>
 <li>
+<section class="detail" id="getPageSourceElementsCount(org.openqa.selenium.By)">
+<h3>getPageSourceElementsCount</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">getPageSourceElementsCount</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Counts elements in the current page source, including a node whose <code>displayed</code>
+attribute is <code>false</code>. <code>findElements</code> is not used, and this read does not poll.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/ElementActionsContract.html#getPageSourceElementsCount(org.openqa.selenium.By)">getPageSourceElementsCount</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an id, name, accessibility id, or xpath locator</dd>
+<dt>Returns:</dt>
+<dd>how many page-source nodes match</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isPresentInPageSource(org.openqa.selenium.By)">
+<h3>isPresentInPageSource</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isPresentInPageSource</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator)</span></div>
+<div class="block">Reports whether the current page source contains a match, including a node whose
+<code>displayed</code> attribute is <code>false</code>. This does not call <code>findElements</code> and does not poll.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../driver/ElementActionsContract.html#isPresentInPageSource(org.openqa.selenium.By)">isPresentInPageSource</a></code>&nbsp;in interface&nbsp;<code><a href="../driver/ElementActionsContract.html" title="interface in com.shaft.gui.driver">ElementActionsContract</a></code></dd>
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - an id, name, accessibility id, or xpath locator</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when <a href="#getPageSourceElementsCount(org.openqa.selenium.By)"><code>getPageSourceElementsCount(By)</code></a> is at least one</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
 <section class="detail" id="isPresent(org.openqa.selenium.By,java.time.Duration)">
 <h3>isPresent</h3>
 <div class="horizontal-scroll">
@@ -570,8 +620,8 @@ wait is the explicit <code>timeout</code>, not the element-identification timeou
 
 <p>A match is a <code>findElements</code> hit. <code>isDisplayed()</code> is not required, including a match
 whose <code>isDisplayed()</code> is <code>false</code>. A node missing from <code>findElements</code> is absent
-even if a page-source dump lists it. Scrolling a below-fold control into view is
-<code>swipeElementIntoView</code>, not a presence check.</div>
+even if a page-source dump lists it. Count that node with <a href="#isPresentInPageSource(org.openqa.selenium.By)"><code>isPresentInPageSource(By)</code></a>.
+Scrolling a below-fold control into view is <code>swipeElementIntoView</code>, not a presence check.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>elementLocator</code> - the locator of the optional element</dd>
