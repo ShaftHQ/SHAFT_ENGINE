@@ -626,6 +626,133 @@ def force_push_hint(command: str) -> str:
     )
 
 
+def _shell_tokens(text: str) -> list[str]:
+    """Split one statement on whitespace. An empty quoted argument stays empty."""
+    tokens: list[str] = []
+    buf: list[str] = []
+    quote = ""
+    started = False
+    for char in text:
+        if quote:
+            if char == quote:
+                quote = ""
+            else:
+                buf.append(char)
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            started = True
+            continue
+        if char.isspace():
+            if started:
+                tokens.append("".join(buf))
+                buf = []
+                started = False
+            continue
+        buf.append(char)
+        started = True
+    if started:
+        tokens.append("".join(buf))
+    return tokens
+
+
+def _checked_out_branch(root: Path) -> str | None:
+    """Local branch name. Detached HEAD and a missing checkout are unknown."""
+    result = _git(root, ["rev-parse", "--abbrev-ref", "HEAD"])
+    if result is None or result.returncode != 0:
+        return None
+    name = (result.stdout or "").strip()
+    if not name or name == "HEAD":
+        return None
+    return name
+
+
+def _head_push_pairs(statement: str, root: Path) -> tuple[str | None, list[str | None]]:
+    """
+    Return the directory flag path and destinations whose source is HEAD.
+
+    None in the destination list means a push of HEAD with no colon.
+    A source that is not the token HEAD is ignored. A later relative
+    directory flag is relative to the earlier one. An empty one keeps it.
+    """
+    tokens = _shell_tokens(statement)
+    workdir: Path | None = None
+    directory_flag = "-" + "C"
+
+    def remember(argument: str) -> None:
+        nonlocal workdir
+        if argument == "":
+            return
+        candidate = Path(argument)
+        if candidate.is_absolute():
+            workdir = candidate
+            return
+        base = workdir if workdir is not None else Path(root)
+        workdir = base / candidate
+
+    index = 0
+    while index < len(tokens) and tokens[index] != "git":
+        index += 1
+    if index >= len(tokens):
+        return None, []
+    index += 1
+    while index < len(tokens) and tokens[index] != "push":
+        token = tokens[index]
+        if token == directory_flag and index + 1 < len(tokens):
+            remember(tokens[index + 1])
+            index += 2
+            continue
+        if token.startswith(directory_flag) and len(token) > len(directory_flag):
+            remember(token[len(directory_flag) :])
+            index += 1
+            continue
+        index += 1
+    if index >= len(tokens):
+        return None if workdir is None else str(workdir), []
+    destinations: list[str | None] = []
+    for token in tokens[index + 1 :]:
+        if token.startswith("-"):
+            continue
+        bare = token[1:] if token.startswith("+") else token
+        if bare == "HEAD":
+            destinations.append(None)
+        elif bare.startswith("HEAD:"):
+            destinations.append(bare.split(":", 1)[1])
+    return None if workdir is None else str(workdir), destinations
+
+
+def head_destination_block(root: Path, command: str) -> str | None:
+    """
+    Refuse a HEAD push whose destination branch is not the checked-out branch.
+
+    An explicit commit or branch name is not the token HEAD, so it stays
+    allowed. HEAD with no destination names the checked-out branch.
+    Options between git and push, including a directory flag, still count.
+    Force-push stays a separate block. This read is local rev-parse only.
+    """
+    for part in _command_pieces(command or ""):
+        if _is_approve_invocation(part):
+            continue
+        workdir, destinations = _head_push_pairs(part, Path(root))
+        if not destinations:
+            continue
+        base = Path(root)
+        if workdir:
+            candidate = Path(workdir)
+            base = candidate if candidate.is_absolute() else (Path(root) / candidate)
+        branch = _checked_out_branch(base)
+        for destination in destinations:
+            # ``git push origin HEAD`` names the checked-out branch. A colon
+            # destination is a different ref, and an unknown checkout cannot
+            # prove that ref is the one checked out.
+            if destination is None:
+                continue
+            name = destination.removeprefix("refs/heads/")
+            if branch is None or name != branch:
+                return "head-destination-mismatch"
+    return None
+
+
 def private_remote_block(root: Path, command: str) -> str | None:
     if not _REMOTE_ADD.search(command or ""):
         return None
@@ -953,6 +1080,7 @@ def command_blocks(root: Path, command: str) -> list[str]:
     hits: list[str] = []
     for item in (
         force_push_block(root, command),
+        head_destination_block(root, command),
         private_remote_block(root, command),
         relayed_delete_block(command),
     ):
