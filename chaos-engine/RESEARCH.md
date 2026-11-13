@@ -30,6 +30,8 @@ Primary source: [DeepSeek Harness architecture at commit
 | Bounded asynchronous behavior | Adopted | Bound optional retrieval to one attempt and keep maintenance with its existing owner. |
 | Quiescent teardown | Adopted | Delivery and cleanup receipts prove owned processes/resources are stopped or narrowly degraded. |
 
+Delta 2026-11-13 at `39163dd30f703a79079e2d2446545cff3c453738`, issue #8024. Still ideas only. An advisory repeat reminder counts exact matches and does not deny. An unknown tool outcome is not an automatic retry. No Node runtime, Cordis plugin, or session event log was added.
+
 ## Logo design skill
 
 Accessed: 2026-09-30. Primary source:
