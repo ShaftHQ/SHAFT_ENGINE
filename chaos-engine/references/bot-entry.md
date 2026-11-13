@@ -17,11 +17,11 @@ doctor and `tool.py` use `.chaos-engine/install.py`. Tee install/doctor logs to
 Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`).
 
 1. Bigger picture first ([card](bigger-picture-first.md)) before retrieve or a patch: name the goal, the larger context, and the local hotfix a narrow patch would miss. Do not skip this for a review comment, a CI failure, or "just hotfix it".
-2. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
-   prints. It bundles `identity.md`, the core card
-   (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
-   (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
-   Without a shell: read those five files directly.
+2. With a shell: run `python3 .chaos-engine/tool.py entry`.
+   Bundles `identity.md`, `skills/chaos-engine/SKILL.md`, the ethics card,
+   `companions/caveman-ultra.md`, and `companions/ponytail-ultra.md`.
+   No assessment submit and no live answer-feed without `tool.py ethics-check`.
+   Else read those files.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.
 3. If `.chaos-engine/tool.py` is missing, install and stop:

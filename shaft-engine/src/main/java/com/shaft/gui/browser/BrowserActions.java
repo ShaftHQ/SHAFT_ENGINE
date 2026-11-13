@@ -1675,6 +1675,10 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     /**
      * Starts a fluent browser network interception builder.
      *
+     * <p>This path is Selenium DevTools, not BiDi {@code network.addIntercept}. It is web and WebView
+     * only. A native Appium session needs an out-of-band proxy. A driver that is not
+     * {@link org.openqa.selenium.devtools.HasDevTools} is refused.</p>
+     *
      * <p>The configured rule is scoped to the current WebDriver session and is cleared automatically
      * when the driver closes. Call {@link #clearNetworkInterceptors()} to remove all active rules
      * earlier. Only drivers that implement {@link org.openqa.selenium.devtools.HasDevTools} support

@@ -97,15 +97,16 @@ enum PlaywrightHostPlatform {
                                           String osRelease) {
         if (platform == SetupPlatform.WINDOWS
                 && Set.of(SetupArchitecture.X64, SetupArchitecture.ARM64).contains(architecture)) return WIN64;
-        if (platform == SetupPlatform.LINUX && architecture == SetupArchitecture.X64) {
-            Map<String, String> values = Arrays.stream(osRelease.split("\\R"))
-                    .map(String::trim)
-                    .filter(line -> !line.isEmpty() && !line.startsWith("#") && line.contains("="))
-                    .map(line -> line.split("=", 2))
-                    .collect(Collectors.toMap(parts -> parts[0], parts -> unquote(parts[1]), (left, right) -> right));
-            if ("ubuntu".equals(values.get("ID")) && "24.04".equals(values.get("VERSION_ID"))) {
+        if (platform == SetupPlatform.LINUX) {
+            Map<String, String> values = linuxOsRelease(osRelease);
+            if (architecture == SetupArchitecture.X64
+                    && "ubuntu".equals(values.get("ID"))
+                    && "24.04".equals(values.get("VERSION_ID"))) {
                 return UBUNTU_24_04_X64;
             }
+            throw new IllegalArgumentException("Unsupported Playwright host: " + platform + '-' + architecture
+                    + " ID=" + linuxReleaseField(values, "ID")
+                    + " VERSION_ID=" + linuxReleaseField(values, "VERSION_ID"));
         }
         if (platform == SetupPlatform.MACOS && supportedMacOs(osRelease)) {
             return architecture == SetupArchitecture.X64 ? MAC15 : MAC15_ARM64;
@@ -127,6 +128,20 @@ enum PlaywrightHostPlatform {
         } catch (NumberFormatException ignored) {
             return false;
         }
+    }
+
+    private static Map<String, String> linuxOsRelease(String osRelease) {
+        if (osRelease == null) return Map.of();
+        return Arrays.stream(osRelease.split("\\R"))
+                .map(String::trim)
+                .filter(line -> !line.isEmpty() && !line.startsWith("#") && line.contains("="))
+                .map(line -> line.split("=", 2))
+                .collect(Collectors.toMap(parts -> parts[0], parts -> unquote(parts[1]), (left, right) -> right));
+    }
+
+    private static String linuxReleaseField(Map<String, String> values, String key) {
+        String value = values.get(key);
+        return value == null || value.isBlank() ? "absent" : value;
     }
 
     private static String unquote(String value) {

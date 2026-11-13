@@ -62,7 +62,8 @@ class EntryParityTests(unittest.TestCase):
         tool = load(ROOT / "chaos-engine/tool.py", "ce_tool_7242")
         self.assertIn("companions/ethics-card.md", tool.CORE_ENTRY_FILES)
         card = ROOT / "chaos-engine/companions/ethics-card.md"
-        self.assertLessEqual(len(card.read_bytes()), 600)
+        # #7983: the card cap is 1024 bytes so the person-only bullets fit.
+        self.assertLess(len(card.read_bytes()), 1024)
         self.assertIn("references/ethical-conduct.md", card.read_text(encoding="utf-8"))
         core = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("companions/ethics-card.md", core)

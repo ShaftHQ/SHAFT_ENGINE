@@ -1920,6 +1920,34 @@ def _deny(event: dict, event_name: str, tool_name: str, reason: str) -> int:
     return 2
 
 
+def _ethics_api():
+    cached = getattr(_ethics_api, "module", None)
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().parents[1] / "rules" / "ethics_check.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_ethics_check", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _ethics_api.module = module
+    return module
+
+
+def _ethics_pretool_reason(event: dict, commands: tuple, tool_input: object) -> str | None:
+    """Deny assessment-shaped submits when the ethics receipt is missing or person-only."""
+    event_name = str(event.get("hook_event_name") or event.get("hookEventName") or "")
+    if event_name != "PreToolUse":
+        return None
+    module = _ethics_api()
+    if module is None:
+        return None
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    return module.assessment_block_reason(commands, tool_input, cwd)
+
+
 def _stash_block(event: dict, event_name: str, tool_name: str, commands: tuple) -> int | None:
     if event_name != "PreToolUse":
         return None
@@ -2198,6 +2226,9 @@ def _guarded_event(event: dict, host: str) -> int:
             _record_denial_with_significance(event, "PreToolUse", str(event.get("tool_name", "")))
             print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
             return 2
+        ethics_reason = _ethics_pretool_reason(event, commands, tool_input)
+        if ethics_reason:
+            return _deny(event, "PreToolUse", str(event.get("tool_name", "")), ethics_reason)
     return _run_event(event, host)
 
 

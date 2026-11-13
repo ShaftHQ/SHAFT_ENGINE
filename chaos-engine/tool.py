@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve and run a ChaosEngine project-local tool."""
+"""Resolve and run a project-local tool."""
 
 from __future__ import annotations
 
@@ -462,7 +462,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "backups-watch", "pre-done", "force-push-approve", "output-search", "output-resume", "output-stats", "output-purge", "ethics-check"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -471,6 +471,9 @@ def tool_help_text() -> str:
         "\n"
         "entry (bots without hooks: print core card, companions, retrieve step):\n"
         "  tool.py entry [--full] [stop phrase]  (one line while unchanged; --full reprints)\n"
+        "\n"
+        "ethics-check (no assessment submit and no live answer-feed without this receipt):\n"
+        "  tool.py ethics-check [receipt.json]  (exit 0 allow or alternative; exit 2 person-only submit, decline, or live_feed)\n"
         "\n"
         "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
         "  tool.py maintain\n"
@@ -498,6 +501,12 @@ def tool_help_text() -> str:
         "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]  (exit 3 = past 35 min, stop)\n"
         "  tool.py checkpoint TASK --budget [35]  (exit 3 = wrap up now)\n"
         "  tool.py resume [TASK]  (short brief; exit 6 = no ledger)\n"
+        "\n"
+        "output store (manual search of saved tool output; it does not replace host output):\n"
+        "  tool.py output-search QUERY [--project PATH]\n"
+        "  tool.py output-resume ID [--project PATH]\n"
+        "  tool.py output-stats [--project PATH]\n"
+        "  tool.py output-purge [--project PATH]\n"
     )
 
 
@@ -790,6 +799,11 @@ SCRIPT_TOOLS = {
     "backups-watch": "backups_watch.py",
     "pre-done": "pre_done_review.py",
     "force-push-approve": "force_push_approve.py",
+    "output-search": "tool_output_store.py",
+    "output-resume": "tool_output_store.py",
+    "output-stats": "tool_output_store.py",
+    "output-purge": "tool_output_store.py",
+    "ethics-check": "rules/ethics_check.py",
 }
 
 
@@ -803,9 +817,95 @@ def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
     module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
     if tool == "usage":
         return int(module["main"](["usage", *arguments]))
-    if tool in {"checkpoint", "resume"}:
+    if tool in {"checkpoint", "resume", "output-search", "output-resume", "output-stats", "output-purge"}:
         return int(module["main"](arguments, tool))
     return int(module["main"](arguments))
+
+
+def _dispatch_core(installed_root: Path, tool: str, arguments: list[str]) -> int | None:
+    if tool == "entry":
+        phrase = " ".join(arg for arg in arguments if arg != "--full")
+        print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
+        return 0
+    if tool == "maintain":
+        return maintain(installed_root)
+    if tool == "siblings":
+        if not arguments:
+            print("usage: tool.py siblings nightly-failure:<workflow>", file=sys.stderr)
+            return 2
+        mindset = runpy.run_path(str(installed_root / "harness_mindset.py"))
+        signature = arguments[0]
+        print(mindset["sibling_tracker_query"](signature))
+        rows = mindset["sibling_trackers"](signature)
+        if rows:
+            import json
+
+            print(json.dumps(rows, sort_keys=True))
+        return 0
+    if tool in SCRIPT_TOOLS:
+        return script_tool(installed_root, tool, arguments)
+    if tool == "stores":
+        return stores_command(installed_root, arguments)
+    if tool == "retrieve":
+        path = installed_root / "retrieve.py"
+        if not path.is_file():
+            print("retrieve.py missing from installed core", file=sys.stderr)
+            return 1
+        # Re-exec as retrieve CLI (argv[0] style via runpy is awkward; call main).
+        spec_mod = runpy.run_path(str(path), run_name="_chaos_engine_retrieve")
+        return int(spec_mod["main"](arguments))
+    return None
+
+
+def _dispatch_process(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    if tool == "mempalace-mcp":
+        arguments = mempalace_mcp_arguments(installed_root, arguments)
+    if tool == "maven-tools-mcp":
+        command = resolve_maven_tools_command(installed_root)
+        environment = quiet_environment(os.environ.copy())
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        return subprocess.call(  # nosec B603
+            [*command, *arguments],
+            env=environment,
+            cwd=shared_project_root(installed_root.resolve().parent),
+        )
+    command = resolve_command(installed_root, tool, arguments)
+    environment = quiet_environment(os.environ.copy())
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    invocation = (
+        command
+        if isinstance(command, list)
+        else [str(command), *arguments]  # Compatibility for injected legacy tests.
+    )
+    project = shared_project_root(installed_root.resolve().parent)
+    invocation = bind_store_invocation(tool, invocation, project, installed_root)
+    if tool in _CAPTURE_STORES:
+        completed = subprocess.run(  # nosec B603
+            invocation,
+            env=environment,
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sys.stdout.write(completed.stdout)
+        sys.stderr.write(completed.stderr)
+        if completed.returncode == 0:
+            try:
+                _record_store_output(
+                    installed_root,
+                    tool,
+                    completed.stdout + "\n" + completed.stderr,
+                )
+            except (OSError, RuntimeError, ValueError):
+                # The store text already printed. A ledger write must not hide it.
+                pass
+        return completed.returncode
+    return subprocess.call(  # nosec B603
+        invocation,
+        env=environment,
+        cwd=project,
+    )
 
 
 def main() -> int:
@@ -818,87 +918,10 @@ def main() -> int:
         return 0
     try:
         installed_root = Path(__file__).resolve().parent
-        tool = sys.argv[1]
-        arguments = sys.argv[2:]
-        if tool == "entry":
-            phrase = " ".join(arg for arg in arguments if arg != "--full")
-            print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
-            return 0
-        if tool == "maintain":
-            return maintain(installed_root)
-        if tool == "siblings":
-            if not arguments:
-                print("usage: tool.py siblings nightly-failure:<workflow>", file=sys.stderr)
-                return 2
-            mindset = runpy.run_path(str(installed_root / "harness_mindset.py"))
-            signature = arguments[0]
-            print(mindset["sibling_tracker_query"](signature))
-            rows = mindset["sibling_trackers"](signature)
-            if rows:
-                import json
-
-                print(json.dumps(rows, sort_keys=True))
-            return 0
-        if tool in SCRIPT_TOOLS:
-            return script_tool(installed_root, tool, arguments)
-        if tool == "stores":
-            return stores_command(installed_root, arguments)
-        if tool == "retrieve":
-            path = installed_root / "retrieve.py"
-            if not path.is_file():
-                print("retrieve.py missing from installed core", file=sys.stderr)
-                return 1
-            # Re-exec as retrieve CLI (argv[0] style via runpy is awkward; call main).
-            spec_mod = runpy.run_path(str(path), run_name="_chaos_engine_retrieve")
-            return int(spec_mod["main"](arguments))
-        if tool == "mempalace-mcp":
-            arguments = mempalace_mcp_arguments(installed_root, arguments)
-        if tool == "maven-tools-mcp":
-            command = resolve_maven_tools_command(installed_root)
-            environment = quiet_environment(os.environ.copy())
-            environment["PYTHONDONTWRITEBYTECODE"] = "1"
-            return subprocess.call(  # nosec B603
-                [*command, *arguments],
-                env=environment,
-                cwd=shared_project_root(installed_root.resolve().parent),
-            )
-        command = resolve_command(installed_root, tool, arguments)
-        environment = quiet_environment(os.environ.copy())
-        environment["PYTHONDONTWRITEBYTECODE"] = "1"
-        invocation = (
-            command
-            if isinstance(command, list)
-            else [str(command), *arguments]  # Compatibility for injected legacy tests.
-        )
-        project = shared_project_root(installed_root.resolve().parent)
-        invocation = bind_store_invocation(tool, invocation, project, installed_root)
-        if tool in _CAPTURE_STORES:
-            completed = subprocess.run(  # nosec B603
-                invocation,
-                env=environment,
-                cwd=project,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            sys.stdout.write(completed.stdout)
-            sys.stderr.write(completed.stderr)
-            if completed.returncode == 0:
-                try:
-                    _record_store_output(
-                        installed_root,
-                        tool,
-                        completed.stdout + "\n" + completed.stderr,
-                    )
-                except (OSError, RuntimeError, ValueError):
-                    # The store text already printed. A ledger write must not hide it.
-                    pass
-            return completed.returncode
-        return subprocess.call(  # nosec B603
-            invocation,
-            env=environment,
-            cwd=project,
-        )
+        local = _dispatch_core(installed_root, sys.argv[1], sys.argv[2:])
+        if local is not None:
+            return local
+        return _dispatch_process(installed_root, sys.argv[1], sys.argv[2:])
     except (OSError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1

@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -8,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,6 +29,8 @@ public final class AllureReportLaunch {
 
     private static final Pattern JAVAC_VERSION = Pattern.compile("javac\\s+(\\d+)(?:\\.(\\d+))?");
     private static final String ENGINE_GROUP_PATH = "io/github/shafthq/shaft-engine";
+    /** Bounds the javac wait so an interrupt is observed while stdout is still open. */
+    private static final long JDK_PROBE_POLL_MILLIS = 100L;
 
     private AllureReportLaunch() {
     }
@@ -86,7 +90,10 @@ public final class AllureReportLaunch {
      * as the process working directory, because Windows resolves a relative application name from the
      * parent directory.
      * A caller that is already interrupted gets {@code -1} even when the process exits cleanly.
-     * {@code waitFor} does not throw in that case, and the interrupt status is restored.
+     * The flag is cleared only for the wait so that path is a normal exit, then restored.
+     * Later interrupts use a short {@code waitFor}. Stdout is drained with {@link InputStream#available()}
+     * because {@code readAllBytes} does not throw {@link InterruptedException}, so a still-open pipe would
+     * never reach {@link Process#destroyForcibly()}.
      *
      * @param jdkHome a JDK home directory, not a JRE
      * @return the javac major, or {@code -1} when javac is missing, its output cannot be read,
@@ -106,26 +113,71 @@ public final class AllureReportLaunch {
         try {
             // Absolute image. ProcessBuilder is not a shell; SpotBugs still reports COMMAND_INJECTION.
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
-            try {
-                String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                if (callerInterrupted) {
-                    Thread.interrupted();
-                }
-                process.waitFor();
-                if (callerInterrupted) {
-                    Thread.currentThread().interrupt();
-                    return -1;
-                }
-                return javaMajorFromJavacOutput(output);
-            } catch (InterruptedException exception) {
-                process.destroyForcibly();
+            String output = captureJavacOutput(process, callerInterrupted);
+            if (callerInterrupted) {
                 Thread.currentThread().interrupt();
                 return -1;
             }
+            return javaMajorFromJavacOutput(output);
         } catch (IOException exception) {
+            return -1;
+        } catch (InterruptedException exception) {
             return -1;
         } catch (IllegalArgumentException exception) {
             return -1;
+        }
+    }
+
+    /**
+     * Drains a javac probe without blocking in {@code readAllBytes} while the child is alive.
+     *
+     * @return the version text
+     * @throws InterruptedException when the caller was interrupted and the child was destroyed
+     */
+    private static String captureJavacOutput(Process process, boolean callerInterrupted)
+            throws IOException, InterruptedException {
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        InputStream stdout = process.getInputStream();
+        if (callerInterrupted) {
+            Thread.interrupted();
+        }
+        if (waitForJavac(process, stdout, captured)) {
+            process.destroyForcibly();
+            Thread.currentThread().interrupt();
+            throw new InterruptedException("javac probe interrupted");
+        }
+        captured.write(stdout.readAllBytes());
+        return captured.toString(StandardCharsets.UTF_8);
+    }
+
+    private static boolean waitForJavac(Process process, InputStream stdout, ByteArrayOutputStream captured)
+            throws IOException {
+        byte[] buffer = new byte[256];
+        try {
+            while (true) {
+                drainAvailable(stdout, captured, buffer);
+                if (process.waitFor(JDK_PROBE_POLL_MILLIS, TimeUnit.MILLISECONDS)) {
+                    return false;
+                }
+                if (Thread.currentThread().isInterrupted()) {
+                    return true;
+                }
+            }
+        } catch (InterruptedException exception) {
+            return true;
+        }
+    }
+
+    private static void drainAvailable(InputStream stdout, ByteArrayOutputStream captured, byte[] buffer)
+            throws IOException {
+        int ready = stdout.available();
+        while (ready > 0) {
+            int count = stdout.read(buffer, 0, Math.min(buffer.length, ready));
+            if (count <= 0) {
+                return;
+            }
+            captured.write(buffer, 0, count);
+            ready = stdout.available();
         }
     }
 

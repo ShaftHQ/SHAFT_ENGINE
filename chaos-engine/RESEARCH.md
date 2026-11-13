@@ -63,6 +63,7 @@ and loads them at task start on every host; they are not optional at runtime.
 | Progressive disclosure | Adopted | Always-on router; references load when their decision is active. |
 | Just-in-time retrieval | Adopted | Query a store only when it can shorten the task; one bounded attempt. |
 | Tool-result prune and spill | Adopted as guidance | [context-economy](references/context-economy.md) |
+| Manual tool-output store | Adopted as a manual CLI | `tool_output_store.py` stores text for later search. The Context Mode plugin was not vendored. |
 | Script over long tool chains | Adopted as guidance | [script-first](references/script-first.md) |
 | Auto-load companion bodies every mutation | Rejected | SessionStart injects each vendor `SKILL.md` once. Do not re-inject on every tool. Companions stay active at ultra until off. |
 

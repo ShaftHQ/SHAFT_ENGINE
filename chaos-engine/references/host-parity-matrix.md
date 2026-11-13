@@ -75,7 +75,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only agent: auto-loads nothing from the checkout and has no hook runtime. At task start it reads the core card and both companion cards itself, then runs one retrieve. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
-| GAP-BOT-ENTRY | Independent bots (GPTs, Claude Projects, others) | medium | No checkout auto-load and no hooks: start from [bot entry](bot-entry.md) (`tool.py entry`, or an exported entry file for bots without repository access). | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-BOT-ENTRY | Independent bots (GPTs, Claude Projects, others) | medium | No checkout auto-load and no hooks: start from [bot entry](bot-entry.md) (`tool.py entry`, or an exported entry file for bots without repository access). Residual risk: a hookless bot can still submit a person-only assessment if it skips `tool.py ethics-check`. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 | GAP-CLAUDE-IMPORT | Claude surfaces that do not expand `@AGENTS.md` | medium | A Claude surface that does not expand `CLAUDE.md`'s `@AGENTS.md` import, and has no installed overlay, sees only that one import line. That explains a report that Claude ignored the rules. Installed Claude Code stays the strongest hook mapping. | Tracked `CLAUDE.md` stays exactly `@AGENTS.md` (`test_fresh_import_pointers_are_exactly_one_import`). |
@@ -100,6 +100,25 @@ Checked-in memory for one-router / CLI-owned MCP / project-mode Caveman:
 `.memory/memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md` (repo-only).
 See also the [hook trigger map](hook-trigger-map.md).
 
+
+## Tool-output replacement
+
+No supported host has a proven PostToolUse replacement for the tool-result
+body in this tree. Grok can adapt `additionalContext` for SessionStart and can
+show deny text. That does not replace the tool result. This delivery is a
+manual store ([tool_output_store.py](../tool_output_store.py), `tool.py output-search`).
+It does not claim the original bytes left the model window.
+
+| Host | PostToolUse tool-output replacement |
+| --- | --- |
+| Claude Code | not proven |
+| Codex | not proven |
+| Grok | not proven |
+| Gemini | not proven |
+| Copilot | not proven |
+| OpenCode | not proven |
+| Cursor | not proven |
+| Grok Bot | not proven |
 
 ## GAP-EXIT2 compensating UX checklist (Grok / Copilot)
 
