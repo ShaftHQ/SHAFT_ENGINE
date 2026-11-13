@@ -15,7 +15,7 @@ Send authority is [outbound-send.md](../../references/outbound-send.md). Researc
 
 Apply end to end through whichever route each posting offers. Email, LinkedIn and web forms are all in scope; never drop a fitting role just because it has no email.
 
-Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.
+The shared send rule: Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.
 
 ## 1. Inputs (read first)
 

@@ -258,6 +258,7 @@ sends you there; the rest by
 - [level 1 catalog](../../chaos-engine/references/level-1-catalog.md)
 - [memory provenance](../../chaos-engine/references/memory-provenance.md)
 - [no proxy](../../chaos-engine/references/no-proxy.md)
+- [outbound send](../../chaos-engine/references/outbound-send.md): one send rule for irreversible external sends
 - [permanent rules](../../chaos-engine/references/permanent-rules.md)
 - [prefer cli over mcp](../../chaos-engine/references/prefer-cli-over-mcp.md)
 - [router contract](../../chaos-engine/references/router-contract.md)
