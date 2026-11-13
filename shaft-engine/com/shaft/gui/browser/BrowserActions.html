@@ -1352,6 +1352,10 @@ driver.browser().mock(req -&gt; req.getUri().contains("/api/user"), mocked);
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="NetworkInterceptionRequestBuilder.html" title="class in com.shaft.gui.browser">NetworkInterceptionRequestBuilder</a>&lt;<a href="BrowserActions.html" title="class in com.shaft.gui.browser">BrowserActions</a>&gt;</span>&nbsp;<span class="element-name">interceptRequest</span>()</div>
 <div class="block">Starts a fluent browser network interception builder.
 
+<p>This path is Selenium DevTools, not BiDi <code>network.addIntercept</code>. It is web and WebView
+only. A native Appium session needs an out-of-band proxy. A driver that is not
+<code>HasDevTools</code> is refused.</p>
+
 <p>The configured rule is scoped to the current WebDriver session and is cleared automatically
 when the driver closes. Call <a href="#clearNetworkInterceptors()"><code>clearNetworkInterceptors()</code></a> to remove all active rules
 earlier. Only drivers that implement <code>HasDevTools</code> support
