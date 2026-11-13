@@ -624,6 +624,41 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("RED", bucket)
         self.assertEqual("codecov/patch", failing[0]["name"])
 
+    def test_codecov_patch_waits_for_unit_shards_and_keeps_the_eighty_percent_target(self):
+        early, early_failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/early"},
+                {"name": "Unit Tests (shaft-engine-shard-1)", "state": "IN_PROGRESS", "link": "https://checks/shard-1"},
+                {"name": "Unit Tests (shaft-engine-shard-3)", "state": "IN_PROGRESS", "link": "https://checks/shard-3"},
+            ]
+        )
+        self.assertEqual("PENDING", early)
+        self.assertEqual([], early_failing)
+        while_job, job_failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/early"},
+                {"name": "Unit Tests (shaft-engine-shard-1)", "state": "SUCCESS", "link": "https://checks/shard-1"},
+                {"name": "Unit Tests (shaft-engine-shard-3)", "state": "SUCCESS", "link": "https://checks/shard-3"},
+                {"name": "Codecov patch/project", "state": "IN_PROGRESS", "link": "https://checks/codecov-job"},
+            ]
+        )
+        self.assertEqual("PENDING", while_job)
+        self.assertEqual([], job_failing)
+        done, done_failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/done"},
+                {"name": "Unit Tests (shaft-engine-shard-1)", "state": "SUCCESS", "link": "https://checks/shard-1"},
+                {"name": "Unit Tests (shaft-engine-shard-3)", "state": "SUCCESS", "link": "https://checks/shard-3"},
+                {"name": "Codecov patch/project", "state": "SUCCESS", "link": "https://checks/codecov-job"},
+            ]
+        )
+        self.assertEqual("RED", done)
+        self.assertEqual("codecov/patch", done_failing[0]["name"])
+        config = (Path(__file__).resolve().parents[2] / "codecov.yml").read_text(encoding="utf-8")
+        self.assertIn("target: 80%", config)
+        self.assertNotIn("target: 90%", config)
+        self.assertNotIn("target: 100%", config)
+
     def test_fresh_nightly_receipt_skips_and_a_new_run_id_triages(self):
         runs = {"live": 1, "local": 2, "e2e": 3}
         receipt = {"run_ids": runs, "decision": "NO_PRODUCT_FIX", "next_cron": "2026-10-19T01:00:00Z"}
