@@ -61,6 +61,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#bindITestResult(org.testng.ITestResult)" tabindex="0">bindITestResult(ITestResult)</a></li>
+<li><a href="#getITestResult()" tabindex="0">getITestResult()</a></li>
 <li><a href="#identifyRunType()" tabindex="0">identifyRunType()</a></li>
 <li><a href="#engineSetup(com.shaft.tools.io.internal.ProjectStructureManager.RunType)" tabindex="0">engineSetup(ProjectStructureManager.RunType)</a></li>
 <li><a href="#onExecutionStart()" tabindex="0">onExecutionStart()</a></li>
@@ -209,72 +210,77 @@ users be able to alter a suite or a test based on their own needs.</div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Prepares the engine (properties, reporting and project structure) for the given run type.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../tools/io/internal/ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#identifyRunType()" class="member-name-link">identifyRunType</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.testng.ITestResult</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getITestResult()" class="member-name-link">getITestResult</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the result bound by <a href="#bindITestResult(org.testng.ITestResult)"><code>bindITestResult(ITestResult)</code></a>, or null when none is bound.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../tools/io/internal/ProjectStructureManager.RunType.html" title="enum class in com.shaft.tools.io.internal">ProjectStructureManager.RunType</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#identifyRunType()" class="member-name-link">identifyRunType</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Detects how the tests are being run, such as from Maven, an IDE or a generated runner.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;org.testng.IMethodInstance&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#intercept(java.util.List,org.testng.ITestContext)" class="member-name-link">intercept</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.testng.IMethodInstance&gt;&nbsp;methods,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;org.testng.IMethodInstance&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#intercept(java.util.List,org.testng.ITestContext)" class="member-name-link">intercept</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;org.testng.IMethodInstance&gt;&nbsp;methods,
  org.testng.ITestContext&nbsp;context)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onAfterClass(org.testng.ITestClass)" class="member-name-link">onAfterClass</a><wbr>(org.testng.ITestClass&nbsp;testClass)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onAfterClass(org.testng.ITestClass)" class="member-name-link">onAfterClass</a><wbr>(org.testng.ITestClass&nbsp;testClass)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Quits browsers kept alive by <code>reuseBrowserSession</code> once their class finishes.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationFailure(org.testng.ITestResult)" class="member-name-link">onConfigurationFailure</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationSkip(org.testng.ITestResult)" class="member-name-link">onConfigurationSkip</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationFailure(org.testng.ITestResult)" class="member-name-link">onConfigurationFailure</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationSuccess(org.testng.ITestResult)" class="member-name-link">onConfigurationSuccess</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationSkip(org.testng.ITestResult)" class="member-name-link">onConfigurationSkip</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onExecutionFinish()" class="member-name-link">onExecutionFinish</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onConfigurationSuccess(org.testng.ITestResult)" class="member-name-link">onConfigurationSuccess</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onExecutionStart()" class="member-name-link">onExecutionStart</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onExecutionFinish()" class="member-name-link">onExecutionFinish</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onExecutionStart()" class="member-name-link">onExecutionStart</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">gets invoked before TestNG proceeds with invoking any other listener.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onFinish(org.testng.ISuite)" class="member-name-link">onFinish</a><wbr>(org.testng.ISuite&nbsp;suite)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onFinish(org.testng.ITestContext)" class="member-name-link">onFinish</a><wbr>(org.testng.ITestContext&nbsp;testContext)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onFinish(org.testng.ISuite)" class="member-name-link">onFinish</a><wbr>(org.testng.ISuite&nbsp;suite)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onStart(org.testng.ISuite)" class="member-name-link">onStart</a><wbr>(org.testng.ISuite&nbsp;suite)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onFinish(org.testng.ITestContext)" class="member-name-link">onFinish</a><wbr>(org.testng.ITestContext&nbsp;testContext)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onStart(org.testng.ISuite)" class="member-name-link">onStart</a><wbr>(org.testng.ISuite&nbsp;suite)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">This method is invoked before the SuiteRunner starts.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onStart(org.testng.ITestContext)" class="member-name-link">onStart</a><wbr>(org.testng.ITestContext&nbsp;testContext)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestFailedButWithinSuccessPercentage(org.testng.ITestResult)" class="member-name-link">onTestFailedButWithinSuccessPercentage</a><wbr>(org.testng.ITestResult&nbsp;result)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onStart(org.testng.ITestContext)" class="member-name-link">onStart</a><wbr>(org.testng.ITestContext&nbsp;testContext)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestFailure(org.testng.ITestResult)" class="member-name-link">onTestFailure</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestFailedButWithinSuccessPercentage(org.testng.ITestResult)" class="member-name-link">onTestFailedButWithinSuccessPercentage</a><wbr>(org.testng.ITestResult&nbsp;result)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestSkipped(org.testng.ITestResult)" class="member-name-link">onTestSkipped</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestFailure(org.testng.ITestResult)" class="member-name-link">onTestFailure</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestStart(org.testng.ITestResult)" class="member-name-link">onTestStart</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestSkipped(org.testng.ITestResult)" class="member-name-link">onTestSkipped</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestSuccess(org.testng.ITestResult)" class="member-name-link">onTestSuccess</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestStart(org.testng.ITestResult)" class="member-name-link">onTestStart</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#transform(org.testng.annotations.ITestAnnotation,java.lang.Class,java.lang.reflect.Constructor,java.lang.reflect.Method)" class="member-name-link">transform</a><wbr>(org.testng.annotations.ITestAnnotation&nbsp;annotation,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#onTestSuccess(org.testng.ITestResult)" class="member-name-link">onTestSuccess</a><wbr>(org.testng.ITestResult&nbsp;testResult)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#transform(org.testng.annotations.ITestAnnotation,java.lang.Class,java.lang.reflect.Constructor,java.lang.reflect.Method)" class="member-name-link">transform</a><wbr>(org.testng.annotations.ITestAnnotation&nbsp;annotation,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Class.html" title="class or interface in java.lang" class="external-link">Class</a>&nbsp;testClass,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/reflect/Constructor.html" title="class or interface in java.lang.reflect" class="external-link">Constructor</a>&nbsp;testConstructor,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/reflect/Method.html" title="class or interface in java.lang.reflect" class="external-link">Method</a>&nbsp;testMethod)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">This method will be invoked by TestNG to give you a chance to modify a TestNG annotation read
 from your test classes.</div>
 </div>
@@ -351,11 +357,21 @@ from your test classes.</div>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">bindITestResult</span><wbr><span class="parameters">(org.testng.ITestResult&nbsp;result)</span></div>
 <div class="block">Binds the result tests read through <code>getITestResult()</code>.
-<code>beforeInvocation</code> still assigns the field for real runs.</div>
+<code>beforeInvocation</code> writes through this method for real runs.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>result</code> - current result, or <code>null</code> to clear it</dd>
 </dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="getITestResult()">
+<h3>getITestResult</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Nullable
+</span><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.testng.ITestResult</span>&nbsp;<span class="element-name">getITestResult</span>()</div>
+<div class="block">Returns the result bound by <a href="#bindITestResult(org.testng.ITestResult)"><code>bindITestResult(ITestResult)</code></a>, or null when none is bound.</div>
 </div>
 </section>
 </li>
