@@ -57,6 +57,21 @@ class ConvergeTest(unittest.TestCase):
             self.assertEqual(report["work_item"], work)
             self.assertNotIn("Phase: Convergence", work)
 
+    def test_evidence_outside_the_tree_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            root = parent / "tree"
+            root.mkdir()
+            secret = parent / "secret.txt"
+            secret.write_text("FR-001\n", encoding="utf-8")
+            work = "FR-001: keep the gate. Evidence: ../secret.txt\n"
+            report = gate.converge(root, work)
+            self.assertEqual(
+                [item["id"] for item in report["findings"] if item["kind"] == "missing"],
+                ["FR-001"],
+            )
+            self.assertEqual(secret.read_text(encoding="utf-8"), "FR-001\n")
+
     def test_unrequested_file_is_listed_and_kept(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -81,7 +96,7 @@ class ConvergeTest(unittest.TestCase):
             work_path = root / "item.md"
             work_path.write_text("FR-001: keep the gate. Evidence: gate.py\n", encoding="utf-8")
             before = work_path.read_bytes()
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - fixed interpreter and in-tree script, no shell.
                 [sys.executable, str(CE / "intent_converge.py"), "converge", str(work_path), str(root)],
                 check=False,
                 capture_output=True,

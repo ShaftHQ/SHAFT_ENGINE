@@ -41,6 +41,7 @@ def obligations(text: str) -> list[dict[str, str]]:
 
 
 def _phrase_conflicts(items: list[dict[str, str]]) -> list[tuple[str, str, str]]:
+    """Return MUST versus MUST NOT pairs that name the same phrase."""
     required: dict[str, str] = {}
     banned: dict[str, str] = {}
     for item in items:
@@ -54,6 +55,22 @@ def _phrase_conflicts(items: list[dict[str, str]]) -> list[tuple[str, str, str]]
         if right and right != left:
             conflicts.append((left, right, phrase))
     return conflicts
+
+
+def _contained(base: Path, evidence: str) -> Path | None:
+    """Return an evidence path only when it stays inside ``base``."""
+    if not evidence:
+        return None
+    relative = Path(evidence)
+    if relative.is_absolute() or ".." in relative.parts:
+        return None
+    root = base.resolve()
+    candidate = (root / relative).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate
 
 
 def _finding(
@@ -90,8 +107,14 @@ def converge(root: Path, work_item: str) -> dict[str, object]:
         evidence = item["evidence"]
         if evidence:
             named.add(evidence.replace("\\", "/"))
-        path = base / evidence if evidence else None
-        if path is not None and path.is_file() and item["id"] in path.read_text(encoding="utf-8"):
+        path = _contained(base, evidence)
+        satisfied = False
+        if path is not None and path.is_file():
+            try:
+                satisfied = item["id"] in path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                satisfied = False
+        if satisfied:
             continue
         kind = "partial" if path is not None and path.is_file() else "missing"
         findings.append(
