@@ -36,8 +36,9 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Appium driver npm recover | Appium npm null-package; uninstall then install --source=npm | [`appium-driver-npm-recover.md`](appium-driver-npm-recover.md) |
 | Technical presentations | Plan, build, refactor, or review a technical talk or training deck; never remove slide content | [`../skills/technical-presentations/SKILL.md`](../skills/technical-presentations/SKILL.md) |
 | Pre-done self-review | Before Done, sign-off, or handoff: rules reconciled, gaps cite rule + alternative, views match the table | [`../skills/pre-done-self-review/SKILL.md`](../skills/pre-done-self-review/SKILL.md) |
-| Job apply | Apply for a job: classify posting, draft never send, research-backed cover email, gate checklist | [`../skills/job-apply/SKILL.md`](../skills/job-apply/SKILL.md) |
-| Job applications | Apply across email, LinkedIn, and ATS web forms: dedupe, one submit, adversarial review, tracker row | [`../skills/job-applications/SKILL.md`](../skills/job-applications/SKILL.md) |
+| Job apply | Research, gate, and cover draft for one application. Send authority is outbound-send.md | [`../skills/job-apply/SKILL.md`](../skills/job-apply/SKILL.md) |
+| Job applications | Channel routing for that same apply job: email, LinkedIn, and ATS. Same send authority | [`../skills/job-applications/SKILL.md`](../skills/job-applications/SKILL.md) |
+| Outbound send | Draft only unless a recorded standing send permission names the channel and the shared gate passes | [`outbound-send.md`](outbound-send.md) |
 | Job search | Search for jobs: two-channel discovery, eligibility filter, End-key scroll, share-profile gate | [`../skills/job-search/SKILL.md`](../skills/job-search/SKILL.md) |
 | Docs hygiene | Source-of-truth docs, status vocabulary, live hour formulas, full journeys, delete-guard upstream | [`../skills/docs-hygiene/SKILL.md`](../skills/docs-hygiene/SKILL.md) |
 | Docs follow the change | A command, flag, default, or other reader-facing contract changed, including earlier in the session | [`docs-follow-change.md`](docs-follow-change.md) |

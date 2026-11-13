@@ -63,7 +63,6 @@ class JobApplySkillTest(unittest.TestCase):
     def test_process_research_template_gate_lessons(self) -> None:
         skill = _text(SKILL).casefold()
         self.assertIn("## process", skill)
-        self.assertIn("draft, never send", skill)
         self.assertIn("private per-user store", skill)
         self.assertIn("application ledger", skill)
         self.assertIn("triage fit", skill)
@@ -97,6 +96,36 @@ class JobApplySkillTest(unittest.TestCase):
         )
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertIn("check_abstraction: ok", completed.stdout)
+
+    def test_send_authority_agrees_across_both_skills(self) -> None:
+        rule = (
+            "default is draft only. a recorded owner standing send permission "
+            "that names the channel class may send only after the shared gate "
+            "passes on the exact final text."
+        )
+        surfaces = {
+            "job-apply": _text(SKILL).casefold(),
+            "gate": _text(f"{BASE}/references/gate.md").casefold(),
+            "job-applications": _text("chaos-engine/skills/job-applications/SKILL.md").casefold(),
+            "index": _text("chaos-engine/harness_index.py").casefold(),
+            "reference": _text("chaos-engine/references/outbound-send.md").casefold(),
+        }
+        for name, text in surfaces.items():
+            with self.subTest(surface=name):
+                self.assertIn(rule, text)
+        for name in ("job-apply", "gate", "job-applications"):
+            text = surfaces[name]
+            self.assertNotIn("does not authorize the agent to send", text)
+            self.assertNotIn("does not create an exception", text)
+            self.assertNotIn("does not authorize send", text)
+        reference = _text("chaos-engine/references/outbound-send.md")
+        self.assertLess(len(reference.splitlines()), 80)
+        routes = _text("chaos-engine/skills/chaos-engine/SKILL.md")
+        start = routes.index("<!-- HARNESS-ROUTES:START -->")
+        end = routes.index("<!-- HARNESS-ROUTES:END -->")
+        self.assertNotIn("outbound-send", routes[start:end])
+        self.assertNotIn("outbound-send", _text("chaos-engine/always-loaded-budget.json"))
+        self.assertFalse((ROOT / "chaos-engine/skills/outbound-send").exists())
 
     def test_skill_is_fully_abstracted(self) -> None:
         paths = [ROOT / SKILL, *[ROOT / c for c in CARDS]]

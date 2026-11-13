@@ -9,7 +9,7 @@
 - [ ] Payroll vendor vs end client worded correctly ("with", not "at", when the vendor only runs payroll).
 - [ ] User exclusions honoured in the body.
 - [ ] Forms (if used): all required filled; screenshot shown; explicit yes; one submit; confirmation + ID captured.
-- [ ] Exactly one email draft exists when the route is email; never sent by the agent. A standing order does not authorize send.
+- [ ] Exactly one email draft exists when the route is email. Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text. See [outbound-send.md](../../../references/outbound-send.md).
 - [ ] Application ledger updated, then read back. The ledger is a cache of the tracker.
 - [ ] Distinct contacts or channels are separate rows.
 - [ ] Remote ask is in the subject and the body when the role is remote.
