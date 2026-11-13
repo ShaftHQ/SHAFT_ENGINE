@@ -72,5 +72,5 @@ changes the installed profile instead of adding files there.
   install flag; do not improvise its rules.
 
 The ordered English films after the accepted install film are the
-[showcase film slate](showcase-film-slate.md). That page does not shoot or
+[showcase film slate](details/showcase-film-slate.md). That page does not shoot or
 regenerate the install film.

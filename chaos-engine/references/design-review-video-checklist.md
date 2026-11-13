@@ -86,6 +86,9 @@ When one span of an accepted recording is wrong, keep the correct audio and repl
 An owner recording used as a spoken token is the pronunciation. An automatic transcript spelling does not reject that token.
 Do not alter copied samples from an accepted recording to meet a silence floor.
 A spoken introduction follows [narration-review.md](details/narration-review.md).
+
+Before a spoken introduction is repaired, ask the owner whether to regenerate the whole file or patch the bad spans. The standing preference is to regenerate so the read stays consistent. The two adversarial reviewers apply the narration review checklist and this section. They do not pass an item they did not measure. Do not spell a dropped word in another writing system to force the token.
+
 A spoken introduction is one synthesis of the whole script.
 Do not splice a louder take into it.
 Loudness is one gain for the whole file.

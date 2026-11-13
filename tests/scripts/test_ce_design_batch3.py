@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
@@ -476,16 +477,33 @@ class Batch3MediaChecksTest(unittest.TestCase):
 
 class ShowcaseFilmSlateTest(unittest.TestCase):
     def test_english_slate_freezes_the_install_film_and_orders_six_films(self) -> None:
-        text = (ROOT / "chaos-engine/references/showcase-film-slate.md").read_text(encoding="utf-8")
+        relative = Path("references/details/showcase-film-slate.md")
+        slate = ROOT / "chaos-engine" / relative
+        text = slate.read_text(encoding="utf-8")
         self.assertIn("Do not regenerate it", text)
         self.assertIn("No media file is produced here", text)
         self.assertNotIn("Mohab", text)
         self.assertNotIn("Automatest", text)
+        self.assertIn("shaft", text.casefold())
         positions = [text.index(f"## Film {number}.") for number in range(1, 7)]
         self.assertEqual(positions, sorted(positions))
         self.assertIn("shaft-heal", text)
         self.assertIn("-Dallure.automaticallyOpen=false", text)
         self.assertIn("only after the owner names the next number to shoot", text)
+        self.assertFalse((ROOT / "chaos-engine/references/showcase-film-slate.md").exists())
+        addons = (ROOT / "chaos-engine/references/addons.md").read_text(encoding="utf-8")
+        self.assertIn("details/showcase-film-slate.md", addons)
+        spec = importlib.util.spec_from_file_location(
+            "ce_install_slate", ROOT / "chaos-engine/install.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(module.is_origin_only(relative))
+        packaged = {
+            module.payload_relative(ROOT / "chaos-engine", path).as_posix()
+            for path in module.source_files(ROOT / "chaos-engine")
+        }
+        self.assertNotIn(relative.as_posix(), packaged)
 
 
 if __name__ == "__main__":

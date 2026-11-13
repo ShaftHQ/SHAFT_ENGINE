@@ -111,6 +111,28 @@ Facts in the script have a source. Directions stay off the spoken page.
 Fillers, when the owner asked for them, sit at a boundary and stay scattered.
 They are not piled into one sentence.
 
+## Repair choice
+
+When a take fails this list, ask the owner whether to regenerate the whole file from scratch or to patch the bad spans. Do not choose for them.
+
+The owner's standing preference is to regenerate the whole file, so the
+performance stays one consistent read.
+
+Patch only after the owner says to patch.
+
+The two adversarial reviewers load this file and the standing section of
+the design review checklist. They measure every item they pass. A reviewer
+who cannot run the command does not pass the item.
+
+Do not train a likeness, and do not patch a take, from a synthesized file.
+The last synthesized introduction is not a reference, not a patch source,
+and not a training clip.
+
+Do not spell a dropped word in another writing system to force the token.
+That changes the accent. Regenerate from the owner's recording.
+
+The read-aloud and the refuse list are [likeness_record_train.py](likeness_record_train.py).
+
 ## Not used
 
 - Broadcast -23 LUFS, and the AES speech-distribution -18 LUFS, are not this
