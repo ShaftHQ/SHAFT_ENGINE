@@ -105,7 +105,7 @@ public final class AllureReportLaunch {
         }
         List<String> command = javacVersionCommand(jdkHome);
         Path image = Path.of(command.get(0));
-        if (!javacImage(image) || !Files.isRegularFile(image)) {
+        if (!javacProbeImage(image)) {
             return -1;
         }
         // Captured before the probe. A pre-set flag makes waitFor throw while the reaper is still
@@ -197,7 +197,11 @@ public final class AllureReportLaunch {
         return List.of(javac.toString(), "-version");
     }
 
-    private static boolean javacImage(Path image) {
+    static boolean javacProbeImage(Path image) {
+        return javacImage(image) && Files.isRegularFile(image);
+    }
+
+    static boolean javacImage(Path image) {
         // Relative bin/javac is rejected: Windows resolves it from the parent directory.
         if (!image.isAbsolute()) {
             return false;

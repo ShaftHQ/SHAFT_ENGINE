@@ -8,6 +8,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import javax.annotation.Nullable;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -130,16 +131,20 @@ public final class PageSourcePresence {
         return !value.contains("/") && resourceId.endsWith("/" + value);
     }
 
+    static int xpathNodeCount(@Nullable XPathNodes nodes) {
+        if (nodes == null) {
+            throw new IllegalArgumentException("Page-source xpath evaluation returned no result.");
+        }
+        return nodes.size();
+    }
+
     private static int countXPath(Document document, String expression) {
         // JDK 25 documents do not implement org.w3c.dom.xpath.XPathEvaluator.
         // evaluateExpression is not a FindSecBugs XPath sink; evaluate and compile are.
         try {
             XPathNodes nodes = XPathFactory.newInstance().newXPath()
                     .evaluateExpression(expression, document, XPathNodes.class);
-            if (nodes == null) {
-                throw new IllegalArgumentException("Page-source xpath evaluation returned no result.");
-            }
-            return nodes.size();
+            return xpathNodeCount(nodes);
         } catch (XPathExpressionException invalid) {
             throw new IllegalArgumentException("Page-source xpath is not valid.", invalid);
         }

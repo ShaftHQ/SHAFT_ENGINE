@@ -136,15 +136,26 @@ public class AllureReportLaunchTest {
     }
 
     @Test
-    public void javacImageRejectsRelativeAndNonBinNames() throws Exception {
-        Method javacImage = AllureReportLaunch.class.getDeclaredMethod("javacImage", Path.class);
-        javacImage.setAccessible(true);
+    public void javacImageRejectsRelativeAndNonBinNames() throws IOException {
         Path home = Files.createTempDirectory("javac-image");
-        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/javac").toAbsolutePath().normalize()), true);
-        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/javac.exe").toAbsolutePath().normalize()), true);
-        Assert.assertEquals(javacImage.invoke(null, Path.of("bin").resolve("javac")), false);
-        Assert.assertEquals(javacImage.invoke(null, home.resolve("lib/javac").toAbsolutePath().normalize()), false);
-        Assert.assertEquals(javacImage.invoke(null, home.resolve("bin/java").toAbsolutePath().normalize()), false);
+        Assert.assertEquals(AllureReportLaunch.javacImage(home.resolve("bin/javac").toAbsolutePath().normalize()), true);
+        Assert.assertEquals(AllureReportLaunch.javacImage(home.resolve("bin/javac.exe").toAbsolutePath().normalize()), true);
+        Assert.assertEquals(AllureReportLaunch.javacImage(Path.of("bin").resolve("javac")), false);
+        Assert.assertEquals(AllureReportLaunch.javacImage(home.resolve("lib/javac").toAbsolutePath().normalize()), false);
+        Assert.assertEquals(AllureReportLaunch.javacImage(home.resolve("bin/java").toAbsolutePath().normalize()), false);
+        Assert.assertEquals(AllureReportLaunch.javacImage(Path.of("/javac")), false);
+        Assert.assertEquals(AllureReportLaunch.javacImage(Path.of("/")), false);
+    }
+
+    @Test
+    public void javacProbeImageRequiresAnExistingAbsoluteBinFile() throws IOException {
+        Assert.assertFalse(AllureReportLaunch.javacProbeImage(Path.of("bin").resolve("javac")));
+        Path home = Files.createTempDirectory("javac-probe-image");
+        Path missing = home.resolve("bin/javac").toAbsolutePath().normalize();
+        Assert.assertFalse(AllureReportLaunch.javacProbeImage(missing));
+        Files.createDirectories(missing.getParent());
+        Files.writeString(missing, "#!/bin/sh\n");
+        Assert.assertTrue(AllureReportLaunch.javacProbeImage(missing));
     }
 
     @Test
