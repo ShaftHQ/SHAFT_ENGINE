@@ -147,6 +147,7 @@ def _workspace_locator(path: Path) -> str:
 
 
 SESSION_START_LEAN_MAX_BYTES = 600
+TOOL_OUTPUT_LOCATOR = "tool-output: ready; python3 .chaos-engine/tool.py output-search QUERY"
 COMPANION_CARDS = {
     "caveman": "companions/caveman-ultra.md",
     "ponytail": "companions/ponytail-ultra.md",
@@ -219,8 +220,35 @@ def stamp_cards_loaded(session_id: str = "") -> None:
     module.write_entry_stamp(installed, " ".join(f"stop {name}" for name in sorted(stopped)))
 
 
+def _tool_output_store():
+    cached = getattr(_tool_output_store, "module", None)
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().parents[1] / "tool_output_store.py"
+    if not path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("ce_tool_output_store_locator", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _tool_output_store.module = module
+    return module
+
+
+def _tool_output_locator() -> str:
+    """One stable line when the project store has a row. Absent store adds nothing."""
+    with contextlib.suppress(Exception):
+        module = _tool_output_store()
+        if module is not None and module.has_row(Path.cwd()):
+            return TOOL_OUTPUT_LOCATOR
+    return ""
+
+
 def session_start_context(token: str | None, activation: str, session_id: str = "") -> str:
-    """Return the compact SessionStart locator line set (<= 600 bytes)."""
+    """Return the compact SessionStart locator line set (<= SESSION_START_MAX_BYTES)."""
     with contextlib.suppress(Exception):
         stamp_cards_loaded(session_id)
     parts = [f"ChaosEngine: {activation}"]
@@ -257,6 +285,12 @@ def session_start_context(token: str | None, activation: str, session_id: str = 
     parts.append("Ethics: `companions/ethics-card.md`")
     parts.append(f"Token budget: {resolve_token_budget_mode()}")
     rendered = "\n".join(parts)
+    locator = _tool_output_locator()
+    if locator:
+        candidate = f"{rendered}\n{locator}"
+        # Omit the locator rather than cross the SessionStart byte cap.
+        if len(candidate.encode("utf-8")) <= SESSION_START_MAX_BYTES:
+            rendered = candidate
     with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
         if counters_path.is_file():

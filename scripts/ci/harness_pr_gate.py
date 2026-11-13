@@ -1223,6 +1223,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/retrieve.py",
         "chaos-engine/tool.py",
         "chaos-engine/tool_output_store.py",
+        "chaos-engine/rules/large_read_deny.py",
         "chaos-engine/learning.py",
         "tests/scripts/test_chaos_engine_wave_c_ledger_retrieve_learning.py",
         "tests/scripts/test_ce_tool_output_spill.py",
