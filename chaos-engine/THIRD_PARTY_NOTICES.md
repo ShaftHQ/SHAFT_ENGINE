@@ -63,7 +63,8 @@ See [references/test-driven-development.LICENSE](references/test-driven-developm
 - License: MIT
 - Copyright (c) 2026 DeepSeek
 - Upstream license: https://github.com/deepseek-ai/deepseek-harness/blob/master/LICENSE
-- Architecture reviewed at commit `47f943859bef60e4160492346772ded9b24f765a`
+- Architecture reviewed at commit `39163dd30f703a79079e2d2446545cff3c453738`
+- Ideas only. No upstream file was copied. The repeat reminder and the unknown-outcome rule are original code and prose.
 
 Capability seams, orthogonal outcomes, tool-result pruning, spill, and code
 mode were reimplemented as portable guidance and installer contracts. The

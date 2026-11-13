@@ -14,6 +14,22 @@
 Host session caps (~50 min wall; enforce 35) kill in-flight workers. Chat
 context is lossy; a file checkpoint is the handoff.
 
+## Unknown outcome
+
+After a side-effecting tool whose completion is unknown (interrupted, no result,
+or a crash mid-body), do not automatically retry the same effect. Record an
+unknown outcome, not automatic retry. Prefer `tool.py checkpoint` before an
+irreversible or externally visible tool. This overlay does not wrap a host
+model stream and does not add a session event log.
+
+A repeated identical tool call is advice only. The counter lives in
+[repeat_reminder.py](../hooks/repeat_reminder.py). It does not deny the call.
+
+Shell environment for the host's own command tool is not owned here.
+Receipt sanitization already drops credential-shaped keys. Harness git and
+gh keep token-shaped variables because those commands need them. No second
+env scrub is added.
+
 ## Check
 
 `tool.py resume TASK` prints `Resume at:` matching the last checkpoint.

@@ -1914,9 +1914,50 @@ def _repair_denial(reason: str, event: dict) -> str:
     return guard.denial_with_tool_repair(reason, cwd)
 
 
+def _repeat_api():
+    cached = getattr(_repeat_api, "module", None)
+    if cached is not None:
+        return cached
+    path = Path(__file__).resolve().parent / "repeat_reminder.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_repeat_reminder", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _repeat_api.module = module
+    return module
+
+
+def _repeat_advice(event_name: str, session_id: str, tool_name: str, tool_input: object) -> str | None:
+    if event_name not in {"PostToolUse", "PostToolUseFailure", "PreToolUse"}:
+        return None
+    module = _repeat_api()
+    if module is None:
+        return None
+    try:
+        return module.observe(
+            session_id, tool_name, tool_input if isinstance(tool_input, dict) else {}
+        )
+    except Exception:
+        return None
+
+
 def _deny(event: dict, event_name: str, tool_name: str, reason: str) -> int:
     _record_denial_with_significance(event, event_name, tool_name)
-    print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
+    advice = None
+    if event_name == "PreToolUse":
+        advice = _repeat_advice(
+            event_name, _scope_session(event), tool_name, event.get("tool_input")
+        )
+    module = _repeat_api()
+    payload = (
+        module.denied_with_advice(_repair_denial(reason, event), advice)
+        if module is not None
+        else {"decision": "block", "reason": _repair_denial(reason, event)}
+    )
+    print(json.dumps(payload))
     return 2
 
 
@@ -2047,6 +2088,10 @@ def _session_token(event_name: str, session_id: str):
 def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> int | None:
     if event_name != "UserPromptSubmit":
         return None
+    module = _repeat_api()
+    if module is not None:
+        with contextlib.suppress(Exception):
+            module.reset_session(session_id)
     prompt = event.get("prompt") or event.get("user_prompt") or ""
     if isinstance(prompt, str):
         _lifecycle.record_companion_opt_out(session_id, prompt)
@@ -2219,7 +2264,10 @@ def _emit_notes(event: dict, event_name: str, session_id: str, mutation: bool, t
             justification.project_root(Path(str(event.get("cwd") or Path.cwd()))),
             session_id,
         )
-    notes = [item for item in (retrieve_note, complexity_hint) if item]
+    advice = None
+    if event_name in {"PostToolUse", "PostToolUseFailure"}:
+        advice = _repeat_advice(event_name, session_id, tool_name, tool_input)
+    notes = [item for item in (retrieve_note, complexity_hint, advice) if item]
     if notes:
         print(json.dumps({"additionalContext": "\n".join(notes)}))
 
