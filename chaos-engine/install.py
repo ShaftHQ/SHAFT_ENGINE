@@ -1005,6 +1005,8 @@ def is_origin_only(relative: Path) -> bool:
         or relative.parts[:3] == ("references", "details", "ce-study-2026-11-09")
         # Token-opt retrospectives name a person. They stay in git, not the portable payload.
         or relative.parts[:3] == ("references", "details", "token-opt-retro-2026-11-06")
+        # The likeness read-aloud names a person. Git only, not the portable payload.
+        or relative.as_posix() == "references/details/likeness_record_train.py"
         or relative.as_posix() in {
             "README.md",
             "INSTALL.md",
