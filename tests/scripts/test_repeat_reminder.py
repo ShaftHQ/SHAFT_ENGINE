@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = ROOT / "chaos-engine/hooks/repeat_reminder.py"
@@ -65,7 +67,7 @@ class RepeatReminderTest(unittest.TestCase):
         self.assertIsNone(self.module.observe("s", "Read", {"path": "a"}))
 
     def test_invalid_thresholds_fail_at_load(self) -> None:
-        for raw in ((), [], "", (1, 3), (3, 3), (3, "no")):
+        for raw in ((), [], "", (1, 3), (3, 3), (3, "no"), (2.5,), (8.0, 3.0, 5.0)):
             with self.subTest(raw=raw):
                 with self.assertRaises(self.module.RepeatReminderError):
                     self.module.load_thresholds(raw)
@@ -79,6 +81,33 @@ class RepeatReminderTest(unittest.TestCase):
         with redirect_stderr(io.StringIO()) as err:
             self.assertIsNone(self.module.observe("s", "Read", {"path": "a"}))
         self.assertIn("failed open", err.getvalue())
+
+    def test_a_repeated_delete_deny_counts(self) -> None:
+        path = ROOT / "chaos-engine/hooks/guard.py"
+        spec = importlib.util.spec_from_file_location("chaos_engine_guard_repeat", path)
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+        event = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "rm -rf scratch"},
+            "cwd": str(ROOT),
+            "session_id": "repeat-delete",
+        }
+        payloads = []
+        with mock.patch.object(guard, "delete_guard_reason", return_value="blocked-delete"), mock.patch.object(
+            guard, "_record_denial_with_significance"
+        ):
+            for _ in range(3):
+                buffer = io.StringIO()
+                with redirect_stdout(buffer):
+                    code = guard._guarded_event(dict(event), "claude")
+                self.assertEqual(2, code)
+                payloads.append(json.loads(buffer.getvalue()))
+        self.assertEqual(payloads[0], {"decision": "block", "reason": "blocked-delete"})
+        self.assertNotIn("additionalContext", payloads[1])
+        self.assertEqual(payloads[2]["decision"], "block")
+        self.assertIn("advice, not a block", payloads[2]["additionalContext"])
 
     def test_checkpoint_forbids_an_automatic_retry(self) -> None:
         text = CHECKPOINT.read_text(encoding="utf-8")

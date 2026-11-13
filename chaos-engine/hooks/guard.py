@@ -2318,9 +2318,7 @@ def _guarded_event(event: dict, host: str) -> int:
         commands = _event_commands(str(event.get("tool_name", "")), tool_input)
         reason = delete_guard_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
         if reason:
-            _record_denial_with_significance(event, "PreToolUse", str(event.get("tool_name", "")))
-            print(json.dumps({"decision": "block", "reason": _repair_denial(reason, event)}))
-            return 2
+            return _deny(event, "PreToolUse", str(event.get("tool_name", "")), reason)
     return _run_event(event, host)
 
 

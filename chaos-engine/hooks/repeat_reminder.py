@@ -31,10 +31,15 @@ def load_thresholds(raw: object) -> tuple[int, ...]:
         raise RepeatReminderError("repeat thresholds are not a list")
     if not parts:
         raise RepeatReminderError("repeat thresholds are empty")
-    try:
-        values = tuple(int(item) for item in parts)
-    except (TypeError, ValueError) as exc:
-        raise RepeatReminderError("repeat thresholds must be integers") from exc
+    values_list: list[int] = []
+    for item in parts:
+        if isinstance(item, bool) or isinstance(item, float):
+            raise RepeatReminderError("repeat thresholds must be integers")
+        try:
+            values_list.append(int(item))
+        except (TypeError, ValueError) as exc:
+            raise RepeatReminderError("repeat thresholds must be integers") from exc
+    values = tuple(values_list)
     if any(item < 2 for item in values) or len(set(values)) != len(values):
         raise RepeatReminderError("repeat thresholds must be unique and at least 2")
     return tuple(sorted(values))
