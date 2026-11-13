@@ -387,7 +387,7 @@ class EthicsAttestationTest(unittest.TestCase):
             self.assertEqual("sess-1", record["session_id"])
             self.assertEqual(hashlib.sha256(b"Bash").hexdigest(), record["tool_name_sha256"])
             self.assertNotIn("tool_name", record)
-        token = "ZZClientOnlyToken"
+        token = "ZZClientOnlyName"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_CLIENT_NAME_DENYLIST": token}):
