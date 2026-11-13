@@ -31,9 +31,26 @@ public final class PageSourcePresence {
      * @return how many elements in {@code pageSource} match {@code locator}
      */
     public static int count(String pageSource, By locator) {
-        if (pageSource == null || pageSource.isBlank()) {
+        if (blank(pageSource)) {
             return 0;
         }
+        ParsedLocator parsed = parsedLocator(locator);
+        return select(parse(pageSource), parsed);
+    }
+
+    private static int select(Document document, ParsedLocator parsed) {
+        if ("xpath".equals(parsed.strategy())) {
+            return countXPath(document, parsed.value());
+        }
+        requireAttributeStrategy(parsed.strategy());
+        return countAttributes(document, parsed.strategy(), parsed.value());
+    }
+
+    private static boolean blank(String pageSource) {
+        return pageSource == null || pageSource.isBlank();
+    }
+
+    private static ParsedLocator parsedLocator(By locator) {
         if (locator == null) {
             throw new IllegalArgumentException("A locator is required.");
         }
@@ -42,21 +59,26 @@ public final class PageSourcePresence {
         if (colon < 0) {
             throw new IllegalArgumentException("Unsupported page-source locator: " + text);
         }
-        String head = text.substring(0, colon);
-        int dot = head.lastIndexOf('.');
-        String strategy = dot < 0 ? head : head.substring(dot + 1);
         String value = text.substring(colon + 2);
         if (value.isBlank()) {
             throw new IllegalArgumentException("A locator value is required.");
         }
-        Document document = parse(pageSource);
-        if ("xpath".equals(strategy)) {
-            return countXPath(document, value);
+        return new ParsedLocator(strategy(text.substring(0, colon)), value);
+    }
+
+    private static String strategy(String head) {
+        int dot = head.lastIndexOf('.');
+        return dot < 0 ? head : head.substring(dot + 1);
+    }
+
+    private static void requireAttributeStrategy(String strategy) {
+        if ("id".equals(strategy) || "accessibilityId".equals(strategy) || "name".equals(strategy)) {
+            return;
         }
-        if (!"id".equals(strategy) && !"accessibilityId".equals(strategy) && !"name".equals(strategy)) {
-            throw new IllegalArgumentException("Unsupported page-source locator strategy: " + strategy);
-        }
-        return countAttributes(document, strategy, value);
+        throw new IllegalArgumentException("Unsupported page-source locator strategy: " + strategy);
+    }
+
+    private record ParsedLocator(String strategy, String value) {
     }
 
     private static int countAttributes(Document document, String strategy, String value) {
