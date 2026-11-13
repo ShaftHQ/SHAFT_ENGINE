@@ -174,7 +174,9 @@ class BandCoverageGateTest(unittest.TestCase):
             mp4 = folder_p / "clip.mp4"
             # 1fps concat demuxer of three pngs
             lst = folder_p / "list.txt"
-            lst.write_text("".join(f"file '{fp.name}'\nduration 1\n" for fp in frames), encoding="utf-8")
+            # Concat ignores the last file's duration, so repeat the last still.
+            listed = [*frames, frames[-1]]
+            lst.write_text("".join(f"file '{fp.name}'\nduration 1\n" for fp in listed), encoding="utf-8")
             # ffmpeg concat needs cwd = folder
             result = subprocess.run(  # nosec B603
                 [ffmpeg, "-v", "error", "-y", "-f", "concat", "-safe", "0",

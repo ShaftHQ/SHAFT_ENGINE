@@ -230,8 +230,14 @@ class TransactionalUpgradeTest(unittest.TestCase):
                 overlay.materialize(primary, session, transactional=True)
             finally:
                 overlay.shutil.copy2 = real_copy2  # type: ignore[attr-defined]
-            if "VERSION" in order:
-                self.assertEqual(order[-1], "VERSION")
+            if "VERSION" in order or "VERSION.ce-write" in order:
+                # #7964 copies beside the destination, then replaces it.
+                self.assertEqual(order[-1], "VERSION.ce-write")
+                self.assertEqual(
+                    (session / ".chaos-engine/VERSION").read_text(encoding="utf-8"),
+                    "2026.10.31.3\n",
+                )
+                self.assertFalse((session / ".chaos-engine/VERSION.ce-write").exists())
 
 
 class HalfApplyRecoverTest(unittest.TestCase):
