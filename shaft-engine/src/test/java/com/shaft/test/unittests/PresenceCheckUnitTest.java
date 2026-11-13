@@ -20,7 +20,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Issue #6842: report-free presence checks with an explicit timeout. */
@@ -68,5 +71,21 @@ public class PresenceCheckUnitTest {
         when(driver.findElements(HOME)).thenThrow(new InvalidSelectorException("bad"));
         Assert.assertThrows(InvalidSelectorException.class, () -> PresenceProbe.firstPresent(driver, Duration.ZERO, HOME));
         Assert.assertThrows(IllegalArgumentException.class, () -> PresenceProbe.firstPresent(driver, Duration.ZERO));
+    }
+
+    /** A {@code findElements} hit is present and counts as one even when {@code isDisplayed()} is false. */
+    @Test
+    public void hiddenFindElementsMatchIsPresentAndCountsAsOne() {
+        SHAFT.Properties.timeouts.set().waitForLazyLoading(false);
+        WebElement hidden = mock(WebElement.class);
+        doReturn(false).when(hidden).isDisplayed();
+        Mockito.clearInvocations(hidden); // the stubbing call must not count as a production call
+        WebDriver driver = driver();
+        when(driver.findElements(PROMPT)).thenReturn(List.of(hidden));
+        ElementActions actions = new ElementActions(driver, true);
+
+        Assert.assertTrue(actions.isPresent(PROMPT, Duration.ZERO));
+        Assert.assertEquals(actions.getElementsCount(PROMPT), 1);
+        verify(hidden, never()).isDisplayed();
     }
 }
