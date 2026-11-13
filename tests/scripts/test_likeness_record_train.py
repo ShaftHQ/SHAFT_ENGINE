@@ -74,9 +74,14 @@ class LikenessRecordTrainTests(unittest.TestCase):
     def test_record_argv_returns_ffmpeg_and_does_not_run_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             destination = Path(tmp) / "take.wav"
-            with mock.patch.object(self.mod.subprocess, "run") as run:
+            with mock.patch.object(self.mod.shutil, "which", return_value=None), mock.patch.object(
+                self.mod.subprocess, "run"
+            ) as run:
                 argv = self.mod.record_argv(destination)
                 run.assert_not_called()
+                code = self.mod.main(["record", "--out", str(destination), "--execute-record"])
+                run.assert_not_called()
+        self.assertEqual(code, 2)
         self.assertEqual(argv[0], "ffmpeg")
         self.assertEqual(
             argv,

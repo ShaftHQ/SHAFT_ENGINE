@@ -79,8 +79,6 @@ def accepted_manifest(paths: list[Path]) -> dict:
 
 def record_argv(destination: Path) -> list[str]:
     """ffmpeg argv for one owner take. The caller decides whether to run it."""
-    if shutil.which("ffmpeg") is None:
-        raise ValueError("ffmpeg is not on PATH")
     return [
         "ffmpeg",
         "-y",
@@ -119,14 +117,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.out is None:
             print("record needs --out", file=sys.stderr)
             return 2
-        try:
-            argv_record = record_argv(args.out)
-        except ValueError as error:
-            print(str(error), file=sys.stderr)
-            return 2
+        argv_record = record_argv(args.out)
         if not args.execute_record:
             print(json.dumps(argv_record))
             return 0
+        if shutil.which("ffmpeg") is None:
+            print("ffmpeg is not on PATH", file=sys.stderr)
+            return 2
         completed = subprocess.run(argv_record, check=False)  # nosec B603 - fixed ffmpeg argv
         return completed.returncode
     try:
