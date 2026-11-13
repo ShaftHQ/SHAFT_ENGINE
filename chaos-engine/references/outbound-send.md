@@ -21,7 +21,7 @@ publish, delete, purchase.
 
 Follow in order. These are pointers, not copied procedures.
 
-1. Authority. No in-scope standing send permission means draft only. Stop there.
+1. Authority. Continue when a standing send permission names this channel, or the owner approved this exact send in chat. Otherwise draft only and stop.
 2. Think first. [bot-entry.md](bot-entry.md) section 2a and [bigger-picture-first.md](bigger-picture-first.md).
 3. Fit, or whether this should go out at all. Wait on flagged cases.
 4. Official recipient and official route only.

@@ -80,7 +80,8 @@ bash chaos-engine/skills/job-apply/scripts/check_abstraction.sh
    For non-home-country roles, state base country and that they seek a remote
    role near the top of the body.
 7b. **Forms path:** fill known fields → screenshot the filled form → get an
-    explicit "yes" → submit exactly once → capture confirmation text + screenshot
+    explicit "yes" unless the standing permission names this form channel →
+    submit exactly once → capture confirmation text + screenshot
     + any application ID. Duplicate required fields: reuse the first value only
     if required; else leave blank. Missing checkbox option: tick Other and type
     the value. Single-page forms may have no Next; trust viewport capture and
