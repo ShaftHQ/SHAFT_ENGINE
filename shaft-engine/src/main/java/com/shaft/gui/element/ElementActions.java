@@ -106,6 +106,11 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     /**
      * Returns the number of elements on the current page that match the given locator.
      *
+     * <p>A match is a {@code findElements} hit. {@code isDisplayed()} is not required, so a hidden
+     * match still counts. A node missing from {@code findElements} is absent even if a page-source
+     * dump lists it. Scrolling a below-fold control into view is {@code swipeElementIntoView}, not
+     * a presence check.
+     *
      * @param elementLocator the locator used to find elements (e.g. {@code By.cssSelector(".item")})
      * @return the count of matching elements, or {@code 0} if none are found
      * @see <a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a>
@@ -119,6 +124,11 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
      * Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.
      * This is a query, not an assertion: an absent element returns {@code false} without a failed step, and the
      * wait is the explicit {@code timeout}, not the element-identification timeout. Works for web and native sessions.
+     *
+     * <p>A match is a {@code findElements} hit. {@code isDisplayed()} is not required, including a match
+     * whose {@code isDisplayed()} is {@code false}. A node missing from {@code findElements} is absent
+     * even if a page-source dump lists it. Scrolling a below-fold control into view is
+     * {@code swipeElementIntoView}, not a presence check.
      *
      * @param elementLocator the locator of the optional element
      * @param timeout        how long to poll; {@link Duration#ZERO} checks once
