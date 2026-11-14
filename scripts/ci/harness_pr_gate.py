@@ -584,7 +584,7 @@ CHECKS = {
     "ce-h2-gates-contract": Check(
         "ce-h2-gates-contract",
         "ce-h2-gates",
-        ("tests.scripts.test_ce_h2_gates",),
+        ("tests.scripts.test_ce_h2_gates", "tests.scripts.test_session_tool_receipt"),
     ),
     # #7333: design-skills add-on cards (lesson cards, craft index, inventory).
     "design-skills-contract": Check(
@@ -1317,6 +1317,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/decision-quality-*",
         "chaos-engine/dod.py",
         "chaos-engine/session_token_usage.py",
+        "tests/scripts/test_session_tool_receipt.py",
         "chaos-engine/tool.py",
         "chaos-engine/retrieve.py",
         "chaos-engine/install.py",

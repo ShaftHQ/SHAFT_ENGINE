@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+import time
 from pathlib import Path
 
 SCHEMA_VERSION = 1
@@ -34,6 +36,13 @@ DEFAULT_CLOUD_OUTPUT_USD_PER_M = 15.0
 DEFAULT_LOCAL_USD_PER_M = 0.0
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 MAX_TOKENS_PER_EVENT = 50_000_000
+_OPEN_TOOL_CALLS: dict[tuple[str, str], tuple[str, float]] = {}
+_TOKEN_FIELDS = (
+    ("localPrompt", "localPromptTokens"),
+    ("localCompletion", "localCompletionTokens"),
+    ("cloudPrompt", "cloudPromptTokens"),
+    ("cloudCompletion", "cloudCompletionTokens"),
+)
 
 
 def _state_dir(project: Path | None = None) -> Path:
@@ -352,11 +361,275 @@ def format_ab_table(table: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def receipt_enabled() -> bool:
+    """True only when the opt-in tool receipt is explicitly requested."""
+    return os.environ.get("CHAOS_ENGINE_RUN_RECEIPT") == "1"
+
+
+def _receipt_path(session_id: str, project: Path | None = None) -> Path:
+    return _state_dir(project) / f"{_safe_session_id(session_id)}.tool-receipt.json"
+
+
+def _numeric_seconds(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _load_receipt_tools(session_id: str, project: Path | None) -> dict[str, dict[str, object]]:
+    path = _receipt_path(session_id, project)
+    if not path.is_file():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("tool receipt must be a JSON object")
+    found: dict[str, dict[str, object]] = {}
+    tools = raw.get("tools")
+    if not isinstance(tools, list):
+        return found
+    for item in tools:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            continue
+        count = item.get("count")
+        found[str(item["name"])] = {
+            "count": count if isinstance(count, int) and not isinstance(count, bool) else 0,
+            "totalSeconds": item.get("totalSeconds", "unknown"),
+        }
+    return found
+
+
+def _accumulate_tool(tools: dict[str, dict[str, object]], name: str, duration: float | None) -> None:
+    current = tools.get(name)
+    if current is None:
+        tools[name] = {"count": 1, "totalSeconds": "unknown" if duration is None else duration}
+        return
+    count = current.get("count")
+    current["count"] = (count if isinstance(count, int) and not isinstance(count, bool) else 0) + 1
+    if duration is None:
+        current["totalSeconds"] = "unknown"
+        return
+    previous = _numeric_seconds(current.get("totalSeconds"))
+    current["totalSeconds"] = "unknown" if previous is None else previous + duration
+
+
+def _slowest_tool(tools: list[dict[str, object]]) -> str:
+    best_name = "unknown"
+    best_total: float | None = None
+    for item in tools:
+        total = _numeric_seconds(item.get("totalSeconds"))
+        name = item.get("name")
+        if total is None or not isinstance(name, str):
+            continue
+        if best_total is None or total > best_total:
+            best_total = total
+            best_name = name
+    return best_name
+
+
+def _unknown_tokens() -> dict[str, str]:
+    return {
+        "localPrompt": "unknown",
+        "localCompletion": "unknown",
+        "cloudPrompt": "unknown",
+        "cloudCompletion": "unknown",
+        "cache": "unknown",
+        "reasoning": "unknown",
+    }
+
+
+def _tokens_and_cost(session_id: str, project: Path | None) -> tuple[dict[str, object], object]:
+    path = _ledger_path(session_id, project)
+    if not path.is_file():
+        return _unknown_tokens(), "unknown"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    totals = raw.get("totals") if isinstance(raw, dict) else None
+    if not isinstance(totals, dict):
+        return _unknown_tokens(), "unknown"
+    values: list[int] = []
+    for _label, source in _TOKEN_FIELDS:
+        value = totals.get(source)
+        if isinstance(value, bool) or not isinstance(value, int):
+            return _unknown_tokens(), "unknown"
+        values.append(value)
+    tokens: dict[str, object] = {
+        "localPrompt": values[0],
+        "localCompletion": values[1],
+        "cloudPrompt": values[2],
+        "cloudCompletion": values[3],
+        "cache": "unknown",
+        "reasoning": "unknown",
+    }
+    cost = estimate_cost_usd(
+        {
+            "localPromptTokens": values[0],
+            "localCompletionTokens": values[1],
+            "cloudPromptTokens": values[2],
+            "cloudCompletionTokens": values[3],
+        }
+    )
+    return tokens, cost
+
+
+def _elapsed_seconds(session_id: str) -> object:
+    root = str(Path(__file__).resolve().parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    import hooks.reflection as reflection
+
+    value = reflection.session_elapsed_seconds(session_id)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "unknown"
+    return value
+
+
+def _receipt_payload(
+    session_id: str, project: Path | None, tools: dict[str, dict[str, object]]
+) -> dict[str, object]:
+    rows = [
+        {"name": name, "count": tools[name]["count"], "totalSeconds": tools[name]["totalSeconds"]}
+        for name in sorted(tools)
+    ]
+    tokens, cost = _tokens_and_cost(session_id, project)
+    return {
+        "schemaVersion": 1,
+        "sessionId": _safe_session_id(session_id),
+        "elapsedSeconds": _elapsed_seconds(session_id),
+        "tokens": tokens,
+        "tools": rows,
+        "slowestTool": _slowest_tool(rows),
+        "cost": cost,
+    }
+
+
+def _write_receipt(payload: dict[str, object], project: Path | None) -> Path:
+    path = _receipt_path(str(payload["sessionId"]), project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+    return path
+
+
+def note_tool_boundary(
+    session_id: str,
+    event_name: str,
+    tool_call_id: str,
+    tool_name: str,
+    *,
+    now: float | None = None,
+    project: Path | None = None,
+) -> None:
+    """Record one tool boundary. Off mode touches neither memory nor disk."""
+    if not receipt_enabled():
+        return
+    safe = _safe_session_id(session_id)
+    stamp = time.monotonic() if now is None else now
+    key = (safe, tool_call_id)
+    if event_name == "PreToolUse":
+        _OPEN_TOOL_CALLS[key] = (tool_name, stamp)
+        return
+    if event_name not in {"PostToolUse", "PostToolUseFailure"}:
+        return
+    remembered = _OPEN_TOOL_CALLS.pop(key, None)
+    if remembered is None:
+        recorded_name = tool_name
+        duration = None
+    else:
+        recorded_name, started = remembered
+        duration = stamp - started
+    tools = _load_receipt_tools(safe, project)
+    _accumulate_tool(tools, recorded_name, _numeric_seconds(duration) if duration is not None else None)
+    _write_receipt(_receipt_payload(safe, project, tools), project)
+
+
+def _render_receipt(payload: dict[str, object]) -> str:
+    tokens = payload.get("tokens")
+    token_map = tokens if isinstance(tokens, dict) else {}
+    tool_rows = payload.get("tools")
+    lines = [
+        (
+            f"Tool receipt {payload.get('sessionId')}: "
+            f"elapsed {payload.get('elapsedSeconds')}s; "
+            f"slowest {payload.get('slowestTool')}; "
+            f"cost {json.dumps(payload.get('cost'), sort_keys=True)}"
+        ),
+        "tokens "
+        + " ".join(
+            f"{key}={token_map.get(key, 'unknown')}"
+            for key in (
+                "localPrompt",
+                "localCompletion",
+                "cloudPrompt",
+                "cloudCompletion",
+                "cache",
+                "reasoning",
+            )
+        ),
+    ]
+    if isinstance(tool_rows, list):
+        for tool in tool_rows:
+            if not isinstance(tool, dict):
+                continue
+            lines.append(
+                f"{tool.get('name')} count={tool.get('count')} totalSeconds={tool.get('totalSeconds')}"
+            )
+    return "\n".join(lines) + "\n"
+
+
+def format_tool_receipt(session_id: str, *, project: Path | None = None) -> str:
+    """Usage text for one persisted tool receipt. Missing file prints nothing."""
+    path = _receipt_path(session_id, project)
+    if not path.is_file():
+        return ""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return ""
+    return _render_receipt(payload)
+
+
+def _receipt_section(directory: Path | None) -> str:
+    folder = directory if directory is not None else _state_dir()
+    if not folder.is_dir():
+        return ""
+    paths = sorted(path for path in folder.glob("*.tool-receipt.json") if path.is_file())
+    if not paths:
+        return ""
+    owning: Path | None = None
+    canonical = directory is None
+    if (
+        directory is not None
+        and folder.name == "session-token-usage"
+        and folder.parent.name == ".chaos-engine-state"
+    ):
+        owning = folder.parent.parent
+        canonical = True
+    blocks: list[str] = []
+    for path in paths:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict) or not isinstance(payload.get("sessionId"), str):
+            continue
+        if canonical:
+            rendered = format_tool_receipt(str(payload["sessionId"]), project=owning)
+        else:
+            rendered = _render_receipt(payload)
+        rendered = rendered.strip("\n")
+        if rendered:
+            blocks.append(rendered)
+    if not blocks:
+        return ""
+    return "\n".join(blocks) + "\n"
+
+
 def usage_rows(directory: Path | None = None) -> list[dict[str, object]]:
     """One row per recorded task ledger (#6414): tokens in and out plus ballpark cost."""
     folder = directory if directory is not None else _state_dir()
     rows = []
     for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        if path.name.endswith(".tool-receipt.json"):
+            continue
         totals = json.loads(path.read_text(encoding="utf-8")).get("totals", {})
         tokens_in = int(totals.get("localPromptTokens", 0)) + int(totals.get("cloudPromptTokens", 0))
         tokens_out = int(totals.get("localCompletionTokens", 0)) + int(totals.get("cloudCompletionTokens", 0))
@@ -377,7 +650,11 @@ def usage_table(directory: Path | None = None) -> str:
         f"| {row['task']} | {row['tokensIn']} | {row['tokensOut']} | {row['estimatedUsd']:.4f} |"
         for row in usage_rows(directory)
     ]
-    return "\n".join(lines) + "\n"
+    text = "\n".join(lines) + "\n"
+    extra = _receipt_section(directory)
+    if not extra:
+        return text
+    return text + extra
 
 
 def main(argv: list[str] | None = None) -> int:

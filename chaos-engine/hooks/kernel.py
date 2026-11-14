@@ -816,6 +816,25 @@ def evaluate(
     event: HookEvent, snapshot: HarnessSnapshot | None = None,
     rules: tuple[Rule, ...] = RULES,
 ) -> EvaluationReport:
+    if event.session_id and event.name in {"PreToolUse", "PostToolUse", "PostToolUseFailure"}:
+        import importlib.util
+        import sys
+
+        module = sys.modules.get("session_token_usage")
+        if module is None or not hasattr(module, "note_tool_boundary"):
+            source = Path(__file__).resolve().parents[1] / "session_token_usage.py"
+            specification = importlib.util.spec_from_file_location("session_token_usage", source)
+            if specification is None or specification.loader is None:
+                raise RuntimeError("session_token_usage is unavailable")
+            module = importlib.util.module_from_spec(specification)
+            sys.modules["session_token_usage"] = module
+            specification.loader.exec_module(module)
+        module.note_tool_boundary(
+            event.session_id,
+            event.name,
+            event.tool_call_id,
+            event.tool_name,
+        )
     observed = snapshot or HarnessSnapshot()
     current_phase = event.phase
     rule_errors = validate_rules(rules)
