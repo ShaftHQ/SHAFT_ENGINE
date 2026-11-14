@@ -21,9 +21,14 @@ import subprocess  # nosec B404 - fixed read-only git queries.
 import sys
 from pathlib import Path
 
-from . import moved_quarantine, repo_state_guard
+from . import repo_state_guard
 
-moved_quarantine.install()
+try:
+    from . import moved_quarantine
+except ImportError:  # copied into a fixture checkout without the quarantine
+    pass
+else:
+    moved_quarantine.install()
 
 GUARD_ENV = "CHAOS_ENGINE_TEST_REPO_GUARD"
 REPOSITORY = Path(__file__).resolve().parents[2]
