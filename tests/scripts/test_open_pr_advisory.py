@@ -13,7 +13,8 @@ import unittest
 import uuid
 from pathlib import Path
 
-from tests.scripts.test_chaos_engine_hook import HOOK, isolated_session_environment
+ROOT = Path(__file__).resolve().parents[2]
+HOOK = ROOT / "chaos-engine/hooks/guard.py"
 
 _GH = textwrap.dedent(
     """\
@@ -48,6 +49,23 @@ _HOST_ENV = (
     "CLAUDE_PLUGIN_ROOT",
     "CODEX_HOME",
 )
+
+
+def isolated_session_environment() -> dict[str, str]:
+    """Keep a hook subprocess off this checkout. Duplicated so python3 -I can load this file."""
+    protected = [item for item in os.environ.get("CHAOS_ENGINE_PROTECTED_CHECKOUTS", "").split(os.pathsep) if item]
+    protected.append(str(ROOT))
+    common = subprocess.run(  # nosec B603 B607 - fixed git argv.
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=ROOT, capture_output=True, text=True, check=False,
+    ).stdout.strip()
+    if common:
+        protected.append(str(Path(common).parent))
+    return {
+        **os.environ,
+        "CHAOS_ENGINE_PROTECTED_CHECKOUTS": os.pathsep.join(protected),
+        "CHAOS_ENGINE_STORE_REFRESH": "0",
+    }
 
 
 class OpenPrAdvisoryTest(unittest.TestCase):
