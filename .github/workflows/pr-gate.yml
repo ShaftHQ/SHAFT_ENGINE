@@ -134,6 +134,7 @@ jobs:
               - "**/*.md"
               - "**/*.mdx"
               - "scripts/ci/validate_documentation_boundaries.py"
+              - "tests/scripts/test_user_facing_readmes.py"
             chaos_gauge:
               - 'scripts/ci/chaos_gauge/**'
               - 'tests/scripts/test_chaos_gauge_*.py'
@@ -570,6 +571,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
+      - name: ChaosEngine security scope
+        run: python3 -m unittest tests.scripts.test_user_facing_readmes.UserFacingReadmeTest.test_security_policy_names_chaosengine_scope
 
   chaos-gauge:
     name: ChaosGauge Recovery Gate
@@ -1331,6 +1334,7 @@ jobs:
           tests.scripts.test_validate_quality_configuration
           tests.scripts.test_rerun_pr_gate_on_label
           tests.scripts.test_check_plugin_changelog_version
+          tests.scripts.test_user_facing_readmes
           -v
       - name: Validate bundled npm locks have no vulnerable shell-quote (#7451)
         run: python3 scripts/ci/validate_npm_lock_advisories.py

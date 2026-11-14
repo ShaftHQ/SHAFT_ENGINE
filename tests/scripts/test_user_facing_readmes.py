@@ -132,6 +132,64 @@ class UserFacingReadmeTest(unittest.TestCase):
         self.assertIn("CHAOSENGINE:START", agents)
         self.assertIn("CHAOSENGINE:END", agents)
 
+    def test_security_policy_names_chaosengine_scope(self) -> None:
+        text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        headings = []
+        for match in re.finditer(r"(?m)^[ ]{0,3}(#{1,6})[ ]+(.*)$", text):
+            title = re.sub(r"[ ]+#+[ ]*$", "", match.group(2)).strip()
+            headings.append((len(match.group(1)), title, match.start()))
+        harness_starts = [
+            start for level, title, start in headings if level == 3 and title == "ChaosEngine harness"
+        ]
+        dependency_starts = [
+            start for level, title, start in headings if level == 2 and title == "Dependency Security"
+        ]
+        self.assertEqual(len(harness_starts), 1)
+        self.assertEqual(len(dependency_starts), 1)
+        scope_at = text.find("## Scope")
+        harness_at = harness_starts[0]
+        dependency_at = dependency_starts[0]
+        self.assertGreaterEqual(scope_at, 0)
+        self.assertGreater(harness_at, scope_at)
+        self.assertGreater(dependency_at, harness_at)
+        shaft_scope = """\
+## Scope
+
+**In scope:**
+
+- Vulnerabilities in SHAFT Engine's own source code (`shaft-engine/src/main/java/`).
+- Unsafe configuration or property defaults that could expose user data.
+- Dependency vulnerabilities with a direct exploitable path through SHAFT's
+  public API.
+
+**Out of scope:**
+
+- Vulnerabilities in test code (`shaft-engine/src/test/java/`) — these are
+  example tests, not production code.
+- Third-party library issues with no exploitable path through SHAFT; report
+  those upstream.
+- Social engineering or phishing.
+"""
+        expected = """\
+### ChaosEngine harness
+
+**In scope:** bypassing a ChaosEngine guard in `chaos-engine/` (a PreToolUse deny, the delete-guard, a secret or content scan, or outbound-send approval); credential disclosure through harness state, logs, spans, or stores; an installer or update path that runs unpinned code; prompt injection that crosses one of those boundaries.
+
+**Out of scope:** model output quality on its own; an attack that assumes a compromised host or an attacker who already holds the credential.
+"""
+
+        def collapse(value: str) -> str:
+            return re.sub(r"\s+", " ", value).strip()
+
+        self.assertEqual(collapse(text[scope_at:harness_at]), collapse(shaft_scope))
+        self.assertEqual(collapse(text[harness_at:dependency_at]), collapse(expected))
+        self.assertNotIn("always-loaded-budget.json", text)
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 -m unittest tests.scripts.test_user_facing_readmes.UserFacingReadmeTest.test_security_policy_names_chaosengine_scope",
+            workflow,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

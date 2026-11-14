@@ -68,6 +68,12 @@ You will be credited in the release notes unless you prefer to stay anonymous.
   those upstream.
 - Social engineering or phishing.
 
+### ChaosEngine harness
+
+**In scope:** bypassing a ChaosEngine guard in `chaos-engine/` (a PreToolUse deny, the delete-guard, a secret or content scan, or outbound-send approval); credential disclosure through harness state, logs, spans, or stores; an installer or update path that runs unpinned code; prompt injection that crosses one of those boundaries.
+
+**Out of scope:** model output quality on its own; an attack that assumes a compromised host or an attacker who already holds the credential.
+
 ## Dependency Security
 
 SHAFT Engine runs **Dependabot** on a daily schedule and **CodeQL** static
