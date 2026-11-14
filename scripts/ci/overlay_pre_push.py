@@ -910,16 +910,21 @@ def _overlay_markdown_failures(root: Path, changed: list[str]) -> list[str]:
     if not any(touches_overlay_contract(path) for path in changed):
         return []
     failures: list[str] = []
+    # #8057 e1: the ChaosEngine source (playbook, references) moved to
+    # ShaftHQ/chaosengine-harness, which checks it there. e2 rewires this.
+    moved = not (root / "chaos-engine" / "references").is_dir()
     playbook = root / PLAYBOOK
     if playbook.is_file():
         failures.extend(playbook_contract_failures(playbook.read_text(encoding="utf-8")))
-    elif any(path.replace("\\", "/").endswith(PLAYBOOK) for path in changed):
+    elif not moved and any(path.replace("\\", "/").endswith(PLAYBOOK) for path in changed):
         failures.append("dropped pinned clause: playbook missing")
     budget_path = root / "scripts/ci/agent_guidance_budget.json"
     if budget_path.is_file():
         from scripts.ci.validate_agent_guidance import load_budget, validate_file_budgets
 
         for item in validate_file_budgets(root, load_budget(budget_path)):
+            if moved and str(item.get("path", "")).startswith("chaos-engine/"):
+                continue
             failures.append(f"{item.get('path')}: {item.get('message')}")
     skill_failures, skill_warnings = skill_budget_findings(root)
     failures.extend(skill_failures)
