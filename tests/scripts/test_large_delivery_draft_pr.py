@@ -42,9 +42,12 @@ class LargeDeliveryDraftPrTest(unittest.TestCase):
             self.assertFalse((ROOT / relative).exists(), relative)
 
     def test_implementer_applies_an_exact_brief_before_another_read(self) -> None:
-        text = ROLES.read_text(encoding="utf-8")
+        text = " ".join(ROLES.read_text(encoding="utf-8").split())
         self.assertIn(
-            "When the brief already contains the exact edit, apply that edit before any other read. "
+            "When the brief already contains the exact edit, apply that edit before any other read.",
+            text,
+        )
+        self.assertIn(
             "If several minutes pass with no diff, stop and report that instead of another survey.",
             text,
         )

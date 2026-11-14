@@ -498,6 +498,81 @@ steps:
         )
         self.assertEqual([], validate_repository(self.root, self.budget_path))
 
+    def test_playbook_missing_from_the_skills_map_reports_the_relative_link(self):
+        self.write("chaos-engine/references/playbooks/new-play.md", "# New play\n")
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertEqual(["skills-map-missing"], [error["code"] for error in errors])
+        self.assertIn("../../chaos-engine/references/playbooks/new-play.md", errors[0]["message"])
+
+    def test_linked_playbook_passes_the_skills_map_check(self):
+        self.write("chaos-engine/references/playbooks/new-play.md", "# New play\n")
+        self.write(
+            ".agents/skills/README.md",
+            "Map: ../../chaos-engine/references/playbooks/new-play.md\n",
+        )
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
+    def test_shaft_mastery_chapter_missing_from_the_skills_map_reports_the_relative_link(self):
+        self.write("chaos-engine/references/shaft-mastery/new-chapter.md", "# New chapter\n")
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertEqual(["skills-map-missing"], [error["code"] for error in errors])
+        self.assertIn(
+            "../../chaos-engine/references/shaft-mastery/new-chapter.md",
+            errors[0]["message"],
+        )
+
+    def test_linked_shaft_mastery_chapter_passes_the_skills_map_check(self):
+        self.write("chaos-engine/references/shaft-mastery/new-chapter.md", "# New chapter\n")
+        self.write(
+            ".agents/skills/README.md",
+            "Map: ../../chaos-engine/references/shaft-mastery/new-chapter.md\n",
+        )
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
+    def test_unlinked_details_reference_is_not_a_skills_map_miss(self):
+        self.write("chaos-engine/references/details/new-detail.md", "# Detail\n")
+        self.assertNotIn("skills-map-missing", self.codes())
+
+    def test_pack_playbook_missing_from_the_skills_map_reports_the_relative_link(self):
+        self.write("shaft-skills/ce-pack/references/playbooks/new-play.md", "# New play\n")
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertEqual(["skills-map-missing"], [error["code"] for error in errors])
+        self.assertIn(
+            "../../shaft-skills/ce-pack/references/playbooks/new-play.md",
+            errors[0]["message"],
+        )
+
+    def test_linked_pack_playbook_passes_the_skills_map_check(self):
+        self.write("shaft-skills/ce-pack/references/playbooks/new-play.md", "# New play\n")
+        self.write(
+            ".agents/skills/README.md",
+            "Map: ../../shaft-skills/ce-pack/references/playbooks/new-play.md\n",
+        )
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
+    def test_pack_chapter_missing_from_the_skills_map_reports_the_relative_link(self):
+        self.write(
+            "shaft-skills/ce-pack/references/shaft-mastery/new-chapter.md",
+            "# New chapter\n",
+        )
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertEqual(["skills-map-missing"], [error["code"] for error in errors])
+        self.assertIn(
+            "../../shaft-skills/ce-pack/references/shaft-mastery/new-chapter.md",
+            errors[0]["message"],
+        )
+
+    def test_linked_pack_chapter_passes_the_skills_map_check(self):
+        self.write(
+            "shaft-skills/ce-pack/references/shaft-mastery/new-chapter.md",
+            "# New chapter\n",
+        )
+        self.write(
+            ".agents/skills/README.md",
+            "Map: ../../shaft-skills/ce-pack/references/shaft-mastery/new-chapter.md\n",
+        )
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
     def test_rejects_broken_local_reference(self):
         self.write("AGENTS.md", "# Agents\n\n[Missing](docs/missing.md)\n")
         self.assertIn("broken-reference", self.codes())

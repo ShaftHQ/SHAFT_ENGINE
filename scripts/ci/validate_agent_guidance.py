@@ -734,11 +734,20 @@ def validate_duplicate_guidance_lines(root: Path) -> list[dict[str, str]]:
 
 
 def validate_reference_skills_map(root: Path) -> list[dict[str, str]]:
-    """Fail when a top-level chaos-engine reference is absent from the skills map."""
+    """Fail when a reference, playbook, or mastery chapter is absent from the skills map."""
     readme = root / SKILLS_MAP
     content = readme.read_text(encoding="utf-8") if readme.is_file() else ""
     errors: list[dict[str, str]] = []
-    for path in sorted(root.glob("chaos-engine/references/*.md")):
+    patterns = (
+        "chaos-engine/references/*.md",
+        "chaos-engine/references/playbooks/*.md",
+        "chaos-engine/references/shaft-mastery/*.md",
+        # Live playbooks and chapters are the shaft pack. The chaos-engine dirs above are empty.
+        "shaft-skills/ce-pack/references/playbooks/*.md",
+        "shaft-skills/ce-pack/references/shaft-mastery/*.md",
+    )
+    paths = (path for pattern in patterns for path in root.glob(pattern))
+    for path in sorted(paths):
         link = "../../" + path.relative_to(root).as_posix()
         if link in content:
             continue
