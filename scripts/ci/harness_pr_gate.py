@@ -2008,10 +2008,43 @@ def _walk_while(stmt: ast.While, value: int | None) -> int | None:
     return value
 
 
+def _sequence_kind(node: ast.List | ast.Tuple | ast.Set) -> str:
+    if any(isinstance(elt, ast.Starred) for elt in node.elts):
+        return "unknown"
+    if node.elts:
+        return "nonempty"
+    return "empty"
+
+
+def _iter_kind(node: ast.expr) -> str:
+    """empty, nonempty, or unknown. Only a proven nonempty iterator can skip else."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, (str, bytes)):
+        return "empty" if len(node.value) == 0 else "nonempty"
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return _sequence_kind(node)
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "set"
+        and not node.args
+        and not node.keywords
+    ):
+        return "empty"
+    return "unknown"
+
+
 def _walk_for(stmt: ast.For | ast.AsyncFor, value: int | None) -> int | None:
-    if _contains_binding(stmt.target) or _contains_binding(stmt.iter) or _block_binds(stmt.body):
+    if _contains_binding(stmt.iter):
         raise ValueError(_ALLOWLIST_NAME)
-    if _block_binds(stmt.orelse) and not _always_breaks(stmt.body):
+    kind = _iter_kind(stmt.iter)
+    if kind == "empty":
+        if _block_binds(stmt.orelse):
+            raise ValueError(_ALLOWLIST_NAME)
+        return value
+    if _contains_binding(stmt.target) or _block_binds(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    proven_skip = kind == "nonempty" and _always_breaks(stmt.body)
+    if _block_binds(stmt.orelse) and not proven_skip:
         raise ValueError(_ALLOWLIST_NAME)
     return value
 

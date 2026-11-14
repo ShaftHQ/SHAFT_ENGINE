@@ -1469,6 +1469,22 @@ class CeilingRaiseTest(unittest.TestCase):
         for_else_lines = ceiling_raises(path, base, for_else)
         self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(for_else_lines))
         self.assertIn("not an integer", "\n".join(for_else_lines))
+        empty_for = (
+            "for _ in ():\n"
+            "    break\n"
+            "else:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        empty_for_lines = ceiling_raises(path, base, empty_for)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(empty_for_lines))
+        self.assertIn("not an integer", "\n".join(empty_for_lines))
+        nonempty_break = (
+            "for _ in (1,):\n"
+            "    break\n"
+            "else:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        self.assertEqual([], ceiling_raises(path, base, nonempty_break))
         while_zero = (
             "while 0:\n"
             "    pass\n"
