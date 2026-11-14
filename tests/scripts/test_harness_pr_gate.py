@@ -1272,6 +1272,10 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertTrue(any("tolerance_pct" in line for line in ceiling_raises(path, base, tolerance)))
         ratchet = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": 11}\n'
         self.assertEqual([], ceiling_raises(path, base, ratchet))
+        invalid = '{"bytes": 11, "tolerance_pct": 5,}\n'
+        invalid_lines = ceiling_raises(path, base, invalid)
+        self.assertNotEqual([], invalid_lines)
+        self.assertIn(path, invalid_lines[0])
 
     def test_file_budgets_max_bytes_raise_and_shrink(self) -> None:
         path = "scripts/ci/agent_guidance_budget.json"
@@ -1320,12 +1324,17 @@ class CeilingRaiseTest(unittest.TestCase):
         tighter = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
         self.assertTrue(ceiling_raises(path, base, looser))
         self.assertEqual([], ceiling_raises(path, looser, tighter))
+        deleted = '{"issue": 1, "scores": {}, "tolerance": 0.0}\n'
+        self.assertNotEqual([], ceiling_raises(path, base, deleted))
+        self.assertEqual([], ceiling_raises(path, base, higher))
 
     def test_ungated_allowlist_ceiling_assignment(self) -> None:
         path = "scripts/ci/harness_pr_gate.py"
         base = "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
         self.assertTrue(ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 98\n"))
         self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 96\n"))
+        self.assertNotEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = (98)\n"))
+        self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = (96)\n"))
 
     def test_plan_fails_when_bytes_rise_against_the_merge_base(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1380,6 +1389,34 @@ class CeilingRaiseTest(unittest.TestCase):
             git("commit", "-m", "shrink")
             shrunk = git("rev-parse", "HEAD")
             code, output = gate(raised, shrunk)
+            self.assertEqual(0, code, output)
+
+            # Base tip and merge base are different commits.
+            git("checkout", "-b", "head-20", base)
+            budget.write_text('{"bytes": 20, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "head-20")
+            head_20 = git("rev-parse", "HEAD")
+            git("checkout", "-b", "tip-100", base)
+            budget.write_text('{"bytes": 100, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "tip-100")
+            tip_100 = git("rev-parse", "HEAD")
+            code, output = gate(tip_100, head_20)
+            self.assertEqual(1, code, output)
+            self.assertIn("10 -> 20", output)
+
+            git("checkout", "-b", "rev-head", tip_100)
+            budget.write_text('{"bytes": 50, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "rev-head")
+            rev_head = git("rev-parse", "HEAD")
+            git("checkout", "-b", "rev-tip", tip_100)
+            budget.write_text('{"bytes": 10, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "rev-tip")
+            rev_tip = git("rev-parse", "HEAD")
+            code, output = gate(rev_tip, rev_head)
             self.assertEqual(0, code, output)
 
 

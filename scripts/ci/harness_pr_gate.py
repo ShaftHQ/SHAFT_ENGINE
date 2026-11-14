@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import json
 import os
@@ -1777,7 +1778,7 @@ _CEILING_PATHS = frozenset(
 )
 _ALWAYS_LOADED_RAISE_KEYS = ("bytes", "tolerance_pct")
 _ALLOWLIST_CEILING_ASSIGNMENT = re.compile(
-    r"^UNGATED_TEST_ALLOWLIST_CEILING\s*=\s*(?P<value>\d+)\s*(?:#.*)?$",
+    r"^UNGATED_TEST_ALLOWLIST_CEILING\s*=\s*(?P<expr>.+?)\s*(?:#.*)?$",
     re.MULTILINE,
 )
 
@@ -1844,10 +1845,19 @@ def _loosened_lines(
 
 
 def _assigned_allowlist_ceiling(text: str) -> int | None:
-    matches = list(_ALLOWLIST_CEILING_ASSIGNMENT.finditer(text))
-    if not matches:
+    """Last integer bound to the allowlist ceiling, including ``(98)``."""
+    values: list[int] = []
+    for match in _ALLOWLIST_CEILING_ASSIGNMENT.finditer(text):
+        try:
+            parsed = ast.parse(match.group("expr").strip(), mode="eval")
+        except SyntaxError:
+            continue
+        value = parsed.body
+        if isinstance(value, ast.Constant) and type(value.value) is int:
+            values.append(value.value)
+    if not values:
         return None
-    return int(matches[-1].group("value"))
+    return values[-1]
 
 
 def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
@@ -1871,10 +1881,12 @@ def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
                 f"{normalized}: UNGATED_TEST_ALLOWLIST_CEILING {base_value} -> {head_ceiling}"
             ]
         return []
-    base_obj = _json_object(base_text) or {}
+    base_obj = _json_object(base_text)
     head_obj = _json_object(head_text)
-    if head_obj is None:
-        return []
+    if (base_text.strip() and base_obj is None) or (head_text.strip() and head_obj is None):
+        return [f"{normalized}: invalid ceiling document"]
+    base_obj = base_obj or {}
+    head_obj = head_obj or {}
     if normalized == "chaos-engine/always-loaded-budget.json":
         before = {
             key: float(base_obj[key])
@@ -1899,6 +1911,10 @@ def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
         before_scores = _numeric_leaves(base_scores, "scores") if isinstance(base_scores, dict) else {}
         after_scores = _numeric_leaves(head_scores, "scores") if isinstance(head_scores, dict) else {}
         lines = _loosened_lines(normalized, before_scores, after_scores, higher=False)
+        lines.extend(
+            f"{normalized}: {key} removed"
+            for key in sorted(set(before_scores) - set(after_scores))
+        )
         if _is_number(head_obj.get("tolerance")):
             before_tolerance = (
                 float(base_obj["tolerance"]) if _is_number(base_obj.get("tolerance")) else 0.0
@@ -1938,18 +1954,40 @@ def _revision_blob(root: Path, rev: str, path: str) -> str:
     raise GateError(f"git could not read {rev}:{path}")
 
 
+def _merge_base_commit(root: Path, base: str, head: str) -> str:
+    """Commit where ``base`` and ``head`` diverged. Not the raw base tip."""
+    completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
+        [_required_executable("git"), "merge-base", base, head],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    resolved = completed.stdout.strip()
+    if completed.returncode or not resolved:
+        raise GateError("git could not resolve the merge base")
+    return resolved
+
+
 def _ceiling_plan_failures(root: Path, base: str, head: str, paths: list[str]) -> list[str]:
-    failures: list[str] = []
+    selected: list[str] = []
     seen: set[str] = set()
     for raw in paths:
         path = _ceiling_path(raw)
         if path not in _CEILING_PATHS or path in seen:
             continue
         seen.add(path)
+        selected.append(path)
+    if not selected:
+        return []
+    base_commit = _merge_base_commit(root, base, head)
+    failures: list[str] = []
+    for path in selected:
         failures.extend(
             ceiling_raises(
                 path,
-                _revision_blob(root, base, path),
+                _revision_blob(root, base_commit, path),
                 _revision_blob(root, head, path),
             )
         )
@@ -2595,6 +2633,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _emit_stopped_plan(args: argparse.Namespace, key: str, hits: list[str]) -> int:
+    """Print one refused plan and return its exit code. Text and JSON stay as before."""
+    payload = {
+        "schema": 1,
+        "valid": False,
+        "error": "; ".join(hits),
+        key: hits,
+    }
+    serialized = json.dumps(payload, indent=2, sort_keys=True)
+    if args.output:
+        args.output.write_text(serialized + "\n", encoding="utf-8")
+    if args.format == "json":
+        print(serialized)
+    else:
+        for hit in hits:
+            print(hit, file=sys.stderr)
+    return 1
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -2623,42 +2680,12 @@ def main() -> int:
                 _event_body = ""
         _scope_hits = pr_scope_gate_failures(root, [str(p) for p in changed], _event_body)
         if _scope_hits:
-            payload = {
-                "schema": 1,
-                "valid": False,
-                "error": "; ".join(_scope_hits),
-                "pr_scope": _scope_hits,
-            }
-            exit_code = 1
-            serialized = json.dumps(payload, indent=2, sort_keys=True)
-            if args.output:
-                args.output.write_text(serialized + "\n", encoding="utf-8")
-            if args.format == "json":
-                print(serialized)
-            else:
-                for _hit in _scope_hits:
-                    print(_hit, file=sys.stderr)
-            return exit_code
+            return _emit_stopped_plan(args, "pr_scope", _scope_hits)
         _ceiling_hits = _ceiling_plan_failures(
             root, args.base, args.head, [str(changed_path) for changed_path in changed]
         )
         if _ceiling_hits:
-            payload = {
-                "schema": 1,
-                "valid": False,
-                "error": "; ".join(_ceiling_hits),
-                "ceiling_raises": _ceiling_hits,
-            }
-            exit_code = 1
-            serialized = json.dumps(payload, indent=2, sort_keys=True)
-            if args.output:
-                args.output.write_text(serialized + "\n", encoding="utf-8")
-            if args.format == "json":
-                print(serialized)
-            else:
-                for _hit in _ceiling_hits:
-                    print(_hit, file=sys.stderr)
-            return exit_code
+            return _emit_stopped_plan(args, "ceiling_raises", _ceiling_hits)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(
