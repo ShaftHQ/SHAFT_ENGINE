@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -49,16 +50,48 @@ from scripts.agents.repository_context import (  # noqa: E402
     parse_git_remote,
 )
 
-_DELETE_GUARD_DIR = ROOT / "chaos-engine"
-if _DELETE_GUARD_DIR.is_dir() and str(_DELETE_GUARD_DIR) not in sys.path:
-    sys.path.insert(0, str(_DELETE_GUARD_DIR))
-_DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
-try:
-    from delete_guard import never_touch as _imported_delete_guard_never_touch  # noqa: E402
+# #8057: ChaosEngine moved to ShaftHQ/chaosengine-harness. Prefer a legacy
+# chaos-engine/ source tree, else the installed overlay .chaos-engine/ (the
+# harness installer ships delete_guard.py there). The file is loaded by path
+# (no sys.path change), and it must refuse a known never-touch canary; on any
+# failure cleanup fails closed.
+_NEVER_TOUCH_CANARY = Path("ROG_backup")
 
-    _delete_guard_never_touch = _imported_delete_guard_never_touch
-    _DELETE_GUARD_NEVER_TOUCH_AVAILABLE = True
-except ImportError:
+
+def delete_guard_dir(root: Path) -> Path | None:
+    """Directory that ships ``delete_guard.py`` under ``root``, or None."""
+    for base in ("chaos-engine", ".chaos-engine"):
+        if (root / base / "delete_guard.py").is_file():
+            return root / base
+    return None
+
+
+def load_never_touch(root: Path):
+    """Return ``delete_guard.never_touch`` from ``root``, or None (fail closed)."""
+    directory = delete_guard_dir(root)
+    if directory is None:
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "_shaft_worktree_hygiene_delete_guard", directory / "delete_guard.py"
+        )
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        check = getattr(module, "never_touch")
+        if not callable(check) or not check(_NEVER_TOUCH_CANARY):
+            return None
+    except Exception:  # noqa: BLE001 - any broken overlay must fail closed
+        return None
+    return check
+
+
+_loaded_never_touch = load_never_touch(ROOT)
+_DELETE_GUARD_NEVER_TOUCH_AVAILABLE = _loaded_never_touch is not None
+if _loaded_never_touch is not None:
+    _delete_guard_never_touch = _loaded_never_touch
+else:
     def _delete_guard_never_touch(path: Path) -> str:
         """Fail closed: refuse every cleanup target when delete-guard is unavailable."""
         return "never-touch-check-unavailable"
