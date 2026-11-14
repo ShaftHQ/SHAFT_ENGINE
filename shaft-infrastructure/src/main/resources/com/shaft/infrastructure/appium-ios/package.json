@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "appium": "3.9.0",
-    "appium-inspector-plugin": "2026.9.2",
+    "appium-inspector-plugin": "2026.11.3",
     "appium-xcuitest-driver": "13.0.7"
   },
   "overrides": {
