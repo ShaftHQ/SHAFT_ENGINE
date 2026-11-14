@@ -1778,11 +1778,13 @@ _CEILING_PATHS = frozenset(
     }
 )
 _ALWAYS_LOADED_RAISE_KEYS = ("bytes", "tolerance_pct")
-_ALLOWLIST_CEILING_ASSIGNMENT = re.compile(
-    r"^[ \t]*UNGATED_TEST_ALLOWLIST_CEILING\b"
-    r"(?P<annotation>:[^=\n]*)?"
-    r"[ \t]*(?P<aug>[+-])?=[ \t]*(?P<expr>.+?)[ \t]*(?:#.*)?$",
-    re.MULTILINE,
+_ALLOWLIST_NAME = "UNGATED_TEST_ALLOWLIST_CEILING"
+# Used only when ast.parse fails. Optional indent, the name, an optional
+# annotation, then = or an augmented assignment. A mention has no operator.
+_ALLOWLIST_SYNTAX_ASSIGN = re.compile(
+    rf"(?m)^[ \t]*{_ALLOWLIST_NAME}\b"
+    rf"(?:[ \t]*:[^=\n]+)?"
+    rf"[ \t]*(?:\*\*=|>>=|<<=|//=|[@%&|^*/+-]=|=(?!=))"
 )
 
 
@@ -1873,27 +1875,66 @@ def _int_expr(node: ast.AST) -> int | None:
     return None
 
 
-def _assigned_allowlist_ceiling(text: str) -> int | None:
-    """Integer from the last assignment, or None when the name is absent.
+def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    parents: dict[ast.AST, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[child] = node
+    return parents
 
-    The last assignment is the only one read. A syntax error or a non-integer
-    expression raises ValueError instead of falling back to an earlier line.
-    """
-    matches = list(_ALLOWLIST_CEILING_ASSIGNMENT.finditer(text))
-    if not matches:
-        return None
-    match = matches[-1]
-    if match.group("aug"):
-        raise ValueError(match.group(0))
-    expr = match.group("expr").strip()
-    try:
-        parsed = ast.parse(expr, mode="eval")
-    except SyntaxError as error:
-        raise ValueError(expr) from error
-    value = _int_expr(parsed.body)
+
+def _allowlist_stores(tree: ast.AST) -> list[ast.Name]:
+    stores = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and node.id == _ALLOWLIST_NAME
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+    ]
+    stores.sort(key=lambda node: (node.lineno, node.col_offset))
+    return stores
+
+
+def _required_int(value: ast.AST | None) -> int:
     if value is None:
-        raise ValueError(expr)
-    return value
+        raise ValueError(_ALLOWLIST_NAME)
+    reduced = _int_expr(value)
+    if reduced is None:
+        raise ValueError(_ALLOWLIST_NAME)
+    return reduced
+
+
+def _last_allowlist_binding(tree: ast.AST) -> int | None:
+    """Last binding of the allowlist name. None when the name is only loaded."""
+    parents = _parent_map(tree)
+    stores = _allowlist_stores(tree)
+    if not stores:
+        return None
+    last = stores[-1]
+    parent = parents.get(last)
+    if isinstance(last.ctx, ast.Del):
+        raise ValueError(_ALLOWLIST_NAME)
+    if isinstance(parent, ast.AnnAssign) and parent.target is last:
+        return _required_int(parent.value)
+    if isinstance(parent, ast.Assign) and any(target is last for target in parent.targets):
+        return _required_int(parent.value)
+    raise ValueError(_ALLOWLIST_NAME)
+
+
+def _assigned_allowlist_ceiling(text: str) -> int | None:
+    """Integer from the last binding, or None when that name is not bound.
+
+    A last binding that is not a reducible integer raises ValueError.
+    A syntax error raises ValueError only when a line assigns the name.
+    Earlier bindings are not reused.
+    """
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as error:
+        if _ALLOWLIST_SYNTAX_ASSIGN.search(text) is not None:
+            raise ValueError(_ALLOWLIST_NAME) from error
+        return None
+    return _last_allowlist_binding(tree)
 
 
 def _allowlist_ceiling_lines(path: str, base_text: str, head_text: str) -> list[str]:

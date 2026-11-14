@@ -1372,24 +1372,26 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 100 - 4\n"))
         self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = -1\n"))
         self.assertEqual([], ceiling_raises(path, base, "OTHER = 98\n"))
-        for expr in ("(98);", "int(98)"):
-            lines = ceiling_raises(path, base, f"UNGATED_TEST_ALLOWLIST_CEILING = {expr}\n")
-            self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(lines))
-            self.assertIn("not an integer", "\n".join(lines))
+        semicolon = "UNGATED_TEST_ALLOWLIST_CEILING = (98);\n"
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, semicolon)))
+        call = "UNGATED_TEST_ALLOWLIST_CEILING = int(98)\n"
+        call_lines = ceiling_raises(path, base, call)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(call_lines))
+        self.assertIn("not an integer", "\n".join(call_lines))
         masked = (
             "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
             "UNGATED_TEST_ALLOWLIST_CEILING = (98);\n"
         )
-        masked_lines = ceiling_raises(path, base, masked)
-        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(masked_lines))
-        self.assertIn("not an integer", "\n".join(masked_lines))
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, masked)))
         annotated = "UNGATED_TEST_ALLOWLIST_CEILING: int = 98\n"
         self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, annotated)))
         indented = (
             "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
             "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
         )
-        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, indented)))
+        indented_lines = ceiling_raises(path, base, indented)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(indented_lines))
+        self.assertIn("not an integer", "\n".join(indented_lines))
         augmented = (
             "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
             "UNGATED_TEST_ALLOWLIST_CEILING += 1\n"
@@ -1402,6 +1404,17 @@ class CeilingRaiseTest(unittest.TestCase):
             "UNGATED_TEST_ALLOWLIST_CEILING -= 1\n"
         )
         self.assertIn("not an integer", "\n".join(ceiling_raises(path, base, decremented)))
+        multiplied = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 50\n"
+            "UNGATED_TEST_ALLOWLIST_CEILING *= 4\n"
+        )
+        multiplied_lines = ceiling_raises(path, base, multiplied)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(multiplied_lines))
+        self.assertIn("not an integer", "\n".join(multiplied_lines))
+        spaced = "UNGATED_TEST_ALLOWLIST_CEILING : int = 98\n"
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, spaced)))
+        one_line = "if True: UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, one_line)))
         mention = "The UNGATED_TEST_ALLOWLIST_CEILING value is documented here.\n"
         self.assertEqual([], ceiling_raises(path, base, mention))
 
