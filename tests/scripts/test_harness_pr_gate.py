@@ -191,6 +191,11 @@ class ClassifierTest(unittest.TestCase):
             plan.test_modules,
         )
 
+    def test_skill_file_selects_harness_map_test(self) -> None:
+        plan = classify_paths(["chaos-engine/skills/job-apply/SKILL.md"])
+
+        self.assertIn("tests.scripts.test_chaos_engine_harness_map_7242", plan.test_modules)
+
     def test_copilot_repository_hook_selects_host_contract(self) -> None:
         plan = classify_paths([".github/hooks/chaos-engine.json"])
 
