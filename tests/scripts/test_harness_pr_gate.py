@@ -1431,6 +1431,35 @@ class CeilingRaiseTest(unittest.TestCase):
         from_lines = ceiling_raises(path, base, imported_from)
         self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(from_lines))
         self.assertIn("not an integer", "\n".join(from_lines))
+        true_else = (
+            "if True:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+            "else:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 1\n"
+        )
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, true_else)))
+        false_body = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+            "if False:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 1\n"
+        )
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, false_body)))
+        nested_def = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+            "def f():\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 1\n"
+        )
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, nested_def)))
+        nested_class = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+            "class C:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 1\n"
+        )
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, nested_class)))
+        function_only = "def f():\n    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        self.assertEqual([], ceiling_raises(path, base, function_only))
+        class_only = "class C:\n    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        self.assertEqual([], ceiling_raises(path, base, class_only))
         mention = "The UNGATED_TEST_ALLOWLIST_CEILING value is documented here.\n"
         self.assertEqual([], ceiling_raises(path, base, mention))
 

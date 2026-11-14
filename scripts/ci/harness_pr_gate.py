@@ -1875,12 +1875,7 @@ def _int_expr(node: ast.AST) -> int | None:
     return None
 
 
-def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
-    parents: dict[ast.AST, ast.AST] = {}
-    for node in ast.walk(tree):
-        for child in ast.iter_child_nodes(node):
-            parents[child] = node
-    return parents
+_NESTED_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
 
 
 def _is_allowlist_binding(node: ast.AST) -> bool:
@@ -1895,10 +1890,17 @@ def _is_allowlist_binding(node: ast.AST) -> bool:
     return False
 
 
-def _allowlist_bindings(tree: ast.AST) -> list[ast.AST]:
-    bindings = [node for node in ast.walk(tree) if _is_allowlist_binding(node)]
-    bindings.sort(key=lambda node: (node.lineno, node.col_offset))
-    return bindings
+def _contains_binding(node: ast.AST) -> bool:
+    """True when this node binds the name outside a nested function, class, or lambda."""
+    if isinstance(node, _NESTED_SCOPES):
+        return False
+    if _is_allowlist_binding(node):
+        return True
+    return any(_contains_binding(child) for child in ast.iter_child_nodes(node))
+
+
+def _block_binds(body: list[ast.stmt]) -> bool:
+    return any(_contains_binding(stmt) for stmt in body)
 
 
 def _required_int(value: ast.AST | None) -> int:
@@ -1910,31 +1912,83 @@ def _required_int(value: ast.AST | None) -> int:
     return reduced
 
 
-def _last_allowlist_binding(tree: ast.AST) -> int | None:
-    """Last binding of the allowlist name. None when the name is only loaded."""
-    parents = _parent_map(tree)
-    bindings = _allowlist_bindings(tree)
-    if not bindings:
-        return None
-    last = bindings[-1]
-    if not isinstance(last, ast.Name):
+def _const_bool(node: ast.expr) -> bool | None:
+    if isinstance(node, ast.Constant) and node.value is True:
+        return True
+    if isinstance(node, ast.Constant) and node.value is False:
+        return False
+    return None
+
+
+def _walk_block(body: list[ast.stmt], value: int | None) -> int | None:
+    for stmt in body:
+        value = _walk_stmt(stmt, value)
+    return value
+
+
+def _walk_plain_assign(
+    targets: list[ast.AST],
+    rhs: ast.AST | None,
+    stmt: ast.AST,
+    value: int | None,
+) -> int | None:
+    named = any(isinstance(target, ast.Name) and target.id == _ALLOWLIST_NAME for target in targets)
+    if named and all(isinstance(target, ast.Name) for target in targets):
+        return _required_int(rhs)
+    if named or _contains_binding(stmt):
         raise ValueError(_ALLOWLIST_NAME)
-    parent = parents.get(last)
-    if isinstance(last.ctx, ast.Del):
+    return value
+
+
+def _walk_if(stmt: ast.If, value: int | None) -> int | None:
+    flag = _const_bool(stmt.test)
+    if flag is True:
+        return _walk_block(stmt.body, value)
+    if flag is False:
+        return _walk_block(stmt.orelse, value)
+    if _contains_binding(stmt.test):
         raise ValueError(_ALLOWLIST_NAME)
-    if isinstance(parent, ast.AnnAssign) and parent.target is last:
-        return _required_int(parent.value)
-    if isinstance(parent, ast.Assign) and any(target is last for target in parent.targets):
-        return _required_int(parent.value)
-    raise ValueError(_ALLOWLIST_NAME)
+    body = _walk_block(stmt.body, value)
+    orelse = _walk_block(stmt.orelse, value)
+    if body != orelse:
+        raise ValueError(_ALLOWLIST_NAME)
+    return body
+
+
+def _walk_loop(stmt: ast.While | ast.For | ast.AsyncFor, value: int | None) -> int | None:
+    """while False skips its body. Its else still runs. Any other binding loop is not an int."""
+    if isinstance(stmt, ast.While) and _const_bool(stmt.test) is False:
+        return _walk_block(stmt.orelse, value)
+    binds = _block_binds(stmt.body)
+    if isinstance(stmt, ast.While):
+        binds = binds or _contains_binding(stmt.test)
+    else:
+        binds = binds or _contains_binding(stmt.target) or _contains_binding(stmt.iter)
+    if binds:
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
+    if isinstance(stmt, ast.Assign):
+        return _walk_plain_assign(list(stmt.targets), stmt.value, stmt, value)
+    if isinstance(stmt, ast.AnnAssign):
+        return _walk_plain_assign([stmt.target], stmt.value, stmt, value)
+    if isinstance(stmt, ast.If):
+        return _walk_if(stmt, value)
+    if isinstance(stmt, (ast.While, ast.For, ast.AsyncFor)):
+        return _walk_loop(stmt, value)
+    if _contains_binding(stmt):
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
 
 
 def _assigned_allowlist_ceiling(text: str) -> int | None:
-    """Integer from the last binding, or None when that name is not bound.
+    """Module-global allowlist integer, or None when that name is not bound there.
 
-    A last binding that is not a reducible integer raises ValueError.
+    Nested functions, classes, and lambdas are not the module global.
+    A binding that is not a reducible assignment raises ValueError.
     A syntax error raises ValueError only when a line assigns the name.
-    Earlier bindings are not reused.
     """
     try:
         tree = ast.parse(text)
@@ -1942,7 +1996,7 @@ def _assigned_allowlist_ceiling(text: str) -> int | None:
         if _ALLOWLIST_SYNTAX_ASSIGN.search(text) is not None:
             raise ValueError(_ALLOWLIST_NAME) from error
         return None
-    return _last_allowlist_binding(tree)
+    return _walk_block(tree.body, None)
 
 
 def _allowlist_ceiling_lines(path: str, base_text: str, head_text: str) -> list[str]:
