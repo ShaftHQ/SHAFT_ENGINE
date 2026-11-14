@@ -70,6 +70,14 @@ Capability seams, orthogonal outcomes, tool-result pruning, spill, and code
 mode were reimplemented as portable guidance and installer contracts. The
 Node runtime, Cordis kernel, session log, agent loop, and UI were not copied.
 
+## CUGA patterns
+
+- License: Apache-2.0
+- Upstream: https://github.com/cuga-project/cuga-agent
+- Pinned commit: `f6e2335aa326e1cfdeb6e80a350394f6ab8b7b72`
+- Studied: 2026-11-14
+- Ideas only. No CUGA file was copied.
+
 ## Spec Kit (ideas only)
 
 - License: MIT

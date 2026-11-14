@@ -32,6 +32,16 @@ Primary source: [DeepSeek Harness architecture at commit
 
 Delta 2026-11-13 at `39163dd30f703a79079e2d2446545cff3c453738`, issue #8024. Still ideas only. An advisory repeat reminder counts exact matches and does not deny. An unknown tool outcome is not an automatic retry. No Node runtime, Cordis plugin, or session event log was added.
 
+## CUGA patterns — Accessed: 2026-11-14
+
+Primary source: [cuga-agent at commit
+`f6e2335aa326e1cfdeb6e80a350394f6ab8b7b72`](https://github.com/cuga-project/cuga-agent/commit/f6e2335aa326e1cfdeb6e80a350394f6ab8b7b72).
+Apache-2.0. Ideas only. No CUGA file was copied.
+
+| Pattern | Decision | ChaosEngine ownership |
+| --- | --- | --- |
+| Open-PR advisory | Ideas only | `hooks/guard.py` advises, and does not deny, `gh pr create`, `gh pr ready`, and `gh pr reopen` at the open-PR cap. Drafts count. The kanban Pull rule says not to dodge that count by opening a draft, using another branch name, or splitting the work. |
+
 ## Logo design skill
 
 Accessed: 2026-09-30. Primary source:

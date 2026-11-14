@@ -503,6 +503,135 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
     return ""
 
 
+_OPEN_PR_ACTIONS = frozenset({"create", "ready", "reopen"})
+_OPEN_PR_GH_TIMEOUT_SECONDS = 10
+
+
+def _open_pr_action(commands: tuple[str, ...]) -> bool:
+    for command in commands:
+        for statement in _shell_statements(command):
+            head, arguments = command_head(shell_tokens(statement))
+            if (
+                head == "gh"
+                and len(arguments) >= 2
+                and arguments[0] == "pr"
+                and arguments[1] in _OPEN_PR_ACTIONS
+            ):
+                return True
+    return False
+
+
+def _open_pr_config_path(cwd: Path) -> Path | None:
+    candidates = (
+        cwd / "chaos-engine" / "hooks" / "open-pr-advisory.json",
+        Path(__file__).resolve().with_name("open-pr-advisory.json"),
+    )
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def _positive_config_int(value: object, key: str) -> int | str:
+    """Return the integer, or an error that names ``key``."""
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return f"open-pr-advisory.json {key} must be a positive integer"
+    return value
+
+
+def _open_pr_cap(cwd: Path) -> tuple[int, str]:
+    """Return ``(cap, error)``. A missing file uses review WIP 2 and 1 stream."""
+    path = _open_pr_config_path(cwd)
+    if path is None:
+        return 2, ""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return 0, "open-pr-advisory.json is not valid JSON"
+    if not isinstance(raw, dict):
+        return 0, "open-pr-advisory.json must be a JSON object"
+    review_wip = _positive_config_int(raw.get("reviewWip", 2), "reviewWip")
+    if isinstance(review_wip, str):
+        return 0, review_wip
+    streams = _positive_config_int(raw.get("streams", 1), "streams")
+    if isinstance(streams, str):
+        return 0, streams
+    return review_wip * streams, ""
+
+
+def _open_pr_skip(detail: str) -> None:
+    print(f"open-pr advisory skipped: {detail}", file=sys.stderr)
+
+
+def _open_pr_numbers(cwd: Path) -> list[int] | None:
+    """Open pull-request numbers for ``@me``, or None when ``gh`` cannot be trusted.
+
+    Closed and merged rows are ignored. Drafts stay in ``open``. None means do not advise.
+    """
+    gh = shutil.which("gh")
+    if not gh:
+        _open_pr_skip("gh missing")
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - absolute gh from which, fixed argv.
+            [gh, "pr", "list", "--author", "@me", "--state", "open", "--json", "number,state"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=_OPEN_PR_GH_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        _open_pr_skip("gh timed out")
+        return None
+    except OSError:
+        _open_pr_skip("gh unavailable")
+        return None
+    if completed.returncode != 0:
+        _open_pr_skip(f"gh exited {completed.returncode}")
+        return None
+    try:
+        payload = json.loads(completed.stdout or "[]")
+    except json.JSONDecodeError:
+        _open_pr_skip("gh returned invalid JSON")
+        return None
+    if not isinstance(payload, list):
+        _open_pr_skip("gh returned invalid JSON")
+        return None
+    numbers: list[int] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        state = item.get("state")
+        if isinstance(state, str) and state.casefold() not in {"open", "draft"}:
+            continue
+        number = item.get("number")
+        if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
+            continue
+        if number not in numbers:
+            numbers.append(number)
+    return numbers
+
+
+def _open_pr_pretool(event: dict, event_name: str, commands: tuple[str, ...]) -> tuple[str, str | None]:
+    """Return ``(deny reason, advisory)``. The advisory does not deny the command."""
+    if event_name != "PreToolUse" or not _open_pr_action(commands):
+        return "", None
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    cap, problem = _open_pr_cap(cwd)
+    if problem:
+        return problem, None
+    numbers = _open_pr_numbers(cwd)
+    if not numbers or len(numbers) < cap:
+        return "", None
+    listed = ", ".join(f"#{number}" for number in numbers)
+    note = (
+        f"Open pull requests are at the cap ({len(numbers)} of {cap}): {listed}. "
+        "Finish, merge, or combine before opening another."
+    )
+    return "", note
+
+
 def _operation_boundary_block(commands: tuple[str, ...], project: Path) -> str:
     """Force-push, private-remote, relayed-delete, and secret checks on the real command."""
     script = Path(__file__).resolve().parents[1] / "rules" / "operation_boundary.py"
@@ -2254,7 +2383,16 @@ def _session_start_output(event: dict, event_name: str, session_id: str, token) 
     return 0
 
 
-def _emit_notes(event: dict, event_name: str, session_id: str, mutation: bool, tool_name: str, tool_input: object, commands: tuple) -> None:
+def _emit_notes(
+    event: dict,
+    event_name: str,
+    session_id: str,
+    mutation: bool,
+    tool_name: str,
+    tool_input: object,
+    commands: tuple,
+    open_pr_note: str | None = None,
+) -> None:
     complexity_hint = classifier_complexity_gate_hint(
         event_name, mutation=mutation, tool_name=tool_name, tool_input=tool_input, commands=commands
     )
@@ -2267,7 +2405,7 @@ def _emit_notes(event: dict, event_name: str, session_id: str, mutation: bool, t
     advice = None
     if event_name in {"PostToolUse", "PostToolUseFailure"}:
         advice = _repeat_advice(event_name, session_id, tool_name, tool_input)
-    notes = [item for item in (retrieve_note, complexity_hint, advice) if item]
+    notes = [item for item in (retrieve_note, complexity_hint, advice, open_pr_note) if item]
     if notes:
         print(json.dumps({"additionalContext": "\n".join(notes)}))
 
@@ -2300,6 +2438,9 @@ def _run_event(event: dict, _host: str) -> int:
     )
     if guard_reason:
         return _deny(event, event_name, tool_name, guard_reason)
+    open_pr_block, open_pr_note = _open_pr_pretool(event, event_name, commands)
+    if open_pr_block:
+        return _deny(event, event_name, tool_name, open_pr_block)
     _post_tool_activity(event, event_name, commands, session_id, receipt_command, mutation)
     stopped = _stop_block(event, event_name, tool_name, session_id)
     if stopped is not None:
@@ -2307,7 +2448,7 @@ def _run_event(event: dict, _host: str) -> int:
     started = _session_start_output(event, event_name, session_id, token)
     if started is not None:
         return started
-    _emit_notes(event, event_name, session_id, mutation, tool_name, tool_input, commands)
+    _emit_notes(event, event_name, session_id, mutation, tool_name, tool_input, commands, open_pr_note)
     return 0
 
 
