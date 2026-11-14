@@ -192,17 +192,19 @@ class OpenPrAdvisoryTest(unittest.TestCase):
         self.assertIn("reviewWip", result.stdout)
 
     def test_streams_scale_the_cap(self) -> None:
-        config = {"reviewWip": 2, "streams": 2}
-        three = [
+        config = {"reviewWip": 2, "streams": 3}
+        five = [
             {"number": 101, "state": "OPEN", "isDraft": False},
             {"number": 102, "state": "OPEN", "isDraft": True},
             {"number": 103, "state": "OPEN", "isDraft": False},
+            {"number": 104, "state": "OPEN", "isDraft": False},
+            {"number": 105, "state": "OPEN", "isDraft": False},
         ]
-        under, _argv = self.run_case("gh pr create --title t", three, config=config)
+        under, _argv = self.run_case("gh pr create --title t", five, config=config)
         self.assert_silent(under)
-        four = three + [{"number": 104, "state": "OPEN", "isDraft": False}]
-        advised, _argv = self.run_case("gh pr create --title t", four, config=config)
-        self.assert_advises(advised, [101, 102, 103, 104])
+        six = five + [{"number": 106, "state": "OPEN", "isDraft": False}]
+        advised, _argv = self.run_case("gh pr create --title t", six, config=config)
+        self.assert_advises(advised, [101, 102, 103, 104, 105, 106])
 
     def test_ready_and_reopen_use_the_same_advisory(self) -> None:
         rows = [
