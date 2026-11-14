@@ -28,10 +28,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class FullCoverageTest(unittest.TestCase):
     def test_repository_spec_is_fully_covered(self):
-        pins = load_pins(ROOT)
-        names = {pin.name for pin in pins}
-        for required in ("java-feature", "python", "maven", "deja", "node", "uv"):
-            self.assertIn(required, names)
+        # #8057: the dependency spec moved to the harness; this checkout's
+        # build JDK literal (pom.xml) is still watched.
+        names = {pin.name for pin in load_pins(ROOT)}
+        self.assertTrue(any(name.startswith("ci-java@") and "pom.xml" in name for name in names), names)
 
     def test_new_unwatched_pin_fails_loudly(self):
         spec = {"dependencies": {"brand-new-tool": {}}, "runtimes": {}}

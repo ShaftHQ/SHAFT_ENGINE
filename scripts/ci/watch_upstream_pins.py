@@ -188,8 +188,15 @@ def _compare_pin(pin: Pin, stable: Stable) -> Verdict:
 
 
 def load_pins(root: Path) -> tuple[Pin, ...]:
-    """Repository pins only. Does not read ``.chaos-engine-dependencies.json``."""
+    """Repository pins only. Does not read ``.chaos-engine-dependencies.json``.
+
+    ChaosEngine moved to ShaftHQ/chaosengine-harness (#8057). A checkout
+    without ``chaos-engine/dependencies.json`` watches only its own CI and
+    build runtime pins; the harness watches its own dependency spec.
+    """
     spec_path = root / "chaos-engine" / "dependencies.json"
+    if not spec_path.is_file():
+        return tuple(repository_runtime_pins(root))
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     dependencies = spec["dependencies"]
     pins: list[Pin] = []
@@ -859,6 +866,8 @@ def preserve_format(text: str, before: Any, after: Any) -> str:
 def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
     """Rewrite the linked pin files under ``root`` or reject a one-sided result."""
     spec_path = root / "chaos-engine" / "dependencies.json"
+    if not spec_path.is_file():
+        return  # No linked installer pins here since #8057; the harness owns them.
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     wrapper_paths = {
         "install.ps1": root / "chaos-engine" / "install.ps1",
