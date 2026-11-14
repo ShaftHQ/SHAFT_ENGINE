@@ -134,13 +134,16 @@ class UserFacingReadmeTest(unittest.TestCase):
 
     def test_security_policy_names_chaosengine_scope(self) -> None:
         text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
-        scope_at = text.find("## Scope")
+        harness_at = text.find("### ChaosEngine harness")
         dependency_at = text.find("## Dependency Security")
-        self.assertGreaterEqual(scope_at, 0)
-        self.assertGreater(dependency_at, scope_at)
-        scope = text[scope_at:dependency_at]
+        self.assertGreaterEqual(harness_at, 0)
+        self.assertGreater(dependency_at, harness_at)
+        subsection = text[harness_at:dependency_at]
+        out_at = subsection.find("**Out of scope:**")
+        self.assertGreater(out_at, 0)
+        in_scope = subsection[:out_at]
+        out_scope = subsection[out_at:]
         for phrase in (
-            "### ChaosEngine harness",
             "chaos-engine/",
             "PreToolUse deny",
             "delete-guard",
@@ -149,11 +152,16 @@ class UserFacingReadmeTest(unittest.TestCase):
             "harness state, logs, spans, or stores",
             "unpinned code",
             "prompt injection that crosses",
+            "one of those boundaries",
+        ):
+            self.assertIn(phrase, in_scope)
+        for phrase in (
             "model output quality",
+            "on its own",
             "compromised host",
             "already holds the credential",
         ):
-            self.assertIn(phrase, scope)
+            self.assertIn(phrase, out_scope)
         self.assertNotIn("always-loaded-budget.json", text)
 
 

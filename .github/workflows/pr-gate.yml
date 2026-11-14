@@ -134,6 +134,7 @@ jobs:
               - "**/*.md"
               - "**/*.mdx"
               - "scripts/ci/validate_documentation_boundaries.py"
+              - "tests/scripts/test_user_facing_readmes.py"
             chaos_gauge:
               - 'scripts/ci/chaos_gauge/**'
               - 'tests/scripts/test_chaos_gauge_*.py'
