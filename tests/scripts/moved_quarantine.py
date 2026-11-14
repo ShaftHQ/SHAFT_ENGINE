@@ -4,8 +4,8 @@ ChaosEngine moved to ShaftHQ/chaosengine-harness. moved_quarantine.txt lists
 what still reads chaos-engine/ and is skipped with a reason until #8057 e2
 ports or drops it:
 
-- ``module tests.scripts.x``: the module no longer imports; it is replaced by
-  one skipped test (and pytest does not collect it).
+- ``module tests.scripts.x``: the whole module is skipped. If it no longer
+  imports, it is replaced by one skipped test; pytest does not collect it.
 - ``class tests.scripts.x.Y``: the class fixture reads the tree; the class is
   skipped.
 - ``tests.scripts.x.Y.test_z``: that test is skipped.
@@ -101,6 +101,13 @@ class _Loader(importlib.abc.Loader):
             module.MovedToHarness = _stub_class(module.__name__, "MovedToHarness")
             # A dotted test id (module.Class.test) still resolves to a skip.
             module.__getattr__ = lambda name: _stub_class(module.__name__, name)
+            return
+        if self.stub:
+            # A listed module that imports (its imports were rewired) is still
+            # skipped whole, matching pytest's collect_ignore for the same entry.
+            for value in list(vars(module).values()):
+                if isinstance(value, type) and issubclass(value, unittest.TestCase) and value.__module__ == module.__name__:
+                    _skip(value)
             return
         for name in self.classes:
             cls = getattr(module, name, None)
