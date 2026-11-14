@@ -26,5 +26,7 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Open the ChaosEngine research receipt
-        run: python3 chaos-engine/hooks/receipt_shim.py ensure --host copilot-cloud --project .
+      # #8057: the receipt shim moved to ShaftHQ/chaosengine-harness with the
+      # ChaosEngine source; rewiring the Copilot cloud receipt is #8057 e2.
+      - name: Note the ChaosEngine move
+        run: echo "ChaosEngine moved to ShaftHQ/chaosengine-harness; no SHAFT-local research receipt."

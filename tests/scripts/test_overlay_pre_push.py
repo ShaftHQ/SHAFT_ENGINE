@@ -288,7 +288,9 @@ class OverlayPrePushTest(unittest.TestCase):
         from unittest import mock
         from scripts.ci import overlay_pre_push as opp
 
-        with _park_leaked_pdca(ROOT):
+        # #8057: CI has no installed .chaos-engine/ overlay; the moved-gate
+        # fail-closed path is covered by MovedChaosEngineGateTest.
+        with _park_leaked_pdca(ROOT), mock.patch.object(opp, "_ce_moved", return_value=False):
             with mock.patch.object(
                 opp,
                 "release_note_label_failures",
@@ -302,6 +304,41 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertTrue(any("release-note label" in f for f in live))
         self.assertEqual([], fixture)
         mocked.assert_called_once()
+
+
+class MovedChaosEngineGateTest(unittest.TestCase):
+    """#8057: after the move the safety gates resolve the installed overlay or fail closed."""
+
+    def _moved_root(self, temporary: str) -> Path:
+        root = Path(temporary)
+        (root / "chaos-engine").mkdir()
+        (root / "chaos-engine" / "install.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+        return root
+
+    def test_moved_checkout_without_overlay_fails_closed(self):
+        from scripts.ci import overlay_pre_push as opp
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._moved_root(temporary)
+            self.assertIn("client-name scrub unavailable", opp.client_name_scrub_failures(root, environ={})[0])
+            self.assertIn("L77-no-token-in-remote unavailable", opp.remote_credential_failures(root)[0])
+            self.assertIn("operation boundary unavailable", opp._operation_disk_failures(root, [])[0])
+
+    def test_installed_overlay_modules_are_used(self):
+        from scripts.ci import overlay_pre_push as opp
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._moved_root(temporary)
+            rules = root / ".chaos-engine" / "rules"
+            rules.mkdir(parents=True)
+            (rules / "remote_credential_guard.py").write_text(
+                "def pre_push_failures(root):\n    return ['overlay-L77-ran']\n", encoding="utf-8"
+            )
+            (rules / "operation_boundary.py").write_text(
+                "def disk_blocks(root, changed):\n    return ['overlay-boundary-ran']\n", encoding="utf-8"
+            )
+            self.assertEqual(["overlay-L77-ran"], opp.remote_credential_failures(root))
+            self.assertEqual(["operation boundary: overlay-boundary-ran"], opp._operation_disk_failures(root, []))
 
 
 class CoverageRatchetPrePushTest(unittest.TestCase):

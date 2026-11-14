@@ -2,7 +2,7 @@
 
 **Humans:** this directory is a map of how coding-agent skills fit together in this repository.
 
-**Agents:** do not work from this file. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it. Repository entry is [AGENTS.md](../../AGENTS.md). This page is not policy.
+**Agents:** do not work from this file. Load [ChaosEngine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) and follow it. Repository entry is [AGENTS.md](../../AGENTS.md). This page is not policy.
 
 This directory holds the skills that teach a coding agent how work is done in
 this repository. It is written to be read by both people and agents: a
@@ -10,10 +10,10 @@ contributor can skim it to understand the system, and an agent can be pointed
 at it directly.
 
 **If you are an agent:** do not work from this file. It is a map, not the
-territory. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it.
+territory. Load [ChaosEngine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) and follow it.
 
 Coverage of rules, hooks, specialist skills, and CI/mobile tools is owned by
-[bot-entry Entry coverage](../../chaos-engine/references/bot-entry.md#entry-coverage-rules-skills-tools)
+[bot-entry Entry coverage](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/bot-entry.md#entry-coverage-rules-skills-tools)
 and gated by `tests/scripts/test_ce_entry_coverage.py`.
 
 **If you are a contributor:** tell your coding agent to read
@@ -75,7 +75,7 @@ sequenceDiagram
 
 ## Execution workflows
 
-[Execution workflows](../../chaos-engine/references/execution-workflows.md) is
+[Execution workflows](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/execution-workflows.md) is
 the sole owner of workflow selection and behavior. This diagram is a navigation
 view, not a second policy definition. Optional transports do not alter these
 role boundaries.
@@ -97,7 +97,7 @@ flowchart LR
 
 Architect the work, then at most 3 PDCA iterations, then two independent
 adversarial reviews on the green head. The cap is not a quota. The owner is
-[delivery cycle](../../chaos-engine/references/delivery-cycle.md). No microstep
+[delivery cycle](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delivery-cycle.md). No microstep
 review interrupts implementation.
 
 ```mermaid
@@ -118,16 +118,16 @@ step with the first.
 
 | Skill | What it does |
 | --- | --- |
-| [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
-| [OmniRoute](../../chaos-engine/skills/local-runtimes/references/omniroute.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
-| [FreeToken](../../chaos-engine/skills/local-runtimes/references/freetoken.md) | Optional local FreeToken weights server for a workflow already selected by the canonical execution-workflow owner. Missing service never weakens normal workflows and does not replace OmniRoute. |
-| [local-openai-compat](../../chaos-engine/skills/local-runtimes/references/local-openai-compat.md) | Optional Ollama / LM Studio / llamacpp OpenAI-compat peers. Probe and ephemeral dispatch only; CE never installs or starts them. |
-| [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) | Optional OpenCode / local OSS agency against a READY local runtime (not session subagents). Ephemeral `OPENCODE_CONFIG`; never `ft launch`; no silent OmniRoute fallback. |
-| [local-coding-delegate](../../chaos-engine/skills/local-runtimes/references/local-coding-delegate.md) | Compat shim: hardware size-class probe; prefer local-agency / FreeToken for local-weights agency dispatch. |
-| [work-item](../../chaos-engine/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
+| [ChaosEngine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) | The single always-loaded entrypoint and global router. Carries the iron laws, the triage that sizes every task, the always-on working style, and the table that sends each deliverable to exactly one surface. |
+| [OmniRoute](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-runtimes/references/omniroute.md) | Optional local OmniRoute transport for a workflow already selected by the canonical execution-workflow owner. Missing service or qualification falls back without weakening normal workflows. |
+| [FreeToken](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-runtimes/references/freetoken.md) | Optional local FreeToken weights server for a workflow already selected by the canonical execution-workflow owner. Missing service never weakens normal workflows and does not replace OmniRoute. |
+| [local-openai-compat](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-runtimes/references/local-openai-compat.md) | Optional Ollama / LM Studio / llamacpp OpenAI-compat peers. Probe and ephemeral dispatch only; CE never installs or starts them. |
+| [local-agency](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-agency/SKILL.md) | Optional OpenCode / local OSS agency against a READY local runtime (not session subagents). Ephemeral `OPENCODE_CONFIG`; never `ft launch`; no silent OmniRoute fallback. |
+| [local-coding-delegate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-runtimes/references/local-coding-delegate.md) | Compat shim: hardware size-class probe; prefer local-agency / FreeToken for local-weights agency dispatch. |
+| [work-item](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/work-item/SKILL.md) | Optional. Not always-loaded. Open or rewrite a work item under the portable Spec Kit contract; SCM adapters are separate. |
 
-The entrypoint reaches the internal [consultation](../../chaos-engine/references/consult-first.md)
-and [retrieval](../../chaos-engine/references/retrieve-first.md) gates after every
+The entrypoint reaches the internal [consultation](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/consult-first.md)
+and [retrieval](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/retrieve-first.md) gates after every
 triage; the triage result controls depth. They are references, not separately
 discoverable skills.
 
@@ -140,146 +140,146 @@ sends you there; the rest by
 - [selected shaft profile](../../shaft-skills/ce-pack/entrypoint.md)
 - [shaft profile.json](../../shaft-skills/ce-pack/profile.json)
 - [routing](../../shaft-skills/ce-pack/references/routing.md)
-- [doc-claim review](../../chaos-engine/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
-- [docs follow the change](../../chaos-engine/references/docs-follow-change.md): reader-facing command, flag, and default contracts stay current, including changes already made in the session
-- [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
-- [delegation](../../chaos-engine/references/delegation.md)
-- [delegation cycle](../../chaos-engine/references/delegation-cycle.md)
-- [delivery cycle](../../chaos-engine/references/delivery-cycle.md)
-- [external contribution](../../chaos-engine/references/external-contribution.md)
-- [execution workflows](../../chaos-engine/references/execution-workflows.md)
-- [gate fail-closed](../../chaos-engine/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
-- [moving-channel pin](../../chaos-engine/references/moving-channel-pin.md): pin policy for upstream channels that keep shipping newer builds
-- [progress log](../../chaos-engine/references/progress-log.md): workers append a progress line after every step
-- [radio silence](../../chaos-engine/references/radio-silence.md): block routine SendToUser while radio silence is on
-- [roles](../../chaos-engine/references/roles.md)
-- [heuristics](../../chaos-engine/references/heuristics.md)
-- [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
-- [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
-- [multi-agent PDCA loop](../../chaos-engine/references/multi-agent-pdca.md)
-- [iterative flow rule](../../chaos-engine/references/iterative-flow.md)
-- [investigate lessons](../../chaos-engine/references/investigate-lessons.md)
-- [parallel streams](../../chaos-engine/references/parallel-streams.md)
-- [process-owner / Scrum-master](../../chaos-engine/references/process-owner-scrum-master.md)
-- [decision-quality baseline](../../chaos-engine/decision-quality-baseline.md)
-- [decision-quality rubric](../../chaos-engine/decision-quality-rubric.md)
-- [decision-quality calibration](../../chaos-engine/decision-quality-calibration.md)
-- [decision-quality calibration aggregate](../../chaos-engine/decision-quality-calibration.aggregate.json)
-- [decision-quality report](../../chaos-engine/decision-quality-report.md)
-- [task isolation](../../chaos-engine/references/task-isolation.md)
-- [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
-- [client-name scrub](../../chaos-engine/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
-- [mobile-retro harness](../../chaos-engine/references/mobile-retro-harness.md): results freeze, backend Blocked, primary time-cap, tracked NO_PUSH, evidence pin, NamedBlock by gap id
-- [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
-- [rule retirement](../../chaos-engine/references/rule-retirement.md)
-- [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
-- [cleanup at close](../../chaos-engine/references/cleanup-at-close.md): clean after verified delivery; disk free-GiB tiers
-- [CE upgrade on release](../../chaos-engine/references/ce-upgrade-on-release.md): VERSION calver + upgrade-session for linked worktrees
-- [Work ordering](../../chaos-engine/references/work-ordering.md): close open PRs before new work; bugs → features → epics
-- [Commit identity](../../chaos-engine/references/commit-identity.md): ChaosEngine author only on the engine repo + user-guide pages repo
-- [PR scope check](../../chaos-engine/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-PR-SCOPE)
-- [H-SCOPE](../../chaos-engine/references/h-scope.md): L41 title-scope + sequential-wip + parallel_stream_conflict / path-claim
-- [CE retro 2026.10.31.6 SPEC](../../chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md): pointer to origin-only guides SPEC (H-IDENTITY / L64 / H-SCOPE)
-- [CE rules 2026.10.31.7 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-7-SPEC.md): WoW + memory dump + L66–L77 pointer
-- [CE rules 2026.10.31.8 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
-- [CE rules 2026.10.31.11 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
-- [CE rules 2026.10.31.12 SPEC](../../chaos-engine/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
-- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.quarter.YYYYMMDD.n, #7702)](../../chaos-engine/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
-- [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
-- [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
-- [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
-- [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): read-only queue diagnostic; no re-arm after eviction; no scheduled soft-fail
-- [mobile client automation](../../chaos-engine/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
-- [design review / video worker checklist](../../chaos-engine/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
-- [narration review](../../chaos-engine/references/details/narration-review.md): spoken-introduction loudness, noise, one-take, and script checks
-- [harness learn](../../chaos-engine/references/harness-learn.md)
-- [learn traces](../../chaos-engine/references/learn-traces.md)
-- [design loop](../../chaos-engine/references/design-loop.md)
-- [fix bug class](../../chaos-engine/references/fix-bug-class.md): owned-path transactional repair + full version-hop matrix
-- [explicit staging](../../chaos-engine/references/explicit-staging.md): set -e; stage named paths only; never commit -a
-- [profile slow installs](../../chaos-engine/references/profile-slow-installs.md): profile_installs.py timing summariser across worktrees
-- [gemini quota wait](../../chaos-engine/references/gemini-quota-wait.md): one-shot resume after Gemini 429/UI grey-out
-- [appium driver npm recover](../../chaos-engine/references/appium-driver-npm-recover.md): uninstall then driver install --source=npm after null-package
-- [deep research](../../chaos-engine/references/deep-research.md)
-- [UI delivery](../../chaos-engine/references/ui-delivery.md)
-- [public landing](../../chaos-engine/references/public-landing.md)
-- [add-ons](../../chaos-engine/references/addons.md)
-- [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
-- [hook trigger map](../../chaos-engine/references/hook-trigger-map.md)
-- [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
-- [work GitHub planning](../../chaos-engine/references/work-github-planning.md)
-- [work item](../../chaos-engine/references/work-item.md)
-- [work-item adapters](../../chaos-engine/references/work-item-adapters.md)
-- [graphify](../../chaos-engine/references/graphify.md)
+- [doc-claim review](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/doc-claim-review.md): review checklist that docs claim matches code for every new gate
+- [docs follow the change](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/docs-follow-change.md): reader-facing command, flag, and default contracts stay current, including changes already made in the session
+- [ethical conduct](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ethical-conduct.md)
+- [delegation](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delegation.md)
+- [delegation cycle](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delegation-cycle.md)
+- [delivery cycle](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delivery-cycle.md)
+- [external contribution](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/external-contribution.md)
+- [execution workflows](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/execution-workflows.md)
+- [gate fail-closed](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/gate-fail-closed.md): new observation gates FAIL when required input is missing or empty
+- [moving-channel pin](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/moving-channel-pin.md): pin policy for upstream channels that keep shipping newer builds
+- [progress log](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/progress-log.md): workers append a progress line after every step
+- [radio silence](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/radio-silence.md): block routine SendToUser while radio silence is on
+- [roles](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/roles.md)
+- [heuristics](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/heuristics.md)
+- [orchestrator bootstrap](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/orchestrator-bootstrap.md)
+- [orchestrator follow-through](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/orchestrator-follow-through.md)
+- [multi-agent PDCA loop](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/multi-agent-pdca.md)
+- [iterative flow rule](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/iterative-flow.md)
+- [investigate lessons](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/investigate-lessons.md)
+- [parallel streams](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/parallel-streams.md)
+- [process-owner / Scrum-master](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/process-owner-scrum-master.md)
+- [decision-quality baseline](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-baseline.md)
+- [decision-quality rubric](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-rubric.md)
+- [decision-quality calibration](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-calibration.md)
+- [decision-quality calibration aggregate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-calibration.aggregate.json)
+- [decision-quality report](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-report.md)
+- [task isolation](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/task-isolation.md)
+- [verification-gap lens](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/verification-gap-lens.md)
+- [client-name scrub](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
+- [mobile-retro harness](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/mobile-retro-harness.md): results freeze, backend Blocked, primary time-cap, tracked NO_PUSH, evidence pin, NamedBlock by gap id
+- [reflection checkpoints](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/reflection-checkpoints.md)
+- [rule retirement](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/rule-retirement.md)
+- [cleanup scopes](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/cleanup-scopes.md)
+- [cleanup at close](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/cleanup-at-close.md): clean after verified delivery; disk free-GiB tiers
+- [CE upgrade on release](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-upgrade-on-release.md): VERSION calver + upgrade-session for linked worktrees
+- [Work ordering](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/work-ordering.md): close open PRs before new work; bugs → features → epics
+- [Commit identity](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/commit-identity.md): ChaosEngine author only on the engine repo + user-guide pages repo
+- [PR scope check](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/pr-scope-check.md): PR diff paths must match stated ## Scope (H-PR-SCOPE)
+- [H-SCOPE](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/h-scope.md): L41 title-scope + sequential-wip + parallel_stream_conflict / path-claim
+- [CE retro 2026.10.31.6 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-retro-2026-10-31-6-SPEC.md): pointer to origin-only guides SPEC (H-IDENTITY / L64 / H-SCOPE)
+- [CE rules 2026.10.31.7 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-rules-2026-10-31-7-SPEC.md): WoW + memory dump + L66–L77 pointer
+- [CE rules 2026.10.31.8 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-rules-2026-10-31-8-SPEC.md): L78–L81 + install-perf + trainee 600+ pointer
+- [CE rules 2026.10.31.11 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-rules-2026-10-31-11-SPEC.md): L94 installer self-provision pointer
+- [CE rules 2026.10.31.12 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-rules-2026-10-31-12-SPEC.md): L82–L97 mega batch pointer
+- [CE rules 2026.10.31.13 SPEC (last legacy-scheme version; current scheme 0.quarter.YYYYMMDD.n, #7702)](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-rules-2026-10-31-13-SPEC.md): L98–L101 + H/C/E/Carl pointer
+- [checkpoint resume](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
+- [worker keep-alive](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/worker-keep-alive.md): non-empty keep-alive between turns
+- [sequential WIP](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
+- [auto-merge re-arm](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/automerge-rearm.md): read-only queue diagnostic; no re-arm after eviction; no scheduled soft-fail
+- [mobile client automation](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
+- [design review / video worker checklist](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
+- [narration review](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/details/narration-review.md): spoken-introduction loudness, noise, one-take, and script checks
+- [harness learn](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/harness-learn.md)
+- [learn traces](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/learn-traces.md)
+- [design loop](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/design-loop.md)
+- [fix bug class](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/fix-bug-class.md): owned-path transactional repair + full version-hop matrix
+- [explicit staging](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/explicit-staging.md): set -e; stage named paths only; never commit -a
+- [profile slow installs](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/profile-slow-installs.md): profile_installs.py timing summariser across worktrees
+- [gemini quota wait](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/gemini-quota-wait.md): one-shot resume after Gemini 429/UI grey-out
+- [appium driver npm recover](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/appium-driver-npm-recover.md): uninstall then driver install --source=npm after null-package
+- [deep research](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/deep-research.md)
+- [UI delivery](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ui-delivery.md)
+- [public landing](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/public-landing.md)
+- [add-ons](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/addons.md)
+- [lifecycle hooks](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/lifecycle-hooks.md)
+- [hook trigger map](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/hook-trigger-map.md)
+- [work GitHub playbook](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/work-github-playbook.md)
+- [work GitHub planning](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/work-github-planning.md)
+- [work item](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/work-item.md)
+- [work-item adapters](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/work-item-adapters.md)
+- [graphify](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/graphify.md)
 - [repository Graphify procedure](../../shaft-skills/ce-pack/references/graphify.md)
 - [shaft profile: product track](../../shaft-skills/ce-pack/references/product-track.md)
 - [shaft profile: self improve master plan](../../shaft-skills/ce-pack/references/self-improve-master-plan.md)
 - [shaft profile: self improve research synthesis](../../shaft-skills/ce-pack/references/self-improve-research-synthesis.md)
-- [research receipt](../../chaos-engine/references/research-receipt.md)
-- [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
-- [bigger picture first](../../chaos-engine/references/bigger-picture-first.md): name the goal, the context, and what a local hotfix would miss before retrieve
-- [harness maintenance](../../chaos-engine/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
-- [delete guard](../../chaos-engine/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
-- [delete-check discipline](../../chaos-engine/references/delete-check-discipline.md): install+doctor delete-guard, tool.py delete-check before every delete, owner code only
-- [harness files](../../chaos-engine/references/harness-files.md): source-repo index of every harness file off the task routes, so both entries reach it
-- [TDD](../../chaos-engine/references/tdd.md)
-- [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
-- [context economy](../../chaos-engine/references/context-economy.md)
-- [context firewall](../../chaos-engine/references/context-firewall.md)
-- [meta-optimize](../../chaos-engine/references/meta-optimize.md) (periodic; not continuous)
-- [draft skill PRs](../../chaos-engine/references/draft-skill-pr.md) (opt-in; default OFF)
-- [script first](../../chaos-engine/references/script-first.md)
-- [catalog](../../chaos-engine/references/catalog.md)
-- [harness map](../../chaos-engine/references/harness-map.md)
-- [ci status economy](../../chaos-engine/references/ci-status-economy.md)
-- [content-scan preflight](../../chaos-engine/references/content-scan-preflight.md): G-META content scan + planted --self-test (exit 0 = plant detected)
-- [codacy action required gate](../../chaos-engine/references/static-analysis-gate.md)
-- [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)
-- [delegate card](../../chaos-engine/references/delegate-card.md)
-- [delivery phase gates](../../chaos-engine/references/delivery-phase-gates.md)
-- [durable jobs](../../chaos-engine/references/durable-jobs.md)
-- [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
-- [eval parity fixtures](../../chaos-engine/references/eval-parity-fixtures.md)
-- [evolving playbook](../../chaos-engine/references/evolving-playbook.md)
-- [insight extract](../../chaos-engine/references/insight-extract.md)
-- [workflow induction](../../chaos-engine/references/workflow-induction.md)
-- [external reflection](../../chaos-engine/references/external-reflection.md)
-- [prompt evolution](../../chaos-engine/references/prompt-evolution.md)
-- [self-modify](../../chaos-engine/references/self-modify.md)
-- [context rot](../../chaos-engine/references/context-rot.md)
-- [genai spans](../../chaos-engine/references/genai-spans.md)
-- [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
-- [heal route](../../chaos-engine/references/heal-route.md)
-- [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)
-- [icm architect](../../chaos-engine/references/icm-architect.md)
-- [identity push back](../../chaos-engine/references/identity-push-back.md)
-- [installer program executable spec](../../chaos-engine/references/installer-program-executable-spec.md)
-- [installer program](../../chaos-engine/references/installer-program.md)
-- [level 1 catalog](../../chaos-engine/references/level-1-catalog.md)
-- [memory provenance](../../chaos-engine/references/memory-provenance.md)
-- [no proxy](../../chaos-engine/references/no-proxy.md)
-- [outbound send](../../chaos-engine/references/outbound-send.md): one send rule for irreversible external sends
-- [permanent rules](../../chaos-engine/references/permanent-rules.md)
-- [prefer cli over mcp](../../chaos-engine/references/prefer-cli-over-mcp.md)
-- [router contract](../../chaos-engine/references/router-contract.md)
-- [self improve master plan](../../chaos-engine/references/self-improve-master-plan.md)
-- [significance capture](../../chaos-engine/references/significance-capture.md)
-- [silent verify](../../chaos-engine/references/silent-verify.md)
-- [skill compress audit](../../chaos-engine/references/skill-compress-audit.md)
-- [tip churn preflight](../../chaos-engine/references/tip-churn-preflight.md)
-- [token budget modes](../../chaos-engine/references/token-budget-modes.md)
-- [untangle lesson](../../chaos-engine/references/untangle-lesson.md)
-- [zero llm catalog](../../chaos-engine/references/zero-llm-catalog.md)
-- [LICENSE](../../chaos-engine/LICENSE)
-- [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
+- [research receipt](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/research-receipt.md)
+- [bot entry](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
+- [bigger picture first](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/bigger-picture-first.md): name the goal, the context, and what a local hotfix would miss before retrieve
+- [harness maintenance](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
+- [delete guard](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
+- [delete-check discipline](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delete-check-discipline.md): install+doctor delete-guard, tool.py delete-check before every delete, owner code only
+- [harness files](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/harness-files.md): source-repo index of every harness file off the task routes, so both entries reach it
+- [TDD](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/tdd.md)
+- [TDD failure modes](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/tdd-failure-modes.md)
+- [context economy](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/context-economy.md)
+- [context firewall](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/context-firewall.md)
+- [meta-optimize](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/meta-optimize.md) (periodic; not continuous)
+- [draft skill PRs](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/draft-skill-pr.md) (opt-in; default OFF)
+- [script first](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/script-first.md)
+- [catalog](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/catalog.md)
+- [harness map](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/harness-map.md)
+- [ci status economy](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ci-status-economy.md)
+- [content-scan preflight](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/content-scan-preflight.md): G-META content scan + planted --self-test (exit 0 = plant detected)
+- [codacy action required gate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/static-analysis-gate.md)
+- [codacy complexity gate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/complexity-gate.md)
+- [delegate card](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delegate-card.md)
+- [delivery phase gates](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/delivery-phase-gates.md)
+- [durable jobs](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/durable-jobs.md)
+- [eliminate waste](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/eliminate-waste.md)
+- [eval parity fixtures](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/eval-parity-fixtures.md)
+- [evolving playbook](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/evolving-playbook.md)
+- [insight extract](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/insight-extract.md)
+- [workflow induction](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/workflow-induction.md)
+- [external reflection](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/external-reflection.md)
+- [prompt evolution](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/prompt-evolution.md)
+- [self-modify](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/self-modify.md)
+- [context rot](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/context-rot.md)
+- [genai spans](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/genai-spans.md)
+- [harness eval suite](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/harness-eval-suite.md)
+- [heal route](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/heal-route.md)
+- [host parity matrix](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/host-parity-matrix.md)
+- [icm architect](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/icm-architect.md)
+- [identity push back](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/identity-push-back.md)
+- [installer program executable spec](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/installer-program-executable-spec.md)
+- [installer program](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/installer-program.md)
+- [level 1 catalog](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/level-1-catalog.md)
+- [memory provenance](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/memory-provenance.md)
+- [no proxy](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/no-proxy.md)
+- [outbound send](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/outbound-send.md): one send rule for irreversible external sends
+- [permanent rules](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/permanent-rules.md)
+- [prefer cli over mcp](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/prefer-cli-over-mcp.md)
+- [router contract](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/router-contract.md)
+- [self improve master plan](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/self-improve-master-plan.md)
+- [significance capture](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/significance-capture.md)
+- [silent verify](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/silent-verify.md)
+- [skill compress audit](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/skill-compress-audit.md)
+- [tip churn preflight](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/tip-churn-preflight.md)
+- [token budget modes](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/token-budget-modes.md)
+- [untangle lesson](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/untangle-lesson.md)
+- [zero llm catalog](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/zero-llm-catalog.md)
+- [LICENSE](https://github.com/ShaftHQ/chaosengine-harness/blob/main/LICENSE)
+- [third-party notices](https://github.com/ShaftHQ/chaosengine-harness/blob/main/THIRD_PARTY_NOTICES.md)
 
 Caveman and Ponytail are pinned vendor companions, not restated in the
-entrypoint: [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md),
-[Ponytail](../../chaos-engine/vendor/ponytail/INVENTORY.md), and
-[ICM Architect](../../chaos-engine/vendor/icm-architect/INVENTORY.md). MIT notices stay at
-[Caveman](../../chaos-engine/references/caveman.LICENSE),
-[Ponytail](../../chaos-engine/references/ponytail.LICENSE),
-[TDD](../../chaos-engine/references/test-driven-development.LICENSE).
+entrypoint: [Caveman](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/caveman/INVENTORY.md),
+[Ponytail](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/ponytail/INVENTORY.md), and
+[ICM Architect](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/icm-architect/INVENTORY.md). MIT notices stay at
+[Caveman](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/caveman.LICENSE),
+[Ponytail](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ponytail.LICENSE),
+[TDD](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/test-driven-development.LICENSE).
 
 ### Repository playbooks
 
@@ -336,7 +336,7 @@ the plumbing differs.
 
 | Host | How it finds the entrypoint |
 | --- | --- |
-| Codex | Reads `AGENTS.md` and the canonical [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) body. Host adapters are installer-generated; see [INSTALL.md](../../chaos-engine/INSTALL.md). |
+| Codex | Reads `AGENTS.md` and the canonical [ChaosEngine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) body. Host adapters are installer-generated; see [INSTALL.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/INSTALL.md). |
 | Claude | Reads `CLAUDE.md`, which imports `AGENTS.md`, then the same canonical body. |
 | Gemini | Reads `GEMINI.md`, then the same canonical body. |
 | Grok | Reads `AGENTS.md`, then the same canonical body. |
@@ -350,7 +350,7 @@ an agent on any host can see which surfaces exist and confirm they are thin.
 ### Origin-tracked host instruction files
 
 Installer-generated adapters are not origin-tracked. Path table:
-[INSTALL.md](../../chaos-engine/INSTALL.md). Origin tracks `AGENTS.md`,
+[INSTALL.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/INSTALL.md). Origin tracks `AGENTS.md`,
 `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, and Copilot
 scope files `.github/instructions/framework-source.instructions.md` and
 `.github/instructions/java-tests.instructions.md`.
@@ -485,35 +485,35 @@ green run report a hundred percent of nothing.
 
 Generated skill index (`chaos-engine/harness_index.py`):
 
-- [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
-- [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
-- [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
-- [learn-from-external-harnesses](../../chaos-engine/skills/learn-from-external-harnesses/SKILL.md) (portable)
-- [kanban](../../chaos-engine/skills/kanban/SKILL.md) (portable)
-- [architect](../../chaos-engine/skills/architect/SKILL.md) (portable)
-- [technical-presentations](../../chaos-engine/skills/technical-presentations/SKILL.md) (portable)
-- [pre-done-self-review](../../chaos-engine/skills/pre-done-self-review/SKILL.md) (portable)
-- [job-apply](../../chaos-engine/skills/job-apply/SKILL.md) (portable)
-- [job-search](../../chaos-engine/skills/job-search/SKILL.md) (portable)
-- [job-applications](../../chaos-engine/skills/job-applications/SKILL.md) (portable)
-- [docs-hygiene](../../chaos-engine/skills/docs-hygiene/SKILL.md) (portable)
-- [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
-- [ci-cd](../../chaos-engine/skills/ci-cd/SKILL.md) (portable)
-- [security-audit](../../chaos-engine/skills/security-audit/SKILL.md) (portable)
-- [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
-- [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md) (portable)
-- [omniroute](../../chaos-engine/skills/omniroute/SKILL.md) (route)
-- [freetoken](../../chaos-engine/skills/freetoken/SKILL.md) (route)
-- [colibri](../../chaos-engine/skills/colibri/SKILL.md) (route)
-- [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md) (route)
-- [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) (route)
-- [caveman](../../chaos-engine/vendor/caveman/skills/caveman/SKILL.md) (vendor)
-- [ultracave](../../chaos-engine/vendor/caveman/skills/ultracave/SKILL.md) (vendor)
-- [ponytail](../../chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md) (vendor)
-- [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
+- [chaos-engine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) (portable)
+- [work-item](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/work-item/SKILL.md) (portable)
+- [self-improve](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/self-improve/SKILL.md) (portable)
+- [learn-from-external-harnesses](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/learn-from-external-harnesses/SKILL.md) (portable)
+- [kanban](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/kanban/SKILL.md) (portable)
+- [architect](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/architect/SKILL.md) (portable)
+- [technical-presentations](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/technical-presentations/SKILL.md) (portable)
+- [pre-done-self-review](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/pre-done-self-review/SKILL.md) (portable)
+- [job-apply](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/job-apply/SKILL.md) (portable)
+- [job-search](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/job-search/SKILL.md) (portable)
+- [job-applications](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/job-applications/SKILL.md) (portable)
+- [docs-hygiene](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/docs-hygiene/SKILL.md) (portable)
+- [git-cleanup](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/git-cleanup/SKILL.md) (portable)
+- [ci-cd](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/ci-cd/SKILL.md) (portable)
+- [security-audit](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/security-audit/SKILL.md) (portable)
+- [local-agency](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-agency/SKILL.md) (portable)
+- [local-runtimes](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-runtimes/SKILL.md) (portable)
+- [omniroute](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/omniroute/SKILL.md) (route)
+- [freetoken](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/freetoken/SKILL.md) (route)
+- [colibri](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/colibri/SKILL.md) (route)
+- [local-openai-compat](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-openai-compat/SKILL.md) (route)
+- [local-coding-delegate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/local-coding-delegate/SKILL.md) (route)
+- [caveman](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/caveman/skills/caveman/SKILL.md) (vendor)
+- [ultracave](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/caveman/skills/ultracave/SKILL.md) (vendor)
+- [ponytail](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/ponytail/skills/ponytail/SKILL.md) (vendor)
+- [icm-architect](https://github.com/ShaftHQ/chaosengine-harness/blob/main/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
 
 <!-- HARNESS-INDEX:END -->
-- [CE lessons 2026-11-02 SPEC](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer
+- [CE lessons 2026-11-02 SPEC](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-lessons-2026-11-02-SPEC.md): orchestrator/media/harness gates #7692–#7721 pointer
 
 ## Specialist skill inventory (entry coverage)
 
@@ -538,10 +538,10 @@ Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage
 [ce_version.py](../../scripts/ci/ce_version.py),
 [flutter_emulator_preflight.sh](../../scripts/ci/flutter_emulator_preflight.sh),
 [run_ubuntu_flutter_emulator_e2e.sh](../../scripts/ci/run_ubuntu_flutter_emulator_e2e.sh),
-[lessons_2026_11_02.py](../../chaos-engine/rules/lessons_2026_11_02.py),
-[lessons_repeat_failure_pdca.py](../../chaos-engine/rules/lessons_repeat_failure_pdca.py),
-[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/references/ce-repeat-failure-pdca-SPEC.md),
-[ce-repeat-failure-pdca-SPEC.md](../../chaos-engine/guides/ce-repeat-failure-pdca-SPEC.md),
-[repeat-failure-pdca.md](../../chaos-engine/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
-[ce-lessons-2026-11-02-SPEC.md](../../chaos-engine/references/ce-lessons-2026-11-02-SPEC.md).
+[lessons_2026_11_02.py](https://github.com/ShaftHQ/chaosengine-harness/blob/main/rules/lessons_2026_11_02.py),
+[lessons_repeat_failure_pdca.py](https://github.com/ShaftHQ/chaosengine-harness/blob/main/rules/lessons_repeat_failure_pdca.py),
+[ce-repeat-failure-pdca-SPEC.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-repeat-failure-pdca-SPEC.md),
+[ce-repeat-failure-pdca-SPEC.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/guides/ce-repeat-failure-pdca-SPEC.md),
+[repeat-failure-pdca.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
+[ce-lessons-2026-11-02-SPEC.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-lessons-2026-11-02-SPEC.md).
 

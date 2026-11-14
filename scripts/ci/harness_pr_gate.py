@@ -1537,46 +1537,6 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_assemble_shard_blob': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_assert_tests_executed': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_build_shaft_mcp_live_jar': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_ce_brief': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_ce_brief_doctor': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_ce_brief_eval_fixtures': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_cli_over_mcp': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_codacy_complexity_gate_5747': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_delivery_phase_gates': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_empty_project_smoke': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_exit2_fidelity': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_g1_doctor_heal_5812_5813': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_host_parity_5698': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_host_parity_5780_5785': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_host_parity_matrix': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_install_golden_path': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_install_verify_5699': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_install_verify_5703': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learn_contracts': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5767_5770': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5776': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5787': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5790_5791': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5795': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5852': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_learning_5882_5883': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_memory_migrate': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_missing_core_recovery': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_official_self_heal_5811': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_overlay_commit_bytes_6121': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_portable_learn_5847': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_s0s1_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_s2_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_s4_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_self_improve': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_sessionstart_locator_parity': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_soft_fixnext_5831': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_token_budget_modes': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_token_max': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_uninstall_clarity': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_wave_a_health_truth': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_wave_b_router_catalog': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_check_maven_release_version': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_colibri_probe': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_decision_quality_baseline': UNGATED_TEST_ALLOWLIST_REASON,
@@ -1766,14 +1726,15 @@ def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]
     ]
 
 
+# #8057: the ChaosEngine ceilings (always-loaded budget, decision-quality
+# baseline) moved with the source to ShaftHQ/chaosengine-harness, which
+# enforces them there.
 _CEILING_PATHS = frozenset(
     {
-        "chaos-engine/always-loaded-budget.json",
         "scripts/ci/agent_guidance_budget.json",
         "scripts/ci/javadoc_coverage_baseline.json",
         "scripts/ci/test_reference_baseline.json",
         ".github/errorprone-baseline.json",
-        "chaos-engine/decision-quality-score.baseline.json",
         "scripts/ci/harness_pr_gate.py",
     }
 )
@@ -2351,9 +2312,33 @@ def classify_paths(paths: list[str]) -> GatePlan:
     return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
 
 
+MOVED_TEST_PREFIX = "tests.scripts.test_chaos_engine_"
+
+
+def _drop_moved_modules(plan: GatePlan, root: Path) -> GatePlan:
+    """#8057: ``test_chaos_engine_*`` suites moved to ShaftHQ/chaosengine-harness.
+
+    Drop those module ids when their file is gone, and any check left empty.
+    Temporary until e2 rewires the surface tables (tracked on #8057).
+    """
+
+    def present(module: str) -> bool:
+        if not module.startswith(MOVED_TEST_PREFIX):
+            return True
+        file_name = module.split(".")[2] + ".py"
+        return (root / "tests" / "scripts" / file_name).is_file()
+
+    checks = []
+    for check in plan.checks:
+        modules = tuple(module for module in check.modules if present(module))
+        if modules:
+            checks.append(replace(check, modules=modules))
+    return replace(plan, checks=tuple(checks))
+
+
 def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
     """``classify_paths`` plus weekly-only tests that name a changed harness module."""
-    plan = classify_paths(paths)
+    plan = _drop_moved_modules(classify_paths(paths), root)
     touched = touched_allowlisted_modules(root, paths)
     if not touched:
         return plan

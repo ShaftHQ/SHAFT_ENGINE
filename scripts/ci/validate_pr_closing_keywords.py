@@ -436,7 +436,7 @@ def parse_commits_json(raw: str) -> list[tuple[str, str]]:
 
 def mindset_body_errors(body: str) -> list[dict[str, str]]:
     """Reject a missing riskiest-assumption section, and a lessons PR with no outcome (#6900, #6902)."""
-    module_path = Path(__file__).resolve().parents[2] / "chaos-engine" / "harness_mindset.py"
+    module_path = Path(__file__).resolve().with_name("harness_mindset.py")
     spec = importlib.util.spec_from_file_location("chaos_engine_harness_mindset_pr_gate", module_path)
     if spec is None or spec.loader is None:
         return [issue("riskiest-assumption", "pull_request.body", "harness mindset checks are unavailable")]
