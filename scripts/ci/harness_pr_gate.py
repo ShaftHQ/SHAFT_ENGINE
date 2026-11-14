@@ -1875,9 +1875,6 @@ def _int_expr(node: ast.AST) -> int | None:
     return None
 
 
-_NESTED_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
-
-
 def _is_allowlist_binding(node: ast.AST) -> bool:
     if isinstance(node, ast.Name):
         return node.id == _ALLOWLIST_NAME and isinstance(node.ctx, (ast.Store, ast.Del))
@@ -1890,10 +1887,35 @@ def _is_allowlist_binding(node: ast.AST) -> bool:
     return False
 
 
+def _argument_expressions(args: ast.arguments) -> list[ast.expr]:
+    parameters = [args.vararg, args.kwarg, *args.posonlyargs, *args.args, *args.kwonlyargs]
+    nodes = [node for node in (*args.defaults, *args.kw_defaults) if node is not None]
+    nodes.extend(arg.annotation for arg in parameters if arg is not None and arg.annotation is not None)
+    return nodes
+
+
+def _signature_binds(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> bool:
+    """Defaults, annotations, and decorators. The body is not a module store."""
+    nodes: list[ast.AST] = list(_argument_expressions(node.args))
+    if not isinstance(node, ast.Lambda):
+        nodes.extend(node.decorator_list)
+        if node.returns is not None:
+            nodes.append(node.returns)
+    return any(_contains_binding(item) for item in nodes)
+
+
+def _class_header_binds(node: ast.ClassDef) -> bool:
+    nodes: list[ast.AST] = [*node.decorator_list, *node.bases]
+    nodes.extend(keyword.value for keyword in node.keywords)
+    return any(_contains_binding(item) for item in nodes)
+
+
 def _contains_binding(node: ast.AST) -> bool:
-    """True when this node binds the name outside a nested function, class, or lambda."""
-    if isinstance(node, _NESTED_SCOPES):
-        return False
+    """True when this node binds the name outside a nested body."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        return _signature_binds(node)
+    if isinstance(node, ast.ClassDef):
+        return _class_header_binds(node)
     if _is_allowlist_binding(node):
         return True
     return any(_contains_binding(child) for child in ast.iter_child_nodes(node))
@@ -1955,18 +1977,49 @@ def _walk_if(stmt: ast.If, value: int | None) -> int | None:
     return body
 
 
-def _walk_loop(stmt: ast.While | ast.For | ast.AsyncFor, value: int | None) -> int | None:
-    """while False skips its body. Its else still runs. Any other binding loop is not an int."""
-    if isinstance(stmt, ast.While) and _const_bool(stmt.test) is False:
-        return _walk_block(stmt.orelse, value)
-    binds = _block_binds(stmt.body)
-    if isinstance(stmt, ast.While):
-        binds = binds or _contains_binding(stmt.test)
-    else:
-        binds = binds or _contains_binding(stmt.target) or _contains_binding(stmt.iter)
-    if binds:
+def _const_truth(node: ast.expr) -> bool | None:
+    if isinstance(node, ast.Constant):
+        return bool(node.value)
+    return None
+
+
+def _always_breaks(body: list[ast.stmt]) -> bool:
+    """True when a top-level break is reached without an earlier jump."""
+    plain = (ast.Pass, ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Expr, ast.Delete)
+    for stmt in body:
+        if isinstance(stmt, ast.Break):
+            return True
+        if not isinstance(stmt, plain):
+            return False
+    return False
+
+
+def _walk_while(stmt: ast.While, value: int | None) -> int | None:
+    """A falsy constant skips the body and still runs else. while True never runs else."""
+    truth = _const_truth(stmt.test)
+    if truth is False:
+        if _block_binds(stmt.orelse):
+            raise ValueError(_ALLOWLIST_NAME)
+        return value
+    if _contains_binding(stmt.test) or _block_binds(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    if truth is not True and _block_binds(stmt.orelse):
         raise ValueError(_ALLOWLIST_NAME)
     return value
+
+
+def _walk_for(stmt: ast.For | ast.AsyncFor, value: int | None) -> int | None:
+    if _contains_binding(stmt.target) or _contains_binding(stmt.iter) or _block_binds(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    if _block_binds(stmt.orelse) and not _always_breaks(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _walk_loop(stmt: ast.While | ast.For | ast.AsyncFor, value: int | None) -> int | None:
+    if isinstance(stmt, ast.While):
+        return _walk_while(stmt, value)
+    return _walk_for(stmt, value)
 
 
 def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
@@ -1986,9 +2039,10 @@ def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
 def _assigned_allowlist_ceiling(text: str) -> int | None:
     """Module-global allowlist integer, or None when that name is not bound there.
 
-    Nested functions, classes, and lambdas are not the module global.
-    A binding that is not a reducible assignment raises ValueError.
-    A syntax error raises ValueError only when a line assigns the name.
+    Function, class, and lambda bodies are not the module global. Their defaults,
+    annotations, decorators, and base expressions are. A binding that is not a
+    reducible assignment raises ValueError. A syntax error raises ValueError only
+    when a line assigns the name.
     """
     try:
         tree = ast.parse(text)

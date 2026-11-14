@@ -1460,6 +1460,50 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertEqual([], ceiling_raises(path, base, function_only))
         class_only = "class C:\n    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
         self.assertEqual([], ceiling_raises(path, base, class_only))
+        for_else = (
+            "for _ in (1,):\n"
+            "    pass\n"
+            "else:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        for_else_lines = ceiling_raises(path, base, for_else)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(for_else_lines))
+        self.assertIn("not an integer", "\n".join(for_else_lines))
+        while_zero = (
+            "while 0:\n"
+            "    pass\n"
+            "else:\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        while_zero_lines = ceiling_raises(path, base, while_zero)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(while_zero_lines))
+        self.assertIn("not an integer", "\n".join(while_zero_lines))
+        default_walrus = "def f(x=(UNGATED_TEST_ALLOWLIST_CEILING := 98)):\n    pass\n"
+        default_lines = ceiling_raises(path, base, default_walrus)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(default_lines))
+        self.assertIn("not an integer", "\n".join(default_lines))
+        lambda_walrus = "f = lambda x=(UNGATED_TEST_ALLOWLIST_CEILING := 98): x\n"
+        lambda_lines = ceiling_raises(path, base, lambda_walrus)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(lambda_lines))
+        self.assertIn("not an integer", "\n".join(lambda_lines))
+        annotation_walrus = "def f(x: (UNGATED_TEST_ALLOWLIST_CEILING := 98)):\n    pass\n"
+        annotation_lines = ceiling_raises(path, base, annotation_walrus)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(annotation_lines))
+        self.assertIn("not an integer", "\n".join(annotation_lines))
+        decorated = (
+            "def d(value):\n"
+            "    return lambda fn: fn\n"
+            "@d(UNGATED_TEST_ALLOWLIST_CEILING := 98)\n"
+            "def f():\n"
+            "    pass\n"
+        )
+        decorated_lines = ceiling_raises(path, base, decorated)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(decorated_lines))
+        self.assertIn("not an integer", "\n".join(decorated_lines))
+        class_base = "class C((UNGATED_TEST_ALLOWLIST_CEILING := 98)):\n    pass\n"
+        class_base_lines = ceiling_raises(path, base, class_base)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(class_base_lines))
+        self.assertIn("not an integer", "\n".join(class_base_lines))
         mention = "The UNGATED_TEST_ALLOWLIST_CEILING value is documented here.\n"
         self.assertEqual([], ceiling_raises(path, base, mention))
 
