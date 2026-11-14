@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import fnmatch
 import json
+import math
 import os
 import re
 import shutil
@@ -1764,6 +1766,540 @@ def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]
     ]
 
 
+_CEILING_PATHS = frozenset(
+    {
+        "chaos-engine/always-loaded-budget.json",
+        "scripts/ci/agent_guidance_budget.json",
+        "scripts/ci/javadoc_coverage_baseline.json",
+        "scripts/ci/test_reference_baseline.json",
+        ".github/errorprone-baseline.json",
+        "chaos-engine/decision-quality-score.baseline.json",
+        "scripts/ci/harness_pr_gate.py",
+    }
+)
+_ALWAYS_LOADED_RAISE_KEYS = ("bytes", "tolerance_pct")
+_ALLOWLIST_NAME = "UNGATED_TEST_ALLOWLIST_CEILING"
+# Used only when ast.parse fails. Optional indent, the name, an optional
+# annotation, then = or an augmented assignment. A mention has no operator.
+_ALLOWLIST_SYNTAX_ASSIGN = re.compile(
+    rf"(?m)^[ \t]*{_ALLOWLIST_NAME}\b"
+    rf"(?:[ \t]*:[^=\n]+)?"
+    rf"[ \t]*(?:\*\*=|>>=|<<=|//=|[@%&|^*/+-]=|=(?!=))"
+)
+
+
+def _ceiling_path(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _format_ceiling(value: float) -> str:
+    if value.is_integer():
+        return str(int(value))
+    return format(value, "g")
+
+
+def _json_object(text: str) -> dict[str, Any] | None:
+    if not text.strip():
+        return {}
+    try:
+        loaded = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(loaded, dict):
+        return loaded
+    return None
+
+
+def _numeric_leaves(node: Any, prefix: str = "") -> dict[str, float]:
+    found: dict[str, float] = {}
+    if not isinstance(node, dict):
+        return found
+    for key, value in node.items():
+        child = f"{prefix}.{key}" if prefix else str(key)
+        if _is_number(value):
+            found[child] = float(value)
+        elif isinstance(value, dict):
+            found.update(_numeric_leaves(value, child))
+    return found
+
+
+def _loosened_lines(
+    path: str,
+    before: dict[str, float],
+    after: dict[str, float],
+    *,
+    higher: bool,
+) -> list[str]:
+    lines: list[str] = []
+    for key in sorted(after):
+        base_value = before.get(key, 0.0)
+        head_value = after[key]
+        # NaN comparisons are false, so a non-finite value would otherwise look absent.
+        if not math.isfinite(head_value):
+            lines.append(f"{path}: {key} is not finite")
+            continue
+        loosened = head_value > base_value if higher else head_value < base_value
+        if loosened:
+            lines.append(
+                f"{path}: {key} {_format_ceiling(base_value)} -> {_format_ceiling(head_value)}"
+            )
+    return lines
+
+
+def _int_expr(node: ast.AST) -> int | None:
+    """Reduce an allowlist ceiling expression to an int. AST only, no eval."""
+    if isinstance(node, ast.Constant) and type(node.value) is int:
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _int_expr(node.operand)
+        if value is None:
+            return None
+        if isinstance(node.op, ast.USub):
+            return -value
+        return value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+        left = _int_expr(node.left)
+        right = _int_expr(node.right)
+        if left is None or right is None:
+            return None
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        return left + right
+    return None
+
+
+def _is_allowlist_binding(node: ast.AST) -> bool:
+    if isinstance(node, ast.Name):
+        return node.id == _ALLOWLIST_NAME and isinstance(node.ctx, (ast.Store, ast.Del))
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        return node.name == _ALLOWLIST_NAME
+    if isinstance(node, ast.MatchMapping):
+        return node.rest == _ALLOWLIST_NAME
+    if isinstance(node, ast.alias):
+        return _ALLOWLIST_NAME in (node.asname, node.name)
+    return False
+
+
+def _argument_expressions(args: ast.arguments) -> list[ast.expr]:
+    parameters = [args.vararg, args.kwarg, *args.posonlyargs, *args.args, *args.kwonlyargs]
+    nodes = [node for node in (*args.defaults, *args.kw_defaults) if node is not None]
+    nodes.extend(arg.annotation for arg in parameters if arg is not None and arg.annotation is not None)
+    return nodes
+
+
+def _signature_binds(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> bool:
+    """Defaults, annotations, and decorators. The body is not a module store."""
+    nodes: list[ast.AST] = list(_argument_expressions(node.args))
+    if not isinstance(node, ast.Lambda):
+        nodes.extend(node.decorator_list)
+        if node.returns is not None:
+            nodes.append(node.returns)
+    return any(_contains_binding(item) for item in nodes)
+
+
+def _class_header_binds(node: ast.ClassDef) -> bool:
+    nodes: list[ast.AST] = [*node.decorator_list, *node.bases]
+    nodes.extend(keyword.value for keyword in node.keywords)
+    return any(_contains_binding(item) for item in nodes)
+
+
+def _node_has_global(node: ast.AST) -> bool:
+    """True for a global of the name that is not inside a function or nested class."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+        return False
+    if isinstance(node, ast.Global):
+        return _ALLOWLIST_NAME in node.names
+    return any(_node_has_global(child) for child in ast.iter_child_nodes(node))
+
+
+def _block_has_global(body: list[ast.stmt]) -> bool:
+    return any(_node_has_global(stmt) for stmt in body)
+
+
+def _stores_outside_scopes(node: ast.AST) -> bool:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+        return False
+    if _is_allowlist_binding(node):
+        return True
+    return any(_stores_outside_scopes(child) for child in ast.iter_child_nodes(node))
+
+
+def _nested_class_binds(node: ast.AST) -> bool:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        return False
+    if isinstance(node, ast.ClassDef):
+        return _contains_binding(node)
+    return any(_nested_class_binds(child) for child in ast.iter_child_nodes(node))
+
+
+def _class_global_stores(node: ast.ClassDef) -> bool:
+    if _block_has_global(node.body) and any(_stores_outside_scopes(stmt) for stmt in node.body):
+        return True
+    return any(_nested_class_binds(stmt) for stmt in node.body)
+
+
+def _contains_binding(node: ast.AST) -> bool:
+    """True when this node binds the name outside a nested function body."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        return _signature_binds(node)
+    if isinstance(node, ast.ClassDef):
+        return _class_header_binds(node) or _class_global_stores(node)
+    if _is_allowlist_binding(node):
+        return True
+    return any(_contains_binding(child) for child in ast.iter_child_nodes(node))
+
+
+def _block_binds(body: list[ast.stmt]) -> bool:
+    return any(_contains_binding(stmt) for stmt in body)
+
+
+def _required_int(value: ast.AST | None) -> int:
+    if value is None:
+        raise ValueError(_ALLOWLIST_NAME)
+    reduced = _int_expr(value)
+    if reduced is None:
+        raise ValueError(_ALLOWLIST_NAME)
+    return reduced
+
+
+def _const_bool(node: ast.expr) -> bool | None:
+    if isinstance(node, ast.Constant) and node.value is True:
+        return True
+    if isinstance(node, ast.Constant) and node.value is False:
+        return False
+    return None
+
+
+def _walk_block(body: list[ast.stmt], value: int | None) -> int | None:
+    for stmt in body:
+        value = _walk_stmt(stmt, value)
+    return value
+
+
+def _walk_plain_assign(
+    targets: list[ast.AST],
+    rhs: ast.AST | None,
+    stmt: ast.AST,
+    value: int | None,
+) -> int | None:
+    named = any(isinstance(target, ast.Name) and target.id == _ALLOWLIST_NAME for target in targets)
+    if named and all(isinstance(target, ast.Name) for target in targets):
+        return _required_int(rhs)
+    if named or _contains_binding(stmt):
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _walk_if(stmt: ast.If, value: int | None) -> int | None:
+    flag = _const_bool(stmt.test)
+    if flag is True:
+        return _walk_block(stmt.body, value)
+    if flag is False:
+        return _walk_block(stmt.orelse, value)
+    if _contains_binding(stmt.test):
+        raise ValueError(_ALLOWLIST_NAME)
+    body = _walk_block(stmt.body, value)
+    orelse = _walk_block(stmt.orelse, value)
+    if body != orelse:
+        raise ValueError(_ALLOWLIST_NAME)
+    return body
+
+
+def _const_truth(node: ast.expr) -> bool | None:
+    if isinstance(node, ast.Constant):
+        return bool(node.value)
+    return None
+
+
+def _always_breaks(body: list[ast.stmt]) -> bool:
+    """True when a top-level break is reached without an earlier jump."""
+    plain = (ast.Pass, ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Expr, ast.Delete)
+    for stmt in body:
+        if isinstance(stmt, ast.Break):
+            return True
+        if not isinstance(stmt, plain):
+            return False
+    return False
+
+
+def _walk_while(stmt: ast.While, value: int | None) -> int | None:
+    """A falsy constant skips the body and still runs else. while True never runs else."""
+    truth = _const_truth(stmt.test)
+    if truth is False:
+        if _block_binds(stmt.orelse):
+            raise ValueError(_ALLOWLIST_NAME)
+        return value
+    if _contains_binding(stmt.test) or _block_binds(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    if truth is not True and _block_binds(stmt.orelse):
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _sequence_kind(node: ast.List | ast.Tuple | ast.Set) -> str:
+    if any(isinstance(elt, ast.Starred) for elt in node.elts):
+        return "unknown"
+    if node.elts:
+        return "nonempty"
+    return "empty"
+
+
+def _iter_kind(node: ast.expr) -> str:
+    """empty, nonempty, or unknown. Only a proven nonempty iterator can skip else."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, (str, bytes)):
+        return "empty" if len(node.value) == 0 else "nonempty"
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return _sequence_kind(node)
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "set"
+        and not node.args
+        and not node.keywords
+    ):
+        return "empty"
+    return "unknown"
+
+
+def _walk_for(stmt: ast.For | ast.AsyncFor, value: int | None) -> int | None:
+    if _contains_binding(stmt.iter):
+        raise ValueError(_ALLOWLIST_NAME)
+    kind = _iter_kind(stmt.iter)
+    if kind == "empty":
+        if _block_binds(stmt.orelse):
+            raise ValueError(_ALLOWLIST_NAME)
+        return value
+    if _contains_binding(stmt.target) or _block_binds(stmt.body):
+        raise ValueError(_ALLOWLIST_NAME)
+    proven_skip = kind == "nonempty" and _always_breaks(stmt.body)
+    if _block_binds(stmt.orelse) and not proven_skip:
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _walk_loop(stmt: ast.While | ast.For | ast.AsyncFor, value: int | None) -> int | None:
+    if isinstance(stmt, ast.While):
+        return _walk_while(stmt, value)
+    return _walk_for(stmt, value)
+
+
+def _child_statements(stmt: ast.stmt) -> list[ast.stmt]:
+    found: list[ast.stmt] = []
+    for child in ast.iter_child_nodes(stmt):
+        if isinstance(child, ast.stmt):
+            found.append(child)
+        elif isinstance(child, ast.ExceptHandler):
+            found.extend(child.body)
+        elif isinstance(child, ast.match_case):
+            found.extend(child.body)
+    return found
+
+
+def _walk_nested_classes(body: list[ast.stmt], value: int | None) -> int | None:
+    for stmt in body:
+        if isinstance(stmt, ast.ClassDef):
+            value = _walk_class(stmt, value)
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        else:
+            value = _walk_nested_classes(_child_statements(stmt), value)
+    return value
+
+
+def _walk_class(stmt: ast.ClassDef, value: int | None) -> int | None:
+    """A class body runs at definition time. global there writes the module."""
+    if _class_header_binds(stmt):
+        raise ValueError(_ALLOWLIST_NAME)
+    if _block_has_global(stmt.body):
+        return _walk_block(stmt.body, value)
+    return _walk_nested_classes(stmt.body, value)
+
+
+def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
+    if isinstance(stmt, ast.Assign):
+        return _walk_plain_assign(list(stmt.targets), stmt.value, stmt, value)
+    if isinstance(stmt, ast.AnnAssign):
+        return _walk_plain_assign([stmt.target], stmt.value, stmt, value)
+    if isinstance(stmt, ast.If):
+        return _walk_if(stmt, value)
+    if isinstance(stmt, (ast.While, ast.For, ast.AsyncFor)):
+        return _walk_loop(stmt, value)
+    if isinstance(stmt, ast.ClassDef):
+        return _walk_class(stmt, value)
+    if _contains_binding(stmt):
+        raise ValueError(_ALLOWLIST_NAME)
+    return value
+
+
+def _assigned_allowlist_ceiling(text: str) -> int | None:
+    """Module-global allowlist integer, or None when that name is not bound there.
+
+    Function and lambda bodies are not the module global. A class assignment is,
+    when that class body declares the name global. Defaults, annotations,
+    decorators, and base expressions are included. A binding that is not a
+    reducible assignment raises ValueError. A syntax error raises ValueError only
+    when a line assigns the name.
+    """
+    try:
+        tree = ast.parse(text)
+    except SyntaxError as error:
+        if _ALLOWLIST_SYNTAX_ASSIGN.search(text) is not None:
+            raise ValueError(_ALLOWLIST_NAME) from error
+        return None
+    return _walk_block(tree.body, None)
+
+
+def _allowlist_ceiling_lines(path: str, base_text: str, head_text: str) -> list[str]:
+    """Lines for the allowlist ceiling. A non-integer assignment is one line."""
+    not_integer = f"{path}: UNGATED_TEST_ALLOWLIST_CEILING is not an integer"
+    try:
+        head_ceiling = _assigned_allowlist_ceiling(head_text)
+    except ValueError:
+        return [not_integer]
+    if head_ceiling is None:
+        return []
+    try:
+        base_ceiling = _assigned_allowlist_ceiling(base_text)
+    except ValueError:
+        return [not_integer]
+    base_value = 0 if base_ceiling is None else base_ceiling
+    if head_ceiling > base_value:
+        return [f"{path}: UNGATED_TEST_ALLOWLIST_CEILING {base_value} -> {head_ceiling}"]
+    return []
+
+
+def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
+    """One line per loosened ceiling number. Compare the text only.
+
+    A missing base file is an empty text, so each positive head ceiling is a
+    raise from zero. Identical text and any path outside the seven files
+    return no lines.
+    """
+    normalized = _ceiling_path(path)
+    if normalized not in _CEILING_PATHS or base_text == head_text:
+        return []
+    if normalized == "scripts/ci/harness_pr_gate.py":
+        return _allowlist_ceiling_lines(normalized, base_text, head_text)
+    base_obj = _json_object(base_text)
+    head_obj = _json_object(head_text)
+    if (base_text.strip() and base_obj is None) or (head_text.strip() and head_obj is None):
+        return [f"{normalized}: invalid ceiling document"]
+    base_obj = base_obj or {}
+    head_obj = head_obj or {}
+    if normalized == "chaos-engine/always-loaded-budget.json":
+        before = {
+            key: float(base_obj[key])
+            for key in _ALWAYS_LOADED_RAISE_KEYS
+            if _is_number(base_obj.get(key))
+        }
+        after = {
+            key: float(head_obj[key])
+            for key in _ALWAYS_LOADED_RAISE_KEYS
+            if _is_number(head_obj.get(key))
+        }
+        return _loosened_lines(normalized, before, after, higher=True)
+    if normalized == "scripts/ci/javadoc_coverage_baseline.json":
+        base_baseline = base_obj.get("baseline")
+        head_baseline = head_obj.get("baseline")
+        before = _numeric_leaves(base_baseline, "baseline") if isinstance(base_baseline, dict) else {}
+        after = _numeric_leaves(head_baseline, "baseline") if isinstance(head_baseline, dict) else {}
+        return _loosened_lines(normalized, before, after, higher=True)
+    if normalized == "chaos-engine/decision-quality-score.baseline.json":
+        base_scores = base_obj.get("scores")
+        head_scores = head_obj.get("scores")
+        before_scores = _numeric_leaves(base_scores, "scores") if isinstance(base_scores, dict) else {}
+        after_scores = _numeric_leaves(head_scores, "scores") if isinstance(head_scores, dict) else {}
+        lines = _loosened_lines(normalized, before_scores, after_scores, higher=False)
+        lines.extend(
+            f"{normalized}: {key} removed"
+            for key in sorted(set(before_scores) - set(after_scores))
+        )
+        if _is_number(head_obj.get("tolerance")):
+            before_tolerance = (
+                float(base_obj["tolerance"]) if _is_number(base_obj.get("tolerance")) else 0.0
+            )
+            lines.extend(
+                _loosened_lines(
+                    normalized,
+                    {"tolerance": before_tolerance},
+                    {"tolerance": float(head_obj["tolerance"])},
+                    higher=True,
+                )
+            )
+        return lines
+    return _loosened_lines(
+        normalized,
+        _numeric_leaves(base_obj),
+        _numeric_leaves(head_obj),
+        higher=True,
+    )
+
+
+def _revision_blob(root: Path, rev: str, path: str) -> str:
+    """Blob text at ``rev:path``. Empty when that path is absent."""
+    completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
+        [_required_executable("git"), "show", f"{rev}:{path}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return completed.stdout
+    err = completed.stderr
+    if "does not exist" in err or "exists on disk, but not in" in err:
+        return ""
+    raise GateError(f"git could not read {rev}:{path}")
+
+
+def _merge_base_commit(root: Path, base: str, head: str) -> str:
+    """Commit where ``base`` and ``head`` diverged. Not the raw base tip."""
+    completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
+        [_required_executable("git"), "merge-base", base, head],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    resolved = completed.stdout.strip()
+    if completed.returncode or not resolved:
+        raise GateError("git could not resolve the merge base")
+    return resolved
+
+
+def _ceiling_plan_failures(root: Path, base: str, head: str, paths: list[str]) -> list[str]:
+    selected: list[str] = []
+    seen: set[str] = set()
+    for raw in paths:
+        path = _ceiling_path(raw)
+        if path not in _CEILING_PATHS or path in seen:
+            continue
+        seen.add(path)
+        selected.append(path)
+    if not selected:
+        return []
+    base_commit = _merge_base_commit(root, base, head)
+    failures: list[str] = []
+    for path in selected:
+        failures.extend(
+            ceiling_raises(
+                path,
+                _revision_blob(root, base_commit, path),
+                _revision_blob(root, head, path),
+            )
+        )
+    return failures
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
@@ -2403,6 +2939,33 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _emit_stopped_plan(
+    args: argparse.Namespace,
+    scope_hits: list[str],
+    ceiling_hits: list[str],
+) -> int:
+    """Print every scope hit and every ceiling hit, then return the failure exit."""
+    hits = [*scope_hits, *ceiling_hits]
+    payload: dict[str, Any] = {
+        "schema": 1,
+        "valid": False,
+        "error": "; ".join(hits),
+    }
+    if scope_hits:
+        payload["pr_scope"] = scope_hits
+    if ceiling_hits:
+        payload["ceiling_raises"] = ceiling_hits
+    serialized = json.dumps(payload, indent=2, sort_keys=True)
+    if args.output:
+        args.output.write_text(serialized + "\n", encoding="utf-8")
+    if args.format == "json":
+        print(serialized)
+    else:
+        for hit in hits:
+            print(hit, file=sys.stderr)
+    return 1
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -2430,23 +2993,11 @@ def main() -> int:
             except (OSError, ValueError, TypeError):
                 _event_body = ""
         _scope_hits = pr_scope_gate_failures(root, [str(p) for p in changed], _event_body)
-        if _scope_hits:
-            payload = {
-                "schema": 1,
-                "valid": False,
-                "error": "; ".join(_scope_hits),
-                "pr_scope": _scope_hits,
-            }
-            exit_code = 1
-            serialized = json.dumps(payload, indent=2, sort_keys=True)
-            if args.output:
-                args.output.write_text(serialized + "\n", encoding="utf-8")
-            if args.format == "json":
-                print(serialized)
-            else:
-                for _hit in _scope_hits:
-                    print(_hit, file=sys.stderr)
-            return exit_code
+        _ceiling_hits = _ceiling_plan_failures(
+            root, args.base, args.head, [str(changed_path) for changed_path in changed]
+        )
+        if _scope_hits or _ceiling_hits:
+            return _emit_stopped_plan(args, _scope_hits, _ceiling_hits)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(

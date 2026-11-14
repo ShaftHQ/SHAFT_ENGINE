@@ -19,6 +19,8 @@ class ReviewerHeadingsTest(unittest.TestCase):
             self.assertIn(heading, delegation)
         self.assertIn("two independent adversarial reviews", skill)
         self.assertIn("delivery-cycle.md", skill)
+        self.assertIn("brief already lists", roles)
+        self.assertIn("The reviewer adds no probe", roles)
 
 
 if __name__ == "__main__":

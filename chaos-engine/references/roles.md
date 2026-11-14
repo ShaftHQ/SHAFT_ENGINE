@@ -77,7 +77,10 @@ A check does not exercise the shipped behavior.
 
 ### unbound-check
 
-A check can pass while the behavior is absent.
+A check can pass while the behavior is absent. A fail names a fixture the
+brief already lists. An example the brief does not name is a residual, written
+in the verdict, and it is not a fail. The reviewer adds no probe and does not
+replace the brief's oracle with `exec`.
 
 ### verdict
 
