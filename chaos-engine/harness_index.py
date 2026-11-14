@@ -85,7 +85,7 @@ SKILLS = (
      "On demand only.", "on-demand"),
     # On demand only: reached through the level-1 catalog when applying for a job.
     ("job-apply", "portable", "skills/job-apply/SKILL.md",
-     "Use when anyone wants to apply for a job. Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.",
+     "Use when applying for a job. Default is draft only. A recorded owner standing send permission that names the channel class may send only after the shared gate passes on the exact final text.",
      "on-demand"),
     # On demand only: reached through the level-1 catalog when searching for jobs.
     ("job-search", "portable", "skills/job-search/SKILL.md",
