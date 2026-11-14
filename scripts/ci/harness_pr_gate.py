@@ -7,6 +7,7 @@ import argparse
 import ast
 import fnmatch
 import json
+import math
 import os
 import re
 import shutil
@@ -1836,6 +1837,10 @@ def _loosened_lines(
     for key in sorted(after):
         base_value = before.get(key, 0.0)
         head_value = after[key]
+        # NaN comparisons are false, so a non-finite value would otherwise look absent.
+        if not math.isfinite(head_value):
+            lines.append(f"{path}: {key} is not finite")
+            continue
         loosened = head_value > base_value if higher else head_value < base_value
         if loosened:
             lines.append(
@@ -1844,20 +1849,65 @@ def _loosened_lines(
     return lines
 
 
+def _int_expr(node: ast.AST) -> int | None:
+    """Reduce an allowlist ceiling expression to an int. AST only, no eval."""
+    if isinstance(node, ast.Constant) and type(node.value) is int:
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _int_expr(node.operand)
+        if value is None:
+            return None
+        if isinstance(node.op, ast.USub):
+            return -value
+        return value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub)):
+        left = _int_expr(node.left)
+        right = _int_expr(node.right)
+        if left is None or right is None:
+            return None
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        return left + right
+    return None
+
+
 def _assigned_allowlist_ceiling(text: str) -> int | None:
-    """Last integer bound to the allowlist ceiling, including ``(98)``."""
-    values: list[int] = []
-    for match in _ALLOWLIST_CEILING_ASSIGNMENT.finditer(text):
-        try:
-            parsed = ast.parse(match.group("expr").strip(), mode="eval")
-        except SyntaxError:
-            continue
-        value = parsed.body
-        if isinstance(value, ast.Constant) and type(value.value) is int:
-            values.append(value.value)
-    if not values:
+    """Integer from the last assignment, or None when the name is absent.
+
+    The last assignment is the only one read. A syntax error or a non-integer
+    expression raises ValueError instead of falling back to an earlier line.
+    """
+    matches = list(_ALLOWLIST_CEILING_ASSIGNMENT.finditer(text))
+    if not matches:
         return None
-    return values[-1]
+    expr = matches[-1].group("expr").strip()
+    try:
+        parsed = ast.parse(expr, mode="eval")
+    except SyntaxError as error:
+        raise ValueError(expr) from error
+    value = _int_expr(parsed.body)
+    if value is None:
+        raise ValueError(expr)
+    return value
+
+
+def _allowlist_ceiling_lines(path: str, base_text: str, head_text: str) -> list[str]:
+    """Lines for the allowlist ceiling. A non-integer assignment is one line."""
+    not_integer = f"{path}: UNGATED_TEST_ALLOWLIST_CEILING is not an integer"
+    try:
+        head_ceiling = _assigned_allowlist_ceiling(head_text)
+    except ValueError:
+        return [not_integer]
+    if head_ceiling is None:
+        return []
+    try:
+        base_ceiling = _assigned_allowlist_ceiling(base_text)
+    except ValueError:
+        return [not_integer]
+    base_value = 0 if base_ceiling is None else base_ceiling
+    if head_ceiling > base_value:
+        return [f"{path}: UNGATED_TEST_ALLOWLIST_CEILING {base_value} -> {head_ceiling}"]
+    return []
 
 
 def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
@@ -1871,16 +1921,7 @@ def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
     if normalized not in _CEILING_PATHS or base_text == head_text:
         return []
     if normalized == "scripts/ci/harness_pr_gate.py":
-        head_ceiling = _assigned_allowlist_ceiling(head_text)
-        if head_ceiling is None:
-            return []
-        base_ceiling = _assigned_allowlist_ceiling(base_text)
-        base_value = 0 if base_ceiling is None else base_ceiling
-        if head_ceiling > base_value:
-            return [
-                f"{normalized}: UNGATED_TEST_ALLOWLIST_CEILING {base_value} -> {head_ceiling}"
-            ]
-        return []
+        return _allowlist_ceiling_lines(normalized, base_text, head_text)
     base_obj = _json_object(base_text)
     head_obj = _json_object(head_text)
     if (base_text.strip() and base_obj is None) or (head_text.strip() and head_obj is None):

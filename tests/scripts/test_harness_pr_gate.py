@@ -1276,6 +1276,17 @@ class CeilingRaiseTest(unittest.TestCase):
         invalid_lines = ceiling_raises(path, base, invalid)
         self.assertNotEqual([], invalid_lines)
         self.assertIn(path, invalid_lines[0])
+        nan_bytes = '{"bytes": NaN, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        nan_lines = ceiling_raises(path, base, nan_bytes)
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("bytes", "\n".join(nan_lines))
+        nan_tolerance = '{"bytes": 10, "tolerance_pct": NaN, "shrink_ratchet_pct": 10}\n'
+        tolerance_lines = ceiling_raises(path, base, nan_tolerance)
+        self.assertIn(path, "\n".join(tolerance_lines))
+        self.assertIn("tolerance_pct", "\n".join(tolerance_lines))
+        self.assertNotEqual([], ceiling_raises(path, base, '{"bytes": Infinity, "tolerance_pct": 5}\n'))
+        ratchet_nan = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": NaN}\n'
+        self.assertEqual([], ceiling_raises(path, base, ratchet_nan))
 
     def test_file_budgets_max_bytes_raise_and_shrink(self) -> None:
         path = "scripts/ci/agent_guidance_budget.json"
@@ -1284,6 +1295,10 @@ class CeilingRaiseTest(unittest.TestCase):
         lowered = '{"file_budgets": {"AGENTS.md": {"max_bytes": 9}}}\n'
         self.assertTrue(ceiling_raises(path, base, raised))
         self.assertEqual([], ceiling_raises(path, base, lowered))
+        nan = '{"file_budgets": {"AGENTS.md": {"max_bytes": NaN}}}\n'
+        nan_lines = ceiling_raises(path, base, nan)
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("max_bytes", "\n".join(nan_lines))
 
     def test_javadoc_baseline_count_raise_and_shrink(self) -> None:
         path = "scripts/ci/javadoc_coverage_baseline.json"
@@ -1292,6 +1307,9 @@ class CeilingRaiseTest(unittest.TestCase):
         lowered = '{"baseline": {"src/Foo.java": 0}}\n'
         self.assertTrue(ceiling_raises(path, base, raised))
         self.assertEqual([], ceiling_raises(path, base, lowered))
+        nan_lines = ceiling_raises(path, base, '{"baseline": {"src/Foo.java": NaN}}\n')
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("src/Foo.java", "\n".join(nan_lines))
 
     def test_test_reference_baseline_count_raise_and_shrink(self) -> None:
         path = "scripts/ci/test_reference_baseline.json"
@@ -1300,6 +1318,9 @@ class CeilingRaiseTest(unittest.TestCase):
         lowered = '{"src/Foo.java": 0}\n'
         self.assertTrue(ceiling_raises(path, base, raised))
         self.assertEqual([], ceiling_raises(path, base, lowered))
+        nan_lines = ceiling_raises(path, base, '{"src/Foo.java": NaN}\n')
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("src/Foo.java", "\n".join(nan_lines))
 
     def test_errorprone_count_raise_and_removed_key(self) -> None:
         path = ".github/errorprone-baseline.json"
@@ -1310,6 +1331,9 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertEqual([], ceiling_raises(path, base, removed))
         self.assertTrue(ceiling_raises(path, "{}\n", '{"mod::New": 1}\n'))
         self.assertEqual([], ceiling_raises(path, "{}\n", '{"mod::New": 0}\n'))
+        nan_lines = ceiling_raises(path, base, '{"mod::Checker": NaN}\n')
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("mod::Checker", "\n".join(nan_lines))
 
     def test_decision_quality_lower_score_fails_and_higher_score_passes(self) -> None:
         path = "chaos-engine/decision-quality-score.baseline.json"
@@ -1327,6 +1351,14 @@ class CeilingRaiseTest(unittest.TestCase):
         deleted = '{"issue": 1, "scores": {}, "tolerance": 0.0}\n'
         self.assertNotEqual([], ceiling_raises(path, base, deleted))
         self.assertEqual([], ceiling_raises(path, base, higher))
+        nan_score = '{"issue": 1, "scores": {"correctness": NaN}, "tolerance": 0.0}\n'
+        score_lines = ceiling_raises(path, base, nan_score)
+        self.assertIn(path, "\n".join(score_lines))
+        self.assertIn("scores.correctness", "\n".join(score_lines))
+        nan_tolerance = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": NaN}\n'
+        tolerance_lines = ceiling_raises(path, base, nan_tolerance)
+        self.assertIn(path, "\n".join(tolerance_lines))
+        self.assertIn("tolerance", "\n".join(tolerance_lines))
 
     def test_ungated_allowlist_ceiling_assignment(self) -> None:
         path = "scripts/ci/harness_pr_gate.py"
@@ -1335,6 +1367,22 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 96\n"))
         self.assertNotEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = (98)\n"))
         self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = (96)\n"))
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = +98\n")))
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 97 + 1\n")))
+        self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 100 - 4\n"))
+        self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = -1\n"))
+        self.assertEqual([], ceiling_raises(path, base, "OTHER = 98\n"))
+        for expr in ("(98);", "int(98)"):
+            lines = ceiling_raises(path, base, f"UNGATED_TEST_ALLOWLIST_CEILING = {expr}\n")
+            self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(lines))
+            self.assertIn("not an integer", "\n".join(lines))
+        masked = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
+            "UNGATED_TEST_ALLOWLIST_CEILING = (98);\n"
+        )
+        masked_lines = ceiling_raises(path, base, masked)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(masked_lines))
+        self.assertIn("not an integer", "\n".join(masked_lines))
 
     def test_plan_fails_when_bytes_rise_against_the_merge_base(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
