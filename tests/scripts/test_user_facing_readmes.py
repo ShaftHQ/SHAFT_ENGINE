@@ -132,6 +132,21 @@ class UserFacingReadmeTest(unittest.TestCase):
         self.assertIn("CHAOSENGINE:START", agents)
         self.assertIn("CHAOSENGINE:END", agents)
 
+    def test_security_policy_names_chaosengine_scope(self) -> None:
+        text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        for phrase in (
+            "### ChaosEngine harness",
+            "chaos-engine/",
+            "PreToolUse deny",
+            "delete-guard",
+            "outbound-send",
+            "prompt injection that crosses",
+            "model output quality",
+            "compromised host",
+        ):
+            self.assertIn(phrase, text)
+        self.assertNotIn("always-loaded-budget.json", text)
+
 
 if __name__ == "__main__":
     unittest.main()
