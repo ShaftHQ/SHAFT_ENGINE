@@ -172,6 +172,7 @@ CHECKS = {
             "tests.scripts.test_doctor_origin_only_7100",
             "tests.scripts.test_ce_personality_load",
             "tests.scripts.test_large_delivery_draft_pr",
+            "tests.scripts.test_implementer_named_sites",
         ),
     ),
     "skill-contract": Check(
@@ -936,6 +937,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_lessons_repeat_failure_pdca.py",
         "tests/scripts/test_harness_isolated_imports.py",
         "tests/scripts/test_large_delivery_draft_pr.py",
+        "tests/scripts/test_implementer_named_sites.py",
         "tests/scripts/test_security_audit_skill.py",
         "chaos-engine/references/bot-entry.md",
         "chaos-engine/always-loaded-budget.json",
