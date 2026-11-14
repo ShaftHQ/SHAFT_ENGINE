@@ -129,8 +129,11 @@ plan. Otherwise absorb the request into the owned plan.
   derived store.
 - Keep one issue as a work stream; only dispatch independently scoped work.
 - Linked-worktree `python3 -m unittest tests.scripts...` can import the primary
-  checkout copy of the test module if that tree is on `PYTHONPATH`. Run with
-  `PYTHONPATH=<worktree>` or `python3 <worktree>/tests/scripts/<file>.py`.
+  checkout copy of the test module. The empty cwd entry (`sys.path[0]`) beats
+  `PYTHONPATH`. PYTHONPATH alone is not sufficient while cwd is another
+  checkout. Run `scripts/ci/worktree_unittest.py --worktree <worktree> <tests>`,
+  or `cd <worktree>` before `python3 -m unittest`. A single file can still be
+  run as `python3 <worktree>/tests/scripts/<file>.py`.
   CI on the PR branch is the source of truth.
 
 ## 3. Work items in dependency order, front-loading risk

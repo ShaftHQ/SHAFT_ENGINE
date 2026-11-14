@@ -1076,8 +1076,11 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def test_worktree_unittest_uses_worktree_pythonpath(self):
         planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
-        self.assertIn("PYTHONPATH=<worktree>", planning)
+        self.assertIn("worktree_unittest.py", planning)
+        self.assertIn("PYTHONPATH alone is not sufficient", planning)
+        self.assertIn("python3 <worktree>/tests/scripts/<file>.py", planning)
         self.assertIn("CI on the PR branch is the source of truth", planning)
+        self.assertNotIn("PYTHONPATH=<worktree>", planning)
 
     def test_host_model_reviews_even_when_implementation_is_local(self):
         delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
