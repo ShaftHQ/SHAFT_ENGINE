@@ -8,7 +8,7 @@ case "${1:-}" in
   https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/*) shift ;;
 esac
 echo "ChaosEngine moved to ShaftHQ/chaosengine-harness; forwarding to $url" >&2
-script=$(mktemp)
+script=$(mktemp "${TMPDIR:-/tmp}/chaos-engine-install.XXXXXX")
 trap 'rm -f "$script"' EXIT
 curl -fsSL "$url" -o "$script"
 bash "$script" "$url" "$@"
