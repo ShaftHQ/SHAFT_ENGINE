@@ -105,7 +105,7 @@ update, and troubleshooting runbook:
   `tools/agent-infra/install-agent-tasks.ps1`.
 - **MCP servers** (`.mcp.json`) — `context7` starts on demand through npx.
   Optional Maven Tools MCP uses a locally verified Java 25/JAR installation
-  discovered by the [ChaosEngine installer](chaos-engine/INSTALL.md#optional-native-maven-tools-mcp);
+  discovered by the [ChaosEngine installer](https://github.com/ShaftHQ/chaosengine-harness/blob/main/INSTALL.md#optional-native-maven-tools-mcp);
   default agent configuration does not start Docker.
 - **SHAFT MCP, CLI, and skills** — Change into the target project first, then
   install from the current working directory:

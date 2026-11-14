@@ -19,7 +19,7 @@ Rules:
    (`gh api graphql` / `gh pr view --json reviewThreads` when available).
 2. Fix real findings; reply briefly on false positives; **Resolve** every thread.
 3. Fingerprint: `unresolved-review-threads` in
-   [ci-status-economy.md](../../chaos-engine/references/ci-status-economy.md).
+   [ci-status-economy.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ci-status-economy.md).
 4. Do not raise the merge timeout or weaken the quality bot.
 
 ## Linked-worktree cap
@@ -41,7 +41,7 @@ Rules:
 1. Consumer reinstall blocked when the distribution id differs: **uninstall,
    then install** from the matching source — never re-run the bootstrap
    one-liner over a broken install. See
-   [heal-route.md](../../chaos-engine/references/heal-route.md) and INSTALL.md.
+   [heal-route.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/heal-route.md) and INSTALL.md.
 2. `worktree_overlay.py upgrade-session` can leave session mempalace/tools
    `recovery-required` while the **primary** doctor still passes. Treat the
    primary install as source of truth; repair session components in place;
