@@ -424,19 +424,12 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         self.assertEqual("", pins["extra"].overlay)
 
     def test_repository_pins_follow_the_committed_files(self) -> None:
-        pins = {pin.name: pin for pin in load_pins(ROOT)}
-        spec = json.loads((ROOT / "chaos-engine" / "dependencies.json").read_text(encoding="utf-8"))
-        vendors = sorted(path.parent.name for path in (ROOT / "chaos-engine" / "vendor").glob("*/PIN.json"))
-
-        self.assertEqual(spec["tools"]["mempalace"]["package"].split("==", 1)[1], pins["mempalace"].current)
-        self.assertEqual(spec["dependencies"]["mempalace"]["stableChannel"], pins["mempalace"].upstream_url)
-        self.assertEqual(spec["tools"]["graphify"]["package"].split("==", 1)[1], pins["graphify"].current)
-        self.assertEqual(spec["dependencies"]["graphify"]["stableChannel"], pins["graphify"].upstream_url)
-        self.assertEqual(vendors, sorted(name for name, pin in pins.items() if pin.kind == "git"))
-        for name in vendors:
-            payload = json.loads((ROOT / "chaos-engine" / "vendor" / name / "PIN.json").read_text(encoding="utf-8"))
-            self.assertEqual(payload["commit"], pins[name].current)
-            self.assertEqual(f"https://github.com/{payload['repository']}", pins[name].upstream_url)
+        # #8057: ChaosEngine's dependency spec moved to the harness, so this
+        # checkout watches only its own CI and build runtime literals.
+        self.assertFalse((ROOT / "chaos-engine" / "dependencies.json").exists())
+        pins = load_pins(ROOT)
+        self.assertTrue(pins)
+        self.assertTrue(all(pin.name.startswith("ci-") for pin in pins), [pin.name for pin in pins])
 
     def test_workflow_schedules_the_same_entry_and_is_inventoried(self) -> None:
         text = (ROOT / ".github" / "workflows" / "upstream-watch.yml").read_text(encoding="utf-8")
@@ -622,30 +615,12 @@ class LinkedPinSyncTest(unittest.TestCase):
         self.assertEqual("3.14", written["dependencies"]["python"]["maximumSeries"])
 
     def test_equal_release_does_not_rewrite_the_live_pin_files(self) -> None:
+        # #8057: without chaos-engine/dependencies.json there are no linked
+        # installer pins to move, so applying a release writes nothing.
         root = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
-        chaos = root / "chaos-engine"
-        chaos.mkdir()
-        spec_bytes = (ROOT / "chaos-engine/dependencies.json").read_bytes()
-        ps1_bytes = (ROOT / "chaos-engine/install.ps1").read_bytes()
-        shell_bytes = (ROOT / "chaos-engine/install.sh").read_bytes()
-        (chaos / "dependencies.json").write_bytes(spec_bytes)
-        (chaos / "install.ps1").write_bytes(ps1_bytes)
-        (chaos / "install.sh").write_bytes(shell_bytes)
-        spec = json.loads(spec_bytes)
-        artifacts = spec["runtimes"]["uv"]["artifacts"]
-        release = {
-            "component": "uv",
-            "version": spec["runtimes"]["uv"]["version"],
-            "artifacts": {
-                platform: {"sha256": row["sha256"]}
-                for platform, row in artifacts.items()
-            },
-        }
-        apply_release_files(root, release)
-        self.assertEqual(spec_bytes, (chaos / "dependencies.json").read_bytes())
-        self.assertEqual(ps1_bytes, (chaos / "install.ps1").read_bytes())
-        self.assertEqual(shell_bytes, (chaos / "install.sh").read_bytes())
+        apply_release_files(root, {"component": "uv", "version": "0.0.0", "artifacts": {}})
+        self.assertEqual([], list(root.iterdir()))
 
     def test_github_payload_requires_every_os_digest(self) -> None:
         assets = [
@@ -692,21 +667,11 @@ class PreserveFormatTest(unittest.TestCase):
         after = {"a": "1", "b": "2"}
         self.assertEqual(json.dumps(after, indent=2) + "\n", preserve_format('{"a": "1"}', before, after))
 
-    def test_workflow_refreshes_readme_inventory(self):
+    def test_workflow_no_longer_rewrites_moved_chaos_engine_pins(self):
+        # #8057: the linked installer pins live in the harness now.
         workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/upstream-watch.yml").read_text(encoding="utf-8")
-        self.assertIn("validate_chaos_engine_readme.py --write", workflow)
-        self.assertIn("chaos-engine/README.md", workflow)
+        self.assertNotIn("--apply", workflow)
+        self.assertNotIn("chaos-engine/", workflow)
+        self.assertNotIn("contents: write", workflow)
 
 
-class MavenToolsWindowsNightlyTest(unittest.TestCase):
-    """#7217: Windows Maven Tools install runs nightly without a global longpaths override."""
-
-    def test_job_unsets_global_longpaths_and_uses_maven_tools(self):
-        root = Path(__file__).resolve().parents[2]
-        text = (root / ".github/workflows/live-tools-nightly.yml").read_text(encoding="utf-8")
-        job = text.split("chaos-maven-tools-windows:", 1)[1].split("\n  notify:", 1)[0]
-        self.assertIn("windows-2025", job)
-        self.assertIn("--unset-all core.longpaths", job)
-        self.assertIn("--with-maven-tools", job)
-        self.assertLess(job.index("--unset-all core.longpaths"), job.index("--with-maven-tools"))
-        self.assertNotIn("chaos-maven-tools-windows", (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
