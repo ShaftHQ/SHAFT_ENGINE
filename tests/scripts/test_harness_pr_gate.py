@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import io
 import json
 import re
 import shutil
@@ -10,6 +11,7 @@ import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import cast
@@ -30,6 +32,7 @@ from scripts.ci.harness_pr_gate import (
     GateError,
     GatePlan,
     WaiverReceipt,
+    ceiling_raises,
     changed_paths,
     classify_paths,
     plan_for_changes,
@@ -39,6 +42,7 @@ from scripts.ci.harness_pr_gate import (
     SHARDED_MODULES,
     _combine,
     execution_units,
+    main as gate_main,
     unit_command,
     PRIORITY_CHECK_IDS,
     _isolated_environment,
@@ -1248,6 +1252,135 @@ class UngatedModulesRunInCiTest(unittest.TestCase):
         job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
         self.assertIn("harness_pr_gate.py --list-ungated", job)
         self.assertIn("failing ungated harness module", job)
+
+
+class CeilingRaiseTest(unittest.TestCase):
+    """Ceiling files are judged against the merge-base text, not a live measurement."""
+
+    def test_always_loaded_bytes_raise_names_bytes_and_shrink_is_empty(self) -> None:
+        path = "chaos-engine/always-loaded-budget.json"
+        base = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        raised = '{"bytes": 11, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        lowered = '{"bytes": 9, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        lines = ceiling_raises(path, base, raised)
+        self.assertTrue(any("bytes" in line for line in lines))
+        self.assertEqual([], ceiling_raises(path, base, lowered))
+        self.assertEqual([], ceiling_raises(path, base, base))
+        self.assertEqual([], ceiling_raises("README.md", base, raised))
+        self.assertTrue(ceiling_raises(path, "", '{"bytes": 1, "tolerance_pct": 5}\n'))
+        tolerance = '{"bytes": 10, "tolerance_pct": 6, "shrink_ratchet_pct": 10}\n'
+        self.assertTrue(any("tolerance_pct" in line for line in ceiling_raises(path, base, tolerance)))
+        ratchet = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": 11}\n'
+        self.assertEqual([], ceiling_raises(path, base, ratchet))
+
+    def test_file_budgets_max_bytes_raise_and_shrink(self) -> None:
+        path = "scripts/ci/agent_guidance_budget.json"
+        base = '{"file_budgets": {"AGENTS.md": {"max_bytes": 10}}}\n'
+        raised = '{"file_budgets": {"AGENTS.md": {"max_bytes": 11}}}\n'
+        lowered = '{"file_budgets": {"AGENTS.md": {"max_bytes": 9}}}\n'
+        self.assertTrue(ceiling_raises(path, base, raised))
+        self.assertEqual([], ceiling_raises(path, base, lowered))
+
+    def test_javadoc_baseline_count_raise_and_shrink(self) -> None:
+        path = "scripts/ci/javadoc_coverage_baseline.json"
+        base = '{"baseline": {"src/Foo.java": 1}}\n'
+        raised = '{"baseline": {"src/Foo.java": 2}}\n'
+        lowered = '{"baseline": {"src/Foo.java": 0}}\n'
+        self.assertTrue(ceiling_raises(path, base, raised))
+        self.assertEqual([], ceiling_raises(path, base, lowered))
+
+    def test_test_reference_baseline_count_raise_and_shrink(self) -> None:
+        path = "scripts/ci/test_reference_baseline.json"
+        base = '{"src/Foo.java": 1}\n'
+        raised = '{"src/Foo.java": 2}\n'
+        lowered = '{"src/Foo.java": 0}\n'
+        self.assertTrue(ceiling_raises(path, base, raised))
+        self.assertEqual([], ceiling_raises(path, base, lowered))
+
+    def test_errorprone_count_raise_and_removed_key(self) -> None:
+        path = ".github/errorprone-baseline.json"
+        base = '{"mod::Checker": 2}\n'
+        raised = '{"mod::Checker": 3}\n'
+        removed = "{}\n"
+        self.assertTrue(ceiling_raises(path, base, raised))
+        self.assertEqual([], ceiling_raises(path, base, removed))
+        self.assertTrue(ceiling_raises(path, "{}\n", '{"mod::New": 1}\n'))
+        self.assertEqual([], ceiling_raises(path, "{}\n", '{"mod::New": 0}\n'))
+
+    def test_decision_quality_lower_score_fails_and_higher_score_passes(self) -> None:
+        path = "chaos-engine/decision-quality-score.baseline.json"
+        base = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
+        lowered = '{"issue": 9, "scores": {"correctness": 3.0}, "tolerance": 0.0}\n'
+        higher = '{"issue": 1, "scores": {"correctness": 5.0}, "tolerance": 0.0}\n'
+        self.assertTrue(ceiling_raises(path, base, lowered))
+        self.assertEqual([], ceiling_raises(path, base, higher))
+        issue_only = '{"issue": 9, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
+        self.assertEqual([], ceiling_raises(path, base, issue_only))
+        looser = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.5}\n'
+        tighter = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
+        self.assertTrue(ceiling_raises(path, base, looser))
+        self.assertEqual([], ceiling_raises(path, looser, tighter))
+
+    def test_ungated_allowlist_ceiling_assignment(self) -> None:
+        path = "scripts/ci/harness_pr_gate.py"
+        base = "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
+        self.assertTrue(ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 98\n"))
+        self.assertEqual([], ceiling_raises(path, base, "UNGATED_TEST_ALLOWLIST_CEILING = 96\n"))
+
+    def test_plan_fails_when_bytes_rise_against_the_merge_base(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git_executable = shutil.which("git")
+            self.assertIsNotNone(git_executable)
+
+            def git(*args: str) -> str:
+                completed = subprocess.run(  # nosec B603 - resolved git on a temporary fixture.
+                    [cast(str, git_executable), *args],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            def gate(base: str, head: str) -> tuple[int, str]:
+                stdout, stderr = io.StringIO(), io.StringIO()
+                argv = [
+                    "harness_pr_gate.py",
+                    "--root",
+                    str(root),
+                    "--base",
+                    base,
+                    "--head",
+                    head,
+                    "--plan-only",
+                ]
+                with patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
+                    code = gate_main()
+                return code, stdout.getvalue() + stderr.getvalue()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Harness Test")
+            git("config", "user.email", "harness@example.invalid")
+            budget = root / "chaos-engine" / "always-loaded-budget.json"
+            budget.parent.mkdir(parents=True)
+            budget.write_text('{"bytes": 10, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "base")
+            base = git("rev-parse", "HEAD")
+            budget.write_text('{"bytes": 11, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "raise")
+            raised = git("rev-parse", "HEAD")
+            code, output = gate(base, raised)
+            self.assertEqual(1, code, output)
+            self.assertIn("bytes", output)
+            budget.write_text('{"bytes": 9, "tolerance_pct": 5}\n', encoding="utf-8")
+            git("add", "chaos-engine/always-loaded-budget.json")
+            git("commit", "-m", "shrink")
+            shrunk = git("rev-parse", "HEAD")
+            code, output = gate(raised, shrunk)
+            self.assertEqual(0, code, output)
 
 
 if __name__ == "__main__":

@@ -1764,6 +1764,198 @@ def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]
     ]
 
 
+_CEILING_PATHS = frozenset(
+    {
+        "chaos-engine/always-loaded-budget.json",
+        "scripts/ci/agent_guidance_budget.json",
+        "scripts/ci/javadoc_coverage_baseline.json",
+        "scripts/ci/test_reference_baseline.json",
+        ".github/errorprone-baseline.json",
+        "chaos-engine/decision-quality-score.baseline.json",
+        "scripts/ci/harness_pr_gate.py",
+    }
+)
+_ALWAYS_LOADED_RAISE_KEYS = ("bytes", "tolerance_pct")
+_ALLOWLIST_CEILING_ASSIGNMENT = re.compile(
+    r"^UNGATED_TEST_ALLOWLIST_CEILING\s*=\s*(?P<value>\d+)\s*(?:#.*)?$",
+    re.MULTILINE,
+)
+
+
+def _ceiling_path(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _format_ceiling(value: float) -> str:
+    if value.is_integer():
+        return str(int(value))
+    return format(value, "g")
+
+
+def _json_object(text: str) -> dict[str, Any] | None:
+    if not text.strip():
+        return {}
+    try:
+        loaded = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(loaded, dict):
+        return loaded
+    return None
+
+
+def _numeric_leaves(node: Any, prefix: str = "") -> dict[str, float]:
+    found: dict[str, float] = {}
+    if not isinstance(node, dict):
+        return found
+    for key, value in node.items():
+        child = f"{prefix}.{key}" if prefix else str(key)
+        if _is_number(value):
+            found[child] = float(value)
+        elif isinstance(value, dict):
+            found.update(_numeric_leaves(value, child))
+    return found
+
+
+def _loosened_lines(
+    path: str,
+    before: dict[str, float],
+    after: dict[str, float],
+    *,
+    higher: bool,
+) -> list[str]:
+    lines: list[str] = []
+    for key in sorted(after):
+        base_value = before.get(key, 0.0)
+        head_value = after[key]
+        loosened = head_value > base_value if higher else head_value < base_value
+        if loosened:
+            lines.append(
+                f"{path}: {key} {_format_ceiling(base_value)} -> {_format_ceiling(head_value)}"
+            )
+    return lines
+
+
+def _assigned_allowlist_ceiling(text: str) -> int | None:
+    matches = list(_ALLOWLIST_CEILING_ASSIGNMENT.finditer(text))
+    if not matches:
+        return None
+    return int(matches[-1].group("value"))
+
+
+def ceiling_raises(path: str, base_text: str, head_text: str) -> list[str]:
+    """One line per loosened ceiling number. Compare the text only.
+
+    A missing base file is an empty text, so each positive head ceiling is a
+    raise from zero. Identical text and any path outside the seven files
+    return no lines.
+    """
+    normalized = _ceiling_path(path)
+    if normalized not in _CEILING_PATHS or base_text == head_text:
+        return []
+    if normalized == "scripts/ci/harness_pr_gate.py":
+        head_ceiling = _assigned_allowlist_ceiling(head_text)
+        if head_ceiling is None:
+            return []
+        base_ceiling = _assigned_allowlist_ceiling(base_text)
+        base_value = 0 if base_ceiling is None else base_ceiling
+        if head_ceiling > base_value:
+            return [
+                f"{normalized}: UNGATED_TEST_ALLOWLIST_CEILING {base_value} -> {head_ceiling}"
+            ]
+        return []
+    base_obj = _json_object(base_text) or {}
+    head_obj = _json_object(head_text)
+    if head_obj is None:
+        return []
+    if normalized == "chaos-engine/always-loaded-budget.json":
+        before = {
+            key: float(base_obj[key])
+            for key in _ALWAYS_LOADED_RAISE_KEYS
+            if _is_number(base_obj.get(key))
+        }
+        after = {
+            key: float(head_obj[key])
+            for key in _ALWAYS_LOADED_RAISE_KEYS
+            if _is_number(head_obj.get(key))
+        }
+        return _loosened_lines(normalized, before, after, higher=True)
+    if normalized == "scripts/ci/javadoc_coverage_baseline.json":
+        base_baseline = base_obj.get("baseline")
+        head_baseline = head_obj.get("baseline")
+        before = _numeric_leaves(base_baseline, "baseline") if isinstance(base_baseline, dict) else {}
+        after = _numeric_leaves(head_baseline, "baseline") if isinstance(head_baseline, dict) else {}
+        return _loosened_lines(normalized, before, after, higher=True)
+    if normalized == "chaos-engine/decision-quality-score.baseline.json":
+        base_scores = base_obj.get("scores")
+        head_scores = head_obj.get("scores")
+        before_scores = _numeric_leaves(base_scores, "scores") if isinstance(base_scores, dict) else {}
+        after_scores = _numeric_leaves(head_scores, "scores") if isinstance(head_scores, dict) else {}
+        lines = _loosened_lines(normalized, before_scores, after_scores, higher=False)
+        if _is_number(head_obj.get("tolerance")):
+            before_tolerance = (
+                float(base_obj["tolerance"]) if _is_number(base_obj.get("tolerance")) else 0.0
+            )
+            lines.extend(
+                _loosened_lines(
+                    normalized,
+                    {"tolerance": before_tolerance},
+                    {"tolerance": float(head_obj["tolerance"])},
+                    higher=True,
+                )
+            )
+        return lines
+    return _loosened_lines(
+        normalized,
+        _numeric_leaves(base_obj),
+        _numeric_leaves(head_obj),
+        higher=True,
+    )
+
+
+def _revision_blob(root: Path, rev: str, path: str) -> str:
+    """Blob text at ``rev:path``. Empty when that path is absent."""
+    completed = subprocess.run(  # nosec B603 - fixed read-only git invocation.
+        [_required_executable("git"), "show", f"{rev}:{path}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode == 0:
+        return completed.stdout
+    err = completed.stderr
+    if "does not exist" in err or "exists on disk, but not in" in err:
+        return ""
+    raise GateError(f"git could not read {rev}:{path}")
+
+
+def _ceiling_plan_failures(root: Path, base: str, head: str, paths: list[str]) -> list[str]:
+    failures: list[str] = []
+    seen: set[str] = set()
+    for raw in paths:
+        path = _ceiling_path(raw)
+        if path not in _CEILING_PATHS or path in seen:
+            continue
+        seen.add(path)
+        failures.extend(
+            ceiling_raises(
+                path,
+                _revision_blob(root, base, path),
+                _revision_blob(root, head, path),
+            )
+        )
+    return failures
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
@@ -2445,6 +2637,26 @@ def main() -> int:
                 print(serialized)
             else:
                 for _hit in _scope_hits:
+                    print(_hit, file=sys.stderr)
+            return exit_code
+        _ceiling_hits = _ceiling_plan_failures(
+            root, args.base, args.head, [str(changed_path) for changed_path in changed]
+        )
+        if _ceiling_hits:
+            payload = {
+                "schema": 1,
+                "valid": False,
+                "error": "; ".join(_ceiling_hits),
+                "ceiling_raises": _ceiling_hits,
+            }
+            exit_code = 1
+            serialized = json.dumps(payload, indent=2, sort_keys=True)
+            if args.output:
+                args.output.write_text(serialized + "\n", encoding="utf-8")
+            if args.format == "json":
+                print(serialized)
+            else:
+                for _hit in _ceiling_hits:
                     print(_hit, file=sys.stderr)
             return exit_code
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
