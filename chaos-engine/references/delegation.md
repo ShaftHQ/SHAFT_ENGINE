@@ -203,8 +203,10 @@ a row that already exists.
 ### Review disposition
 
 Run the two reviews the delivery cycle names, both on the same head. A
-blocking finding is Act inside the remaining PDCA cap, then both reviews
-repeat on the new head. Do not add a third review of an unchanged head. A
+blocking finding inside the brief's fixtures is Act inside the remaining PDCA
+cap, then both reviews repeat on the new head. A finding outside those
+fixtures and the recorded non-goals is filed. The head stays. The iteration
+is not spent. Do not add a third review of an unchanged head. A
 finding that changes architecture returns work to planning. Extra local tests
 run only after this terminal review stage.
 
