@@ -43,10 +43,21 @@ from scripts.ci.worktree_hygiene import (  # noqa: E402
     format_advisories,
 )
 
+# #8057: ChaosEngine (and its dependencies.json) moved to
+# ShaftHQ/chaosengine-harness. Prefer an installed overlay's pin; otherwise use
+# this copy of the harness pin (dependencies.json at 05ca9b1).
+MEMORY_PACKAGE_PIN = "@aictx/memory@0.2.1"
+
+
 def memory_package_pin(root: Path | None = None) -> str:
-    """Read the source-controlled Memory pin from ChaosEngine dependencies."""
+    """Read the Memory pin from ChaosEngine dependencies, else the vendored pin."""
     specification_root = ROOT if root is None else root
-    specification_path = specification_root / "chaos-engine" / "dependencies.json"
+    for relative in ("chaos-engine/dependencies.json", ".chaos-engine/dependencies.json"):
+        specification_path = specification_root / relative
+        if specification_path.is_file():
+            break
+    else:
+        return MEMORY_PACKAGE_PIN
     specification = json.loads(specification_path.read_text(encoding="utf-8"))
     package = specification["tools"]["memory"]["package"]
     if not isinstance(package, str) or not package.startswith("@aictx/memory@"):
