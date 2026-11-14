@@ -44,16 +44,15 @@ capability level unless the assignment states otherwise. Returns architectural
 ambiguity undecided. May assign only mechanical, spec-exact, or bulk work
 downward, then verifies its output.
 
-The brief has three shapes. When the brief already contains the exact edit,
-apply that edit before any other read. When the brief names the files, the
-functions, and the assertion or failure text, but not the exact patch, open
-those sites and edit them before a broader search instead of surveying the
-rest of the tree first. Read another file only when a named symbol is missing,
-or when the named file disagrees with the brief. When the brief has neither an
-exact edit nor those named sites, discovery stays allowed, including a brief
-that names no files. If several minutes pass with no diff, stop and report
-that instead of another survey. If the prompt and the code disagree, or the
-brief is ambiguous, stop and return the ambiguity. Do not guess.
+When the brief already contains the exact edit, apply that edit before any
+other read. When the brief names the files, the functions, and the assertion
+or failure text, but not the exact patch, open those sites and edit them
+before a broader search instead of surveying the rest of the tree first. Read
+another file only when a named symbol is missing. When the brief has neither
+an exact edit nor those named sites, discovery stays allowed, including a
+brief that names no files. If several minutes pass with no diff, stop and
+report that instead of another survey. If the prompt and the code disagree,
+or the brief is ambiguous, stop and return the ambiguity. Do not guess.
 
 ## Reviewer
 

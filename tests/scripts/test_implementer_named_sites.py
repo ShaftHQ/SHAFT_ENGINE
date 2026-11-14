@@ -9,6 +9,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 ROLES = ROOT / "chaos-engine/references/roles.md"
 
+SENTENCES = (
+    "When the brief already contains the exact edit, apply that edit before any other read.",
+    "When the brief names the files, the functions, and the assertion or failure text, but not the exact patch, open those sites and edit them before a broader search instead of surveying the rest of the tree first.",
+    "Read another file only when a named symbol is missing.",
+    "When the brief has neither an exact edit nor those named sites, discovery stays allowed, including a brief that names no files.",
+    "If several minutes pass with no diff, stop and report that instead of another survey.",
+    "If the prompt and the code disagree, or the brief is ambiguous, stop and return the ambiguity.",
+    "Do not guess.",
+)
+
+FORBIDDEN = (
+    "do not open those sites and edit them before a broader search",
+    "survey the rest of the tree first. Then open those sites and edit them before a broader search",
+    "Read another file only when a named symbol is missing, or when the named file disagrees with the brief.",
+)
+
 
 def implementer_section(text: str) -> str:
     match = re.search(
@@ -21,51 +37,43 @@ def implementer_section(text: str) -> str:
     return " ".join(match.group(1).split())
 
 
+def policy_sentences(section: str) -> list[str]:
+    start = section.index(SENTENCES[0])
+    policy = section[start:]
+    return [part.strip() + "." for part in policy.split(".") if part.strip()]
+
+
 class ImplementerNamedSitesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.section = implementer_section(ROLES.read_text(encoding="utf-8"))
 
-    def test_exact_edit_still_applies_before_any_other_read(self) -> None:
+    def test_policy_sentences_are_exact_and_in_order(self) -> None:
+        found = policy_sentences(self.section)
+        self.assertEqual(list(SENTENCES), found)
+        for got, expected in zip(found, SENTENCES):
+            self.assertEqual(expected, got)
+
+    def test_negated_and_reordered_failures_are_absent(self) -> None:
+        for bad in FORBIDDEN:
+            self.assertNotIn(bad, self.section)
+        self.assertIn("instead of surveying the rest of the tree first.", self.section)
         self.assertIn(
-            "When the brief already contains the exact edit, apply that edit before any other read.",
+            "When the brief has neither an exact edit nor those named sites,",
             self.section,
         )
 
-    def test_named_sites_are_edited_before_a_broader_search(self) -> None:
-        named = "names the files, the functions, and the assertion or failure text"
-        edit = "open those sites and edit them before a broader search"
-        self.assertIn(named, self.section)
-        self.assertIn(edit, self.section)
-        self.assertLess(self.section.index(named), self.section.index(edit))
-
-    def test_further_read_only_for_missing_symbol_or_disagreement(self) -> None:
-        self.assertIn(
-            "Read another file only when a named symbol is missing, or when "
-            "the named file disagrees with the brief.",
-            self.section,
+    def test_further_read_is_only_a_missing_symbol(self) -> None:
+        self.assertEqual(
+            "Read another file only when a named symbol is missing.",
+            policy_sentences(self.section)[2],
         )
 
-    def test_brief_that_names_no_files_may_still_discover(self) -> None:
-        discovery = "discovery stays allowed"
-        unnamed = "names no files"
-        self.assertIn(discovery, self.section)
-        self.assertIn(unnamed, self.section)
-        self.assertLess(self.section.index(discovery), self.section.index(unnamed))
-
-    def test_stop_when_the_prompt_and_the_code_disagree(self) -> None:
-        self.assertIn(
-            "If several minutes pass with no diff, stop and report that instead of another survey.",
-            self.section,
-        )
-        self.assertIn(
-            "If the prompt and the code disagree, or the brief is ambiguous, "
-            "stop and return the ambiguity.",
-            self.section,
-        )
-        self.assertIn("Do not guess.", self.section)
-
-    def test_shape_without_named_sites_keeps_tdd_and_ponytail(self) -> None:
+    def test_tdd_and_ponytail_stay_before_the_brief_shapes(self) -> None:
         self.assertIn("using TDD and Ponytail", self.section)
+        self.assertLess(
+            self.section.index("using TDD and Ponytail"),
+            self.section.index(SENTENCES[0]),
+        )
 
 
 if __name__ == "__main__":
