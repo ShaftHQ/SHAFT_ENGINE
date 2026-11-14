@@ -1561,96 +1561,9 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: echo "review=$(python3 scripts/ci/dependency_review_changes.py "$BASE_SHA" "$HEAD_SHA")" >> "$GITHUB_OUTPUT"
 
-  # Issue #6186: the fresh-installer matrix starts right after `changes`, in
-  # parallel with Agent Guidance Gate, instead of waiting ~14 minutes for it.
-  # A superseding push still cancels both, and the summary still requires both.
-  chaos-installer-acceptance:
-    name: ChaosEngine fresh installer (${{ matrix.os }})
-    needs: changes
-    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        # PR: ubuntu-22.04 + windows-2025; push to main / ci:installer-macos
-        # label: + macos-15 (scripts/ci/chaos_installer_tier.py, #6187).
-        os: ${{ fromJSON(needs.changes.outputs.installer_os) }}
-    steps:
-      - name: Enable Windows long paths
-        if: runner.os == 'Windows'
-        run: git config --global core.longpaths true
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python 3.14
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.14"
-      - name: Run fresh-install acceptance
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python scripts/ci/chaos_engine_live_installer_acceptance.py
-          --candidate-sha ${{ github.event.pull_request.head.sha || github.sha }}
-          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
-          --output chaos-engine-live-installer-evidence.json
-      - name: Upload fresh-install evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: chaos-engine-live-installer-${{ matrix.os }}
-          path: chaos-engine-live-installer-evidence.json
-          if-no-files-found: error
-
-  # Issue #6186: the installer UX contracts used to run first inside every
-  # fresh-installer job (3.5-5.5 min each). They now run as their own parallel
-  # job on the non-Linux runners; on Linux the Agent Guidance Gate `installer`
-  # surface already runs the same modules (installer-ux-contract +
-  # protected-installer-acceptance), and every `chaos_installer` path selects
-  # that surface (pinned by tests/scripts/test_harness_pr_gate.py).
-  chaos-installer-contracts:
-    name: ChaosEngine installer contracts (${{ matrix.os }})
-    needs: changes
-    # #6990: off the PR critical path unless labelled ci:installer-windows or
-    # ci:installer-macos; an empty tier skips the job (summary accepts skipped).
-    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        # PR: none (Linux via Agent Guidance); ci:installer-windows: windows-2025;
-        # ci:installer-macos: + macos-15; push to main: windows-2025, macos-15.
-        os: ${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}
-    steps:
-      - name: Enable Windows long paths
-        if: runner.os == 'Windows'
-        run: git config --global core.longpaths true
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python 3.14
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.14"
-      - name: Run installer UX contracts
-        run: >-
-          python -m unittest
-          tests.scripts.test_chaos_engine_installer_ux
-          tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
-          tests.scripts.test_chaos_engine_bootstrap
-          tests.scripts.test_chaos_engine_install_wrappers -v
-      # Issue #6632: Copilot CLI runs `.claude/settings.json` hook commands
-      # with PowerShell on Windows. Drive the generated launcher through real
-      # PowerShell 7 and Windows PowerShell 5.1 (read allowed, guard block,
-      # no Python, installer-pointer Python) plus the `.github/hooks` Copilot
-      # launcher (MCP passthrough, destructive deny, repo-root cwd).
-      - name: Run Windows PowerShell hook launcher
-        if: runner.os == 'Windows'
-        run: >-
-          python -m unittest
-          tests.scripts.test_copilot_cli_hook.PowerShellLauncherTest
-          tests.scripts.test_copilot_cli_hook.CopilotRepositoryHookTest -v
-
+  # #8057: the ChaosEngine fresh-installer and installer-contract jobs moved
+  # to ShaftHQ/chaosengine-harness with the installer source. SHAFT keeps only
+  # the forwarding shims at chaos-engine/install.sh and install.ps1.
 
   # #7184 / #6990: Codecov poll runs in parallel with the heavy legs so it is
   # not stuck on the summary critical-path tail. Still pull_request only
@@ -1722,8 +1635,6 @@ jobs:
       - pr-body-autoclose-guard
       - dependency-changes
       - dependency-review
-      - chaos-installer-acceptance
-      - chaos-installer-contracts
       - codecov-gate
     if: always()
     runs-on: ubuntu-22.04
@@ -1757,8 +1668,6 @@ jobs:
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
-          CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
-          CHAOS_INSTALLER_CONTRACTS_RESULT: ${{ needs.chaos-installer-contracts.result }}
           CODECOV_GATE_RESULT: ${{ needs.codecov-gate.result }}
         run: |
           set -uo pipefail
@@ -1788,8 +1697,6 @@ jobs:
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
-            echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
-            echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
             echo "| codecov-gate | ${CODECOV_GATE_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -1799,7 +1706,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}" "${CODECOV_GATE_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CODECOV_GATE_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

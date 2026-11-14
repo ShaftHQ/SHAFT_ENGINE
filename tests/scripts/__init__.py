@@ -23,6 +23,13 @@ from pathlib import Path
 
 from . import repo_state_guard
 
+try:
+    from . import moved_quarantine
+except ImportError:  # copied into a fixture checkout without the quarantine
+    pass
+else:
+    moved_quarantine.install()
+
 GUARD_ENV = "CHAOS_ENGINE_TEST_REPO_GUARD"
 REPOSITORY = Path(__file__).resolve().parents[2]
 
