@@ -716,6 +716,12 @@ CHECKS = {
             "tests.scripts.test_ce_enhancement_disposition_7793",
         ),
     ),
+    # #8034: a named worktree must be the unittest import root when cwd is another checkout.
+    "worktree-unittest-contract": Check(
+        "worktree-unittest-contract",
+        "worktree-unittest",
+        ("tests.scripts.test_worktree_unittest",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -733,6 +739,7 @@ SURFACE_CHECKS = {
     "retrieval": ("retrieval-contract", "graph-resolver-contract", "graphify-maintenance-contract"),
     "user-harness": ("user-harness-sync-contract",),
     "portable-core": ("portable-core-contract",),
+    "worktree-unittest": ("worktree-unittest-contract",),
     "plugin-assembly": ("plugin-assembly-contract",),
     "research": ("research-matrix-contract",),
     "intellij-skill": ("intellij-skill-contract",),
@@ -1125,6 +1132,11 @@ SURFACE_PATTERNS = {
         ".memory/memory/*",
         "scripts/ci/agent_guidance_budget.json",
         "tests/scripts/test_chaos_engine_portable_core.py",
+    ),
+    "worktree-unittest": (
+        "scripts/ci/worktree_unittest.py",
+        "tests/scripts/test_worktree_unittest.py",
+        "chaos-engine/references/work-github-planning.md",
     ),
     "plugin-assembly": (
         "chaos-engine/*",
