@@ -134,17 +134,26 @@ class UserFacingReadmeTest(unittest.TestCase):
 
     def test_security_policy_names_chaosengine_scope(self) -> None:
         text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        scope_at = text.find("## Scope")
+        dependency_at = text.find("## Dependency Security")
+        self.assertGreaterEqual(scope_at, 0)
+        self.assertGreater(dependency_at, scope_at)
+        scope = text[scope_at:dependency_at]
         for phrase in (
             "### ChaosEngine harness",
             "chaos-engine/",
             "PreToolUse deny",
             "delete-guard",
+            "secret or content scan",
             "outbound-send",
+            "harness state, logs, spans, or stores",
+            "unpinned code",
             "prompt injection that crosses",
             "model output quality",
             "compromised host",
+            "already holds the credential",
         ):
-            self.assertIn(phrase, text)
+            self.assertIn(phrase, scope)
         self.assertNotIn("always-loaded-budget.json", text)
 
 
