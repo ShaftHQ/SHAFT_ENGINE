@@ -118,7 +118,13 @@ WAIVER_FENCE = re.compile(
 
 CHECKS = {
     "kernel-contract": Check(
-        "kernel-contract", "kernel", ("tests.scripts.test_chaos_engine_kernel",), True
+        "kernel-contract",
+        "kernel",
+        (
+            "tests.scripts.test_chaos_engine_kernel",
+            "tests.scripts.test_session_tool_receipt",
+        ),
+        True,
     ),
     "lifecycle-contract": Check(
         "lifecycle-contract",

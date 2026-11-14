@@ -187,6 +187,18 @@ class SessionToolReceiptTest(unittest.TestCase):
                 self.assertIsInstance(total, (int, float))
                 self.assertNotIsInstance(total, bool)
 
+    def _kernel_receipt_module(self):
+        loaded = sys.modules.get("session_token_usage")
+        if loaded is not None and hasattr(loaded, "note_tool_boundary"):
+            return loaded
+        spec = importlib.util.spec_from_file_location("session_token_usage", USAGE)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("session_token_usage is unavailable")
+        loaded = importlib.util.module_from_spec(spec)
+        sys.modules["session_token_usage"] = loaded
+        spec.loader.exec_module(loaded)
+        return loaded
+
     def test_disabled_receipt_writes_no_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
@@ -195,6 +207,7 @@ class SessionToolReceiptTest(unittest.TestCase):
             self.mod.note_tool_boundary(
                 "sess-off", "PreToolUse", "c1", "read", now=1.0, project=project
             )
+            self.assertEqual(before_open, self.mod._OPEN_TOOL_CALLS)
             self.mod.note_tool_boundary(
                 "sess-off", "PostToolUse", "c1", "read", now=2.0, project=project
             )
@@ -224,8 +237,12 @@ class SessionToolReceiptTest(unittest.TestCase):
                     },
                     "claude",
                 )
+                kernel_usage = self._kernel_receipt_module()
+                before_kernel = dict(kernel_usage._OPEN_TOOL_CALLS)
                 self.kernel.evaluate(pre)
+                self.assertEqual(before_kernel, kernel_usage._OPEN_TOOL_CALLS)
                 self.kernel.evaluate(post)
+                self.assertEqual(before_kernel, kernel_usage._OPEN_TOOL_CALLS)
             finally:
                 os.chdir(previous)
             self.assertEqual([], list(project.rglob("*.tool-receipt.json")))

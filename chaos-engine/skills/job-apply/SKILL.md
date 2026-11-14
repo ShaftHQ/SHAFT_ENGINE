@@ -1,7 +1,7 @@
 ---
 name: job-apply
 description: >-
-  Use when anyone wants to apply for a job. Default is draft only. A recorded
+  Use when applying for a job. Default is draft only. A recorded
   owner standing send permission that names the channel class may send only
   after the shared gate passes on the exact final text.
 license: MIT
