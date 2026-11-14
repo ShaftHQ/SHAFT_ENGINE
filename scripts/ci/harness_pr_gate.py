@@ -1779,7 +1779,9 @@ _CEILING_PATHS = frozenset(
 )
 _ALWAYS_LOADED_RAISE_KEYS = ("bytes", "tolerance_pct")
 _ALLOWLIST_CEILING_ASSIGNMENT = re.compile(
-    r"^UNGATED_TEST_ALLOWLIST_CEILING\s*=\s*(?P<expr>.+?)\s*(?:#.*)?$",
+    r"^[ \t]*UNGATED_TEST_ALLOWLIST_CEILING\b"
+    r"(?P<annotation>:[^=\n]*)?"
+    r"[ \t]*(?P<aug>[+-])?=[ \t]*(?P<expr>.+?)[ \t]*(?:#.*)?$",
     re.MULTILINE,
 )
 
@@ -1880,7 +1882,10 @@ def _assigned_allowlist_ceiling(text: str) -> int | None:
     matches = list(_ALLOWLIST_CEILING_ASSIGNMENT.finditer(text))
     if not matches:
         return None
-    expr = matches[-1].group("expr").strip()
+    match = matches[-1]
+    if match.group("aug"):
+        raise ValueError(match.group(0))
+    expr = match.group("expr").strip()
     try:
         parsed = ast.parse(expr, mode="eval")
     except SyntaxError as error:
@@ -2674,14 +2679,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _emit_stopped_plan(args: argparse.Namespace, key: str, hits: list[str]) -> int:
-    """Print one refused plan and return its exit code. Text and JSON stay as before."""
-    payload = {
+def _emit_stopped_plan(
+    args: argparse.Namespace,
+    scope_hits: list[str],
+    ceiling_hits: list[str],
+) -> int:
+    """Print every scope hit and every ceiling hit, then return the failure exit."""
+    hits = [*scope_hits, *ceiling_hits]
+    payload: dict[str, Any] = {
         "schema": 1,
         "valid": False,
         "error": "; ".join(hits),
-        key: hits,
     }
+    if scope_hits:
+        payload["pr_scope"] = scope_hits
+    if ceiling_hits:
+        payload["ceiling_raises"] = ceiling_hits
     serialized = json.dumps(payload, indent=2, sort_keys=True)
     if args.output:
         args.output.write_text(serialized + "\n", encoding="utf-8")
@@ -2720,13 +2733,11 @@ def main() -> int:
             except (OSError, ValueError, TypeError):
                 _event_body = ""
         _scope_hits = pr_scope_gate_failures(root, [str(p) for p in changed], _event_body)
-        if _scope_hits:
-            return _emit_stopped_plan(args, "pr_scope", _scope_hits)
         _ceiling_hits = _ceiling_plan_failures(
             root, args.base, args.head, [str(changed_path) for changed_path in changed]
         )
-        if _ceiling_hits:
-            return _emit_stopped_plan(args, "ceiling_raises", _ceiling_hits)
+        if _scope_hits or _ceiling_hits:
+            return _emit_stopped_plan(args, _scope_hits, _ceiling_hits)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(

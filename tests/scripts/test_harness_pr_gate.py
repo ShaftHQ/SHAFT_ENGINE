@@ -1383,6 +1383,27 @@ class CeilingRaiseTest(unittest.TestCase):
         masked_lines = ceiling_raises(path, base, masked)
         self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(masked_lines))
         self.assertIn("not an integer", "\n".join(masked_lines))
+        annotated = "UNGATED_TEST_ALLOWLIST_CEILING: int = 98\n"
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, annotated)))
+        indented = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, indented)))
+        augmented = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
+            "UNGATED_TEST_ALLOWLIST_CEILING += 1\n"
+        )
+        augmented_lines = ceiling_raises(path, base, augmented)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(augmented_lines))
+        self.assertIn("not an integer", "\n".join(augmented_lines))
+        decremented = (
+            "UNGATED_TEST_ALLOWLIST_CEILING = 97\n"
+            "UNGATED_TEST_ALLOWLIST_CEILING -= 1\n"
+        )
+        self.assertIn("not an integer", "\n".join(ceiling_raises(path, base, decremented)))
+        mention = "The UNGATED_TEST_ALLOWLIST_CEILING value is documented here.\n"
+        self.assertEqual([], ceiling_raises(path, base, mention))
 
     def test_plan_fails_when_bytes_rise_against_the_merge_base(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1400,7 +1421,7 @@ class CeilingRaiseTest(unittest.TestCase):
                 )
                 return completed.stdout.strip()
 
-            def gate(base: str, head: str) -> tuple[int, str]:
+            def gate(base: str, head: str, body: str) -> tuple[int, str]:
                 import os
 
                 stdout, stderr = io.StringIO(), io.StringIO()
@@ -1414,14 +1435,28 @@ class CeilingRaiseTest(unittest.TestCase):
                     head,
                     "--plan-only",
                 ]
-                previous = os.environ.pop("GITHUB_EVENT_PATH", None)
+                event = root / "github-event.json"
+                event.write_text(
+                    json.dumps({"pull_request": {"body": body}}),
+                    encoding="utf-8",
+                )
+                previous = os.environ.get("GITHUB_EVENT_PATH")
+                os.environ["GITHUB_EVENT_PATH"] = str(event)
                 try:
                     with patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
                         code = gate_main()
                 finally:
-                    if previous is not None:
+                    if previous is None:
+                        os.environ.pop("GITHUB_EVENT_PATH", None)
+                    else:
                         os.environ["GITHUB_EVENT_PATH"] = previous
                 return code, stdout.getvalue() + stderr.getvalue()
+
+            agentic = "<!-- chaos-engine:agentic -->\n"
+            scoped = (
+                agentic
+                + "<!-- chaos-engine:scope chaos-engine/,scripts/ci/,tests/scripts/ -->\n"
+            )
 
             git("init", "--initial-branch=main")
             git("config", "user.name", "Harness Test")
@@ -1436,14 +1471,14 @@ class CeilingRaiseTest(unittest.TestCase):
             git("add", "chaos-engine/always-loaded-budget.json")
             git("commit", "-m", "raise")
             raised = git("rev-parse", "HEAD")
-            code, output = gate(base, raised)
+            code, output = gate(base, raised, scoped)
             self.assertEqual(1, code, output)
             self.assertIn("bytes", output)
             budget.write_text('{"bytes": 9, "tolerance_pct": 5}\n', encoding="utf-8")
             git("add", "chaos-engine/always-loaded-budget.json")
             git("commit", "-m", "shrink")
             shrunk = git("rev-parse", "HEAD")
-            code, output = gate(raised, shrunk)
+            code, output = gate(raised, shrunk, scoped)
             self.assertEqual(0, code, output)
 
             # Base tip and merge base are different commits.
@@ -1457,7 +1492,11 @@ class CeilingRaiseTest(unittest.TestCase):
             git("add", "chaos-engine/always-loaded-budget.json")
             git("commit", "-m", "tip-100")
             tip_100 = git("rev-parse", "HEAD")
-            code, output = gate(tip_100, head_20)
+            code, output = gate(tip_100, head_20, agentic)
+            self.assertEqual(1, code, output)
+            self.assertIn("10 -> 20", output)
+            self.assertIn("missing-scope", output)
+            code, output = gate(tip_100, head_20, scoped)
             self.assertEqual(1, code, output)
             self.assertIn("10 -> 20", output)
 
@@ -1471,7 +1510,7 @@ class CeilingRaiseTest(unittest.TestCase):
             git("add", "chaos-engine/always-loaded-budget.json")
             git("commit", "-m", "rev-tip")
             rev_tip = git("rev-parse", "HEAD")
-            code, output = gate(rev_tip, rev_head)
+            code, output = gate(rev_tip, rev_head, scoped)
             self.assertEqual(0, code, output)
 
 
