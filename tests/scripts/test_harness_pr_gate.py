@@ -1415,6 +1415,22 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, spaced)))
         one_line = "if True: UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
         self.assertIn("-> 98", "\n".join(ceiling_raises(path, base, one_line)))
+        matched = (
+            "match 98:\n"
+            "    case UNGATED_TEST_ALLOWLIST_CEILING:\n"
+            "        pass\n"
+        )
+        matched_lines = ceiling_raises(path, base, matched)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(matched_lines))
+        self.assertIn("not an integer", "\n".join(matched_lines))
+        imported = "import math as UNGATED_TEST_ALLOWLIST_CEILING\n"
+        imported_lines = ceiling_raises(path, base, imported)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(imported_lines))
+        self.assertIn("not an integer", "\n".join(imported_lines))
+        imported_from = "from math import pi as UNGATED_TEST_ALLOWLIST_CEILING\n"
+        from_lines = ceiling_raises(path, base, imported_from)
+        self.assertIn("UNGATED_TEST_ALLOWLIST_CEILING", "\n".join(from_lines))
+        self.assertIn("not an integer", "\n".join(from_lines))
         mention = "The UNGATED_TEST_ALLOWLIST_CEILING value is documented here.\n"
         self.assertEqual([], ceiling_raises(path, base, mention))
 

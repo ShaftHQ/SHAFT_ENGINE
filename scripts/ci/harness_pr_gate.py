@@ -1883,16 +1883,22 @@ def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
     return parents
 
 
-def _allowlist_stores(tree: ast.AST) -> list[ast.Name]:
-    stores = [
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Name)
-        and node.id == _ALLOWLIST_NAME
-        and isinstance(node.ctx, (ast.Store, ast.Del))
-    ]
-    stores.sort(key=lambda node: (node.lineno, node.col_offset))
-    return stores
+def _is_allowlist_binding(node: ast.AST) -> bool:
+    if isinstance(node, ast.Name):
+        return node.id == _ALLOWLIST_NAME and isinstance(node.ctx, (ast.Store, ast.Del))
+    if isinstance(node, (ast.MatchAs, ast.MatchStar)):
+        return node.name == _ALLOWLIST_NAME
+    if isinstance(node, ast.MatchMapping):
+        return node.rest == _ALLOWLIST_NAME
+    if isinstance(node, ast.alias):
+        return _ALLOWLIST_NAME in (node.asname, node.name)
+    return False
+
+
+def _allowlist_bindings(tree: ast.AST) -> list[ast.AST]:
+    bindings = [node for node in ast.walk(tree) if _is_allowlist_binding(node)]
+    bindings.sort(key=lambda node: (node.lineno, node.col_offset))
+    return bindings
 
 
 def _required_int(value: ast.AST | None) -> int:
@@ -1907,10 +1913,12 @@ def _required_int(value: ast.AST | None) -> int:
 def _last_allowlist_binding(tree: ast.AST) -> int | None:
     """Last binding of the allowlist name. None when the name is only loaded."""
     parents = _parent_map(tree)
-    stores = _allowlist_stores(tree)
-    if not stores:
+    bindings = _allowlist_bindings(tree)
+    if not bindings:
         return None
-    last = stores[-1]
+    last = bindings[-1]
+    if not isinstance(last, ast.Name):
+        raise ValueError(_ALLOWLIST_NAME)
     parent = parents.get(last)
     if isinstance(last.ctx, ast.Del):
         raise ValueError(_ALLOWLIST_NAME)
