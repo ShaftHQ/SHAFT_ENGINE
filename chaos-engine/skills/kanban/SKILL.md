@@ -43,6 +43,7 @@ only while `review` has capacity; waiting on CI counts as idle. Never leave a
 started card to start another. Never push work forward. Group related cards
 into the fewest safe pull requests. Avoid PRs that depend on other open PRs;
 land them in order and merge base once before the final push.
+Do not dodge the count by opening a draft, using another branch name, or splitting the work.
 
 ## Definition of Done
 
