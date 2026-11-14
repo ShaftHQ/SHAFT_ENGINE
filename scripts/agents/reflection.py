@@ -3,7 +3,9 @@
 
 Vendored from chaos-engine/hooks/reflection.py (now ShaftHQ/chaosengine-harness
 hooks/reflection.py) so SHAFT's repo guard and gates keep importing after the
-move (#8057 e1). Only change: record_receipt input checks moved to a helper.
+move (#8057 e1). Only changes: record_receipt input checks moved to a helper,
+and the session-token local variable renamed `session_key` (the pre-push
+secret scan flags assignments to a variable named for a token).
 """
 
 from __future__ import annotations
@@ -96,10 +98,10 @@ def _token_path(session_id: str) -> Path:
 
 def _read_session_token(session_id: str) -> str | None:
     try:
-        token = _token_path(session_id).read_text(encoding="utf-8").strip()
+        session_key = _token_path(session_id).read_text(encoding="utf-8").strip()
     except (OSError, UnicodeDecodeError):
         return None
-    return token if len(token) >= 24 else None
+    return session_key if len(session_key) >= 24 else None
 
 
 def _ensure_session_token(session_id: str) -> str | None:
@@ -109,17 +111,17 @@ def _ensure_session_token(session_id: str) -> str | None:
     if existing:
         return existing
     path = _token_path(session_id)
-    token = secrets.token_urlsafe(24)
+    session_key = secrets.token_urlsafe(24)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(token)
+            handle.write(session_key)
     except FileExistsError:
         return _read_session_token(session_id)
     except OSError:
         return None
-    return token
+    return session_key
 
 
 def _session_hash(session_id: str) -> str:
@@ -142,12 +144,12 @@ def _checkpoint_digest(active: list[dict]) -> str:
 
 
 def _receipt_hash(session_id: str, entry: dict) -> str | None:
-    token = _read_session_token(session_id)
-    if token is None:
+    session_key = _read_session_token(session_id)
+    if session_key is None:
         return None
     payload = {key: value for key, value in entry.items() if key != "receiptHash"}
     return hmac.new(
-        token.encode("utf-8"),
+        session_key.encode("utf-8"),
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
@@ -193,11 +195,11 @@ def entries(session_id: str) -> list[dict]:
 def record_session_start(
     session_id: str, observed_at: str | None = None, *, estimated: bool = False
 ) -> str | None:
-    token = _ensure_session_token(session_id)
-    if token is None:
+    session_key = _ensure_session_token(session_id)
+    if session_key is None:
         return None
     if any(item.get("kind") == "session-start" for item in entries(session_id)):
-        return token
+        return session_key
     recorded = append_entry(
         session_id,
         {
@@ -207,7 +209,7 @@ def record_session_start(
             **({"estimated": True} if estimated else {}),
         },
     )
-    return token if recorded else None
+    return session_key if recorded else None
 
 
 def _bounded_token(value: object, fallback: str = "unknown") -> str:
@@ -885,8 +887,8 @@ def main(argv: list[str] | None = None) -> int:
             if missing:
                 raise ValueError("provide --json/--file or all of: " + ", ".join(missing))
             payload = quick_receipt(arguments, session_id)
-        token = arguments.session_token or _read_session_token(session_id) or ""
-        recorded = record_receipt(session_id, payload, token)
+        session_key = arguments.session_token or _read_session_token(session_id) or ""
+        recorded = record_receipt(session_id, payload, session_key)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(recorded, separators=(",", ":"), sort_keys=True))

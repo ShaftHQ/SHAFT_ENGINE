@@ -790,6 +790,30 @@ def evidence_pin_failures(root: Path) -> list[str]:
     return list(module.evidence_pin_failures(root))
 
 
+def _ce_module_path(root: Path, relative: str) -> Path | None:
+    """#8057: ChaosEngine moved to ShaftHQ/chaosengine-harness.
+
+    Prefer a legacy ``chaos-engine/`` source tree, else the installed overlay
+    ``.chaos-engine/`` (the harness installer ships these gate modules).
+    """
+    for base in ("chaos-engine", ".chaos-engine"):
+        path = root / base / relative
+        if path.is_file():
+            return path
+    return None
+
+
+def _ce_moved(root: Path) -> bool:
+    """True in a SHAFT checkout where chaos-engine/ is only the forwarding shim."""
+    return (root / "chaos-engine" / "install.sh").is_file() and not (root / "chaos-engine" / "install.py").is_file()
+
+
+_CE_MISSING = (
+    "{gate} unavailable: ChaosEngine moved to ShaftHQ/chaosengine-harness; install it "
+    "(.chaos-engine/) with the one-liner in chaos-engine/README.md, then push"
+)
+
+
 def client_name_scrub_failures(
     root: Path,
     *,
@@ -800,10 +824,10 @@ def client_name_scrub_failures(
     Unconfigured denylist → []. Sparse OverlayPrePush fixtures without the
     helper module skip. See references/client-name-scrub.md.
     """
-    helper = root / "chaos-engine" / "client_name_scrub.py"
-    if not helper.is_file():
-        return []
-    sys.path.insert(0, str(root / "chaos-engine"))
+    helper = _ce_module_path(root, "client_name_scrub.py")
+    if helper is None:
+        return [_CE_MISSING.format(gate="client-name scrub")] if _ce_moved(root) else []
+    sys.path.insert(0, str(helper.parent))
     import client_name_scrub  # noqa: WPS433
 
     return list(client_name_scrub.client_name_scrub_failures(root, environ=environ))
@@ -885,12 +909,14 @@ def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
 
 def remote_credential_failures(root: Path) -> list[str]:
     """L77: refuse push when git remotes embed credentials (never print values)."""
-    helper = root / "chaos-engine" / "rules" / "remote_credential_guard.py"
-    if not helper.is_file():
+    helper = _ce_module_path(root, "rules/remote_credential_guard.py")
+    if helper is None:
         # Fail-closed when the rules package exists but the module was deleted;
         # incomplete test fixtures without rules/ stay silent.
         if (root / "chaos-engine" / "rules").is_dir():
             return ["L77-no-token-in-remote: remote_credential_guard.py missing"]
+        if _ce_moved(root):
+            return [_CE_MISSING.format(gate="L77-no-token-in-remote")]
         return []
     try:
         spec = importlib.util.spec_from_file_location(
@@ -1038,9 +1064,11 @@ def overlay_pre_push_failures(
 
 def _operation_disk_failures(root: Path, changed: list[str]) -> list[str]:
     """PDCA notes, secret-bearing files, and watcher loop caps at push time."""
-    script = Path(__file__).resolve().parents[2] / "chaos-engine" / "rules" / "operation_boundary.py"
-    if not script.is_file():
-        return []
+    repository = Path(__file__).resolve().parents[2]
+    relative = "rules/operation_boundary.py"
+    script = _ce_module_path(root, relative) or _ce_module_path(repository, relative)
+    if script is None:
+        return [_CE_MISSING.format(gate="operation boundary")] if _ce_moved(root) else []
     spec = importlib.util.spec_from_file_location("chaos_engine_operation_boundary", script)
     if spec is None or spec.loader is None:
         return ["operation boundary failed: checker unavailable"]
