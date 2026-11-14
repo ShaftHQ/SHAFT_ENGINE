@@ -570,6 +570,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
+      - name: ChaosEngine security scope
+        run: python3 -m unittest tests.scripts.test_user_facing_readmes.UserFacingReadmeTest.test_security_policy_names_chaosengine_scope
 
   chaos-gauge:
     name: ChaosGauge Recovery Gate
