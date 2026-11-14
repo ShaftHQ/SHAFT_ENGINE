@@ -1460,6 +1460,18 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertEqual([], ceiling_raises(path, base, function_only))
         class_only = "class C:\n    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
         self.assertEqual([], ceiling_raises(path, base, class_only))
+        class_global = (
+            "class C:\n"
+            "    global UNGATED_TEST_ALLOWLIST_CEILING\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        self.assertIn("97 -> 98", "\n".join(ceiling_raises(path, base, class_global)))
+        function_global = (
+            "def f():\n"
+            "    global UNGATED_TEST_ALLOWLIST_CEILING\n"
+            "    UNGATED_TEST_ALLOWLIST_CEILING = 98\n"
+        )
+        self.assertEqual([], ceiling_raises(path, base, function_global))
         for_else = (
             "for _ in (1,):\n"
             "    pass\n"

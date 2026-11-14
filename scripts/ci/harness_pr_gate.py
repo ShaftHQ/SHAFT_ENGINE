@@ -1910,12 +1910,47 @@ def _class_header_binds(node: ast.ClassDef) -> bool:
     return any(_contains_binding(item) for item in nodes)
 
 
+def _node_has_global(node: ast.AST) -> bool:
+    """True for a global of the name that is not inside a function or nested class."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+        return False
+    if isinstance(node, ast.Global):
+        return _ALLOWLIST_NAME in node.names
+    return any(_node_has_global(child) for child in ast.iter_child_nodes(node))
+
+
+def _block_has_global(body: list[ast.stmt]) -> bool:
+    return any(_node_has_global(stmt) for stmt in body)
+
+
+def _stores_outside_scopes(node: ast.AST) -> bool:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+        return False
+    if _is_allowlist_binding(node):
+        return True
+    return any(_stores_outside_scopes(child) for child in ast.iter_child_nodes(node))
+
+
+def _nested_class_binds(node: ast.AST) -> bool:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        return False
+    if isinstance(node, ast.ClassDef):
+        return _contains_binding(node)
+    return any(_nested_class_binds(child) for child in ast.iter_child_nodes(node))
+
+
+def _class_global_stores(node: ast.ClassDef) -> bool:
+    if _block_has_global(node.body) and any(_stores_outside_scopes(stmt) for stmt in node.body):
+        return True
+    return any(_nested_class_binds(stmt) for stmt in node.body)
+
+
 def _contains_binding(node: ast.AST) -> bool:
-    """True when this node binds the name outside a nested body."""
+    """True when this node binds the name outside a nested function body."""
     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
         return _signature_binds(node)
     if isinstance(node, ast.ClassDef):
-        return _class_header_binds(node)
+        return _class_header_binds(node) or _class_global_stores(node)
     if _is_allowlist_binding(node):
         return True
     return any(_contains_binding(child) for child in ast.iter_child_nodes(node))
@@ -2055,6 +2090,38 @@ def _walk_loop(stmt: ast.While | ast.For | ast.AsyncFor, value: int | None) -> i
     return _walk_for(stmt, value)
 
 
+def _child_statements(stmt: ast.stmt) -> list[ast.stmt]:
+    found: list[ast.stmt] = []
+    for child in ast.iter_child_nodes(stmt):
+        if isinstance(child, ast.stmt):
+            found.append(child)
+        elif isinstance(child, ast.ExceptHandler):
+            found.extend(child.body)
+        elif isinstance(child, ast.match_case):
+            found.extend(child.body)
+    return found
+
+
+def _walk_nested_classes(body: list[ast.stmt], value: int | None) -> int | None:
+    for stmt in body:
+        if isinstance(stmt, ast.ClassDef):
+            value = _walk_class(stmt, value)
+        elif isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        else:
+            value = _walk_nested_classes(_child_statements(stmt), value)
+    return value
+
+
+def _walk_class(stmt: ast.ClassDef, value: int | None) -> int | None:
+    """A class body runs at definition time. global there writes the module."""
+    if _class_header_binds(stmt):
+        raise ValueError(_ALLOWLIST_NAME)
+    if _block_has_global(stmt.body):
+        return _walk_block(stmt.body, value)
+    return _walk_nested_classes(stmt.body, value)
+
+
 def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
     if isinstance(stmt, ast.Assign):
         return _walk_plain_assign(list(stmt.targets), stmt.value, stmt, value)
@@ -2064,6 +2131,8 @@ def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
         return _walk_if(stmt, value)
     if isinstance(stmt, (ast.While, ast.For, ast.AsyncFor)):
         return _walk_loop(stmt, value)
+    if isinstance(stmt, ast.ClassDef):
+        return _walk_class(stmt, value)
     if _contains_binding(stmt):
         raise ValueError(_ALLOWLIST_NAME)
     return value
@@ -2072,8 +2141,9 @@ def _walk_stmt(stmt: ast.stmt, value: int | None) -> int | None:
 def _assigned_allowlist_ceiling(text: str) -> int | None:
     """Module-global allowlist integer, or None when that name is not bound there.
 
-    Function, class, and lambda bodies are not the module global. Their defaults,
-    annotations, decorators, and base expressions are. A binding that is not a
+    Function and lambda bodies are not the module global. A class assignment is,
+    when that class body declares the name global. Defaults, annotations,
+    decorators, and base expressions are included. A binding that is not a
     reducible assignment raises ValueError. A syntax error raises ValueError only
     when a line assigns the name.
     """
