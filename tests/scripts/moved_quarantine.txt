@@ -38,7 +38,6 @@ module tests.scripts.test_open_queue_hooks_and_impact
 module tests.scripts.test_policy_overlay_repair
 module tests.scripts.test_pre_done_review
 module tests.scripts.test_reflection_commit_credit
-module tests.scripts.test_reflection_recovery
 module tests.scripts.test_vendor_plugin_adapters_6198
 class tests.scripts.test_ce_guard_reachability.GuardReachabilityTest
 class tests.scripts.test_ce_tool_output_spill.LargeReadDenyTests

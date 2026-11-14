@@ -3,7 +3,7 @@
 
 Vendored from chaos-engine/hooks/reflection.py (now ShaftHQ/chaosengine-harness
 hooks/reflection.py) so SHAFT's repo guard and gates keep importing after the
-move (#8057 e1).
+move (#8057 e1). Only change: record_receipt input checks moved to a helper.
 """
 
 from __future__ import annotations
@@ -672,7 +672,8 @@ def _validate_receipt_context(session_id: str, receipt: dict) -> tuple[dict | No
     return checkpoint, trigger
 
 
-def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
+def _validate_receipt_inputs(session_id: str, receipt: dict, session_token: str) -> tuple:
+    """Token, shape, context, disposition, approaches and fingerprints of a receipt."""
     expected_token = _read_session_token(session_id)
     if expected_token is None or not hmac.compare_digest(expected_token, session_token):
         raise ValueError("session token is missing or invalid")
@@ -688,6 +689,11 @@ def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
     supplied = receipt.get("failureFingerprints", expected)
     if sorted(supplied) != sorted(expected):
         raise ValueError("failureFingerprints do not match the pending checkpoint")
+    return trigger, disposition, compared, supplied
+
+
+def record_receipt(session_id: str, receipt: dict, session_token: str) -> dict:
+    trigger, disposition, compared, supplied = _validate_receipt_inputs(session_id, receipt, session_token)
     active = active_entries(session_id)
     entry = {
         "schemaVersion": SCHEMA_VERSION,
