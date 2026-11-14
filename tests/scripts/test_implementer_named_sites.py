@@ -19,6 +19,13 @@ SENTENCES = (
     "Do not guess.",
 )
 
+INTRO = (
+    "Implements one bounded spec using TDD and Ponytail. "
+    "Runs at the default capability level unless the assignment states otherwise. "
+    "Returns architectural ambiguity undecided. "
+    "May assign only mechanical, spec-exact, or bulk work downward, then verifies its output."
+)
+
 FORBIDDEN = (
     "do not open those sites and edit them before a broader search",
     "survey the rest of the tree first. Then open those sites and edit them before a broader search",
@@ -46,6 +53,9 @@ def policy_sentences(section: str) -> list[str]:
 class ImplementerNamedSitesTest(unittest.TestCase):
     def setUp(self) -> None:
         self.section = implementer_section(ROLES.read_text(encoding="utf-8"))
+
+    def test_text_before_the_first_policy_sentence_is_only_the_intro(self) -> None:
+        self.assertEqual(INTRO, self.section[: self.section.index(SENTENCES[0])].strip())
 
     def test_policy_sentences_are_exact_and_in_order(self) -> None:
         found = policy_sentences(self.section)
