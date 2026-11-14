@@ -352,6 +352,21 @@ class WorktreeHygieneTest(unittest.TestCase):
                 )
         self.assertEqual([], never_touch_cleanup_blockers(self.base / "safe-owned-wt"))
 
+    def test_delete_guard_resolves_from_source_tree_then_installed_overlay(self):
+        # #8057: after the move SHAFT has no chaos-engine/delete_guard.py;
+        # the installed overlay .chaos-engine/ ships it.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            self.assertIsNone(worktree_hygiene_module.delete_guard_dir(root))
+            (root / "chaos-engine").mkdir()
+            (root / "chaos-engine" / "install.sh").write_text("", encoding="utf-8")
+            self.assertIsNone(worktree_hygiene_module.delete_guard_dir(root))
+            (root / ".chaos-engine").mkdir()
+            (root / ".chaos-engine" / "delete_guard.py").write_text("", encoding="utf-8")
+            self.assertEqual(root / ".chaos-engine", worktree_hygiene_module.delete_guard_dir(root))
+            (root / "chaos-engine" / "delete_guard.py").write_text("", encoding="utf-8")
+            self.assertEqual(root / "chaos-engine", worktree_hygiene_module.delete_guard_dir(root))
+
     def test_never_touch_cleanup_fails_closed_when_delete_guard_unavailable(self):
         safe = self.base / "safe-owned-wt"
         previous = worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE

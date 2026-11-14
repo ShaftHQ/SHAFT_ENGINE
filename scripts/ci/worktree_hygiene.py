@@ -49,7 +49,19 @@ from scripts.agents.repository_context import (  # noqa: E402
     parse_git_remote,
 )
 
-_DELETE_GUARD_DIR = ROOT / "chaos-engine"
+# #8057: ChaosEngine moved to ShaftHQ/chaosengine-harness. Prefer a legacy
+# chaos-engine/ source tree, else the installed overlay .chaos-engine/ (the
+# harness installer ships delete_guard.py there). With neither, cleanup still
+# fails closed below.
+def delete_guard_dir(root: Path) -> Path | None:
+    """Directory that ships ``delete_guard.py`` under ``root``, or None."""
+    for base in ("chaos-engine", ".chaos-engine"):
+        if (root / base / "delete_guard.py").is_file():
+            return root / base
+    return None
+
+
+_DELETE_GUARD_DIR = delete_guard_dir(ROOT) or ROOT / "chaos-engine"
 if _DELETE_GUARD_DIR.is_dir() and str(_DELETE_GUARD_DIR) not in sys.path:
     sys.path.insert(0, str(_DELETE_GUARD_DIR))
 _DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
