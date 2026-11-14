@@ -57,6 +57,31 @@ def _skip(cls: type) -> None:
     cls.__unittest_skip_why__ = REASON
 
 
+class _StubMeta(type):
+    def __getattr__(cls, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+
+        def placeholder(self):
+            """Placeholder; skipped."""
+
+        setattr(cls, name, placeholder)
+        return getattr(cls, name)
+
+
+def _stub_class(module_name: str, name: str) -> type:
+    # Only class-like names; load_tests and other hooks stay absent.
+    if not name[:1].isupper():
+        raise AttributeError(name)
+
+    def test_moved(self):
+        """Placeholder; skipped."""
+
+    cls = _StubMeta(name, (unittest.TestCase,), {"test_moved": test_moved, "__module__": module_name})
+    _skip(cls)
+    return cls
+
+
 class _Loader(importlib.abc.Loader):
     def __init__(self, real, stub: bool, classes: set[str]):
         self.real, self.stub, self.classes = real, stub, classes
@@ -73,13 +98,9 @@ class _Loader(importlib.abc.Loader):
             for key in [key for key in vars(module) if not key.startswith("__")]:
                 delattr(module, key)
 
-            class MovedToHarness(unittest.TestCase):
-                def test_moved(self):
-                    """Placeholder; skipped."""
-
-            MovedToHarness.__module__ = module.__name__
-            _skip(MovedToHarness)
-            module.MovedToHarness = MovedToHarness
+            module.MovedToHarness = _stub_class(module.__name__, "MovedToHarness")
+            # A dotted test id (module.Class.test) still resolves to a skip.
+            module.__getattr__ = lambda name: _stub_class(module.__name__, name)
             return
         for name in self.classes:
             cls = getattr(module, name, None)
