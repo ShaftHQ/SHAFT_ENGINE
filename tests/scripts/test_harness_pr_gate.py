@@ -1353,6 +1353,8 @@ class CeilingRaiseTest(unittest.TestCase):
                 return completed.stdout.strip()
 
             def gate(base: str, head: str) -> tuple[int, str]:
+                import os
+
                 stdout, stderr = io.StringIO(), io.StringIO()
                 argv = [
                     "harness_pr_gate.py",
@@ -1364,8 +1366,13 @@ class CeilingRaiseTest(unittest.TestCase):
                     head,
                     "--plan-only",
                 ]
-                with patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
-                    code = gate_main()
+                previous = os.environ.pop("GITHUB_EVENT_PATH", None)
+                try:
+                    with patch.object(sys, "argv", argv), redirect_stdout(stdout), redirect_stderr(stderr):
+                        code = gate_main()
+                finally:
+                    if previous is not None:
+                        os.environ["GITHUB_EVENT_PATH"] = previous
                 return code, stdout.getvalue() + stderr.getvalue()
 
             git("init", "--initial-branch=main")
