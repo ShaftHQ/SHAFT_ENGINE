@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 import sys
 from pathlib import Path
@@ -84,7 +85,36 @@ def entry_line(root: Path = HERE) -> str:
     return f"index: {len(mapped_files(root))} files, `.chaos-engine/{MAP}`\n"
 
 
-def main(argv: list[str] | None = None) -> int:
+_REFERENCE_BUDGET_KEY = "chaos-engine/references/*.md"
+
+
+def reference_byte_cap(repo: Path) -> int | None:
+    """Read file_budgets['chaos-engine/references/*.md'].max_bytes. Do not invent one."""
+    path = repo / "scripts/ci/agent_guidance_budget.json"
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    limits = payload.get("file_budgets", {}).get(_REFERENCE_BUDGET_KEY)
+    if not isinstance(limits, dict):
+        return None
+    maximum = limits.get("max_bytes")
+    if isinstance(maximum, bool) or not isinstance(maximum, int):
+        return None
+    return maximum
+
+
+def overflow_finding(repo: Path, rendered: str) -> str | None:
+    """Fail when the rendered map's UTF-8 length exceeds the reference cap."""
+    ceiling = reference_byte_cap(repo)
+    if ceiling is None:
+        return None
+    count = len(rendered.encode("utf-8"))
+    if count <= ceiling:
+        return None
+    return f"harness-map overflow: host=harness-map count={count} ceiling={ceiling}"
+
+
+def main(argv: list[str] | None = None, repo: Path | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--check", action="store_true")
@@ -95,6 +125,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.write:
         target.write_text(rendered, encoding="utf-8")
         return 0
+    overflow = overflow_finding(repo or HERE.parent, rendered)
+    if overflow:
+        print(overflow, file=sys.stderr)
+        return 1
     current = target.read_text(encoding="utf-8") if target.is_file() else ""
     if current != rendered:
         print(f"{MAP} is stale: run python3 chaos-engine/harness_map.py --write", file=sys.stderr)

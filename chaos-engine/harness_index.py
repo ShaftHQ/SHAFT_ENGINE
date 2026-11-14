@@ -424,6 +424,56 @@ def generated(root: Path) -> dict[Path, str]:
     return targets
 
 
+def foreign_write_block(root: Path) -> str | None:
+    """Block a --root whose chaos-engine/harness_index.py is a different file.
+
+    The same file, including a symlink that resolves to this script, may write.
+    A tree with no chaos-engine/harness_index.py keeps the previous write path.
+    """
+    candidate = root / "chaos-engine" / "harness_index.py"
+    if not candidate.is_file():
+        return None
+    other = candidate.resolve()
+    if other == Path(__file__).resolve():
+        return None
+    return f"refusing to write this skill tuple into {other}; run that tree's script"
+
+
+def _skill_listing_chars():
+    """Import the shipped counter. An installed copy with no scripts package skips it."""
+    repo = str(HERE.parent)
+    if repo not in sys.path:
+        sys.path.insert(0, repo)
+    try:
+        from scripts.ci.validate_agent_guidance import skill_listing_chars
+    except ImportError:
+        return None
+    return skill_listing_chars
+
+
+def listing_overflows(root: Path) -> list[str]:
+    """Host listings over max_skill_listing_chars. The counter is not reimplemented."""
+    budget_path = root / "scripts/ci/agent_guidance_budget.json"
+    if not budget_path.is_file():
+        return []
+    budget = json.loads(budget_path.read_text(encoding="utf-8"))
+    ceiling = budget.get("max_skill_listing_chars")
+    hosts = budget.get("host_skill_metadata_globs")
+    if not isinstance(ceiling, int) or not isinstance(hosts, dict):
+        return []
+    count_chars = _skill_listing_chars()
+    if count_chars is None:
+        return []
+    findings: list[str] = []
+    for host, patterns in hosts.items():
+        if not isinstance(patterns, list):
+            continue
+        count = count_chars(root, patterns)
+        if count > ceiling:
+            findings.append(f"listing overflow: host={host} count={count} ceiling={ceiling}")
+    return findings
+
+
 def check(root: Path) -> list[str]:
     """Return drift findings; empty when every generated artifact matches."""
     findings: list[str] = []
@@ -435,10 +485,13 @@ def check(root: Path) -> list[str]:
     for entry in build_index()["entries"]:
         if not (source / entry["path"]).is_file():
             findings.append(f"index entry without a file: {entry['path']}")
+    findings.extend(listing_overflows(root))
     return findings
 
 
 def write(root: Path) -> list[str]:
+    if foreign_write_block(root) is not None:
+        return []
     written: list[str] = []
     for path, expected in generated(root).items():
         if not path.is_file() or path.read_text(encoding="utf-8") != expected:
@@ -466,6 +519,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root = args.root.resolve()
     if args.write:
+        blocked = foreign_write_block(root)
+        if blocked is not None:
+            print(blocked, file=sys.stderr)
+            return 1
         for item in write(root):
             print(f"wrote {item}")
         return 0

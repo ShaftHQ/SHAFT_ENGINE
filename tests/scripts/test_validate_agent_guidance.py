@@ -447,6 +447,57 @@ steps:
         self.write("CLAUDE.md", f"# Claude\n\n{paragraph}\n")
         self.assertIn("duplicate-paragraph", self.codes())
 
+    def test_duplicate_guidance_line_of_40_characters_names_both_paths_and_the_count(self):
+        line = "z" * 40
+        self.write("AGENTS.md", line + "\n")
+        self.write("CLAUDE.md", line + "\n")
+        errors = [
+            error
+            for error in validate_repository(self.root, self.budget_path)
+            if error["code"] == "duplicate-guidance-line"
+        ]
+        self.assertEqual(1, len(errors))
+        message = errors[0]["message"]
+        self.assertIn("AGENTS.md", message)
+        self.assertIn("CLAUDE.md", message)
+        self.assertIn("40 characters", message)
+
+    def test_identical_39_character_guidance_line_passes(self):
+        line = "q" * 39
+        self.write("AGENTS.md", line + "\n")
+        self.write("CLAUDE.md", line + "\n")
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
+    def test_allowed_pointer_and_scaffold_lines_are_not_duplicate_guidance(self):
+        lines = [
+            "Load [ChaosEngine](" + ("." * 22),
+            "Load [act-as-mohab](" + ("." * 22),
+            "Do not restate policy here." + ("." * 14),
+            "[" + ("a" * 20) + "](" + ("b" * 20) + ")",
+            "python3 .chaos-engine/harness_index.py --check",
+        ]
+        for line in lines:
+            self.assertGreaterEqual(len(line), 40)
+        table = "| same header cell that is long enough to count |\n| --- |\n"
+        body = "\n".join(lines) + "\n" + table
+        self.write("AGENTS.md", body)
+        self.write("CLAUDE.md", body)
+        self.assertNotIn("duplicate-guidance-line", self.codes())
+
+    def test_reference_missing_from_the_skills_map_reports_the_relative_link(self):
+        self.write("chaos-engine/references/new-gate.md", "# New gate\n")
+        errors = validate_repository(self.root, self.budget_path)
+        self.assertEqual(["skills-map-missing"], [error["code"] for error in errors])
+        self.assertIn("../../chaos-engine/references/new-gate.md", errors[0]["message"])
+
+    def test_linked_reference_passes_the_skills_map_check(self):
+        self.write("chaos-engine/references/new-gate.md", "# New gate\n")
+        self.write(
+            ".agents/skills/README.md",
+            "Map: ../../chaos-engine/references/new-gate.md\n",
+        )
+        self.assertEqual([], validate_repository(self.root, self.budget_path))
+
     def test_rejects_broken_local_reference(self):
         self.write("AGENTS.md", "# Agents\n\n[Missing](docs/missing.md)\n")
         self.assertIn("broken-reference", self.codes())
