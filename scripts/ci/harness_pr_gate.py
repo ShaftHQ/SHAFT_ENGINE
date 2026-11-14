@@ -1766,14 +1766,15 @@ def pr_scope_gate_failures(root: Path, paths: list[str], body: str) -> list[str]
     ]
 
 
+# #8057: the ChaosEngine ceilings (always-loaded budget, decision-quality
+# baseline) moved with the source to ShaftHQ/chaosengine-harness, which
+# enforces them there.
 _CEILING_PATHS = frozenset(
     {
-        "chaos-engine/always-loaded-budget.json",
         "scripts/ci/agent_guidance_budget.json",
         "scripts/ci/javadoc_coverage_baseline.json",
         "scripts/ci/test_reference_baseline.json",
         ".github/errorprone-baseline.json",
-        "chaos-engine/decision-quality-score.baseline.json",
         "scripts/ci/harness_pr_gate.py",
     }
 )
@@ -2351,9 +2352,33 @@ def classify_paths(paths: list[str]) -> GatePlan:
     return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
 
 
+MOVED_TEST_PREFIX = "tests.scripts.test_chaos_engine_"
+
+
+def _drop_moved_modules(plan: GatePlan, root: Path) -> GatePlan:
+    """#8057: ``test_chaos_engine_*`` suites moved to ShaftHQ/chaosengine-harness.
+
+    Drop those module ids when their file is gone, and any check left empty.
+    Temporary until e2 rewires the surface tables (tracked on #8057).
+    """
+
+    def present(module: str) -> bool:
+        if not module.startswith(MOVED_TEST_PREFIX):
+            return True
+        file_name = module.split(".")[2] + ".py"
+        return (root / "tests" / "scripts" / file_name).is_file()
+
+    checks = []
+    for check in plan.checks:
+        modules = tuple(module for module in check.modules if present(module))
+        if modules:
+            checks.append(replace(check, modules=modules))
+    return replace(plan, checks=tuple(checks))
+
+
 def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
     """``classify_paths`` plus weekly-only tests that name a changed harness module."""
-    plan = classify_paths(paths)
+    plan = _drop_moved_modules(classify_paths(paths), root)
     touched = touched_allowlisted_modules(root, paths)
     if not touched:
         return plan
