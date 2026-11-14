@@ -9,8 +9,8 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
-from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -153,16 +153,53 @@ class SessionToolReceiptTest(unittest.TestCase):
             payload = json.loads(text)
             self.assertTrue(FORBIDDEN_KEYS.isdisjoint(_keys(payload)))
 
+    def _evaluate_tool(self, session_id: str, tool_use_id: str, event_name: str, *, cancelled: bool):
+        event = self.kernel.normalize_event(
+            {
+                "hook_event_name": event_name,
+                "session_id": session_id,
+                "tool_name": "read",
+                "tool_use_id": tool_use_id,
+                "cancelled": cancelled,
+            },
+            "claude",
+        )
+        return self.kernel.evaluate(event)
+
+    def test_cancelled_events_still_record_duration(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            previous = Path.cwd()
+            os.chdir(project)
+            try:
+                with self._enable():
+                    self._evaluate_tool("sess-cancel-pre", "call-pre", "PreToolUse", cancelled=True)
+                    self._evaluate_tool("sess-cancel-pre", "call-pre", "PostToolUse", cancelled=False)
+                    self._evaluate_tool("sess-cancel-post", "call-post", "PreToolUse", cancelled=False)
+                    self._evaluate_tool("sess-cancel-post", "call-post", "PostToolUse", cancelled=True)
+            finally:
+                os.chdir(previous)
+            for session_id in ("sess-cancel-pre", "sess-cancel-post"):
+                payload = self._read(project, session_id)
+                self.assertEqual(1, len(payload["tools"]))
+                total = payload["tools"][0]["totalSeconds"]
+                self.assertNotEqual("unknown", total)
+                self.assertIsInstance(total, (int, float))
+                self.assertNotIsInstance(total, bool)
+
     def test_disabled_receipt_writes_no_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             self._disable()
+            before_open = dict(self.mod._OPEN_TOOL_CALLS)
             self.mod.note_tool_boundary(
                 "sess-off", "PreToolUse", "c1", "read", now=1.0, project=project
             )
             self.mod.note_tool_boundary(
                 "sess-off", "PostToolUse", "c1", "read", now=2.0, project=project
             )
+            self.assertEqual(before_open, self.mod._OPEN_TOOL_CALLS)
+            self.assertNotIn(("sess-off", "c1"), self.mod._OPEN_TOOL_CALLS)
             self.assertEqual([], list(project.rglob("*.tool-receipt.json")))
             previous = Path.cwd()
             os.chdir(project)
