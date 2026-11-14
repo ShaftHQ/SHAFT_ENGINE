@@ -1334,6 +1334,7 @@ jobs:
           tests.scripts.test_validate_quality_configuration
           tests.scripts.test_rerun_pr_gate_on_label
           tests.scripts.test_check_plugin_changelog_version
+          tests.scripts.test_user_facing_readmes
           -v
       - name: Validate bundled npm locks have no vulnerable shell-quote (#7451)
         run: python3 scripts/ci/validate_npm_lock_advisories.py

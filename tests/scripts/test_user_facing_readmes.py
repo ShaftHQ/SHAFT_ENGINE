@@ -134,14 +134,24 @@ class UserFacingReadmeTest(unittest.TestCase):
 
     def test_security_policy_names_chaosengine_scope(self) -> None:
         text = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        headings = []
+        for match in re.finditer(r"(?m)^[ ]{0,3}(#{1,6})[ ]+(.*)$", text):
+            title = re.sub(r"[ ]+#+[ ]*$", "", match.group(2)).strip()
+            headings.append((len(match.group(1)), title, match.start()))
+        harness_starts = [
+            start for level, title, start in headings if level == 3 and title == "ChaosEngine harness"
+        ]
+        dependency_starts = [
+            start for level, title, start in headings if level == 2 and title == "Dependency Security"
+        ]
+        self.assertEqual(len(harness_starts), 1)
+        self.assertEqual(len(dependency_starts), 1)
         scope_at = text.find("## Scope")
-        harness_at = text.find("### ChaosEngine harness")
-        dependency_at = text.find("## Dependency Security")
+        harness_at = harness_starts[0]
+        dependency_at = dependency_starts[0]
         self.assertGreaterEqual(scope_at, 0)
         self.assertGreater(harness_at, scope_at)
         self.assertGreater(dependency_at, harness_at)
-        self.assertEqual(len(re.findall(r"(?m)^### ChaosEngine harness$", text)), 1)
-        self.assertEqual(len(re.findall(r"(?m)^## Dependency Security$", text)), 1)
         shaft_scope = """\
 ## Scope
 
@@ -174,6 +184,11 @@ class UserFacingReadmeTest(unittest.TestCase):
         self.assertEqual(collapse(text[scope_at:harness_at]), collapse(shaft_scope))
         self.assertEqual(collapse(text[harness_at:dependency_at]), collapse(expected))
         self.assertNotIn("always-loaded-budget.json", text)
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 -m unittest tests.scripts.test_user_facing_readmes.UserFacingReadmeTest.test_security_policy_names_chaosengine_scope",
+            workflow,
+        )
 
 
 if __name__ == "__main__":
