@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
+import json
+import re
 import subprocess  # nosec B404 - runs the repository's own tool.py
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -53,6 +58,51 @@ class HarnessMapTests(unittest.TestCase):
         self.assertIn(f"index={len(self.map.mapped_files(CE))}", lines[0])
         self.assertIn("references/harness-map.md", out)
         self.assertNotIn("# Harness map", out)
+
+    def test_real_rendered_map_fits_the_reference_cap(self):
+        rendered = self.map.render(CE)
+        budget_path = ROOT / "scripts/ci/agent_guidance_budget.json"
+        budgets = json.loads(budget_path.read_text(encoding="utf-8"))["file_budgets"]
+        ceiling = budgets["chaos-engine/references/*.md"]["max_bytes"]
+        self.assertIsNone(self.map.overflow_finding(ROOT, rendered))
+        self.assertLessEqual(len(rendered.encode("utf-8")), ceiling)
+        self.assertEqual(0, self.map.main(["--check"]))
+
+    def test_check_passes_a_fixture_cap_above_the_rendered_map(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            _write_map_budget(repo, 10**9)
+            self.assertEqual(0, self.map.main(["--check"], repo=repo))
+
+    def test_check_fails_when_rendered_map_exceeds_the_reference_cap(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            budget_path = _write_map_budget(repo, 10)
+            rendered = self.map.render(CE)
+            buffer = io.StringIO()
+            with contextlib.redirect_stderr(buffer):
+                code = self.map.main(["--check"], repo=repo)
+            self.assertEqual(1, code)
+            match = re.fullmatch(
+                r"harness-map overflow: host=harness-map count=(\d+) ceiling=(\d+)",
+                buffer.getvalue().strip(),
+            )
+            self.assertIsNotNone(match)
+            budgets = json.loads(budget_path.read_text(encoding="utf-8"))["file_budgets"]
+            ceiling = budgets["chaos-engine/references/*.md"]["max_bytes"]
+            self.assertEqual(len(rendered.encode("utf-8")), int(match.group(1)))
+            self.assertEqual(ceiling, int(match.group(2)))
+            self.assertGreater(int(match.group(1)), ceiling)
+
+
+def _write_map_budget(repo: Path, ceiling: int) -> Path:
+    path = repo / "scripts/ci/agent_guidance_budget.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"file_budgets": {"chaos-engine/references/*.md": {"max_bytes": ceiling}}}),
+        encoding="utf-8",
+    )
+    return path
 
 
 if __name__ == "__main__":

@@ -659,6 +659,97 @@ def validate_duplicate_paragraphs(
     return errors
 
 
+# Host discovery has no include. Installer-generated `.claude/skills`,
+# `.claude/agents`, and `.github/skills` are untracked (#6215), so they are
+# not in this scan. A copied line of at least MIN_DUPLICATE_LINE_CHARS is one
+# rule in two homes. Table scaffolding, a bare command, a bare link, and the
+# host pointer prefixes are the allowed price of that discovery.
+GUIDANCE_LINE_GLOBS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".agents/skills/README.md",
+    "chaos-engine/skills/*/SKILL.md",
+    "chaos-engine/references/**/*.md",
+    "shaft-skills/ce-pack/references/**/*.md",
+    ".github/copilot-instructions.md",
+    ".github/instructions/*.instructions.md",
+)
+MIN_DUPLICATE_LINE_CHARS = 40
+ALLOWED_GUIDANCE_REPEATS = (
+    "Load [ChaosEngine](",
+    "Load [act-as-mohab](",
+    "Do not restate policy here.",
+)
+_GUIDANCE_TABLE_SEPARATOR = re.compile(r"^\|?\s*:?-{3,}")
+_GUIDANCE_BARE_COMMAND = re.compile(r"^(?:[A-Z_]+=\S+ )*python3? \.chaos-engine/\S+\.py\b[^.;]*$")
+_GUIDANCE_BARE_LINK = re.compile(r"^\[[^\]]+\]\([^)]+\)$")
+SKILLS_MAP = ".agents/skills/README.md"
+
+
+def _guidance_scaffold(line: str, following: list[str]) -> bool:
+    if line.startswith("|") and following and _GUIDANCE_TABLE_SEPARATOR.match(following[0].strip()):
+        return True
+    return bool(_GUIDANCE_BARE_COMMAND.match(line) or _GUIDANCE_BARE_LINK.match(line))
+
+
+def _guidance_line_key(line: str, following: list[str]) -> str | None:
+    if len(line) < MIN_DUPLICATE_LINE_CHARS or set(line) <= set("|- "):
+        return None
+    if _guidance_scaffold(line, following):
+        return None
+    if any(line.startswith(prefix) for prefix in ALLOWED_GUIDANCE_REPEATS):
+        return None
+    return line
+
+
+def duplicated_guidance_lines(root: Path, files: list[Path]) -> list[dict[str, str]]:
+    """Return one issue per guidance line copied into a second file."""
+    seen: dict[str, list[str]] = {}
+    for path in files:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for index, raw in enumerate(lines):
+            key = _guidance_line_key(raw.strip(), lines[index + 1 : index + 2])
+            if key is None:
+                continue
+            seen.setdefault(key, []).append(relative(root, path))
+    errors: list[dict[str, str]] = []
+    for line, locations in seen.items():
+        paths = sorted(set(locations))
+        if len(paths) < 2:
+            continue
+        rendered = ", ".join(paths)
+        errors.append(
+            issue(
+                "duplicate-guidance-line",
+                paths[0],
+                f"identical guidance line of {len(line)} characters in {rendered}: {line}",
+            )
+        )
+    return errors
+
+
+def validate_duplicate_guidance_lines(root: Path) -> list[dict[str, str]]:
+    """Scan the guidance globs for a line repeated in a second file."""
+    return duplicated_guidance_lines(root, expand_globs(root, list(GUIDANCE_LINE_GLOBS)))
+
+
+def validate_reference_skills_map(root: Path) -> list[dict[str, str]]:
+    """Fail when a top-level chaos-engine reference is absent from the skills map."""
+    readme = root / SKILLS_MAP
+    content = readme.read_text(encoding="utf-8") if readme.is_file() else ""
+    errors: list[dict[str, str]] = []
+    for path in sorted(root.glob("chaos-engine/references/*.md")):
+        link = "../../" + path.relative_to(root).as_posix()
+        if link in content:
+            continue
+        errors.append(
+            issue(
+                "skills-map-missing",
+                path.relative_to(root).as_posix(),
+                f"skills map is missing {link}",
+            )
+        )
+    return errors
 
 
 EXECUTABLE_SPEC_SCHEMA = (
@@ -1026,6 +1117,8 @@ def validate_repository(root: Path = ROOT, budget_path: Path | None = None) -> l
         *validate_forbidden_patterns(root, active_files, budget),
         *validate_stale_references(root, reference_files, budget),
         *validate_duplicate_paragraphs(root, active_files, budget),
+        *validate_duplicate_guidance_lines(root),
+        *validate_reference_skills_map(root),
         *validate_executable_spec_guidance(root),
         *active_key_errors,
         *reference_key_errors,

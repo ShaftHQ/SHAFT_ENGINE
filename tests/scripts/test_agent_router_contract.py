@@ -21,6 +21,8 @@ from unittest import mock
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.validate_agent_guidance import (
+    GUIDANCE_LINE_GLOBS,
+    duplicated_guidance_lines,
     expand_reported_globs,
     require_glob_list,
     validate_repository,
@@ -2054,41 +2056,10 @@ class NoDuplicationTest(unittest.TestCase):
     orphaned files nothing routes to.
     """
 
-    GUIDANCE_GLOBS = (
-        "AGENTS.md",
-        "CLAUDE.md",
-        ".agents/skills/README.md",
-        "chaos-engine/skills/*/SKILL.md",
-        "chaos-engine/references/**/*.md",
-        "shaft-skills/ce-pack/references/**/*.md",
-        # #6215: `.claude/skills`, `.claude/agents` and `.github/skills` are
-        # installer-generated host wiring, no longer tracked, so they left the
-        # scan; a glob that matches nothing fails loudly by design.
-        ".github/copilot-instructions.md",
-        ".github/instructions/*.instructions.md",
-    )
-    # Host discovery requires each adapter to carry its own pointer line; there
-    # is no include mechanism, so this repetition is the correct price.
-    ALLOWED_REPEATS = (
-        "Load [ChaosEngine](",
-        "Load [act-as-mohab](",
-        "Do not restate policy here.",
-    )
-    MIN_DUPLICATE_LINE_CHARS = 40
+    GUIDANCE_GLOBS = GUIDANCE_LINE_GLOBS
 
     def guidance_files(self) -> list[Path]:
         return glob_files(ROOT, self.GUIDANCE_GLOBS)
-
-    # #6215: a table header, a bare command line, or a bare link line is shared
-    # scaffolding, not a restated rule; repeating one costs no policy drift.
-    TABLE_SEPARATOR = re.compile(r"^\|?\s*:?-{3,}")
-    BARE_COMMAND = re.compile(r"^(?:[A-Z_]+=\S+ )*python3? \.chaos-engine/\S+\.py\b[^.;]*$")
-    BARE_LINK = re.compile(r"^\[[^\]]+\]\([^)]+\)$")
-
-    def is_shared_scaffold(self, line: str, following: list[str]) -> bool:
-        if line.startswith("|") and following and self.TABLE_SEPARATOR.match(following[0].strip()):
-            return True
-        return bool(self.BARE_COMMAND.match(line) or self.BARE_LINK.match(line))
 
     def test_no_substantive_line_is_repeated_across_guidance_files(self):
         files = self.guidance_files()
@@ -2097,24 +2068,11 @@ class NoDuplicationTest(unittest.TestCase):
         # the resolver's own tests catch that mutation, but this consumer
         # must catch it too rather than rely on it (#4481).
         self.assertTrue(files, "guidance_files() resolved to no files")
-        seen: dict[str, list[str]] = {}
-        for path in files:
-            lines = path.read_text(encoding="utf-8").splitlines()
-            for index, raw in enumerate(lines):
-                line = raw.strip()
-                if len(line) < self.MIN_DUPLICATE_LINE_CHARS:
-                    continue
-                if set(line) <= set("|- "):
-                    continue
-                if self.is_shared_scaffold(line, lines[index + 1 : index + 2]):
-                    continue
-                if any(line.startswith(allowed) for allowed in self.ALLOWED_REPEATS):
-                    continue
-                seen.setdefault(line, []).append(path.relative_to(ROOT).as_posix())
-        duplicates = {
-            line: sorted(set(files)) for line, files in seen.items() if len(set(files)) > 1
-        }
-        self.assertEqual(duplicates, {}, "identical guidance line in more than one file")
+        self.assertEqual(
+            duplicated_guidance_lines(ROOT, files),
+            [],
+            "identical guidance line in more than one file",
+        )
 
     def test_the_skills_map_is_one_of_the_scanned_files(self):
         """#4480: the map is guidance, so this scan has to actually read it.

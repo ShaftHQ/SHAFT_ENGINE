@@ -9,7 +9,9 @@ drifted from the index.
 
 from __future__ import annotations
 
+import contextlib
 import difflib
+import io
 import json
 import re
 import tempfile
@@ -18,7 +20,8 @@ from pathlib import Path
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
-from tests.scripts.ce_installed_fixture import (
+from scripts.ci.validate_agent_guidance import skill_listing_chars  # noqa: E402
+from tests.scripts.ce_installed_fixture import (  # noqa: E402
     ROOT,
     SOURCE,
     build_installed_project,
@@ -138,6 +141,7 @@ class SkillIndexParityTest(unittest.TestCase):
     def test_generated_artifacts_match_the_index(self):
         module = load_module("ce_harness_index", SOURCE / "harness_index.py")
         self.assertEqual([], module.check(ROOT))
+        self.assertEqual(0, module.main(["--check"]))
 
     def test_router_keeps_route_locators_without_full_descriptions(self):
         """The always-loaded router must not repeat catalog descriptions."""
@@ -193,6 +197,143 @@ class SkillIndexParityTest(unittest.TestCase):
             "remove tests that would not catch a real bug",
         ):
             self.assertIn(phrase, text)
+
+
+_GENERATED_SNAPSHOTS = (
+    SOURCE / "harness-index.json",
+    SOURCE / "references/catalog.md",
+    SOURCE / "skills/chaos-engine/SKILL.md",
+    ROOT / ".agents/skills/README.md",
+    ROOT / "scripts/ci/agent_guidance_budget.json",
+)
+
+
+def _snapshot_generated() -> dict[Path, bytes]:
+    return {path: path.read_bytes() for path in _GENERATED_SNAPSHOTS}
+
+
+def _restore_generated(snapshot: dict[Path, bytes]) -> None:
+    for path, payload in snapshot.items():
+        if path.read_bytes() != payload:
+            path.write_bytes(payload)
+
+
+def _write_skill(root: Path, relative: str, name: str, description: str) -> None:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n", encoding="utf-8")
+
+
+def _write_listing_budget(root: Path, ceiling: int, hosts: dict[str, list[str]]) -> Path:
+    path = root / "scripts/ci/agent_guidance_budget.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"max_skill_listing_chars": ceiling, "host_skill_metadata_globs": hosts}),
+        encoding="utf-8",
+    )
+    return path
+
+
+class HarnessIndexLocalCheckTest(unittest.TestCase):
+    def test_foreign_root_write_is_refused_before_any_write(self):
+        module = load_module("ce_harness_index_foreign", SOURCE / "harness_index.py")
+        snapshot = _snapshot_generated()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                script = root / "chaos-engine" / "harness_index.py"
+                script.parent.mkdir(parents=True)
+                script.write_text("# other tree\n", encoding="utf-8")
+                buffer = io.StringIO()
+                with contextlib.redirect_stderr(buffer):
+                    code = module.main(["--root", str(root), "--write"])
+                self.assertNotEqual(code, 0)
+                refusal = buffer.getvalue()
+                self.assertIn("refusing to write this skill tuple into", refusal)
+                self.assertIn(str(script.resolve()), refusal)
+                self.assertIn("run that tree's script", refusal)
+                self.assertEqual([], module.write(root))
+                created = [path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()]
+                self.assertEqual(["chaos-engine/harness_index.py"], created)
+        finally:
+            _restore_generated(snapshot)
+
+    def test_same_file_symlink_root_may_write(self):
+        module = load_module("ce_harness_index_same", SOURCE / "harness_index.py")
+        snapshot = _snapshot_generated()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                overlay = root / "chaos-engine"
+                overlay.mkdir()
+                (overlay / "harness_index.py").symlink_to(Path(module.__file__).resolve())
+                self.assertIsNone(module.foreign_write_block(root.resolve()))
+                buffer = io.StringIO()
+                with contextlib.redirect_stderr(buffer):
+                    code = module.main(["--root", str(root), "--write"])
+                self.assertEqual(0, code)
+                self.assertNotIn("refusing to write this skill tuple into", buffer.getvalue())
+                self.assertTrue((overlay / "harness-index.json").is_file())
+        finally:
+            _restore_generated(snapshot)
+
+    def test_root_without_harness_index_keeps_write_behavior(self):
+        module = load_module("ce_harness_index_absent", SOURCE / "harness_index.py")
+        snapshot = _snapshot_generated()
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.assertIsNone(module.foreign_write_block(root.resolve()))
+                buffer = io.StringIO()
+                with contextlib.redirect_stderr(buffer):
+                    code = module.main(["--root", str(root), "--write"])
+                self.assertEqual(0, code)
+                self.assertNotIn("refusing to write this skill tuple into", buffer.getvalue())
+        finally:
+            _restore_generated(snapshot)
+
+    def test_listing_under_the_configured_cap_passes(self):
+        module = load_module("ce_harness_index_listing_ok", SOURCE / "harness_index.py")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hosts = {"codex": ["pack/codex/*/SKILL.md"]}
+            budget_path = _write_listing_budget(root, 1000, hosts)
+            _write_skill(root, "pack/codex/alpha/SKILL.md", "alpha", "short")
+            self.assertEqual([], module.listing_overflows(root))
+            budget = json.loads(budget_path.read_text(encoding="utf-8"))
+            count = skill_listing_chars(root, budget["host_skill_metadata_globs"]["codex"])
+            self.assertLessEqual(count, budget["max_skill_listing_chars"])
+
+    def test_check_fails_when_a_host_listing_exceeds_the_configured_cap(self):
+        module = load_module("ce_harness_index_listing", SOURCE / "harness_index.py")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            hosts = {
+                "codex": ["pack/codex/*/SKILL.md"],
+                "claude": ["pack/claude/*/SKILL.md"],
+            }
+            budget_path = _write_listing_budget(root, 5, hosts)
+            _write_skill(root, "pack/codex/alpha/SKILL.md", "alpha", "use when the codex pack is selected")
+            _write_skill(root, "pack/claude/beta/SKILL.md", "beta", "use when the claude pack is selected")
+            buffer = io.StringIO()
+            with contextlib.redirect_stderr(buffer):
+                code = module.main(["--root", str(root), "--check"])
+            self.assertNotEqual(code, 0)
+            parsed: dict[str, tuple[int, int]] = {}
+            for line in buffer.getvalue().splitlines():
+                match = re.fullmatch(r"listing overflow: host=(\S+) count=(\d+) ceiling=(\d+)", line)
+                if match is None:
+                    continue
+                parsed[match.group(1)] = (int(match.group(2)), int(match.group(3)))
+            budget = json.loads(budget_path.read_text(encoding="utf-8"))
+            ceiling = budget["max_skill_listing_chars"]
+            patterns = budget["host_skill_metadata_globs"]
+            self.assertEqual(set(patterns), set(parsed))
+            for host, host_patterns in patterns.items():
+                count, found_ceiling = parsed[host]
+                self.assertEqual(ceiling, found_ceiling)
+                self.assertEqual(skill_listing_chars(root, host_patterns), count)
+                self.assertGreater(count, ceiling)
 
 
 if __name__ == "__main__":
