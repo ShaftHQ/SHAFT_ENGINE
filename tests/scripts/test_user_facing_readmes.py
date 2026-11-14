@@ -140,6 +140,26 @@ class UserFacingReadmeTest(unittest.TestCase):
         self.assertGreaterEqual(scope_at, 0)
         self.assertGreater(harness_at, scope_at)
         self.assertGreater(dependency_at, harness_at)
+        self.assertEqual(len(re.findall(r"(?m)^### ChaosEngine harness$", text)), 1)
+        self.assertEqual(len(re.findall(r"(?m)^## Dependency Security$", text)), 1)
+        shaft_scope = """\
+## Scope
+
+**In scope:**
+
+- Vulnerabilities in SHAFT Engine's own source code (`shaft-engine/src/main/java/`).
+- Unsafe configuration or property defaults that could expose user data.
+- Dependency vulnerabilities with a direct exploitable path through SHAFT's
+  public API.
+
+**Out of scope:**
+
+- Vulnerabilities in test code (`shaft-engine/src/test/java/`) — these are
+  example tests, not production code.
+- Third-party library issues with no exploitable path through SHAFT; report
+  those upstream.
+- Social engineering or phishing.
+"""
         expected = """\
 ### ChaosEngine harness
 
@@ -147,8 +167,12 @@ class UserFacingReadmeTest(unittest.TestCase):
 
 **Out of scope:** model output quality on its own; an attack that assumes a compromised host or an attacker who already holds the credential.
 """
-        subsection = re.sub(r"\s+", " ", text[harness_at:dependency_at]).strip()
-        self.assertEqual(subsection, re.sub(r"\s+", " ", expected).strip())
+
+        def collapse(value: str) -> str:
+            return re.sub(r"\s+", " ", value).strip()
+
+        self.assertEqual(collapse(text[scope_at:harness_at]), collapse(shaft_scope))
+        self.assertEqual(collapse(text[harness_at:dependency_at]), collapse(expected))
         self.assertNotIn("always-loaded-budget.json", text)
 
 
