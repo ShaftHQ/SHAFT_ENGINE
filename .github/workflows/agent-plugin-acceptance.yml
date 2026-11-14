@@ -81,7 +81,6 @@ jobs:
           set -euo pipefail
           modules=(
             tests.scripts.test_acceptance_job_filter
-            tests.scripts.test_chaos_engine_runtime
             tests.scripts.test_chaos_gauge_recovery
             tests.scripts.test_agent_harness_adherence
             tests.scripts.test_agent_harness_portability
@@ -97,26 +96,13 @@ jobs:
             tests.scripts.test_prefetch_kind_toolcache
             tests.scripts.test_grid_cdp_contract
             tests.scripts.test_mcp_builder_python
-            tests.scripts.test_chaos_engine_bootstrap
-            tests.scripts.test_chaos_engine_dependencies
             tests.scripts.test_deja_store_6183
-            tests.scripts.test_chaos_engine_generation_runtime
-            tests.scripts.test_chaos_engine_hook
-            tests.scripts.test_chaos_engine_eval_parity_fixtures
             tests.scripts.test_epic_autoclose
-            tests.scripts.test_chaos_engine_hosts
-            tests.scripts.test_chaos_engine_installer
-            tests.scripts.test_chaos_engine_kernel
-            tests.scripts.test_chaos_engine_learning
-            tests.scripts.test_chaos_engine_live_installer_acceptance
-            tests.scripts.test_chaos_engine_promotion
-            tests.scripts.test_chaos_engine_portable_core
             tests.scripts.test_omniroute
             tests.scripts.test_omniroute_workflow_contract
             tests.scripts.test_omniroute_orchestrator_docs
             tests.scripts.test_omniroute_tdd_pdca
             tests.scripts.test_omniroute_portability
-            tests.scripts.test_chaos_engine_research
             tests.scripts.test_delivery_status
             tests.scripts.test_execution_class_skills
             tests.scripts.test_extract_allure_failures
@@ -187,86 +173,8 @@ jobs:
         run: |
           python scripts/ci/validate_agent_setup.py --skip-external
 
-  # #6205: the Windows leg took 26.5 of its 30 minutes (and timed out on
-  # earlier runs), almost all in test_chaos_engine_installer. Each OS now runs
-  # two parts: part 1 = the other acceptance modules + installer shard 1/2,
-  # part 2 = installer shard 2/2 (scripts/ci/unittest_shard.py, union ==
-  # the whole module).
-  chaos-engine-cross-platform:
-    name: ChaosEngine installer acceptance (${{ matrix.os }}, part ${{ matrix.part }})
-    needs: acceptance-selection
-    if: needs.acceptance-selection.outputs.run_chaos_engine_cross_platform == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
-        part: [1, 2]
-        exclude: ${{ fromJson(needs.acceptance-selection.outputs.cross_exclude) }}
-    steps:
-      - name: Enable Windows long paths
-        if: runner.os == 'Windows'
-        run: git config --global core.longpaths true
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python 3.14
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.14'
-      - name: Run fresh-install, dependency, and wrapper acceptance
-        if: matrix.part == 1
-        run: >-
-          python -m unittest
-          tests.scripts.test_chaos_engine_bootstrap
-          tests.scripts.test_chaos_engine_dependencies
-          tests.scripts.test_chaos_engine_install_wrappers
-          -v
-      - name: Run upgrade and rollback acceptance (tests.scripts.test_chaos_engine_installer shard)
-        run: >-
-          python -m scripts.ci.unittest_shard
-          tests.scripts.test_chaos_engine_installer
-          --shard ${{ matrix.part }}/2
-          -v
-
-  chaos-engine-live-installer:
-    name: Live immutable installer (${{ matrix.os }})
-    needs: acceptance-selection
-    if: needs.acceptance-selection.outputs.run_chaos_engine_live_installer == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-15, windows-2025]
-    steps:
-      - name: Enable Windows long paths
-        if: runner.os == 'Windows'
-        run: git config --global core.longpaths true
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-      - name: Set up Python 3.14
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.14'
-      - name: Run real fresh, offline, upgrade, repair, and rollback sequence
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: >-
-          python scripts/ci/chaos_engine_live_installer_acceptance.py
-          --candidate-sha ${{ github.sha }}
-          --base-sha 1dec809c7c43709a8fcceef5e53690d124012eb3
-          --output chaos-engine-live-installer-evidence.json
-      - name: Upload live installer evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: chaos-engine-live-installer-${{ matrix.os }}
-          path: chaos-engine-live-installer-evidence.json
-          if-no-files-found: error
-          retention-days: 4
+  # #8057: the ChaosEngine cross-platform, live-installer and promotion jobs
+  # moved to ShaftHQ/chaosengine-harness with the source.
 
   harness-platform-contracts:
     name: Harness platform contracts (${{ matrix.os }})
@@ -418,134 +326,15 @@ jobs:
           if-no-files-found: error
           retention-days: 4
 
-  chaos-engine-promotion:
-    name: Five-host promotion evaluator
-    needs: acceptance-selection
-    if: needs.acceptance-selection.outputs.run_chaos_engine_promotion == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
-    runs-on: ubuntu-22.04
-    timeout-minutes: 180
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up Python 3.14
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.14'
-      - name: Check protected promotion inputs
-        id: promotion-preflight
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
-          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
-        shell: bash
-        run: |
-          python - <<'PY'
-          import importlib.util
-          import json
-          import os
-          from pathlib import Path
-
-          source = Path("scripts/ci/chaos_engine_promotion.py")
-          spec = importlib.util.spec_from_file_location("promotion_preflight", source)
-          if spec is None or spec.loader is None:
-              raise SystemExit("promotion evaluator could not be loaded")
-          promotion = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(promotion)
-          report = promotion.evaluate([], dict(os.environ))
-          ready = not report["missingCredentialHosts"] and not report["missingRevisionVariants"]
-          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
-              output.write(f"ready={str(ready).lower()}\n")
-          if not ready:
-              Path("chaos-engine-promotion-evidence.json").write_text(
-                  json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n",
-                  encoding="utf-8",
-              )
-              Path("chaos-engine-promotion-trial-status.json").write_text(
-                  json.dumps(
-                      {
-                          "failureCode": "protected-inputs-unavailable",
-                          "identity": "chaos-engine-promotion-trials",
-                          "schemaVersion": 1,
-                          "status": "Blocked",
-                          "terminalReason": "blocked",
-                      },
-                      sort_keys=True,
-                      separators=(",", ":"),
-                  ) + "\n",
-                  encoding="utf-8",
-              )
-              print("promotion remains blocked because protected evaluation inputs are unavailable")
-          PY
-      - name: Collect paired live trial receipts
-        id: promotion-trials
-        if: steps.promotion-preflight.outputs.ready == 'true'
-        continue-on-error: true
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
-          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
-          CHAOS_ENGINE_BASELINE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CODEX_COMMAND }}
-          CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CODEX_COMMAND }}
-          CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_CLAUDE_COMMAND }}
-          CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_CLAUDE_COMMAND }}
-          CHAOS_ENGINE_BASELINE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GEMINI_COMMAND }}
-          CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GEMINI_COMMAND }}
-          CHAOS_ENGINE_BASELINE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_GROK_COMMAND }}
-          CHAOS_ENGINE_CANDIDATE_GROK_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_GROK_COMMAND }}
-          CHAOS_ENGINE_BASELINE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_BASELINE_COPILOT_COMMAND }}
-          CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND: ${{ secrets.CHAOS_ENGINE_CANDIDATE_COPILOT_COMMAND }}
-        run: >-
-          python scripts/ci/chaos_engine_promotion_trials.py
-          --output chaos-engine-promotion-receipts
-          --status chaos-engine-promotion-trial-status.json
-          --workers 10
-          --timeout 90
-      - name: Evaluate and enforce promotion thresholds
-        if: ${{ always() && steps.promotion-preflight.outputs.ready == 'true' }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHAOS_ENGINE_BASELINE_REVISION: ${{ secrets.CHAOS_ENGINE_BASELINE_REVISION }}
-          CHAOS_ENGINE_CANDIDATE_REVISION: ${{ github.sha }}
-        run: >-
-          python scripts/ci/chaos_engine_promotion.py
-          --receipts chaos-engine-promotion-receipts
-          --output chaos-engine-promotion-evidence.json
-      - name: Upload secret-free promotion evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: chaos-engine-promotion-evidence
-          path: |
-            chaos-engine-promotion-evidence.json
-            chaos-engine-promotion-trial-status.json
-            chaos-engine-promotion-receipts
-          if-no-files-found: error
-          retention-days: 4
-
   notify:
     name: Notify on scheduled failure
     needs:
       - acceptance-selection
       - deterministic-harness-full
-      - chaos-engine-cross-platform
-      - chaos-engine-live-installer
       - harness-platform-contracts
       - agnix-conformance
       - external-guardrail-corpus
       - native-client-load
-      - chaos-engine-promotion
     if: always() && github.event_name == 'schedule'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
