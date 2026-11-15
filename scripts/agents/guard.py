@@ -2,7 +2,7 @@
 """Portable SHAFT lifecycle and PreToolUse guard for Claude, Codex, and Grok.
 
 Canonical for SHAFT_ENGINE repository policy (R1-R9 below). ChaosEngine's
-portable core guard is chaos-engine/hooks/guard.py; it ships to every
+portable core guard is .chaos-engine/hooks/guard.py; it ships to every
 install and must not import this file. They share no code by design.
 """
 # Stdlib only. Input is normalized before evaluation; policy below is shared.
@@ -5171,10 +5171,18 @@ def _session_start_payload(context: list[str]) -> dict[str, object]:
     return payload
 
 
+def _pinned_overlay_hook(name: str) -> str:
+    """Return `<repo>/.chaos-engine/hooks/<name>`. No `chaos-engine/` fallback."""
+    path = os.path.join(_harness_root(), ".chaos-engine", "hooks", name)
+    if not os.path.isfile(path):
+        raise RuntimeError(f"ChaosEngine overlay hook is unavailable: {name}")
+    return path
+
+
 @lru_cache(maxsize=1)
 def _lifecycle_core():
-    """Load the neutral lifecycle owner from the source or installed layout."""
-    lifecycle_path = os.path.join(_harness_root(), "chaos-engine", "hooks", "lifecycle.py")
+    """Load lifecycle from the pinned overlay. A missing file fails closed."""
+    lifecycle_path = _pinned_overlay_hook("lifecycle.py")
     specification = importlib.util.spec_from_file_location("chaos_engine_lifecycle", lifecycle_path)
     if specification is None or specification.loader is None:
         raise RuntimeError("ChaosEngine lifecycle core is unavailable")
@@ -5185,8 +5193,8 @@ def _lifecycle_core():
 
 @lru_cache(maxsize=1)
 def _kernel_core():
-    """Load the same provider-neutral policy kernel shipped to consumers."""
-    kernel_path = os.path.join(_harness_root(), "chaos-engine", "hooks", "kernel.py")
+    """Load the policy kernel from the pinned overlay. A missing file fails closed."""
+    kernel_path = _pinned_overlay_hook("kernel.py")
     specification = importlib.util.spec_from_file_location("chaos_engine_kernel", kernel_path)
     if specification is None or specification.loader is None:
         raise RuntimeError("ChaosEngine policy kernel is unavailable")
@@ -5650,7 +5658,7 @@ _TRACKING_DEMAND = (
 def _enhancement_errors(message: str) -> list[str]:
     """Delegate the Enhancements close to the portable checker. No second copy."""
     module = _portable_hook_guard()
-    checker = getattr(module, "enhancement_errors", None) if module is not None else None
+    checker = getattr(module, "enhancement_errors", None)
     if not callable(checker):
         return ["enhancement disposition checker unavailable"]
     return list(checker(message))
@@ -5682,13 +5690,11 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
 
 @lru_cache(maxsize=1)
 def _portable_hook_guard():
-    """The installed Stop owner. Repository Stop must not invent a second order."""
-    path = Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py"
-    if not path.is_file():
-        return None
+    """The pinned Stop owner. Repository Stop must not invent a second order."""
+    path = _pinned_overlay_hook("guard.py")
     spec = importlib.util.spec_from_file_location("chaos_engine_portable_stop", path)
     if spec is None or spec.loader is None:
-        return None
+        raise RuntimeError("ChaosEngine overlay hook is unavailable: guard.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -5703,8 +5709,6 @@ def _portable_learning_session_reason(hook_input: dict) -> str | None:
     if not session_id:
         return None
     module = _portable_hook_guard()
-    if module is None:
-        return None
     reason = module.learning_session_reason(session_id, hook_input)
     return reason or None
 
@@ -6901,8 +6905,38 @@ def run_observational_event(_hook_input: dict) -> int:
     return 0
 
 
+def _emit_overlay_denial(event_name: object, host: str, error: BaseException) -> None:
+    """Fail closed: a missing pinned overlay denies instead of running source hooks."""
+    reason = str(error)
+    event = str(event_name or "")
+    if event == "PreToolUse":
+        _print_deny(reason, host)
+    elif event in {"Stop", "SubagentStop"}:
+        print(json.dumps({"decision": "block", "reason": reason}))
+    else:
+        print(json.dumps({"decision": "deny", "reason": reason}))
+
+
+def _deny_missing_overlay(raw: str, error: BaseException) -> None:
+    event_name = "PreToolUse"
+    host = "portable"
+    try:
+        parsed = json.loads(raw) if raw.strip() else {}
+    except (json.JSONDecodeError, ValueError, RecursionError):
+        parsed = {}
+    if isinstance(parsed, dict) and parsed:
+        host = hook_host(parsed)
+        event_name = str(normalize_hook_input(parsed).get("hook_event_name") or event_name)
+    _emit_overlay_denial(event_name, host, error)
+
+
 def _kernel_guarded(callback):
     def dispatch(hook_input: dict, host: str) -> int:
+        try:
+            _kernel_core()
+        except RuntimeError as error:
+            _emit_overlay_denial(hook_input.get("hook_event_name"), host, error)
+            return 0
         report = _evaluate_kernel_event(hook_input, host)
         if report.decision == "deny":
             if hook_input.get("hook_event_name") == "PreToolUse":
@@ -6946,9 +6980,15 @@ def main(argv: list[str]) -> int:
         "PreCompact": lambda event, _host: run_observational_event(event),
         "SessionEnd": lambda event, _host: run_session_end(event),
     }
+    raw = sys.stdin.read()
+    try:
+        lifecycle = _lifecycle_core()
+    except RuntimeError as error:
+        _deny_missing_overlay(raw, error)
+        return 0
     callbacks = {event: _kernel_guarded(callback) for event, callback in callbacks.items()}
-    return _lifecycle_core().run_hook_protocol(
-        sys.stdin.read(),
+    return lifecycle.run_hook_protocol(
+        raw,
         callbacks,
         normalize=normalize_hook_input,
         host_for_input=hook_host,

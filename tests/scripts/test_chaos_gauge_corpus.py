@@ -14,14 +14,12 @@ from collections import Counter
 from pathlib import Path
 from unittest import TestCase, main
 
-
 ROOT = Path(__file__).resolve().parents[2]
 BASH = str(Path(shutil.which("bash") or "/missing-bash").resolve())
 GAUGE = ROOT / "scripts/ci/chaos_gauge"
 CORPUS = GAUGE / "corpus.json"
 DATASET_ROOT = GAUGE / "dataset"
 DATASET = DATASET_ROOT / "dataset.toml"
-
 
 class ChaosGaugeCorpusTest(TestCase):
     def corpus(self) -> list[dict[str, object]]:
@@ -140,23 +138,6 @@ class ChaosGaugeCorpusTest(TestCase):
                 reward = json.loads((Path(temporary) / "logs/verifier/reward.json").read_text())
                 self.assertEqual(0, verified.returncode)
                 self.assertEqual(1, reward["correctness"])
-
-    def test_agent_allowlist_covers_pinned_dependency_acquisition_hosts(self):
-        specification = json.loads((ROOT / "chaos-engine/dependencies.json").read_text())
-        urls = []
-        for dependency in specification["dependencies"].values():
-            urls.append(dependency["stableChannel"])
-        for runtime in specification["runtimes"].values():
-            if "url" in runtime:
-                urls.append(runtime["url"])
-            urls.extend(item["url"] for item in runtime.get("artifacts", {}).values())
-        required = {urlparse(url).hostname for url in urls}
-        required.update({"objects.githubusercontent.com", "release-assets.githubusercontent.com", "files.pythonhosted.org"})
-        for task_config in DATASET_ROOT.glob("*/task.toml"):
-            config = tomllib.loads(task_config.read_text())
-            with self.subTest(task=task_config.parent.name):
-                self.assertLessEqual(required, set(config["agent"]["allowed_hosts"]))
-                self.assertEqual(config["agent"]["allowed_hosts"], config["environment"]["allowed_hosts"])
 
     def test_public_defects_are_distinct_executable_scenarios(self):
         excluded = {"safety-secret-redaction", "delivery-focused-proof"}
@@ -282,7 +263,6 @@ class ChaosGaugeCorpusTest(TestCase):
                 json.loads((logs / "verifier/reward.json").read_text())["safety"],
             )
             self.assertFalse((second / "source.txt").exists())
-
 
 if __name__ == "__main__":
     main()

@@ -614,13 +614,11 @@ CHECKS = {
             "tests.scripts.test_ce_design_video_caption_l35",
             "tests.scripts.test_ce_design_caption_l38",
             "tests.scripts.test_ce_version",
-            "tests.scripts.test_ce_session_manifest_delete_and_backup_silence",
             "tests.scripts.test_worktree_overlay_materialize_upgrade",
             "tests.scripts.test_ce_design_caption_l44",
             "tests.scripts.test_ce_design_render_freshness_l46_l47",
             "tests.scripts.test_ce_design_fb_reel_gates_l48_l51",
             "tests.scripts.test_ce_commit_identity_and_work_ordering",
-            "tests.scripts.test_ce_bugfix_2026_10_30_2",
             "tests.scripts.test_ce_bugfix_2026_10_31_1",
             "tests.scripts.test_ce_bugfix_2026_10_31_2",
             "tests.scripts.test_ce_bugfix_2026_10_31_3",
@@ -798,28 +796,17 @@ SURFACE_CHECKS = {
     "guidance-close": ("guidance-close-contract",),
 }
 
-DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
+# dependencies.json moved with ChaosEngine; no SHAFT path closes that account.
+DEPENDENCY_CLOSURE_PATHS = frozenset()
 
 SURFACE_PATTERNS = {
     "kernel": (
-        "chaos-engine/hooks/kernel.py",
         "tests/scripts/test_chaos_engine_kernel.py",
     ),
     "installer": (
-        "chaos-engine/bootstrap.py",
-        "chaos-engine/dependencies.json",
-        "chaos-engine/dependencies.py",
-        "chaos-engine/distributions.json",
-        "chaos-engine/install.py",
         "chaos-engine/install.sh",
         "chaos-engine/install.ps1",
-        "chaos-engine/profiles/*/profile.json",
-        "chaos-engine/packs/*",
-        "chaos-engine/pack_binding.py",
         "shaft-skills/ce-pack/profile.json",
-        "chaos-engine/vendor/*/PIN.json",
-        "chaos-engine/vendor/*/hooks/*.json",
-        "chaos-engine/vendor/*/src/hooks/package.json",
         "scripts/ci/chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_bootstrap.py",
         "tests/scripts/test_chaos_engine_dependencies.py",
@@ -835,28 +822,18 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_managed_runtimes.py",
         # Issue #6186: every pr-gate `chaos_installer` path selects this
         # surface, because it replaced the ubuntu fresh-installer UX step.
-        "chaos-engine/hosts.py",
         "tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py",
         "tests/scripts/test_chaos_engine_overlay_only_host_pointers.py",
         "tests/scripts/test_chaos_engine_entry_parity_7242.py",
         "tests/scripts/test_chaos_engine_harness_map_7242.py",
-        "chaos-engine/harness_map.py",
         "tests/scripts/test_chaos_engine_token_economy_7242.py",
-        "chaos-engine/token_economy.py",
         "tests/scripts/test_chaos_engine_delete_guard_7251.py",
-        "chaos-engine/delete_guard.py",
-        "chaos-engine/overlay_match.py",
         "tests/scripts/test_ce_tool_missing_7964.py",
-        "chaos-engine/rules/operation_boundary.py",
-        "chaos-engine/force_push_approve.py",
         "tests/scripts/test_ce_hooks_7955_7960.py",
         "tests/scripts/test_chaos_engine_register_rule_7242.py",
         "tests/scripts/test_chaos_engine_retrieve_marker_7242.py",
         "tests/scripts/test_chaos_engine_mempalace_privacy_7242.py",
         "tests/scripts/test_chaos_engine_fresh_install_receipt_7242.py",
-        "chaos-engine/mempalace_privacy.py",
-        "chaos-engine/consumer_mode.py",
-        "chaos-engine/prerequisites.py",
         "tests/scripts/test_chaos_engine_prerequisites_7220.py",
         "tests/scripts/test_chaos_engine_separate_git_dir_7278.py",
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
@@ -876,7 +853,6 @@ SURFACE_PATTERNS = {
         ".github/workflows/upstream-watch.yml",
     ),
     "hosts": (
-        "chaos-engine/hosts.py",
         ".claude/settings.json",
         ".codex/hooks.json",
         ".github/hooks/*.json",
@@ -888,10 +864,6 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_hook_launch_cwd.py",
     ),
     "lifecycle": (
-        "chaos-engine/hooks/*",
-        "chaos-engine/evals/*",
-        "chaos-engine/rules/ethics_check.py",
-        "chaos-engine/companions/ethics-card.md",
         "tests/scripts/test_ethics_attestation_7983.py",
         "scripts/agents/guard.py",
         "scripts/ci/chaos_engine_eval_parity.py",
@@ -907,12 +879,7 @@ SURFACE_PATTERNS = {
         ".claude/agents/*",
         ".claude/skills/*",
         ".codex/agents/*",
-        "chaos-engine/skills/*",
-        "chaos-engine/references/*",
-        "chaos-engine/profiles/*",
-        "chaos-engine/packs/*",
         "shaft-skills/ce-pack/*",
-        "chaos-engine/vendor/*",
         "tests/scripts/test_agent_router_contract.py",
         "tests/scripts/test_agent_harness_portability.py",
         "tests/scripts/test_agent_harness_reachability.py",
@@ -927,10 +894,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_lessons_2026_10_29.py",
         "tests/scripts/test_mobile_retro_harness.py",
         "tests/scripts/test_client_name_scrub.py",
-        "chaos-engine/client_name_scrub.py",
-        "chaos-engine/content_scan_preflight.py",
         "tests/scripts/test_chaos_engine_latest_stable_pins.py",
-        "chaos-engine/mobile_retro.py",
         "scripts/ci/no_push_guard.py",
         "scripts/ci/mobile_retro_live.py",
         "scripts/ci/mobile_retro_runtime.py",
@@ -946,8 +910,6 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_large_delivery_draft_pr.py",
         "tests/scripts/test_implementer_named_sites.py",
         "tests/scripts/test_security_audit_skill.py",
-        "chaos-engine/references/bot-entry.md",
-        "chaos-engine/always-loaded-budget.json",
         ".agents/skills/README.md",
 
     ),
@@ -969,14 +931,6 @@ SURFACE_PATTERNS = {
         "tools/repository-map/*",
         "tools/agent-infra/shaft_knowledge_refresh.py",
         "scripts/agents/knowledge_stores.py",
-        "chaos-engine/stores.py",
-        "chaos-engine/mempalace_fast_mine.py",
-        "chaos-engine/retrieve.py",
-        "chaos-engine/harness_mindset.py",
-        "chaos-engine/dependencies.json",
-        "chaos-engine/mcp_policy.py",
-        "chaos-engine/THIRD_PARTY_NOTICES.md",
-        "chaos-engine/references/retrieve-first.md",
         "scripts/ci/agent_harness_parity.json",
         "tests/scripts/test_deja_store_6183.py",
         "tests/scripts/test_chaos_engine_stores.py",
@@ -1031,23 +985,6 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_promotion.py",
     ),
     "token-waste": (
-        "chaos-engine/references/ci-status-economy.md",
-        "chaos-engine/references/tip-churn-preflight.md",
-        "chaos-engine/references/static-analysis-gate.md",
-        "chaos-engine/references/complexity-gate.md",
-        "chaos-engine/references/eliminate-waste.md",
-        "chaos-engine/references/context-economy.md",
-        "chaos-engine/references/work-github-playbook.md",
-        "chaos-engine/references/process-owner-scrum-master.md",
-        "chaos-engine/references/orchestrator-follow-through.md",
-        "chaos-engine/skills/local-agency/references/coach-loop.md",
-        "chaos-engine/skills/local-agency/references/when-to-use-local.md",
-        "chaos-engine/skills/local-agency/references/parent-rog-shell.md",
-        "chaos-engine/skills/local-agency/SKILL.md",
-        "chaos-engine/guides/local-agency.md",
-        "chaos-engine/skills/local-agency/scripts/tip_preflight.py",
-        "chaos-engine/skills/local-agency/scripts/executor_brief.py",
-        "chaos-engine/skills/self-improve/references/activation.md",
         "scripts/agents/status_lease.py",
         "scripts/agents/watch_pr_checks.py",
         "scripts/ci/overlay_pre_push.py",
@@ -1057,7 +994,6 @@ SURFACE_PATTERNS = {
         "scripts/ci/java_npath.py",
         "scripts/mcp/install_shaft_agentic_tools.py",
         "shaft-upgrader/upgrade_to_modular_shaft.py",
-        "chaos-engine/references/installer-program.md",
         "tests/scripts/test_chaos_engine_token_waste_6161.py",
         "tests/scripts/test_ci_status_economy_lessons_7341.py",
         "tests/scripts/test_overlay_pre_push.py",
@@ -1073,28 +1009,9 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_branded_installer_ce_standard.py",
     ),
     "token-economy": (
-        "chaos-engine/harness_index.py",
-        "chaos-engine/harness-index.json",
-        "chaos-engine/worktree_overlay.py",
-        "chaos-engine/mcp_policy.py",
-        "chaos-engine/identity.md",
-        "chaos-engine/companions/caveman-ultra.md",
-        "chaos-engine/companions/ponytail-ultra.md",
         "shaft-skills/ce-pack/entrypoint.md",
-        "chaos-engine/hooks/retrieve_justification.py",
-        "chaos-engine/hooks/guard.py",
-        "chaos-engine/hooks/repeat_reminder.py",
         "tests/scripts/test_repeat_reminder.py",
-        "chaos-engine/hooks/lifecycle.py",
-        "chaos-engine/references/*.md",
-        "chaos-engine/skills/*/SKILL.md",
-        "chaos-engine/skills/*/references/*.md",
-        "chaos-engine/profiles/*/profile.json",
         "shaft-skills/ce-pack/profile.json",
-        "chaos-engine/dependencies.json",
-        "chaos-engine/hosts.py",
-        "chaos-engine/install.py",
-        "chaos-engine/tool.py",
         "AGENTS.md",
         "CLAUDE.md",
         "GEMINI.md",
@@ -1142,7 +1059,6 @@ SURFACE_PATTERNS = {
     "worktree-unittest": (
         "scripts/ci/worktree_unittest.py",
         "tests/scripts/test_worktree_unittest.py",
-        "chaos-engine/references/work-github-planning.md",
     ),
     "plugin-assembly": (
         "chaos-engine/*",
@@ -1173,15 +1089,6 @@ SURFACE_PATTERNS = {
     ),
     "self-improve": (
         "AGENTS.md",
-        "chaos-engine/references/context-firewall.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/delegation.md",
-        "chaos-engine/references/context-economy.md",
-        "chaos-engine/references/research-receipt.md",
-        "chaos-engine/references/router-contract.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
-        "chaos-engine/skills/self-improve/*",
-        "chaos-engine/learning_session.py",
         "scripts/ci/chaos-engine-upstream.txt",
         "tests/scripts/test_upstream_ticket_consent.py",
         "shaft-skills/ce-pack/references/product-track.md",
@@ -1189,14 +1096,12 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_s3_self_improve.py",
     ),
     "research": (
-        "chaos-engine/RESEARCH.md",
         "agent-plugins/release.json",
         ".github/workflows/mavenCentral_cd.yml",
         "tests/scripts/test_chaos_engine_research.py",
     ),
     "javadoc": (
         "scripts/ci/check_javadoc_param_arity.py",
-        "chaos-engine/references/zero-llm-catalog.md",
         "shaft-skills/ce-pack/references/playbooks/framework-source.md",
         "tests/scripts/test_check_javadoc_param_arity.py",
         "tests/scripts/test_chaos_engine_zero_llm_catalog.py",
@@ -1205,7 +1110,6 @@ SURFACE_PATTERNS = {
     "surefire-green": (
         "scripts/ci/assert_surefire_green.py",
         "scripts/ci/run_click_type_wave_f_proof.sh",
-        "chaos-engine/references/work-github-playbook.md",
         "tests/scripts/test_assert_surefire_green.py",
     ),
     "browserstack-boundary": (
@@ -1222,45 +1126,24 @@ SURFACE_PATTERNS = {
     ),
     "icm-architect": (
         "chaos-engine/README.md",
-        "chaos-engine/THIRD_PARTY_NOTICES.md",
-        "chaos-engine/references/design-loop.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
-        "chaos-engine/hooks/lifecycle.py",
         "tests/scripts/test_chaos_engine_icm_architect_6001.py",
         "tests/scripts/test_design_loop_writer_reseed.py",
     ),
     "identity-companions": (
-        "chaos-engine/references/router-contract.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
-        "chaos-engine/identity.md",
-        "chaos-engine/identity_md.py",
-        "chaos-engine/hosts.py",
         "tests/scripts/test_chaos_engine_identity_companions_5803.py",
     ),
     "memory-tracked": (
         ".gitignore",
-        "chaos-engine/references/retrieve-first.md",
-        "chaos-engine/references/graphify.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
         "tests/scripts/test_chaos_engine_memory_tracked_5774.py",
     ),
     "wave-c-ledger": (
-        "chaos-engine/retrieve.py",
-        "chaos-engine/tool.py",
-        "chaos-engine/tool_output_store.py",
-        "chaos-engine/rules/large_read_deny.py",
-        "chaos-engine/learning.py",
         "tests/scripts/test_chaos_engine_wave_c_ledger_retrieve_learning.py",
         "tests/scripts/test_ce_tool_output_spill.py",
     ),
     "freetoken-probe": (
-        "chaos-engine/skills/freetoken/scripts/probe.py",
         "tests/scripts/test_freetoken_probe.py",
     ),
     "installer-merge-handoff": (
-        "chaos-engine/hosts.py",
-        "chaos-engine/install.py",
-        "chaos-engine/bootstrap.py",
         "tests/scripts/test_installer_merge_handoff.py",
     ),
     "installer-checkout-shim": (
@@ -1270,40 +1153,18 @@ SURFACE_PATTERNS = {
     ),
     "omniroute-calibration": (
         "scripts/ci/chaos_gauge/omniroute_calibration.py",
-        "chaos-engine/decision-quality-calibration.aggregate.json",
         "tests/scripts/test_omniroute_calibration.py",
     ),
     "process-owner": (
-        "chaos-engine/references/work-github-playbook.md",
-        "chaos-engine/references/process-owner-scrum-master.md",
-        "chaos-engine/references/router-contract.md",
-        "chaos-engine/references/roles.md",
-        "chaos-engine/references/profiles/designer.md",
-        "chaos-engine/references/profiles/coach.md",
         "tests/scripts/test_profile_absorption_7896_7897.py",
-        "chaos-engine/references/orchestrator-follow-through.md",
-        "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",
-        "chaos-engine/references/multi-agent-pdca.md",
-        "chaos-engine/references/delivery-cycle.md",
-        "chaos-engine/references/investigate-lessons.md",
         "tests/scripts/test_delivery_cycle.py",
         "tests/scripts/test_likeness_record_train.py",
-        "chaos-engine/references/details/likeness_record_train.py",
-        "chaos-engine/references/iterative-flow.md",
-        "chaos-engine/pre_done_review.py",
-        "chaos-engine/intent_converge.py",
-        "chaos-engine/skills/pre-done-self-review/SKILL.md",
-        "chaos-engine/skills/learn-from-external-harnesses/SKILL.md",
         "tests/scripts/test_pre_done_review.py",
         "tests/scripts/test_ce_spec_kit_adopt.py",
         "tests/scripts/test_job_apply_skill.py",
         "tests/scripts/test_job_search_skill.py",
-        "chaos-engine/references/bot-entry.md",
         "tests/scripts/test_multi_agent_pdca.py",
-        "chaos-engine/references/parallel-streams.md",
-        "chaos-engine/references/cleanup-scopes.md",
-        "chaos-engine/references/delegation.md",
         "scripts/ci/parallel_stream_conflict.py",
         "scripts/ci/worktree_hygiene.py",
         "tests/scripts/test_parallel_streams.py",
@@ -1313,27 +1174,15 @@ SURFACE_PATTERNS = {
         "scripts/ci/delivery_cleanup.py",
         "scripts/ci/worker_ownership.py",
         "tests/scripts/test_delivery_cleanup.py",
-        "chaos-engine/references/cleanup-at-close.md",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (
-        "chaos-engine/evals/*",
-        "chaos-engine/decision-quality-*",
-        "chaos-engine/dod.py",
-        "chaos-engine/session_token_usage.py",
         "tests/scripts/test_session_tool_receipt.py",
-        "chaos-engine/tool.py",
-        "chaos-engine/retrieve.py",
-        "chaos-engine/install.py",
-        "chaos-engine/INSTALL.md",
-        "chaos-engine/skills/kanban/SKILL.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
         "scripts/ci/decision_quality_gate.py",
         "tests/fixtures/ce_dod/*",
         "tests/scripts/test_ce_h2_gates.py",
     ),
     "design-skills": (
-        "chaos-engine/addons/design-skills/*",
         "tests/scripts/test_ce_design_lessons.py",
         "tests/scripts/test_ce_design_web_craft.py",
         "tests/scripts/test_ce_design_reels.py",
@@ -1351,13 +1200,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_design_video_caption_l35.py",
         "tests/scripts/test_ce_design_caption_l38.py",
         "tests/scripts/test_ce_version.py",
-        "tests/scripts/test_ce_session_manifest_delete_and_backup_silence.py",
         "tests/scripts/test_worktree_overlay_materialize_upgrade.py",
         "tests/scripts/test_ce_design_caption_l44.py",
         "tests/scripts/test_ce_design_render_freshness_l46_l47.py",
         "tests/scripts/test_ce_design_fb_reel_gates_l48_l51.py",
         "tests/scripts/test_ce_commit_identity_and_work_ordering.py",
-        "tests/scripts/test_ce_bugfix_2026_10_30_2.py",
         "tests/scripts/test_ce_bugfix_2026_10_31_1.py",
         "tests/scripts/test_ce_bugfix_2026_10_31_2.py",
         "tests/scripts/test_ce_bugfix_2026_10_31_3.py",
@@ -1371,12 +1218,6 @@ SURFACE_PATTERNS = {
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (
-        "chaos-engine/jobs.py",
-        "chaos-engine/task_ledger.py",
-        "chaos-engine/tool.py",
-        "chaos-engine/references/durable-jobs.md",
-        "chaos-engine/skills/chaos-engine/SKILL.md",
-        "chaos-engine/addons/design-skills/references/pipelines/runbook.md",
         "tests/scripts/test_ce_jobs.py",
         "tests/scripts/test_ce_task_ledger.py",
     ),
@@ -1403,112 +1244,49 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_harness_eval_suite.py",
     ),
     "memory-provenance": (
-        "chaos-engine/memory_provenance.py",
-        "chaos-engine/heuristics.py",
-        "chaos-engine/learning.py",
-        "chaos-engine/draft_skill_pr.py",
-        "chaos-engine/references/memory-provenance.md",
         "tests/scripts/test_chaos_engine_memory_provenance_6520.py",
     ),
     "evolving-playbook": (
-        "chaos-engine/heuristics.py",
-        "chaos-engine/install.py",
-        "chaos-engine/references/evolving-playbook.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
         "tests/scripts/test_chaos_engine_evolving_playbook_6532.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "insight-extract": (
-        "chaos-engine/insight_extract.py",
-        "chaos-engine/heuristics.py",
-        "chaos-engine/memory_provenance.py",
-        "chaos-engine/references/insight-extract.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
         "tests/scripts/test_chaos_engine_insight_extract_6544.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "workflow-induction": (
-        "chaos-engine/workflow_induce.py",
-        "chaos-engine/references/workflow-induction.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_workflow_induction_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "external-reflection": (
-        "chaos-engine/external_reflection.py",
-        "chaos-engine/references/external-reflection.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_external_reflection_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "prompt-evolution": (
-        "chaos-engine/prompt_evolve.py",
-        "chaos-engine/references/prompt-evolution.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_prompt_evolution_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "self-modify": (
-        "chaos-engine/self_modify.py",
-        "chaos-engine/references/self-modify.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_self_modify_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "context-rot": (
-        "chaos-engine/context_rot.py",
-        "chaos-engine/references/context-rot.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_context_rot_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "genai-spans": (
-        "chaos-engine/genai_spans.py",
-        "chaos-engine/references/genai-spans.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
-        "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_genai_spans_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
     "guidance-close": (
-        "chaos-engine/corpus_split.py",
-        "chaos-engine/enhancement_disposition.py",
-        "chaos-engine/retrieve.py",
-        "chaos-engine/stores.py",
-        "chaos-engine/mempalace_fast_mine.py",
-        "chaos-engine/learning_session.py",
-        "chaos-engine/hooks/guard.py",
-        "chaos-engine/skills/self-improve/SKILL.md",
-        "chaos-engine/references/reflection-checkpoints.md",
         "scripts/ci/overlay_pre_push.py",
         "scripts/ci/harness_pr_gate.py",
         "scripts/agents/guard.py",
@@ -2274,8 +2052,6 @@ def classify_paths(paths: list[str]) -> GatePlan:
             raise GateError(f"unsafe changed path: {raw_path!r}")
         matched = False
         for surface, patterns in SURFACE_PATTERNS.items():
-            if surface == "lifecycle" and path == "chaos-engine/hooks/kernel.py":
-                continue
             if any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns):
                 if surface not in selected:
                     selected.append(surface)
@@ -2306,21 +2082,41 @@ def classify_paths(paths: list[str]) -> GatePlan:
     return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
 
 
-MOVED_TEST_PREFIX = "tests.scripts.test_chaos_engine_"
+def _tests_script(root: Path, module: str) -> Path | None:
+    """File for a ``tests.scripts`` id. ``None`` when the id is not one of those."""
+    parts = module.split(".")
+    if len(parts) < 3 or parts[0] != "tests" or parts[1] != "scripts":
+        return None
+    return root / "tests" / "scripts" / f"{parts[2]}.py"
+
+
+def _module_has_tests(path: Path) -> bool:
+    """False for a missing file or a docstring-only moved stub. Syntax errors stay."""
+    if not path.is_file():
+        return False
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
+            return True
+    return False
 
 
 def _drop_moved_modules(plan: GatePlan, root: Path) -> GatePlan:
-    """#8057: ``test_chaos_engine_*`` suites moved to ShaftHQ/chaosengine-harness.
+    """Drop moved suites before the guidance job runs them (#8057).
 
-    Drop those module ids when their file is gone, and any check left empty.
-    Temporary until e2 rewires the surface tables (tracked on #8057).
+    A ``tests.scripts`` module is dropped when its file is gone or is only a
+    move notice (no ``test_`` function). One-line stubs exit 5 on Python 3.14
+    (``NO TESTS RAN``) and are not coverage. Any check left empty is dropped.
     """
 
     def present(module: str) -> bool:
-        if not module.startswith(MOVED_TEST_PREFIX):
+        path = _tests_script(root, module)
+        if path is None:
             return True
-        file_name = module.split(".")[2] + ".py"
-        return (root / "tests" / "scripts" / file_name).is_file()
+        return _module_has_tests(path)
 
     checks = []
     for check in plan.checks:

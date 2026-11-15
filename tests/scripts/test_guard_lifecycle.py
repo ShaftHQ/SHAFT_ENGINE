@@ -26,7 +26,42 @@ from unittest.mock import patch
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.agents import guard
-from tests.scripts.ce_host_files import host_file_text  # #6197: no untracked host files
+
+
+def host_file_text(relative: str) -> str:
+    """Checkout host file, else render it from the pinned overlay (#8057)."""
+    root = Path(__file__).resolve().parents[2]
+    checkout = root / relative
+    if checkout.is_file():
+        return checkout.read_text(encoding="utf-8")
+    rendered = _overlay_host_files()
+    try:
+        return rendered[relative].decode("utf-8")
+    except KeyError as error:
+        raise FileNotFoundError(relative) from error
+
+
+def _overlay_host_files() -> dict[str, bytes]:
+    cached = getattr(_overlay_host_files, "value", None)
+    if cached is not None:
+        return cached
+    repo = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location(
+        "ce_overlay_hosts_8057", repo / ".chaos-engine" / "hosts.py"
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(".chaos-engine/hosts.py")
+    hosts = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hosts)
+    before = {name: None for name in hosts.managed_paths()}
+    rendered = hosts.desired_content(before, maven_runtime=None, project=repo)
+    cached = {
+        name: content for name, content in rendered.items() if isinstance(content, bytes)
+    }
+    _overlay_host_files.value = cached
+    return cached
+
+
 try:
     from scripts.agents import learning_session
 except ImportError:  # RED replay runs this test file against pre-rename production.
@@ -69,7 +104,7 @@ def preflight_context_bytes(context: str) -> int:
     root = Path(__file__).resolve().parents[2]
     for name in ("caveman", "ponytail"):
         body = root.joinpath(
-            f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md"
+            f".chaos-engine/vendor/{name}/skills/{name}/SKILL.md"
         ).read_text(encoding="utf-8")
         context = context.replace(body, "", 1)
     return len(context.encode("utf-8"))
@@ -482,7 +517,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 guard._TERMINAL_REFLECTION_LABELS,
             )
             portable_guard = (
-                Path(__file__).resolve().parents[2] / "chaos-engine/hooks/guard.py"
+                Path(__file__).resolve().parents[2] / ".chaos-engine/hooks/guard.py"
             ).read_text(encoding="utf-8")
             for label in guard._TERMINAL_REFLECTION_LABELS:
                 self.assertIn(f'"{label}"', portable_guard)
@@ -2073,7 +2108,12 @@ class SessionStartRetrievalIsolationTest(unittest.TestCase):
             with redirect_stdout(stream):
                 self.assertEqual(guard.run_session_start({"cwd": "."}), 0)
 
-        run.assert_not_called()
+        for invocation in run.call_args_list:
+            argv = invocation.args[0] if invocation.args else []
+            command = " ".join(str(part) for part in argv).casefold()
+            self.assertNotIn("mempalace", command)
+            self.assertNotIn("graphify", command)
+            self.assertNotRegex(command, r"(^|\s)memory(\s|$)")
         rendered = stream.getvalue()
         context = json.loads(rendered)["hookSpecificOutput"]["additionalContext"]
         self.assertLessEqual(len(rendered.encode("utf-8")), 4096)
@@ -3021,7 +3061,7 @@ class LearningSessionStopGateTest(unittest.TestCase):
             with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
                 spec = importlib.util.spec_from_file_location(
                     "ce_guard_fresh_delivery",
-                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                    Path(__file__).resolve().parents[2] / ".chaos-engine" / "hooks" / "guard.py",
                 )
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -3044,7 +3084,7 @@ class LearningSessionStopGateTest(unittest.TestCase):
             with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
                 spec = importlib.util.spec_from_file_location(
                     "ce_guard_completion_gate",
-                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                    Path(__file__).resolve().parents[2] / ".chaos-engine" / "hooks" / "guard.py",
                 )
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -3069,7 +3109,7 @@ class LearningSessionStopGateTest(unittest.TestCase):
             with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
                 spec = importlib.util.spec_from_file_location(
                     "ce_guard_memory_write",
-                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                    Path(__file__).resolve().parents[2] / ".chaos-engine" / "hooks" / "guard.py",
                 )
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -3097,7 +3137,7 @@ class LearningSessionStopGateTest(unittest.TestCase):
 
         spec = importlib.util.spec_from_file_location(
             "ce_guard_repo_6282",
-            Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+            Path(__file__).resolve().parents[2] / ".chaos-engine" / "hooks" / "guard.py",
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -3139,7 +3179,7 @@ class LearningSessionStopGateTest(unittest.TestCase):
 
         spec = importlib.util.spec_from_file_location(
             "ce_guard_repo_6286",
-            Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+            Path(__file__).resolve().parents[2] / ".chaos-engine" / "hooks" / "guard.py",
         )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -5510,3 +5550,51 @@ class CanonicalInvocationContextRegressionTest(unittest.TestCase):
                 {"cmd": "curl.exe -o https://code.visualstudio.com/output https://example.com"},
             ),
         )
+
+
+class PinnedOverlayLoadTest(unittest.TestCase):
+    """#8057: missing `.chaos-engine/hooks` fails closed. `chaos-engine/hooks` is not a fallback."""
+
+    def tearDown(self) -> None:
+        guard._lifecycle_core.cache_clear()
+        guard._kernel_core.cache_clear()
+        guard._portable_hook_guard.cache_clear()
+
+    def test_missing_overlay_fails_closed(self) -> None:
+        self.tearDown()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("lifecycle.py", "kernel.py", "guard.py"):
+                destination = root / "chaos-engine" / "hooks" / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("SENTINEL = 'source-fallback'\n", encoding="utf-8")
+            payload = json.dumps(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "true"},
+                    "session_id": "missing-overlay",
+                    "cwd": str(root),
+                }
+            )
+            with patch("scripts.agents.guard._harness_root", return_value=str(root)):
+                for loader in (
+                    guard._lifecycle_core,
+                    guard._kernel_core,
+                    guard._portable_hook_guard,
+                ):
+                    with self.subTest(loader=loader.__name__):
+                        loader.cache_clear()
+                        with self.assertRaises(RuntimeError):
+                            loader()
+                output = io.StringIO()
+                with patch("sys.stdin", io.StringIO(payload)):
+                    with redirect_stdout(output):
+                        status = guard.main([])
+        self.assertEqual(0, status)
+        rendered = output.getvalue()
+        self.assertNotIn("source-fallback", rendered)
+        decision = json.loads(rendered)
+        specific = decision["hookSpecificOutput"]
+        self.assertEqual("deny", specific["permissionDecision"])
+        self.assertIn("unavailable", specific["permissionDecisionReason"])

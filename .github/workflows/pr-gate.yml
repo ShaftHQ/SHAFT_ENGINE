@@ -700,6 +700,10 @@ jobs:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
+      - name: Fetch pinned ChaosEngine harness overlay
+        # Installer tests read the moved harness as .chaos-engine/. Git Bash runs this on Windows.
+        shell: bash
+        run: bash scripts/ci/fetch_harness_overlay.sh
       - name: Run unittest for installer script
         run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync tests.scripts.test_generate_tool_index tests.scripts.test_validate_tool_index_examples tests.scripts.test_validate_shaft_mcp_configuration -v
       - name: Validate shaft-mcp configuration contract
@@ -1293,6 +1297,10 @@ jobs:
       # #6990 lesson: Codecov silently ignores an invalid codecov.yml.
       - name: Validate codecov.yml with Codecov
         run: python3 scripts/ci/validate_codecov_yml.py
+      - name: Fetch pinned ChaosEngine harness overlay
+        # User-facing link checks resolve AGENTS.md paths under .chaos-engine/.
+        shell: bash
+        run: bash scripts/ci/fetch_harness_overlay.sh
       - name: Run workflow timeout guard unit tests
         run: >-
           python3 -m unittest

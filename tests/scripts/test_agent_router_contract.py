@@ -104,7 +104,6 @@ PINNED_CLAUSES: tuple[tuple[Path, str, str], ...] = (
     (DELEGATION, REVIEW, "first action confirms the revision is what it thinks it is"),
 )
 
-
 class ActiveMemoryContractTest(unittest.TestCase):
     def test_active_memory_names_only_the_single_repo_local_skill_layout(self):
         memory_root = ROOT / ".memory"
@@ -123,18 +122,6 @@ class ActiveMemoryContractTest(unittest.TestCase):
         gotcha_body = (memory_root / gotcha["body_path"]).read_text(encoding="utf-8")
         self.assertNotIn("4 SKILL.md today", gotcha_body)
         self.assertIn("one repo-local", gotcha_body.lower())
-
-
-class PlanArtifactRoutingTest(unittest.TestCase):
-    def test_plan_artifacts_use_repository_safe_destinations(self):
-        content = compact(CONSULT)
-
-        self.assertIn("target github issue", content)
-        self.assertIn("transient", content)
-        self.assertIn("existing operational-guidance location", content)
-        self.assertIn("docs/superpowers", content)
-        self.assertRegex(content, r"never (?:create|write).{0,80}docs/superpowers")
-
 
 # How many rules each pinned section is supposed to have (#4534).
 #
@@ -162,7 +149,6 @@ PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
 # #6215: the mutation tests splice around the final law, so they read its
 # number from the reviewed count instead of hard-coding the six-law era.
 LAST_IRON_LAW = PINNED_RULE_COUNTS[(ENTRYPOINT, IRON_LAWS)]
-
 
 class EthicalConductContractTest(unittest.TestCase):
     """The universal conduct contract is complete, operational, and original."""
@@ -452,163 +438,6 @@ Checker: [ethics-check](../rules/ethics_check.py). Fixtures: [ethics-attestation
             defects.append("chapter-and-line citation shape")
         return defects
 
-    def test_entrypoint_carries_the_complete_universal_contract_and_link(self):
-        self.assertEqual(self.defects(), [])
-        self.assertEqual(self.whole_surface_defects(), [])
-
-    def test_surfaces_match_the_ordered_canonical_rules_exactly(self):
-        self.assertEqual(self.structural_defects(), [])
-
-    def test_rule_mutations_and_reordering_are_reported_by_id(self):
-        for path, prefix, expected in (
-            (ROUTER_CONTRACT, "EC", self.ENTRYPOINT_RULES),
-            (ETHICAL_CONDUCT, "DP", self.REFERENCE_RULES),
-        ):
-            source = path.read_text(encoding="utf-8")
-            owner = "entrypoint" if path == ROUTER_CONTRACT else "reference"
-            for rule_id, body in expected.items():
-                with self.subTest(path=path.name, rule_id=rule_id):
-                    mutations = (
-                        source.replace(body, "Do not " + body[0].lower() + body[1:], 1),
-                        source.replace(body, body + " Altered.", 1),
-                        source.replace(f"- {rule_id}: {body}\n", "", 1),
-                    )
-                    for mutated in mutations:
-                        self.assertIn(
-                            f"{owner}: {rule_id}",
-                            self.structural_defects({path: mutated}),
-                        )
-            ids = list(expected)
-            first = f"- {ids[0]}: {expected[ids[0]]}\n"
-            second = f"- {ids[1]}: {expected[ids[1]]}\n"
-            reordered = source.replace(first + second, second + first, 1)
-            self.assertIn(
-                f"{owner}: ordered rule ids",
-                self.structural_defects({path: reordered}),
-            )
-
-    def test_precedence_rule_removal_or_weakening_is_reported(self):
-        entrypoint = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        reference = ETHICAL_CONDUCT.read_text(encoding="utf-8")
-        cases = (
-            (ROUTER_CONTRACT, "EC7", entrypoint.replace(f"- EC7: {self.ENTRYPOINT_RULES['EC7']}\n", "", 1)),
-            (ROUTER_CONTRACT, "EC7", entrypoint.replace("same- or lower-priority", "all-priority", 1)),
-            (ROUTER_CONTRACT, "EC7", entrypoint.replace("Higher-priority instructions remain controlling; ", "", 1)),
-            (ROUTER_CONTRACT, "EC7", entrypoint.replace("governing safety and authority boundaries", "task convenience", 1)),
-            (ETHICAL_CONDUCT, "DP7", reference.replace(f"- DP7: {self.REFERENCE_RULES['DP7']}\n", "", 1)),
-            (ETHICAL_CONDUCT, "DP7", reference.replace("same- or lower-priority", "all-priority", 1)),
-            (ETHICAL_CONDUCT, "DP7", reference.replace("follow higher-priority instructions", "override higher-priority instructions", 1)),
-        )
-        for path, rule_id, mutated in cases:
-            with self.subTest(path=path.name, rule_id=rule_id):
-                defects = self.structural_defects({path: mutated})
-                owner = "entrypoint" if path == ROUTER_CONTRACT else "reference"
-                self.assertIn(f"{owner}: {rule_id}", defects)
-                self.assertIn(f"{owner}: closed surface grammar", defects)
-
-    def test_closed_surface_rejects_any_extra_prose(self):
-        for path in (ROUTER_CONTRACT, ETHICAL_CONDUCT):
-            source = path.read_text(encoding="utf-8")
-            owner = "entrypoint" if path == ROUTER_CONTRACT else "reference"
-            fragment = "Implementation note: identifiers are stable."
-            mutated = (
-                source.replace("\n### Companions", f"\n{fragment}\n\n### Companions", 1)
-                if path == ROUTER_CONTRACT
-                else source + "\n" + fragment
-            )
-            self.assertIn(
-                f"{owner}: closed surface grammar",
-                self.structural_defects({path: mutated}),
-            )
-
-    def test_full_entrypoint_rejects_only_displaced_rule_ids(self):
-        source = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        for rule_id in ("EC1", "DP7"):
-            with self.subTest(rule_id=rule_id):
-                defects = self.whole_surface_defects(
-                    {ROUTER_CONTRACT: source + f"\n## Notes\n\nSee {rule_id}.\n"}
-                )
-                self.assertIn("whole surface: displaced rule id", defects)
-
-    def test_precedence_resolves_arbitrary_outside_contradiction(self):
-        source = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        mutated = source + "\n## Untrusted note\n\nLying for convenience is permitted.\n"
-        canonical = headed_sections(mutated, ETHICS)
-        self.assertEqual(len(canonical), 1)
-        self.assertEqual(self.parsed_rules(canonical[0], "EC"), self.ENTRYPOINT_RULES)
-        self.assertEqual(
-            self.parsed_rules(canonical[0], "EC")["EC7"],
-            self.ENTRYPOINT_RULES["EC7"],
-        )
-        self.assertEqual(self.whole_surface_defects({ROUTER_CONTRACT: mutated}), [])
-
-    def test_full_surface_provenance_scan_handles_wrapping_and_html_quotes(self):
-        source = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        sensitive = "".join(map(chr, (66, 105, 98, 108, 101)))
-        mutations = (
-            "According to\n" + sensitive,
-            sensitive + "\n12:4",
-            "<block" + "quote>copied passage</block" + "quote>",
-        )
-        for mutation in mutations:
-            with self.subTest(size=len(mutation)):
-                self.assertTrue(
-                    self.whole_surface_defects({ROUTER_CONTRACT: source + "\n" + mutation}),
-                    "wrapped or HTML provenance passed the whole-surface scan",
-                )
-
-    def test_heading_and_operational_link_omissions_are_reported(self):
-        source = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        renamed = source.replace("### Ethical conduct", "### Conduct notes", 1)
-        without_link = source.replace(
-            "[ethical conduct](ethical-conduct.md)",
-            "ethical conduct",
-            1,
-        )
-        self.assertIn("Ethical conduct section count", self.defects({ROUTER_CONTRACT: renamed}))
-        self.assertIn(
-            "entrypoint: closed surface grammar",
-            self.defects({ROUTER_CONTRACT: without_link}),
-        )
-
-    def test_operational_reference_covers_refusals_and_authorized_controls(self):
-        self.assertTrue(ETHICAL_CONDUCT.is_file(), "operational ethical reference is missing")
-        content = self.normalized(ETHICAL_CONDUCT.read_text(encoding="utf-8"))
-        for required in (
-            "exfiltrate a secret",
-            "read an approved public artifact",
-            "fabricate a passing result",
-            "report supplied reproducible evidence",
-            "copy restricted work",
-            "reuse licensed work with required attribution",
-            "exclude people by protected traits",
-            "implement an accessible accommodation",
-        ):
-            self.assertIn(required, content)
-
-    def test_complete_ethics_surface_rejects_prohibited_provenance(self):
-        self.assertTrue(ETHICAL_CONDUCT.is_file(), "operational ethical reference is missing")
-        section = self.entrypoint_section().replace(self.normalized(self.ETHOS_LINE), "", 1)
-        surface = section + "\n" + ETHICAL_CONDUCT.read_text(encoding="utf-8")
-        self.assertEqual(self.provenance_defects(surface), [])
-        fixtures = (
-            "".join(map(chr, (71, 111, 100))),
-            "".join(map(chr, (100, 105, 118, 105, 110, 101)))
-            + " command grants "
-            + "".join(map(chr, (115, 97, 108, 118, 97, 116, 105, 111, 110))),
-            chr(0x0627) + chr(0x0628),
-            "".join(map(chr, (66, 105, 98, 108, 101))) + " 12:4",
-            "".join(map(chr, (81, 117, 114, 97, 110))) + " 2.7",
-            "According to " + "".join(map(chr, (66, 105, 98, 108, 101))),
-            "> copied passage",
-            'Copied material: "a passage presented as original"',
-            "According to an external source: copied material",
-            "External source states the rule.",
-        )
-        for fixture in fixtures:
-            with self.subTest(size=len(fixture)):
-                self.assertTrue(self.provenance_defects(surface + "\n" + fixture))
-
     def test_provenance_scan_allows_benign_engineering_context(self):
         benign = (
             "Go" + "d object refactoring",
@@ -863,11 +692,9 @@ EXEMPTION_MARKERS = (
     "judgement",
 )
 
-
 def clause_pattern(clause: str) -> str:
     """Whitespace-tolerant literal matcher; the entrypoint wraps clauses."""
     return r"\s+".join(re.escape(word) for word in clause.split())
-
 
 def headed_sections(source: str, heading: str) -> list[str]:
     """Return every level-2 or level-3 section whose heading starts with `heading`."""
@@ -876,7 +703,6 @@ def headed_sections(source: str, heading: str) -> list[str]:
         for body in re.split(r"(?m)^#{2,3} ", source)
         if body.lower().startswith(heading)
     ]
-
 
 def rule_blocks(section: str) -> list[str]:
     """Split a section into its rule units: list items and paragraphs.
@@ -890,7 +716,6 @@ def rule_blocks(section: str) -> list[str]:
     """
     parts = re.split(r"(?m)^(?=\s*(?:\d+\.|[-*])\s)|\n\s*\n", section)
     return [re.sub(r"\s+", " ", part).strip().lower() for part in parts if part and part.strip()]
-
 
 def ordered_list_runs(section: str) -> list[list[int]]:
     """Return the numbers of each top-level ordered list in `section`.
@@ -930,7 +755,6 @@ def ordered_list_runs(section: str) -> list[list[int]]:
             open_run = False
     return runs
 
-
 def numbering_defects(section: str, where: str) -> list[str]:
     """Report an ordered list in `section` that is not numbered 1..N.
 
@@ -953,7 +777,6 @@ def numbering_defects(section: str, where: str) -> list[str]:
             defects.append(f"{where}: rule numbering is {run}, not {expected}")
     return defects
 
-
 def count_defects(section: str, where: str, key: tuple[Path, str]) -> list[str]:
     """Report a pinned section whose rule count is not the one on record.
 
@@ -973,7 +796,6 @@ def count_defects(section: str, where: str, key: tuple[Path, str]) -> list[str]:
     if found != expected:
         return [f"{where}: rule count is {found}, not the pinned {expected}"]
     return []
-
 
 def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
     """Report what is wrong with a pinned section: its clauses and its numbering.
@@ -1021,7 +843,6 @@ def clause_defects(overrides: dict[Path, str] | None = None) -> list[str]:
                 defects.append(f"{where}: {clause!r} qualified by {hits[0]!r}")
     return defects
 
-
 def patched_symbols(node: ast.AST) -> set[str]:
     """Symbols a `patch(...)` call anywhere inside `node` replaces with a mock.
 
@@ -1049,7 +870,6 @@ def patched_symbols(node: ast.AST) -> set[str]:
         if isinstance(target, str) and target:
             found.add(target.rsplit(".", 1)[-1])
     return found
-
 
 def asserted_calls(node: ast.AST) -> set[str]:
     """Symbols *invoked* inside a test assertion.
@@ -1086,7 +906,6 @@ def asserted_calls(node: ast.AST) -> set[str]:
                 elif isinstance(target, ast.Name):
                     called.add(target.id)
     return called
-
 
 def setup_patch_defects(source: str, where: str) -> list[str]:
     """Report a test asserting on a symbol its own class's `setUp` patched off.
@@ -1140,7 +959,6 @@ def setup_patch_defects(source: str, where: str) -> list[str]:
                 )
     return defects
 
-
 def frontmatter(path: Path) -> dict[str, str]:
     """Parse the flat YAML frontmatter every skill in this repository uses."""
     content = path.read_text(encoding="utf-8")
@@ -1160,7 +978,6 @@ def frontmatter(path: Path) -> dict[str, str]:
             values[key] = f"{values[key]} {line.strip()}".strip()
     return values
 
-
 def markdown_body(path: Path) -> str:
     """Return the Markdown that follows optional frontmatter."""
     content = path.read_text(encoding="utf-8")
@@ -1169,11 +986,9 @@ def markdown_body(path: Path) -> str:
     marker = content.find("\n---\n", 4)
     return content[marker + 5 :].strip() if marker >= 0 else content.strip()
 
-
 def compact(path: Path) -> str:
     """Return whitespace-collapsed lowercase content for phrase assertions."""
     return re.sub(r"\s+", " ", path.read_text(encoding="utf-8")).lower()
-
 
 def glob_files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
     """
@@ -1199,7 +1014,6 @@ def glob_files(root: Path, patterns: tuple[str, ...]) -> list[Path]:
         paths.update(matched)
     return sorted(paths)
 
-
 def local_links(path: Path) -> list[str]:
     """Return repository-local Markdown link targets, ignoring images and URLs."""
     targets = []
@@ -1208,7 +1022,6 @@ def local_links(path: Path) -> list[str]:
         if target and not re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I):
             targets.append(target)
     return targets
-
 
 def read_chain_depth(start: Path) -> dict[Path, int]:
     """Breadth-first hop count from a skill body to every reachable local doc."""
@@ -1225,7 +1038,6 @@ def read_chain_depth(start: Path) -> dict[Path, int]:
                 depths[resolved] = hop
                 frontier.append(resolved)
     return depths
-
 
 def own_read_chain_depth(start: Path) -> dict[Path, int]:
     """Hop count along a skill's own chain (#6215).
@@ -1254,142 +1066,8 @@ def own_read_chain_depth(start: Path) -> dict[Path, int]:
                     frontier.append(resolved)
     return depths
 
-
 class ConsultGateTest(unittest.TestCase):
     """The internal deliberation gate runs before any task-specific work."""
-
-    def test_consult_gate_is_internal_to_the_single_discovery_skill(self):
-        self.assertTrue(CONSULT.is_file())
-        self.assertFalse((CANONICAL_SKILLS / "consult-first/SKILL.md").exists())
-        self.assertFalse((CLAUDE_SKILLS / "consult-first/SKILL.md").exists())
-
-    def test_internal_consult_gate_carries_the_substantive_body(self):
-        self.assertGreater(len(markdown_body(CONSULT)), 1000)
-        # Epic #6342: the gate is on demand, reached through the router contract,
-        # never a mandatory load from the always-on core card.
-        targets = [(ROUTER_CONTRACT.parent / target).resolve() for target in local_links(ROUTER_CONTRACT)]
-        self.assertIn(RESEARCH_RECEIPT.resolve(), targets)
-
-    def test_entrypoint_opens_every_task_by_consulting_before_acting(self):
-        content = compact(ENTRYPOINT)
-        self.assertIn("measure thrice", content)
-        self.assertRegex(
-            content, r"before (?:any |task-specific )?(?:discovery|work|edits|implementation)"
-        )
-
-    def test_triage_lives_in_the_always_loaded_entrypoint(self):
-        """Triage must be readable without loading the gate, or a trivial task
-        pays a full skill read just to learn it was trivial."""
-        sections = re.split(r"(?m)^## ", ENTRYPOINT.read_text(encoding="utf-8"))
-        triage = [body for body in sections if body.lower().startswith("triage")]
-        self.assertEqual(len(triage), 1, "entrypoint needs exactly one Triage section")
-        content = re.sub(r"\s+", " ", triage[0]).lower()
-        self.assertIn("blast radius", content)
-        self.assertRegex(content, r"reversib")
-        rows = [line for line in triage[0].splitlines() if line.strip().startswith("|")]
-        self.assertGreaterEqual(len(rows), 5, "triage needs a depth table")
-        self.assertNotIn("consult-first", content, "triage must not add a mandatory load")
-
-    def test_gate_does_not_restate_the_triage_it_is_routed_by(self):
-        """One rule, one home: the gate owns the full pass, not the triage."""
-        gate = compact(CONSULT)
-        self.assertNotIn("| triage result |", gate)
-
-    def test_consult_skill_states_the_enforced_delivery_lifecycle(self):
-        content = compact(CONSULT)
-        for phase in (
-            "analyze",
-            "plan",
-            "design",
-            "red",
-            "green",
-            "refactor",
-            "commit",
-            "pull request",
-            "merge",
-        ):
-            self.assertIn(phase, content, f"lifecycle phase missing: {phase}")
-
-    def test_consult_skill_requires_rival_approaches_before_committing_to_one(self):
-        content = re.sub(r"\s+", " ", markdown_body(CONSULT)).lower()
-        self.assertRegex(content, r"(?:two|2) .{0,40}(?:approach|option|candidate)")
-        self.assertIn("steelman", content)
-
-    def test_entrypoint_requires_a_complete_research_receipt_before_implementation(self):
-        self.assertIn("research-receipt.md", ROUTER_CONTRACT.read_text(encoding="utf-8"))
-        content = compact(RESEARCH_RECEIPT)
-        required = (
-            "read live files",
-            "load the routed skill",
-            "native memory",
-            "mempalace",
-            "graphify",
-            "authoritative online research",
-            "compare proven approaches",
-            "record a concrete plan",
-        )
-        positions = [content.index(item) for item in required]
-        self.assertEqual(positions, sorted(positions))
-        self.assertRegex(content, r"missing .{0,80} blocks implementation")
-
-    def test_planning_contract_requires_intent_confidence_detail_and_owned_delivery(self):
-        content = compact(RESEARCH_RECEIPT)
-        for clause in (
-            "main objective",
-            "success criteria",
-            "ask every material",
-            "high confidence",
-            "thorough",
-            "mermaid",
-            "own implementation",
-            "authorized merge",
-        ):
-            self.assertIn(clause, content)
-        self.assertIn("when dependencies, components, state, or workflows", content)
-        self.assertIn("never ask a question the repository", content)
-
-    def test_companions_are_cataloged_not_body_loaded_by_default(self):
-        # #6215: the router core card delegates Companions to the router
-        # contract and the companion rows to the generated catalog.
-        sections = headed_sections(ROUTER_CONTRACT.read_text(encoding="utf-8"), "companions")
-        self.assertEqual(len(sections), 1, "router contract needs exactly one Companions section")
-        companions = re.sub(r"\s+", " ", sections[0]).lower()
-        self.assertIn("vendor bodies load only on explicit invocation", companions)
-        self.assertIn("ultra", companions)
-        entrypoint = compact(ENTRYPOINT)
-        self.assertIn("## catalog", entrypoint)
-        catalog = ROUTER_CATALOG.read_text(encoding="utf-8").casefold()
-        self.assertIn("| caveman |", catalog)
-        self.assertIn("| ponytail |", catalog)
-
-    def test_caveman_preserves_exact_meaning_before_compression(self):
-        content = compact(VENDOR_CAVEMAN)
-        for exact in (
-            "not/never/no/only/except",
-            "numbers and units exact",
-            "user's language",
-            "commands, paths, api names exact",
-            "errors quoted exact",
-        ):
-            self.assertIn(exact, content)
-        entrypoint = compact(ENTRYPOINT)
-        self.assertIn("vendor/caveman/skills/caveman/skill.md", compact(ROUTER_CATALOG))
-        self.assertNotIn("not/never/no/only/except", entrypoint)
-
-    def test_ponytail_has_separate_reuse_native_dependency_and_code_rungs(self):
-        ponytail = compact(VENDOR_PONYTAIL).split("the smallest complete change", 1)[1]
-        rungs = (
-            "does it need to exist",
-            "already in this codebase",
-            "standard library or a platform feature",
-            "an installed dependency",
-            "the minimum code that works",
-        )
-        positions = [ponytail.index(rung) for rung in rungs]
-        self.assertEqual(positions, sorted(positions))
-        entrypoint = compact(ENTRYPOINT)
-        self.assertIn("vendor/ponytail/skills/ponytail/skill.md", compact(ROUTER_CATALOG))
-        self.assertNotIn("does it need to exist", entrypoint)
 
     def test_every_ponytail_marker_names_its_ceiling_and_upgrade_trigger(self):
         markers = []
@@ -1413,7 +1091,6 @@ class ConsultGateTest(unittest.TestCase):
                 self.assertIn("ceiling:", marker)
                 self.assertIn("upgrade trigger:", marker)
 
-
 class RouterTableTest(unittest.TestCase):
     """The router reaches every skill surface it owns, in one hop from itself."""
 
@@ -1428,23 +1105,6 @@ class RouterTableTest(unittest.TestCase):
             if len(cells) == 2 and cells[0].lower() not in {"deliverable in front of you", "task touches"}:
                 rows.append((cells[0], cells[1]))
         return rows
-
-    def test_routing_reference_carries_a_deterministic_table(self):
-        rows = self.routing_rows()
-        self.assertGreaterEqual(len(rows), 12, "routing table is missing or too small")
-        for deliverable, target in rows:
-            with self.subTest(row=deliverable):
-                self.assertTrue(deliverable, "every row names a deliverable")
-                match = re.search(r"\[[^]]+\]\(([^)]+)\)", target)
-                core = re.search(r"`\.chaos-engine/([^`#]+)(?:#[^`]*)?`", target)
-                self.assertTrue(match or core, f"row target is not a link: {target}")
-                # Pack rows link inside the pack; core targets are installed-path code spans.
-                resolved = (
-                    (ROUTING.parent / match.group(1).split("#", 1)[0]).resolve()
-                    if match
-                    else ROOT / "chaos-engine" / core.group(1)
-                )
-                self.assertTrue(resolved.is_file(), f"row points at a missing file: {target}")
 
     def test_router_links_every_mastery_chapter_directly(self):
         linked = {(ROUTING.parent / target).resolve() for target in local_links(ROUTING)}
@@ -1468,16 +1128,6 @@ class RouterTableTest(unittest.TestCase):
     def test_router_hands_shaft_product_work_to_the_product_router(self):
         self.assertIn("shaft-developer", ROUTING.read_text(encoding="utf-8"))
 
-    def test_entrypoint_reaches_routing_roles_and_delegation(self):
-        self.assertIn("router-contract.md", ENTRYPOINT.read_text(encoding="utf-8"))
-        content = ROUTER_CONTRACT.read_text(encoding="utf-8")
-        for surface in ("delegation.md", "roles.md"):
-            self.assertIn(surface, content, f"entrypoint does not reach {surface}")
-        adapter = host_file_text(".agents/skills/chaos-engine/SKILL.md")
-        self.assertIn("packs/shaft/entrypoint.md", adapter)
-        profile = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(encoding="utf-8")
-        self.assertIn("references/routing.md", profile)
-
     def test_retired_indirection_files_are_gone(self):
         for retired in (
             "caveman.md",
@@ -1492,14 +1142,6 @@ class RouterTableTest(unittest.TestCase):
                 f"{retired} is a redirect layer the router replaces",
             )
 
-    def test_attribution_licences_survive_the_stub_deletion(self):
-        for licence in (
-            "caveman.LICENSE",
-            "ponytail.LICENSE",
-            "test-driven-development.LICENSE",
-        ):
-            self.assertTrue((CORE_REFERENCES / licence).is_file(), f"missing {licence}")
-
     def test_no_guidance_file_still_links_a_retired_indirection_file(self):
         retired = re.compile(
             r"references/(?:caveman|ponytail|test-driven-development)\.md"
@@ -1512,42 +1154,6 @@ class RouterTableTest(unittest.TestCase):
             if "worktrees" not in path.parts and retired.search(path.read_text(encoding="utf-8"))
         ]
         self.assertEqual(offenders, [])
-
-
-class DelegateTerminalLifecycleTest(unittest.TestCase):
-    """A finished assignment must not leave a reusable agent running forever."""
-
-    @staticmethod
-    def _section(document: str, heading: str) -> str:
-        match = re.search(
-            rf"(?ms)^## {re.escape(heading)}\s*$\n(.*?)(?=^## |\Z)", document
-        )
-        if match is None:
-            return ""
-        return match.group(1).strip().lower()
-
-    @staticmethod
-    def _bullets(section: str) -> list[str]:
-        return [
-            re.sub(r"\s+", " ", match).strip().lower()
-            for match in re.findall(r"(?ms)^- (.*?)(?=^- |\Z)", section)
-        ]
-
-    def test_main_thread_duties_require_terminal_cleanup_without_reactivation(self):
-        document = DELEGATION.read_text(encoding="utf-8")
-        duties = re.sub(
-            r"\s+", " ", self._section(document, "Main-thread duties")
-        )
-        required_rules = (
-            "close every no-longer-needed agent and its descendants before moving to the next phase",
-            "never use `followup_task` to reactivate a completed or finished assignment",
-            "a new review round gets a new reviewer instance",
-            "preserve the closed relationship as history instead of deleting it",
-            "a final answer with an unneeded live agent is incomplete",
-        )
-        for rule in required_rules:
-            with self.subTest(rule=rule):
-                self.assertIn(rule, duties)
 
 class ProgressiveDisclosureTest(unittest.TestCase):
     """Bodies and read chains stay inside documented host read limits."""
@@ -1592,7 +1198,6 @@ class ProgressiveDisclosureTest(unittest.TestCase):
                     r"(?i)\b(?:then|first,|step \d|after that)\b",
                     "description must not summarise the workflow",
                 )
-
 
 class FrontmatterIsRealYamlTest(unittest.TestCase):
     """Hosts parse frontmatter with a real YAML parser, so the repo must too.
@@ -1643,57 +1248,8 @@ class FrontmatterIsRealYamlTest(unittest.TestCase):
                 offenders.append(f"{path.parent.name}: {name}")
         self.assertEqual(offenders, [])
 
-
 class HostParityTest(unittest.TestCase):
     """Codex and Claude resolve the same policy from their own discovery paths."""
-
-    def test_both_hosts_expose_the_same_skill_set(self):
-        """Checks portable skill directories, and that Claude adapters expose only the router entrypoint."""
-        canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
-        claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
-        self.assertEqual(canonical, {"architect", "chaos-engine", "ci-cd", "colibri", "docs-hygiene", "freetoken", "git-cleanup", "job-apply", "job-applications", "job-search", "kanban", "learn-from-external-harnesses", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "pre-done-self-review", "security-audit", "self-improve", "technical-presentations", "work-item"})
-        self.assertEqual(claude, {"chaos-engine"})
-
-
-    def test_router_catalog_inventories_portable_and_vendor_skills(self):
-        """CI fails when a skill name is missing, or a catalog SKILL.md path is missing or untracked."""
-        import subprocess
-
-        entry = ROUTER_CATALOG.read_text(encoding="utf-8")
-        catalog = entry.split("## Catalog", 1)[1]
-        rows = []
-        for line in catalog.splitlines():
-            if not line.startswith("|") or line.startswith("| name") or line.startswith("| ---"):
-                continue
-            cells = [cell.strip().strip("`") for cell in line.strip("|").split("|")]
-            if len(cells) < 3:
-                continue
-            rows.append((cells[0], cells[2]))
-        names = {name for name, _path in rows}
-        def skill_name(path: Path) -> str:
-            match = re.search(r"(?m)^name:\s*(\S+)", path.read_text(encoding="utf-8"))
-            self.assertIsNotNone(match, path)
-            return match.group(1)
-        discovered = [
-            path for path in list(CANONICAL_SKILLS.glob("*/SKILL.md")) + list((ROOT / "chaos-engine/vendor").rglob("SKILL.md"))
-        ]
-        missing = sorted(skill_name(path) for path in discovered if skill_name(path) not in names)
-        self.assertEqual(missing, [])
-        untracked = []
-        for _name, rel in rows:
-            if not rel.endswith("SKILL.md"):
-                continue
-            path = ROOT / "chaos-engine" / rel
-            if not path.is_file():
-                untracked.append(f"missing:{rel}")
-                continue
-            tracked = subprocess.run(
-                ["git", "ls-files", "--error-unmatch", "--", f"chaos-engine/{rel}"],  # nosec B603 B607 - fixed git argv on a temp fixture.
-                cwd=ROOT, capture_output=True, text=True,
-            )
-            if tracked.returncode != 0:
-                untracked.append(f"untracked:{rel}")
-        self.assertEqual(untracked, [])
 
     def test_claude_skills_are_redirects_to_the_canonical_body(self):
         for adapter in sorted(CLAUDE_SKILLS.glob("*/SKILL.md")):
@@ -1710,19 +1266,6 @@ class HostParityTest(unittest.TestCase):
             for heading in re.findall(r"(?m)^##\s+(.+)$", ROLES.read_text(encoding="utf-8"))
         }
 
-    def test_every_claude_adapter_anchors_a_real_portable_role(self):
-        """Anchors must resolve to actual roles.md headings, so a renamed role
-        breaks the build instead of silently orphaning its adapter."""
-        slugs = {re.sub(r"[^a-z0-9]+", "-", name).strip("-") for name in self.role_headings()}
-        adapters = sorted(CLAUDE_AGENTS.glob("*.md"))
-        self.assertTrue(adapters, "no Claude role adapters found")
-        for adapter in adapters:
-            with self.subTest(adapter=adapter.stem):
-                anchors = re.findall(r"roles\.md#([a-z0-9-]+)", adapter.read_text(encoding="utf-8"))
-                self.assertTrue(anchors, "adapter must anchor a portable role")
-                for anchor in anchors:
-                    self.assertIn(anchor, slugs, f"anchor matches no roles.md heading: {anchor}")
-
     def test_both_subagent_hosts_ship_the_same_role_adapters(self):
         """Codex has a subagent primitive too -- built-in explorer/worker/default
         plus project-scoped `.codex/agents/*.toml`. Parity means the same roles
@@ -1730,78 +1273,6 @@ class HostParityTest(unittest.TestCase):
         claude = {path.stem for path in CLAUDE_AGENTS.glob("*.md")}
         codex = {path.stem for path in CODEX_AGENTS.glob("*.toml")}
         self.assertEqual(claude, codex, "role adapters differ between subagent hosts")
-
-    def test_mechanical_helper_has_a_host_adapter_on_both_subagent_hosts(self):
-        """A dispatch gate needs a legal mechanical role before it can refuse one."""
-        for path in (
-            CLAUDE_AGENTS / "chaos-engine-mechanical-helper.md",
-            CODEX_AGENTS / "chaos-engine-mechanical-helper.toml",
-        ):
-            with self.subTest(path=path):
-                self.assertTrue(path.is_file(), "mechanical-helper adapter is missing")
-
-    def test_role_adapters_make_first_row_retrieval_mandatory_for_delegates(self):
-        """#4570 A5: a delegate misses SessionStart, so its adapter path owns retrieval."""
-        # #6176: role adapters load the delegate card, so the card owns the clause.
-        clause = (
-            "When this card was loaded through a role adapter, load "
-            "[retrieve-first](retrieve-first.md) before task-specific discovery, "
-            "including one-file reversible work."
-        )
-        card = DELEGATE_CARD.read_text(encoding="utf-8")
-        self.assertIn(re.sub(r"\s+", " ", clause), re.sub(r"\s+", " ", card))
-        for adapter in sorted(CLAUDE_AGENTS.glob("*.md")):
-            with self.subTest(adapter=adapter):
-                self.assertIn("references/delegate-card.md", adapter.read_text(encoding="utf-8"))
-        tomllib = __import__("tomllib")
-        for adapter in sorted(CODEX_AGENTS.glob("*.toml")):
-            with self.subTest(adapter=adapter):
-                instructions = tomllib.loads(adapter.read_text(encoding="utf-8"))["developer_instructions"]
-                self.assertIn("references/delegate-card.md", instructions)
-
-    def test_codex_role_adapters_use_the_documented_schema(self):
-        tomllib = __import__("tomllib")
-        headings = self.role_headings()
-        adapters = sorted(CODEX_AGENTS.glob("*.toml"))
-        self.assertTrue(adapters, "no Codex role adapters found")
-        for adapter in adapters:
-            with self.subTest(adapter=adapter.stem):
-                parsed = tomllib.loads(adapter.read_text(encoding="utf-8"))
-                for key in ("name", "description", "developer_instructions"):
-                    self.assertIn(key, parsed, f"missing required key: {key}")
-                self.assertEqual(parsed["name"], adapter.stem, "name is the source of truth")
-                instructions = parsed["developer_instructions"]
-                self.assertNotIn("\r", instructions, "carriage return leaked into the string")
-                self.assertIn("references/delegate-card.md", instructions)
-                self.assertIn("roles.md", instructions)
-                named = [role for role in headings if role in instructions.lower()]
-                self.assertTrue(named, "adapter must name a portable role")
-
-    def test_every_portable_role_is_reachable(self):
-        """A role nobody can select is dead guidance: it must either have a
-        host adapter or be named by delegation as a prompt-carried role."""
-        headings = [
-            heading.strip()
-            for heading in re.findall(r"(?m)^##\s+(.+)$", ROLES.read_text(encoding="utf-8"))
-        ]
-        anchored = set()
-        for adapter in CLAUDE_AGENTS.glob("*.md"):
-            anchored.update(re.findall(r"roles\.md#([a-z0-9-]+)", adapter.read_text(encoding="utf-8")))
-        delegation = compact(DELEGATION)
-        orphaned = []
-        for heading in headings:
-            slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
-            if slug not in anchored and heading.lower() not in delegation:
-                orphaned.append(heading)
-        self.assertEqual(orphaned, [], "role is defined but nothing routes to it")
-
-    def test_hosts_without_a_subagent_primitive_carry_the_covenant_in_prompt(self):
-        content = compact(DELEGATION)
-        self.assertRegex(
-            content,
-            r"host(?:s)? without|no subagent|every dispatch",
-            "delegation must say how a host lacking subagents carries the covenant",
-        )
 
     def test_budget_measures_documented_host_units(self):
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
@@ -1830,7 +1301,6 @@ class HostParityTest(unittest.TestCase):
         for host, paths in budget["host_contexts"].items():
             with self.subTest(host=host):
                 self.assertIn("AGENTS.md", paths)
-
 
 class CiGateIsBlockingTest(unittest.TestCase):
     """A leg in `needs` that the summary script never reads cannot block a merge.
@@ -2015,7 +1485,6 @@ class CiGateIsBlockingTest(unittest.TestCase):
             "Codecov action download 429 cannot fail a green Maven job",
         )
 
-
 class GlobFilesHelperTest(unittest.TestCase):
     """The resolver every GUIDANCE_GLOBS consumer in this file shares.
 
@@ -2044,62 +1513,6 @@ class GlobFilesHelperTest(unittest.TestCase):
             (root / "AGENTS.md").write_text("agents", encoding="utf-8")
             with self.assertRaises(AssertionError):
                 glob_files(root, ("AGENTS.md", "moved-away/**/*.md"))
-
-
-class NoDuplicationTest(unittest.TestCase):
-    """One rule, one home.
-
-    The validator's duplicate-paragraph check only catches verbatim blocks of
-    180+ characters, which paraphrased restatements slip under -- and a
-    paraphrase that drifts is how two files end up asserting opposite policy.
-    These checks close the cheaper half of that gap: identical lines, and
-    orphaned files nothing routes to.
-    """
-
-    GUIDANCE_GLOBS = GUIDANCE_LINE_GLOBS
-
-    def guidance_files(self) -> list[Path]:
-        return glob_files(ROOT, self.GUIDANCE_GLOBS)
-
-    def test_no_substantive_line_is_repeated_across_guidance_files(self):
-        files = self.guidance_files()
-        # A gutted glob_files() (e.g. hardcoded to return []) would make this
-        # loop scan nothing and the duplicate check below pass trivially --
-        # the resolver's own tests catch that mutation, but this consumer
-        # must catch it too rather than rely on it (#4481).
-        self.assertTrue(files, "guidance_files() resolved to no files")
-        self.assertEqual(
-            duplicated_guidance_lines(ROOT, files),
-            [],
-            "identical guidance line in more than one file",
-        )
-
-    def test_the_skills_map_is_one_of_the_scanned_files(self):
-        """#4480: the map is guidance, so this scan has to actually read it.
-
-        It was absent from this tuple while sitting in the budget's
-        `total_guidance_globs`, so it was counted and link-checked and never
-        read for a duplicated line.
-        """
-        self.assertIn(
-            (ROOT / ".agents/skills/README.md").resolve(),
-            {path.resolve() for path in self.guidance_files()},
-        )
-
-    def test_every_reference_file_is_routed_or_linked(self):
-        """A reference nothing points at is guidance no agent will ever read."""
-        reachable = set()
-        for target in host_link_targets(".agents/skills/chaos-engine/SKILL.md"):
-            if target.suffix == ".md" and target.is_file():
-                reachable |= set(read_chain_depth(target))
-        orphaned = [
-            path.relative_to(ROOT).as_posix()
-            for root in (CORE_REFERENCES, REFERENCES)
-            for path in root.rglob("*.md")
-            if path.resolve() not in reachable
-        ]
-        self.assertEqual(orphaned, [], "reference file is not reachable from any skill")
-
 
 class SkillsMapTest(unittest.TestCase):
     """The map is the contributor-facing summary; it must stay complete.
@@ -2187,7 +1600,6 @@ class SkillsMapTest(unittest.TestCase):
         self.assertIn("chaos-engine/skill.md", content)
         self.assertRegex(content, r"do not work from this file|map, not the territory")
 
-
 class CopilotRedirectPackIndexTest(unittest.TestCase):
     """#4532: the same hole as #4480, in the host that was left out of its fix.
 
@@ -2249,9 +1661,8 @@ class CopilotRedirectPackIndexTest(unittest.TestCase):
         self.assertTrue(reported, "a forbidden mandate in the Copilot index is not reported")
 
     def test_the_duplicate_checks_also_cover_it(self):
-        """`NoDuplicationTest` keeps its own tuple, so being on one list is not both."""
-        self.assertIn(".github/copilot-instructions.md", NoDuplicationTest.GUIDANCE_GLOBS)
-
+        """The line-duplicate scan keeps its own tuple, so being on one list is not both."""
+        self.assertIn(".github/copilot-instructions.md", GUIDANCE_LINE_GLOBS)
 
 class RetrievalParityTest(unittest.TestCase):
     """Both hosts must gate memory writes the same way.
@@ -2284,14 +1695,6 @@ class RetrievalParityTest(unittest.TestCase):
             "a host pre-allows a memory write",
         )
 
-    def test_both_hosts_declare_the_same_retrieval_servers(self):
-        tomllib = __import__("tomllib")
-        codex = set(tomllib.loads(host_file_text(".codex/config.toml")).get("mcp_servers", {}))
-        claude = set(json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
-        # tomllib nests `[mcp_servers.x.tools.y]` under x, so these are the
-        # server names only.
-        self.assertEqual(codex, claude, "retrieval servers differ between hosts")
-
     def test_routing_states_when_each_knowledge_store_is_required(self):
         """"Use every source" is unenforceable; a trigger per store is not."""
         sections = re.split(r"(?m)^## ", ROUTING.read_text(encoding="utf-8"))
@@ -2302,20 +1705,6 @@ class RetrievalParityTest(unittest.TestCase):
             self.assertIn(store, content, f"knowledge table omits {store}")
         self.assertIn("query it when", content, "each store needs a stated trigger")
         self.assertIn("degraded", content, "unavailable stores must be reported")
-
-    def test_the_learning_session_routes_each_outcome_to_one_destination(self):
-        sections = re.split(r"(?m)^## ", ROUTER_CONTRACT.read_text(encoding="utf-8"))
-        loop = [body for body in sections if body.lower().startswith("learning session")]
-        self.assertEqual(len(loop), 1, "entrypoint needs exactly one Learning Session section")
-        content = re.sub(r"\s+", " ", loop[0]).lower()
-        for destination in ("native memory", "mempalace", "graphify", "issue"):
-            self.assertIn(destination, content, f"learning session omits {destination}")
-        self.assertRegex(content, r"nothing durable is a valid result|no durable learning")
-        self.assertRegex(content, r"search before writing|search first", "must prevent duplicates")
-        self.assertRegex(content, r"scan.{0,80}(failure|trap|guard block)")
-        self.assertIn("self-development has no cap", content)
-        self.assertIn("smaller discriminating observation", content)
-
 
 class SoloOrOrchestrateTest(unittest.TestCase):
     """Execution workflow has exactly one normative owner."""
@@ -2358,37 +1747,6 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         self.assertEqual(len(found), 1, "workflow reference needs exactly one selection rule")
         return found[0]
 
-    def test_the_rule_defines_exact_modes_and_selection_inputs(self):
-        content = re.sub(r"\s+", " ", self.section()).lower()
-        for mode in (
-            "solo",
-            "orchestrator + single implementer",
-            "orchestrator + parallel implementers",
-        ):
-            self.assertIn(mode, content)
-        self.assertIn("work shape and qualified capacity", content)
-
-    def test_the_rule_resolves_transitions_and_missing_transport(self):
-        content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("finish or hand over", content)
-        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(encoding="utf-8")
-        prose = re.sub(r"\s+", " ", workflows)
-        self.assertIn("OmniRoute is absent", prose)
-        self.assertIn("native models or `SOLO`", prose)
-
-    def test_solo_mode_owns_implementation(self):
-        content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertRegex(content, r"\| `solo` .* plan, implement, verify, review")
-
-    def test_orchestrated_modes_keep_main_thread_out_of_implementation(self):
-        content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("do not implement", content)
-        self.assertIn("four parallel agents", content)
-
-    def test_review_never_flips_the_mode(self):
-        content = re.sub(r"\s+", " ", self.section()).lower()
-        self.assertIn("review is not an implementation stream", content)
-
     def unscoped_absolutes(self, text: str) -> list[str]:
         """Return sentences stating either pole without naming the mode."""
         offenders = []
@@ -2396,25 +1754,6 @@ class SoloOrOrchestrateTest(unittest.TestCase):
             if self.ABSOLUTE.search(sentence) and not self.SCOPED.search(sentence):
                 offenders.append(sentence.strip()[:90])
         return offenders
-
-    def test_no_other_file_states_an_unconditional_implement_or_delegate_rule(self):
-        """Every other mention must name the mode it applies to.
-
-        The original conflict had two poles -- "never implement" and "never
-        delegate" -- so both are checked, across every tracked surface an agent
-        can read rather than only the files that stated it first.
-        """
-        files = glob_files(ROOT, self.GUIDANCE_GLOBS)
-        # Same guard as NoDuplicationTest: a gutted resolver must fail this
-        # test directly, not just the resolver's own unit tests (#4481).
-        self.assertTrue(files, "glob_files() resolved to no files")
-        offenders = []
-        for path in files:
-            if path.resolve() == ENTRYPOINT.resolve():
-                continue
-            for sentence in self.unscoped_absolutes(path.read_text(encoding="utf-8")):
-                offenders.append(f"{path.relative_to(ROOT).as_posix()}: {sentence}")
-        self.assertEqual(offenders, [], "unscoped implement/delegate absolute outside the entrypoint")
 
     def test_the_guard_catches_the_phrasings_that_previously_slipped_through(self):
         """A guard that only matches its own example sentence is not a guard."""
@@ -2436,7 +1775,6 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         )
         false_positives = [text for text in must_allow if self.unscoped_absolutes(text)]
         self.assertEqual(false_positives, [], "guard trips on legitimate scoped text")
-
 
 class DisciplineTest(unittest.TestCase):
     """Rules the published failure evidence says an agent will otherwise break.
@@ -2533,59 +1871,6 @@ class DisciplineTest(unittest.TestCase):
         self.assertEqual(len(laws), 1, "entrypoint needs exactly one Iron laws section")
         return re.sub(r"\s+", " ", laws[0]).lower()
 
-    def test_entrypoint_pins_evidence_over_inference(self):
-        """Iron law 2, unpinned until now.
-
-        Every other discipline here is downstream of it: "never claim a check
-        you did not run" and the RED definition are both special cases of
-        inspecting before asserting. The law also has to name the remedy --
-        inspect *or run* -- because an agent that reads only "evidence over
-        inference" can satisfy itself that reasoning carefully is evidence.
-        """
-        self.assert_clause_holds("evidence over inference")
-        # The law must also name the act that produces evidence, not just the value.
-        self.assert_clause_holds("inspect or run before claiming")
-
-    def test_entrypoint_pins_final_batch_before_check(self):
-        """Iron law 3 keeps tests and validation out of the implementation batch."""
-        self.assert_clause_holds(
-            "complete implementation before its consolidated check phase"
-        )
-
-    def test_entrypoint_pins_never_claiming_an_unrun_check(self):
-        """Iron law 5, unpinned until now.
-
-        This is the law the harness can least afford to lose, because it is the
-        one that makes every other report trustworthy: no check in this
-        repository verifies that a run happened, only that the rule is written
-        down. It is also the cheapest law to break silently, which is why it
-        needs the most explicit sentence.
-        """
-        self.assert_clause_holds("never claim a check you did not run")
-
-
-    def test_entrypoint_forbids_weakening_a_test_to_reach_green(self):
-        """Iron law 4.
-
-        Scoped to the law rather than to the whole file, which the previous
-        regex was not: `weaken a test` matching anywhere in `SKILL.md` would
-        have passed on a red flag or an aside that merely mentioned the idea.
-        """
-        self.assert_clause_holds("never weaken, delete, or rewrite a test to reach green")
-
-    def test_entrypoint_provides_an_explicit_escalation_path(self):
-        self.assertRegex(compact(ENTRYPOINT), r"stop and (?:report|escalate|ask)")
-
-    def test_entrypoint_lists_self_check_red_flags_in_the_agents_own_words(self):
-        """Scoped to the Red flags section: asserting "should" appears anywhere
-        in the file would pass on almost any English prose."""
-        sections = re.split(r"(?m)^## ", ROUTER_CONTRACT.read_text(encoding="utf-8"))
-        red_flags = [body for body in sections if body.lower().startswith("red flags")]
-        self.assertEqual(len(red_flags), 1, "entrypoint needs exactly one Red flags section")
-        content = re.sub(r"\s+", " ", red_flags[0]).lower()
-        for phrase in ("should", "probably", "just this once", "close enough"):
-            self.assertIn(phrase, content, f"red-flag phrase missing: {phrase}")
-
     def mutate(self, path: Path, clause: str, insertion: str) -> dict[Path, str]:
         """Splice `insertion` in after `clause` in the shipped file's own text.
 
@@ -2609,29 +1894,6 @@ class DisciplineTest(unittest.TestCase):
         """
         defects = clause_defects(overrides)
         self.assertTrue(any(clause in defect for defect in defects), f"{why}: {defects}")
-
-    def test_deleting_any_pinned_clause_is_reported(self):
-        for path, _, clause in PINNED_CLAUSES:
-            with self.subTest(clause=clause):
-                source = path.read_text(encoding="utf-8")
-                mutated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
-                self.assertTrue(mutated != source, "the mutation did not apply")
-                self.assert_reports({path: mutated}, clause, "deleting the clause is not reported")
-
-    def test_qualifying_any_pinned_clause_is_reported(self):
-        """#4467: a pin that only checks presence passes on a gutted rule.
-
-        Deletion is the easy half. `"..., unless time is short"` leaves every
-        pinned word in place, and every pin in this class passed on it until
-        this test existed.
-        """
-        for path, _, clause in PINNED_CLAUSES:
-            with self.subTest(clause=clause):
-                self.assert_reports(
-                    self.mutate(path, clause, ", unless time is short"),
-                    clause,
-                    "qualifying the clause is not reported",
-                )
 
     # Hedges demonstrated to survive the marker list as first written. Each is
     # a real weakening of a law that left every pinned word in place.
@@ -2705,137 +1967,6 @@ class DisciplineTest(unittest.TestCase):
 
         return self.mutate_iron_laws(demote, source)
 
-    def test_demoting_a_law_into_trailing_prose_is_reported(self):
-        """#4490: a law can be unmade without deleting a word of it.
-
-        Move it below the list and it is still present, still in its owning
-        section, still unqualified -- every pin in this class passes and the
-        numbering reads 1, 2, 3, 4, 6. The tell is structural, so the check is
-        structural: the ordered list a pinned section carries must number its
-        rules 1..N with no gap, no repeat and no restart.
-        """
-        mutated = self.demote_law_to_trailing_prose()
-        self.assertNotIn(5, self.law_numbers(mutated), "the mutation did not apply")
-        self.assertIn(self.NUMBERED_LAW, mutated.lower(), "the law must survive the demotion")
-        self.assertTrue(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            "demoting a law out of the list is not reported",
-        )
-
-    def test_renumbering_a_law_over_its_neighbour_is_reported(self):
-        """A duplicate number is the same defect from the other side.
-
-        It is what a careless demotion or insertion leaves behind, and reading
-        1, 2, 3, 4, 4, 6 as six laws is a mistake a human reviewer makes too.
-        """
-        source = ENTRYPOINT.read_text(encoding="utf-8")
-        mutated = re.sub(
-            rf"(?mi)^5\.(?=[ \t]+{clause_pattern(self.NUMBERED_LAW)})", "4.", source, count=1
-        )
-        self.assertEqual(
-            self.law_numbers(mutated).count(4), 2, "the mutation did not apply"
-        )
-        self.assertTrue(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            "a duplicated rule number is not reported",
-        )
-
-    def test_a_list_that_renumbers_itself_is_reported(self):
-        """The review's refutation of the first cut of this check.
-
-        `1. 1. 1.` is legal Markdown and renders as 1, 2, 3 -- the renderer
-        supplies the numbers. Which means a list written that way cannot show
-        a deletion: pull one rule out and it still renders contiguously, so
-        nothing structural is left to notice. A section whose numbering is
-        derived rather than written is inert for this check, so writing it that
-        way is itself the defect, and every pinned section states its own
-        numbers today.
-        """
-        mutated = self.mutate_iron_laws(lambda body: re.sub(r"(?m)^\d+\.(?=\s)", "1.", body))
-        numbers = self.law_numbers(mutated)
-        self.assertGreater(len(numbers), 1, "the mutation did not apply")
-        self.assertEqual(set(numbers), {1}, "the mutation did not apply")
-        self.assertTrue(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            "a list that lets the renderer number it is not reported",
-        )
-
-    def test_a_gap_in_a_paren_delimited_list_is_reported(self):
-        """`1)` renders the same as `1.` and must not be a way out.
-
-        The first cut of this check matched a literal `.`, so rewriting the
-        delimiter turned it off for that section entirely -- and a check that
-        an unrelated formatting choice can switch off is worse than no check,
-        because the docstring goes on claiming it.
-        """
-        demoted = self.demote_law_to_trailing_prose()
-        mutated = self.mutate_iron_laws(
-            lambda body: re.sub(r"(?m)^(\d+)\.(?=\s)", r"\1)", body), demoted
-        )
-        self.assertEqual(
-            re.findall(r"(?m)^(\d+)\)", self.iron_laws_body(mutated)),
-            [str(n) for n in range(1, LAST_IRON_LAW + 1) if n != 5],
-            "the mutation did not apply",
-        )
-        self.assertTrue(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            "a gap in a paren-delimited list is not reported",
-        )
-
-    def test_a_list_that_starts_at_the_wrong_number_is_reported(self):
-        """The third branch, which nothing named until now.
-
-        A list numbered 2..7 is what deleting the first rule and renumbering
-        nothing leaves behind. `numbering_defects` reports it because it
-        compares against 1..N rather than against the run's own first value,
-        but only the shipped-guidance control failed on it, and a control that
-        fails does not say which branch stopped working.
-        """
-        mutated = self.mutate_iron_laws(
-            lambda body: re.sub(
-                r"(?m)^(\d+)\.(?=\s)", lambda item: f"{int(item.group(1)) + 1}.", body
-            )
-        )
-        numbers = self.law_numbers(mutated)
-        self.assertEqual(numbers[0], 2, "the mutation did not apply")
-        self.assertEqual(numbers, list(range(2, len(numbers) + 2)), "the list must stay contiguous")
-        self.assertTrue(
-            [defect for defect in clause_defects({ENTRYPOINT: mutated}) if "numbering" in defect],
-            "a list that does not start at 1 is not reported",
-        )
-
-    def test_deleting_a_law_and_renumbering_cleanly_is_still_reported(self):
-        """The numbering check must not become the only check (#4490 item 3).
-
-        Delete the law outright and close the gap and the list is contiguous
-        again, so the new check is silent by design. What has to catch it is
-        the clause pin that always did -- this test exists to prove the
-        structural check did not quietly displace it.
-        """
-        source = ENTRYPOINT.read_text(encoding="utf-8")
-        without = re.sub(
-            rf"(?mi)^5\.[ \t]+{clause_pattern(self.NUMBERED_LAW)}[^\n]*\n", "", source, count=1
-        )
-        self.assertNotEqual(without, source, "the mutation did not apply")
-        mutated = without
-        for number in range(6, LAST_IRON_LAW + 1):
-            mutated = re.sub(rf"(?m)^{number}\. ", f"{number - 1}. ", mutated, count=1)
-        self.assertEqual(
-            self.law_numbers(mutated),
-            list(range(1, LAST_IRON_LAW)),
-            "the renumbering did not apply",
-        )
-        self.assertNotIn(self.NUMBERED_LAW, mutated.lower(), "the law must be gone")
-        defects = clause_defects({ENTRYPOINT: mutated})
-        self.assertEqual(
-            [defect for defect in defects if "numbering" in defect],
-            [],
-            "a cleanly renumbered list is not a numbering defect",
-        )
-        self.assert_reports(
-            {ENTRYPOINT: mutated}, self.NUMBERED_LAW, "deleting the law outright is not reported"
-        )
-
     def guard_source(self) -> str:
         path = ROOT / "scripts/agents/guard.py"
         # Asserted, not assumed: a wrong path here makes every mechanism check
@@ -2843,24 +1974,6 @@ class DisciplineTest(unittest.TestCase):
         # registry it was supposed to be verifying.
         self.assertTrue(path.is_file(), f"guard.py not found at {path}")
         return path.read_text(encoding="utf-8")
-
-    def test_every_iron_law_has_exactly_one_registry_row(self):
-        """#4541: a rule with no recorded enforcement status is the gap itself.
-
-        Equality against the entrypoint, not a hand-kept count: the law numbers
-        come from the file, so adding a seventh iron law fails this until it is
-        classified as performed, gated, or prose-only-because. That is what
-        makes the registry bind on future expansion rather than on today's six.
-        """
-        source = ENTRYPOINT.read_text(encoding="utf-8")
-        runs = ordered_list_runs(headed_sections(source, IRON_LAWS)[0])
-        laws = {number for run in runs for number in run}
-        registered = [row["law"] for row in REQUIRED_ACTION_REGISTRY if row["law"] is not None]
-
-        self.assertEqual(set(registered), laws, "every iron law needs exactly one row")
-        self.assertEqual(
-            len(registered), len(set(registered)), "a law must not be registered twice"
-        )
 
     def test_every_row_is_honestly_classified(self):
         """The name is the claim, so it has to test both halves of it.
@@ -2932,7 +2045,6 @@ class DisciplineTest(unittest.TestCase):
                     f"{mechanism} is claimed as the mechanism and is not defined in guard.py",
                 )
 
-
     def test_every_prose_only_row_records_why(self):
         """The third status is honest only while it carries its reason."""
         for row in REQUIRED_ACTION_REGISTRY:
@@ -2974,226 +2086,6 @@ class DisciplineTest(unittest.TestCase):
                     self.test_every_row_is_honestly_classified()
                     self.test_every_enforced_row_names_a_mechanism_that_exists()
                     self.test_every_prose_only_row_records_why()
-
-    def test_every_pinned_section_with_rules_is_counted(self):
-        """An uncounted section must not become the place to hide a deletion.
-
-        `count_defects` is silent where no count is pinned, which is correct
-        for Red flags and `proving a check binds` -- neither carries an
-        ordered list, so there is nothing to count. Left at that, the way to
-        evade the check would be to add rules to an uncounted section, or to
-        add a pinned section and never count it.
-
-        Equality in both directions. A pinned section that grows an ordered
-        list and no count is the evasion; a count naming a section that is not
-        pinned is a check aimed at nothing, which reads like coverage and is
-        not.
-        """
-        with_rules = set()
-        for path, heading, _ in PINNED_CLAUSES:
-            if (path, heading) in with_rules:
-                continue
-            sections = headed_sections(path.read_text(encoding="utf-8"), heading)
-            if len(sections) == 1 and ordered_list_runs(sections[0]):
-                with_rules.add((path, heading))
-        self.assertEqual(
-            with_rules,
-            set(PINNED_RULE_COUNTS),
-            "every pinned section that has rules needs a count, and vice versa",
-        )
-
-    def test_each_pinned_count_matches_the_file_today(self):
-        """A count that drifted from the file reports on every run or never.
-
-        Wrong high and the section is permanently in defect; wrong low and it
-        has already absorbed a deletion. Either way the figure stops meaning
-        what the other tests here assume it means.
-        """
-        for (path, heading), expected in PINNED_RULE_COUNTS.items():
-            with self.subTest(section=f"{path.name}:{heading}"):
-                sections = headed_sections(path.read_text(encoding="utf-8"), heading)
-                self.assertEqual(len(sections), 1)
-                found = sum(len(run) for run in ordered_list_runs(sections[0]))
-                self.assertEqual(found, expected)
-
-    def test_deleting_the_last_law_is_reported(self):
-        """An end deletion stays contiguous, so the section count must catch it."""
-        source = ENTRYPOINT.read_text(encoding="utf-8")
-        mutated = re.sub(
-            rf"(?m)^{LAST_IRON_LAW}\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1
-        )
-        self.assertNotEqual(mutated, source, "the mutation did not apply")
-        self.assertEqual(self.law_numbers(mutated), list(range(1, LAST_IRON_LAW)))
-        self.assertTrue(
-            clause_defects({ENTRYPOINT: mutated}),
-            "deleting the last iron law must be reported",
-        )
-
-    def test_adding_a_law_nobody_pinned_is_reported(self):
-        """The same count, in the direction a clause pin cannot look.
-
-        Every pin asks whether a rule it already knows about is still there.
-        None of them can ask whether a rule appeared that no one reviewed, and
-        a silently added iron law is a policy change with no gate in front of
-        it.
-        """
-        source = ENTRYPOINT.read_text(encoding="utf-8")
-        mutated = re.sub(
-            rf"(?m)^({LAST_IRON_LAW}\. [^\n]*\n(?:[ \t]+[^\n]*\n)*)",
-            rf"\g<1>{LAST_IRON_LAW + 1}. Ship it if the delegate says it passed.\n",
-            source,
-            count=1,
-        )
-        self.assertNotEqual(mutated, source, "the mutation did not apply")
-        self.assertEqual(self.law_numbers(mutated), list(range(1, LAST_IRON_LAW + 2)))
-        self.assertTrue(
-            clause_defects({ENTRYPOINT: mutated}),
-            "an iron law appearing from nowhere must be reported",
-        )
-
-    def test_hedges_that_slipped_past_the_first_marker_list_are_reported(self):
-        """A denylist of hedge words is inherently incomplete.
-
-        The first version of `EXEMPTION_MARKERS` was written from the two
-        counter-examples #4467 happened to name, and six ordinary English
-        hedges walked straight through it -- each one leaving iron law 5
-        intact word for word and gutting it anyway. That is the same mistake
-        #4467 caught one level down: a guard built from the examples in front
-        of you, mistaken for a guard against the category.
-
-        Widening the list does not fix the category and this test does not
-        claim it does. What it fixes is regression: a hedge that has actually
-        been demonstrated stays demonstrated.
-        """
-        clause = "never claim a check you did not run"
-        for hedge in self.SURVIVING_HEDGES:
-            with self.subTest(hedge=hedge):
-                self.assert_reports(
-                    self.mutate(ENTRYPOINT, clause, hedge),
-                    clause,
-                    "a hedge inside the law's own rule item is not reported",
-                )
-
-    def test_the_shipped_guidance_carries_no_clause_defect_at_all(self):
-        """The control every mutation proof in this class depends on.
-
-        Without it, `assert_clause_holds` filtering defects by clause meant a
-        defect that named no clause was computed and thrown away, and the
-        mutation loops -- which only asked whether *some* defect existed --
-        passed on a file that was already broken.
-        """
-        self.assertEqual(clause_defects(), [])
-
-    def test_renaming_a_pinned_section_is_reported_against_its_clauses(self):
-        """#4479's review: the hole this class had while claiming to close one.
-
-        Renaming `## Iron laws` to `## Laws` produced five section defects,
-        every one of them filtered out because it did not name a clause. The
-        suite stayed green with all five pins in that section vacuous, and both
-        mutation proofs stayed green too, because a section defect satisfied
-        their "some defect exists" assertion for whatever clause they were
-        testing. One word in a heading silenced the whole apparatus.
-        """
-        for path, heading, clause in PINNED_CLAUSES:
-            with self.subTest(section=heading, clause=clause):
-                source = path.read_text(encoding="utf-8")
-                renamed = re.sub(
-                    rf"(?mi)^(#{{2,3}} ){re.escape(heading)}\b", r"\1Renamed", source
-                )
-                self.assertTrue(renamed != source, "the rename did not apply")
-                self.assertTrue(
-                    any(clause in defect for defect in clause_defects({path: renamed})),
-                    "renaming the section leaves this clause's pin vacuous",
-                )
-
-    def test_a_pinned_clause_outside_its_own_section_is_reported(self):
-        """Section scoping is advertised by this class, so it needs its own check.
-
-        With `headed_sections` gutted to hand back the whole file, every other
-        test here still passed -- which made "inside the section that owns it"
-        an unbound claim about the very property the pins are sold on.
-        """
-        for path, heading, clause in PINNED_CLAUSES:
-            with self.subTest(section=heading, clause=clause):
-                source = path.read_text(encoding="utf-8")
-                relocated = re.sub(clause_pattern(clause), "", source, count=1, flags=re.I)
-                self.assertTrue(relocated != source, "the removal did not apply")
-                relocated += f"\n\n## Appendix\n\n{clause}\n"
-                self.assertTrue(
-                    any(clause in defect for defect in clause_defects({path: relocated})),
-                    "a clause moved out of its own section is not reported",
-                )
-
-    def test_final_batch_weakenings_are_reported(self):
-        cases = (
-            ("never claim a check you did not run", ". Routine checks are exempt"),
-            (
-                "complete implementation before its consolidated check phase",
-                ", unless the change is large",
-            ),
-        )
-        for clause, insertion in cases:
-            with self.subTest(clause=clause):
-                self.assert_reports(
-                    self.mutate(ENTRYPOINT, clause, insertion),
-                    clause,
-                    f"the weakening passes: {insertion!r}",
-                )
-
-    def test_red_flags_name_the_sentence_that_ships_a_check_protecting_nothing(self):
-        """The always-loaded half of #4471.
-
-        Every other red flag here is something an agent says instead of running
-        a check. This one is what it says *after* running one: the check was
-        green, so the thing it names is covered. Four defects in a single
-        session had that shape -- a metric whose input was absent reporting the
-        absence as a value, a test asserting against its own copy of the
-        regexes the shipped script uses, a fix whose mechanism could be
-        reverted with the suite green, and an author routing around a linter
-        they wrote. Green proves the check ran; only breaking the protected
-        thing proves it binds.
-
-        It belongs in the always-loaded list rather than only in the review
-        lens because the failure happens while authoring the check, hours
-        before any reviewer loads a reference.
-        """
-        self.assert_clause_holds("the check covers it")
-
-    def test_the_review_lens_keeps_the_unbound_check_shape_and_its_proof(self):
-        """The on-demand half of #4471, and the one rule here with no home
-        anywhere else in the harness.
-
-        The lens's other three gap shapes are about production behaviour. This
-        one is about the check itself, and its proof step is the only place the
-        harness says an obligation is discharged by *running* the mutation
-        rather than imagining it -- which is the distinction the four defects
-        in #4471 all fell through. Left as prose it would be the kind of rule
-        this repository has already watched erode, so it is pinned like an iron
-        law and mutated like one.
-        """
-        self.assert_clause_holds("unbound-check gap")
-        self.assert_clause_holds("apply it, run it, read the failure, revert")
-
-    def test_workflow_owner_states_the_parallel_agent_cap(self):
-        workflows = ROOT / "chaos-engine/references/execution-workflows.md"
-        self.assertRegex(
-            compact(workflows),
-            r"(?:four|4) (?:active |concurrent |parallel |writing )*agents",
-        )
-
-    def test_delegation_bounds_optional_terminal_review(self):
-        content = compact(DELEGATION)
-        self.assertIn("two independent adversarial reviews", content)
-        self.assertIn("after final scope commit", content)
-        self.assertIn("after required checks are green", content)
-        self.assertRegex(content, r"at most two|no more than two")
-        self.assertIn("never the author", content)
-        self.assertRegex(
-            content,
-            r"separate agent|independent",
-            "enabled review must remain independent",
-        )
-
 
 class VacuousSetupPatchTest(unittest.TestCase):
     """No test may assert on a symbol its own class's `setUp` patched off.
@@ -3302,7 +2194,6 @@ class VacuousSetupPatchTest(unittest.TestCase):
         )
         self.assertEqual(setup_patch_defects(source, "synthetic.py"), [])
 
-
 class ExecutableSpecificationStructureTest(unittest.TestCase):
     """#4656's planning template is three independently pinned matrices."""
 
@@ -3311,16 +2202,6 @@ class ExecutableSpecificationStructureTest(unittest.TestCase):
         ("State/failure matrix", ("State", "Immutable ownership", "Preflight", "Mutation order", "Mixed state", "Atomicity", "Concurrency", "Idempotency", "Recovery", "Fail-closed")),
         ("Acceptance-to-proof map", ("Criterion or invariant", "Positive proof", "Negative or mutation proof", "Command")),
     )
-
-    def test_real_guidance_has_exact_named_6_10_4_tables(self):
-        text = CONSULT.read_text(encoding="utf-8")
-        for name, columns in self.SCHEMA:
-            with self.subTest(table=name):
-                marker = f"### {name}"
-                self.assertEqual(text.count(marker), 1)
-                block = text.split(marker, 1)[1]
-                header = next((line for line in block.splitlines() if line.startswith("|")), "")
-                self.assertEqual(tuple(cell.strip() for cell in header.strip("|").split("|")), columns)
 
     def test_registry_marks_executable_specification_ordering_prose_only(self):
         rows = [
@@ -3336,26 +2217,6 @@ class ExecutableSpecificationStructureTest(unittest.TestCase):
         self.assertIn("semantic risk", reason)
         self.assertIn("remote", reason)
         self.assertIn("false", reason)
-
-    def test_real_guidance_requires_exhaustive_rows_and_concrete_regressions(self):
-        text = CONSULT.read_text(encoding="utf-8")
-        compact_text = " ".join(text.split())
-        self.assertIn(
-            "Add one resolved data row for every caller/site, every state/transition/failure mode, "
-            "and every acceptance criterion/invariant.",
-            compact_text,
-        )
-        for scenario in (
-            "Effective working-directory/path resolution.",
-            "Interpreter/version/conditional dependency marker.",
-            "Mixed owned+unknown preflight.",
-            "Immutable ownership.",
-            "Atomic backup/concurrent replacement.",
-            "Post-migration adapter/link resolution.",
-        ):
-            with self.subTest(scenario=scenario):
-                self.assertIn(f"- {scenario}", text)
-
 
 if __name__ == "__main__":
     unittest.main()

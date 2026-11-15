@@ -1,7 +1,7 @@
 """
 Two guards, one owner each: the portable core guard and the SHAFT repository guard.
 
-``chaos-engine/hooks/guard.py`` is canonical for the portable core (every install).
+``.chaos-engine/hooks/guard.py`` is the pinned portable core (every install).
 ``scripts/agents/guard.py`` is canonical for SHAFT repository policy (R1-R10, R26).
 They share no code by design; this pins the split and the catastrophic-shape floor both enforce.
 """
@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CORE = ROOT / "chaos-engine" / "hooks" / "guard.py"
+CORE = ROOT / ".chaos-engine" / "hooks" / "guard.py"
 REPO = ROOT / "scripts" / "agents" / "guard.py"
 
 BLOCKED = (

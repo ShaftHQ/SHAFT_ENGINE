@@ -21,6 +21,19 @@ from unittest import mock
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_agentic_tools.py"
 REPO_ROOT = MODULE_PATH.parents[2]
+
+
+def _overlay_or_repo(relative) -> Path:
+    """Read a manifest path from the repo, or the harness overlay after #8057.
+
+    ``Path.relative_to`` stringifies with backslashes on Windows. The manifest
+    keys use forward slashes, so normalize before the ``chaos-engine/`` remap.
+    """
+    path = REPO_ROOT / relative
+    text = str(relative).replace("\\", "/")
+    if path.is_file() or not text.startswith("chaos-engine/"):
+        return path
+    return REPO_ROOT / ".chaos-engine" / text[len("chaos-engine/") :]
 SPEC = importlib.util.spec_from_file_location("install_shaft_mcp", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 if SPEC.loader is None:
@@ -530,6 +543,14 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.agent_validation_manifest_missing_imports(shipped),
         )
 
+    def test_overlay_or_repo_maps_windows_chaos_engine_separators(self):
+        found = _overlay_or_repo("chaos-engine\\dependencies.json")
+        self.assertEqual(found, REPO_ROOT / ".chaos-engine" / "dependencies.json")
+        self.assertTrue(found.is_file(), found)
+        owned = _overlay_or_repo(Path("scripts") / "ci" / "agent_ownership.json")
+        self.assertEqual(owned, REPO_ROOT / "scripts" / "ci" / "agent_ownership.json")
+        self.assertTrue(owned.is_file(), owned)
+
     def test_downloaded_agent_validation_bundle_validates_from_isolated_project(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir).resolve()
@@ -543,7 +564,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             def install_repository_file(_url, destination, _label, **_kwargs):
                 relative = destination.relative_to(target)
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes((REPO_ROOT / relative).read_bytes())
+                destination.write_bytes(_overlay_or_repo(relative).read_bytes())
 
             with mock.patch.object(MODULE, "download_file", side_effect=install_repository_file):
                 MODULE.download_agent_validation_script_files(target)
@@ -581,7 +602,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         for relative in sorted(shipped):
             if not relative.endswith(".py"):
                 continue
-            tree = ast.parse((repository_root / relative).read_text(encoding="utf-8"), filename=relative)
+            tree = ast.parse(_overlay_or_repo(relative).read_text(encoding="utf-8"), filename=relative)
             for node in ast.walk(tree):
                 dependencies = []
                 if isinstance(node, ast.Import):

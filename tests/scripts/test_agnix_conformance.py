@@ -266,21 +266,6 @@ class AgnixConformanceTest(unittest.TestCase):
         missing_family["rules"].pop("CDX-001")
         self.assertFalse(score_evaluation(missing_family, contract)["accepted"])
 
-    def test_staging_copies_only_declared_harness_inputs_and_rejects_mixed_destination(self):
-        contract = load_contract(ROOT)
-        with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory) / "fixtures"
-
-            # #6202: generated host files come from the installer's overlay.
-            copied = stage_harness(ROOT, destination, contract, generated_overlay(ROOT))
-
-            self.assertIn("AGENTS.md", copied)
-            self.assertTrue((destination / ".claude/settings.json").is_file())
-            self.assertTrue((destination / ".memory/events.jsonl").is_file())
-            self.assertFalse((destination / ".memory/memory").exists())
-            with self.assertRaises(ValueError):
-                stage_harness(ROOT, destination, contract)
-
     def test_staging_rejects_a_symlink_anywhere_in_declared_inputs(self):
         contract = load_contract(ROOT)
         with tempfile.TemporaryDirectory() as directory:

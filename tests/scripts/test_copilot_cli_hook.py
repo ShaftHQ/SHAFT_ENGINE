@@ -25,7 +25,7 @@ from pathlib import Path
 
 
 def _load_hosts():
-    path = ROOT / "chaos-engine/hosts.py"
+    path = ROOT / ".chaos-engine/hosts.py"
     specification = importlib.util.spec_from_file_location("chaos_engine_hosts_copilot_hook", path)
     if specification is None or specification.loader is None:
         raise RuntimeError("hosts module could not be loaded")
@@ -43,12 +43,12 @@ def _seed_launch(project: Path) -> None:
     dest = project / ".chaos-engine/hooks"
     dest.mkdir(parents=True, exist_ok=True)
     target = dest / "launch.py"
-    source = ROOT / "chaos-engine/hooks/launch.py"
+    source = ROOT / ".chaos-engine/hooks/launch.py"
     if not target.exists():
         shutil.copy2(source, target)
 
-LAUNCH = ROOT / "chaos-engine/hooks/launch.js"
-SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+LAUNCH = ROOT / ".chaos-engine/hooks/launch.js"
+SKILL = ROOT / ".chaos-engine/skills/chaos-engine/SKILL.md"
 SHELL_GUIDANCE = (
     "Get-Content -Raw '.chaos-engine/skills/chaos-engine/SKILL.md'; "
     "Write-Output \"`n---IDENTITY---\"; "
@@ -597,9 +597,9 @@ class CopilotCliHookTest(unittest.TestCase):
 
 
 # --- #7667 short launcher + Stop accept-on-retry (folded; avoid harness_pr_gate edit) ---
-LAUNCH_PY = ROOT / "chaos-engine/hooks/launch.py"
-GUARD = ROOT / "chaos-engine/hooks/guard.py"
-REFLECTION = ROOT / "chaos-engine/hooks/reflection.py"
+LAUNCH_PY = ROOT / ".chaos-engine/hooks/launch.py"
+GUARD = ROOT / ".chaos-engine/hooks/guard.py"
+REFLECTION = ROOT / ".chaos-engine/hooks/reflection.py"
 
 
 def _load7667(name: str, path: Path):
@@ -612,7 +612,7 @@ def _load7667(name: str, path: Path):
 class HookCommandShort7667Test(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.hosts = _load7667("hosts_7667", ROOT / "chaos-engine/hosts.py")
+        cls.hosts = _load7667("hosts_7667", ROOT / ".chaos-engine/hosts.py")
 
     def test_mutant_commands_stay_under_300_chars(self) -> None:
         """Removing the launcher file path and inlining again must turn RED."""

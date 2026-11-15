@@ -144,14 +144,21 @@ class UserFacingReadmeTest(unittest.TestCase):
         dependency_starts = [
             start for level, title, start in headings if level == 2 and title == "Dependency Security"
         ]
-        self.assertEqual(len(harness_starts), 1)
+        self.assertEqual(len(harness_starts), 0)
         self.assertEqual(len(dependency_starts), 1)
         scope_at = text.find("## Scope")
-        harness_at = harness_starts[0]
         dependency_at = dependency_starts[0]
+        pointer = (
+            "ChaosEngine harness vulnerabilities: see "
+            "https://github.com/ShaftHQ/chaosengine-harness/blob/main/SECURITY.md"
+        )
+        pointer_at = text.find(pointer)
         self.assertGreaterEqual(scope_at, 0)
-        self.assertGreater(harness_at, scope_at)
-        self.assertGreater(dependency_at, harness_at)
+        self.assertGreater(pointer_at, scope_at)
+        self.assertGreater(dependency_at, pointer_at)
+        self.assertIn(pointer, text.splitlines())
+        self.assertEqual(text[pointer_at:dependency_at].strip(), pointer)
+        self.assertNotIn("chaos-engine/", text)
         shaft_scope = """\
 ## Scope
 
@@ -170,19 +177,11 @@ class UserFacingReadmeTest(unittest.TestCase):
   those upstream.
 - Social engineering or phishing.
 """
-        expected = """\
-### ChaosEngine harness
-
-**In scope:** bypassing a ChaosEngine guard in `chaos-engine/` (a PreToolUse deny, the delete-guard, a secret or content scan, or outbound-send approval); credential disclosure through harness state, logs, spans, or stores; an installer or update path that runs unpinned code; prompt injection that crosses one of those boundaries.
-
-**Out of scope:** model output quality on its own; an attack that assumes a compromised host or an attacker who already holds the credential.
-"""
 
         def collapse(value: str) -> str:
             return re.sub(r"\s+", " ", value).strip()
 
-        self.assertEqual(collapse(text[scope_at:harness_at]), collapse(shaft_scope))
-        self.assertEqual(collapse(text[harness_at:dependency_at]), collapse(expected))
+        self.assertEqual(collapse(text[scope_at:pointer_at]), collapse(shaft_scope))
         self.assertNotIn("always-loaded-budget.json", text)
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn(

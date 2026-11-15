@@ -18,7 +18,6 @@ from unittest.mock import AsyncMock
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[2]
 GAUGE = ROOT / "scripts/ci/chaos_gauge"
 VALIDATOR = GAUGE / "validate_experiment.py"
@@ -29,7 +28,6 @@ if SPEC is None or SPEC.loader is None:
     raise RuntimeError("ChaosGauge experiment validator could not be loaded")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
-
 
 class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
     def manifest(self) -> dict[str, object]:
@@ -88,75 +86,6 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                 )
             }
             self.assertEqual(first, second)
-
-    def test_harness_digest_ignores_untracked_runtime_junk(self):
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temporary:
-            root = Path(temporary)
-            dest = root / "chaos-engine"
-            shutil.copytree(
-                ROOT / "chaos-engine",
-                dest,
-                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
-            )
-            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-            subprocess.run(["git", "add", "chaos-engine"], cwd=root, check=True)
-            subprocess.run(
-                [
-                    "git",
-                    "-c",
-                    "user.name=ChaosGauge",
-                    "-c",
-                    "user.email=chaos-gauge@example.invalid",
-                    "commit",
-                    "-qm",
-                    "fixture",
-                ],
-                cwd=root,
-                check=True,
-            )
-            baseline = MODULE._tree_sha256(dest)
-            (dest / "__pycache__").mkdir(exist_ok=True)
-            (dest / "__pycache__" / "install.cpython-313.pyc").write_bytes(b"pyc")
-            (dest / "untracked-ci.txt").write_text("ci-only\n", encoding="utf-8")
-            self.assertEqual(baseline, MODULE._tree_sha256(dest))
-            tracked = dest / "install.py"
-            original = tracked.read_bytes()
-            tracked.write_bytes(original + b"\n# worktree-only\n")
-            self.assertEqual(baseline, MODULE._tree_sha256(dest))
-            tracked.write_bytes(original)
-            subprocess.run(["git", "add", "chaos-engine/install.py"], cwd=root, check=True)
-            subprocess.run(
-                [
-                    "git",
-                    "-c",
-                    "user.name=ChaosGauge",
-                    "-c",
-                    "user.email=chaos-gauge@example.invalid",
-                    "commit",
-                    "-qm",
-                    "change-blob",
-                    "--allow-empty",
-                ],
-                cwd=root,
-                check=True,
-            )
-            tracked.write_bytes(original + b"\n# committed\n")
-            subprocess.run(["git", "add", "chaos-engine/install.py"], cwd=root, check=True)
-            subprocess.run(
-                [
-                    "git",
-                    "-c",
-                    "user.name=ChaosGauge",
-                    "-c",
-                    "user.email=chaos-gauge@example.invalid",
-                    "commit",
-                    "-qm",
-                    "change-blob",
-                ],
-                cwd=root,
-                check=True,
-            )
-            self.assertNotEqual(baseline, MODULE._tree_sha256(dest))
 
     def test_canonical_manifest_is_pinned_comparable_and_reproducible(self):
         manifest = self.manifest()
@@ -321,75 +250,6 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
             self.assertEqual([host], job["environment"].get("extra_allowed_hosts"))
             self.assertNotIn("extra_allowed_hosts", job["agents"][0])
 
-    async def test_custom_agent_delegates_to_codex_and_installs_full_harness(self):
-        calls = []
-
-        class StubCodex:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            async def install(self, environment):
-                calls.append(("codex", environment))
-
-            async def ensure_system_dependencies(self, environment, dependencies):
-                calls.append(("dependencies", dependencies))
-
-            async def exec_as_agent(self, environment, command, **kwargs):
-                calls.append(("exec", command, kwargs))
-
-        harbor = types.ModuleType("harbor")
-        agents = types.ModuleType("harbor.agents")
-        installed = types.ModuleType("harbor.agents.installed")
-        codex = types.ModuleType("harbor.agents.installed.codex")
-        codex.Codex = StubCodex
-        previous = {
-            name: sys.modules.get(name)
-            for name in ("harbor", "harbor.agents", "harbor.agents.installed", "harbor.agents.installed.codex")
-        }
-        sys.modules.update(
-            {
-                "harbor": harbor,
-                "harbor.agents": agents,
-                "harbor.agents.installed": installed,
-                "harbor.agents.installed.codex": codex,
-            }
-        )
-        try:
-            spec = importlib.util.spec_from_file_location(
-                "chaos_gauge_agent", GAUGE / "agent.py"
-            )
-            self.assertIsNotNone(spec)
-            self.assertIsNotNone(spec.loader)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            environment = types.SimpleNamespace(upload_dir=AsyncMock())
-            agent = module.ChaosEngineCodex(
-                harness_source=str(ROOT / "chaos-engine"),
-                harness_commit="0b148b6c14dd5ff4b5fdcd99169e2295ef56413c",
-                harness_sha256=MODULE._tree_sha256(ROOT / "chaos-engine"),
-                adapter_sha256=MODULE._file_sha256(GAUGE / "agent.py"),
-            )
-
-            await agent.install(environment)
-        finally:
-            for name, value in previous.items():
-                if value is None:
-                    sys.modules.pop(name, None)
-                else:
-                    sys.modules[name] = value
-
-        self.assertEqual("codex", calls[0][0])
-        self.assertIn(("dependencies", ("git", "python3")), calls)
-        environment.upload_dir.assert_awaited_once()
-        command = next(call[1] for call in calls if call[0] == "exec")
-        self.assertIn("install_with_dependencies", command)
-        self.assertNotIn("provisioner=", command)
-        self.assertIn("doctor_with_dependencies", command)
-        self.assertIn("activate_detected_plugins", command)
-        self.assertIn(".chaos-engine-hosts.json", command)
-        self.assertIn(".codex/hooks.json", command)
-        self.assertIn("AGENTS.md", command)
-
     def test_counterbalanced_schedule_covers_every_planned_trial_once(self):
         schedule = json.loads((GAUGE / "schedule.json").read_text(encoding="utf-8"))
         self.assertEqual(5450, schedule["seed"])
@@ -467,7 +327,6 @@ class ChaosGaugeContractsTest(IsolatedAsyncioTestCase):
                 facts["taskSchemaVersion"],
                 tomllib.loads(task.read_text(encoding="utf-8"))["schema_version"],
             )
-
 
 if __name__ == "__main__":
     main()

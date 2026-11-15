@@ -1,3 +1,3 @@
 # ShaftHQ/chaosengine-harness commit fetched as .chaos-engine/ by scripts/ci/fetch_harness_overlay.sh (#8057 e2c).
 # One 40-hex SHA. Bump it in a reviewed PR when the harness changes.
-ae6dabbe642e23b75b758faaf464f02f5e116f59
+d3d9978502ec1ad4f5cca87f745bb8829a5f2be7

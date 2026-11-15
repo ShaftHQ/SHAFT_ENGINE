@@ -477,60 +477,22 @@ def portable_core_path_failures(root: Path) -> list[str]:
 # CI-only cheap contract tests that missed pre-push in #6979/#6981, costing a
 # CI round trip each. (path predicate, module, test id) run in-process.
 CHEAP_CI_CONTRACTS = (
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_ce_lean_harness", "BudgetTests.test_implement_path_fits_16_kib_on_every_host"),
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_ce_lean_harness", "LintTests.test_lean_lint_is_clean_against_its_shrink_only_allowlist"),
-    # A relative link that leaves the shipped package breaks installs (#6987 miss).
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_ce_guard_reachability", "GuardReachabilityTest.test_installed_overlay_has_no_broken_relative_links"),
     (lambda p: p == "scripts/ci/harness_pr_gate.py",
      "tests.scripts.test_harness_pr_gate", "UngatedModulesRunInCiTest.test_allowlist_never_exceeds_the_ceiling"),
     # A new workflow missing from .github/workflows/README.md failed CI (#6993 miss).
     (lambda p: p.startswith(".github/workflows/"),
      "tests.scripts.test_validate_quality_configuration",
      "ValidateQualityConfigurationTest.test_repository_configuration_is_valid"),
-    # N4/#7643: tip-churn / skills map / delete-guard consumer / upgrade-session repair
-    # must not escape cheap pre-push the way AG Gate catches them in CI.
-    (lambda p: p in {
-         "chaos-engine/references/tip-churn-preflight.md",
-         "chaos-engine/references/ce-upgrade-on-release.md",
-         "chaos-engine/references/cleanup-at-close.md",
-         "chaos-engine/references/worker-keep-alive.md",
-     } or p.startswith("chaos-engine/references/"),
-     "tests.scripts.test_ce_memory_abstraction_phase1",
-     "ProcessCardsTest.test_tip_churn_links_new_refs"),
+    # The harness-tree lesson tests moved to ShaftHQ/chaosengine-harness (#8057).
+    # These rows are the SHAFT contracts that still execute.
     (lambda p: p in {".agents/skills/README.md", "chaos-engine/references/ce-upgrade-on-release.md"}
      or p.startswith("chaos-engine/references/"),
      "tests.scripts.test_agent_router_contract",
      "SkillsMapTest.test_the_map_covers_every_skill_playbook_and_chapter"),
-    (lambda p: p in {"chaos-engine/references/harness-map.md", "chaos-engine/harness_map.py"}
-     or p == "chaos-engine/references/ce-upgrade-on-release.md",
-     "tests.scripts.test_chaos_engine_harness_map_7242",
-     "HarnessMapTests.test_map_is_fresh"),
-    (lambda p: p == "chaos-engine/delete_guard.py",
-     "tests.scripts.test_chaos_engine_delete_guard_7251",
-     "DeleteGuardTest.test_backup_remote_silent_in_consumer_mode"),
-    (lambda p: p in {"chaos-engine/worktree_overlay.py", "chaos-engine/install.py"},
-     "tests.scripts.test_policy_overlay_repair",
-     "PolicyOverlayRepairTest.test_linked_worktree_repair_names_the_materialize_fix"),
-    (lambda p: p == "chaos-engine/delete_guard.py"
-     or p.endswith("test_ce_session_manifest_delete_and_backup_silence.py"),
-     "tests.scripts.test_ce_session_manifest_delete_and_backup_silence",
-     "SessionManifestDeleteTest.test_forged_manifest_rejected"),
-    # #7791: Agent Guidance contracts that previously failed only in CI.
+    # #7791: the chain-budget proof still lives in the SHAFT guidance validator.
     (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_ce_bugfix_2026_10_30_2",
-     "MergeQueueLessonTest.test_docs_and_skill"),
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_chaos_engine_token_economy_6173",
-     "LeanBootstrapTest.test_mandated_chain_budget_holds_on_every_host"),
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_ce_guard_reachability",
-     "GuardReachabilityTest.test_documented_commands_exist_or_are_marked_repo_only"),
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_agent_router_contract",
-     "NoDuplicationTest.test_no_substantive_line_is_repeated_across_guidance_files"),
+     "tests.scripts.test_validate_agent_guidance",
+     "TokenEconomyWave2GuidanceParityTest.test_mandated_chain_budget_holds_on_every_host"),
     (lambda p: p.startswith("chaos-engine/") and p.endswith("/README.md"),
      "tests.scripts.test_validate_documentation_boundaries",
      "ValidateDocumentationBoundariesTest.test_rejects_unapproved_nested_readme_inside_allowed_markdown_tree"),

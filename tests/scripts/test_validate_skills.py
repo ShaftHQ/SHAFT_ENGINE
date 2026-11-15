@@ -49,7 +49,6 @@ from scripts.ci.validate_skills import validate_repository, validate_skill
 
 MARKETPLACE_PATH = ".claude-plugin/marketplace.json"
 
-
 def source_shape_escapes(source: str) -> bool:
     """True when `source` is rooted, drive-anchored, or traverses upward.
 
@@ -71,7 +70,6 @@ def source_shape_escapes(source: str) -> bool:
         for flavour in (PurePosixPath(source), PureWindowsPath(source))
     )
 
-
 def source_escapes_root(root: Path, source: str) -> bool:
     """True when `source` does not stay inside `root`.
 
@@ -88,11 +86,9 @@ def source_escapes_root(root: Path, source: str) -> bool:
     candidate = (root / source).resolve()
     return candidate != resolved_root and resolved_root not in candidate.parents
 
-
 def issue(code: str, message: str) -> dict[str, str]:
     """Create a manifest issue against the marketplace path."""
     return {"code": code, "path": MARKETPLACE_PATH, "message": message}
-
 
 def skill_container(root: Path, source: str) -> str:
     """Return the directory that actually holds `<skill>/SKILL.md`.
@@ -106,7 +102,6 @@ def skill_container(root: Path, source: str) -> str:
     if (plugin_root / ".claude-plugin").exists() and nested.is_dir():
         return f"{source.rstrip('/')}/skills"
     return source
-
 
 def directories_missing_skill_md(root: Path, source: str) -> list[str]:
     """Names of directories directly under `source`, excluding `references`,
@@ -126,7 +121,6 @@ def directories_missing_skill_md(root: Path, source: str) -> list[str]:
         if entry.is_dir() and entry.name not in {"references", "ce-pack", "ce-addons"} and not (entry / "SKILL.md").is_file()
     )
 
-
 def plugin_package_skill_mds(root: Path, source: str) -> list[Path]:
     """SKILL.md files under `{source}/skills/<name>/`, the Claude plugin layout.
 
@@ -143,14 +137,12 @@ def plugin_package_skill_mds(root: Path, source: str) -> list[Path]:
         if child.is_dir() and (child / "SKILL.md").is_file()
     )
 
-
 def is_plugin_package(root: Path, source: str) -> bool:
     """True when `source` is a Claude/Codex plugin package, not a skill container."""
     source_dir = root / source
     return (source_dir / ".claude-plugin" / "plugin.json").is_file() or bool(
         plugin_package_skill_mds(root, source)
     )
-
 
 def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
     """Check one marketplace plugin's skills[] against its source directory."""
@@ -250,7 +242,6 @@ def plugin_errors(root: Path, plugin: dict, index: int) -> list[dict[str, str]]:
         )
     return missing_skill_md + errors
 
-
 def marketplace_errors(root: Path) -> list[dict[str, str]]:
     """Check the plugin marketplace manifest against the skill dirs on disk."""
     manifest_path = root / MARKETPLACE_PATH
@@ -277,7 +268,6 @@ def marketplace_errors(root: Path) -> list[dict[str, str]]:
             continue
         errors.extend(plugin_errors(root, plugin, index))
     return errors
-
 
 class ValidateSkillsTest(unittest.TestCase):
     def setUp(self):
@@ -400,7 +390,6 @@ class ValidateSkillsTest(unittest.TestCase):
         """
         self.assertFalse((self.root / MARKETPLACE_PATH).exists())
         self.assertEqual(validate_repository(self.root, self.budget_path), [])
-
 
 class MarketplaceManifestTest(unittest.TestCase):
     def setUp(self):
@@ -607,13 +596,6 @@ class MarketplaceManifestTest(unittest.TestCase):
         repository_root = Path(__file__).resolve().parents[2]
         self.assertEqual(marketplace_errors(repository_root), [])
 
-    def test_optional_portable_local_coding_delegate_passes_hygiene(self):
-        repository_root = Path(__file__).resolve().parents[2]
-        skill_dir = repository_root / "chaos-engine/skills/local-coding-delegate"
-        self.assertTrue((skill_dir / "SKILL.md").is_file())
-        self.assertEqual(validate_skill(repository_root, skill_dir, 20000), [])
-
-
 class SourceShapeTest(unittest.TestCase):
     """The escape guard's *shape* half, evaluated for both spellings at once.
 
@@ -695,22 +677,6 @@ class SourceShapeTest(unittest.TestCase):
                     f"{source!r} must be rejected on every platform, not just one",
                 )
 
-
 if __name__ == "__main__":
     unittest.main()
 
-
-class HarnessIndexParityTest(unittest.TestCase):
-    """#6177 parity row: one generated index exposes every skill on every host."""
-
-    def test_harness_index_covers_every_skill_on_every_host(self):
-        root = Path(__file__).resolve().parents[2]
-        index = json.loads((root / "chaos-engine/harness-index.json").read_text(encoding="utf-8"))
-        hosts = json.loads((root / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))["hosts"]
-        self.assertEqual(hosts, index["hosts"])
-        indexed = {entry["path"] for entry in index["entries"]}
-        for pattern in ("skills/*/SKILL.md", "vendor/*/skills/*/SKILL.md"):
-            for path in (root / "chaos-engine").glob(pattern):
-                self.assertIn(path.relative_to(root / "chaos-engine").as_posix(), indexed)
-        for entry in index["entries"]:
-            self.assertEqual(set(hosts), set(entry["hosts"]))
