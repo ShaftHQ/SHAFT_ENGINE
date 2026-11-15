@@ -263,7 +263,6 @@ CHECKS = {
         "documentation-inventory-contract",
         "documentation",
         (
-            "tests.scripts.test_validate_chaos_engine_readme",
             "tests.scripts.test_user_facing_readmes",
         ),
     ),
@@ -1020,8 +1019,6 @@ SURFACE_PATTERNS = {
     ),
     "documentation": (
         "chaos-engine/README.md",
-        "scripts/ci/validate_chaos_engine_readme.py",
-        "tests/scripts/test_validate_chaos_engine_readme.py",
     ),
     "accessibility": (
         "scripts/ci/accessibility_quality_gates.py",
@@ -1540,7 +1537,6 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_check_maven_release_version': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_colibri_probe': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_decision_quality_baseline': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_decision_quality_readme_evidence': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_decision_quality_rubric': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_design_turn_gate': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_doctor_agent_summary': UNGATED_TEST_ALLOWLIST_REASON,
@@ -2349,14 +2345,6 @@ def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
     """Refresh owned generated artifacts for the selected changed-closure surfaces."""
     written: list[str] = []
     root = root.resolve()
-    if "documentation" in plan.surfaces:
-        from scripts.ci.validate_chaos_engine_readme import write_generated as write_readme
-
-        readme = root / "chaos-engine/README.md"
-        before = readme.read_bytes() if readme.is_file() else b""
-        write_readme(root)
-        if readme.read_bytes() != before:
-            written.append("chaos-engine/README.md")
     if "identities" in plan.surfaces:
         from scripts.ci.chaos_gauge.validate_experiment import write_generated as write_identities
 

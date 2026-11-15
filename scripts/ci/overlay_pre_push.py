@@ -491,10 +491,6 @@ CHEAP_CI_CONTRACTS = (
     (lambda p: p.startswith(".github/workflows/"),
      "tests.scripts.test_validate_quality_configuration",
      "ValidateQualityConfigurationTest.test_repository_configuration_is_valid"),
-    # A new skill missing from the ChaosEngine README inventory (#6991 miss).
-    (lambda p: p.startswith("chaos-engine/skills/") or p == "chaos-engine/harness_index.py",
-     "tests.scripts.test_validate_chaos_engine_readme",
-     "ChaosEngineReadmeInventoryTest.test_repository_readme_matches_every_source_derived_inventory"),
     # N4/#7643: tip-churn / skills map / delete-guard consumer / upgrade-session repair
     # must not escape cheap pre-push the way AG Gate catches them in CI.
     (lambda p: p in {

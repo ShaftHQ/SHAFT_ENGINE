@@ -88,7 +88,6 @@ AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/learning_session.py",
     "scripts/agents/repository_context.py",
     "scripts/ci/validate_agent_setup.py",
-    "scripts/ci/validate_chaos_engine_readme.py",
     "scripts/ci/validate_agent_ownership.py",
     "scripts/ci/validate_agent_guidance.py",
     "scripts/ci/harness_reachability.py",

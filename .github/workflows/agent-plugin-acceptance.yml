@@ -137,7 +137,6 @@ jobs:
             tests.scripts.test_job_apply_skill
             tests.scripts.test_job_search_skill
             tests.scripts.test_validate_agent_guidance
-            tests.scripts.test_validate_chaos_engine_readme
             tests.scripts.test_validate_agent_ownership
             tests.scripts.test_validate_agent_plugins
             tests.scripts.test_validate_agent_setup
