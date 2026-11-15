@@ -407,7 +407,9 @@ def absolute_guidance_path_offenders(
 def _load_hosts():
     import importlib.util as _ilu
 
-    spec = _ilu.spec_from_file_location("hosts_portability_6199", ROOT / "chaos-engine/hosts.py")
+    spec = _ilu.spec_from_file_location(
+        "hosts_portability_6199", ROOT / ".chaos-engine/hosts.py"
+    )
     module = _ilu.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -1546,6 +1548,164 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 "permissionDecisionReason", specific.get("additionalContext", "")
             )
         return output.get("decision", "allow"), output.get("reason", "")
+
+    def test_pdca_personas_are_main_thread_phases_that_follow_the_mode(self):
+        """PDCA is one task, so it is normally worked solo.
+
+        The playbook reaches the canonical workflow owner instead of duplicating
+        its selection rule, and Bob follows the selected mode.
+        """
+        pdca = (
+            ROOT / "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
+        ).read_text(encoding="utf-8")
+        compact = re.sub(r"\s+", " ", pdca)
+        self.assertIn("personas are phases, not agent identities", pdca.lower())
+        self.assertIn(
+            "execution workflows (`.chaos-engine/references/execution-workflows.md`)",
+            pdca,
+        )
+        workflows = (
+            ROOT / ".chaos-engine/references/execution-workflows.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("sole normative owner of execution-workflow selection", workflows)
+        self.assertNotIn("solo-or-orchestrate rule", pdca.lower())
+        self.assertRegex(
+            compact,
+            r"Bob phase[^.]*through observed TDD[^.]*when orchestrating",
+            "Bob implements in solo mode and shepherds only when orchestrating",
+        )
+        self.assertRegex(compact, r"Bruce[^.]*judges the actual diff")
+        for forbidden in ("orchestrator never edits", "closing remaining gaps himself"):
+            self.assertNotIn(forbidden, pdca)
+
+    def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
+        from tests.scripts.ce_host_files import host_file_bytes
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            claude_path = root / ".claude/settings.json"
+            codex_path = root / ".codex/hooks.json"
+            claude_path.parent.mkdir()
+            codex_path.parent.mkdir()
+            claude_path.write_bytes(host_file_bytes(".claude/settings.json"))
+            codex_path.write_bytes(host_file_bytes(".codex/hooks.json"))
+            claude_hooks = hook_groups(claude_path)
+            codex_hooks = hook_groups(codex_path)
+        common = {
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "SessionStart",
+            "SubagentStart",
+            "SessionEnd",
+            "Stop",
+            "SubagentStop",
+            "UserPromptSubmit",
+        }
+        self.assertEqual(common, set(codex_hooks))
+        self.assertEqual(common | {"PreCompact"}, set(claude_hooks))
+        launch = (ROOT / ".chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
+        hosts = _load_hosts()
+        for hooks in (claude_hooks, codex_hooks):
+            commands = {
+                handler["command"]
+                for groups in hooks.values()
+                for group in groups
+                for handler in group["hooks"]
+            }
+            self.assertEqual(len(commands), 1)
+            command = commands.pop()
+            self.assertNotIn(str(ROOT), command)
+            handler = hooks["PreToolUse"][0]["hooks"][0]
+            invocation = [handler["command"], *handler.get("args", [])]
+            completed = subprocess.run(
+                invocation if handler.get("args") else command,
+                shell=not bool(handler.get("args")),  # nosec B602 - rendered hook command.
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "session_id": "portable-hook-contract",
+                        "tool_name": "shell_command",
+                        "tool_input": {"command": "echo nested-cwd"},
+                    }
+                ),
+                cwd=ROOT / "shaft-engine",
+                env=dict(os.environ, CHAOS_ENGINE_HOST="codex"),
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn("repository working directory unavailable", rendered)
+            self.assertNotIn("ChaosEngine guard unavailable", rendered)
+            self.assertEqual({}, json.loads(completed.stdout or "{}"))
+            self.assertRegex(command, r"\s", "a single-token command is resolved beside settings")
+            self.assertIn(hosts.HOOK_LAUNCH_PY, command)
+            self.assertLessEqual(len(command), hosts.HOOK_COMMAND_MAX_CHARS)
+            self.assertIsNone(hosts.powershell_hook_parse_error(command))
+            self.assertIn(".chaos-engine/hooks/guard.py", launch)
+            self.assertIn("repository working directory unavailable", launch)
+            self.assertNotIn("print('{}')", command)
+            self.assertFalse(handler.get("args"), "args are ignored; command is the whole invocation")
+            windows = handler.get("commandWindows", "")
+            self.assertTrue(
+                windows.startswith("py -3 ") or windows.startswith("$a="),
+                windows,
+            )
+            self.assertNotIn(str(ROOT), windows)
+        self.assertTrue(GUARD.is_file())
+
+    def test_hook_configs_are_tracked_for_host_local_trust(self):
+        from tests.scripts.ce_host_files import host_file_text
+
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
+            [GIT, "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        for relative in (".claude/settings.json", ".codex/hooks.json"):
+            self.assertNotIn("bypass-hook-trust", host_file_text(relative))
+
+    def test_mempalace_config_is_tracked_while_generated_state_is_ignored(self):
+        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
+            [GIT, "ls-files", "--error-unmatch", "mempalace.yaml"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(tracked.returncode, 0, tracked.stderr)
+        palace = (ROOT / "mempalace.yaml").read_text(encoding="utf-8")
+        self.assertIn("exclude_patterns:", palace)
+        self.assertNotRegex(palace, r"(?m)^- name: (?:target|graphify_out|allure_results)$")
+        claude_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        user_settings = json.loads(
+            (ROOT / "scripts/agents/user-harness/settings.json").read_text(encoding="utf-8")
+        )
+        self.assertIs(user_settings["enabledPlugins"]["mempalace@mempalace"], False)
+        expected_mempalace_env = {
+            "MEMPALACE_EMBEDDING_MODEL": "minilm",
+            "MEMPALACE_BACKEND": "sqlite_exact",
+        }
+        self.assertNotIn("chaosengine-mempalace", claude_mcp["mcpServers"])
+        hosts = _load_hosts()
+        project_mcp = json.loads(hosts.json_content(None, with_mcp=True))["mcpServers"][
+            "chaosengine-mempalace"
+        ]
+        codex = tomllib.loads(hosts.codex_content(None, with_mcp=True).decode("utf-8"))
+        codex_mcp = codex["mcp_servers"]["chaosengine-mempalace"]
+        self.assertEqual(codex_mcp["command"], project_mcp["command"])
+        self.assertEqual(codex_mcp["env"], project_mcp["env"])
+        self.assertEqual(codex_mcp["env"], expected_mempalace_env)
+        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertNotRegex(ignore, r"(?m)^mempalace\.yaml$")
+        for pattern in ("entities.json", "graphify-out/", "**/target/"):
+            self.assertIn(pattern, ignore)
+
 
 if __name__ == "__main__":
     unittest.main()

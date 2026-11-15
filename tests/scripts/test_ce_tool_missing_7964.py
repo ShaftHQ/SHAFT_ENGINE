@@ -33,15 +33,20 @@ class GateSelectionTest(unittest.TestCase):
 
         module = "tests.scripts.test_ce_tool_missing_7964"
         for path in (
+            "tests/scripts/test_ce_tool_missing_7964.py",
+            "scripts/agents/guard.py",
+        ):
+            plan = classify_paths([path])
+            self.assertIn(module, plan.test_modules, path)
+        for path in (
             "chaos-engine/delete_guard.py",
             "chaos-engine/install.py",
             "chaos-engine/hooks/guard.py",
             "chaos-engine/overlay_match.py",
             "chaos-engine/worktree_overlay.py",
-            "tests/scripts/test_ce_tool_missing_7964.py",
         ):
             plan = classify_paths([path])
-            self.assertIn(module, plan.test_modules, path)
+            self.assertNotIn(module, plan.test_modules, path)
 
 if __name__ == "__main__":
     unittest.main()

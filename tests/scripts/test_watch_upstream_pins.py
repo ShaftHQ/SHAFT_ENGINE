@@ -450,6 +450,8 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         from scripts.ci.harness_pr_gate import classify_paths
 
         module = "tests.scripts.test_watch_upstream_pins"
+        # dependencies.json and the vendor pins moved with the harness.
+        # No SHAFT path closes that account (DEPENDENCY_CLOSURE_PATHS).
         for path in (
             "chaos-engine/dependencies.json",
             "chaos-engine/vendor/caveman/PIN.json",
@@ -457,8 +459,8 @@ class WatchUpstreamPinsTest(unittest.TestCase):
             "chaos-engine/vendor/icm-architect/PIN.json",
         ):
             plan = classify_paths([path])
-            self.assertIn("installer", plan.surfaces, path)
-            self.assertIn(module, plan.test_modules, path)
+            self.assertNotIn("installer", plan.surfaces, path)
+            self.assertNotIn(module, plan.test_modules, path)
         workflow = classify_paths([".github/workflows/upstream-watch.yml"])
         self.assertIn(module, workflow.test_modules)
         self.assertNotIn("installer", workflow.surfaces)

@@ -856,6 +856,26 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual(1, exit_code)
         self.assertEqual("timeout", payload["checks"][0]["status"])
 
+    def test_overlay_readers_fetch_the_pinned_harness_before_unittest(self) -> None:
+        jobs = self.workflow()["jobs"]
+        expected = (
+            ("installer-verify", "Run unittest for installer script"),
+            ("workflow-timeouts", "Run workflow timeout guard unit tests"),
+            ("agent-guidance", "Run bounded changed-surface harness gate"),
+        )
+        for name, unittest_name in expected:
+            steps = jobs[name]["steps"]
+            fetch_at = next(
+                index
+                for index, step in enumerate(steps)
+                if "fetch_harness_overlay.sh" in step.get("run", "")
+            )
+            test_at = next(
+                index for index, step in enumerate(steps) if step.get("name") == unittest_name
+            )
+            self.assertLess(fetch_at, test_at, name)
+            self.assertEqual("bash", steps[fetch_at].get("shell", "bash"))
+
     def test_pr_workflow_is_bounded_and_full_suites_are_scheduled(self) -> None:
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         agent_job = pr_gate.split("  agent-guidance:", 1)[1].split(

@@ -1661,8 +1661,8 @@ class CopilotRedirectPackIndexTest(unittest.TestCase):
         self.assertTrue(reported, "a forbidden mandate in the Copilot index is not reported")
 
     def test_the_duplicate_checks_also_cover_it(self):
-        """`NoDuplicationTest` keeps its own tuple, so being on one list is not both."""
-        self.assertIn(".github/copilot-instructions.md", NoDuplicationTest.GUIDANCE_GLOBS)
+        """The line-duplicate scan keeps its own tuple, so being on one list is not both."""
+        self.assertIn(".github/copilot-instructions.md", GUIDANCE_LINE_GLOBS)
 
 class RetrievalParityTest(unittest.TestCase):
     """Both hosts must gate memory writes the same way.
@@ -1672,6 +1672,28 @@ class RetrievalParityTest(unittest.TestCase):
     write that one host asks about the other performed silently -- the same
     policy resolving two different ways.
     """
+
+    def test_memory_writes_are_gated_on_every_host(self):
+        tomllib = __import__("tomllib")
+        # #6215: memory is opt-in `chaosengine-memory` now (#6199) and the
+        # rendered defaults carry no memory server. The contract is therefore
+        # conditional: any memory server a host declares must prompt before
+        # `remember_memory`, and no host may pre-allow a memory write.
+        codex = tomllib.loads(host_file_text(".codex/config.toml"))
+        for name, server in codex.get("mcp_servers", {}).items():
+            if "memory" not in name or "mempalace" in name:
+                continue
+            tools = server.get("tools", {}) if isinstance(server, dict) else {}
+            if "remember_memory" in tools or "remember_memory" in server.get("enabled_tools", []):
+                self.assertEqual(tools["remember_memory"]["approval_mode"], "prompt", name)
+
+        settings = json.loads(host_file_text(".claude/settings.json"))
+        allowed = settings.get("permissions", {}).get("allow", [])
+        self.assertEqual(
+            [rule for rule in allowed if re.search(r"memory__remember_memory", rule)],
+            [],
+            "a host pre-allows a memory write",
+        )
 
     def test_routing_states_when_each_knowledge_store_is_required(self):
         """"Use every source" is unenforceable; a trigger per store is not."""

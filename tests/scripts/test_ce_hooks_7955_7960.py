@@ -35,13 +35,20 @@ class GateSelectionTest(unittest.TestCase):
 
         module = "tests.scripts.test_ce_hooks_7955_7960"
         for path in (
-            "chaos-engine/rules/operation_boundary.py",
-            "chaos-engine/hooks/retrieve_justification.py",
-            "chaos-engine/force_push_approve.py",
             "tests/scripts/test_ce_hooks_7955_7960.py",
+            "scripts/agents/guard.py",
         ):
             plan = classify_paths([path])
             self.assertIn(module, plan.test_modules, path)
+        # Those production files moved with the harness. A leftover chaos-engine/
+        # path must not keep selecting this SHAFT module.
+        for path in (
+            "chaos-engine/rules/operation_boundary.py",
+            "chaos-engine/hooks/retrieve_justification.py",
+            "chaos-engine/force_push_approve.py",
+        ):
+            plan = classify_paths([path])
+            self.assertNotIn(module, plan.test_modules, path)
 
 if __name__ == "__main__":
     unittest.main()
