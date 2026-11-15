@@ -32,7 +32,7 @@
 | Loop | Product (SHAFT) | Harness (CE overlay) | Token profile |
 | --- | --- | --- | --- |
 | Capture | Dual-track Learning Session → `learning.py` queue → GitHub issues | Same path; categories allow-list; privacy gates | Heavy only on delivery Stop |
-| Enforce learn | Stop / delivery-complete owes Learning Session even if `chaos-engine/` untouched | Portable `learning_session.py` finalize + monorepo controller | Hook = 0 context unless block reason |
+| Enforce learn | Stop / delivery-complete owes Learning Session even if the [harness](https://github.com/ShaftHQ/chaosengine-harness) tree is untouched | Portable `learning_session.py` finalize + monorepo controller | Hook = 0 context unless block reason |
 | Discover surfaces | Level-1 catalog + router Heal / zero-LLM | SessionStart locators under `SESSION_START_MAX_BYTES=4096` | ↓ always-on |
 | Health / heal | Installer/doctor/repair components | `status ⊆ doctor`, `activationProof`, `repair --component` | Zero-LLM |
 | Delivery gates | Triage-scaled research + phase ledger | Stop Learning Session; catastrophic deny | Soft vs hard by triage |
@@ -208,7 +208,7 @@ Each item: why · token impact · dependency · proposed CE shape · Task Observ
 ## 6. Implementation notes (when executing children)
 
 1. Prefer **one condensed PR per wave** (S0→S4); children under the epic; `Fixes #<child>` never the epic.
-2. Every lasting behavior → portable `chaos-engine/` (hooks/skills/scripts/doctor) + host adapters as needed — **harness parity**.
+2. Every lasting behavior → portable [chaosengine-harness](https://github.com/ShaftHQ/chaosengine-harness) (hooks/skills/scripts/doctor) + host adapters as needed — **harness parity**.
 3. Expand eval-parity fixtures when adding gates; never weaken fixtures.
 4. Keep Ponytail and Caveman ultra.
 5. No Cursor Cloud Agents for implementation workstreams.

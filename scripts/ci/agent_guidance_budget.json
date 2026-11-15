@@ -96,11 +96,6 @@
       "max_description_chars": 220,
       "max_skill_md_bytes": 20000,
       "max_skill_md_lines": 500
-    },
-    "chaos-engine/skills": {
-      "max_description_chars": 220,
-      "max_skill_md_bytes": 20000,
-      "max_skill_md_lines": 500
     }
   },
   "harness_reachability": {
@@ -110,7 +105,9 @@
     "boundary": "The union of every boundary anyone has drawn for this, because narrowing one silently is the failure this whole check exists to stop. #4485 measured 71 files: guidance, adapters, roles, hooks and the checks that police them. A second pass added the enforcement tests, scripts/ci/local_gate.py and .claude-plugin/marketplace.json. An adversarial review then refuted two exclusions and both are now in. .github/skills/** is agent guidance: its SKILL.md files are redirects structurally identical to the .claude/skills ones that were already counted, expected_skill_names checks their presence rather than their reachability, and pr-gate.yml already lists .github/skills/** under its agent_guidance path filter -- the repository had classified them before this check did. .github/workflows/pr-gate.yml is in as an exact path rather than the earlier agent|skill|guard regex over the workflow directory: that regex matched no file, and the one workflow it needed to match is the one that decides whether this check runs at all. A boundary drawn so that the thing running the gate falls outside the gate is convenient rather than honest.",
     "element_globs": [
       ".agents/**",
-      "chaos-engine/**",
+      "chaos-engine/README.md",
+      "chaos-engine/install.ps1",
+      "chaos-engine/install.sh",
       "shaft-skills/ce-pack/**",
       ".claude-plugin/*.json",
       ".claude/agents/*.md",
@@ -153,7 +150,6 @@
       "tests/scripts/test_copilot_cli_hook.py",
       "tests/scripts/test_chaos_engine_learning.py",
       "tests/scripts/test_chaos_engine_research.py",
-      "chaos-engine/bootstrap.py",
       "tests/scripts/test_chaos_engine_bootstrap.py",
       "tests/scripts/test_repository_context.py",
       "tests/scripts/test_watch_pr_checks.py",
