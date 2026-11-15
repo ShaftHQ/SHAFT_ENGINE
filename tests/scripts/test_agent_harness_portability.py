@@ -1706,6 +1706,40 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         for pattern in ("entities.json", "graphify-out/", "**/target/"):
             self.assertIn(pattern, ignore)
 
+    def test_grok_rules_match_overlay_publish_and_stay_inside_the_repo(self) -> None:
+        source = ROOT / ".chaos-engine" / "grok_model_load.py"
+        self.assertTrue(source.is_file(), source)
+        spec = importlib.util.spec_from_file_location("chaos_engine_grok_model_load", source)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            identity_src = project / ".chaos-engine" / "identity.md"
+            entry_src = project / ".chaos-engine" / "skills" / "chaos-engine" / "SKILL.md"
+            identity_src.parent.mkdir(parents=True)
+            entry_src.parent.mkdir(parents=True)
+            identity_src.write_bytes((ROOT / ".chaos-engine" / "identity.md").read_bytes())
+            entry_src.write_bytes(
+                (ROOT / ".chaos-engine" / "skills" / "chaos-engine" / "SKILL.md").read_bytes()
+            )
+            rules = project / ".grok" / "rules"
+            rules.mkdir(parents=True)
+            rendered = {
+                "identity.md": module._linked_bytes(identity_src, rules / "identity.md"),
+                "entrypoint.md": module._linked_bytes(entry_src, rules / "entrypoint.md"),
+            }
+        link = re.compile(r"\[[^\]]*\]\(([^)]*)\)")
+        for name, payload in rendered.items():
+            self.assertEqual((ROOT / ".grok" / "rules" / name).read_bytes(), payload, name)
+            self.assertNotIn(b"/tmp/", payload)
+            for target in link.findall(payload.decode("utf-8")):
+                path = target.strip().split(" ", 1)[0]
+                if path.startswith("#") or "://" in path or path.startswith("mailto:"):
+                    continue
+                self.assertTrue(path.startswith("../../.chaos-engine/"), path)
+
 
 if __name__ == "__main__":
     unittest.main()
