@@ -2082,21 +2082,41 @@ def classify_paths(paths: list[str]) -> GatePlan:
     return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
 
 
-MOVED_TEST_PREFIX = "tests.scripts.test_chaos_engine_"
+def _tests_script(root: Path, module: str) -> Path | None:
+    """File for a ``tests.scripts`` id. ``None`` when the id is not one of those."""
+    parts = module.split(".")
+    if len(parts) < 3 or parts[0] != "tests" or parts[1] != "scripts":
+        return None
+    return root / "tests" / "scripts" / f"{parts[2]}.py"
+
+
+def _module_has_tests(path: Path) -> bool:
+    """False for a missing file or a docstring-only moved stub. Syntax errors stay."""
+    if not path.is_file():
+        return False
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
+            return True
+    return False
 
 
 def _drop_moved_modules(plan: GatePlan, root: Path) -> GatePlan:
-    """#8057: ``test_chaos_engine_*`` suites moved to ShaftHQ/chaosengine-harness.
+    """Drop moved suites before the guidance job runs them (#8057).
 
-    Drop those module ids when their file is gone, and any check left empty.
-    Temporary until e2 rewires the surface tables (tracked on #8057).
+    A ``tests.scripts`` module is dropped when its file is gone or is only a
+    move notice (no ``test_`` function). One-line stubs exit 5 on Python 3.14
+    (``NO TESTS RAN``) and are not coverage. Any check left empty is dropped.
     """
 
     def present(module: str) -> bool:
-        if not module.startswith(MOVED_TEST_PREFIX):
+        path = _tests_script(root, module)
+        if path is None:
             return True
-        file_name = module.split(".")[2] + ".py"
-        return (root / "tests" / "scripts" / file_name).is_file()
+        return _module_has_tests(path)
 
     checks = []
     for check in plan.checks:

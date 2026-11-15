@@ -157,6 +157,42 @@ class ClassifierTest(unittest.TestCase):
             self.assertIn("tests.scripts.test_check_javadoc_param_arity", modules)
             self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
 
+    def test_plan_drops_missing_and_docstring_only_moved_suites(self) -> None:
+        # #8057: a gone module and a one-line move notice must not be scheduled.
+        # A real neighbor on the same surface stays.
+        gone = (
+            "tests.scripts.test_skill_index_parity",
+            "tests.scripts.test_ce_jobs",
+            "tests.scripts.test_ce_task_ledger",
+            "tests.scripts.test_ce_h2_gates",
+            "tests.scripts.test_session_tool_receipt",
+            "tests.scripts.test_freetoken_probe",
+            "tests.scripts.test_installer_merge_handoff",
+            "tests.scripts.test_upstream_ticket_consent",
+            "tests.scripts.test_ce_tool_output_spill",
+            "tests.scripts.test_design_loop_writer_reseed",
+        )
+        plan = plan_for_changes(
+            [
+                "tests/scripts/test_skill_index_parity.py",
+                "tests/scripts/test_ce_jobs.py",
+                "tests/scripts/test_ce_h2_gates.py",
+                "tests/scripts/test_freetoken_probe.py",
+                "tests/scripts/test_installer_merge_handoff.py",
+                "tests/scripts/test_upstream_ticket_consent.py",
+                "tests/scripts/test_ce_tool_output_spill.py",
+                "tests/scripts/test_design_loop_writer_reseed.py",
+            ],
+            ROOT,
+        )
+        modules = {module for check in plan.checks for module in check.modules}
+        for module in gone:
+            self.assertNotIn(module, modules)
+        economy = plan_for_changes(["scripts/ci/harness_pr_gate.py"], ROOT)
+        economy_modules = {module for check in economy.checks for module in check.modules}
+        self.assertNotIn("tests.scripts.test_skill_index_parity", economy_modules)
+        self.assertIn("tests.scripts.test_ce_guard_reachability", economy_modules)
+
     def test_changed_harness_module_runs_weekly_only_tests_that_name_it(self) -> None:
         # ChaosEngine *.py moved with the tree. The forwarding shim is not a module
         # name, so it must not pull the weekly allowlist.
