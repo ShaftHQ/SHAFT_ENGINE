@@ -1008,7 +1008,7 @@ class TokenEconomyWave2GuidanceParityTest(unittest.TestCase):
 
     def test_always_loaded_guidance_does_not_mandate_local_writers(self):
         root = Path(__file__).resolve().parents[2]
-        for relative in ("AGENTS.md", "chaos-engine/identity.md", "chaos-engine/skills/chaos-engine/SKILL.md"):
+        for relative in ("AGENTS.md",):  # ChaosEngine identity/router moved to the harness (#8057)
             text = (root / relative).read_text(encoding="utf-8")
             with self.subTest(file=relative):
                 self.assertNotIn("prefer a READY loopback coder", text)
