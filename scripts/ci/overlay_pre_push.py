@@ -827,8 +827,13 @@ def client_name_scrub_failures(
     helper = _ce_module_path(root, "client_name_scrub.py")
     if helper is None:
         return [_CE_MISSING.format(gate="client-name scrub")] if _ce_moved(root) else []
-    sys.path.insert(0, str(helper.parent))
-    import client_name_scrub  # noqa: WPS433
+    # Load by path: putting .chaos-engine/ first on sys.path would let the
+    # harness's own ``tests`` package shadow SHAFT's (e2c, #8057).
+    spec = importlib.util.spec_from_file_location("ce_client_name_scrub", helper)
+    if spec is None or spec.loader is None:
+        return ["client-name scrub unavailable: cannot load " + str(helper)]
+    client_name_scrub = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(client_name_scrub)
 
     return list(client_name_scrub.client_name_scrub_failures(root, environ=environ))
 
