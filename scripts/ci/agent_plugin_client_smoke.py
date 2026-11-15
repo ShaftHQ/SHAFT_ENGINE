@@ -16,7 +16,6 @@ from typing import Callable, Mapping
 
 try:
     from scripts.ci.assemble_shaft_skills_plugin import assemble
-    from scripts.ci.assemble_chaos_engine_plugin import assemble as assemble_act_as_mohab
     from scripts.ci.shaft_skill_routing_eval import (
         evaluate_results,
         output_schema,
@@ -24,7 +23,6 @@ try:
     )
 except ModuleNotFoundError:  # Direct script execution places scripts/ci on sys.path.
     from assemble_shaft_skills_plugin import assemble
-    from assemble_chaos_engine_plugin import assemble as assemble_act_as_mohab
     from shaft_skill_routing_eval import evaluate_results, output_schema, package_decision
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -812,79 +810,9 @@ def collect_evidence(
     return redacted
 
 
-def collect_runtime_launch_evidence(package_root: Path) -> dict:
-    """Launch the portable MCP using only its emitted package configuration."""
-    package_root = Path(package_root).resolve()
-    config = json.loads((package_root / ".mcp.json").read_text(encoding="utf-8"))
-    server = config.get("mcpServers", {}).get("chaosengine", {})
-    command = server.get("command")
-    arguments = server.get("args")
-    relative_cwd = server.get("cwd")
-    if (
-        not isinstance(command, str)
-        or not isinstance(arguments, list)
-        or not all(isinstance(argument, str) for argument in arguments)
-        or not isinstance(relative_cwd, str)
-    ):
-        raise ValueError("portable MCP package configuration is malformed")
-    launch_cwd = (package_root / relative_cwd).resolve()
-    if launch_cwd != package_root and package_root not in launch_cwd.parents:
-        raise ValueError("portable MCP cwd escapes the package root")
-    requests = "\n".join(
-        (
-            json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
-            json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
-            "",
-        )
-    )
-    try:
-        completed = subprocess.run(  # nosec B603 - command is the tracked package contract.
-            [command, *arguments], cwd=launch_cwd, input=requests, text=True,
-            capture_output=True, check=False, timeout=30,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        return {
-            "client": "portable-runtime",
-            "client_name": "Portable MCP package configuration",
-            "client_version": "stdlib-python",
-            "expected_client_version": "stdlib-python",
-            "evidence_level": "runtime_launch",
-            "verdict": "fail",
-            "commands": [[command, *arguments]],
-            "detail": str(error),
-            "context_warnings": [],
-        }
-    try:
-        responses = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
-        names = {
-            tool["name"]
-            for tool in responses[1]["result"]["tools"]
-            if isinstance(tool, dict) and isinstance(tool.get("name"), str)
-        }
-        expected = {"repository_context", "watch_pr_checks"}
-        successful = completed.returncode == 0 and len(responses) == 2 and expected <= names
-    except (json.JSONDecodeError, IndexError, KeyError, TypeError):
-        successful = False
-    return {
-        "client": "portable-runtime",
-        "client_name": "Portable MCP package configuration",
-        "client_version": "stdlib-python",
-        "expected_client_version": "stdlib-python",
-        "evidence_level": "runtime_launch",
-        "verdict": "pass" if successful else "fail",
-        "commands": [[command, *arguments]],
-        "detail": (
-            "package-relative MCP configuration launched and listed portable tools"
-            if successful else (completed.stderr.strip() or "portable MCP launch contract failed")
-        ),
-        "context_warnings": _warnings(completed),
-    }
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("smoke", "live"), default="smoke")
-    parser.add_argument("--package", choices=("shaft-skills", "chaos-engine"), default="shaft-skills")
     parser.add_argument("--output", type=Path, default=Path("agent-plugin-client-evidence.json"))
     parser.add_argument("--routing-corpus", type=Path)
     parser.add_argument(
@@ -906,8 +834,8 @@ def main() -> int:
         else None
     )
     with tempfile.TemporaryDirectory(prefix="shaft-plugin-client-smoke-") as temporary_directory:
-        package_root = Path(temporary_directory) / arguments.package
-        (assemble if arguments.package == PACKAGE_NAME else assemble_act_as_mohab)(ROOT, package_root)
+        package_root = Path(temporary_directory) / PACKAGE_NAME
+        assemble(ROOT, package_root)
         evidence = collect_evidence(
             package_root,
             arguments.mode,
@@ -915,8 +843,6 @@ def main() -> int:
             execution_budget_seconds=arguments.execution_budget_seconds,
             routing_budget_seconds=arguments.routing_budget_seconds,
         )
-        if arguments.package == "chaos-engine":
-            evidence["results"].append(collect_runtime_launch_evidence(package_root))
     arguments.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
     for row in evidence["results"]:
         print(f"{row['client']}: {row['evidence_level']}: {row['verdict']}: {row['detail']}")

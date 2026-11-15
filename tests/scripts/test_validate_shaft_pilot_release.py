@@ -752,9 +752,8 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
 
         prepare = blob.index("scripts/ci/prepare_release_pr.py")
         for check in (
-            "scripts/ci/check_plugin_changelog_version.py",
             "./.github/actions/release-contract-validators",
-            "tests.scripts.test_assemble_chaos_engine_plugin",
+            "tests.scripts.test_assemble_shaft_skills_plugin",
         ):
             self.assertGreater(blob.index(check), prepare, check)
 

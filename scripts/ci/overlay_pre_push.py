@@ -482,9 +482,6 @@ CHEAP_CI_CONTRACTS = (
     # A relative link that leaves the shipped package breaks installs (#6987 miss).
     (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
      "tests.scripts.test_ce_guard_reachability", "GuardReachabilityTest.test_installed_overlay_has_no_broken_relative_links"),
-    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
-     "tests.scripts.test_assemble_chaos_engine_plugin",
-     "AssembleActAsMohabPluginTest.test_assembly_keeps_every_relative_markdown_link_inside_the_package"),
     (lambda p: p == "scripts/ci/harness_pr_gate.py",
      "tests.scripts.test_harness_pr_gate", "UngatedModulesRunInCiTest.test_allowlist_never_exceeds_the_ceiling"),
     # A new workflow missing from .github/workflows/README.md failed CI (#6993 miss).

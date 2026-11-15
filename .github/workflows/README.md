@@ -123,10 +123,6 @@ table. Remove a row only in the same change that deletes its workflow.
   whose module is red on main because of tracked drift carries `known_drift`
   (the issue number): its failure is reported as `known-drift` and does not
   block, and once it passes the receipt tells the author to clear `known_drift`.
-- Workflow Timeout Guard runs `scripts/ci/check_plugin_changelog_version.py`
-  on pom, workflow and plugin CHANGELOG edits: a `pom.xml` version bump needs a
-  `## <version>` entry in `agent-plugins/chaos-engine/CHANGELOG.md` and the
-  version in `COMPATIBILITY.md` (#6222).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
   through `intellij-verify` modes `build`/`plugin`, both retried (#6189).
