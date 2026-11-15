@@ -54,7 +54,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
-        <mockito.version>5.23.0</mockito.version>
+        <mockito.version>5.24.0</mockito.version>
         <archunit.version>1.5.1</archunit.version>
         <mockitoAgentArgLine>-javaagent:"${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</mockitoAgentArgLine>
         <!-- quarantine (#7005): known-flaky tests with an owner issue; run nightly by quarantine-nightly.yml. -->
