@@ -21,7 +21,10 @@ class HarnessResidueTest(unittest.TestCase):
         folded = text.casefold()
         self.assertNotIn("scriptblock", folded)
         self.assertNotIn("invoke-expression", folded)
+        self.assertIn("-ExecutionPolicy Bypass", text)
         self.assertIn("-File", text)
+        self.assertIn("PSCommandPath", text)
+        self.assertNotIn("ShaftHQ/SHAFT_ENGINE", text.split("-File", 1)[-1])
         self.assertIn(
             "https://raw.githubusercontent.com/ShaftHQ/chaosengine-harness/main/install.ps1",
             text,
