@@ -1740,6 +1740,23 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                     continue
                 self.assertTrue(path.startswith("../../.chaos-engine/"), path)
 
+    def test_moved_tree_docs_point_at_the_overlay_or_the_harness(self) -> None:
+        """#8056: the removed chaos-engine/ tree is not a read target."""
+        companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
+        removed = re.compile(r"(?<!\.)chaos-engine/(?:skills|references|companions)/")
+        self.assertIsNone(removed.search(companions), removed.findall(companions))
+        self.assertIn(".chaos-engine/skills/", companions)
+        self.assertIn(".chaos-engine/references/roles.md", companions)
+        self.assertIn(".chaos-engine/companions/ethics-card.md", companions)
+        readme = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")
+        link = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+        local = [
+            target
+            for target in link.findall(readme)
+            if "chaos-engine/" in target and "chaosengine-harness" not in target
+        ]
+        self.assertEqual([], local)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -548,7 +548,7 @@ Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage
 
 ## After the move (#8057)
 
-ChaosEngine moved to the harness; [chaos-engine/README.md](../../chaos-engine/README.md) is the redirect and holds the forwarding installers.
+ChaosEngine moved to the harness. Canonical docs: [INSTALL.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/INSTALL.md). This repository keeps the forwarding installers.
 SHAFT-side pieces still in this repository:
 
 | Path | Role |
