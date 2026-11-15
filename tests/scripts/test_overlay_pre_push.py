@@ -317,12 +317,20 @@ class MovedChaosEngineGateTest(unittest.TestCase):
 
     def test_moved_checkout_without_overlay_fails_closed(self):
         from scripts.ci import overlay_pre_push as opp
+        from unittest import mock
 
         with tempfile.TemporaryDirectory() as temporary:
             root = self._moved_root(temporary)
             self.assertIn("client-name scrub unavailable", opp.client_name_scrub_failures(root, environ={})[0])
             self.assertIn("L77-no-token-in-remote unavailable", opp.remote_credential_failures(root)[0])
-            self.assertIn("operation boundary unavailable", opp._operation_disk_failures(root, [])[0])
+            # Ignore an overlay installed in this checkout (CI fetches one, e2c):
+            # the fixture must model a moved checkout with no overlay anywhere.
+            original = opp._ce_module_path
+            with mock.patch.object(
+                opp, "_ce_module_path",
+                side_effect=lambda base, rel: original(base, rel) if Path(base) == root else None,
+            ):
+                self.assertIn("operation boundary unavailable", opp._operation_disk_failures(root, [])[0])
 
     def test_installed_overlay_modules_are_used(self):
         from scripts.ci import overlay_pre_push as opp
@@ -448,3 +456,25 @@ class DotDirectoryPathTest(unittest.TestCase):
         self.assertTrue(any(pred(".github/workflows/new.yml") for pred in predicates))
         source = (Path(__file__).resolve().parents[2] / "scripts/ci/overlay_pre_push.py").read_text(encoding="utf-8")
         self.assertNotIn('.lstrip("./")', source)
+
+
+class OverlayScrubLoadDoesNotShadowTestsTest(unittest.TestCase):
+    """#8057 e2c: loading the scrub from .chaos-engine/ must not put the
+    harness's own ``tests`` package ahead of SHAFT's on sys.path."""
+
+    def test_scrub_from_installed_overlay_leaves_sys_path_alone(self) -> None:
+        from scripts.ci import overlay_pre_push as pre_push
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            overlay = root / ".chaos-engine"
+            (overlay / "tests").mkdir(parents=True)
+            (overlay / "tests" / "__init__.py").write_text("", encoding="utf-8")
+            (overlay / "client_name_scrub.py").write_text(
+                "def client_name_scrub_failures(root, environ=None):\n    return ['stub-ran']\n",
+                encoding="utf-8",
+            )
+            before = list(_sys.path)
+            self.assertEqual(pre_push.client_name_scrub_failures(root, environ={}), ["stub-ran"])
+            self.assertEqual(_sys.path, before)
+            self.assertNotIn(str(overlay), _sys.path)

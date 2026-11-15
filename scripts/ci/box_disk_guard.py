@@ -23,19 +23,19 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-_DELETE_GUARD_DIR = ROOT / "chaos-engine"
-if _DELETE_GUARD_DIR.is_dir() and str(_DELETE_GUARD_DIR) not in sys.path:
-    sys.path.insert(0, str(_DELETE_GUARD_DIR))
-_DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
-try:
-    from delete_guard import never_touch as _imported_delete_guard_never_touch  # noqa: E402
+# Delete-guard comes from the harness (in-tree chaos-engine/ or the installed
+# .chaos-engine/ overlay). worktree_hygiene loads it by path and verifies it
+# refuses a canary; anything missing or broken fails closed (#8072 follow-up).
+from scripts.ci.worktree_hygiene import load_never_touch  # noqa: E402
 
-    _delete_guard_never_touch = _imported_delete_guard_never_touch
-    _DELETE_GUARD_NEVER_TOUCH_AVAILABLE = True
-except ImportError:
+_loaded_never_touch = load_never_touch(ROOT)
+_DELETE_GUARD_NEVER_TOUCH_AVAILABLE = _loaded_never_touch is not None
+if _loaded_never_touch is not None:
+    _delete_guard_never_touch = _loaded_never_touch
+else:
 
     def _delete_guard_never_touch(path: Path) -> str:
-        """Fail closed when delete-guard cannot be imported."""
+        """Fail closed when delete-guard is unavailable."""
         return "never-touch-check-unavailable"
 
 
