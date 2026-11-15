@@ -310,9 +310,11 @@ class MovedChaosEngineGateTest(unittest.TestCase):
     """#8057: after the move the safety gates resolve the installed overlay or fail closed."""
 
     def _moved_root(self, temporary: str) -> Path:
+        """Shim only. ``_ce_moved`` is chaos-engine/install.sh without install.py."""
         root = Path(temporary)
-        (root / ".chaos-engine").mkdir()
-        (root / ".chaos-engine" / "install.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+        shim = root / "chaos-engine"
+        shim.mkdir()
+        (shim / "install.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
         return root
 
     def test_moved_checkout_without_overlay_fails_closed(self):
