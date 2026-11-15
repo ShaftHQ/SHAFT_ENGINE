@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Read and validate the broadcastable ChaosEngine VERSION.
+"""Parse, order and validate ChaosEngine version strings.
 
-The releasing lead broadcasts ``CE upgrade <version>`` using the exact
-string in ``chaos-engine/VERSION``. Stdlib only.
+ChaosEngine and its VERSION file moved to ShaftHQ/chaosengine-harness
+(#8057). SHAFT keeps these stdlib helpers because its tests compare
+version strings; pass an explicit path to read a VERSION file.
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION_PATH = ROOT / "chaos-engine" / "VERSION"
+VERSION_PATH: Path | None = None  # moved to ShaftHQ/chaosengine-harness (#8057)
 # #7702: current scheme 0.<quarter>.<YYYYMMDD>.<n> (n = merges that Cairo day); legacy YYYY.MM.DD[.N] still parses.
 NEW_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<quarter>[1-4])\.(?P<date>\d{8})\.(?P<n>[1-9]\d*)$")
 LEGACY_VERSION_RE = re.compile(r"^(?P<y>\d{4})\.(?P<m>\d{2})\.(?P<d>\d{2})(?:\.(?P<ln>\d+))?$")
@@ -88,6 +89,10 @@ def future_version_error(value: str, today: dt.date | None = None) -> str | None
 def read_version(path: Path | None = None) -> str:
     """Return the stripped VERSION string; raise ValueError if missing/invalid."""
     target = VERSION_PATH if path is None else Path(path)
+    if target is None:
+        raise ValueError(
+            "no VERSION path: ChaosEngine VERSION lives in ShaftHQ/chaosengine-harness"
+        )
     if not target.is_file():
         raise ValueError(f"missing VERSION file: {target}")
     value = target.read_text(encoding="utf-8").strip().splitlines()[0].strip()
@@ -107,17 +112,19 @@ def upgrade_broadcast(version: str | None = None) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("read", help="print chaos-engine/VERSION")
-    sub.add_parser("broadcast", help="print CE upgrade <version>")
+    read = sub.add_parser("read", help="print a VERSION file")
+    read.add_argument("--path", type=Path, default=None)
+    broadcast = sub.add_parser("broadcast", help="print CE upgrade <version>")
+    broadcast.add_argument("--path", type=Path, default=None)
     check = sub.add_parser("check", help="validate VERSION file; exit 1 on failure")
     check.add_argument("--path", type=Path, default=None)
     args = parser.parse_args(argv)
     try:
         if args.command == "read":
-            print(read_version())
+            print(read_version(args.path))
             return 0
         if args.command == "broadcast":
-            print(upgrade_broadcast())
+            print(upgrade_broadcast(read_version(args.path)))
             return 0
         if args.command == "check":
             value = read_version(args.path)

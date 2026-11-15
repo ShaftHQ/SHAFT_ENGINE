@@ -53,7 +53,7 @@ def _park_leaked_pdca(root: Path):
 
 
 def _stage_version(root: Path) -> None:
-    """Satisfy ce_version_bump when tests stage chaos-engine/ paths for other contracts."""
+    """Write a stub chaos-engine/VERSION for fixtures that stage chaos-engine/ paths."""
     version = root / "chaos-engine" / "VERSION"
     version.parent.mkdir(parents=True, exist_ok=True)
     if not version.is_file():
@@ -398,6 +398,42 @@ class PrBodyPreflightTest(unittest.TestCase):
             self.assertEqual([], gate.cursor_branch_failures(Path(".")))
         with patch.object(gate, "head_branch_name", return_value="ChaosEngine/night-cluster-20261106"):
             self.assertEqual([], gate.cursor_branch_failures(Path(".")))
+
+
+class GhOpenPrForHeadTest(unittest.TestCase):
+    """`gh pr view` takes the branch positionally; it has no --head flag."""
+
+    def _run(self, payload: str):
+        from unittest import mock
+
+        import scripts.ci.overlay_pre_push as opp
+
+        calls = []
+
+        def fake_run(argv, **_kwargs):
+            calls.append(argv)
+            out = "feature-x\n" if "rev-parse" in argv else payload
+            return subprocess.CompletedProcess(argv, 0, stdout=out, stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            opp.shutil, "which", side_effect=lambda name: f"/usr/bin/{name}"
+        ), mock.patch.object(opp.subprocess, "run", side_effect=fake_run):
+            opp._GH_PR_CACHE.clear()
+            try:
+                return opp._gh_open_pr_for_head(Path(tmp)), calls
+            finally:
+                opp._GH_PR_CACHE.clear()
+
+    def test_branch_is_positional_and_open_pr_is_returned(self):
+        pr, calls = self._run('{"number": 7, "state": "OPEN", "body": "b"}')
+        self.assertEqual(7, pr["number"])
+        gh_argv = calls[-1]
+        self.assertNotIn("--head", gh_argv)
+        self.assertEqual(["pr", "view", "feature-x"], gh_argv[1:4])
+
+    def test_merged_pr_for_a_reused_branch_is_ignored(self):
+        pr, _calls = self._run('{"number": 7, "state": "MERGED", "body": "b"}')
+        self.assertIsNone(pr)
 
 
 if __name__ == "__main__":

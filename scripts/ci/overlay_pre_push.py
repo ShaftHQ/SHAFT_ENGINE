@@ -209,10 +209,9 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
                 gh,
                 "pr",
                 "view",
-                "--json",
-                "number,labels,author,isDraft,body,title",
-                "--head",
                 name,
+                "--json",
+                "number,labels,author,isDraft,body,title,state",
             ],
             cwd=root,
             capture_output=True,
@@ -234,6 +233,9 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
         _GH_PR_CACHE[key] = None
         return None
     result = payload if isinstance(payload, dict) else None
+    # `gh pr view <branch>` can return a merged/closed PR for a reused branch name.
+    if result is not None and str(result.get("state") or "OPEN").upper() != "OPEN":
+        result = None
     _GH_PR_CACHE[key] = result
     return result
 
@@ -832,8 +834,6 @@ def client_name_scrub_failures(
 
 
 
-NO_VERSION_BUMP_MARKER = "<!-- chaos-engine:no-version-bump -->"
-VERSION_FILE = "chaos-engine/VERSION"
 
 
 def pr_scope_failures(root: Path, paths: list[str], *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
@@ -870,39 +870,6 @@ def pr_scope_failures(root: Path, paths: list[str], *, pr_fetcher=_gh_open_pr_fo
         f"pr-scope (H-PR-SCOPE): PR #{number} {error}; "
         "declare ## Scope / <!-- chaos-engine:scope ... --> matching git diff paths"
     ] + [f"pr-scope: {h}" for h in hits]
-
-
-def ce_version_bump_failures(root: Path, paths: list[str]) -> list[str]:
-    """
-    Require VERSION bump when consumer-facing chaos-engine/ paths change.
-
-    Waive with PR body marker ``<!-- chaos-engine:no-version-bump -->`` or label
-    ``ce-no-version-bump`` (checked when an open PR exists for HEAD).
-    """
-    normalized = [p.replace("\\", "/").removeprefix("./") for p in paths]
-    ce_hits = [p for p in normalized if p.startswith("chaos-engine/")]
-    if not ce_hits:
-        return []
-    if VERSION_FILE in ce_hits or any(p == VERSION_FILE for p in normalized):
-        return []
-    # Allow waive via marker file staged beside VERSION for local pre-push tests
-    waive = root / ".chaos-engine-state" / "no-version-bump"
-    if waive.is_file():
-        return []
-    pr = _gh_open_pr_for_head(root)
-    if isinstance(pr, dict):
-        body = str(pr.get("body") or "")
-        labels = {
-            str(item.get("name") or "").lower()
-            for item in (pr.get("labels") or [])
-            if isinstance(item, dict)
-        }
-        if NO_VERSION_BUMP_MARKER in body or "ce-no-version-bump" in labels:
-            return []
-    return [
-        "ce-version-bump: chaos-engine/ changed without chaos-engine/VERSION; "
-        "bump VERSION or add <!-- chaos-engine:no-version-bump --> / label ce-no-version-bump"
-    ]
 
 
 def remote_credential_failures(root: Path) -> list[str]:
@@ -1009,7 +976,6 @@ def overlay_pre_push_failures(
     collectors: list[tuple[str, callable]] = [
         ("tip_preflight", lambda: tip_preflight_failures(root, changed)),
         ("skillspector", lambda: skillspector_gate_failures(root, changed)),
-        ("ce_version_bump", lambda: ce_version_bump_failures(root, changed)),
         ("remote_credential", lambda: remote_credential_failures(root)),
         ("cursor_branch", lambda: cursor_branch_failures(root)),
     ]

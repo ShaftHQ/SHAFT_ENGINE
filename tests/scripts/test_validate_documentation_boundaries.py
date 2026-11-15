@@ -129,31 +129,17 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
-    def test_allows_portable_chaos_engine_guidance_and_profile_catalog(self):
-        self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
-        self.write("chaos-engine/profiles/README.md", "# Project profiles\n")
-        self.write("chaos-engine/RESEARCH.md", "# Adoption matrix\n")
-        self.write(
-            "chaos-engine/decision-quality-baseline.md",
-            "# Decision-quality baseline\n",
-        )
-        self.write(
-            "chaos-engine/decision-quality-rubric.md",
-            "# Decision-quality rubric\n",
-        )
-        self.write(
-            "chaos-engine/decision-quality-calibration.md",
-            "# Decision-quality calibration\n",
-        )
-        self.write(
-            "chaos-engine/decision-quality-report.md",
-            "# Decision-quality report\n",
-        )
-        self.write("chaos-engine/STANDALONE.md", "# Spec\n")
+    def test_rejects_markdown_from_the_moved_chaos_engine_tree(self):
+        # #8057: ChaosEngine lives in ShaftHQ/chaosengine-harness; SHAFT keeps
+        # only the forwarding README beside the old installer shims.
         self.write("chaos-engine/INSTALL.md", "# Install\n")
-        self.write("chaos-engine/THIRD_PARTY_NOTICES.md", "# Notices\n")
+        self.write("chaos-engine/skills/chaos-engine/SKILL.md", "# ChaosEngine\n")
 
-        self.assertEqual(validate_repository(self.root), [])
+        findings = validate_repository(self.root)
+        self.assertTrue(any("chaos-engine/INSTALL.md" in f for f in findings), findings)
+        self.assertTrue(
+            any("chaos-engine/skills/chaos-engine/SKILL.md" in f for f in findings), findings
+        )
 
     def test_allows_portable_chaos_engine_readme(self):
         self.write("chaos-engine/README.md", "# ChaosEngine\n")

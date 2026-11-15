@@ -44,33 +44,6 @@ def _ce_key(value: str):
     spec.loader.exec_module(mod)
     return mod.version_key(value)
 
-class VersionBumpGateTest(unittest.TestCase):
-    def test_requires_version_when_ce_changes(self) -> None:
-        sys.path.insert(0, str(ROOT))
-        from scripts.ci.overlay_pre_push import ce_version_bump_failures
-
-        hits = ce_version_bump_failures(
-            ROOT, ["chaos-engine/references/bot-entry.md"],
-        )
-        # VERSION is bumped in this PR tree, but the helper looks at *changed*
-        # paths only — without VERSION in the list it must fail.
-        self.assertTrue(hits)
-        self.assertIn("ce-version-bump", hits[0])
-
-    def test_pass_when_version_in_paths(self) -> None:
-        sys.path.insert(0, str(ROOT))
-        from scripts.ci.overlay_pre_push import ce_version_bump_failures
-
-        hits = ce_version_bump_failures(
-            ROOT,
-            [
-                "chaos-engine/references/bot-entry.md",
-                "chaos-engine/VERSION",
-            ],
-        )
-        self.assertEqual([], hits)
-
-
 class RadioSilenceTest(unittest.TestCase):
     def test_env_blocks(self) -> None:
         sys.path.insert(0, str(ROOT / "chaos-engine"))

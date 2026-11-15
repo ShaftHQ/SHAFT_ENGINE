@@ -101,15 +101,5 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
         self.assertNotIn("gh pr merge", text)
 
 
-class ChaosEngineVersionFloorTest(unittest.TestCase):
-    def test_version_at_least_2026_10_31_12(self) -> None:
-        version = (ROOT / "chaos-engine" / "VERSION").read_text(encoding="utf-8").strip()
-        import importlib.util as u
-        spec = u.spec_from_file_location("ce_version", ROOT / "scripts/ci/ce_version.py")
-        mod = u.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        self.assertGreaterEqual(mod.version_key(version), mod.version_key("2026.10.31.12"))
-
-
 if __name__ == "__main__":
     unittest.main()
