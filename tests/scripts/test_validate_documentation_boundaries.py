@@ -75,6 +75,11 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_pytest_cache_markdown_is_not_a_repository_document(self):
+        self.write(".pytest_cache/README.md", "# cache\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_root_contributor_credits(self):
         self.write("CONTRIBUTORS.md", "# Contributors\n")
 

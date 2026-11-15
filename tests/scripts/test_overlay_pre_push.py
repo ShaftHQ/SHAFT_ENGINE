@@ -10,14 +10,14 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
-from scripts.ci.overlay_pre_push import (
-    coverage_ratchet_failures,
-    PLAYBOOK,
-    overlay_pre_push_failures,
-    playbook_contract_failures,
-    release_note_label_failures,
-    touches_overlay_contract,
-)
+from scripts.ci import overlay_pre_push as opp
+
+coverage_ratchet_failures = opp.coverage_ratchet_failures
+PLAYBOOK = opp.PLAYBOOK
+overlay_pre_push_failures = opp.overlay_pre_push_failures
+playbook_contract_failures = opp.playbook_contract_failures
+release_note_label_failures = opp.release_note_label_failures
+touches_overlay_contract = opp.touches_overlay_contract
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -286,7 +286,6 @@ class OverlayPrePushTest(unittest.TestCase):
     def test_overlay_pre_push_includes_release_note_when_live(self):
         """Live mode (paths=None) consults the open-PR fetcher; fixture mode does not."""
         from unittest import mock
-        from scripts.ci import overlay_pre_push as opp
 
         # #8057: CI has no installed .chaos-engine/ overlay; the moved-gate
         # fail-closed path is covered by MovedChaosEngineGateTest.
@@ -318,7 +317,6 @@ class MovedChaosEngineGateTest(unittest.TestCase):
         return root
 
     def test_moved_checkout_without_overlay_fails_closed(self):
-        from scripts.ci import overlay_pre_push as opp
         from unittest import mock
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -330,13 +328,11 @@ class MovedChaosEngineGateTest(unittest.TestCase):
             original = opp._ce_module_path
             with mock.patch.object(
                 opp, "_ce_module_path",
-                side_effect=lambda base, rel: original(base, rel) if Path(base) == root else None,
+                side_effect=lambda base, rel: original(base, rel) if Path(base).resolve() == root.resolve() else None,
             ):
                 self.assertIn("operation boundary unavailable", opp._operation_disk_failures(root, [])[0])
 
     def test_installed_overlay_modules_are_used(self):
-        from scripts.ci import overlay_pre_push as opp
-
         with tempfile.TemporaryDirectory() as temporary:
             root = self._moved_root(temporary)
             rules = root / ".chaos-engine" / "rules"
@@ -376,30 +372,24 @@ class CoverageRatchetPrePushTest(unittest.TestCase):
 
 class WorkflowReadmeContractTest(unittest.TestCase):
     def test_workflow_inventory_runs_before_push_6990(self) -> None:
-        from scripts.ci import overlay_pre_push as gate
-
-        ids = {test_id for _predicate, _module, test_id in gate.CHEAP_CI_CONTRACTS}
+        ids = {test_id for _predicate, _module, test_id in opp.CHEAP_CI_CONTRACTS}
         self.assertIn("ValidateQualityConfigurationTest.test_repository_configuration_is_valid", ids)
 
 class PrBodyPreflightTest(unittest.TestCase):
     def test_open_pr_body_without_assumption_link_blocks_push(self) -> None:
-        from scripts.ci import overlay_pre_push as gate
-
         bad = {"number": 7, "title": "x", "body": "## What\nstuff"}
-        self.assertTrue(gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: bad))
-        self.assertEqual([], gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: None))
+        self.assertTrue(opp.pr_body_failures(Path("."), pr_fetcher=lambda _root: bad))
+        self.assertEqual([], opp.pr_body_failures(Path("."), pr_fetcher=lambda _root: None))
 
     def test_cursor_branch_blocks_without_an_open_pr(self) -> None:
         from unittest.mock import patch
 
-        from scripts.ci import overlay_pre_push as gate
-
-        with patch.object(gate, "head_branch_name", return_value="cursor/night"):
-            self.assertTrue(gate.cursor_branch_failures(Path(".")))
-        with patch.object(gate, "head_branch_name", return_value="fix/human"):
-            self.assertEqual([], gate.cursor_branch_failures(Path(".")))
-        with patch.object(gate, "head_branch_name", return_value="ChaosEngine/night-cluster-20261106"):
-            self.assertEqual([], gate.cursor_branch_failures(Path(".")))
+        with patch.object(opp, "head_branch_name", return_value="cursor/night"):
+            self.assertTrue(opp.cursor_branch_failures(Path(".")))
+        with patch.object(opp, "head_branch_name", return_value="fix/human"):
+            self.assertEqual([], opp.cursor_branch_failures(Path(".")))
+        with patch.object(opp, "head_branch_name", return_value="ChaosEngine/night-cluster-20261106"):
+            self.assertEqual([], opp.cursor_branch_failures(Path(".")))
 
 
 class GhOpenPrForHeadTest(unittest.TestCase):
@@ -407,8 +397,6 @@ class GhOpenPrForHeadTest(unittest.TestCase):
 
     def _run(self, payload: str):
         from unittest import mock
-
-        import scripts.ci.overlay_pre_push as opp
 
         calls = []
 
@@ -437,6 +425,10 @@ class GhOpenPrForHeadTest(unittest.TestCase):
         pr, _calls = self._run('{"number": 7, "state": "MERGED", "body": "b"}')
         self.assertIsNone(pr)
 
+    def test_missing_state_is_not_treated_as_open(self):
+        pr, _calls = self._run('{"number": 7, "body": "b"}')
+        self.assertIsNone(pr)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -458,35 +450,29 @@ class CheapCiContractTest(unittest.TestCase):
     def test_runs_only_for_matching_paths_and_reports_failure(self) -> None:
         from unittest.mock import patch
 
-        from scripts.ci import overlay_pre_push as gate
-
         root = Path(__file__).resolve().parents[2]
         probe = ((lambda p: p.endswith(".md"), "tests.scripts.test_overlay_pre_push", "_ProbeContract.test_probe"),)
-        with patch.object(gate, "CHEAP_CI_CONTRACTS", probe):
+        with patch.object(opp, "CHEAP_CI_CONTRACTS", probe):
             _ProbeContract.armed = True
             try:
-                self.assertEqual([], gate.cheap_ci_contract_failures(root, ["a.py"]))
-                failures = gate.cheap_ci_contract_failures(root, ["chaos-engine/x.md"])
+                self.assertEqual([], opp.cheap_ci_contract_failures(root, ["a.py"]))
+                failures = opp.cheap_ci_contract_failures(root, ["chaos-engine/x.md"])
             finally:
                 _ProbeContract.armed = False
         self.assertEqual(1, len(failures))
         self.assertIn("budget exceeded probe", failures[0])
 
     def test_real_contracts_pass_on_this_tree(self) -> None:
-        from scripts.ci import overlay_pre_push as gate
-
         root = Path(__file__).resolve().parents[2]
         changed = ["chaos-engine/references/bot-entry.md", "chaos-engine/VERSION", "scripts/ci/harness_pr_gate.py"]
-        self.assertEqual([], gate.cheap_ci_contract_failures(root, changed))
+        self.assertEqual([], opp.cheap_ci_contract_failures(root, changed))
 
 
 class DotDirectoryPathTest(unittest.TestCase):
     """A dot-directory path keeps its leading dot, so the workflows-README row check runs (slipped twice)."""
 
     def test_workflow_change_runs_the_workflows_readme_contract(self):
-        from scripts.ci import overlay_pre_push as gate
-
-        predicates = [pred for pred, mod, _ in gate.CHEAP_CI_CONTRACTS
+        predicates = [pred for pred, mod, _ in opp.CHEAP_CI_CONTRACTS
                       if mod == "tests.scripts.test_validate_quality_configuration"]
         self.assertTrue(any(pred(".github/workflows/new.yml") for pred in predicates))
         source = (Path(__file__).resolve().parents[2] / "scripts/ci/overlay_pre_push.py").read_text(encoding="utf-8")
@@ -498,8 +484,6 @@ class OverlayScrubLoadDoesNotShadowTestsTest(unittest.TestCase):
     harness's own ``tests`` package ahead of SHAFT's on sys.path."""
 
     def test_scrub_from_installed_overlay_leaves_sys_path_alone(self) -> None:
-        from scripts.ci import overlay_pre_push as pre_push
-
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             overlay = root / ".chaos-engine"
@@ -510,6 +494,6 @@ class OverlayScrubLoadDoesNotShadowTestsTest(unittest.TestCase):
                 encoding="utf-8",
             )
             before = list(_sys.path)
-            self.assertEqual(pre_push.client_name_scrub_failures(root, environ={}), ["stub-ran"])
+            self.assertEqual(opp.client_name_scrub_failures(root, environ={}), ["stub-ran"])
             self.assertEqual(_sys.path, before)
             self.assertNotIn(str(overlay), _sys.path)

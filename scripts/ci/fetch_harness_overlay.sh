@@ -12,16 +12,22 @@ if [[ ! "$pin" =~ ^[0-9a-f]{40}$ ]]; then
   exit 1
 fi
 dest="$root/.chaos-engine"
-if [[ -e "$dest" ]]; then
+# -e misses a dangling symlink, which would still make git init write through it.
+if [[ -e "$dest" || -L "$dest" ]]; then
   echo "::error::$dest already exists; refusing to overwrite an installed overlay" >&2
   exit 1
 fi
 git init -q "$dest"
-git -C "$dest" fetch -q --depth 1 https://github.com/ShaftHQ/chaosengine-harness.git "$pin"
-git -C "$dest" -c advice.detachedHead=false checkout -q FETCH_HEAD
+# Reject a corrupt fetch, ignore the fetched repo's hooks, and never prompt.
+GIT_TERMINAL_PROMPT=0 git -C "$dest" \
+  -c fetch.fsckObjects=true \
+  -c core.hooksPath=/dev/null \
+  fetch -q --depth 1 https://github.com/ShaftHQ/chaosengine-harness.git "$pin"
+git -C "$dest" -c advice.detachedHead=false -c core.hooksPath=/dev/null checkout -q FETCH_HEAD
 actual="$(git -C "$dest" rev-parse HEAD)"
 if [[ "$actual" != "$pin" ]]; then
   echo "::error::fetched $actual, expected pinned $pin" >&2
+  rm -rf "$dest"
   exit 1
 fi
 echo "ChaosEngine harness overlay at $pin -> .chaos-engine/"

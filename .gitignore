@@ -381,8 +381,5 @@ plugins/chaos-engine/
 plugins/caveman/
 plugins/ponytail/
 plugins/icm-architect/
-agent-plugins/chaos-engine/**
-!agent-plugins/chaos-engine/CHANGELOG.md
-!agent-plugins/chaos-engine/COMPATIBILITY.md
 # CHAOSENGINE-ORIGIN-OVERLAY:END
 

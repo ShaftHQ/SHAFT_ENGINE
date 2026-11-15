@@ -234,7 +234,8 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
         return None
     result = payload if isinstance(payload, dict) else None
     # `gh pr view <branch>` can return a merged/closed PR for a reused branch name.
-    if result is not None and str(result.get("state") or "OPEN").upper() != "OPEN":
+    # A missing state is not an open pull request.
+    if result is not None and str(result.get("state") or "").upper() != "OPEN":
         result = None
     _GH_PR_CACHE[key] = result
     return result
