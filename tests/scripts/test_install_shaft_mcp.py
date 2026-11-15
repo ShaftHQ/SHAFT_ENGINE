@@ -24,9 +24,13 @@ REPO_ROOT = MODULE_PATH.parents[2]
 
 
 def _overlay_or_repo(relative) -> Path:
-    """Read a manifest path from the repo, or the harness overlay after #8057."""
+    """Read a manifest path from the repo, or the harness overlay after #8057.
+
+    ``Path.relative_to`` stringifies with backslashes on Windows. The manifest
+    keys use forward slashes, so normalize before the ``chaos-engine/`` remap.
+    """
     path = REPO_ROOT / relative
-    text = str(relative)
+    text = str(relative).replace("\\", "/")
     if path.is_file() or not text.startswith("chaos-engine/"):
         return path
     return REPO_ROOT / ".chaos-engine" / text[len("chaos-engine/") :]
@@ -538,6 +542,14 @@ class InstallShaftMcpTest(unittest.TestCase):
             "scripts/ci/validate_agent_setup.py imports scripts.ci.worktree_hygiene",
             self.agent_validation_manifest_missing_imports(shipped),
         )
+
+    def test_overlay_or_repo_maps_windows_chaos_engine_separators(self):
+        found = _overlay_or_repo("chaos-engine\\dependencies.json")
+        self.assertEqual(found, REPO_ROOT / ".chaos-engine" / "dependencies.json")
+        self.assertTrue(found.is_file(), found)
+        owned = _overlay_or_repo(Path("scripts") / "ci" / "agent_ownership.json")
+        self.assertEqual(owned, REPO_ROOT / "scripts" / "ci" / "agent_ownership.json")
+        self.assertTrue(owned.is_file(), owned)
 
     def test_downloaded_agent_validation_bundle_validates_from_isolated_project(self):
         with tempfile.TemporaryDirectory() as temp_dir:
