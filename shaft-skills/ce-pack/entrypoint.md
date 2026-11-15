@@ -28,7 +28,7 @@ Reflection (`.chaos-engine/references/reflection-checkpoints.md`) applies unchan
   screenshots where a human sees UI, human-facing instructions, and
   AI-supported details (locator policy, replay-proven snippets, properties,
   exact commands).
-- Install or upgrade (`chaos-engine/INSTALL.md`): `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`.
+- Install or upgrade ([INSTALL.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/INSTALL.md)): `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`.
 - Maven modules and SHAFT product behavior route through the playbooks and
   mastery chapters under [references](references/routing.md).
 - Cheap, bounded, already-specified local coding work uses the

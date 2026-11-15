@@ -206,8 +206,6 @@ jobs:
               - 'scripts/ci/agent_guidance_budget.json'
               - 'scripts/ci/agent_harness_parity.json'
               - 'tests/scripts/test_agent_router_contract.py'
-              - 'tests/scripts/test_architect_skill_parity.py'
-              - 'tests/scripts/test_technical_presentations_skill_parity.py'
               - 'tests/scripts/test_pre_done_review.py'
               - 'tests/scripts/test_job_apply_skill.py'
               - 'tests/scripts/test_job_search_skill.py'

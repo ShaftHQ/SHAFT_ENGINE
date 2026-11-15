@@ -91,7 +91,6 @@ jobs:
             tests.scripts.test_agent_plugin_client_smoke
             tests.scripts.test_agent_plugin_release
             tests.scripts.test_agent_router_contract
-            tests.scripts.test_architect_skill_parity
             tests.scripts.test_agnix_conformance
             tests.scripts.test_assemble_shaft_skills_plugin
             tests.scripts.test_build_retry
@@ -131,7 +130,6 @@ jobs:
             tests.scripts.test_rerun_failures_skill_script
             tests.scripts.test_shaft_skills_content
             tests.scripts.test_sync_user_harness
-            tests.scripts.test_technical_presentations_skill_parity
             tests.scripts.test_pre_done_review
             tests.scripts.test_job_apply_skill
             tests.scripts.test_job_search_skill

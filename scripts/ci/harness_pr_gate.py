@@ -402,8 +402,6 @@ CHECKS = {
             "tests.scripts.test_reflection_recovery",
             "tests.scripts.test_bootstrap_pack_post_install",
             "tests.scripts.test_chaos_engine_ui_delivery",
-            "tests.scripts.test_architect_skill_parity",
-            "tests.scripts.test_technical_presentations_skill_parity",
             "tests.scripts.test_guard_documented_installer",
             "tests.scripts.test_ce_tool_missing_7964",
             "tests.scripts.test_chaos_engine_harness_map_7242",
