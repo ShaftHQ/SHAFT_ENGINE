@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "chaos-engine"))
+sys.path.insert(0, str(ROOT / ".chaos-engine" if (ROOT / ".chaos-engine" / "mobile_retro.py").is_file() else ROOT / ".chaos-engine"))
 sys.path.insert(0, str(ROOT))
 
 import mobile_retro  # noqa: E402
@@ -120,14 +120,14 @@ class NamedBlockByGapIdTest(unittest.TestCase):
 
 class LessonCardTest(unittest.TestCase):
     def test_lesson_and_map_exist(self) -> None:
-        lesson = (ROOT / "chaos-engine/references/mobile-retro-harness.md").read_text(encoding="utf-8")
+        lesson = (ROOT / ".chaos-engine/references/mobile-retro-harness.md").read_text(encoding="utf-8")
         self.assertIn("Freeze green results", lesson)
         self.assertIn("NO_PUSH", lesson)
-        harness_map = (ROOT / "chaos-engine/references/harness-map.md").read_text(encoding="utf-8")
+        harness_map = (ROOT / ".chaos-engine/references/harness-map.md").read_text(encoding="utf-8")
         self.assertIn("mobile-retro-harness.md", harness_map)
         agents = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")
         self.assertIn("mobile-retro-harness.md", agents)
-        bot_entry = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
+        bot_entry = (ROOT / ".chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
         # On-demand only: always-loaded bot-entry must not pull the lesson.
         self.assertNotIn("mobile-retro", bot_entry)
 
@@ -211,9 +211,9 @@ class EvidencePinFailClosedLiveTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             # Minimal checkout shape for feature_present + runtime
-            (root / "chaos-engine").mkdir()
-            (root / "chaos-engine" / "mobile_retro.py").write_text(
-                (ROOT / "chaos-engine" / "mobile_retro.py").read_text(encoding="utf-8"),
+            (root / ".chaos-engine").mkdir()
+            (root / ".chaos-engine" / "mobile_retro.py").write_text(
+                (ROOT / ".chaos-engine" / "mobile_retro.py").read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
             runtime_src = (ROOT / "scripts" / "ci" / "mobile_retro_runtime.py").read_text(encoding="utf-8")
@@ -309,7 +309,7 @@ class OverlayPinWiringTest(unittest.TestCase):
 
 class GuardPostRunLiveTest(unittest.TestCase):
     def test_guard_defines_and_calls_mobile_retro_post_run(self) -> None:
-        src = (ROOT / "chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
+        src = (ROOT / ".chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
         self.assertIn("def _mobile_retro_post_run", src)
         self.assertIn("_tool_result_failed", src)
         self.assertIn("current_build_and_branch", src)
@@ -405,9 +405,9 @@ class GuardPostRunLiveTest(unittest.TestCase):
             root = Path(tmp)
             self._git_root(root)
             # Ship helper so evidence_pin_failures does not no-op.
-            (root / "chaos-engine").mkdir()
-            (root / "chaos-engine" / "mobile_retro.py").write_text(
-                (ROOT / "chaos-engine/mobile_retro.py").read_text(encoding="utf-8"),
+            (root / ".chaos-engine").mkdir()
+            (root / ".chaos-engine" / "mobile_retro.py").write_text(
+                (ROOT / ".chaos-engine/mobile_retro.py").read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
             results = root / "allure-results"
@@ -472,9 +472,9 @@ class RuntimeCliFailClosedPinTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "chaos-engine").mkdir()
-            (root / "chaos-engine" / "mobile_retro.py").write_text(
-                (ROOT / "chaos-engine/mobile_retro.py").read_text(encoding="utf-8"),
+            (root / ".chaos-engine").mkdir()
+            (root / ".chaos-engine" / "mobile_retro.py").write_text(
+                (ROOT / ".chaos-engine/mobile_retro.py").read_text(encoding="utf-8"),
                 encoding="utf-8",
             )
             (root / "scripts" / "ci").mkdir(parents=True)
@@ -536,7 +536,7 @@ class ShellLivePathPresenceTest(unittest.TestCase):
 
 class LessonCardLiveWiringTest(unittest.TestCase):
     def test_lesson_names_runtime_call_sites(self) -> None:
-        lesson = (ROOT / "chaos-engine/references/mobile-retro-harness.md").read_text(encoding="utf-8")
+        lesson = (ROOT / ".chaos-engine/references/mobile-retro-harness.md").read_text(encoding="utf-8")
         self.assertIn("mobile_retro_runtime.py", lesson)
         self.assertIn("assemble_shard_blob", lesson)
         self.assertIn("overlay_pre_push", lesson)

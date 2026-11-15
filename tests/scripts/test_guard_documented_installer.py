@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-GUARD = ROOT / "chaos-engine" / "hooks" / "guard.py"
+GUARD = ROOT / ".chaos-engine" / "hooks" / "guard.py"
 PUBLISHED = (
     'curl -fsSL "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"'
     " | bash -s -- "

@@ -270,7 +270,11 @@ class SyncUserHarnessTest(unittest.TestCase):
     def test_current_repo_skill_bytes_are_not_dynamic_ownership_proof(self):
         target = self.agents_target / "skills/act-as-mohab/SKILL.md"
         target.parent.mkdir(parents=True)
-        current = (OVERLAY / ".agents/skills/chaos-engine/SKILL.md").read_bytes()
+        skill = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
+        if not skill.is_file():
+            # #8057: the canonical skill moved with the harness overlay.
+            skill = ROOT / ".chaos-engine/skills/chaos-engine/SKILL.md"
+        current = skill.read_bytes()
         target.write_bytes(current)
 
         completed = self.run_sync("--apply")

@@ -86,7 +86,7 @@ class AssertSurefireGreenTest(unittest.TestCase):
         script = (root / "scripts/ci/run_click_type_wave_f_proof.sh").read_text(encoding="utf-8")
         self.assertIn("scripts/ci/assert_surefire_green.py", script)
         self.assertIn("maven.test.failure.ignore=false", script)
-        playbook = (root / "chaos-engine/references/work-github-playbook.md").read_text(
+        playbook = (root / ".chaos-engine/references/work-github-playbook.md").read_text(
             encoding="utf-8",
         )
         # The wave checklist heading is now the human PR open checklist.

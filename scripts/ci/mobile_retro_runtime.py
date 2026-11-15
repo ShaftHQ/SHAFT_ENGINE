@@ -19,8 +19,12 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT / "chaos-engine") not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT / "chaos-engine"))
+# #8057: mobile_retro moved with the harness. The overlay is the surviving import.
+_OVERLAY = REPO_ROOT / ".chaos-engine"
+_LEGACY = REPO_ROOT / "chaos-engine"
+_MOBILE_RETRO_HOME = _OVERLAY if (_OVERLAY / "mobile_retro.py").is_file() else _LEGACY
+if str(_MOBILE_RETRO_HOME) not in sys.path:
+    sys.path.insert(0, str(_MOBILE_RETRO_HOME))
 
 import mobile_retro  # noqa: E402
 
@@ -94,14 +98,24 @@ def run_device_with_fallback(
     )
 
 
+def _retro_helper_present(root: Path) -> bool:
+    """True when the harness helper exists at the legacy path or the #8057 overlay."""
+    root = Path(root)
+    if (root / mobile_retro.HELPER_REL).is_file():
+        return True
+    relative = Path(mobile_retro.HELPER_REL)
+    if relative.parts[:1] == ("chaos-engine",):
+        return (root / ".chaos-engine" / Path(*relative.parts[1:])).is_file()
+    return False
+
+
 def evidence_pin_failures(root: Path, *, build_id: str | None = None, branch: str | None = None) -> list[str]:
     """
     Fail-closed pin enforce for overlay_pre_push (#7498).
 
-    No pin file → []; mismatch → non-empty failure list (callers treat as block).
+    No helper or no pin file → []; mismatch → non-empty failure list (callers treat as block).
     """
-    helper = Path(root) / mobile_retro.HELPER_REL
-    if not helper.is_file():
+    if not _retro_helper_present(root):
         return []
     path = pin_path(root)
     if not path.is_file():

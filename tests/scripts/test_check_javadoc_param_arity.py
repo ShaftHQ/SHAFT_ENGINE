@@ -15,7 +15,7 @@ FRAMEWORK_SOURCE = (
     ROOT
     / "shaft-skills/ce-pack/references/playbooks/framework-source.md"
 )
-ZERO_LLM = ROOT / "chaos-engine/references/zero-llm-catalog.md"
+ZERO_LLM = ROOT / ".chaos-engine/references/zero-llm-catalog.md"
 HARNESS_PR_GATE = ROOT / "scripts/ci/harness_pr_gate.py"
 
 BOGUS_THREE_ARG = '''

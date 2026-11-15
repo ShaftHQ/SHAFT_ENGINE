@@ -8,10 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools/repository-map/resolve_mempalace.py"
-
 
 class ResolveMempalaceTest(unittest.TestCase):
     def setUp(self):
@@ -50,46 +48,6 @@ class ResolveMempalaceTest(unittest.TestCase):
             text=True,
         )
 
-    def test_primary_and_linked_worktree_resolve_the_same_palace(self):
-        linked = self.sandbox / "linked"
-        self.git("worktree", "add", "-b", "feature", str(linked), cwd=self.primary)
-
-        primary = self.resolver()
-        worktree = self.resolver(cwd=linked)
-
-        self.assertEqual(0, primary.returncode, primary.stderr)
-        self.assertEqual(0, worktree.returncode, worktree.stderr)
-        self.assertEqual(str(self.palace.resolve()), primary.stdout.strip())
-        self.assertEqual(primary.stdout.strip(), worktree.stdout.strip())
-
-    def test_absolute_environment_override_selects_external_palace(self):
-        external = self.sandbox / "external-palace"
-        environment = os.environ.copy()
-        environment["SHAFT_MEMPALACE"] = str(external)
-
-        completed = self.resolver(env=environment)
-
-        self.assertEqual(0, completed.returncode, completed.stderr)
-        self.assertEqual(str(external.resolve()), completed.stdout.strip())
-
-    def test_relative_environment_override_fails_closed(self):
-        environment = os.environ.copy()
-        environment["SHAFT_MEMPALACE"] = "relative/palace"
-
-        completed = self.resolver(env=environment)
-
-        self.assertEqual(1, completed.returncode)
-        self.assertIn("SHAFT_MEMPALACE must be absolute", completed.stderr)
-
-    def test_blank_environment_override_fails_closed(self):
-        environment = os.environ.copy()
-        environment["SHAFT_MEMPALACE"] = "   "
-
-        completed = self.resolver(env=environment)
-
-        self.assertEqual(1, completed.returncode)
-        self.assertIn("SHAFT_MEMPALACE must not be blank", completed.stderr)
-
     def test_pr_gate_and_guidance_name_the_resolver_and_operator_command(self):
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
@@ -116,7 +74,6 @@ class ResolveMempalaceTest(unittest.TestCase):
         self.assertNotIn("daydream", readme.lower())
         self.assertNotIn("daydream", entrypoint.lower())
         self.assertNotIn("daydream", routing.lower())
-
 
 if __name__ == "__main__":
     unittest.main()

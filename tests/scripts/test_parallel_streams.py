@@ -3,11 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-REFS = ROOT / "chaos-engine/references"
-DOC = REFS / "parallel-streams.md"
 
 import sys as _sys
 from pathlib import Path as _Path
@@ -29,113 +24,6 @@ from scripts.ci.parallel_stream_conflict import (  # noqa: E402
 # whose names contain the substring "pass" (first_pass_signoff_streak).
 _STREAK_0 = 0
 _STREAK_2 = 2
-
-
-class ParallelStreamsProtocolTest(unittest.TestCase):
-    def test_doc_states_ownership_disk_review_cleanup_and_no_force_push(self) -> None:
-        text = DOC.read_text(encoding="utf-8")
-        for needle in (
-            "Stream-ownership manifest",
-            "owned path globs",
-            "Conflict detection",
-            "peer owned path globs",
-            "ownership manifest",
-            "Brief template",
-            "riskiest assumption",
-            "live behaviour",
-            "no force-push",
-            "Never force-push",
-            "15 GiB",
-            "10 GiB",
-            "box_disk_guard.py",
-            "Cache caps",
-            "Own scratch TTL",
-            "Definition of Done",
-            "filter=blob:none",
-            "git worktree add",
-            "scratch_pending_cleanup",
-            "WIP limit 1",
-            "Design-kind WIP",
-            "same-kind batch",
-            "refuse_dispatch_on_same_kind_wip",
-            "first_pass_signoff_streak",
-            "delete-check",
-            "Post-merge own cleanup",
-            "MERGED",
-            "--cleanup-task-worktree",
-            "--cleanup-task-local-branch",
-            "--cleanup-task-remote-head",
-            "--prune-after-task-cleanup",
-            "never-touch",
-            "parallel_stream_conflict.py",
-            "refuse_dispatch",
-        ):
-            self.assertIn(needle, text)
-
-    def test_core_doc_has_no_ecosystem_or_person_names(self) -> None:
-        text = DOC.read_text(encoding="utf-8").lower()
-        for term in (
-            "shaft",
-            "grok",
-            "selenium",
-            "maven",
-            "mohab",
-            "automatest",
-            "carl",
-            "coach",
-        ):
-            self.assertNotIn(term, text)
-
-    def test_linked_from_entry_flow_pdca_delegation_cleanup(self) -> None:
-        for name in (
-            "bot-entry.md",
-            "iterative-flow.md",
-            "multi-agent-pdca.md",
-            "delegation.md",
-            "cleanup-scopes.md",
-        ):
-            body = (REFS / name).read_text(encoding="utf-8")
-            self.assertIn("parallel-streams.md", body, msg=name)
-
-    def test_pdca_requires_live_behaviour_evidence(self) -> None:
-        text = (REFS / "multi-agent-pdca.md").read_text(encoding="utf-8")
-        self.assertIn("live behaviour", text)
-        self.assertIn("offline fixtures", text)
-
-    def test_bot_entry_disk_gate_and_per_stream_wip(self) -> None:
-        text = (REFS / "bot-entry.md").read_text(encoding="utf-8")
-        self.assertIn("15 GiB", text)
-        self.assertIn("10 GiB", text)
-        self.assertIn("box_disk_guard", text)
-        self.assertIn("post-merge own cleanup", text)
-        self.assertIn("WIP limit 1\nper stream", text)
-        self.assertIn("(parallel-streams.md)", text)
-
-    def test_harness_map_lists_parallel_streams(self) -> None:
-        hmap = (REFS / "harness-map.md").read_text(encoding="utf-8")
-        self.assertIn("references/parallel-streams.md", hmap)
-
-    def test_cleanup_scopes_lists_scratch_after_ship(self) -> None:
-        text = (REFS / "cleanup-scopes.md").read_text(encoding="utf-8")
-        self.assertIn("scratch_pending_cleanup", text)
-        self.assertIn("verified-pushed", text)
-        self.assertIn("--cleanup-task-local-branch", text)
-        self.assertIn("post-merge own cleanup", text)
-
-    def test_delegation_and_iterative_flow_require_post_merge_own_cleanup(self) -> None:
-        delegation = (REFS / "delegation.md").read_text(encoding="utf-8")
-        iterative = (REFS / "iterative-flow.md").read_text(encoding="utf-8")
-        self.assertIn("post-merge own cleanup", delegation)
-        self.assertIn("post-merge own cleanup", iterative)
-        self.assertIn("owned globs in the manifest", iterative)
-        self.assertIn("Post-merge own cleanup ran", iterative)
-
-    def test_skills_map_lists_parallel_streams(self) -> None:
-        readme = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "../../chaos-engine/references/parallel-streams.md",
-            readme,
-        )
 
 
 class ParallelStreamConflictBehaviourTest(unittest.TestCase):

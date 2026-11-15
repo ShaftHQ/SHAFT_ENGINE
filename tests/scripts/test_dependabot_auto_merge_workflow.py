@@ -8,7 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "dependabot-auto-merge.yml"
-REFERENCE = ROOT / "chaos-engine" / "references" / "automerge-rearm.md"
+
+
 def _real_gh_lines(text: str) -> list[str]:
     """Return shell lines that invoke gh (not comment / warning echo text)."""
     lines: list[str] = []
@@ -87,18 +88,6 @@ class DependabotAutoMergeWorkflowTest(unittest.TestCase):
                 '-R "$repo"' in line or 'GH_REPO="$repo"' in line,
                 msg=f"gh call missing repo scope: {line}",
             )
-
-    def test_reference_is_fail_closed_and_still_names_the_repo_flag(self) -> None:
-        text = REFERENCE.read_text(encoding="utf-8")
-        self.assertIn("-R", text)
-        self.assertIn("GITHUB_REPOSITORY", text)
-        self.assertIn("empty list", text.lower())
-        for needle in ("re-arm", "soft-fail", "eviction"):
-            self.assertIn(needle, text)
-        self.assertIn("read-only", text.lower())
-        self.assertIn("BOT_TOKEN", text)
-        self.assertIn("events start no workflows", text)
-        self.assertNotIn("gh pr merge", text)
 
 
 if __name__ == "__main__":

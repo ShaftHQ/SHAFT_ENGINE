@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _load_guard():
-    spec = importlib.util.spec_from_file_location("ce_guard_6986", ROOT / "chaos-engine/hooks/guard.py")
+    spec = importlib.util.spec_from_file_location("ce_guard_6986", ROOT / ".chaos-engine/hooks/guard.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

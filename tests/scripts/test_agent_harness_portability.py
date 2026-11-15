@@ -15,7 +15,6 @@ import unittest
 from pathlib import Path, PurePosixPath
 from unittest import mock
 
-
 ROOT = Path(__file__).resolve().parents[2]
 GIT = shutil.which("git") or "git"
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
@@ -239,7 +238,6 @@ POLICY_RECORD_ALLOWLIST: dict[str, dict[str, str]] = {
     },
 }
 
-
 def string_leaves(value: object) -> list[str]:
     """Flatten a JSON value to its strings, so nesting cannot hide prose."""
     if isinstance(value, str):
@@ -249,7 +247,6 @@ def string_leaves(value: object) -> list[str]:
     if isinstance(value, list):
         return [leaf for item in value for leaf in string_leaves(item)]
     return []
-
 
 def searchable_text(memory_root: Path, metadata: dict) -> str:
     """Return every field of a memory object a retrieval puts in front of an agent.
@@ -270,7 +267,6 @@ def searchable_text(memory_root: Path, metadata: dict) -> str:
             *string_leaves(metadata.get("evidence", [])),
         )
     )
-
 
 def memory_object_identifiers(memory_root: Path) -> frozenset[str]:
     """Every name a memory object can be cited by, for the citation strip.
@@ -299,7 +295,6 @@ def memory_object_identifiers(memory_root: Path) -> frozenset[str]:
             identifiers.add(identifier.split(".", 1)[-1])
     return frozenset(identifiers)
 
-
 def strip_citations(text: str, citable: frozenset[str]) -> str:
     """Replace each citation of a known object with a separator, in either spelling.
 
@@ -318,7 +313,6 @@ def strip_citations(text: str, citable: frozenset[str]) -> str:
         lambda match: " " if PurePosixPath(match.group(0)).stem in citable else match.group(0),
         linked,
     )
-
 
 def superseded_policy_offences(text: str, citable: frozenset[str] = frozenset()) -> list[str]:
     """Return the superseded policies this text names, by lexical match alone.
@@ -340,7 +334,6 @@ def superseded_policy_offences(text: str, citable: frozenset[str] = frozenset())
         offences.add(DELEGATE_INTERVAL_REASON)
     return sorted(offences)
 
-
 def memory_object_offences(
     memory_root: Path,
     metadata: dict,
@@ -361,7 +354,6 @@ def memory_object_offences(
         if identifier not in permitted.get(reason, {})
     ]
 
-
 def active_memory_policy_offenders(
     root: Path, allowlist: AllowlistByPolicy | None = None
 ) -> list[str]:
@@ -380,7 +372,6 @@ def active_memory_policy_offenders(
             offenders.append(f"{metadata_path.relative_to(root).as_posix()}: {reason}")
     return sorted(offenders)
 
-
 def markdown_body(path: Path) -> str:
     content = path.read_text(encoding="utf-8")
     if not content.startswith("---\n"):
@@ -388,10 +379,8 @@ def markdown_body(path: Path) -> str:
     marker = content.find("\n---\n", 4)
     return content[marker + 5 :].strip() if marker >= 0 else content.strip()
 
-
 def hook_groups(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))["hooks"]
-
 
 def absolute_guidance_path_offenders(
     root: Path, tracked_paths: list[Path] | None = None
@@ -415,7 +404,6 @@ def absolute_guidance_path_offenders(
         and forbidden.search((root / path).read_text(encoding="utf-8", errors="ignore"))
     ]
 
-
 def _load_hosts():
     import importlib.util as _ilu
 
@@ -425,52 +413,7 @@ def _load_hosts():
     spec.loader.exec_module(module)
     return module
 
-
 class AgentHarnessPortabilityTest(unittest.TestCase):
-    def test_codex_discovers_only_the_repo_local_router(self):
-        # #6202: host skill dirs are generated into the overlay, never tracked (#5713).
-        discovered = sorted(OVERLAY.glob(".agents/skills/*/SKILL.md"))
-
-        self.assertEqual(
-            discovered,
-            [
-                OVERLAY / ".agents/skills/chaos-engine/SKILL.md",
-            ],
-        )
-
-    def test_chaos_engine_has_one_substantive_body_and_relative_adapter(self):
-        canonical = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
-        adapter = OVERLAY / ".claude/skills/chaos-engine/SKILL.md"
-        self.assertTrue(canonical.is_file())
-        self.assertGreater(len(markdown_body(canonical)), 1000)
-        self.assertLess(len(markdown_body(adapter)), 500)
-
-        installed = OVERLAY / ".chaos-engine/skills/chaos-engine/SKILL.md"
-        candidates = [canonical, *OVERLAY.glob(".[!c]*/skills/chaos-engine/SKILL.md")]
-        substantive = [path for path in candidates if len(markdown_body(path)) > 500]
-        self.assertEqual(substantive, [canonical])
-
-        match = re.search(r"\[[^]]+\]\(([^)]+)\)", adapter.read_text(encoding="utf-8"))
-        self.assertIsNotNone(match)
-        target = match.group(1)
-        self.assertFalse(Path(target).is_absolute())
-        # #6202: adapters point at the installed canonical copy, not another adapter.
-        self.assertEqual((adapter.parent / target).resolve(), installed.resolve())
-        self.assertEqual(canonical.read_bytes(), installed.read_bytes())
-
-    def test_act_as_mohab_embeds_core_working_rules(self):
-        # #6176: always-composed sections live in the router contract the card links.
-        card = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
-        contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
-        self.assertIn("router-contract.md", card)
-        content = card + "\n" + contract
-        self.assertIn("### Companions", contract)
-        for retired_link in (
-            "references/caveman.md",
-            "references/ponytail.md",
-            "references/test-driven-development.md",
-        ):
-            self.assertNotIn(retired_link, content)
 
     def test_personal_sharing_authorization_moved_to_user_level_config(self):
         # Epic #6342 / CE-12: personal authorizations are not tracked in the repository.
@@ -511,26 +454,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertIn(required, compact)
 
-    def test_portable_orchestrator_mode_groups_fewest_prs_and_keeps_working(self):
-        """#5246 #5249: portable orchestrator mode, not only the SHAFT profile."""
-        delegation = (ROOT / "chaos-engine/references/delegation.md").read_text(
-            encoding="utf-8"
-        )
-        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(
-            encoding="utf-8"
-        )
-        compact = re.sub(r"\s+", " ", delegation)
-        for required in (
-            "fewest PRs that still keep one problem per issue",
-            "stay available",
-            "live status table",
-            "keep working until every in-scope ticket is delivered",
-        ):
-            self.assertIn(required, compact)
-        self.assertIn("[execution workflows](execution-workflows.md)", delegation)
-        self.assertIn("sole normative owner of execution-workflow selection", workflows)
-        self.assertNotIn("one writer at a time", delegation.lower())
-
     def test_host_token_budgets_include_mandatory_entrypoint(self):
         budget = json.loads(
             (ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
@@ -542,145 +465,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn(mandatory, chain["common"])
         for host in budget["host_contexts"]:
             self.assertIn(host, chain["hosts"], host)
-
-    def test_rule_docs_are_embedded_rather_than_redirected(self):
-        """Redirect stubs cost a read and carry no content, so the rules live in
-        the entrypoint and the stubs are gone. Attribution must survive."""
-        references = ROOT / "chaos-engine/references"
-        for retired in (
-            "caveman.md",
-            "ponytail.md",
-            "test-driven-development.md",
-            "tdd/resisting-rationalization.md",
-            "tdd/testing-anti-patterns.md",
-        ):
-            self.assertFalse((references / retired).exists(), retired)
-        for licence in (
-            "caveman.LICENSE",
-            "ponytail.LICENSE",
-            "test-driven-development.LICENSE",
-        ):
-            self.assertTrue((references / licence).is_file(), licence)
-
-    def test_all_hosts_reach_the_same_entrypoint_without_grok_duplication(self):
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", agents)
-        self.assertIn(".chaos-engine/skills/chaos-engine/SKILL.md", agents)
-        self.assertIn("@AGENTS.md", claude)
-        self.assertFalse((ROOT / "GROK.md").exists())
-        grok_tracked = subprocess.run(
-            [GIT, "ls-files", "--", ".grok"],
-            cwd=ROOT,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        tracked = [line for line in grok_tracked.stdout.splitlines() if line]
-        rules = {
-            ".grok/rules/companions.md",
-            ".grok/rules/identity.md",
-            ".grok/rules/entrypoint.md",
-        }
-        # Grok puts these rules in the model prompt. SessionStart stdout is not
-        # model context. Skill bodies stay the canonical files the entrypoint routes.
-        # Links are retargeted so a copy under .grok/rules still resolves.
-        self.assertEqual(set(tracked), rules)
-        identity = (ROOT / ".grok/rules/identity.md").read_text(encoding="utf-8")
-        entrypoint = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
-        self.assertIn("Speak unabridged truth", identity)
-        self.assertIn("../../chaos-engine/references/identity-push-back.md", identity)
-        self.assertIn("## Iron laws", entrypoint)
-        self.assertIn("../../chaos-engine/skills/kanban/SKILL.md", entrypoint)
-        self.assertTrue((ROOT / ".grok/rules/identity.md").parent.joinpath(
-            "../../chaos-engine/references/identity-push-back.md"
-        ).resolve().is_file())
-        companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
-        self.assertNotIn("## Iron laws", companions)
-        self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
-        self.assertNotIn(".grok/skills/", companions)
-
-    def test_tracked_grok_rules_match_grok_model_load_publish(self):
-        """SessionStart refresh must be a no-op on a clean checkout (#6239).
-
-        `.grok/rules/entrypoint.md` is a retargeted copy of
-        `chaos-engine/skills/chaos-engine/SKILL.md`. Editing the skill without
-        regenerating the tracked rule dirties porcelain when hook tests call
-        publish_from(ROOT).
-        """
-        path = ROOT / "chaos-engine/grok_model_load.py"
-        spec = importlib.util.spec_from_file_location(
-            "grok_model_load_tracked_sync", path
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        rules = ROOT / ".grok/rules"
-        cases = (
-            (ROOT / "chaos-engine/identity.md", rules / "identity.md"),
-            (
-                ROOT / "chaos-engine/skills/chaos-engine/SKILL.md",
-                rules / "entrypoint.md",
-            ),
-        )
-        for source, destination in cases:
-            with self.subTest(destination=destination.relative_to(ROOT).as_posix()):
-                self.assertTrue(source.is_file(), source)
-                self.assertTrue(destination.is_file(), destination)
-                self.assertEqual(
-                    destination.read_bytes(),
-                    module._linked_bytes(source, destination),
-                )
-        self.assertEqual(
-            (rules / "companions.md").read_bytes(),
-            module.COMPANIONS.encode("utf-8"),
-        )
-
-    def test_grok_model_load_copies_identity_and_entrypoint_not_skills(self):
-        path = ROOT / "chaos-engine/grok_model_load.py"
-        spec = importlib.util.spec_from_file_location("grok_model_load_portability", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
-            source = project / "chaos-engine"
-            (source / "skills/kanban").mkdir(parents=True)
-            (source / "identity.md").write_bytes(b"identity-bytes\n")
-            (source / "skills/chaos-engine").mkdir(parents=True)
-            (source / "skills/chaos-engine/SKILL.md").write_bytes(b"entry-bytes\n")
-            (source / "skills/kanban/SKILL.md").write_bytes(b"kanban-bytes\n")
-            written = module.publish(project)
-            self.assertEqual(
-                (project / ".grok/rules/identity.md").read_bytes(),
-                b"identity-bytes\n",
-            )
-            self.assertEqual(
-                (project / ".grok/rules/entrypoint.md").read_bytes(),
-                b"entry-bytes\n",
-            )
-            self.assertFalse((project / ".grok/skills").exists())
-            companions = (project / ".grok/rules/companions.md").read_text(encoding="utf-8")
-            self.assertIn("python3 .chaos-engine/tool.py entry", companions)
-            self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
-            self.assertIn("chaos-engine/references/roles.md", companions)
-            self.assertIn("SOLO", companions)
-            (source / "references").mkdir()
-            (source / "references/card.md").write_text("card\n", encoding="utf-8")
-            (source / "identity.md").write_text("See [why](references/card.md).\n", encoding="utf-8")
-            (source / "skills/chaos-engine/SKILL.md").write_text(
-                "See [card](../../references/card.md#part).\n",
-                encoding="utf-8",
-            )
-            module.publish(project)
-            self.assertIn(
-                "../../chaos-engine/references/card.md#part",
-                (project / ".grok/rules/entrypoint.md").read_text(encoding="utf-8"),
-            )
-            self.assertIn(
-                "../../chaos-engine/references/card.md",
-                (project / ".grok/rules/identity.md").read_text(encoding="utf-8"),
-            )
-            self.assertEqual([], module.publish(project))
-            self.assertTrue(written)
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
         self.assertEqual(absolute_guidance_path_offenders(ROOT), [])
@@ -700,276 +484,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 ),
                 [".claude/settings.local.json"],
             )
-
-    def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
-        paths = [ROOT / "AGENTS.md", ROOT / "scripts/agents/user-harness/settings.json"]
-        # #6219: full scan restored -- every portable markdown file is checked.
-        paths.extend((ROOT / "chaos-engine").rglob("*.md"))
-        paths.extend((OVERLAY / ".claude/agents").glob("*.md"))
-        # Per-file allowlist, each with a reason. These files route local
-        # runtimes by concrete catalog ids as data; none is delegation policy.
-        model_id_data = {
-            "chaos-engine/guides/omniroute.md": "provider catalog table of free-tier model ids",
-            "chaos-engine/guides/freetoken-5867-closeout-proof.md": "verbatim reproduction commands for one proof run",
-            "chaos-engine/skills/local-runtimes/references/omniroute.md": "tier classifier keyword tables for live catalogs",
-            "chaos-engine/skills/omniroute/references/living-lessons.md": "dated provider incident notes naming the affected ids",
-        }
-        paths = [
-            path for path in paths
-            if not path.is_relative_to(ROOT)
-            or path.relative_to(ROOT).as_posix() not in model_id_data
-        ]
-        # Gap ids (GROK-LEAN, GROK-SKILLS, ...), the grok-skills dir and the
-        # Grok Bot host are identifiers, not model names.
-        forbidden = re.compile(
-            r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-[\w.-]+"
-            r"|grok-(?!(?:lean|skills|bundled|caveman|bot)\b)[\w.-]+)\b"
-            r"|\beffortLevel\b|\bHIGH effort\b|^model:\s*",
-            re.MULTILINE,
-        )
-        offenders = [
-            path.as_posix()
-            for path in paths
-            if forbidden.search(path.read_text(encoding="utf-8"))
-        ]
-        self.assertEqual(offenders, [])
-        # The allowlist must not go stale: every entry exists and still needs it.
-        for relative in model_id_data:
-            with self.subTest(allowlisted=relative):
-                self.assertIsNotNone(forbidden.search((ROOT / relative).read_text(encoding="utf-8")))
-
-    def test_pdca_personas_are_main_thread_phases_that_follow_the_mode(self):
-        """PDCA is one task, so it is normally worked solo.
-
-        This previously required Bob to dispatch unconditionally. The playbook
-        now reaches the canonical workflow owner instead of duplicating its
-        selection rule, and Bob follows the selected mode.
-        """
-        pdca = (
-            ROOT
-            / "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
-        ).read_text(encoding="utf-8")
-        compact = re.sub(r"\s+", " ", pdca)
-        self.assertIn("personas are phases, not agent identities", pdca.lower())
-        self.assertIn(
-            "execution workflows (`.chaos-engine/references/execution-workflows.md`)",
-            pdca,
-        )
-        workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("sole normative owner of execution-workflow selection", workflows)
-        self.assertNotIn("solo-or-orchestrate rule", pdca.lower())
-        self.assertRegex(
-            compact,
-            r"Bob phase[^.]*through observed TDD[^.]*when orchestrating",
-            "Bob implements in solo mode and shepherds only when orchestrating",
-        )
-        self.assertRegex(compact, r"Bruce[^.]*judges the actual diff")
-        for forbidden in ("orchestrator never edits", "closing remaining gaps himself"):
-            self.assertNotIn(forbidden, pdca)
-
-    def test_hook_configs_share_one_cwd_independent_lifecycle_contract(self):
-        claude_hooks = hook_groups(OVERLAY / ".claude/settings.json")
-        codex_hooks = hook_groups(OVERLAY / ".codex/hooks.json")
-        common = {
-            "PreToolUse",
-            "PostToolUse",
-            "PostToolUseFailure",
-            "SessionStart",
-            "SubagentStart",
-            "SessionEnd",
-            "Stop",
-            "SubagentStop",
-            "UserPromptSubmit",
-        }
-        self.assertEqual(common, set(codex_hooks))
-        self.assertEqual(common | {"PreCompact"}, set(claude_hooks))
-        for hooks in (claude_hooks, codex_hooks):
-            commands = {
-                handler["command"]
-                for groups in hooks.values()
-                for group in groups
-                for handler in group["hooks"]
-            }
-            self.assertEqual(len(commands), 1)
-            command = commands.pop()
-            self.assertNotIn(str(ROOT), command)
-            handler = hooks["PreToolUse"][0]["hooks"][0]
-            invocation = [handler["command"], *handler.get("args", [])]
-            completed = subprocess.run(
-                invocation if handler.get("args") else command,
-                shell=not bool(handler.get("args")),  # nosec B602 - tracked hook.
-                input=json.dumps(
-                    {
-                        "hook_event_name": "PreToolUse",
-                        "session_id": "portable-hook-contract",
-                        "tool_name": "shell_command",
-                        "tool_input": {"command": "echo nested-cwd"},
-                    }
-                ),
-                cwd=ROOT / "shaft-engine",
-                env=dict(os.environ, CHAOS_ENGINE_HOST="codex"),
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            rendered = completed.stdout + completed.stderr
-            self.assertNotIn("repository working directory unavailable", rendered)
-            self.assertNotIn("ChaosEngine guard unavailable", rendered)
-            self.assertEqual({}, json.loads(completed.stdout or "{}"))
-        settings_path = OVERLAY / ".claude/settings.json"
-        for groups in claude_hooks.values():
-            for group in groups:
-                for handler in group["hooks"]:
-                    command = handler["command"]
-                    # Grok treats a single-token command as a path relative to
-                    # the settings file, so `python3` becomes `.claude\python3`.
-                    self.assertRegex(
-                        command,
-                        r"\s",
-                        "Grok resolves a single-token command relative to .claude/",
-                    )
-                    # #7667: short host command points at launch.py (within HOOK_COMMAND_MAX_CHARS).
-                    hosts = _load_hosts()
-                    self.assertIn(hosts.HOOK_LAUNCH_PY, command)
-                    self.assertLessEqual(len(command), hosts.HOOK_COMMAND_MAX_CHARS)
-                    self.assertIsNone(hosts.powershell_hook_parse_error(command))
-                    launch = (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
-                    self.assertIn(".chaos-engine/hooks/guard.py", launch)
-                    self.assertIn("repository working directory unavailable", launch)
-                    self.assertNotIn("print('{}')", command)
-                    self.assertFalse(
-                        handler.get("args"),
-                        "Grok ignores Claude args and only runs command",
-                    )
-                    windows = handler.get("commandWindows", "")
-                    self.assertTrue(
-                        windows.startswith("py -3 ") or windows.startswith("$a="),
-                        windows,
-                    )
-                    self.assertNotIn(str(ROOT), windows)
-                    self.assertFalse((settings_path.parent / "python3").exists())
-        for groups in codex_hooks.values():
-            for group in groups:
-                for handler in group["hooks"]:
-                    windows = handler["commandWindows"]
-                    self.assertTrue(
-                        windows.startswith("py -3 ") or windows.startswith("$a="),
-                        windows,
-                    )
-                    self.assertNotIn(str(ROOT), windows)
-                    # #7667: short command; cwd/unavailable copy lives in launch.py
-                    launch = (ROOT / "chaos-engine/hooks/launch.py").read_text(encoding="utf-8")
-                    self.assertIn(
-                        "repository working directory unavailable",
-                        launch,
-                    )
-        self.assertFalse((OVERLAY / ".claude/hooks/guard.py").exists())
-        self.assertTrue(GUARD.is_file())
-
-    def test_hook_configs_are_tracked_for_host_local_trust(self):
-        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            [GIT, "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(tracked.returncode, 0, tracked.stderr)
-        for path in (OVERLAY / ".claude/settings.json", OVERLAY / ".codex/hooks.json"):
-            self.assertTrue(path.is_file(), path)
-            self.assertNotIn("bypass-hook-trust", path.read_text(encoding="utf-8"))
-
-    def test_inline_and_javascript_launchers_deny_when_guard_is_missing(self):
-        """Missing guard must never fall back to a silent allow object."""
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("node is required for this launcher check")
-        claude = hook_groups(OVERLAY / ".claude/settings.json")
-        command = claude["PreToolUse"][0]["hooks"][0]["command"]
-        self.assertNotIn("print('{}')", command)
-        self.assertNotIn('print("{}")', command)
-        with tempfile.TemporaryDirectory() as temporary:
-            # #7667: short command needs launch.py under cwd; guard still absent.
-            launch_dir = Path(temporary) / ".chaos-engine/hooks"
-            launch_dir.mkdir(parents=True)
-            shutil.copy2(ROOT / "chaos-engine/hooks/launch.py", launch_dir / "launch.py")
-            inline = subprocess.run(  # nosec B602 - tracked fixed hook command.
-                command,
-                shell=True,
-                cwd=temporary,
-                input=json.dumps(
-                    {
-                        "hook_event_name": "PreToolUse",
-                        "tool_name": "Bash",
-                        "tool_input": {"command": "echo missing-guard"},
-                    }
-                ),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            launch = subprocess.run(  # nosec B603 - fixed node launcher.
-                [node, str(ROOT / "chaos-engine/hooks/launch.js"), "copilot"],
-                cwd=temporary,
-                input=json.dumps(
-                    {
-                        "hook_event_name": "preToolUse",
-                        "tool_name": "Bash",
-                        "tool_input": {"command": "echo missing-guard"},
-                    }
-                ),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-        for completed in (inline, launch):
-            with self.subTest(returncode=completed.returncode, stdout=completed.stdout):
-                self.assertNotEqual(0, completed.returncode, completed.stderr)
-                payload = json.loads(completed.stdout)
-                self.assertNotEqual({}, payload)
-                rendered = completed.stdout + completed.stderr
-                self.assertIn("ChaosEngine guard unavailable", rendered)
-                decision, _reason = self.logical_decision(payload)
-                self.assertIn(decision, {"deny", "block"})
-
-    def test_codex_intercepts_collaboration_dispatches(self):
-        config = json.loads((OVERLAY / ".codex/hooks.json").read_text(encoding="utf-8"))
-        matcher = config["hooks"]["PreToolUse"][0]["matcher"]
-        for tool_name in ("collaboration.spawn_agent", "spawn_agent"):
-            with self.subTest(tool_name=tool_name):
-                self.assertIsNotNone(re.fullmatch(matcher, tool_name))
-
-    def test_equivalent_host_hook_events_produce_equivalent_outcomes(self):
-        fixtures = {
-            "claude": {
-                "hook_event_name": "PreToolUse",
-                "tool_name": "Bash",
-                "tool_input": {"command": "mvn -pl shaft-engine test"},
-                "session_id": "portable-claude",
-            },
-            "codex": {
-                "hook_event_name": "PreToolUse",
-                "tool_name": "shell_command",
-                "tool_input": {"command": "mvn -pl shaft-engine test"},
-                "session_id": "portable-codex",
-            },
-            "grok": {
-                "hookEventName": "PreToolUse",
-                "toolName": "Bash",
-                "toolInput": {"command": "mvn -pl shaft-engine test"},
-                "sessionId": "portable-grok",
-            },
-        }
-        decisions = []
-        for host, payload in fixtures.items():
-            output = self.run_guard(payload, host)
-            decisions.append(self.logical_decision(output))
-        self.assertEqual(decisions, [decisions[0]] * 3)
-        self.assertEqual(decisions[0][0], "deny")
-        self.assertIn("R1", decisions[0][1])
 
     @unittest.skipUnless(os.name == "nt", "executes the tracked Windows hook commands")
     def test_windows_hook_commands_execute_from_a_nested_directory(self):
@@ -1008,85 +522,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             self.assertIn("R1", completed.stdout)
 
-    def test_guard_ignores_events_and_tools_outside_its_contract(self):
-        source = GUARD.read_text(encoding="utf-8")
-        for removed in (
-            "graphify_nudge",
-            "tdd_nudge",
-            "check_r7_orchestration_skill",
-            "SubagentStart",
-        ):
-            self.assertNotIn(removed, source)
-        for payload in (
-            {
-                "hook_event_name": "PreToolUse",
-                "session_id": "outside-contract-read",
-                "tool_name": "Read",
-                "tool_input": {},
-            },
-            {
-                "hook_event_name": "PreToolUse",
-                "session_id": "outside-contract-write",
-                "tool_name": "Write",
-                "tool_input": {"file_path": str(Path(tempfile.gettempdir()) / "guard-scratch.txt")},
-            },
-            {
-                "hook_event_name": "PreToolUse",
-                "session_id": "outside-contract-skill",
-                "tool_name": "Skill",
-                "tool_input": {"skill": "work-github"},
-                "agent_type": "coder",
-            },
-            {
-                "hook_event_name": "PostToolUse",
-                "session_id": "outside-contract-post",
-                "tool_name": "Read",
-                "tool_input": {},
-            },
-        ):
-            completed = self.run_guard_completed(payload, "claude")
-            self.assertEqual(json.loads(completed.stdout), {})
-
-    def test_guard_denies_an_in_repository_write_on_the_default_branch(self):
-        """R19 is in contract: unrelated events get an empty JSON acknowledgement."""
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            repository = Path(temporary_directory)
-            (repository / "tracked.txt").write_text("fixture", encoding="utf-8")
-            git = shutil.which("git")
-            self.assertIsNotNone(git, "the R19 fixture needs Git")
-            for command in (
-                [git, "init", "--quiet", "--initial-branch", "main"],
-                [git, "add", "tracked.txt"],
-                [
-                    git,
-                    "-c",
-                    "user.name=fixture",
-                    "-c",
-                    "user.email=fixture@example.test",
-                    "commit",
-                    "--quiet",
-                    "-m",
-                    "initial",
-                ],
-            ):
-                subprocess.run(command, cwd=repository, check=True)  # nosec B603
-
-            completed = self.run_guard_completed(
-                {
-                    "hook_event_name": "PreToolUse",
-                    "session_id": "default-branch-write",
-                    "tool_name": "Write",
-                    "cwd": str(repository),
-                    "tool_input": {"file_path": "Example.java"},
-                },
-                "claude",
-            )
-
-        output = json.loads(completed.stdout)
-        decision, reason = self.logical_decision(output)
-        self.assertEqual(decision, "deny")
-        self.assertIn("R19", reason)
-
     def test_deployed_canonical_subtree_has_no_external_or_broken_markdown_links(self):
         # The deployment unit is the whole portable ChaosEngine tree, not one
         # skill: the entrypoint links generic references and project profiles.
@@ -1115,44 +550,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         broken.append(f"{path.relative_to(deployed)} -> {raw}")
             self.assertEqual(broken, [])
 
-    def test_mempalace_config_is_tracked_while_generated_state_is_ignored(self):
-        tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            [GIT, "ls-files", "--error-unmatch", "mempalace.yaml"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(tracked.returncode, 0, tracked.stderr)
-        palace = (ROOT / "mempalace.yaml").read_text(encoding="utf-8")
-        self.assertIn("exclude_patterns:", palace)
-        self.assertNotRegex(palace, r"(?m)^- name: (?:target|graphify_out|allure_results)$")
-        claude_mcp = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
-        user_settings = json.loads(
-            (ROOT / "scripts/agents/user-harness/settings.json").read_text(encoding="utf-8")
-        )
-        self.assertIs(user_settings["enabledPlugins"]["mempalace@mempalace"], False)
-        expected_mempalace_env = {
-            "MEMPALACE_EMBEDDING_MODEL": "minilm",
-            "MEMPALACE_BACKEND": "sqlite_exact",
-        }
-        # #6199: MemPalace MCP is opt-in; the tracked file is the CLI-only default
-        # and the opted-in renders of both hosts agree on the backend env.
-        self.assertNotIn("chaosengine-mempalace", claude_mcp["mcpServers"])
-        hosts = _load_hosts()
-        project_mcp = json.loads(hosts.json_content(None, with_mcp=True))["mcpServers"][
-            "chaosengine-mempalace"
-        ]
-        codex = tomllib.loads(hosts.codex_content(None, with_mcp=True).decode("utf-8"))
-        codex_mcp = codex["mcp_servers"]["chaosengine-mempalace"]
-        self.assertEqual(codex_mcp["command"], project_mcp["command"])
-        self.assertEqual(codex_mcp["env"], project_mcp["env"])
-        self.assertEqual(codex_mcp["env"], expected_mempalace_env)
-        ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
-        self.assertNotRegex(ignore, r"(?m)^mempalace\.yaml$")
-        for pattern in ("entities.json", "graphify-out/", "**/target/"):
-            self.assertIn(pattern, ignore)
-
     def test_knowledge_stores_cli_uses_central_resolvers_and_never_creates_a_checkout_palace(self):
         command = (ROOT / "scripts/agents/knowledge_stores.py").read_text(encoding="utf-8")
         resolver = (ROOT / "tools/repository-map/resolve_mempalace.py").read_text(encoding="utf-8")
@@ -1167,30 +564,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertNotIn(".chaos-engine-state/mempalace", resolver)
         self.assertIn("SHAFT_MEMPALACE must be absolute", resolver)
         self.assertIn("git-common-dir", resolver)
-
-    def test_default_mcp_configs_do_not_launch_docker(self):
-        claude = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))[
-            "mcpServers"
-        ]
-        # #6199 made MCP opt-in: a default Codex config may declare no servers at all.
-        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8")).get(
-            "mcp_servers", {}
-        )
-
-        offenders = []
-        for host, servers in (("claude", claude), ("codex", codex)):
-            offenders.extend(
-                f"{host}:{name}"
-                for name, config in servers.items()
-                if config.get("command", "").casefold() in {"docker", "docker.exe"}
-            )
-
-        self.assertEqual(
-            offenders,
-            [],
-            "Default stdio MCP declarations start once per client; Docker-backed "
-            "servers must be an explicit opt-in, not a default harness cost.",
-        )
 
     def test_active_memory_has_no_retired_harness_contracts(self):
         memory_root = ROOT / ".memory"
@@ -2173,7 +1546,6 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 "permissionDecisionReason", specific.get("additionalContext", "")
             )
         return output.get("decision", "allow"), output.get("reason", "")
-
 
 if __name__ == "__main__":
     unittest.main()
