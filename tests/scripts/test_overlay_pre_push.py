@@ -463,7 +463,7 @@ class OverlayScrubLoadDoesNotShadowTestsTest(unittest.TestCase):
     harness's own ``tests`` package ahead of SHAFT's on sys.path."""
 
     def test_scrub_from_installed_overlay_leaves_sys_path_alone(self) -> None:
-        import scripts.ci.overlay_pre_push as pre_push
+        from scripts.ci import overlay_pre_push as pre_push
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
