@@ -1072,6 +1072,8 @@ RETIRED_LEAN_SENTENCES = frozenset({
     "Stop and report.",
     # Same rule as identity and the caveman card; the extra clause was bytes only.
     "- An in-tree copy is not a resolved upstream adapter, even when its unit test passes.",
+    # #8057: INSTALL.md moved to the harness; the line now links it (same command).
+    "- Install or upgrade (`chaos-engine/INSTALL.md`): `irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex`.",
 })
 
 
