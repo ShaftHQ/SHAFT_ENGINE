@@ -435,7 +435,7 @@ CHECKS = {
     "plugin-assembly-contract": Check(
         "plugin-assembly-contract",
         "plugin-assembly",
-        ("tests.scripts.test_assemble_chaos_engine_plugin",),
+        ("tests.scripts.test_assemble_shaft_skills_plugin",),
     ),
     "research-matrix-contract": Check(
         "research-matrix-contract",
@@ -1163,8 +1163,8 @@ SURFACE_PATTERNS = {
         "scripts/agents/repository_context.py",
         "scripts/agents/status_lease.py",
         "scripts/agents/watch_pr_checks.py",
-        "scripts/ci/assemble_chaos_engine_plugin.py",
-        "tests/scripts/test_assemble_chaos_engine_plugin.py",
+        "scripts/ci/assemble_shaft_skills_plugin.py",
+        "tests/scripts/test_assemble_shaft_skills_plugin.py",
     ),
     # #6240: the exact files each module reads.
     "intellij-skill": (
