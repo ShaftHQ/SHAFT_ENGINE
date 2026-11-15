@@ -24,6 +24,8 @@ class HarnessResidueTest(unittest.TestCase):
         self.assertIn("-ExecutionPolicy Bypass", text)
         self.assertIn("-File", text)
         self.assertIn("PSCommandPath", text)
+        self.assertIn("$savedErrorAction = $ErrorActionPreference", text)
+        self.assertIn("$ErrorActionPreference = $savedErrorAction", text)
         self.assertNotIn("ShaftHQ/SHAFT_ENGINE", text.split("-File", 1)[-1])
         self.assertIn(
             "https://raw.githubusercontent.com/ShaftHQ/chaosengine-harness/main/install.ps1",
