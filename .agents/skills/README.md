@@ -17,7 +17,7 @@ Coverage of rules, hooks, specialist skills, and CI/mobile tools is owned by
 and gated by `tests/scripts/test_ce_entry_coverage.py`.
 
 **If you are a contributor:** tell your coding agent to read
-`chaos-engine/skills/chaos-engine/SKILL.md` before it touches anything. Most agents
+[ChaosEngine's `SKILL.md`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) before it touches anything. Most agents
 find it on their own — see [Importing these skills](#importing-these-skills).
 
 ## The shape of it
@@ -357,7 +357,7 @@ scope files `.github/instructions/framework-source.instructions.md` and
 
 If your agent does none of that automatically, say this to it:
 
-> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
+> Read `.chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
 
 To deploy the harness to your own user-level agent configuration:
 
@@ -397,7 +397,7 @@ does not know they exist meets them as an interruption instead of a tool.
 
 | Part | Where it lives | What it does to a session |
 | --- | --- | --- |
-| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`; matcher policy in `chaos-engine/hooks/matchers.json` | Canonical for SHAFT repository policy; `chaos-engine/hooks/guard.py` is canonical for the portable core. They share no code; [test_guard_split.py](../../tests/scripts/test_guard_split.py) pins the split and the shared catastrophic floor. One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
+| Lifecycle guard | `scripts/agents/guard.py`, `scripts/agents/session_worktree.py`; matcher policy in the harness [`hooks/matchers.json`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/hooks/matchers.json) | Canonical for SHAFT repository policy; the harness [`hooks/guard.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/hooks/guard.py) is canonical for the portable core. They share no code; [test_guard_split.py](../../tests/scripts/test_guard_split.py) pins the split and the shared catastrophic floor. One repository-policy owner handles SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, Stop, SubagentStop, and SessionEnd. Host documents only register it. Preventive matchers omit intrinsically read-only tools; observational matchers retain outcome evidence. SessionStart creates one session worktree; Stop never deletes it; SessionEnd removes it after merge. |
 | Learning controller | `scripts/agents/learning_session.py` | Stores redacted, evidence-consistent event receipts outside git; binds every actionable incident candidate to one distinct standalone `ShaftHQ/SHAFT_ENGINE` issue; records evaluation and exact-commit promotion intent; and records repair-once then frozen-revert recovery intent. Receipts are evidence, never the action queue. GitHub/git workflows separately create and verify issues and execute those intents. Hashes detect corruption; runtime state is not an authentication boundary against another process running as the same OS user. |
 | Retrieval servers | `.mcp.json`, `mempalace.yaml` | Declare the memory, MemPalace and Graphify servers the knowledge table sends you to, and gate memory writes behind a prompt. |
 | Plugin manifest | `.claude-plugin/marketplace.json` | Publishes this repository's skills to a host that installs them as a plugin rather than reading them in place. |
@@ -458,7 +458,7 @@ change it:
 | --- | --- |
 | `tests/scripts/test_agent_router_contract.py` | The router: triage, the routing table, role adapters, budgets, the learning session. |
 | `tests/scripts/test_agent_harness_portability.py` | One policy body per rule, relative paths, hook parity, memory against guidance. |
-| `tests/scripts/test_chaos_engine_portable_core.py` | Portable core isolation, compatibility aliases, and project-profile selection. |
+| [`test_chaos_engine_portable_core.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/tests/scripts/test_chaos_engine_portable_core.py) (harness) | Portable core isolation, compatibility aliases, and project-profile selection. |
 | `tests/scripts/test_agent_harness_adherence.py` | Reviewed deterministic episodes, unknown evidence, and fail-closed adherence comparison. |
 | `tests/scripts/test_agent_harness_reachability.py` | That every element on this page is reachable from the entrypoint, and that the duties below stay unqualified. |
 | `tests/scripts/test_validate_agent_guidance.py` | The budget validator itself. |
@@ -470,7 +470,7 @@ change it:
 | `tests/scripts/test_guard_memory_worktree.py` | That a memory write from a linked worktree is refused, and that each host actually invokes the guard for it. |
 | `tests/scripts/test_guard_documented_installer.py` | The published install.sh pipeline is allowed only when its owner and repo match the checkout origin. Generic curl\|bash stays catastrophic. |
 | `tests/scripts/test_sync_user_harness.py` | The user-level deployment. |
-| `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, `tests/scripts/test_chaos_engine_runtime.py`, `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
+| `tests/scripts/test_repository_context.py`, `tests/scripts/test_watch_pr_checks.py`, [`test_chaos_engine_runtime.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/tests/scripts/test_chaos_engine_runtime.py) (harness), `tests/scripts/test_github_client.py`, `tests/scripts/test_pr_audit.py`, `tests/scripts/test_delivery_status.py`, `tests/scripts/test_issue_filing.py`, `tests/scripts/test_planning_contract.py` | Repository precedence, bounded watcher exit semantics, GitHub pagination, audit/delivery/issue/planning receipts, and the portable runtime/MCP contract. |
 | `tests/scripts/test_worktree_hygiene.py` | The worktree survey. |
 | `tests/scripts/test_knowledge_stores.py` | Knowledge-store CLI resolvers. |
 | `tests/scripts/test_resolve_mempalace.py` | MemPalace path resolver. |
@@ -483,7 +483,7 @@ green run report a hundred percent of nothing.
 
 <!-- HARNESS-INDEX:START -->
 
-Generated skill index (`chaos-engine/harness_index.py`):
+Generated skill index ([`harness_index.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/harness_index.py) in the harness):
 
 - [chaos-engine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) (portable)
 - [work-item](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/work-item/SKILL.md) (portable)
@@ -545,3 +545,16 @@ Markdown routes for the reachability gate (`tests/scripts/test_ce_entry_coverage
 [repeat-failure-pdca.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/details/ce-repeat-failure-pdca/repeat-failure-pdca.md),
 [ce-lessons-2026-11-02-SPEC.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/ce-lessons-2026-11-02-SPEC.md).
 
+
+## After the move (#8057)
+
+ChaosEngine moved to the harness; [chaos-engine/README.md](../../chaos-engine/README.md) is the redirect and holds the forwarding installers.
+SHAFT-side pieces still in this repository:
+
+| Path | Role |
+| --- | --- |
+| `scripts/agents/reflection.py` | Task-scoped reflection state in the session ledger. |
+| `scripts/agents/nightly_triage_receipt.py` | Freshness check for a scheduled nightly triage. |
+| `scripts/agents/status_lease.py`, `scripts/agents/unattended_delivery.py` | One status channel and one unattended watch per in-flight PR. |
+| `shaft-skills/ce-pack/addon.json` | Manifest of the SHAFT core-developers add-on pack. |
+| `tests/scripts/test_agent_entry_reachability.py`, `tests/scripts/test_copilot_cli_hook.py`, `tests/scripts/test_guard_pr_body_preflight.py` | Entry reachability, the Copilot CLI hook, and the PR-body preflight. |

@@ -47,6 +47,8 @@ ALLOWED_EXACT = {
     "tools/local-ai-poc/README.md",
     "tools/repository-map/README.md",
     "GEMINI.md",
+    # ChaosEngine moved to ShaftHQ/chaosengine-harness (#8057); only the
+    # forwarding README beside the old installer shims stays here.
     "chaos-engine/README.md",
     # Short in-repo orientation only. Product guides stay on the user-guide site.
     "shaft-engine/README.md",
@@ -70,18 +72,8 @@ ALLOWED_EXACT = {
     "legacy-shaft-engine/README.md",
     "shaft-intellij/README.md",
     "shaft-skills/README.md",
-    "chaos-engine/profiles/README.md",
     ".chaos-engine/profiles/README.md",
     ".chaos-engine/THIRD_PARTY_NOTICES.md",
-    "chaos-engine/RESEARCH.md",
-    "chaos-engine/decision-quality-baseline.md",
-    "chaos-engine/decision-quality-rubric.md",
-    "chaos-engine/decision-quality-calibration.md",
-    "chaos-engine/decision-quality-report.md",
-    "chaos-engine/STANDALONE.md",
-    "chaos-engine/INSTALL.md",
-    "chaos-engine/identity.md",
-    "chaos-engine/THIRD_PARTY_NOTICES.md",
     # Classpath contract packaged beside ClassifiedFailureId. Not a public guide.
     "shaft-engine/src/main/resources/META-INF/shaft/classified-failure-ids.md",
     # Internal mega-PR throughput lesson (agent ops); not a public product guide.
@@ -108,7 +100,6 @@ ALLOWED_GLOBS = (
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",
     ".github/skills/**/*.md",
-    "chaos-engine/**/*.md",
     ".chaos-engine/**/*.md",
     "plugins/**/*.md",
     ".memory/memory/*.md",

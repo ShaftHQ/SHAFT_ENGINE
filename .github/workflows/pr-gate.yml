@@ -167,7 +167,6 @@ jobs:
               - 'scripts/ci/unittest_shard.py'
               - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
               - 'scripts/ci/chaos_engine_promotion.py'
-              - 'scripts/ci/validate_chaos_engine_readme.py'
               - 'scripts/ci/validate_agent_setup.py'
               - 'scripts/ci/validate_agent_ownership.py'
               - 'scripts/ci/agent_ownership.json'
@@ -207,8 +206,6 @@ jobs:
               - 'scripts/ci/agent_guidance_budget.json'
               - 'scripts/ci/agent_harness_parity.json'
               - 'tests/scripts/test_agent_router_contract.py'
-              - 'tests/scripts/test_architect_skill_parity.py'
-              - 'tests/scripts/test_technical_presentations_skill_parity.py'
               - 'tests/scripts/test_pre_done_review.py'
               - 'tests/scripts/test_job_apply_skill.py'
               - 'tests/scripts/test_job_search_skill.py'
@@ -284,7 +281,6 @@ jobs:
               - 'tests/scripts/repo_state_guard.py'
               - 'tests/scripts/test_repo_state_guard.py'
               - 'tests/scripts/test_chaos_engine_promotion.py'
-              - 'tests/scripts/test_validate_chaos_engine_readme.py'
               # Not agent guidance, but this is the only gate that runs the
               # script suites on both a Linux and a Windows runner, which is
               # what build_retry.sh needs (issue #4445).

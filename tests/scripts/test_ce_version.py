@@ -24,10 +24,10 @@ class CeVersionTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.mod = _load()
 
-    def test_repo_version_readable(self) -> None:
-        value = self.mod.read_version()
-        self.assertRegex(value, r"^\d+\.[1-4]\.\d{8}\.[1-9]\d*$")
-        self.assertEqual(f"CE upgrade {value}", self.mod.upgrade_broadcast())
+    def test_default_path_names_the_harness(self) -> None:
+        # #8057: VERSION moved to ShaftHQ/chaosengine-harness; no silent default.
+        with self.assertRaisesRegex(ValueError, "chaosengine-harness"):
+            self.mod.read_version()
 
     def test_scheme_keys_and_next(self) -> None:
         key = self.mod.version_key
@@ -61,13 +61,12 @@ class CeVersionTest(unittest.TestCase):
                 self.mod.read_version(bad)
 
     def test_check_cli_pass(self) -> None:
-        self.assertEqual(0, self.mod.main(["check"]))
-
-    def test_concurrent_bump_rule_names_next_version(self) -> None:
-        doc = (ROOT / "chaos-engine/references/ce-upgrade-on-release.md").read_text(encoding="utf-8")
-        self.assertIn("Concurrent bumps", doc)
-        self.assertIn("merges second", doc)
-        self.assertIn("next_version", doc)
+        with tempfile.TemporaryDirectory() as tmp:
+            good = Path(tmp) / "VERSION"
+            good.write_text("0.4.20261102.1\n", encoding="utf-8")
+            self.assertEqual(0, self.mod.main(["check", "--path", str(good)]))
+            self.assertEqual("CE upgrade 0.4.20261102.1", self.mod.upgrade_broadcast(self.mod.read_version(good)))
+        self.assertEqual(1, self.mod.main(["check"]))
 
 
 if __name__ == "__main__":

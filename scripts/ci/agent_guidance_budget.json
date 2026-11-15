@@ -32,9 +32,6 @@
     },
     "shaft-skills/ce-pack/references/**/*.md": {
       "max_bytes": 16384
-    },
-    "chaos-engine/references/*.md": {
-      "max_bytes": 16384
     }
   },
   "host_contexts": {
@@ -60,22 +57,10 @@
     ]
   },
   "host_skill_metadata_globs": {
-    "codex": [
-      "chaos-engine/skills/*/SKILL.md",
-      "chaos-engine/plugin-adapters/*/SKILL.md",
-      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
-    ],
-    "claude": [
-      "chaos-engine/skills/*/SKILL.md",
-      "chaos-engine/plugin-adapters/*/SKILL.md",
-      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
-    ],
-    "grok": [
-      "chaos-engine/skills/*/SKILL.md"
-    ],
-    "gemini": [
-      "chaos-engine/skills/*/SKILL.md"
-    ],
+    "codex": [],
+    "claude": [],
+    "grok": [],
+    "gemini": [],
     "copilot": [
       ".github/instructions/*.instructions.md"
     ]
@@ -83,7 +68,6 @@
   "routing_bridges": {
     "source": "shaft-skills/ce-pack/references/routing.md",
     "skill_roots": [
-      "chaos-engine/skills",
       "shaft-skills"
     ],
     "required_names": [
@@ -94,9 +78,6 @@
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/README.md",
-    "chaos-engine/skills/chaos-engine/SKILL.md",
-    "chaos-engine/skills/local-agency/references/*.md",
-    "chaos-engine/references/*.md",
     "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md"
@@ -105,46 +86,11 @@
     "AGENTS.md",
     "CLAUDE.md",
     ".agents/skills/README.md",
-    "chaos-engine/skills/chaos-engine/SKILL.md",
-    "chaos-engine/skills/local-agency/SKILL.md",
-    "chaos-engine/skills/local-coding-delegate/SKILL.md",
-    "chaos-engine/skills/local-openai-compat/SKILL.md",
-    "chaos-engine/skills/omniroute/SKILL.md",
-    "chaos-engine/skills/freetoken/SKILL.md",
-    "chaos-engine/skills/colibri/SKILL.md",
-    "chaos-engine/skills/work-item/SKILL.md",
-    "chaos-engine/skills/self-improve/SKILL.md",
-    "chaos-engine/references/*.md",
     "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md"
   ],
-  "expected_skill_names": {
-    "chaos-engine/skills": [
-      "architect",
-      "chaos-engine",
-      "ci-cd",
-      "colibri",
-      "docs-hygiene",
-      "freetoken",
-      "git-cleanup",
-      "job-applications",
-      "job-apply",
-      "job-search",
-      "kanban",
-      "learn-from-external-harnesses",
-      "local-agency",
-      "local-coding-delegate",
-      "local-openai-compat",
-      "local-runtimes",
-      "omniroute",
-      "pre-done-self-review",
-      "security-audit",
-      "self-improve",
-      "technical-presentations",
-      "work-item"
-    ]
-  },
+  "expected_skill_names": {},
   "skill_budgets": {
     ".agents/skills": {
       "max_description_chars": 220,
@@ -239,16 +185,6 @@
     "CLAUDE.md",
     "CONTRIBUTING.md",
     ".agents/skills/README.md",
-    "chaos-engine/skills/chaos-engine/SKILL.md",
-    "chaos-engine/skills/local-agency/SKILL.md",
-    "chaos-engine/skills/local-coding-delegate/SKILL.md",
-    "chaos-engine/skills/local-openai-compat/SKILL.md",
-    "chaos-engine/skills/omniroute/SKILL.md",
-    "chaos-engine/skills/freetoken/SKILL.md",
-    "chaos-engine/skills/colibri/SKILL.md",
-    "chaos-engine/skills/work-item/SKILL.md",
-    "chaos-engine/skills/self-improve/SKILL.md",
-    "chaos-engine/references/*.md",
     "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
@@ -258,9 +194,7 @@
     ".github/instructions/framework-source.instructions.md",
     ".github/instructions/java-tests.instructions.md"
   ],
-  "skills_roots": [
-    "chaos-engine/skills"
-  ],
+  "skills_roots": [],
   "duplicate_paragraph_min_chars": 180,
   "forbidden_patterns": [
     {
