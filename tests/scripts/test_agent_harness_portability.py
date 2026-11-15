@@ -1741,7 +1741,11 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 self.assertTrue(path.startswith("../../.chaos-engine/"), path)
 
     def test_moved_tree_docs_point_at_the_overlay_or_the_harness(self) -> None:
-        """#8056: the removed chaos-engine/ tree is not a read target."""
+        """#8056: the removed chaos-engine/ tree is not a read target.
+
+        The forwarding shim stays on disk and stays out of the guidance element
+        set. An exemption is not how that is recorded.
+        """
         companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
         removed = re.compile(r"(?<!\.)chaos-engine/(?:skills|references|companions)/")
         self.assertIsNone(removed.search(companions), removed.findall(companions))
@@ -1756,6 +1760,22 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             if "chaos-engine/" in target and "chaosengine-harness" not in target
         ]
         self.assertEqual([], local)
+        from scripts.ci.harness_reachability import harness_report, load_config
+
+        report = harness_report(ROOT)
+        config = load_config(ROOT)
+        shim = (
+            "chaos-engine/README.md",
+            "chaos-engine/install.ps1",
+            "chaos-engine/install.sh",
+        )
+        self.assertEqual("chaos-engine", config["deployable_root"])
+        self.assertEqual([], config["exemptions"])
+        self.assertEqual([], [path for path in shim if path in config["element_globs"]])
+        self.assertEqual([], [path for path in shim if path in report["elements"]])
+        self.assertEqual([], [row for row in report["absorbed_by_name"] if row.startswith("chaos-engine/")])
+        self.assertEqual([], report["orphans"])
+        self.assertIn("forwarding shim", config["boundary"])
 
 
 if __name__ == "__main__":
