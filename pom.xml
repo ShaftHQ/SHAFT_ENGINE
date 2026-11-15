@@ -110,7 +110,7 @@
         <asm.version>9.11.1</asm.version>
         <antlr.runtime.version>3.5.3</antlr.runtime.version>
         <commons.compress.version>1.28.0</commons.compress.version>
-        <bouncycastle.version>1.86</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <littleproxy.version>2.9.1</littleproxy.version>
         <ant.version>1.10.18</ant.version>
         <poi.version>5.5.1</poi.version>
