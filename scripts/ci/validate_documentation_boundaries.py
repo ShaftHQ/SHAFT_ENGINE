@@ -127,6 +127,7 @@ IGNORED_DIRECTORIES = {
     ".chaos-engine-runtime-transactions",
     ".git",
     ".idea",
+    ".pytest_cache",
     "allure-report",
     "allure-results",
     "build",

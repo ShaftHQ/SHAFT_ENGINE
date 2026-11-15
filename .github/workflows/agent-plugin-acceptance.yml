@@ -12,9 +12,7 @@ on:
     inputs:
       jobs:
         description: >-
-          Comma-separated job ids or gate names. Empty runs the full dispatch.
-          installer-part-1-windows-2025 and installer-part-1-macos-15 run only
-          ChaosEngine installer acceptance part 1 on those runners.
+          Comma-separated job ids. Empty runs the full dispatch.
         required: false
         default: ""
         type: string
@@ -33,15 +31,11 @@ jobs:
     timeout-minutes: 5
     outputs:
       run_deterministic_harness_full: ${{ steps.pick.outputs.run_deterministic_harness_full }}
-      run_chaos_engine_cross_platform: ${{ steps.pick.outputs.run_chaos_engine_cross_platform }}
-      run_chaos_engine_live_installer: ${{ steps.pick.outputs.run_chaos_engine_live_installer }}
       run_harness_platform_contracts: ${{ steps.pick.outputs.run_harness_platform_contracts }}
       run_agnix_conformance: ${{ steps.pick.outputs.run_agnix_conformance }}
       run_external_guardrail_corpus: ${{ steps.pick.outputs.run_external_guardrail_corpus }}
       run_native_client_load: ${{ steps.pick.outputs.run_native_client_load }}
-      run_chaos_engine_promotion: ${{ steps.pick.outputs.run_chaos_engine_promotion }}
       cross_matrix: ${{ steps.pick.outputs.cross_matrix }}
-      cross_exclude: ${{ steps.pick.outputs.cross_exclude }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

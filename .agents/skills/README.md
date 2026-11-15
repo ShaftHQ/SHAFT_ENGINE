@@ -357,7 +357,7 @@ scope files `.github/instructions/framework-source.instructions.md` and
 
 If your agent does none of that automatically, say this to it:
 
-> Read `.chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
+> Read [AGENTS.md](../../AGENTS.md), then the ChaosEngine skill it imports, and follow that for this task.
 
 To deploy the harness to your own user-level agent configuration:
 

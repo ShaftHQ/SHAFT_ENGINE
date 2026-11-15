@@ -724,6 +724,15 @@ class VendorEnumerationIsEnforcedTest(unittest.TestCase):
                     f"{host} is exempt from a skill-listing budget with no reason",
                 )
 
+    def test_skill_metadata_globs_are_non_empty(self):
+        """An empty glob list counts as a budget and scans nothing."""
+        budget = json.loads(
+            (REPOSITORY_ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8")
+        )
+        for host, patterns in budget.get("host_skill_metadata_globs", {}).items():
+            with self.subTest(host=host):
+                self.assertTrue(patterns, f"{host} glob list is empty; exempt it with a reason")
+
     def test_no_exemption_names_a_host_that_does_not_exist(self):
         """A dead exemption is a hatch nobody closed."""
         budget = json.loads(

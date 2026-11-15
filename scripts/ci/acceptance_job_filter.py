@@ -44,10 +44,10 @@ def full_cross_matrix() -> list[dict]:
 def acceptance_selection(event_name: str, schedule: str, jobs: str) -> dict:
     """Jobs and installer matrix cells this event is allowed to run.
 
-    A workflow_dispatch that names installer part 1 on windows-2025 and
-    macos-15 runs only those cells. It does not run the other matrix cells
-    or the weekly full harness job. An empty dispatch input keeps today's
-    full run. Schedule keeps the Monday-only weekly jobs.
+    A workflow_dispatch that names the two installer gate cells runs only
+    those cells. It does not run the other matrix cells or the weekly full
+    harness job. An empty dispatch input keeps today's full run. Schedule
+    keeps the Monday-only weekly jobs.
     """
     requested = parse_job_filter(jobs)
     filtered = event_name == "workflow_dispatch" and bool(requested)
