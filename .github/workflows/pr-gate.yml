@@ -186,6 +186,8 @@ jobs:
               - 'scripts/ci/external_guardrail_corpus.json'
               - 'scripts/ci/validate_skills.py'
               - 'scripts/ci/worktree_hygiene.py'
+              - 'scripts/ci/harness_pin.txt'
+              - 'scripts/ci/fetch_harness_overlay.sh'
               - 'tools/repository-map/README.md'
               - 'tools/repository-map/resolve_graph_out.py'
               - 'tools/repository-map/resolve_mempalace.py'
@@ -630,6 +632,9 @@ jobs:
           python-version: "3.14"
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Fetch pinned ChaosEngine harness overlay
+        # #8057 e2c: protected suites need the moved harness code (.chaos-engine/).
+        run: bash scripts/ci/fetch_harness_overlay.sh
       - name: Fetch immutable pull-request review records
         shell: bash
         env:
