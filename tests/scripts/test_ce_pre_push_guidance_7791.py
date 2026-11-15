@@ -16,11 +16,11 @@ from scripts.ci import overlay_pre_push as prepush  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# The chaos-engine/ lesson modules moved to ShaftHQ/chaosengine-harness (#8057).
+# Pre-push still runs the chain-budget proof and the skills map.
 GUIDANCE_IDS = {
-    "MergeQueueLessonTest.test_docs_and_skill",
-    "LeanBootstrapTest.test_mandated_chain_budget_holds_on_every_host",
-    "GuardReachabilityTest.test_documented_commands_exist_or_are_marked_repo_only",
-    "NoDuplicationTest.test_no_substantive_line_is_repeated_across_guidance_files",
+    "TokenEconomyWave2GuidanceParityTest.test_mandated_chain_budget_holds_on_every_host",
+    "SkillsMapTest.test_the_map_covers_every_skill_playbook_and_chapter",
 }
 README_ID = (
     "ValidateDocumentationBoundariesTest."
