@@ -3,7 +3,8 @@
 Generated host files (`.codex/config.toml`, `.claude/settings.json`, host
 skill adapters, ...) are untracked. A fresh worktree or clone has none of them,
 so tests read the checkout copy when present and otherwise render the same
-bytes the installer would write, from `chaos-engine/hosts.py`.
+bytes the installer would write, from the pinned `.chaos-engine/hosts.py`.
+A missing overlay fails closed.
 """
 
 from __future__ import annotations
@@ -19,9 +20,12 @@ ROOT = Path(__file__).resolve().parents[2]
 @lru_cache(maxsize=1)
 def _rendered() -> dict[str, bytes]:
     name = "ce_host_files_hosts"
-    spec = importlib.util.spec_from_file_location(name, ROOT / "chaos-engine/hosts.py")
+    hosts_py = ROOT / ".chaos-engine" / "hosts.py"
+    if not hosts_py.is_file():
+        raise ImportError("pinned overlay hosts.py is missing")
+    spec = importlib.util.spec_from_file_location(name, hosts_py)
     if spec is None or spec.loader is None:
-        raise ImportError("chaos-engine/hosts.py")
+        raise ImportError("pinned overlay hosts.py is missing")
     hosts = importlib.util.module_from_spec(spec)
     sys.modules[name] = hosts
     spec.loader.exec_module(hosts)

@@ -53,11 +53,4 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             terminalreporter.line(f"  {item}", red=True)
 
 
-# #8057 e1: modules that no longer import without chaos-engine/ are skipped
-# (see moved_quarantine.py); pytest must not collect them.
-try:
-    from tests.scripts.moved_quarantine import ignored_files as _moved_ignored
-except ImportError:  # copied into a fixture checkout without the quarantine
-    collect_ignore = []
-else:
-    collect_ignore = _moved_ignored()
+
