@@ -29,6 +29,15 @@ ALWAYS_JOBS = (
     "chaos-engine-cross-platform",
     "chaos-engine-live-installer",
 )
+# Outputs the acceptance workflow still reads. ChaosEngine run_* flags,
+# cross_exclude, and installer_os are not among them (#21).
+WORKFLOW_OUTPUT_JOBS = (
+    "deterministic-harness-full",
+    "harness-platform-contracts",
+    "agnix-conformance",
+    "external-guardrail-corpus",
+    "native-client-load",
+)
 CROSS_OS = ("ubuntu-22.04", "macos-15", "windows-2025")
 
 
@@ -60,7 +69,6 @@ def acceptance_selection(event_name: str, schedule: str, jobs: str) -> dict:
         return {
             "enabled": sorted(enabled),
             "cross_matrix": cells,
-            "cross_exclude": [],
         }
 
     enabled: set[str] = set()
@@ -82,12 +90,6 @@ def acceptance_selection(event_name: str, schedule: str, jobs: str) -> dict:
     return {
         "enabled": sorted(enabled),
         "cross_matrix": cells,
-        "cross_exclude": [
-            {"os": os_name, "part": part}
-            for os_name in CROSS_OS
-            for part in (1, 2)
-            if {"os": os_name, "part": part} not in cells
-        ],
     }
 
 
@@ -133,13 +135,10 @@ def write_github_output(path: Path, selection: dict) -> None:
     enabled = set(selection["enabled"])
     lines = [
         f"{_output_flag(job_id)}={'true' if job_id in enabled else 'false'}"
-        for job_id in (*ALWAYS_JOBS, *WEEKLY_JOBS)
+        for job_id in WORKFLOW_OUTPUT_JOBS
     ]
     lines.append("cross_matrix<<EOF")
     lines.append(json.dumps(selection["cross_matrix"]))
-    lines.append("EOF")
-    lines.append("cross_exclude<<EOF")
-    lines.append(json.dumps(selection["cross_exclude"]))
     lines.append("EOF")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
