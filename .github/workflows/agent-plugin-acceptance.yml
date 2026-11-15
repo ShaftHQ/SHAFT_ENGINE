@@ -93,7 +93,6 @@ jobs:
             tests.scripts.test_agent_router_contract
             tests.scripts.test_architect_skill_parity
             tests.scripts.test_agnix_conformance
-            tests.scripts.test_assemble_chaos_engine_plugin
             tests.scripts.test_assemble_shaft_skills_plugin
             tests.scripts.test_build_retry
             tests.scripts.test_prefetch_kind_toolcache

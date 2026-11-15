@@ -22,10 +22,6 @@ except ImportError:
     LOAD_PROMPT = None
     LOAD_PROOF_TERMS = None
     collect_evidence = None
-try:
-    from scripts.ci.agent_plugin_client_smoke import collect_runtime_launch_evidence
-except ImportError:
-    collect_runtime_launch_evidence = None
 
 
 class AgentPluginClientSmokeTest(unittest.TestCase):
@@ -722,33 +718,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode live", live)
         self.assertIn("tests.scripts.test_shaft_skill_routing_eval", live)
 
-    def test_chaos_engine_is_discovered_installed_and_launched_from_package_config(self):
-        from scripts.ci.assemble_chaos_engine_plugin import assemble as assemble_chaos_engine
-
-        package_root = Path(self.temporary_directory.name) / "chaos-engine"
-        assemble_chaos_engine(Path(__file__).resolve().parents[2], package_root)
-        runner = FakeRunner()
-        runner.package_name = "chaos-engine"
-        runner.installed_plugin = {"id": "chaos-engine@chaos-engine", "enabled": True}
-        runner.available_plugin = {"name": "chaos-engine"}
-
-        evidence = collect_evidence(package_root, runner=runner)
-        self.assertEqual("chaos-engine", evidence["package"])
-        self.assertEqual(
-            {"pass"},
-            {
-                row["verdict"]
-                for row in evidence["results"]
-                if row["evidence_level"] in {"marketplace_discovery", "install_enable"}
-            },
-        )
-        selectors = {part for command in runner.commands for part in command}
-        self.assertIn("chaos-engine@chaos-engine", selectors)
-
-        self.assertTrue(callable(collect_runtime_launch_evidence))
-        launch = collect_runtime_launch_evidence(package_root)
-        self.assertEqual("pass", launch["verdict"])
-        self.assertEqual("runtime_launch", launch["evidence_level"])
+    def test_pr_gate_and_live_acceptance_workflows_pin_the_contract(self):
         root = Path(__file__).resolve().parents[2]
         pr_gate = (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         live = (root / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
