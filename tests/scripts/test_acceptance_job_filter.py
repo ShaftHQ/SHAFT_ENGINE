@@ -10,6 +10,7 @@ from scripts.ci.acceptance_job_filter import (
     acceptance_selection,
     dispatch_command,
     watch_acceptance_jobs,
+    write_github_output,
 )
 
 
@@ -29,11 +30,12 @@ class AcceptanceJobFilterTest(unittest.TestCase):
         self.assertNotIn("chaos-engine-live-installer", selection["enabled"])
         self.assertNotIn("ubuntu-22.04", {cell["os"] for cell in selection["cross_matrix"]})
         self.assertNotIn(2, {cell["part"] for cell in selection["cross_matrix"]})
-        excluded = {(cell["os"], cell["part"]) for cell in selection["cross_exclude"]}
-        self.assertIn(("ubuntu-22.04", 1), excluded)
-        self.assertIn(("windows-2025", 2), excluded)
-        self.assertNotIn(("windows-2025", 1), excluded)
-        self.assertNotIn(("macos-15", 1), excluded)
+        self.assertNotIn("cross_exclude", selection)
+        chosen = {(cell["os"], cell["part"]) for cell in selection["cross_matrix"]}
+        self.assertNotIn(("ubuntu-22.04", 1), chosen)
+        self.assertNotIn(("windows-2025", 2), chosen)
+        self.assertIn(("windows-2025", 1), chosen)
+        self.assertIn(("macos-15", 1), chosen)
 
     def test_empty_dispatch_keeps_weekly_jobs_and_schedule_does_not(self):
         dispatched = acceptance_selection("workflow_dispatch", "", "")
@@ -44,6 +46,29 @@ class AcceptanceJobFilterTest(unittest.TestCase):
         self.assertIn("chaos-engine-cross-platform", weekday["enabled"])
         monday = acceptance_selection("schedule", "15 4 * * 1", "")
         self.assertIn("deterministic-harness-full", monday["enabled"])
+
+    def test_github_output_omits_unread_chaos_engine_keys(self):
+        selection = acceptance_selection(
+            "workflow_dispatch",
+            "",
+            ",".join(INSTALLER_PART1_GATE),
+        )
+        target = self._output_path()
+        write_github_output(target, selection)
+        text = target.read_text(encoding="utf-8")
+        self.assertNotIn("cross_exclude", text)
+        self.assertNotIn("run_chaos_engine_", text)
+        self.assertNotIn("installer_os", text)
+        self.assertIn("cross_matrix<<EOF", text)
+        self.assertIn("run_deterministic_harness_full=false", text)
+
+    def _output_path(self):
+        import tempfile
+        from pathlib import Path
+        handle = tempfile.NamedTemporaryFile(prefix="acceptance-output-", delete=False)
+        handle.close()
+        self.addCleanup(lambda: Path(handle.name).unlink(missing_ok=True))
+        return Path(handle.name)
 
     def test_dispatch_command_names_only_the_gate(self):
         command = dispatch_command("ShaftHQ/SHAFT_ENGINE", "abc", INSTALLER_PART1_GATE)
