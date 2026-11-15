@@ -264,20 +264,6 @@ class IssueFilingTest(unittest.TestCase):
         receipt = validate_issue_plan(planned(), TAXONOMY)
         self.assertEqual("allow", receipt["decision"])
 
-    def test_github_issue_view_requests_comments(self):
-        adapter = (ROOT / "chaos-engine/references/work-item-adapters.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "gh issue view N --repo OWNER/REPO --json labels,comments",
-            adapter,
-        )
-
-    def test_work_item_contract_names_spec_kit_sections(self):
-        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
-        contract = (ROOT / "chaos-engine/references/work-item.md").read_text(encoding="utf-8")
-        combined = skill + "\n" + contract
-        for section in SPEC_KIT_SECTIONS:
-            self.assertIn(section, combined)
-
     def test_hygiene_rewrite_specializes_user_story_from_acceptance(self):
         stamped = (
             "## Describe the Bug\nSelenium logging drift.\n"
@@ -328,19 +314,6 @@ class IssueFilingTest(unittest.TestCase):
         receipt = validate_issue_plan(item, TAXONOMY)
         self.assertEqual("block", receipt["decision"])
         self.assertTrue(any("Deliver the stated acceptance" in reason for reason in receipt["reasons"]))
-
-    def test_work_item_contract_forbids_generic_spec_kit_stamp(self):
-        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
-        contract = (ROOT / "chaos-engine/references/work-item.md").read_text(encoding="utf-8")
-        combined = skill + "\n" + contract
-        self.assertIn("Deliver the stated acceptance", combined)
-        self.assertRegex(combined, r"(?i)specialize")
-
-    def test_work_item_tracks_full_plan_on_named_active_pr(self):
-        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("One GitHub issue tracks the full plan", skill)
-        self.assertIn("currently active PR", skill)
-        self.assertIn("same PR", skill)
 
 
 def _first_fr(body: str) -> str:

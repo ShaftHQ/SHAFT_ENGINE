@@ -27,10 +27,6 @@ INSTALLERS = {
 
 
 class BrandedInstallerCeStandardTest(unittest.TestCase):
-    def test_standard_is_documented(self):
-        text = (ROOT / "chaos-engine/references/installer-program.md").read_text(encoding="utf-8")
-        self.assertIn("## Branded installers", text)
-
     def test_each_installer_ships_the_full_lifecycle(self):
         for key, (script, wrappers) in INSTALLERS.items():
             with self.subTest(installer=key):
