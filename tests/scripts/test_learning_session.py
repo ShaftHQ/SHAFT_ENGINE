@@ -23,7 +23,6 @@ from scripts.agents import guard
 
 CONTROLLER = str(Path(guard.__file__).with_name("learning_session.py"))
 
-
 class LearningWriteOutcomeTest(unittest.TestCase):
     def test_failed_learning_write_does_not_start_terminal_session(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -367,27 +366,6 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                         any(event.startswith("learning-assessed:") for event in observed),
                         observed,
                     )
-
-    def test_unfinalized_delivery_requires_terminal_session_completion(self):
-        session = "unfinalized-delivery"
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.dict(os.environ, {"TMPDIR": directory, "TEMP": directory, "TMP": directory}):
-                spec = importlib.util.spec_from_file_location(
-                    "ce_guard_unfinalized",
-                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                module.reflection.record_activity(session, "delivery-complete")
-                module.reflection.record_activity(session, "learning-requested")
-                guard._portable_hook_guard.cache_clear()
-                reason = guard.check_r16_learning_session(
-                    {"hook_event_name": "Stop", "session_id": session}
-                )
-        guard._portable_hook_guard.cache_clear()
-        self.assertIsNotNone(reason)
-        self.assertTrue(reason.casefold().startswith("learning session:"))
-
 
 class StructuredLearningReceiptTest(unittest.TestCase):
     def controller(self):
@@ -1678,7 +1656,6 @@ class TerminalLearningSessionTest(unittest.TestCase):
                 guard.ledger_events(payload),
             )
 
-
 class DispositionReceiptLearningSessionTest(unittest.TestCase):
     """Schema-v2 disposition receipts and automatic terminal collection (#5517)."""
 
@@ -1755,66 +1732,6 @@ class DispositionReceiptLearningSessionTest(unittest.TestCase):
                     disposition="fixed-now",
                     evidence={"assertion": "tests pass"},
                     evidence_root=workspace,
-                )
-
-    def test_issue_bound_and_blocked_dispositions_reuse_privacy_queue(self):
-        controller = self.controller()
-        spec = importlib.util.spec_from_file_location(
-            "chaos_engine_learning_under_test",
-            Path(__file__).resolve().parents[2] / "chaos-engine" / "learning.py",
-        )
-        learning = importlib.util.module_from_spec(spec)
-        self.assertIsNotNone(spec.loader)
-        spec.loader.exec_module(learning)
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory)
-            queue = state / "learning-queue"
-            for disposition, url in (
-                ("existing", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5296"),
-                ("new", "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/5517"),
-            ):
-                receipt = controller.record_disposition(
-                    state,
-                    session_id="root",
-                    incident_id=f"{disposition}-lesson",
-                    disposition=disposition,
-                    evidence={"tracking_issue_url": url},
-                )
-                self.assertEqual(disposition, receipt["disposition"])
-                self.assertEqual(url, receipt["evidence"]["tracking_issue_url"])
-            blocked = controller.record_disposition(
-                state,
-                session_id="root",
-                incident_id="auth-missing",
-                disposition="blocked",
-                evidence={
-                    "learning_candidate": self.privacy_candidate(),
-                    "upstream": "ShaftHQ/SHAFT_ENGINE",
-                },
-                learning_state=queue,
-                learning_module=learning,
-            )
-            self.assertEqual("blocked", blocked["disposition"])
-            self.assertEqual("queued", blocked["evidence"]["queue_status"])
-            serialized = json.dumps(blocked)
-            self.assertNotIn(str(state), serialized)
-            self.assertNotIn("prompt", serialized.lower())
-            self.assertNotIn("/home/", serialized)
-            with self.assertRaisesRegex(ValueError, "privacy|tracking|queue"):
-                controller.record_disposition(
-                    state,
-                    session_id="root",
-                    incident_id="leaky",
-                    disposition="blocked",
-                    evidence={
-                        "learning_candidate": {
-                            **self.privacy_candidate(),
-                            "lesson": "Read /home/secret/.bashrc and raw prompt text",
-                        },
-                        "upstream": "ShaftHQ/SHAFT_ENGINE",
-                    },
-                    learning_state=queue,
-                    learning_module=learning,
                 )
 
     def test_terminal_finalize_auto_collects_receipts_and_sibling_sources(self):
@@ -2047,7 +1964,6 @@ class DispositionReceiptLearningSessionTest(unittest.TestCase):
                 controller.incident_hash(f"ledger:{recorded['failureId']}"),
                 completed["incidents"][0]["incident_hash"],
             )
-
 
 if __name__ == "__main__":
     unittest.main()

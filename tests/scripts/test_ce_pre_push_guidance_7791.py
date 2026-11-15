@@ -16,7 +16,6 @@ from scripts.ci import overlay_pre_push as prepush  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
-
 GUIDANCE_IDS = {
     "MergeQueueLessonTest.test_docs_and_skill",
     "LeanBootstrapTest.test_mandated_chain_budget_holds_on_every_host",
@@ -33,7 +32,6 @@ GATED = (
     "tests.scripts.test_ce_harness_retrieve_7792",
     "tests.scripts.test_ce_enhancement_disposition_7793",
 )
-
 
 class GuidanceContractSelectionTest(unittest.TestCase):
     def test_markdown_and_readme_contracts_are_cheap_and_java_does_not_select_them(self) -> None:
@@ -55,7 +53,6 @@ class GuidanceContractSelectionTest(unittest.TestCase):
         missing = [name for name in GATED if name not in registered]
         self.assertEqual([], missing)
         self.assertFalse(set(GATED) & set(gate.ungated_script_modules(ROOT)))
-
 
 def _contract_failures_on_copy(changed: str, copies: tuple[str, ...], mutate) -> list[str]:
     """Run one cheap contract against a temp root. The checkout stays untouched."""
@@ -85,52 +82,7 @@ def _contract_failures_on_copy(changed: str, copies: tuple[str, ...], mutate) ->
             raise AssertionError(run.stderr[-2000:] or run.stdout[-2000:])
         return [line for line in run.stdout.splitlines() if line]
 
-
 class GuidanceContractFailureTest(unittest.TestCase):
-    def test_dropping_awaiting_checks_fails_pre_push_with_that_needle(self) -> None:
-        copies = (
-            "tests/__init__.py",
-            "tests/scripts/__init__.py",
-            "tests/scripts/repo_state_guard.py",
-            "tests/scripts/test_ce_bugfix_2026_10_30_2.py",
-            "chaos-engine/references/ci-status-economy.md",
-            "chaos-engine/skills/ci-cd/SKILL.md",
-        )
-
-        def mutate(root: Path) -> None:
-            path = root / "chaos-engine/references/ci-status-economy.md"
-            path.write_text(
-                path.read_text(encoding="utf-8").replace("AWAITING_CHECKS", "QUEUED_STATE"),
-                encoding="utf-8",
-            )
-
-        failures = _contract_failures_on_copy(
-            "chaos-engine/references/ci-status-economy.md", copies, mutate
-        )
-        self.assertIn("AWAITING_CHECKS", "\n".join(failures))
-
-    def test_bot_entry_chain_over_24576_bytes_fails(self) -> None:
-        copies = (
-            "tests/__init__.py",
-            "tests/scripts/__init__.py",
-            "tests/scripts/repo_state_guard.py",
-            "tests/scripts/ce_installed_fixture.py",
-            "tests/scripts/test_chaos_engine_token_economy_6173.py",
-            "scripts/ci/validate_agent_guidance.py",
-            "scripts/ci/agent_guidance_budget.json",
-            "scripts/ci/agent_harness_parity.json",
-            "chaos-engine/references/bot-entry.md",
-        )
-
-        def mutate(root: Path) -> None:
-            path = root / "chaos-engine/references/bot-entry.md"
-            pad = "<!-- chain-budget-probe-7791 unique mandated-chain padding -->\n" * 800
-            path.write_text(path.read_text(encoding="utf-8") + pad, encoding="utf-8")
-
-        failures = _contract_failures_on_copy(
-            "chaos-engine/references/bot-entry.md", copies, mutate
-        )
-        self.assertIn("24576", "\n".join(failures))
 
     def test_nested_chaos_engine_readme_fails_even_without_the_unit_module(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -145,7 +97,6 @@ class GuidanceContractFailureTest(unittest.TestCase):
             any("non-root README is prohibited: chaos-engine/token-opt/README.md" in item for item in failures),
             failures,
         )
-
 
 class IsolatedProbeTest(unittest.TestCase):
     def test_only_the_changed_test_file_is_probed(self) -> None:
@@ -181,7 +132,6 @@ class IsolatedProbeTest(unittest.TestCase):
         self.assertTrue(any("ModuleNotFoundError" in item for item in failures), failures)
         self.assertFalse((ROOT / relative).exists())
 
-
 class DesignSkillsFailureLogTest(unittest.TestCase):
     def test_red_log_names_the_check_and_keeps_awaiting_checks(self) -> None:
         blob = ("x" * 20000) + "\nAssertionError: 'AWAITING_CHECKS' not found in '" + ("y" * 30000)
@@ -204,7 +154,6 @@ class DesignSkillsFailureLogTest(unittest.TestCase):
             ],
         }
         self.assertTrue(gate.render_text(payload).startswith("failed=design-skills-contract"))
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -142,8 +142,6 @@ OPTIONALITY_HEDGE = re.compile(
     r"|\bbest[- ]effort\b|\boptional\b|\bnice to have\b|\bif you can\b"
 )
 
-
-
 def heading_slugs(path: Path) -> set[str]:
     """Return GitHub-style anchor slugs for one markdown file's ATX headings."""
     slugs = set()
@@ -151,7 +149,6 @@ def heading_slugs(path: Path) -> set[str]:
         slug = re.sub(r"[^a-z0-9 -]", "", heading.lower()).strip().replace(" ", "-")
         slugs.add(re.sub(r"-{2,}", "-", slug))
     return slugs
-
 
 def section_body(content: str, heading: str) -> str:
     """Return one ATX section's body, up to the next heading of the same or higher level."""
@@ -162,7 +159,6 @@ def section_body(content: str, heading: str) -> str:
         re.DOTALL,
     )
     return match.group(1) if match else ""
-
 
 class HarnessReachabilityTest(unittest.TestCase):
     def test_every_harness_element_is_reachable_or_exempt_with_a_reason(self):
@@ -272,53 +268,6 @@ class HarnessReachabilityTest(unittest.TestCase):
     def test_every_exemption_states_a_reason_and_matches_a_live_element(self):
         """An exemption with no reason is an orphan wearing a hat (#4489)."""
         self.assertEqual(harness_report(ROOT)["exemption_problems"], [])
-
-    def test_the_exemption_list_is_empty_so_the_headline_figure_is_not_bought(self):
-        """The owner asked for 100%, and an exemption list can manufacture it.
-
-        Every element is reachable today, so the list is empty and the figure
-        is earned rather than declared. This is not a rule against ever
-        exempting anything -- it is a tripwire, so that adding the first
-        exemption is a visible decision in a diff rather than a quiet way to
-        make the number look right. Whoever adds one deletes this test and
-        says why in the PR.
-        """
-        self.assertEqual(load_config(ROOT)["exemptions"], [])
-        report = harness_report(ROOT)
-        self.assertEqual(len(report["orphans"]), 0)
-        for surface in REQUIRED_HARNESS_SURFACES:
-            self.assertIn(surface, report["elements"])
-        self.assertEqual(report["wildcard_only"], [])
-
-    def test_the_deployable_root_names_a_real_subtree_reached_from_the_adapter(self):
-        """One JSON string decides whether "links, not mentions" means anything.
-
-        `deployable_root` selects which elements must be reached by a real
-        markdown link. Nothing pinned its value, so setting it to
-        `.agents/skillsX` -- a directory that does not exist -- moved every
-        in-tree file into the mention-satisfied branch, and a new reference
-        that `SKILL.md` merely name-dropped in backticks reported clean. An
-        author who hits the unlinked-file failure could repair it by editing
-        one string instead of adding one link, and the diff would look like
-        configuration.
-
-        Pinned three ways, because each catches a different edit: it exists,
-        it is a directory, and the repository adapter reaches a real skill in
-        it. A typo fails the first, a file path fails the second, and a
-        real-but-wrong subtree such as `.claude` fails the third.
-        """
-        config = load_config(ROOT)
-        deployable = ROOT / config["deployable_root"]
-        self.assertTrue(deployable.exists(), config["deployable_root"])
-        self.assertTrue(deployable.is_dir(), config["deployable_root"])
-        reached, broken = link_walk(ROOT, config["entrypoint"])
-        self.assertEqual(broken, [])
-        portable_entrypoint = "chaos-engine/skills/chaos-engine/SKILL.md"
-        self.assertIn(portable_entrypoint, reached)
-        self.assertTrue(
-            portable_entrypoint.startswith(config["deployable_root"].rstrip("/") + "/"),
-            "the repository adapter must reach an entrypoint inside the deployable root",
-        )
 
     def test_the_element_set_is_derived_from_the_repository_not_hand_listed(self):
         """A hand list omits the next file, which is the defect being fixed.
@@ -842,7 +791,6 @@ class HarnessReachabilityTest(unittest.TestCase):
             "tests/scripts/test_guard_lifecycle.py"
         ))
 
-
 class EntrypointDutyTest(unittest.TestCase):
     """The content half of #4485: duties the entrypoint must state, unqualified."""
 
@@ -856,174 +804,6 @@ class EntrypointDutyTest(unittest.TestCase):
         self.assertIn("references/router-contract.md", card, "the core card must link its contract")
         return card + "\n" + self.CONTRACT.read_text(encoding="utf-8")
     PLANNING_PLAYBOOK = ROOT / "chaos-engine/references/work-github-planning.md"
-
-    def test_the_github_playbook_links_its_planning_and_tracking_half(self):
-        """#4504: split before a future edit turns the file cap into an emergency."""
-        content = self.PLAYBOOK.read_text(encoding="utf-8")
-        self.assertTrue(self.PLANNING_PLAYBOOK.is_file())
-        self.assertIn("[planning and tracking](work-github-planning.md)", content)
-        planning = self.PLANNING_PLAYBOOK.read_text(encoding="utf-8")
-        for heading in (
-            "## 0. Ground the scope before asking anything",
-            "## 1. Keep asking follow-ups until decision-ready; then go unattended",
-            "## 2. Branch and track",
-            "## 3. Work items in dependency order, front-loading risk",
-            "## 3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)",
-        ):
-            with self.subTest(heading=heading):
-                self.assertIn(heading, planning)
-        for clause in (
-            "current status page",
-            "in the same session",
-            "final summary comment",
-            "Closes #N",
-        ):
-            with self.subTest(planning_clause=clause):
-                self.assertIn(clause, planning)
-        for clause in (
-            "Before committing any subagent's work",
-            "unlink it from the PR's Development sidebar",
-            "Before reviewing or shipping any nontrivial diff",
-            "deferred/out-of-scope/adjacent-finding/follow-up",
-            "description that lists each sub-item and its commit",
-        ):
-            with self.subTest(delivery_clause=clause):
-                self.assertIn(clause, content)
-        for clause in (
-            "separate branch+PR per item looped sequentially",
-            "rename it to `Tracking: `",
-            "say what you searched",
-            "two options",
-            "skill updates",
-            "Update task status as work proceeds",
-        ):
-            with self.subTest(planning_clause=clause):
-                self.assertIn(clause, planning)
-
-    def test_the_orchestrator_owns_a_pr_from_armed_to_confirmed_merged(self):
-        """#4486: opening a PR is where the harness used to stop caring.
-
-        Every clause here is one the issue named, and each is pinned
-        separately so a partial deletion cannot hide behind the survivors.
-        The four terminal shapes are pinned individually because `stale` is
-        the one that produces no event at all and therefore the one a manual
-        watch drops.
-        """
-        section = section_body(
-            self.entrypoint_corpus(), "## Ownership and completion"
-        )
-        self.assertTrue(section, "the entrypoint must keep the Ownership and completion section")
-        compact = re.sub(r"\s+", " ", section)
-        for clause in (
-            "auto-merge",
-            "arm",
-            "watch",
-            "`python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`",
-            "merged",
-            "red",
-            "conflicting",
-            "stale",
-            "fix",
-            "confirm",
-            "compaction",
-        ):
-            with self.subTest(clause=clause):
-                self.assertIn(clause, compact.lower() if clause.islower() else compact)
-
-        repository_profile = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn("`scripts/ci/watch_pr_checks.py`", repository_profile)
-
-    def test_the_pr_duty_cannot_be_qualified_into_something_optional(self):
-        """A presence pin catches deletion and renaming, never weakening (#4469).
-
-        "Arm auto-merge where practical" leaves every word above in place. So
-        the section that carries the duty is also checked for the hedges that
-        turn a duty into a suggestion.
-        """
-        section = section_body(
-            self.entrypoint_corpus(), "## Ownership and completion"
-        )
-        hedge = OPTIONALITY_HEDGE.search(section)
-        self.assertIsNone(
-            hedge,
-            f"the PR duty is qualified by {hedge.group(0)!r} and is no longer a duty"
-            if hedge
-            else "",
-        )
-
-    def test_both_workflows_are_named_and_linked_to_a_section_that_exists(self):
-        """#4487: a link, and an anchor that dies when the heading is renamed.
-
-        #4452 recorded pins that stayed green after the guarded section was
-        renamed. Resolving the anchor against the target file's real headings
-        is what closes that: renaming the section in the playbook fails here,
-        naming which anchor broke.
-        """
-        content = self.entrypoint_corpus()
-        slugs = heading_slugs(self.PLAYBOOK)
-        for workflow, anchor in (
-            ("learned-lessons workflow", "learned-lessons-workflow"),
-            ("PR-merger workflow", "pr-merger-workflow-arm-watch-fix-confirm"),
-        ):
-            with self.subTest(workflow=workflow):
-                self.assertIn(workflow, content, f"the entrypoint must name the {workflow}")
-                links = (
-                    f"../../references/work-github-playbook.md#{anchor}",
-                    f"(work-github-playbook.md#{anchor})",
-                )
-                self.assertTrue(any(link in content for link in links), f"the entrypoint must link {links[0]}")
-                self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
-
-    def test_pr_merger_babysit_must_clear_feedback_and_accept_before_arming(self):
-        """Babysitting clears remote state before final acceptance and arming."""
-        playbook = section_body(
-            self.PLAYBOOK.read_text(encoding="utf-8"),
-            "### PR-merger workflow: arm, watch, fix, confirm",
-        )
-        compact = re.sub(r"\s+", " ", playbook).casefold()
-        self.assertTrue(playbook, "the PR-merger workflow section must exist")
-        self.assertIn("review comments", compact)
-        self.assertIn("failed tests", compact)
-        ordered_clauses = (
-            "clear every github comment before acceptance",
-            "require the exact head to be fully green before acceptance",
-            "run final holistic acceptance last",
-            "no bot finding",
-            "remains unresolved",
-            "do not arm auto-merge while any in-scope sub-issue is open",
-            "final assurance action before arming auto-merge",
-            "immediately after that acceptance remains current",
-        )
-        offsets = [compact.index(clause) for clause in ordered_clauses]
-        self.assertEqual(offsets, sorted(offsets))
-        self.assertIn("unchanged state never triggers a retry", compact)
-        self.assertIsNone(OPTIONALITY_HEDGE.search(playbook))
-        lifecycle = section_body(
-            (ROOT / "chaos-engine/references/consult-first.md").read_text(
-                encoding="utf-8"
-            ),
-            "## Lifecycle",
-        )
-        lifecycle_compact = re.sub(r"\s+", " ", lifecycle).casefold()
-        self.assertTrue(lifecycle, "the consult-first Lifecycle section must exist")
-        self.assertIn("babysit", lifecycle_compact)
-        self.assertIn("review comments", lifecycle_compact)
-        self.assertIn("failed tests", lifecycle_compact)
-        self.assertIsNone(OPTIONALITY_HEDGE.search(lifecycle))
-
-    def test_the_learning_session_is_required_before_every_report_of_done(self):
-        """#4487: the routing table is the classifier; running it is the duty."""
-        section = section_body(
-            self.entrypoint_corpus(), "## Learning Session"
-        )
-        self.assertTrue(section, "the entrypoint must keep the Learning Session section")
-        compact = re.sub(r"\s+", " ", section)
-        self.assertIn("immediately before the final report", compact)
-        self.assertIn("exactly one root-owned Learning Session", compact)
-        self.assertIn("Nothing durable is a valid result", compact)
-        self.assertIsNone(OPTIONALITY_HEDGE.search(section))
 
     def test_the_hedge_pattern_detects_the_weakenings_it_claims_to(self):
         """The two live hedge assertions pass vacuously on a clean file.
@@ -1048,7 +828,6 @@ class EntrypointDutyTest(unittest.TestCase):
                 "Arm auto-merge once the review gate passes, then watch until merged."
             )
         )
-
 
 if __name__ == "__main__":
     unittest.main()

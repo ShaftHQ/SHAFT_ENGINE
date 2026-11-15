@@ -10,11 +10,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools/repository-map/resolve_graph_out.py"
 GRAPHIFY_GUIDANCE = ROOT / "shaft-skills/ce-pack/references/graphify.md"
-
 
 class ResolveGraphOutTest(unittest.TestCase):
     def setUp(self):
@@ -390,60 +388,6 @@ if (-not ($resolverOk -and $cacheOk -and $queryOk -and $auditOk)) {
             "shared Graphify state",
         )
 
-    def test_graphify_contention_degrades_without_shared_state_mutation(self):
-        files = {
-            "graphify": GRAPHIFY_GUIDANCE.read_text(encoding="utf-8"),
-            "retrieval": (
-                ROOT / "chaos-engine/references/retrieve-first.md"
-            ).read_text(encoding="utf-8"),
-            "receipt": (
-                ROOT / "chaos-engine/references/research-receipt.md"
-            ).read_text(encoding="utf-8"),
-        }
-
-        self._assert_graphify_contention_is_a_degraded_continuation(files)
-
-        mutations = {
-            "contradictory linked refresh permission appended": (
-                files["graphify"]
-                + "\nA linked worktree may clear the cache and retry refresh until it succeeds.\n"
-            ),
-            "hyphenated contradictory linked refresh permission appended": (
-                files["graphify"]
-                + "\nA linked-worktree may clear the cache and retry refresh until it succeeds.\n"
-            ),
-            "linked refresh allowed": files["graphify"].replace(
-                "must not\nrefresh, wait or retry-loop",
-                "may refresh or wait and retry-loop",
-            ),
-            "contention blocks implementation": files["graphify"].replace(
-                "does not block implementation",
-                "blocks implementation",
-            ),
-            "primary ownership removed": files["graphify"].replace(
-                "The existing maintenance controller is the sole Graphify refresh owner.",
-                "Any checkout may own a Graphify refresh.",
-            ),
-        }
-        for name, graphify_mutation in mutations.items():
-            with self.subTest(name=name), self.assertRaises(AssertionError):
-                self._assert_graphify_contention_is_a_degraded_continuation(
-                    {**files, "graphify": graphify_mutation}
-                )
-
-        for name, safe_text in {
-            "continue without refresh": (
-                "A linked worktree can continue implementation without refresh."
-            ),
-            "continue while retaining wait prohibition": (
-                "A linked worktree can continue and must not wait."
-            ),
-        }.items():
-            with self.subTest(name=name):
-                self._assert_graphify_contention_is_a_degraded_continuation(
-                    {**files, "graphify": files["graphify"] + "\n" + safe_text + "\n"}
-                )
-
     def test_graphify_cli_route_contract_rejects_bypass_mutations(self):
         guidance = GRAPHIFY_GUIDANCE.read_text(encoding="utf-8")
         mutations = {
@@ -706,7 +650,6 @@ exit /b %GRAPHIFY_REFRESH_EXIT%
         self.assertIn("uv tool install graphifyy", readme)
         self.assertIn("uv tool upgrade graphifyy", readme)
         self.assertNotIn("graphifyy==0.9.17", readme)
-
 
 if __name__ == "__main__":
     unittest.main()

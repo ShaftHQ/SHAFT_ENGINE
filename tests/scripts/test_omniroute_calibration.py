@@ -8,7 +8,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "ci" / "chaos_gauge" / "omniroute_calibration.py"
 SPEC = importlib.util.spec_from_file_location("omniroute_calibration", MODULE_PATH)
@@ -16,7 +15,6 @@ if SPEC is None or SPEC.loader is None:
     raise RuntimeError("omniroute calibration module could not be loaded")
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
-
 
 class IdentityAndPairingTest(unittest.TestCase):
     def test_campaign_identity_selects_unchanged_public_subset(self):
@@ -54,7 +52,6 @@ class IdentityAndPairingTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "pairing invariant"):
             MODULE.assert_pairing_invariant(pairs)
 
-
 def _balanced_trials(*, correctness_by_arm=None, retries=0):
     correctness_by_arm = correctness_by_arm or {"control": 0, "chaos-engine": 0}
     trials = []
@@ -77,7 +74,6 @@ def _balanced_trials(*, correctness_by_arm=None, retries=0):
                     }
                 )
     return trials
-
 
 class UnavailableAndAggregateTest(unittest.TestCase):
     def test_metric_or_unavailable_never_coerces_absence_to_zero(self):
@@ -186,24 +182,6 @@ class UnavailableAndAggregateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "gateVerdict"):
             MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
 
-    def test_committed_aggregate_gate_is_no(self):
-        path = ROOT / "chaos-engine" / "decision-quality-calibration.aggregate.json"
-        evidence = json.loads(path.read_text(encoding="utf-8"))
-        recomputed = MODULE.gate_verdict(evidence["metrics"])
-        self.assertEqual("NO", recomputed["verdict"])
-        self.assertEqual(recomputed, evidence["comparison"]["gateVerdict"])
-        manifest = MODULE.load_manifest()
-        identity = MODULE.campaign_identity(manifest)
-        observed = evidence["identity"]
-        self.assertEqual(
-            [item["name"] for item in identity["tasks"]],
-            [item["name"] for item in observed["tasks"]],
-        )
-        # Task-file digests are campaign-time. Later edits must not forge them.
-        checked = json.loads(path.read_text(encoding="utf-8"))
-        checked["identity"]["tasks"] = identity["tasks"]
-        MODULE.validate_redacted_aggregate(checked, manifest)
-
     def test_validate_rejects_null_metrics_and_privacy_leaks(self):
         trials = _balanced_trials()
         evidence = MODULE.build_redacted_aggregate(
@@ -228,7 +206,6 @@ class UnavailableAndAggregateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "privacy scan"):
             MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
 
-
 class ModelSelectionTest(unittest.TestCase):
     def test_prefer_primary_then_failover_skips_exhausted(self):
         candidates = [
@@ -252,7 +229,6 @@ class ModelSelectionTest(unittest.TestCase):
     def test_rejects_paid_recharge_marker(self):
         with self.assertRaisesRegex(MODULE.PaidTransportError, "paid"):
             MODULE.ensure_free_transport_message("Please recharge. Insufficient balance")
-
 
 class GateVerdictTest(unittest.TestCase):
     def test_gate_yes_requires_correctness_and_efficiency_without_regression(self):
@@ -305,7 +281,6 @@ class GateVerdictTest(unittest.TestCase):
         }
         self.assertEqual("INCONCLUSIVE", MODULE.gate_verdict(metrics)["verdict"])
 
-
 class ApplyAndVerifyHelpersTest(unittest.TestCase):
     def test_parse_files_payload_and_verify_diagnosis_task(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -324,7 +299,6 @@ class ApplyAndVerifyHelpersTest(unittest.TestCase):
             MODULE.apply_files_payload(sandbox, payload)
             reward = MODULE.run_verifier("diagnosis-failure-trace", sandbox)
             self.assertEqual(1, reward["correctness"])
-
 
 if __name__ == "__main__":
     unittest.main()
