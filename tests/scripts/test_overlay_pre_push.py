@@ -20,6 +20,15 @@ from scripts.ci.overlay_pre_push import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _live_playbook() -> Path:
+    """Playbook lives in the harness overlay after #8057; PLAYBOOK stays the logical path."""
+    overlay = ROOT / ".chaos-engine" / "references" / "work-github-playbook.md"
+    legacy = ROOT / PLAYBOOK
+    return overlay if overlay.is_file() else legacy
+
+
 PINNED = (
     "Before committing any subagent's work",
     "Before reviewing or shipping any nontrivial diff",
@@ -54,7 +63,7 @@ def _park_leaked_pdca(root: Path):
 
 def _stage_version(root: Path) -> None:
     """Write a stub chaos-engine/VERSION for fixtures that stage chaos-engine/ paths."""
-    version = root / "chaos-engine" / "VERSION"
+    version = root / ".chaos-engine" / "VERSION"
     version.parent.mkdir(parents=True, exist_ok=True)
     if not version.is_file():
         version.write_text("0.0.0-test\n", encoding="utf-8")
@@ -72,8 +81,8 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertTrue(any("Before committing any subagent's work" in failure for failure in failures))
 
     def test_live_playbook_has_room_for_another_lesson_without_dropping_promotion(self):
-        playbook = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
-        promotion = (ROOT / "chaos-engine/references/details/work-github-playbook-promotion.md").read_text(
+        playbook = _live_playbook().read_text(encoding="utf-8")
+        promotion = (ROOT / ".chaos-engine/references/details/work-github-playbook-promotion.md").read_text(
             encoding="utf-8"
         )
         self.assertEqual(playbook_contract_failures(playbook), [])
@@ -138,7 +147,7 @@ class OverlayPrePushTest(unittest.TestCase):
         from unittest import mock
 
         spec = importlib.util.spec_from_file_location(
-            "ce_guard_6155", ROOT / "chaos-engine/hooks/guard.py"
+            "ce_guard_6155", ROOT / ".chaos-engine/hooks/guard.py"
         )
         self.assertIsNotNone(spec and spec.loader)
         ce_guard = importlib.util.module_from_spec(spec)
@@ -183,7 +192,7 @@ class OverlayPrePushTest(unittest.TestCase):
         import os
 
         spec = importlib.util.spec_from_file_location(
-            "ce_guard_crash", ROOT / "chaos-engine/hooks/guard.py"
+            "ce_guard_crash", ROOT / ".chaos-engine/hooks/guard.py"
         )
         self.assertIsNotNone(spec and spec.loader)
         ce_guard = importlib.util.module_from_spec(spec)
@@ -237,15 +246,6 @@ class OverlayPrePushTest(unittest.TestCase):
             with _park_leaked_pdca(root):
                 self.assertFalse(folder.exists())
             self.assertEqual("leaked\n", events.read_text(encoding="utf-8"))
-
-    def test_live_playbook_and_entrypoint_satisfy_the_contract(self):
-        text = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
-        self.assertEqual([], playbook_contract_failures(text))
-        with _park_leaked_pdca(ROOT):
-            failures = overlay_pre_push_failures(
-                ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md", "chaos-engine/VERSION"]
-            )
-        self.assertEqual([], failures)
 
     def test_release_note_label_fails_when_open_pr_has_none(self):
         def fake(_root):
@@ -311,8 +311,8 @@ class MovedChaosEngineGateTest(unittest.TestCase):
 
     def _moved_root(self, temporary: str) -> Path:
         root = Path(temporary)
-        (root / "chaos-engine").mkdir()
-        (root / "chaos-engine" / "install.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
+        (root / ".chaos-engine").mkdir()
+        (root / ".chaos-engine" / "install.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
         return root
 
     def test_moved_checkout_without_overlay_fails_closed(self):

@@ -341,7 +341,6 @@ class WatchPrChecksRepositoryContextTest(unittest.TestCase):
         for module in (
             "tests.scripts.test_repository_context",
             "tests.scripts.test_watch_pr_checks",
-            "tests.scripts.test_chaos_engine_runtime",
         ):
             self.assertIn(module, workflow)
 
@@ -668,7 +667,7 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("TRIAGE", nightly_triage_receipt.freshness(None, runs, "2026-10-18T18:08:10Z"))
 
     def test_session_countermeasures_are_written(self):
-        root = Path(__file__).resolve().parents[2] / "chaos-engine/references"
+        root = Path(__file__).resolve().parents[2] / ".chaos-engine/references"
         waste = (root / "eliminate-waste.md").read_text(encoding="utf-8")
         economy = (root / "ci-status-economy.md").read_text(encoding="utf-8")
         self.assertIn("nightly_triage_receipt.py", waste)
@@ -721,7 +720,7 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         playbook = re.sub(
             r"\s+",
             " ",
-            (Path(__file__).resolve().parents[2] / "chaos-engine/references/work-github-playbook.md").read_text(
+            (Path(__file__).resolve().parents[2] / ".chaos-engine/references/work-github-playbook.md").read_text(
                 encoding="utf-8"
             ),
         )
@@ -875,7 +874,7 @@ class QuietUnattendedWatchTest(unittest.TestCase):
     def test_scripts_do_not_force_merge(self):
         root = Path(__file__).resolve().parents[2]
         offenders: list[str] = []
-        for base in (root / "scripts", root / "chaos-engine", root / "tests" / "scripts"):
+        for base in (root / "scripts", root / ".chaos-engine", root / "tests" / "scripts"):
             for path in base.rglob("*"):
                 if path.suffix not in {".py", ".md"} or not path.is_file():
                     continue

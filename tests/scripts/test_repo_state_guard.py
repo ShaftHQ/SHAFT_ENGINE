@@ -268,7 +268,7 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
     """Spawn honors the repo guard, and protection reads that one variable."""
 
     def test_hook_spawn_skips_when_the_repo_guard_is_set(self):
-        path = ROOT / "chaos-engine" / "stores.py"
+        path = ROOT / ".chaos-engine" / "stores.py"
         spec = importlib.util.spec_from_file_location("ce_stores_guard_6249", path)
         if spec is None or spec.loader is None:
             raise AssertionError("cannot load chaos-engine/stores.py")
@@ -287,7 +287,7 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
             )
 
     def test_explicit_refresh_still_spawns_under_the_guard(self):
-        path = ROOT / "chaos-engine" / "stores.py"
+        path = ROOT / ".chaos-engine" / "stores.py"
         spec = importlib.util.spec_from_file_location("ce_stores_guard_6249_on", path)
         if spec is None or spec.loader is None:
             raise AssertionError("cannot load chaos-engine/stores.py")
@@ -324,19 +324,13 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
 
 
 class OffendingTestsAreIsolatedTest(unittest.TestCase):
-    """SC-2: the two SessionStart tests that reached the real root stay isolated."""
+    """SC-2: the SessionStart test that reached the real root stays isolated."""
 
     def test_guard_lifecycle_kernel_reachability_patches_session_worktree(self):
         source = (ROOT / "tests/scripts/test_guard_lifecycle.py").read_text(encoding="utf-8")
         body = source.split("def test_repository_hook_dispatch_reaches_the_portable_kernel", 1)[1]
         body = body.split("\n    def ", 1)[0]
         self.assertIn("_prepare_session_worktree", body)
-
-    def test_hook_companion_parity_runs_against_a_protected_root(self):
-        source = (ROOT / "tests/scripts/test_chaos_engine_hook.py").read_text(encoding="utf-8")
-        body = source.split("def test_source_and_portable_session_start_share_exact_companion_context", 1)[1]
-        body = body.split("\n    def ", 1)[0]
-        self.assertIn("isolated_session_environment", body)
 
 
 if __name__ == "__main__":

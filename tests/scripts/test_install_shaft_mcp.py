@@ -21,6 +21,15 @@ from unittest import mock
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install_shaft_agentic_tools.py"
 REPO_ROOT = MODULE_PATH.parents[2]
+
+
+def _overlay_or_repo(relative) -> Path:
+    """Read a manifest path from the repo, or the harness overlay after #8057."""
+    path = REPO_ROOT / relative
+    text = str(relative)
+    if path.is_file() or not text.startswith("chaos-engine/"):
+        return path
+    return REPO_ROOT / ".chaos-engine" / text[len("chaos-engine/") :]
 SPEC = importlib.util.spec_from_file_location("install_shaft_mcp", MODULE_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 if SPEC.loader is None:
@@ -543,7 +552,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             def install_repository_file(_url, destination, _label, **_kwargs):
                 relative = destination.relative_to(target)
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes((REPO_ROOT / relative).read_bytes())
+                destination.write_bytes(_overlay_or_repo(relative).read_bytes())
 
             with mock.patch.object(MODULE, "download_file", side_effect=install_repository_file):
                 MODULE.download_agent_validation_script_files(target)
@@ -581,7 +590,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         for relative in sorted(shipped):
             if not relative.endswith(".py"):
                 continue
-            tree = ast.parse((repository_root / relative).read_text(encoding="utf-8"), filename=relative)
+            tree = ast.parse(_overlay_or_repo(relative).read_text(encoding="utf-8"), filename=relative)
             for node in ast.walk(tree):
                 dependencies = []
                 if isinstance(node, ast.Import):

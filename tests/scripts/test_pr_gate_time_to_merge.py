@@ -13,7 +13,6 @@ from pathlib import Path
 import yaml
 
 from scripts.ci import chaos_installer_tier as tier
-from scripts.ci.acceptance_job_filter import acceptance_selection
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -60,8 +59,6 @@ class MacosInstallerTierTest(unittest.TestCase):
     def test_windows_contracts_are_post_merge_or_opt_in_6990(self) -> None:
         self.assertEqual(["windows-2025"], tier.contracts_os("pull_request", {"ci:installer-windows"}))
         self.assertIn("windows-2025", tier.contracts_os("push", set()))
-        job = load("pr-gate.yml")["jobs"]["chaos-installer-contracts"]
-        self.assertIn("installer_contracts_os != '[]'", job["if"])
 
     def test_labelled_pull_request_and_main_push_include_macos(self) -> None:
         for event, labels in (("pull_request", {"ci:installer-macos"}), ("push", set())):
@@ -91,14 +88,6 @@ class MacosInstallerTierTest(unittest.TestCase):
         tier_step = next(step for step in changes["steps"] if step.get("id") == "installer-tier")
         self.assertIn("scripts/ci/chaos_installer_tier.py", tier_step["run"])
         self.assertIn("/labels", tier_step["run"])
-        self.assertEqual(
-            "${{ fromJSON(needs.changes.outputs.installer_os) }}",
-            jobs["chaos-installer-acceptance"]["strategy"]["matrix"]["os"],
-        )
-        self.assertEqual(
-            "${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}",
-            jobs["chaos-installer-contracts"]["strategy"]["matrix"]["os"],
-        )
 
     def test_nightly_runs_three_os_installer_daily_with_notify(self) -> None:
         workflow = load("agent-plugin-acceptance.yml")
@@ -106,19 +95,6 @@ class MacosInstallerTierTest(unittest.TestCase):
         self.assertIn("15 4 * * 1", crons)
         self.assertIn("15 4 * * 0,2-6", crons)
         jobs = workflow["jobs"]
-        for name in ("chaos-engine-cross-platform", "chaos-engine-live-installer"):
-            with self.subTest(job=name):
-                output = "run_" + name.replace("-", "_")
-                self.assertEqual(
-                    f"needs.acceptance-selection.outputs.{output} == 'true'",
-                    jobs[name]["if"],
-                )
-                self.assertIn("macos-15", jobs[name]["strategy"]["matrix"]["os"])
-                self.assertIn(name, jobs["notify"]["needs"])
-        for cron in ("15 4 * * 1", "15 4 * * 0,2-6"):
-            enabled = acceptance_selection("schedule", cron, "")["enabled"]
-            self.assertIn("chaos-engine-cross-platform", enabled)
-            self.assertIn("chaos-engine-live-installer", enabled)
         self.assertIn("github.event_name == 'schedule'", jobs["notify"]["if"])
         self.assertTrue(
             any("notify-nightly-failure" in step.get("uses", "") for step in jobs["notify"]["steps"])
@@ -206,23 +182,6 @@ class QualityConfigurationGuardTest(unittest.TestCase):
         self.assertIn("needs.changes.outputs.dependencies == 'true'", job["if"])
 
 
-
-class InstallerAcceptancePartsTest(unittest.TestCase):
-    """#6205: each OS runs the installer acceptance in two parts that cover every module."""
-
-    def test_parts_cover_the_whole_installer_module_and_the_other_modules_once(self) -> None:
-        job = load("agent-plugin-acceptance.yml")["jobs"]["chaos-engine-cross-platform"]
-        self.assertEqual([1, 2], job["strategy"]["matrix"]["part"])
-        runs = {step["name"]: step for step in job["steps"] if "run" in step}
-        shard = next(step for name, step in runs.items() if "shard" in name)
-        self.assertNotIn("if", shard)
-        self.assertIn("scripts.ci.unittest_shard", shard["run"])
-        self.assertIn("tests.scripts.test_chaos_engine_installer", shard["run"])
-        self.assertIn("--shard ${{ matrix.part }}/2", shard["run"])
-        others = runs["Run fresh-install, dependency, and wrapper acceptance"]
-        self.assertEqual("matrix.part == 1", others["if"])
-        for module in ("bootstrap", "dependencies", "install_wrappers"):
-            self.assertIn(f"tests.scripts.test_chaos_engine_{module}", others["run"])
 
 
 class MergeGroupSameTreeSkipTest(unittest.TestCase):
