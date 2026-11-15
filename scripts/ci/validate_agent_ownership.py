@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate one semantic owner for each ChaosEngine harness duty."""
+"""Validate one semantic owner for each SHAFT agent-harness duty."""
 
 from __future__ import annotations
 
@@ -11,11 +11,13 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "scripts/ci/agent_ownership.json"
 TEXT_SUFFIXES = {".json", ".md", ".py", ".yml", ".yaml"}
 IGNORED_PARTS = {".git", ".gradle", "build", "target"}
+# Duties whose owner moved to ShaftHQ/chaosengine-harness (router, lifecycle
+# dispatch, portable guard adapter, tool dispatch, cleanup policy, host
+# installer, #8057) are enforced there, not here.
 REQUIRED_DUTIES = {
-    "router", "lifecycle dispatch and protocol", "repository guard policy",
-    "portable guard adapter", "repository adapter", "tool dispatch",
+    "repository guard policy", "repository adapter",
     "plugin manifests", "Markdown harness map", "shaft skill routing",
-    "CI aggregation", "cleanup policy", "host installer",
+    "CI aggregation",
 }
 
 
