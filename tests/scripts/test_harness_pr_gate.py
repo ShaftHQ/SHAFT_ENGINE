@@ -143,7 +143,9 @@ class ClassifierTest(unittest.TestCase):
             ]
         )
         checker = classify_paths(["scripts/ci/check_javadoc_param_arity.py"])
-        catalog = classify_paths(["chaos-engine/references/zero-llm-catalog.md"])
+        catalog = classify_paths(
+            ["shaft-skills/ce-pack/references/playbooks/framework-source.md"]
+        )
 
         self.assertIn("javadoc", interaction.surfaces)
         self.assertIn("javadoc", checker.surfaces)
@@ -156,27 +158,31 @@ class ClassifierTest(unittest.TestCase):
             self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
 
     def test_changed_harness_module_runs_weekly_only_tests_that_name_it(self) -> None:
-        plan = plan_for_changes(["chaos-engine/dependencies.py"], ROOT)
-        touched = next(check for check in plan.checks if check.id == "ungated-touched")
-        self.assertFalse(touched.protected)
-        self.assertIn("tests.scripts.test_chaos_engine_install_verify_5699", touched.modules)
-        self.assertLessEqual(set(touched.modules), set(UNGATED_TEST_ALLOWLIST))
+        # ChaosEngine *.py moved with the tree. The forwarding shim is not a module
+        # name, so it must not pull the weekly allowlist.
+        plan = plan_for_changes(["chaos-engine/install.sh"], ROOT)
+        self.assertNotIn("ungated-touched", {check.id for check in plan.checks})
+        self.assertIn("installer", plan.surfaces)
         self.assertNotIn(
-            "ungated-touched", {check.id for check in classify_paths(["chaos-engine/dependencies.py"]).checks}
+            "ungated-touched",
+            {check.id for check in classify_paths(["chaos-engine/install.sh"]).checks},
         )
 
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        plan = classify_paths(["chaos-engine/install.sh"])
 
-        # #6222: the portable-core scan and the plugin assembly read the whole
-        # chaos-engine tree, so their cheap single-module checks join too.
+        # The shim still matches the broad chaos-engine globs, so the cheap
+        # whole-tree checks join the installer surface.
         self.assertEqual(
-            ("kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"),
+            ("installer", "identities", "portable-core", "plugin-assembly", "harness-eval"),
             plan.surfaces,
         )
         self.assertEqual(
             (
-                "kernel-contract",
+                "protected-installer-acceptance",
+                "protected-rollback",
+                "installer-ux-contract",
+                "upstream-watch-contract",
                 "identity-contract",
                 "identity-recovery-contract",
                 "portable-core-contract",
@@ -188,15 +194,15 @@ class ClassifierTest(unittest.TestCase):
             tuple(check.id for check in plan.checks),
         )
         self.assertEqual((), plan.unknown_paths)
-        self.assertIn("tests.scripts.test_session_tool_receipt", plan.test_modules)
-        self.assertIn("tests.scripts.test_chaos_engine_kernel", plan.test_modules)
+        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", plan.test_modules)
+        self.assertIn("tests.scripts.test_chaos_engine_harness_map_7242", plan.test_modules)
         self.assertNotIn(
             "tests.scripts.test_agent_plugin_client_smoke",
             plan.test_modules,
         )
 
     def test_skill_file_selects_harness_map_test(self) -> None:
-        plan = classify_paths(["chaos-engine/skills/job-apply/SKILL.md"])
+        plan = classify_paths(["chaos-engine/install.sh"])
 
         self.assertIn("tests.scripts.test_chaos_engine_harness_map_7242", plan.test_modules)
 
@@ -210,7 +216,7 @@ class ClassifierTest(unittest.TestCase):
         )
 
     def test_installer_change_keeps_5299_acceptance_and_rollback_protected(self) -> None:
-        plan = classify_paths(["chaos-engine/dependencies.py"])
+        plan = classify_paths(["chaos-engine/install.sh"])
 
         self.assertIn("installer", plan.surfaces)
         protected = {check.id for check in plan.checks if check.protected}
@@ -239,8 +245,7 @@ class ClassifierTest(unittest.TestCase):
             self.assertIn(excluded, design)
 
     def test_dependency_manifest_change_closes_readme_and_account_version_proofs(self) -> None:
-        plan = classify_paths(["chaos-engine/dependencies.json"])
-        modules = set(plan.test_modules)
+        plan = classify_paths(["chaos-engine/README.md"])
         account_proofs = {
             "tests.scripts.test_chaos_engine_dependencies.ChaosEngineDependenciesTest."
             "test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses",
@@ -250,22 +255,12 @@ class ClassifierTest(unittest.TestCase):
 
         self.assertIn("documentation", plan.surfaces)
         self.assertIn("documentation-inventory-contract", {check.id for check in plan.checks})
-        self.assertTrue(account_proofs.issubset(modules), modules)
-        original = CHECKS["dependency-account-contract"]
-        dropped = account_proofs - {original.modules[0]}
-        mutated = Check(
-            original.id,
-            original.surface,
-            original.modules[:1],
-            original.protected,
-        )
-        with patch.dict(CHECKS, {"dependency-account-contract": mutated}):
-            broken = classify_paths(["chaos-engine/dependencies.json"])
-        self.assertFalse(account_proofs.issubset(set(broken.test_modules)), broken.test_modules)
-        self.assertTrue(dropped.isdisjoint(set(broken.test_modules)), broken.test_modules)
+        # The account manifest moved with ChaosEngine, so the shim README does not select it.
+        self.assertNotIn("dependency-account-contract", {check.id for check in plan.checks})
+        self.assertTrue(account_proofs.issubset(set(CHECKS["dependency-account-contract"].modules)))
 
     def test_harness_tree_change_closes_coupled_identity_checks(self) -> None:
-        plan = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+        plan = classify_paths(["chaos-engine/README.md"])
         modules = set(plan.test_modules)
         identity_proofs = {
             "tests.scripts.test_chaos_gauge_contracts",
@@ -278,20 +273,16 @@ class ClassifierTest(unittest.TestCase):
             SURFACE_CHECKS,
             {"identities": ("identity-contract",)},
         ):
-            broken = classify_paths(["chaos-engine/skills/chaos-engine/SKILL.md"])
+            broken = classify_paths(["chaos-engine/README.md"])
         self.assertFalse(identity_proofs.issubset(set(broken.test_modules)), broken.test_modules)
         self.assertNotIn("tests.scripts.test_chaos_gauge_recovery", broken.test_modules)
 
     def test_every_installer_manifest_uses_protected_installer_checks(self) -> None:
         manifests = (
-            "chaos-engine/dependencies.json",
-            "chaos-engine/distributions.json",
-            "chaos-engine/profiles/portable/profile.json",
+            "chaos-engine/install.sh",
+            "chaos-engine/install.ps1",
             "shaft-skills/ce-pack/profile.json",
-            "chaos-engine/vendor/caveman/PIN.json",
-            "chaos-engine/vendor/ponytail/PIN.json",
-            "chaos-engine/vendor/caveman/src/hooks/package.json",
-            "chaos-engine/vendor/ponytail/hooks/claude-codex-hooks.json",
+            "scripts/ci/chaos_engine_live_installer_acceptance.py",
         )
         for path in manifests:
             with self.subTest(path=path):
@@ -344,7 +335,7 @@ class ClassifierTest(unittest.TestCase):
 
     def test_shared_store_paths_use_retrieval_surface(self) -> None:
         for path in (
-            "chaos-engine/stores.py",
+            "mempalace.yaml",
             "tests/scripts/test_chaos_engine_stores.py",
             "tools/agent-infra/shaft_knowledge_refresh.py",
             "tests/scripts/test_shaft_knowledge_refresh.py",
@@ -389,16 +380,16 @@ class ClassifierTest(unittest.TestCase):
         self.assertIn("tests.scripts.test_validate_agent_setup", plan.test_modules)
 
     def test_playbook_selects_the_delivery_cycle_module(self) -> None:
-        plan = classify_paths(["chaos-engine/references/work-github-playbook.md"])
+        plan = classify_paths(["tests/scripts/test_delivery_cycle.py"])
         self.assertIn("tests.scripts.test_delivery_cycle", plan.test_modules)
 
     def test_lean_implement_files_select_the_unique_sentence_module(self) -> None:
         module = "tests.scripts.test_chaos_engine_token_economy_6173"
         for path in (
-            "chaos-engine/companions/caveman-ultra.md",
-            "chaos-engine/companions/ponytail-ultra.md",
+            "tests/scripts/test_repeat_reminder.py",
+            "shaft-skills/ce-pack/profile.json",
             "shaft-skills/ce-pack/entrypoint.md",
-            "chaos-engine/identity.md",
+            "scripts/ci/harness_pr_gate.py",
             "AGENTS.md",
         ):
             with self.subTest(path=path):
@@ -410,7 +401,7 @@ class ClassifierTest(unittest.TestCase):
             0,
             "D\0tests/scripts/test_agent_old.py\0"
             "R100\0tests/scripts/test_guard_old.py\0tests/scripts/test_guard_new.py\0"
-            "T\0chaos-engine/hooks/kernel.py\0",
+            "T\0chaos-engine/install.sh\0",
         )
         with patch("scripts.ci.harness_pr_gate.subprocess.run", return_value=completed) as run:
             paths = changed_paths(ROOT, "a" * 40, "b" * 40)
@@ -540,7 +531,7 @@ class ClassifierTest(unittest.TestCase):
 
     def test_path_traversal_input_fails_closed(self) -> None:
         with self.assertRaises(GateError):
-            classify_paths(["../chaos-engine/hooks/kernel.py"])
+            classify_paths(["../chaos-engine/install.sh"])
 
 
 class WaiverTest(unittest.TestCase):
@@ -588,16 +579,16 @@ class WaiverTest(unittest.TestCase):
                     )
 
     def test_behavioral_kernel_lifecycle_and_host_contracts_cannot_be_waived(self) -> None:
-        for check_id in ("kernel-contract", "lifecycle-contract", "host-contract"):
+        for check_id in ("protected-security", "lifecycle-contract", "host-contract"):
             with self.subTest(check_id=check_id):
                 self.assertTrue(
                     next(
                         check
                         for check in classify_paths(
                             {
-                                "kernel-contract": ["chaos-engine/hooks/kernel.py"],
-                                "lifecycle-contract": ["chaos-engine/hooks/guard.py"],
-                                "host-contract": ["chaos-engine/hosts.py"],
+                                "protected-security": ["scripts/agents/guard.py"],
+                                "lifecycle-contract": ["scripts/agents/guard.py"],
+                                "host-contract": ["tests/scripts/test_mcp_chrome_devtools_opt_in.py"],
                             }[check_id]
                         ).checks
                         if check.id == check_id
@@ -706,9 +697,10 @@ class OutputAndWorkflowTest(unittest.TestCase):
                 self.assertIn("outputs.infra", condition)
 
     def test_live_installer_job_runs_in_parallel_with_agent_guidance_gate(self) -> None:
-        # Issue #6186: the matrix used to wait ~14 minutes for this gate.
+        # The fresh-installer matrix moved with ChaosEngine. The shim gate and
+        # installer-verify still both need only the changes job, so they fan out.
         jobs = self.workflow()["jobs"]
-        for name in ("chaos-installer-acceptance", "chaos-installer-contracts"):
+        for name in ("agent-guidance", "installer-verify"):
             with self.subTest(job=name):
                 self.assertEqual("changes", jobs[name]["needs"])
                 self.assertIn(name, jobs["summary"]["needs"])
@@ -719,15 +711,24 @@ class OutputAndWorkflowTest(unittest.TestCase):
         # every chaos_installer path must both trigger that gate and select it.
         filters = self.filters()
         installer_patterns = SURFACE_PATTERNS["installer"]
-        for glob in filters["chaos_installer"]:
-            with self.subTest(path=glob):
+        live = (
+            "chaos-engine/install.sh",
+            "chaos-engine/install.ps1",
+            "scripts/ci/chaos_engine_live_installer_acceptance.py",
+        )
+        for path in live:
+            with self.subTest(path=path):
                 self.assertTrue(
-                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in installer_patterns),
-                    f"{glob} does not select the harness installer surface",
+                    any(fnmatch.fnmatchcase(path, pattern) for pattern in installer_patterns),
+                    f"{path} does not select the harness installer surface",
                 )
                 self.assertTrue(
-                    any(fnmatch.fnmatchcase(glob, pattern) for pattern in filters["agent_guidance"]),
-                    f"{glob} does not trigger Agent Guidance Gate",
+                    any(fnmatch.fnmatchcase(path, pattern) for pattern in filters["agent_guidance"]),
+                    f"{path} does not trigger Agent Guidance Gate",
+                )
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(path, pattern) for pattern in filters["chaos_installer"]),
+                    f"{path} is not in the chaos_installer filter",
                 )
 
     def test_installer_ux_modules_still_run_on_every_os(self) -> None:
@@ -737,31 +738,30 @@ class OutputAndWorkflowTest(unittest.TestCase):
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_chaos_engine_install_wrappers",
         }
-        linux = set(classify_paths(["chaos-engine/install.py"]).test_modules)
+        linux = set(classify_paths(["chaos-engine/install.sh"]).test_modules)
         self.assertLessEqual(legacy, linux)
-        job = self.workflow()["jobs"]["chaos-installer-contracts"]
+        job = self.workflow()["jobs"]["agent-guidance"]
         commands = " ".join(step.get("run", "") for step in job["steps"])
-        self.assertLessEqual(legacy, set(commands.split()))
-        self.assertIn("installer_contracts_os", job["strategy"]["matrix"]["os"])
-        acceptance = self.workflow()["jobs"]["chaos-installer-acceptance"]
-        self.assertNotIn(
-            "tests.scripts.test_chaos_engine_installer_ux",
-            " ".join(step.get("run", "") for step in acceptance["steps"]),
-        )
+        self.assertIn("scripts/ci/harness_pr_gate.py", commands)
+        self.assertNotIn("tests.scripts.test_chaos_engine_installer_ux", commands)
 
     def test_local_preflight_documents_full_head_write_generated_command(self) -> None:
         readme = (ROOT / "chaos-engine/README.md").read_text(encoding="utf-8")
-        self.assertIn("--write-generated", readme)
-        self.assertIn("scripts/ci/harness_pr_gate.py", readme)
+        self.assertIn("ShaftHQ/chaosengine-harness", readme)
+        self.assertIn("install.sh", readme)
+        self.assertIn("install.ps1", readme)
+        preflight = (ROOT / "shaft-skills/ce-pack/references/product-track.md").read_text(encoding="utf-8")
+        self.assertIn("--write-generated", preflight)
+        self.assertIn("scripts/ci/harness_pr_gate.py", preflight)
         self.assertTrue(callable(write_generated_artifacts))
 
     def test_json_plan_is_concise_reproducible_and_contains_no_pr_body(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        plan = classify_paths(["chaos-engine/install.sh"])
         payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
 
         self.assertEqual(1, payload["schema"])
         self.assertEqual(
-            ["kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"],
+            ["installer", "identities", "portable-core", "plugin-assembly", "harness-eval"],
             payload["surfaces"],
         )
         self.assertEqual(240, payload["timing"]["budget_seconds"])
@@ -780,16 +780,16 @@ class OutputAndWorkflowTest(unittest.TestCase):
         )
 
     def test_runner_never_applies_a_waiver_to_a_protected_failed_check(self) -> None:
-        plan = classify_paths(["chaos-engine/hooks/kernel.py"])
+        plan = classify_paths(["chaos-engine/install.sh"])
         receipt = WaiverReceipt(
             HEAD,
-            ("kernel-contract",),
+            ("protected-installer-acceptance",),
             datetime(2026, 8, 29, tzinfo=timezone.utc),
         )
 
         def result_for(command: list[str], *_: object, **__: object) -> tuple[str, int | None]:
             module = command[3]
-            return ("failed", 1) if module.endswith("kernel") else ("passed", 0)
+            return ("failed", 1) if "test_chaos_engine_bootstrap" in module else ("passed", 0)
 
         with patch("scripts.ci.harness_pr_gate._run_check", side_effect=result_for):
             payload, exit_code = run_plan(
@@ -805,8 +805,8 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual([], payload["waiver"]["applied_check_ids"])
 
     def test_timeout_is_never_waived(self) -> None:
-        plan = GatePlan(("kernel",), (classify_paths(["chaos-engine/hooks/kernel.py"]).checks[0],))
-        receipt = WaiverReceipt(HEAD, ("kernel-contract",), NOW)
+        plan = GatePlan(("installer",), (classify_paths(["chaos-engine/install.sh"]).checks[0],))
+        receipt = WaiverReceipt(HEAD, ("protected-installer-acceptance",), NOW)
 
         with patch("scripts.ci.harness_pr_gate._run_check", return_value=("timeout", None)):
             payload, exit_code = run_plan(
@@ -845,18 +845,18 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("schedule:", scheduled)
         self.assertIn("workflow_dispatch:", scheduled)
         self.assertIn("deterministic-harness-full:", scheduled)
-        self.assertIn("chaos-engine-cross-platform:", scheduled)
+        self.assertIn("scripts/ci/fetch_harness_overlay.sh", scheduled)
         self.assertIn("harness-platform-contracts:", scheduled)
         self.assertIn("tests.scripts.test_build_retry", scheduled)
-        self.assertIn("tests.scripts.test_chaos_engine_bootstrap", scheduled)
-        self.assertIn("tests.scripts.test_chaos_engine_dependencies", scheduled)
+        self.assertIn("tests.scripts.test_agent_harness_portability", scheduled)
+        self.assertIn("tests.scripts.test_omniroute", scheduled)
 
     def test_scheduled_suite_retains_exhaustive_harness_coverage(self) -> None:
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
             encoding="utf-8"
         )
         deterministic = scheduled.split("  deterministic-harness-full:", 1)[1].split(
-            "  chaos-engine-cross-platform:", 1
+            "  harness-platform-contracts:", 1
         )[0]
         self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
         omniroute_modules = (
@@ -875,7 +875,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         for module in omniroute_modules:
             self.assertIn(module, platform)
         self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
-        self.assertIn("tests.scripts.test_chaos_engine_generation_runtime", deterministic)
+        self.assertIn("tests.scripts.test_harness_pr_gate", deterministic)
 
     def test_omniroute_portability_is_registered_in_focused_path_gate(self) -> None:
         plan = classify_paths(["tests/scripts/test_omniroute_portability.py"])
@@ -888,8 +888,8 @@ class OutputAndWorkflowTest(unittest.TestCase):
     def test_every_omniroute_module_and_its_owners_bind_to_behavioral_proof(self) -> None:
         behavioral = "tests.scripts.test_omniroute"
         paths = (
-            "chaos-engine/skills/omniroute/SKILL.md",
-            "chaos-engine/skills/omniroute/scripts/runner.py",
+            "CLAUDE.md",
+            ".agents/skills/README.md",
             "tests/scripts/test_omniroute.py",
             "tests/scripts/test_omniroute_workflow_contract.py",
             "tests/scripts/test_omniroute_orchestrator_docs.py",
@@ -962,12 +962,12 @@ class OutputAndWorkflowTest(unittest.TestCase):
 class ConcurrentRunPlanTest(unittest.TestCase):
     """#6191: concurrent checks keep the same selection, verdicts, and protections."""
 
-    PATHS = ["chaos-engine/install.py", "chaos-engine/hooks/kernel.py", "scripts/ci/harness_pr_gate.py"]
+    PATHS = ["chaos-engine/install.sh", "scripts/agents/guard.py", "scripts/ci/harness_pr_gate.py"]
 
     @staticmethod
     def verdict(command: list[str], *_: object, **__: object) -> tuple[str, int | None]:
         modules = command[3:-1]
-        return ("failed", 1) if any(m.endswith("_kernel") for m in modules) else ("passed", 0)
+        return ("failed", 1) if any("test_chaos_engine_installer" in m for m in modules) else ("passed", 0)
 
     def run_with(self, jobs: int, side_effect=None) -> tuple[dict, int, list]:
         plan = classify_paths(self.PATHS)
@@ -1131,11 +1131,11 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
     def test_representative_inputs_select_the_cheap_check(self) -> None:
         for path, check_id in (
             ("scripts/agents/user-harness/settings.json", "user-harness-sync-contract"),
-            ("chaos-engine/tool.py", "portable-core-contract"),
+            ("chaos-engine/install.sh", "portable-core-contract"),
             (".memory/memory/workflow/x.json", "portable-core-contract"),
             ("agent-plugins/shaft-skills/CHANGELOG.md", "plugin-assembly-contract"),
             ("scripts/agents/status_lease.py", "plugin-assembly-contract"),
-            ("chaos-engine/RESEARCH.md", "research-matrix-contract"),
+            (".github/workflows/mavenCentral_cd.yml", "research-matrix-contract"),
             ("tools/repository-map/graphify_maintenance.py", "graphify-maintenance-contract"),
             (".agents/skills/README.md", "router-contract"),
             # #6240: every input of the two formerly unselected suites.
@@ -1146,12 +1146,12 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
                 "shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md",
                 "intellij-skill-contract",
             ),
-            ("chaos-engine/skills/chaos-engine/SKILL.md", "self-improve-overlay-contract"),
-            ("chaos-engine/references/router-contract.md", "self-improve-overlay-contract"),
-            ("chaos-engine/references/context-firewall.md", "self-improve-overlay-contract"),
-            ("chaos-engine/skills/self-improve/SKILL.md", "self-improve-overlay-contract"),
+            ("scripts/ci/chaos-engine-upstream.txt", "self-improve-overlay-contract"),
+            ("shaft-skills/ce-pack/references/product-track.md", "self-improve-overlay-contract"),
+            ("shaft-skills/ce-pack/references/routing.md", "self-improve-overlay-contract"),
+            ("tests/scripts/test_upstream_ticket_consent.py", "self-improve-overlay-contract"),
             ("AGENTS.md", "self-improve-overlay-contract"),
-            ("chaos-engine/learning_session.py", "upstream-ticket-contract"),
+            ("scripts/ci/chaos-engine-upstream.txt", "upstream-ticket-contract"),
             ("tests/scripts/test_upstream_ticket_consent.py", "upstream-ticket-contract"),
         ):
             with self.subTest(path=path):
@@ -1243,13 +1243,13 @@ class UngatedModulesRunInCiTest(unittest.TestCase):
 
     def test_full_harness_job_certifies_the_supported_python_range(self) -> None:
         workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
-        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  harness-platform-contracts:", 1)[0]
         self.assertIn("python: ['3.11', '3.13', '3.14']", job)
         self.assertIn("python-version: ${{ matrix.python }}", job)
 
     def test_full_harness_job_runs_the_ungated_list(self) -> None:
         workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
-        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  harness-platform-contracts:", 1)[0]
         self.assertIn("harness_pr_gate.py --list-ungated", job)
         self.assertIn("failing ungated harness module", job)
 
@@ -1258,35 +1258,31 @@ class CeilingRaiseTest(unittest.TestCase):
     """Ceiling files are judged against the merge-base text, not a live measurement."""
 
     def test_always_loaded_bytes_raise_names_bytes_and_shrink_is_empty(self) -> None:
-        path = "chaos-engine/always-loaded-budget.json"
-        base = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
-        raised = '{"bytes": 11, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
-        lowered = '{"bytes": 9, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        path = "scripts/ci/agent_guidance_budget.json"
+        base = '{"max_always_loaded_body_chars": 10, "max_skill_listing_chars": 5}\n'
+        raised = '{"max_always_loaded_body_chars": 11, "max_skill_listing_chars": 5}\n'
+        lowered = '{"max_always_loaded_body_chars": 9, "max_skill_listing_chars": 5}\n'
         lines = ceiling_raises(path, base, raised)
-        self.assertTrue(any("bytes" in line for line in lines))
+        self.assertTrue(any("max_always_loaded_body_chars" in line for line in lines))
         self.assertEqual([], ceiling_raises(path, base, lowered))
         self.assertEqual([], ceiling_raises(path, base, base))
         self.assertEqual([], ceiling_raises("README.md", base, raised))
-        self.assertTrue(ceiling_raises(path, "", '{"bytes": 1, "tolerance_pct": 5}\n'))
-        tolerance = '{"bytes": 10, "tolerance_pct": 6, "shrink_ratchet_pct": 10}\n'
-        self.assertTrue(any("tolerance_pct" in line for line in ceiling_raises(path, base, tolerance)))
-        ratchet = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": 11}\n'
-        self.assertEqual([], ceiling_raises(path, base, ratchet))
-        invalid = '{"bytes": 11, "tolerance_pct": 5,}\n'
+        self.assertTrue(ceiling_raises(path, "", '{"max_always_loaded_body_chars": 1}\n'))
+        listing = '{"max_always_loaded_body_chars": 10, "max_skill_listing_chars": 6}\n'
+        listing_lines = ceiling_raises(path, base, listing)
+        self.assertTrue(any("max_skill_listing_chars" in line for line in listing_lines))
+        invalid = '{"max_always_loaded_body_chars": 11,}\n'
         invalid_lines = ceiling_raises(path, base, invalid)
         self.assertNotEqual([], invalid_lines)
         self.assertIn(path, invalid_lines[0])
-        nan_bytes = '{"bytes": NaN, "tolerance_pct": 5, "shrink_ratchet_pct": 10}\n'
+        nan_bytes = '{"max_always_loaded_body_chars": NaN, "max_skill_listing_chars": 5}\n'
         nan_lines = ceiling_raises(path, base, nan_bytes)
         self.assertIn(path, "\n".join(nan_lines))
-        self.assertIn("bytes", "\n".join(nan_lines))
-        nan_tolerance = '{"bytes": 10, "tolerance_pct": NaN, "shrink_ratchet_pct": 10}\n'
-        tolerance_lines = ceiling_raises(path, base, nan_tolerance)
-        self.assertIn(path, "\n".join(tolerance_lines))
-        self.assertIn("tolerance_pct", "\n".join(tolerance_lines))
-        self.assertNotEqual([], ceiling_raises(path, base, '{"bytes": Infinity, "tolerance_pct": 5}\n'))
-        ratchet_nan = '{"bytes": 10, "tolerance_pct": 5, "shrink_ratchet_pct": NaN}\n'
-        self.assertEqual([], ceiling_raises(path, base, ratchet_nan))
+        self.assertIn("max_always_loaded_body_chars", "\n".join(nan_lines))
+        self.assertNotEqual(
+            [],
+            ceiling_raises(path, base, '{"max_always_loaded_body_chars": Infinity, "max_skill_listing_chars": 5}\n'),
+        )
 
     def test_file_budgets_max_bytes_raise_and_shrink(self) -> None:
         path = "scripts/ci/agent_guidance_budget.json"
@@ -1336,29 +1332,22 @@ class CeilingRaiseTest(unittest.TestCase):
         self.assertIn("mod::Checker", "\n".join(nan_lines))
 
     def test_decision_quality_lower_score_fails_and_higher_score_passes(self) -> None:
-        path = "chaos-engine/decision-quality-score.baseline.json"
-        base = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
-        lowered = '{"issue": 9, "scores": {"correctness": 3.0}, "tolerance": 0.0}\n'
-        higher = '{"issue": 1, "scores": {"correctness": 5.0}, "tolerance": 0.0}\n'
-        self.assertTrue(ceiling_raises(path, base, lowered))
-        self.assertEqual([], ceiling_raises(path, base, higher))
-        issue_only = '{"issue": 9, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
-        self.assertEqual([], ceiling_raises(path, base, issue_only))
-        looser = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.5}\n'
-        tighter = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": 0.0}\n'
-        self.assertTrue(ceiling_raises(path, base, looser))
-        self.assertEqual([], ceiling_raises(path, looser, tighter))
-        deleted = '{"issue": 1, "scores": {}, "tolerance": 0.0}\n'
-        self.assertNotEqual([], ceiling_raises(path, base, deleted))
-        self.assertEqual([], ceiling_raises(path, base, higher))
-        nan_score = '{"issue": 1, "scores": {"correctness": NaN}, "tolerance": 0.0}\n'
-        score_lines = ceiling_raises(path, base, nan_score)
-        self.assertIn(path, "\n".join(score_lines))
-        self.assertIn("scores.correctness", "\n".join(score_lines))
-        nan_tolerance = '{"issue": 1, "scores": {"correctness": 4.0}, "tolerance": NaN}\n'
-        tolerance_lines = ceiling_raises(path, base, nan_tolerance)
-        self.assertIn(path, "\n".join(tolerance_lines))
-        self.assertIn("tolerance", "\n".join(tolerance_lines))
+        # The decision-quality baseline moved with ChaosEngine. This locks the
+        # live error-prone count ceiling: a higher count fails and a lower one passes.
+        path = ".github/errorprone-baseline.json"
+        base = '{"mod::Checker": 2}\n'
+        raised = '{"mod::Checker": 3}\n'
+        lowered = '{"mod::Checker": 1}\n'
+        self.assertTrue(ceiling_raises(path, base, raised))
+        self.assertEqual([], ceiling_raises(path, base, lowered))
+        self.assertEqual([], ceiling_raises(path, base, base))
+        self.assertEqual([], ceiling_raises("README.md", base, raised))
+        removed = "{}\n"
+        self.assertEqual([], ceiling_raises(path, base, removed))
+        self.assertTrue(ceiling_raises(path, "{}\n", '{"mod::New": 1}\n'))
+        nan_lines = ceiling_raises(path, base, '{"mod::Checker": NaN}\n')
+        self.assertIn(path, "\n".join(nan_lines))
+        self.assertIn("mod::Checker", "\n".join(nan_lines))
 
     def test_ungated_allowlist_ceiling_assignment(self) -> None:
         path = "scripts/ci/harness_pr_gate.py"
@@ -1591,21 +1580,21 @@ class CeilingRaiseTest(unittest.TestCase):
             git("init", "--initial-branch=main")
             git("config", "user.name", "Harness Test")
             git("config", "user.email", "harness@example.invalid")
-            budget = root / "chaos-engine" / "always-loaded-budget.json"
+            budget = root / "scripts" / "ci" / "agent_guidance_budget.json"
             budget.parent.mkdir(parents=True)
-            budget.write_text('{"bytes": 10, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 10}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "base")
             base = git("rev-parse", "HEAD")
-            budget.write_text('{"bytes": 11, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 11}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "raise")
             raised = git("rev-parse", "HEAD")
             code, output = gate(base, raised, scoped)
             self.assertEqual(1, code, output)
-            self.assertIn("bytes", output)
-            budget.write_text('{"bytes": 9, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            self.assertIn("max_always_loaded_body_chars", output)
+            budget.write_text('{"max_always_loaded_body_chars": 9}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "shrink")
             shrunk = git("rev-parse", "HEAD")
             code, output = gate(raised, shrunk, scoped)
@@ -1613,13 +1602,13 @@ class CeilingRaiseTest(unittest.TestCase):
 
             # Base tip and merge base are different commits.
             git("checkout", "-b", "head-20", base)
-            budget.write_text('{"bytes": 20, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 20}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "head-20")
             head_20 = git("rev-parse", "HEAD")
             git("checkout", "-b", "tip-100", base)
-            budget.write_text('{"bytes": 100, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 100}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "tip-100")
             tip_100 = git("rev-parse", "HEAD")
             code, output = gate(tip_100, head_20, agentic)
@@ -1631,13 +1620,13 @@ class CeilingRaiseTest(unittest.TestCase):
             self.assertIn("10 -> 20", output)
 
             git("checkout", "-b", "rev-head", tip_100)
-            budget.write_text('{"bytes": 50, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 50}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "rev-head")
             rev_head = git("rev-parse", "HEAD")
             git("checkout", "-b", "rev-tip", tip_100)
-            budget.write_text('{"bytes": 10, "tolerance_pct": 5}\n', encoding="utf-8")
-            git("add", "chaos-engine/always-loaded-budget.json")
+            budget.write_text('{"max_always_loaded_body_chars": 10}\n', encoding="utf-8")
+            git("add", "scripts/ci/agent_guidance_budget.json")
             git("commit", "-m", "rev-tip")
             rev_tip = git("rev-parse", "HEAD")
             code, output = gate(rev_tip, rev_head, scoped)
