@@ -96,7 +96,7 @@ Agent-assisted maintenance expects this third-party stack. Full install,
 update, and troubleshooting runbook:
 [Agent tooling](https://shafthq.github.io/docs/maintainers/agent-tooling).
 
-- **memory CLI** — install the pin from `chaos-engine/dependencies.json`
+- **memory CLI** — install the pin from [dependencies.json](https://github.com/ShaftHQ/chaosengine-harness/blob/main/dependencies.json)
   (`@aictx/memory@0.2.1`); repo store lives in `.memory/`.
 - **graphify** — deterministic repository map for pre-search file selection:
   `py -3 -m pip install --user graphifyy==0.9.17`, build with `graphify .`
@@ -140,7 +140,7 @@ This repository ships its own agent skills, so an agent can follow the same
 conventions this guide describes instead of guessing at them. Point yours at
 them before it touches anything:
 
-> Read `chaos-engine/skills/chaos-engine/SKILL.md` and follow it for this task.
+> Read [skills/chaos-engine/SKILL.md](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) and follow it for this task.
 
 Most agents discover that entrypoint on their own. The
 [agent skills map](.agents/skills/README.md) explains how the skills fit

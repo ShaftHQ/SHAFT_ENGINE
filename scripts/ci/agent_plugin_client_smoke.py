@@ -55,8 +55,8 @@ EVIDENCE_LEVELS = (
 CLIENTS = {
     "claude": {
         "display_name": "Claude Code",
-        "version": "2.1.223",
-        "npm_package": "@anthropic-ai/claude-code@2.1.223",
+        "version": "2.1.251",
+        "npm_package": "@anthropic-ai/claude-code@2.1.251",
         "credential": "ANTHROPIC_API_KEY",
     },
     "codex": {

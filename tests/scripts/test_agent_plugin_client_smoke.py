@@ -669,7 +669,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertEqual({row["verdict"] for row in installs}, {"fail"})
 
     def test_client_version_must_match_the_exact_pinned_token(self):
-        self.runner.versions["claude"] = "claude 2.1.2230"
+        self.runner.versions["claude"] = "claude 2.1.2510"
 
         evidence = collect_evidence(self.package_root, runner=self.runner)
 
@@ -678,7 +678,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertTrue(all(row["verdict"] == "not_run" for row in claude[1:]))
 
     def test_client_version_rejects_contradictory_diagnostic_output(self):
-        self.runner.versions["claude"] = "actual 2.1.224; expected 2.1.223"
+        self.runner.versions["claude"] = "actual 2.1.252; expected 2.1.251"
 
         evidence = collect_evidence(self.package_root, runner=self.runner)
 
@@ -686,7 +686,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertEqual(claude[0]["verdict"], "fail")
 
     def test_client_version_rejects_a_different_build_suffix(self):
-        self.runner.versions["claude"] = "claude 2.1.223+different-build"
+        self.runner.versions["claude"] = "claude 2.1.251+different-build"
 
         evidence = collect_evidence(self.package_root, runner=self.runner)
 
@@ -712,7 +712,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
 
         for heading in ("Package validation", "Marketplace discovery", "Install / enable", "Real load"):
             self.assertIn(heading, compatibility)
-        self.assertIn("Claude Code 2.1.223", compatibility)
+        self.assertIn("Claude Code 2.1.251", compatibility)
         self.assertIn("Codex CLI 0.146.0", compatibility)
         self.assertIn("tests.scripts.test_agent_plugin_client_smoke", live)
         self.assertIn("python scripts/ci/agent_plugin_client_smoke.py --mode live", live)
@@ -800,7 +800,7 @@ class FakeRunner:
         self.installed_plugin = {"id": "shaft-skills@shaft-skills", "enabled": True}
         self.available_plugin = {"name": "shaft-skills"}
         self.package_name = "shaft-skills"
-        self.versions = {"claude": "claude 2.1.223", "codex": "codex-cli 0.146.0"}
+        self.versions = {"claude": "claude 2.1.251", "codex": "codex-cli 0.146.0"}
         self.preexisting = False
         self.marketplace_added = {"claude": False, "codex": False}
         self.installed = {"claude": False, "codex": False}

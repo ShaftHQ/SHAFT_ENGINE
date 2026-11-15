@@ -304,8 +304,8 @@ jobs:
           node-version: '26'
       - name: Install pinned native plugin clients
         run: |
-          npm ci --prefix scripts/ci/npm-pins/native-clients-2.1.223
-          echo "$PWD/scripts/ci/npm-pins/native-clients-2.1.223/node_modules/.bin" >> "$GITHUB_PATH"
+          npm ci --prefix scripts/ci/npm-pins/native-clients-2.1.251
+          echo "$PWD/scripts/ci/npm-pins/native-clients-2.1.251/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Collect live compatibility evidence
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -15,8 +15,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _shipped(relative: str) -> Path:
+    path = ROOT / relative
+    if path.is_file():
+        return path
+    return ROOT / ".chaos-engine" / relative.removeprefix("chaos-engine/")
+
+
 def _load():
-    path = ROOT / "chaos-engine/learning_session.py"
+    path = _shipped("chaos-engine/learning_session.py")
     spec = importlib.util.spec_from_file_location("learning_session_6201", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -73,14 +80,14 @@ class ReceiptFlagTest(unittest.TestCase):
 
 class ShimEvaluationDocTest(unittest.TestCase):
     def test_reference_names_the_sink_and_the_shim_evaluation(self):
-        text = (ROOT / "chaos-engine/references/research-receipt.md").read_text(encoding="utf-8")
+        text = _shipped("chaos-engine/references/research-receipt.md").read_text(encoding="utf-8")
         self.assertIn(".chaos-engine-state/research-receipt.md", text)
         self.assertIn("## Instruction-only hosts", text)
         for host in ("OpenCode", "Cursor", "Grok Bot", "Copilot cloud"):
             self.assertIn(host, text)
 
 
-SHIM = ROOT / "chaos-engine/hooks/receipt_shim.py"
+SHIM = _shipped("chaos-engine/hooks/receipt_shim.py")
 
 
 def _run_shim(project: Path, *args: str, stdin: str = "") -> subprocess.CompletedProcess:
@@ -226,10 +233,12 @@ class CopilotCloudSetupStep6218Test(unittest.TestCase):
         self.assertIn("\n  copilot-setup-steps:\n", text, "Copilot only runs this exact job name")
         self.assertIn("timeout-minutes:", text)
         self.assertIn("contents: read", text)
+        self.assertIn("scripts/ci/fetch_harness_overlay.sh", text)
         self.assertIn(
-            "python3 chaos-engine/hooks/receipt_shim.py ensure --host copilot-cloud --project .",
+            "python3 .chaos-engine/hooks/receipt_shim.py ensure --host copilot-cloud",
             text,
         )
+        self.assertNotIn("no SHAFT-local research receipt", text)
         self.assertNotIn("secrets.", text)
         readme = (ROOT / ".github/workflows/README.md").read_text(encoding="utf-8")
         self.assertIn("`copilot-setup-steps.yml`", readme)
