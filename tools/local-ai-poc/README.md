@@ -41,7 +41,7 @@ The PoC selects a pinned [llama.cpp](https://github.com/ggml-org/llama.cpp) `lla
 
 The manifest pins release [`b10400`](https://github.com/ggml-org/llama.cpp/releases/tag/b10400), every archive byte size, and SHA-256. It uses CPU builds as the portable baseline. GPU backends are an optimization issue, not an assumption: accelerator detection, compatible backend artifacts, driver capability and fallback require their own proof.
 
-Runtime grammar is defense in depth, not the trust boundary. The harness independently validates the response because llama.cpp has documented structured-output edge cases, including complex schemas and thinking-mode interactions. The upstream [JSON schema example](https://github.com/ggml-org/llama.cpp/blob/master/examples/json_schema_pydantic_example.py) likewise validates returned content in the client.
+Runtime grammar is defense in depth, not the trust boundary. The harness independently validates the response because llama.cpp has documented structured-output edge cases, including complex schemas and thinking-mode interactions. Upstream [llama-server JSON schema](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) constrains generation; this harness still checks the returned content.
 
 ### Alternatives considered
 

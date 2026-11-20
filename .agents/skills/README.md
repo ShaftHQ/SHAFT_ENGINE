@@ -161,11 +161,11 @@ sends you there; the rest by
 - [investigate lessons](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/investigate-lessons.md)
 - [parallel streams](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/parallel-streams.md)
 - [process-owner / Scrum-master](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/process-owner-scrum-master.md)
-- [decision-quality baseline](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-baseline.md)
-- [decision-quality rubric](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-rubric.md)
-- [decision-quality calibration](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-calibration.md)
-- [decision-quality calibration aggregate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-calibration.aggregate.json)
-- [decision-quality report](https://github.com/ShaftHQ/chaosengine-harness/blob/main/decision-quality-report.md)
+- [decision-quality baseline](https://github.com/ShaftHQ/chaosengine-harness/blob/main/docs/evidence/decision-quality-baseline.md)
+- [decision-quality rubric](https://github.com/ShaftHQ/chaosengine-harness/blob/main/docs/evidence/decision-quality-rubric.md)
+- [decision-quality calibration](https://github.com/ShaftHQ/chaosengine-harness/blob/main/docs/evidence/decision-quality-calibration.md)
+- [decision-quality calibration aggregate](https://github.com/ShaftHQ/chaosengine-harness/blob/main/docs/evidence/decision-quality-calibration.aggregate.json)
+- [decision-quality report](https://github.com/ShaftHQ/chaosengine-harness/blob/main/docs/evidence/decision-quality-report.md)
 - [task isolation](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/task-isolation.md)
 - [verification-gap lens](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/verification-gap-lens.md)
 - [client-name scrub](https://github.com/ShaftHQ/chaosengine-harness/blob/main/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
@@ -483,7 +483,7 @@ green run report a hundred percent of nothing.
 
 <!-- HARNESS-INDEX:START -->
 
-Generated skill index ([`harness_index.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/harness_index.py) in the harness):
+Generated skill index ([`harness_index.py`](https://github.com/ShaftHQ/chaosengine-harness/blob/main/runtime/harness_index.py) in the harness):
 
 - [chaos-engine](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/chaos-engine/SKILL.md) (portable)
 - [work-item](https://github.com/ShaftHQ/chaosengine-harness/blob/main/skills/work-item/SKILL.md) (portable)
