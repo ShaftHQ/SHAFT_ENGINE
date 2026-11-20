@@ -1,37 +1,37 @@
 {
   "schemaVersion": 1,
-  "playwrightVersion": "1.64.0",
+  "playwrightVersion": "1.65.0",
   "platforms": [
     {
       "hostPlatform": "win64",
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/win64/chrome-win64.zip",
-          "sha256": "220021ecfdad08c116fc71a153e65e3861ba841c531afc4f7acc7bd5d44b41db",
-          "size": 207073013
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/win64/chrome-win64.zip",
+          "sha256": "b796e8a6231463d1a150ee679fd7cb0168b3728162d2d19bf7bbd867d60d55e2",
+          "size": 215820284
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/win64/chrome-headless-shell-win64.zip",
-          "sha256": "5af4c82cf4b351ec4bad4c71dcf938af14fccea8a0eb0d5c2a7b49ccc922698c",
-          "size": 123826519
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/win64/chrome-headless-shell-win64.zip",
+          "sha256": "fdd3721ad0299ddd419d170ce8ab89aecf8631d157b85215474b4a70c8dcd061",
+          "size": 129186142
         },
         {
           "name": "firefox",
-          "revision": "1555",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1555/firefox-win64.zip",
-          "sha256": "410e14bca6099c089c2092df67803320aab70433a754aae356c4c2e990cf6b77",
-          "size": 129834277
+          "revision": "1572",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1572/firefox-win64.zip",
+          "sha256": "17abdb829293f482dae4c85be9e0dff5995a66457d8b3ca7a7efc6f5ef9c08c5",
+          "size": 132237406
         },
         {
           "name": "webkit",
-          "revision": "2370",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2370/webkit-win64.zip",
-          "sha256": "350cbf3b526414a83cd09c2481a4d134e67f4d52850093d703545dee6fdcb047",
-          "size": 63138602
+          "revision": "2388",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2388/webkit-win64.zip",
+          "sha256": "0b390661995316d8f90fe0f7a0498f3a88c451c097fc8e4047342e1fbd36548b",
+          "size": 65443702
         },
         {
           "name": "ffmpeg",
@@ -54,31 +54,31 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-linux64.zip",
-          "sha256": "43fd31766c7533a02dda2ded5ad50c2f861cd5400be7509c0abad71129f79d79",
-          "size": 200345244
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/linux64/chrome-linux64.zip",
+          "sha256": "c6cb06e1574ac2f6c5c38e31551157fbcaa67e6366c89974084553c5a5772592",
+          "size": 207460506
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip",
-          "sha256": "c3e50596aef52c58f8fda3c6b3411c33d34c88b177b3ed1c2243359fd3b8ba20",
-          "size": 125797539
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/linux64/chrome-headless-shell-linux64.zip",
+          "sha256": "18352d22cb0cdf520cbff2ad8c41391f0e02a72886cb53b0fde4bdfc4bd075d6",
+          "size": 131998580
         },
         {
           "name": "firefox",
-          "revision": "1555",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1555/firefox-ubuntu-24.04.zip",
-          "sha256": "564f74fa3c46cb83c6252145cf1569c95236c8c404d6a5a80cc736cf32265f0c",
-          "size": 116377639
+          "revision": "1572",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1572/firefox-ubuntu-24.04.zip",
+          "sha256": "189ce3e09c61776010ab8a7cbffaa016b8b1914d3c9b50cb5ab6d0c5db4c368f",
+          "size": 118965377
         },
         {
           "name": "webkit",
-          "revision": "2370",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2370/webkit-ubuntu-24.04.zip",
-          "sha256": "63b31a5d68d908d9aee2e445b88edc4c1e1d1eba488f5bd7e35668f91315b968",
-          "size": 108122739
+          "revision": "2388",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2388/webkit-ubuntu-24.04.zip",
+          "sha256": "4375ca56620d92f4bc8710b6f0cddc8afd2f50c4cca616a50355d63d715c7803",
+          "size": 106098367
         },
         {
           "name": "ffmpeg",
@@ -94,31 +94,31 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/mac-x64/chrome-mac-x64.zip",
-          "sha256": "4e75da96830224185ddddc80012ad3732d6a29a4f92bac728c84c8e8ebd66c34",
-          "size": 205332100
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-x64/chrome-mac-x64.zip",
+          "sha256": "8208cc4d3c9a06fb893e028180fac019eac7092814aaac8b0fd9a8d82fb1d168",
+          "size": 212863194
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/mac-x64/chrome-headless-shell-mac-x64.zip",
-          "sha256": "8a9e4a32ba5b1a796f8b16d01896e355cf6662544d9743296394fd999d782331",
-          "size": 109130614
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-x64/chrome-headless-shell-mac-x64.zip",
+          "sha256": "81d6496c4e9b7c6a9f8d9cb18beef47d7da8eb235d1d5089f7385d19c1e378be",
+          "size": 112215846
         },
         {
           "name": "firefox",
-          "revision": "1555",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1555/firefox-mac.zip",
-          "sha256": "ae2c6e477d4c5f59e76be39ca0db6c003e9bcf9bb9b3c4e13cf545275d6be388",
-          "size": 118829566
+          "revision": "1572",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1572/firefox-mac.zip",
+          "sha256": "f31ac41e6450c5c9040fc7290f3da8a6a5f5672b0075f18b37cbd28fbf95ad36",
+          "size": 121215360
         },
         {
           "name": "webkit",
-          "revision": "2370",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2370/webkit-mac-15.zip",
-          "sha256": "2b43c865db2c3a408736ff4a822f060570a6e3e52df7ed25d2ed5bc231be7e41",
-          "size": 88587279
+          "revision": "2388",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2388/webkit-mac-15.zip",
+          "sha256": "c1220c739a2dbb6450059bfd678d5f5057e807d1d004464ef890ee1e6a9db727",
+          "size": 93121084
         },
         {
           "name": "ffmpeg",
@@ -134,31 +134,31 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/mac-arm64/chrome-mac-arm64.zip",
-          "sha256": "987d2f8499c87d21676f78178550cfcbfb1bb53786821e2cff46c5a7e99b58be",
-          "size": 194831853
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-arm64/chrome-mac-arm64.zip",
+          "sha256": "15d54783d40732983653ebc2171af38c6b5b5ab055a9afbf48d47c2b57836da9",
+          "size": 199683801
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1248",
-          "url": "https://cdn.playwright.dev/builds/cft/156.0.8078.4/mac-arm64/chrome-headless-shell-mac-arm64.zip",
-          "sha256": "94e4337b70cbc5638f0935fbc46b9f242bc7416f657e3fbe924baf348404b53d",
-          "size": 103778487
+          "revision": "1254",
+          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-arm64/chrome-headless-shell-mac-arm64.zip",
+          "sha256": "f34261d2aad94fb71b336597acabf20166ee5a2f14926c731f33d04c5da6cd3f",
+          "size": 104957869
         },
         {
           "name": "firefox",
-          "revision": "1555",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1555/firefox-mac-arm64.zip",
-          "sha256": "72eb32289f368789786d16d252e8e4fef7b62ae721d57f82d3d6d9221d3fd2af",
-          "size": 110873383
+          "revision": "1572",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/firefox/1572/firefox-mac-arm64.zip",
+          "sha256": "9691b4a07405d8faf8a44f6378d66db480d36159d9e9c4ed1d6066687697e1f2",
+          "size": 112874057
         },
         {
           "name": "webkit",
-          "revision": "2370",
-          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2370/webkit-mac-15-arm64.zip",
-          "sha256": "29be2be83e1a2d4c2ea9fad26ed57c77004991f191fa865cb7e612b097e34557",
-          "size": 82182599
+          "revision": "2388",
+          "url": "https://cdn.playwright.dev/dbazure/download/playwright/builds/webkit/2388/webkit-mac-15-arm64.zip",
+          "sha256": "50b4238e145b8018e48aacefc15e9b3a43fafd18eee42ed4cb29a2e5c5a2e385",
+          "size": 85207540
         },
         {
           "name": "ffmpeg",

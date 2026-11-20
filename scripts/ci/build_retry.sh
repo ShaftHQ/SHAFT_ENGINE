@@ -32,6 +32,10 @@ shift
 # fine on the next request. A fresh process after the pause is the lever. A
 # truly absent artifact now costs one extra attempt (callers pass 2) before it
 # fails with the same message; only misses against Central are retried.
+# The fresh process still reads Maven's negative cache. Run 44699679485 attempt 2
+# said the miss "was cached in the local repository" and did not ask Central again,
+# so the retry must drop *.lastUpdated and resolver-status.properties first
+# (same markers cache-maven-repo and build-shaft-mcp-live-jar already drop).
 # 'Connect(ion)? timed out' is one event under two spellings: the OS reporting
 # ETIMEDOUT on connect (ConnectException, what PR #4491 hit) and the JDK's own
 # connect deadline expiring (SocketTimeoutException).
@@ -43,7 +47,7 @@ shift
 # (runs 42467112280 and 42472115062, kotlin-compiler-embeddable).
 # Run 42580722341: wrapper "HTTP response code: 504" (gradle-9.3.1-all.zip)
 # is a transfer error; 429/500/502/503 share it. grep -E needs a capturing group.
-RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|status code 504|Gateway Time-out|Could not GET |Could not download |Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length|HTTP response code: (429|500|502|503|504)'
+RETRYABLE='Could not find artifact [^ ]+ in central|failure was cached in the local repository|status code: 429|status code 504|Gateway Time-out|Could not GET |Could not download |Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length|HTTP response code: (429|500|502|503|504)'
 
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT
@@ -65,6 +69,10 @@ while :; do
   if [ "$attempt" -ge "$attempts" ]; then
     echo "build-retry: still refused after ${attempt} attempt(s); giving up." >&2
     exit "$status"
+  fi
+
+  if [ -d "${HOME}/.m2/repository" ]; then
+    find "${HOME}/.m2/repository" \( -name '*.lastUpdated' -o -name 'resolver-status.properties' \) -type f -delete
   fi
 
   echo "build-retry: transfer refused on attempt ${attempt}/${attempts}; sleeping ${pause}s, then retrying in a fresh process." >&2

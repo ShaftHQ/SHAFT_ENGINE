@@ -1,7 +1,11 @@
 """Tests for the PR time-to-merge report (#6990 / #7184)."""
 
 import importlib.util
+import io
+import json
+import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -97,6 +101,38 @@ class TimeToMergeTest(unittest.TestCase):
         text = (ROOT / ".github/workflows/pr-time-to-merge.yml").read_text(encoding="utf-8")
         self.assertIn("ci-pr-time", text)
         self.assertIn("timeout-minutes", text)
+
+    def test_tracker_action_closes_when_the_median_recovers(self) -> None:
+        self.assertEqual("create", ttm.tracker_action(True, None))
+        self.assertEqual("comment", ttm.tracker_action(True, "8093"))
+        self.assertEqual("close", ttm.tracker_action(False, "8093"))
+        self.assertEqual("noop", ttm.tracker_action(False, None))
+        report = (ROOT / ".github/workflows/pr-time-to-merge.yml").read_text(encoding="utf-8").split(
+            "  quality:", 1
+        )[0]
+        self.assertIn("pr_time_to_merge.py --tracker-action", report)
+        self.assertIn("gh issue close", report)
+        self.assertNotIn('[ "$code" = 0 ] && exit 0', report)
+
+    def test_tracker_action_cli_uses_the_function(self) -> None:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            code = ttm.main(["--tracker-action", "0", "--open-issue", "8093"])
+        self.assertEqual(0, code)
+        self.assertEqual(ttm.tracker_action(False, "8093"), buffer.getvalue().strip())
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            ttm.main(["--tracker-action", "2"])
+        self.assertEqual(ttm.tracker_action(True, None), buffer.getvalue().strip())
+
+    def test_measure_still_exits_2_on_breach(self) -> None:
+        payload = [pr(20, last=0, number=1), pr(30, last=0, number=2), pr(5, last=0, number=3)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "prs.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                code = ttm.main(["--repo", "ShaftHQ/SHAFT_ENGINE", "--input", str(path), "--target", "15"])
+        self.assertEqual(2, code)
 
 
 if __name__ == "__main__":
