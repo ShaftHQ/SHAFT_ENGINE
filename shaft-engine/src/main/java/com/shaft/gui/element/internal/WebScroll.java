@@ -136,7 +136,7 @@ public final class WebScroll {
         }
     }
 
-    private enum ScrollAttempt { VISIBLE, FAILED, UNMOVED }
+    private enum ScrollAttempt { VISIBLE, FAILED, UNMOVED, MOVED }
 
     private static ScrollAttempt customScroll(JavascriptExecutor executor, WebElement element, WebElement scroller) {
         Metrics current = read(executor, element, scroller);
@@ -148,7 +148,7 @@ public final class WebScroll {
         }
         for (int step = 0; step < 4; step++) {
             Step stepResult = oneCustomStep(executor, element, scroller, current);
-            if (stepResult.attempt() != null) {
+            if (stepResult.attempt() != ScrollAttempt.MOVED) {
                 return stepResult.attempt();
             }
             current = stepResult.metrics();
@@ -178,7 +178,7 @@ public final class WebScroll {
         if (!offsetsMoved(beforeLeft, beforeTop, after.scrollLeft(), after.scrollTop())) {
             return new Step(ScrollAttempt.UNMOVED, current);
         }
-        return new Step(null, after);
+        return new Step(ScrollAttempt.MOVED, after);
     }
 
     private static boolean nativeNearest(JavascriptExecutor executor, WebElement element, WebElement scroller) {
