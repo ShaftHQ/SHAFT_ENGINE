@@ -13,7 +13,9 @@ import java.util.Map;
  * locate-time scroll, and the non-Appium touch scroll. The scroll assigns {@code scrollLeft} and
  * {@code scrollTop} on the nested overflow ancestor (or the document) and returns only after that
  * assignment. It does not use {@code behavior: "smooth"}. Unchanged {@code scrollLeft} and
- * {@code scrollTop} are not movement. A target that is still outside the viewport is not treated
+ * {@code scrollTop} are not movement. When that scroller cannot move the target any closer, one
+ * {@code element.scrollIntoView({block: "nearest", inline: "nearest"})} runs and the target is
+ * measured again. A target that is still outside the viewport is not treated
  * as scrolled into view. The document scrolling element is measured against the layout viewport
  * ({@code 0, 0, innerWidth, innerHeight}). A nested overflow ancestor keeps its own border box.
  */
@@ -95,6 +97,11 @@ public final class WebScroll {
             return {scrollLeft: scroller.scrollLeft || 0, scrollTop: scroller.scrollTop || 0};
             """;
 
+    static final String NATIVE_SCRIPT = """
+            /* shaft-scroll-native */
+            arguments[0].scrollIntoView({block: "nearest", inline: "nearest"});
+            """;
+
     private WebScroll() {
     }
 
@@ -126,24 +133,36 @@ public final class WebScroll {
             for (int step = 0; step < 4; step++) {
                 double[] next = nextOffset(current);
                 if (next == null) {
-                    return false;
+                    break;
                 }
                 double beforeLeft = current.scrollLeft();
                 double beforeTop = current.scrollTop();
                 executor.executeScript(APPLY_SCRIPT, element, scroller, next[0], next[1]);
                 Metrics after = read(executor, element, scroller);
-                if (after == null || !offsetsMoved(beforeLeft, beforeTop, after.scrollLeft(), after.scrollTop())) {
+                if (after == null) {
                     return false;
                 }
                 if (intersects(after)) {
                     return true;
                 }
+                if (!offsetsMoved(beforeLeft, beforeTop, after.scrollLeft(), after.scrollTop())) {
+                    break;
+                }
                 current = after;
             }
-            return intersects(current);
+            if (intersects(current)) {
+                return true;
+            }
+            return nativeNearest(executor, element, scroller);
         } catch (RuntimeException ignored) {
             return false;
         }
+    }
+
+    private static boolean nativeNearest(JavascriptExecutor executor, WebElement element, WebElement scroller) {
+        executor.executeScript(NATIVE_SCRIPT, element);
+        Metrics after = read(executor, element, scroller);
+        return after != null && intersects(after);
     }
 
     public static boolean intersects(Metrics metrics) {
