@@ -10,7 +10,7 @@ Reads the last N merged pull requests (``gh api`` / GraphQL) and reports:
 * Average PR Gate ``pull_request`` workflow runs per sampled PR.
 
 Exits 2 when the primary median breaches the target (default 15 minutes) so the
-scheduled workflow can alert.
+scheduled workflow can alert. Recovery closes the open ``ci-pr-time`` issue.
 """
 
 from __future__ import annotations
@@ -137,6 +137,17 @@ def summarize(
         "open_to_merge_non_bot": open_human,
         "avg_pr_gate_runs": avg_runs,
     }
+
+
+def tracker_action(breach: bool, open_issue: str | None) -> str:
+    """What the weekly workflow should do with the open ci-pr-time issue.
+
+    ``None`` or an empty issue means there is nothing to comment on or close.
+    The 15-minute comparison stays in ``summarize``; this only maps the result.
+    """
+    if breach:
+        return "comment" if open_issue else "create"
+    return "close" if open_issue else "noop"
 
 
 def render(summary: dict) -> str:
@@ -274,11 +285,21 @@ def fetch_gate_runs(repo: str, prs: list[dict]) -> dict[int, int]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", required=True)
+    parser.add_argument("--repo")
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--target", type=float, default=TARGET_MEDIAN_MINUTES)
     parser.add_argument("--input", help="JSON file of PRs instead of gh api (tests)")
+    parser.add_argument("--tracker-action", type=int, default=None)
+    parser.add_argument("--open-issue", default=None)
     args = parser.parse_args(argv)
+    if args.tracker_action is not None:
+        if args.tracker_action not in (0, 2):
+            print("fail")
+            return 0
+        print(tracker_action(args.tracker_action == 2, args.open_issue or None))
+        return 0
+    if not args.repo:
+        parser.error("the following arguments are required: --repo")
     gate_runs: dict[int, int] | None = None
     if args.input:
         with open(args.input, encoding="utf-8") as handle:
