@@ -36,6 +36,14 @@ CENTRAL_404 = (
 NON_CENTRAL_MISS = (
     "[ERROR] Could not find artifact io.github.shafthq:shaft-visual:jar:1.0 in shaft-local-repo (file:///tmp/repo)"
 )
+# Run 44699679485 attempt 2: Maven kept the Central miss in the local repo and
+# did not ask again. build_retry treated that wording as a hard failure.
+CACHED_CENTRAL_MISS = (
+    "[ERROR] org.apache.maven.plugins:maven-jar-plugin:jar:3.5.1 was not found in "
+    "https://repo.maven.apache.org/maven2 during a previous attempt. This failure was "
+    "cached in the local repository and resolution is not reattempted until the update "
+    "interval of central has elapsed or updates are forced"
+)
 GENUINE_FAILURE = (
     "[ERROR] Failed to execute goal on project shaft-visual: Compilation failure"
 )
@@ -132,6 +140,9 @@ class BuildRetryScriptTest(unittest.TestCase):
             cwd=self.workspace,
             capture_output=True,
             text=True,
+            # Relative HOME keeps $HOME/.m2 inside this workspace for Git Bash and
+            # WSL. An absolute temp path is not the same string in both.
+            env=os.environ | {"HOME": "."},
         )
         log = self.workspace / "attempts.log"
         made = len(log.read_text(encoding="utf-8").splitlines()) if log.is_file() else 0
@@ -154,6 +165,64 @@ class BuildRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=2)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(2, attempts)
+
+    def test_a_cached_central_miss_is_retried_in_a_fresh_process(self):
+        command = self._fake_command(output=CACHED_CENTRAL_MISS, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_a_retry_drops_maven_negative_cache_before_the_next_attempt(self):
+        # Attempt 1 matches the Central miss. Maven then records the miss, and
+        # attempt 2 must not still see those markers or it will not contact Central.
+        (self.workspace / "failure.txt").write_text(
+            "Could not find artifact org.apache.maven.plugins:maven-jar-plugin:jar:3.5.1 "
+            "in central (https://repo.maven.apache.org/maven2)\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        script = self.workspace / "fake-mvn.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "attempt" >> attempts.log\n'
+            "count=$(wc -l < attempts.log)\n"
+            'dir="$HOME/.m2/repository/org/apache/maven/plugins/maven-jar-plugin/3.5.1"\n'
+            'if [ "$count" -eq 1 ]; then\n'
+            '  mkdir -p "$dir"\n'
+            '  echo poisoned > "$dir/maven-jar-plugin-3.5.1.jar.lastUpdated"\n'
+            '  echo poisoned > "$dir/resolver-status.properties"\n'
+            "  cat failure.txt\n"
+            "  exit 1\n"
+            "fi\n"
+            'if [ -e "$dir/maven-jar-plugin-3.5.1.jar.lastUpdated" ] || '
+            '[ -e "$dir/resolver-status.properties" ]; then\n'
+            "  cat <<'EOF'\n"
+            "was not found in https://repo.maven.apache.org/maven2 during a previous attempt. "
+            "This failure was cached in the local repository\n"
+            "EOF\n"
+            "  exit 1\n"
+            "fi\n"
+            'echo "BUILD SUCCESS"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(script, 0o755)  # nosec B103 - test fixture the test itself runs.
+        completed, attempts = self._run("./fake-mvn.sh", attempts=2)
+        repo = self.workspace / ".m2"
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+        self.assertEqual([], list(repo.rglob("*.lastUpdated")))
+        self.assertEqual([], list(repo.rglob("resolver-status.properties")))
+
+    def test_a_genuine_failure_leaves_maven_resolution_markers(self):
+        marker = self.workspace / ".m2" / "repository" / "keep.lastUpdated"
+        marker.parent.mkdir(parents=True)
+        marker.write_text("keep\n", encoding="utf-8")
+        command = self._fake_command(output=GENUINE_FAILURE, fail_times=99)
+        completed, attempts = self._run(command, attempts=3)
+        self.assertNotEqual(0, completed.returncode)
+        self.assertEqual(1, attempts)
+        self.assertEqual("keep\n", marker.read_text(encoding="utf-8"))
 
     def test_a_miss_against_a_repository_other_than_central_is_not_retried(self):  # #6809
         command = self._fake_command(output=NON_CENTRAL_MISS, fail_times=99)
