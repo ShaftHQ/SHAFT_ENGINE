@@ -25,7 +25,7 @@ public interface Internal extends EngineProperties<Internal> {
      * @return the configured value of {@code shaftEngineVersion}
      */
     @Key("shaftEngineVersion")
-    @DefaultValue("10.4.20261112")
+    @DefaultValue("10.4.20261121")
     String shaftEngineVersion();
 
     /**
@@ -74,7 +74,7 @@ public interface Internal extends EngineProperties<Internal> {
      * a local Appium server without requiring administrator-installed tools.
      */
     @Key("appiumServerVersion")
-    @DefaultValue("3.9.0")
+    @DefaultValue("4.0.0")
     String appiumServerVersion();
 
     /**
@@ -82,14 +82,14 @@ public interface Internal extends EngineProperties<Internal> {
      * mobile recording sessions.
      */
     @Key("appiumInspectorPluginVersion")
-    @DefaultValue("2026.11.3")
+    @DefaultValue("2026.11.6")
     String appiumInspectorPluginVersion();
 
     /**
      * Appium UiAutomator2 driver npm package version used by SHAFT MCP for Android.
      */
     @Key("appiumUiAutomator2DriverVersion")
-    @DefaultValue("9.0.2")
+    @DefaultValue("9.3.0")
     String appiumUiAutomator2DriverVersion();
 
     /**
@@ -97,7 +97,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("13.0.9")
+    @DefaultValue("13.5.2")
     String appiumXcuitestDriverVersion();
 
     /**
