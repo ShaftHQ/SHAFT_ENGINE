@@ -91,7 +91,7 @@ jobs:
 
         self.assertEqual(validate_scheduled_build_retry({"scheduled.yml": workflow}), [])
 
-    def test_scheduled_build_retry_rejects_unwrapped_prep_and_wrapped_tests(self):
+    def test_scheduled_build_retry_rejects_unwrapped_prep_and_allows_wrapped_tests(self):
         workflow = """
 jobs:
   acceptance:
@@ -100,7 +100,10 @@ jobs:
       - run: bash scripts/ci/build_retry.sh 2 60 mvn test -Dtest=AcceptanceTest
 """
 
-        self.assertEqual(len(validate_scheduled_build_retry({"scheduled.yml": workflow})), 2)
+        self.assertEqual(
+            validate_scheduled_build_retry({"scheduled.yml": workflow}),
+            ["scheduled.yml job 'acceptance' restartable build must use build_retry.sh"],
+        )
 
     def test_windows_appium_prepares_dependencies_with_retry_then_runs_tests_once(self):
         workflow = """

@@ -47,8 +47,12 @@ class MacosInstallerTierTest(unittest.TestCase):
         self.assertIn("macos-15", full["installer_os"])
         self.assertEqual("true", tier.outputs("pull_request", {"ci:capture-e2e"}).splitlines()[3].split("=")[1])
         rerun = (ROOT / ".github/workflows/installer-macos-rerun.yml").read_text(encoding="utf-8")
-        for label in tier.OPT_IN_LABELS:
-            self.assertIn(label, rerun)
+        job_if = load("installer-macos-rerun.yml")["jobs"]["rerun"]["if"]
+        for label in ("ci:full", "ci:capture-e2e", "ci:intellij-verify", "ci:cli-windows"):
+            self.assertIn(label, job_if)
+        for label in ("ci:installer-macos", "ci:installer-windows"):
+            self.assertNotIn(label, job_if)
+        self.assertIn("ci:full", rerun)
 
     def test_merge_group_runs_the_pr_tier_only_6990(self) -> None:
         self.assertEqual(tier.outputs("pull_request", set()), tier.outputs("merge_group", set()))
@@ -85,7 +89,9 @@ class MacosInstallerTierTest(unittest.TestCase):
     def test_pr_gate_matrices_come_from_the_tier_step(self) -> None:
         jobs = load("pr-gate.yml")["jobs"]
         changes = jobs["changes"]
-        self.assertIn("installer-tier", changes["outputs"]["installer_os"])
+        self.assertIn("installer-tier", changes["outputs"]["cli_os"])
+        self.assertNotIn("installer_os", changes["outputs"])
+        self.assertNotIn("installer_contracts_os", changes["outputs"])
         tier_step = next(step for step in changes["steps"] if step.get("id") == "installer-tier")
         self.assertIn("scripts/ci/chaos_installer_tier.py", tier_step["run"])
         self.assertIn("/labels", tier_step["run"])

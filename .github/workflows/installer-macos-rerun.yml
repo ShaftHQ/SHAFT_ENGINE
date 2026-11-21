@@ -1,11 +1,11 @@
 name: Installer macOS opt-in rerun
 
 # Issue #6208: PR Gate ignores label events (#6190), and its `changes` job reads
-# the `ci:installer-macos` opt-in label live (#6187). Adding the label used to
-# need a push or a manual "Re-run all jobs"; this workflow re-runs the newest
-# PR Gate run for the head commit (cancelling it first if it is still running)
-# so the macOS fresh-installer legs join. Any other label is a no-op skip.
-# Fork pull requests receive a read-only token; maintainers re-run by hand there.
+# live opt-in labels. Adding one used to need a push or a manual "Re-run all
+# jobs"; this workflow re-runs the newest PR Gate run for the head commit
+# (cancelling it first if it is still running). The fresh-installer labels
+# moved with ChaosEngine (#8057) and do not restart this gate. Fork pull
+# requests receive a read-only token; maintainers re-run by hand there.
 
 on:
   pull_request:
@@ -20,8 +20,8 @@ concurrency:
 
 jobs:
   rerun:
-    name: Re-run PR Gate for macOS installer opt-in
-    if: contains(fromJSON('["ci:installer-macos","ci:installer-windows","ci:full","ci:capture-e2e","ci:intellij-verify","ci:cli-windows"]'), github.event.label.name) && github.event.pull_request.head.repo.full_name == github.repository
+    name: Re-run PR Gate for a live opt-in label
+    if: contains(fromJSON('["ci:full","ci:capture-e2e","ci:intellij-verify","ci:cli-windows"]'), github.event.label.name) && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:

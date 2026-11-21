@@ -125,6 +125,32 @@ class TimeToMergeTest(unittest.TestCase):
             ttm.main(["--tracker-action", "2"])
         self.assertEqual(ttm.tracker_action(True, None), buffer.getvalue().strip())
 
+    def test_default_target_is_sixteen_and_the_close_comment_names_it(self) -> None:
+        self.assertEqual(16.0, ttm.TARGET_MEDIAN_MINUTES)
+        recovered = {
+            "number": 1,
+            "created_at": "2026-10-15T10:00:00Z",
+            "merged_at": "2026-10-15T10:15:12Z",
+            "last_commit_at": "2026-10-15T10:00:00Z",
+            "user": {"login": "human"},
+        }
+        summary = ttm.summarize([recovered])
+        self.assertEqual(15.2, summary["median_minutes"])
+        self.assertEqual(16.0, summary["target_median_minutes"])
+        self.assertFalse(summary["breach"])
+        above = {
+            "number": 2,
+            "created_at": "2026-10-15T10:00:00Z",
+            "merged_at": "2026-10-15T10:16:06Z",
+            "last_commit_at": "2026-10-15T10:00:00Z",
+            "user": {"login": "human"},
+        }
+        self.assertTrue(ttm.summarize([above])["breach"])
+        report = (ROOT / ".github/workflows/pr-time-to-merge.yml").read_text(encoding="utf-8")
+        self.assertIn("PR time to merge recovered under the 16-minute target.", report)
+        self.assertIn("PR time to merge above the 16-minute target", report)
+        self.assertIn("≤16 min", ttm.render(summary))
+
     def test_measure_still_exits_2_on_breach(self) -> None:
         payload = [pr(20, last=0, number=1), pr(30, last=0, number=2), pr(5, last=0, number=3)]
         with tempfile.TemporaryDirectory() as directory:

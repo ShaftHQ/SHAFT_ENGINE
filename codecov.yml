@@ -46,6 +46,10 @@ flag_management:
       carryforward: true
     - name: shaft-engine-shard-3
       carryforward: true
+    - name: shaft-engine-shard-4
+      carryforward: true
+    - name: shaft-engine-shard-5
+      carryforward: true
     - name: shaft-heal
       carryforward: true
     - name: shaft-infrastructure

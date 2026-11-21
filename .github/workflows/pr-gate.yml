@@ -74,10 +74,7 @@ jobs:
       # always has a full base report (path-filtered main runs left flags missing).
       coverage_all: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
-      chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
-      installer_os: ${{ steps.installer-tier.outputs.installer_os }}
-      installer_contracts_os: ${{ steps.installer-tier.outputs.installer_contracts_os }}
       # #6990 phase 3: heavy legs are post-merge unless the PR opts in by label.
       cli_os: ${{ steps.installer-tier.outputs.cli_os }}
       run_capture_browser: ${{ steps.installer-tier.outputs.run_capture_browser }}
@@ -100,36 +97,6 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           filters: |
-            chaos_installer:
-              - 'chaos-engine/bootstrap.py'
-              - 'chaos-engine/install.py'
-              - 'chaos-engine/install.sh'
-              - 'chaos-engine/install.ps1'
-              - 'chaos-engine/hosts.py'
-              - 'chaos-engine/dependencies.py'
-              - 'chaos-engine/dependencies.json'
-              - 'chaos-engine/packs/**'
-              - 'chaos-engine/distributions.json'
-              - 'chaos-engine/profiles/*/profile.json'
-              - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
-              - 'tests/scripts/test_chaos_engine_bootstrap.py'
-              - 'tests/scripts/test_chaos_engine_dependencies.py'
-              - 'tests/scripts/test_chaos_engine_generation_runtime.py'
-              - 'tests/scripts/test_chaos_engine_installer.py'
-              - 'tests/scripts/test_chaos_engine_install_wrappers.py'
-              - 'tests/scripts/test_chaos_engine_live_installer_acceptance.py'
-              - 'tests/scripts/test_chaos_engine_installer_ux.py'
-              - 'tests/scripts/test_chaos_engine_host_completion_7813.py'
-              - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
-              - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
-              - 'chaos-engine/consumer_mode.py'
-              - 'chaos-engine/prerequisites.py'
-              - 'tests/scripts/test_chaos_engine_prerequisites_7220.py'
-              - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
-              - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
-              - 'tests/scripts/test_chaos_engine_install_resilience_7314.py'
-              - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
-              - 'tests/scripts/test_mempalace_background_index.py'
             docs:
               - "**/*.md"
               - "**/*.mdx"
@@ -936,9 +903,9 @@ jobs:
   # unilaterally.
   #
   # Issue #6188: shaft-engine was the Java critical path (9.7 min, test step
-  # 8.3). It runs as three parallel shards of the SAME selector below:
+  # 8.3). It runs as five parallel shards of the SAME selector below:
   # scripts/ci/shard_test_selector.py puts the package glob in shard 1 and
-  # deals the named classes across shards 2 and 3; their union is exactly the
+  # deals the named classes across shards 2 through 5; their union is exactly the
   # selector (pinned by tests/scripts/test_shard_test_selector.py). Each shard
   # verifies its own testng-results.xml and uploads its own coverage.
   unit-tests:
@@ -963,6 +930,12 @@ jobs:
           - module: shaft-engine
             shard: 3
             leg: shaft-engine-shard-3
+          - module: shaft-engine
+            shard: 4
+            leg: shaft-engine-shard-4
+          - module: shaft-engine
+            shard: 5
+            leg: shaft-engine-shard-5
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -987,7 +960,7 @@ jobs:
         run: >-
           mvn --batch-mode
           -pl shaft-engine test
-          "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 3 --selector
+          "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 5 --selector
           '-Dtest=com/shaft/test/unittests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, WebScrollTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, AutomaticRunLabelsUnitTest, TestNgTagLabelsUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, PropertyContractCoverageUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, MatchesReferenceImageNotFoundUnitTest, ArchitectureRulesUnitTest, ParserFuzzSeedsUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, HealingActionsIntegrationTest, ClickTypeMicrobenchTest, DesktopInteractionStrategiesTest, ElementClassifierTest, InteractionStrategiesActionsTest, MobileInteractionStrategiesTest, MobileGestureActionsTest, HttpContractRecorderTest, FileActionsCoverageUnitTest, MobileEvidenceActionsTest, PlaywrightTraceArchiveLoaderTest, PlaywrightTraceImporterTest, GuiValidationContractTest, TraceArchiveWriterTest, ApiValidationDslTest, AllureListenerCoverageUnitTest, AllureReportRebuildTest, SecretScreenMaskTest, MobilePreflightUnitTest, AndroidTransientOverlayTest, MobilePreflightPropertiesUnitTest, RunningLocaleCheckUnitTest, InfraFailureGuardUnitTest, KeyboardCoverGuardUnitTest, SecretScreenMaskWrappedTextUnitTest, ApiPropertyRawValueUnitTest, BrowserStackSdkPassThroughUnitTest, BrowserStackHelperUnitTest, AllureReportLaunchTest, AllureHtmlChromeTest, ClassifiedFailureIdTest, BrowserStackAppPlatformTest, IosAccessibilityFocusUnitTest, PlaywrightSecretScreenMaskTest, AllureSecretLeakTest, ReportSecretsTest, FailureDiagnosticsReporterTest, FailureBriefReporterTest, MobileEvidenceBundleTest, RestActionsCoverageUnitTest, AccessibilityHelperCoverageUnitTest, SshShellSessionUnitTest, PlaywrightBrowserActionsUnitTest, PlaywrightElementActionsUnitTest, PlaywrightInteractionStrategiesUnitTest, DatabaseActionsMockedTests, ApiActionsMockedTests, ElementActionsMockedTests, PlaywrightBrowserValidationTest, PlaywrightElementValidationTargetTest, PlaywrightElementVisualValidationTest, SemanticMatchInspectorUnitTest, VisualTargetTouchActionsTest, TouchActionsDisplayedExactTextTest, PlaywrightConsoleBridgeTest, PlaywrightDownloadBridgeTest, PlaywrightSessionSensitiveTraceTest, TraceSchemaSerializerTest, BrowserEmulationNamespaceTest, RestActionsComprehensiveTests, WebDriverBrowserValidationTest, BrowserDownloadsNamespaceTest, BrowserObservabilityRecorderSessionTest, RequestBuilderTests, TraceArtifactManifestTest, AllureActionStepReportingTest, BrowserStateNamespaceTest, ApiStatusCodeFlagFamilyUnitTest, BrowserPermissionsNamespaceTest, CheckpointCounterJsonUnitTest, PdfFileManagerDocumentContractTest, AuthUnitTest, PlaywrightNetworkInterceptorTest, BrowserAuthenticationNamespaceTest, SecurityMockedTests, OcrTargetResolverTest, LocatorMockedTests, CucumberMockedTests, ElementTargetTest, BrowserStorageStateManagerTest, PlaywrightStorageStateManagerTest, JavaScriptWaitManagerUnitTest, BrowserEmulationNamespaceTraceTest, BrowserStateNamespaceTraceTest, BrowserAuthenticationNamespaceTraceTest, BrowserScriptNamespaceTraceTest, BrowserDownloadsNamespaceTraceTest, BrowserStorageNamespaceTraceTest, NetworkNamespaceTraceTest, YAMLFileManagerTests, LocatorBuilderTest, OcrGuiActionContractTest, IOActionsMockedTests, ValidationsMockedTests, WebDriverMobileValidationTest, MobileNamespaceTest, MobileRecordingActionsTest, MobileLogActionsTest, MobileEvidenceCollectorTest, MobilePerformanceActionsTest, MobileSessionStateManagerTest, MobileFileNamespaceTraceTest, MobilePerformanceNamespaceTraceTest, IosNonHittableTapTest, LiveSessionSupportUnitTest, IosElementReadTest, BrowserStorageNamespaceTest, OpenApiCoverageReporterUnitTest, NaturalActionPlannerRegistryTest, SemanticLocatorResolverUnitTest, GoogleTinkApiCoverageUnitTest, NewValidationHelperTests, ActionsCoverageTests, AllureSuiteIdentityPathTest, AllureSuiteWidgetReaderTest, ApiPerformanceExecutionReportUnitTest, CdpWebSocketTraceSourceTest, CustomReportMessageFailurePathTest, ElementStepsCoverageUnitTest, FailureTraceReporterTest, NaturalActionExecutorTest, NightlyEvidencePathHardeningUnitTest, OcrProcessingProviderRegistryTest, PlatformThreadsTest, PlaywrightDeviceDescriptorTest, PlaywrightTraceArchiveLoaderTest, PlaywrightTraceImporterTest, ReportPublishGuardTest, RestActionsBytecodeCompatibilityTest, ScrollSweepPlannerUnitTest, ShaftLocatorSemanticUnitTest, TraceArchiveReaderTest, TraceScreenshotDownscalerTest, PlaywrightBrowserValidationTest, PlaywrightElementValidationTargetTest, PlaywrightElementVisualValidationTest, AsyncElementActionsCoverageUnitTest, BidiConsoleLogSourceTest, BrowserConsoleErrorGateTest, BrowserConsoleNamespaceTest, BrowserConsoleNamespaceTraceTest, BrowserScriptNamespaceTest, CSVFileManagerTest, CdpWorkersTest, ChecksumTests, CreateFileRaceConditionTests, DesktopVideoRecordingProviderRegistryTest, FileActionsTests, HealeniumTests, HealingStrategyTest, HealingTests, ImageCoordinateMapperTest, ImagePublicContractTest, InternalTests, JSONFileManagerTests, JiraTests, JsonCompareWithSpecialCharactersTests, LocalShellTests, Log4jTests, ManagedLocalAiPropertiesTest, MobileEvidenceNamespaceTraceTest, MobilePerformanceSampleTest, MobileRecordingOptionsTest, MobileTests, NaturalActionsTests, OcrAssertionContractTest, OcrCoordinateMapperTest, OcrPublicContractTest, PDFTests, PathParamTest, PathsTests, PatternTests, PerformanceTests, PlatformTests, PlaywrightManagedRuntimeTest, ReportThemeConsistencyTest, ReportingAccessibleNameTest, Rfc8259SiblingEscapeJsonTest, SwaggerContractTest, TestNGTests, TimeoutsTests, TinkeyTests, TraceSessionTest, VisualProcessingProviderRegistryTest, VisualStabilityWaitUnitTest, VisualsTests, WebTests, WizardTestDataTests, BidiNetworkActivitySourceUnitTest, BrowserPermissionsNamespaceTraceTest, CdpPassiveNetworkObserverTest, DeterministicNaturalActionPlannerTest, ElementActionabilityDiagnosticsTest, FailureEvidenceTest, HarReplayRulesTest, HealingFingerprintSeedingTest, HttpContractBrowserReplayTest, PlaywrightTraceParityAcceptanceTest, BidiNetworkTraceSourceTest, BrowserNetworkInterceptorTest, CloudAppBinaryTest, ImageProcessingActionsPlaywrightVisualTest, NativeSessionBrowserCommandGuardTest, OcrPropertiesContractTest, PlaywrightTraceViewerAssetsTest, ShaftSkillsEfficiencyContractTest, TraceViewerParityMatrixTest, TraceViewerScriptTest, SourceCodeContextTest, TraceViewerHtmlLineEndingTest, CLIWizardTests, FlagsTests, InfrastructurePropertiesTests, ReportingTests, ScrollMotionBoxPathTest, SkipDueToIssueTests, TestDataTests, ThreadLocalGuiTeardownGuardTest, UnknownPropertyKeysTest, PlaywrightTraceOfflineRenderTest, ImageProcessingActionsOfflineCoverageTest, PlaywrightTraceOfflineBudgetTest, PlaywrightTraceOfflineRenderLimitTest, AttachmentTypeGuardTest, CdpFetchRuleInterceptorUnitTest, AssertionFailureFormatterUnitTest, JiraHelperCoverageUnitTest, NetworkActionsCoverageUnitTest, PlaywrightSessionFactoryCoverageUnitTest, TypeStrategiesCoverageUnitTest, SHAFTFacadeCoverageUnitTest, PlaywrightSessionCoverageUnitTest, PlaywrightElementValidationsBuilderCoverageUnitTest, MobileBiometricActionsTest, !RestValidationsBuilderUnitTest'
           )"
           -Dsurefire.failIfNoSpecifiedTests=false
@@ -1589,7 +1562,8 @@ jobs:
       (needs.intellij-build.result == 'success' || needs.intellij-build.result == 'skipped') &&
       (needs.cli.result == 'success' || needs.cli.result == 'skipped') &&
       (needs.capture-e2e.result == 'success' || needs.capture-e2e.result == 'skipped') &&
-      (needs.template-coupling.result == 'success' || needs.template-coupling.result == 'skipped')
+      (needs.template-coupling.result == 'success' || needs.template-coupling.result == 'skipped') &&
+      (needs.unit-tests.result == 'success' || needs.intellij-build.result == 'success' || needs.cli.result == 'success' || needs.capture-e2e.result == 'success' || needs.template-coupling.result == 'success')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:

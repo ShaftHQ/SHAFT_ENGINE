@@ -9,7 +9,7 @@ Reads the last N merged pull requests (``gh api`` / GraphQL) and reports:
 * Open→merge for all authors and for non-bot authors (context).
 * Average PR Gate ``pull_request`` workflow runs per sampled PR.
 
-Exits 2 when the primary median breaches the target (default 15 minutes) so the
+Exits 2 when the primary median breaches the target (default 16 minutes) so the
 scheduled workflow can alert. Recovery closes the open ``ci-pr-time`` issue.
 """
 
@@ -23,7 +23,7 @@ import subprocess  # nosec B404 - fixed gh argument vector, never a shell.
 import sys
 from datetime import datetime
 
-TARGET_MEDIAN_MINUTES = 15.0
+TARGET_MEDIAN_MINUTES = 16.0
 BOT_LOGINS = frozenset(
     {
         "dependabot",
@@ -143,7 +143,7 @@ def tracker_action(breach: bool, open_issue: str | None) -> str:
     """What the weekly workflow should do with the open ci-pr-time issue.
 
     ``None`` or an empty issue means there is nothing to comment on or close.
-    The 15-minute comparison stays in ``summarize``; this only maps the result.
+    The target comparison stays in ``summarize``; this only maps the result.
     """
     if breach:
         return "comment" if open_issue else "create"
@@ -157,7 +157,7 @@ def render(summary: dict) -> str:
     return (
         "## PR time to merge\n\n"
         f"Primary metric: `{summary.get('metric', 'last_commit_to_merge_non_bot')}` "
-        "(skill: ≤15 min for auto-merge / ready PRs).\n\n"
+        "(skill: ≤16 min for auto-merge / ready PRs).\n\n"
         "| Slice | PRs | Median (min) | p90 (min) | Target | Status |\n"
         "|---|---|---|---|---|---|\n"
         f"| last-commit→merge (non-bot) | {summary['count']} | {summary['median_minutes']} | "

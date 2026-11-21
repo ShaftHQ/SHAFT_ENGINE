@@ -45,12 +45,11 @@ changing that token silently breaks both distribution publishers.
 | `setup-lock-pins.yml` | pull request touching setup lockfiles/planners/tooling | Checks that planner lock SHA-256 pins match the bundled `package-lock.json` files. On same-repo Dependabot PRs, `compute` (no secrets) runs the base `refresh_setup_lock_pins.py --write` against the PR tree and uploads the pin patch as an artifact for `setup-lock-pins-push.yml` (#6357, #7035). |
 | `setup-lock-pins-push.yml` | `workflow_run` of Setup Lock Pins (same-repo Dependabot PRs) | Privileged half (#7035): re-reads the PR from the API, accepts only `*SetupPlanner.java` changes, applies the patch as data (hooks off, no PR code run), re-checks pins with the base script and pushes with `BOT_TOKEN` so PR Gate reruns. First checks the token has push access and fails with a named error if missing or expired (#6370). Fallback: run `python3 scripts/ci/refresh_setup_lock_pins.py --write` on the PR branch and push. |
 | `dependabot-auto-merge.yml` | `schedule` every 20m; `workflow_dispatch`; Dependabot `pull_request_target` (`opened`, `reopened`, `synchronize`) | Schedule and dispatch are a read-only merge-queue inventory (synthetic merge-group SHA, `PR Gate Summary`, `Release-note governance`) and do not enable auto-merge, dequeue, or re-arm. A failed inventory exits non-zero. The Dependabot event job enables auto-merge with `BOT_TOKEN` when `dependabot_enqueue_decision` returns `enqueue`. `GITHUB_TOKEN` is not the enqueue credential: events it creates start no merge_group workflows, so the queue times out. A `dependabot-hold` label skips enqueue. Workflow `permissions` stay read. GitHub may still show the workflow as `disabled_manually` until a maintainer enables it after this file is on the default branch. |
-| `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
+| `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:full`, `ci:capture-e2e`, `ci:intellij-verify`, or `ci:cli-windows` re-runs the newest PR Gate run for the head commit (cancelling it first if running). The moved installer labels do not (#6208, #8057). |
 | `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label, release template placeholders, and the release-notes renderer tests; always reports, no path filter (#6190, #6232). |
 | `copilot-setup-steps.yml` | manual; push/pull request touching itself | Copilot cloud setup job: opens the pending ChaosEngine research receipt before the agent's first read (#6218). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
-| `skillspector.yml` | pull request touching ChaosEngine skills/addons/adapters or the gate pin/baseline; manual | Static NVIDIA SkillSpector `--no-llm` scan of changed first-party skills. Blocks risk score >50 or any unsuppressed HIGH/CRITICAL; baseline in `scripts/ci/skillspector/`. |
 | `shaft-pilot-release.yml` | release-relevant pull request, nightly, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, container, and a release-prep dry run; a failed nightly run files or recovers one `nightly-failure:release-candidate` issue. |
 | `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases with minimal notes from `scripts/ci/render_release_notes.py` (#6232), dispatches the guide, and announces. Released jars and the aggregate SBOM get SLSA build provenance, and the SBOM is attached to the GitHub Release (#7003); verify with `gh attestation verify <jar> --repo ShaftHQ/SHAFT_ENGINE`. |
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
@@ -72,7 +71,7 @@ changing that token silently breaks both distribution publishers.
 | `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 | `upstream-watch.yml` | weekly, manual | Compares this repository's CI and build runtime pins with the latest stable upstream. Opens or updates one issue when a pin is behind. ChaosEngine's own dependency pins moved to ShaftHQ/chaosengine-harness and are not watched until a watcher is ported there. Does not merge or install. |
-| `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 last-commit→merge minutes for non-bot PRs (primary; a median above 15 minutes opens or updates one `ci-pr-time` issue, and recovery closes it), plus open→merge context and average PR Gate runs and the main quality trend: Codacy check runs plus Codecov coverage (a regression opens or updates one `ci-quality` issue) (#6990). |
+| `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 last-commit→merge minutes for non-bot PRs (primary; a median above 16 minutes opens or updates one `ci-pr-time` issue, and recovery closes it), plus open→merge context and average PR Gate runs and the main quality trend: Codacy check runs plus Codecov coverage (a regression opens or updates one `ci-quality` issue) (#6990). |
 | `mutation-weekly.yml` | weekly, manual | Full PIT mutation run per module (`-Ppitest`), report-only: score in the run summary, XML reports uploaded; the PR gate runs the diff-scoped variant (#7004). |
 | `fuzz-weekly.yml` | weekly, manual | Time-boxed Jazzer run per parser target (`com.shaft.fuzz.*`, checksum-verified Jazzer); a crash uploads the reproducer and opens one tracking issue per target. The PR gate replays fixed seeds via `ParserFuzzSeedsUnitTest` (#7012). |
 | `perf-weekly.yml` | weekly, manual | JMH hot-path benchmarks (`benchmarks/jmh`, standalone, not published); >15% regression vs the previous successful run opens/updates one tracker issue (#7009). |
@@ -99,12 +98,12 @@ table. Remove a row only in the same change that deletes its workflow.
   finishes its post-merge legs. `Main red reaction` then files or updates one
   `ci-main-red` issue per failing leg, closes it when the leg passes again on
   `main`. It never opens a revert PR: main rolls forward (#6185, #6990).
-- The ChaosEngine fresh-installer matrix and the installer UX contracts
-  (`chaos-installer-contracts`, non-Linux runners) start right after
-  `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
-  inside Agent Guidance's `installer` surface, which every `chaos_installer`
-  path selects (#6186).
-- `Unit Tests (shaft-engine-shard-1|2|3)` split the unchanged shaft-engine
+- The ChaosEngine fresh-installer matrix and the installer UX contracts moved
+  to ShaftHQ/chaosengine-harness with the installer source (#8057). This repo
+  keeps the forwarding shims `chaos-engine/install.sh` and
+  `chaos-engine/install.ps1`. Agent Guidance still selects the Linux shim
+  surface when those paths change.
+- `Unit Tests (shaft-engine-shard-1|2|3|4|5)` split the unchanged shaft-engine
   `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
   named classes); each shard verifies `testng-results.xml` and uploads its own
   coverage (#6188).
@@ -130,15 +129,11 @@ table. Remove a row only in the same change that deletes its workflow.
   jobs (#7835). `mavenCentral_cd.yml` keeps the combined `verify: true`
   build on the sequential deploy path.
 
-### ChaosEngine fresh-installer tiers (#6187)
-
-| Trigger | Fresh installer | Installer UX contracts |
-|---|---|---|
-| Pull request | ubuntu-22.04, windows-2025 | — (Linux via Agent Guidance; Windows post-merge, #6990) |
-| Pull request labelled `ci:installer-windows` | ubuntu-22.04, windows-2025 | windows-2025 |
-| Pull request labelled `ci:installer-macos` | + macos-15 | + macos-15 |
-| Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
-| Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
+The fresh-installer OS tiers (#6187) are not jobs in this repository anymore.
+`scripts/ci/chaos_installer_tier.py` still resolves `cli_os`, Capture browser
+E2E, and IntelliJ plugin verification from live labels. Adding `ci:full`,
+`ci:capture-e2e`, `ci:intellij-verify`, or `ci:cli-windows` re-runs PR Gate
+via `installer-macos-rerun.yml` (#6208).
 
 ### Merge queue readiness (#6990 phase 4)
 
@@ -156,15 +151,13 @@ app does not, so drop it from the required list (keep it as a PR check) first.
 | SHAFT Capture Browser E2E | skipped | runs | `ci:capture-e2e` |
 | Verify IntelliJ plugin (Plugin Verifier) | skipped (Build IntelliJ plugin still runs) | runs | `ci:intellij-verify` |
 | shaft-cli | ubuntu-22.04 | ubuntu-22.04, windows-2025 | `ci:cli-windows` |
-| All post-merge legs incl. macOS/Windows installer | — | — | `ci:full` |
+| All remaining post-merge legs | — | — | `ci:full` |
 
 Release workflows keep their full verify. A red post-merge leg is tracked by
 `Main red reaction` (rolling issue, auto-closed on green); main rolls forward.
 
-`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels;
-adding the label re-runs PR Gate automatically via `installer-macos-rerun.yml`
-(#6208). A macOS-only break is caught post-merge
-and tracked by `Main red reaction` (rolling issue, auto-closed on green; no revert).
+`scripts/ci/chaos_installer_tier.py` resolves the live post-merge legs from PR
+labels; adding one re-runs PR Gate via `installer-macos-rerun.yml` (#6208).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.

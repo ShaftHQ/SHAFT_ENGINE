@@ -21,6 +21,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 MIN_SHELL_QUOTE = (1, 11, 0)
+# Resolved package nodes only. Parent specs such as `"glob": "13.0.6"` are not
+# copies Dependabot alerts on; inBundle nodes are.
+NESTED_FLOORS = {
+    "minimatch": ((11, 0, 1), ">=11.0.1"),
+    "glob": ((14, 0, 2), ">=14.0.2"),
+    "follow-redirects": ((1, 16, 2), ">=1.16.2"),
+}
 EXACT = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 LOCKS = (
     ROOT / "shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package-lock.json",
@@ -45,6 +52,13 @@ def _rel(path: Path, root: Path) -> str:
         return str(path)
 
 
+def _resolved_name(key: str) -> str:
+    marker = "node_modules/"
+    if marker not in key:
+        return ""
+    return key.rsplit(marker, 1)[1]
+
+
 def audit_lock(path: Path, root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -64,6 +78,16 @@ def audit_lock(path: Path, root: Path = ROOT) -> list[str]:
                 errors.append(
                     f"{_rel(path, root)}: {key} {kind} shell-quote@{version} (need >=1.11.0)"
                 )
+        name = _resolved_name(key)
+        floor = NESTED_FLOORS.get(name)
+        if floor is None:
+            continue
+        minimum, label = floor
+        version = str(meta.get("version") or "")
+        exact = parse_exact(version)
+        if exact is not None and exact < minimum:
+            kind = "bundled" if meta.get("inBundle") else "resolved"
+            errors.append(f"{_rel(path, root)}: {key} {kind} {name}@{version} (need {label})")
     return errors
 
 
@@ -110,7 +134,10 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"  {error}", file=sys.stderr)
         return 1
-    print("npm lock advisory check: shell-quote declarations and resolutions are >=1.11.0")
+    print(
+        "npm lock advisory check: shell-quote >=1.11.0; "
+        "minimatch >=11.0.1; glob >=14.0.2; follow-redirects >=1.16.2"
+    )
     return 0
 
 

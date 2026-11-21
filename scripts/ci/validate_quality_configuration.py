@@ -793,7 +793,13 @@ def validate_windows_appium_retry(workflow_text: str) -> list[str]:
 
 
 def validate_scheduled_build_retry(workflows: dict[str, str]) -> list[str]:
-    """Require transfer-only retries for restartable builds, never runtime tests."""
+    """Require transfer-only retries for restartable builds.
+
+    ``mvn test`` may use the same wrapper. ``build_retry.sh`` retries a Central
+    429 and does not retry a compile or test failure (#8108). The Windows
+    Appium server and test stay in one unwrapped step; see
+    ``validate_windows_appium_retry``.
+    """
     errors: list[str] = []
     build_launch = re.compile(r"(?:^|\s)(?:mvn|(?:\./)?gradlew)(?:\s|$)")
     # `(?:.*\s)?` lets `test` be the first token after `mvn ` (`mvn test`),
@@ -813,11 +819,7 @@ def validate_scheduled_build_retry(workflows: dict[str, str]) -> list[str]:
                         continue
                     wrapped = "scripts/ci/build_retry.sh" in line
                     is_runtime = bool(runtime_test.search(line)) and "-DskipTests" not in line
-                    if is_runtime and wrapped:
-                        errors.append(
-                            f"{workflow_name} job {job_name!r} runtime tests must not use build_retry.sh"
-                        )
-                    elif not is_runtime and not wrapped:
+                    if not is_runtime and not wrapped:
                         errors.append(
                             f"{workflow_name} job {job_name!r} restartable build must use build_retry.sh"
                         )

@@ -150,6 +150,49 @@ class ValidateNpmLockAdvisoriesTest(unittest.TestCase):
             repaired = json.loads((nested / "package.json").read_text(encoding="utf-8"))
             self.assertEqual("1.11.0", repaired["version"])
 
+    def test_repair_replaces_nested_minimatch_from_hoisted(self):
+        """inBundle minimatch 10.2.6 is replaced from the hoisted patched tree."""
+        self.assertIsNotNone(NODE, "node executable required")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            hoisted = root / "node_modules/minimatch"
+            hoisted.mkdir(parents=True)
+            (hoisted / "package.json").write_text(
+                json.dumps({"name": "minimatch", "version": "11.0.5"}),
+                encoding="utf-8",
+            )
+            nested = root / "node_modules/appium-uiautomator2-driver/node_modules/minimatch"
+            nested.mkdir(parents=True)
+            (nested / "package.json").write_text(
+                json.dumps({"name": "minimatch", "version": "10.2.6"}),
+                encoding="utf-8",
+            )
+            result = subprocess.run(  # nosec B603 -- resolved node and repository-owned repair script.
+                [NODE, str(REPAIR)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            repaired = json.loads((nested / "package.json").read_text(encoding="utf-8"))
+            self.assertEqual("11.0.5", repaired["version"])
+
+    def test_three_appium_locks_clear_nested_advisory_floors(self):
+        names = {"appium", "appium-ios", "appium-windows"}
+        seen: set[str] = set()
+        for lock in advisories.LOCKS:
+            if lock.parent.name not in names:
+                continue
+            seen.add(lock.parent.name)
+            errors = [
+                error
+                for error in advisories.audit_lock(lock)
+                if any(package in error for package in ("minimatch@", "glob@", "follow-redirects@"))
+            ]
+            self.assertEqual([], errors, lock)
+        self.assertEqual(names, seen)
+
     def test_repo_locks_currently_pass(self):
         self.assertEqual(0, advisories.main([]))
 

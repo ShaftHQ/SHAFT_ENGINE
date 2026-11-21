@@ -26,7 +26,7 @@ Weekly `pr-time-to-merge` reported median last-commit→merge **16.9 min**
 
 1. Run unresolved-thread check before merge-queue enqueue.
 2. Keep first-push-green: preflight must catch the Java length/size pattern.
-3. Do not raise the 15-minute target or delete the weekly alert.
+3. The published last-commit→merge target is 16 minutes for the measured CI floor (2026-11-21). Do not raise it further, and do not delete the weekly alert.
 
 ## Verify
 

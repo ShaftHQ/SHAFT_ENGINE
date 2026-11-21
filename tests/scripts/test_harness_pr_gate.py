@@ -704,7 +704,10 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertEqual(set(), referenced - outputs)
         # Tier outputs come from the installer-tier step, coverage_all from the
         # event, and same_tree from the same-tree step, not the path filter (#6990).
-        tier_outputs = {"installer_os", "installer_contracts_os", "cli_os", "run_capture_browser", "run_intellij_verify", "coverage_all", "same_tree"}
+        tier_outputs = {"cli_os", "run_capture_browser", "run_intellij_verify", "coverage_all", "same_tree"}
+        self.assertNotIn("chaos_installer", outputs)
+        self.assertNotIn("installer_os", outputs)
+        self.assertNotIn("installer_contracts_os", outputs)
         self.assertEqual(set(), referenced - filters - tier_outputs)
 
     def test_pr_gate_definition_and_shared_actions_have_distinct_fanout(self) -> None:
@@ -762,10 +765,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
                     any(fnmatch.fnmatchcase(path, pattern) for pattern in filters["agent_guidance"]),
                     f"{path} does not trigger Agent Guidance Gate",
                 )
-                self.assertTrue(
-                    any(fnmatch.fnmatchcase(path, pattern) for pattern in filters["chaos_installer"]),
-                    f"{path} is not in the chaos_installer filter",
-                )
+        self.assertNotIn("chaos_installer", filters)
 
     def test_installer_ux_modules_still_run_on_every_os(self) -> None:
         legacy = {

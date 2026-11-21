@@ -385,6 +385,59 @@ class BuildRetryScriptTest(unittest.TestCase):
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(2, attempts)
 
+    def test_a_surefire_test_failure_without_transfer_wording_is_not_retried(self):
+        # A real test failure must stay a single attempt. Retrying it would
+        # hide the verdict the same way a retried compilation failure would.
+        command = self._fake_command(
+            output=(
+                "[ERROR] Tests run: 2, Failures: 1, Errors: 0, Skipped: 0\n"
+                "[ERROR] Failed to execute goal org.apache.maven.plugins:"
+                "maven-surefire-plugin:3.5.6:test (default-test) on project "
+                "shaft-engine: There are test failures."
+            ),
+            fail_times=99,
+        )
+        completed, attempts = self._run(command, attempts=3)
+        self.assertNotEqual(0, completed.returncode)
+        self.assertEqual(1, attempts)
+
+    def test_previously_unwrapped_e2e_maven_resolves_use_build_retry(self):
+        # Ubuntu_Firefox_Grid run 44882731262: the visual install was wrapped
+        # and the following test resolve was not, so a Central 429 failed the job.
+        import yaml
+
+        bare: list[str] = []
+        firefox = ""
+        for name in ("e2eTests.yml", "e2eLocalTests.yml"):
+            path = REPO_ROOT / ".github/workflows" / name
+            workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+            for job_name, job in workflow["jobs"].items():
+                for step in job.get("steps") or []:
+                    run = step.get("run")
+                    if not isinstance(run, str):
+                        continue
+                    shell = str(step.get("shell") or "")
+                    if shell.startswith(("pwsh", "powershell")):
+                        continue
+                    first = next(
+                        (line.strip() for line in run.splitlines() if line.strip() and not line.strip().startswith("#")),
+                        "",
+                    )
+                    if first.startswith("mvn ") and "build_retry.sh" not in first:
+                        bare.append(f"{name}:{job_name}:{step.get('name')}")
+                    if name == "e2eTests.yml" and job_name == "Ubuntu_Firefox_Grid" and step.get("name") == "Run tests":
+                        firefox = run
+                        self.assertEqual("bash", step.get("shell"))
+        self.assertIn("build_retry.sh", firefox)
+        self.assertIn("mvn ", firefox)
+        self.assertEqual([], bare)
+
+    def test_a_central_429_on_the_test_resolve_is_retried(self):
+        command = self._fake_command(output=CENTRAL_429, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
     def test_a_genuine_build_failure_is_not_retried(self):
         # Retrying a compilation error would burn the job's timeout to reach the
         # same failure, and would hide it behind two more minutes of noise.
