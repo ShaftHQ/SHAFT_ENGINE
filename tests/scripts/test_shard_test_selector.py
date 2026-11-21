@@ -90,7 +90,8 @@ class ShardSelectorTest(unittest.TestCase):
         original = entries(selector)
         positives = [entry for entry in original if not entry.startswith("!")]
         exclusions = [entry for entry in original if entry.startswith("!")]
-        shards = [shard_entries(selector, index, 3) for index in (1, 2, 3)]
+        total = 5
+        shards = [shard_entries(selector, index, total) for index in range(1, total + 1)]
         chosen = [entry for shard in shards for entry in shard if not entry.startswith("!")]
         self.assertCountEqual(positives, chosen, "a class was dropped, added, or duplicated")
         for shard in shards:
@@ -120,13 +121,15 @@ class ShardSelectorTest(unittest.TestCase):
                 ("shaft-engine", 1, "shaft-engine-shard-1"),
                 ("shaft-engine", 2, "shaft-engine-shard-2"),
                 ("shaft-engine", 3, "shaft-engine-shard-3"),
+                ("shaft-engine", 4, "shaft-engine-shard-4"),
+                ("shaft-engine", 5, "shaft-engine-shard-5"),
             ],
             [(item["module"], item["shard"], item["leg"]) for item in include],
         )
         self.assertNotIn("shaft-engine", job["strategy"]["matrix"]["module"])
         self.assertIn("matrix.leg || matrix.module", job["name"])
         steps = {step.get("name"): step for step in job["steps"]}
-        self.assertIn("--total 3", steps["Run shaft-engine unit tests"]["run"])
+        self.assertIn("--total 5", steps["Run shaft-engine unit tests"]["run"])
         self.assertIn("failed or total == 0", steps["Verify shaft-engine unit test results"]["run"])
         upload = steps["Upload module coverage to Codecov"]
         self.assertEqual("always()", upload["if"])

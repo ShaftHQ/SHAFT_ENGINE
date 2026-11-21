@@ -338,7 +338,8 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
             lexer.whitespace_split = True
             lexer.commenters = "#"
             arguments = list(lexer)
-            self.assertEqual("mvn", arguments[0])
+            # Central 429s on this resolve retry (#8108). The Maven argv itself stays exact.
+            self.assertEqual(["bash", "scripts/ci/build_retry.sh", "2", "60", "mvn"], arguments[:5])
             self.assertEqual(1, arguments.count("mvn"))
             version_arguments = [
                 argument for argument in arguments if argument.startswith("-DbrowserStack.appiumVersion=")
@@ -369,7 +370,7 @@ class MobileRecordingAcceptanceWorkflowContractTest(unittest.TestCase):
         broad_lexer.whitespace_split = True
         broad_lexer.commenters = "#"
         broad_arguments = list(broad_lexer)
-        self.assertEqual("mvn", broad_arguments[0])
+        self.assertEqual(["bash", "scripts/ci/build_retry.sh", "2", "60", "mvn"], broad_arguments[:5])
         self.assertEqual(1, broad_arguments.count("mvn"))
         self.assertFalse(
             any(all(character in ";&|" for character in argument) for argument in broad_arguments)
@@ -502,6 +503,7 @@ class MobileEvidenceAcceptanceWorkflowContractTest(unittest.TestCase):
             lexer.commenters = "#"
             arguments = list(lexer)
             expected_arguments = [
+                "bash", "scripts/ci/build_retry.sh", "2", "60",
                 "mvn", "-pl", "shaft-browserstack", "-am", "-e", "test",
                 "-Dallure.automaticallyOpen=false",
                 "-DdefaultElementIdentificationTimeout=60",

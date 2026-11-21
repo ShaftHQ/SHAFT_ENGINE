@@ -62,7 +62,10 @@ class WorkflowTest(unittest.TestCase):
         workflow = self.workflow()
         self.assertEqual({"pull_request": {"types": ["labeled"]}}, workflow["on"])
         job = workflow["jobs"]["rerun"]
-        self.assertIn('"ci:installer-macos"', job["if"])
+        for label in ("ci:full", "ci:capture-e2e", "ci:intellij-verify", "ci:cli-windows"):
+            self.assertIn(f'"{label}"', job["if"])
+        for label in ("ci:installer-macos", "ci:installer-windows"):
+            self.assertNotIn(label, job["if"])
         self.assertIn("github.event.label.name", job["if"])
         self.assertIn("head.repo.full_name == github.repository", job["if"])
         self.assertEqual({"actions": "write", "contents": "read"}, job["permissions"])
@@ -71,7 +74,6 @@ class WorkflowTest(unittest.TestCase):
     def test_the_label_name_matches_the_installer_tier(self) -> None:
         from scripts.ci import chaos_installer_tier as tier
 
-        self.assertIn("ci:installer-macos", WORKFLOW.read_text(encoding="utf-8"))
         self.assertIn("macos-15", tier.installer_os("pull_request", {"ci:installer-macos"}))
 
 

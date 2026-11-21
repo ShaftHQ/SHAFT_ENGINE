@@ -70,6 +70,7 @@ class CodecovStatusGateTest(unittest.TestCase):
         gate = workflow.split("codecov-gate:", 1)[1].split("summary:", 1)[0]
         self.assertIn("unit-tests", gate)
         self.assertIn("needs.unit-tests.result", gate)
+        self.assertIn("needs.unit-tests.result == 'success' || needs.intellij-build.result == 'success'", gate)
         self.assertIn("intellij-build", gate)
         self.assertIn("cli", gate)
         config = (ROOT / "codecov.yml").read_text(encoding="utf-8")
