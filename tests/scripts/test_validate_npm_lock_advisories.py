@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess  # nosec B404 -- resolved node and repository-owned repair script only.
 import tempfile
@@ -18,6 +19,20 @@ ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_LOCK = ROOT / "tests/fixtures/npm_lock_advisories/inbundle_shell_quote_1_10_0.package-lock.json"
 REPAIR = ROOT / "scripts/ci/repair_bundled_shell_quote.js"
 NODE = shutil.which("node")
+NPM = shutil.which("npm")
+BUNDLES = ("appium", "appium-ios", "appium-windows")
+INSTALLED_FLOORS = {
+    "glob": (14, 0, 2),
+    "minimatch": (11, 0, 1),
+    "follow-redirects": (1, 16, 2),
+    "shell-quote": (1, 11, 0),
+}
+# npm ci --ignore-scripts extracts these bundled copies even when the lock node was rewritten.
+NPM_CI_STILL_EXTRACTS = {
+    "appium": ("appium-uiautomator2-driver", "minimatch", "10.2.6"),
+    "appium-ios": ("appium-xcuitest-driver", "glob", "13.0.6"),
+    "appium-windows": ("appium-windows-driver", "follow-redirects", "1.16.1"),
+}
 
 
 def _write_good_bundle(root: Path, name: str) -> None:
@@ -195,6 +210,81 @@ class ValidateNpmLockAdvisoriesTest(unittest.TestCase):
 
     def test_repo_locks_currently_pass(self):
         self.assertEqual(0, advisories.main([]))
+
+    def test_installers_run_the_shipped_repair_after_npm_ci_ignore_scripts(self):
+        for relative in (
+            "shaft-infrastructure/src/main/java/com/shaft/infrastructure/DefaultAndroidToolchainOperations.java",
+            "shaft-infrastructure/src/main/java/com/shaft/infrastructure/DefaultDesktopMobileToolchainOperations.java",
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn('"repair-shell-quote.js"', text, relative)
+            self.assertLess(text.index("--ignore-scripts"), text.index("repair-shell-quote.js"), relative)
+
+    def test_npm_ci_extracts_bundled_copies_and_the_shipped_repair_replaces_them(self):
+        """The installer path is npm ci --ignore-scripts, then the bundled repair script."""
+        self.assertIsNotNone(NODE, "node executable required")
+        self.assertIsNotNone(NPM, "npm executable required")
+        resources = ROOT / "shaft-infrastructure/src/main/resources/com/shaft/infrastructure"
+        for name in BUNDLES:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                source = resources / name
+                for filename in ("package.json", "package-lock.json", "repair-shell-quote.js"):
+                    shutil.copy(source / filename, root / filename)
+                install = subprocess.run(  # nosec B603 -- same npm ci the toolchain runs, scripts ignored.
+                    [NPM, "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(0, install.returncode, install.stderr[-4000:])
+                driver, package, version = NPM_CI_STILL_EXTRACTS[name]
+                before = _installed_advisory_packages(root)
+                extracted = [
+                    item for item in before
+                    if item[1] == package and item[2] == version and driver in item[0]
+                ]
+                self.assertTrue(extracted, before)
+                repair = subprocess.run(  # nosec B603 -- shipped repair-shell-quote.js next to the lock.
+                    [NODE, str(root / "repair-shell-quote.js")],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(0, repair.returncode, repair.stdout + repair.stderr)
+                bad = [
+                    (rel, ver) for rel, pkg, ver in _installed_advisory_packages(root)
+                    if (_version_tuple(ver) or (0, 0, 0)) < INSTALLED_FLOORS[pkg]
+                ]
+                self.assertEqual([], bad)
+
+
+def _version_tuple(version: str) -> tuple[int, int, int] | None:
+    parts = str(version).split(".")
+    if len(parts) < 3:
+        return None
+    try:
+        return tuple(int(part) for part in parts[:3])  # type: ignore[return-value]
+    except ValueError:
+        return None
+
+
+def _installed_advisory_packages(root: Path) -> list[tuple[str, str, str]]:
+    found: list[tuple[str, str, str]] = []
+    modules = root / "node_modules"
+    if not modules.is_dir():
+        return found
+    for dirpath, _dirnames, filenames in os.walk(modules):
+        if "package.json" not in filenames:
+            continue
+        current = Path(dirpath)
+        if current.name not in INSTALLED_FLOORS:
+            continue
+        manifest = json.loads((current / "package.json").read_text(encoding="utf-8"))
+        found.append((current.relative_to(root).as_posix(), current.name, str(manifest.get("version") or "")))
+    return found
 
 
 if __name__ == "__main__":

@@ -144,10 +144,19 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
                         "Appium npm cache preparation failed");
             }
             List<String> install = new ArrayList<>(List.of(nodeExecutable().toString(), npmCli().toString(), "ci",
-                    "--prefix", staging.toString(), "--ignore-scripts", "--no-audit", "--no-fund"));
+                    "--prefix", staging.toString(), "--ignore-scripts", "--no-audit", "--no-fund",
+                    "--legacy-peer-deps"));
             if (offline) install.add("--offline");
             requireSuccess(run(install, staging, null, log, Duration.ofMinutes(10)),
                     "Appium npm installation failed");
+            // The drivers peer-depend on Appium 4 while this lock pins Appium 3, so npm 11
+            // rejects a plain npm ci. --legacy-peer-deps installs the reviewed lock.
+            // --ignore-scripts still extracts bundleDependencies, which ignore the lockfile
+            // version rewrite. The shipped repair copies the hoisted patched tree.
+            requireSuccess(run(List.of(nodeExecutable().toString(),
+                            staging.resolve("repair-shell-quote.js").toString()),
+                    staging, null, log, Duration.ofMinutes(2)),
+                    "Appium bundled dependency repair failed");
             requireExactPackage(staging.resolve("node_modules/appium/package.json"),
                     AndroidSetupPlanner.APPIUM_VERSION);
             requireExactPackage(staging.resolve("node_modules/appium-inspector-plugin/package.json"),
@@ -369,7 +378,7 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
     }
 
     private void copyAppiumManifest(Path staging, String expectedLock) throws IOException {
-        for (String name : List.of("package.json", "package-lock.json")) {
+        for (String name : List.of("package.json", "package-lock.json", "repair-shell-quote.js")) {
             try (InputStream input = getClass().getResourceAsStream("/com/shaft/infrastructure/appium/" + name)) {
                 if (input == null) throw new IOException("Missing bundled Appium manifest: " + name);
                 byte[] content = input.readAllBytes();

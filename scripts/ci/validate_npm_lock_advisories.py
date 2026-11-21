@@ -109,6 +109,11 @@ def audit_postinstall(path: Path, root: Path = ROOT) -> list[str]:
             )
         if not repair_local.is_file() and "repair_bundled_shell_quote" not in script:
             errors.append(f"{_rel(repair_local, root)}: missing repair script")
+        canonical = root / "scripts/ci/repair_bundled_shell_quote.js"
+        if repair_local.is_file() and canonical.is_file() and repair_local.read_bytes() != canonical.read_bytes():
+            errors.append(
+                f"{_rel(repair_local, root)}: drifted from scripts/ci/repair_bundled_shell_quote.js"
+            )
     return errors
 
 
