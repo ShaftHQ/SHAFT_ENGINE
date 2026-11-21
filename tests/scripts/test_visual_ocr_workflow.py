@@ -388,7 +388,13 @@ class WindowsLocalCommandLineTest(unittest.TestCase):
                 continue
             for step in job.get("steps", []):
                 run = step.get("run", "")
-                if run.lstrip().startswith("mvn") and "GLOBAL_TESTING_SCOPE" in run:
+                stripped = run.lstrip()
+                # build_retry.sh prefixes the same mvn line (#8108) and must stay on bash.
+                maven_scope = "GLOBAL_TESTING_SCOPE" in run and (
+                    stripped.startswith("mvn")
+                    or stripped.startswith("bash scripts/ci/build_retry.sh ")
+                )
+                if maven_scope:
                     checked += 1
                     if len(scope) + len(run) > 8000:
                         self.assertEqual(step.get("shell"), "bash", f"{name}: {step.get('name')}")
