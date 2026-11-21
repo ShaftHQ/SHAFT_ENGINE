@@ -132,6 +132,56 @@ class ShardSelectorTest(unittest.TestCase):
         self.assertEqual("always()", upload["if"])
         self.assertIn("matrix.leg || matrix.module", upload["with"]["source-id"])
 
+    def test_an_added_unit_test_left_off_the_shard_selector_fails_the_pre_push_check(self) -> None:
+        # #8106: WebScrollTest is a unit test and does not end in UnitTest, so the
+        # *UnitTest scan did not fail the commit that left it off -Dtest.
+        import tempfile
+
+        from scripts.ci.overlay_pre_push import unselected_unit_test_failures
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            gate = root / ".github/workflows/pr-gate.yml"
+            gate.parent.mkdir(parents=True)
+            java = root / "shaft-engine/src/test/java"
+            java.mkdir(parents=True)
+            added = java / "com/shaft/gui/element/internal/WebScrollTest.java"
+            added.parent.mkdir(parents=True)
+            added.write_text("class WebScrollTest {}", encoding="utf-8")
+            e2e = java / "testPackage/ManagedAndroidE2ETest.java"
+            e2e.parent.mkdir(parents=True)
+            e2e.write_text("class ManagedAndroidE2ETest {}", encoding="utf-8")
+            acceptance = java / "com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
+            acceptance.parent.mkdir(parents=True)
+            acceptance.write_text("class BrowserNetworkUploadAcceptanceTest {}", encoding="utf-8")
+            relative = "shaft-engine/src/test/java/com/shaft/gui/element/internal/WebScrollTest.java"
+            gate.write_text(
+                "run: bash scripts/ci/build_retry.sh 2 60 mvn -DskipTests\n"
+                "'-Dtest=com/shaft/test/unittests/*, ActionsCoverageUnitTest'\n",
+                encoding="utf-8",
+            )
+            failures = unselected_unit_test_failures(root, [relative])
+            self.assertEqual(1, len(failures), failures)
+            self.assertIn("WebScrollTest", failures[0])
+            self.assertIn("#8106", failures[0])
+
+            gate.write_text(
+                "'-Dtest=com/shaft/test/unittests/*, ActionsCoverageUnitTest, WebScrollTest'\n",
+                encoding="utf-8",
+            )
+            self.assertEqual([], unselected_unit_test_failures(root, [relative]))
+            self.assertEqual(
+                [],
+                unselected_unit_test_failures(
+                    root,
+                    [
+                        "shaft-engine/src/test/java/testPackage/ManagedAndroidE2ETest.java",
+                        "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java",
+                        "junitTestPackage/JunitTest.java",
+                    ],
+                ),
+            )
+
     def test_capture_and_template_jobs_use_the_shared_maven_cache(self) -> None:
         jobs = yaml.safe_load(PR_GATE.read_text(encoding="utf-8"))["jobs"]
         for name in ("capture-e2e", "template-coupling"):
