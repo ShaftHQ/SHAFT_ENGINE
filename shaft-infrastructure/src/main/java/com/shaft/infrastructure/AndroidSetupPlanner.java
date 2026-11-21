@@ -10,11 +10,11 @@ import java.util.Set;
 
 /** Release-coupled planner for the managed Appium and Android emulator toolchain. */
 public final class AndroidSetupPlanner {
-    public static final String APPIUM_VERSION = "3.9.0";
+    public static final String APPIUM_VERSION = "4.0.0";
     public static final String INSPECTOR_PLUGIN_VERSION = "2026.11.3";
     public static final String UIAUTOMATOR2_VERSION = "9.0.2";
     public static final String APPIUM_LOCK_SHA256 =
-            "1911e277641aec7eb8a44443bf2b8784fed9acd2610ef0e93606fa3c9d9c51d7";
+            "5042dc66254bf97a9de5ed7e37a8c5c7b4a353eb2791e358b4704a53f7eb9b00";
     public static final String COMMAND_LINE_TOOLS_VERSION = "15859902";
     public static final String PLATFORM_TOOLS_VERSION = "37.0.1";
     public static final String EMULATOR_VERSION = "37.2.13";
@@ -30,7 +30,7 @@ public final class AndroidSetupPlanner {
     public static final String ANDROID_SDK_LICENSE = "android-sdk-license";
 
     private static final String APPIUM_SHA256 =
-            "9157726cb1dbc86090168b7fd559a80313151d28bb31ee115c73c8bc4ac601d1";
+            "9edb822db5aa25d966e32ceaeba210aa64b25adeb2cd255cc0771b0060abf4ad";
     private static final String INSPECTOR_SHA256 =
             "bdb772259ad7678fd3debc6b5b23216faef09a6f6d57dfda46035e1a2abf2b05";
     private static final String UIAUTOMATOR2_SHA256 =
