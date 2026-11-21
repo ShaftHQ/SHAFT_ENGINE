@@ -230,7 +230,19 @@ class DesktopMobileToolchainOperationsTest {
         List<List<String>> installs = commands.stream().filter(command -> command.contains("ci")).toList();
         assertFalse(installs.isEmpty());
         assertTrue(installs.stream().allMatch(command -> command.contains("--ignore-scripts")
-                && command.contains("--no-audit") && command.contains("--no-fund")));
+                && command.contains("--no-audit") && command.contains("--no-fund")
+                && command.contains("--legacy-peer-deps")));
+        int installAt = -1;
+        for (int index = 0; index < commands.size(); index++) {
+            if (commands.get(index).contains("ci")) {
+                installAt = index;
+                break;
+            }
+        }
+        assertTrue(installAt >= 0);
+        assertTrue(commands.subList(installAt + 1, commands.size()).stream().anyMatch(command ->
+                command.stream().anyMatch(part -> part.endsWith("repair-shell-quote.js"))),
+                commands.toString());
     }
 
     private static void assertExactManifestAndLockDependencies(Path root, String driverPackage,

@@ -424,6 +424,18 @@ class AndroidSetupServiceTest {
                 "appium/" + AndroidSetupPlanner.APPIUM_VERSION + "/node_modules/.cache/appium/extensions.yaml"));
         assertFalse(extensionManifest.contains(".staging-"));
         assertTrue(extensionManifest.contains(paths.tools().resolve("appium/" + AndroidSetupPlanner.APPIUM_VERSION).toString()));
+        assertTrue(runner.commands.stream().anyMatch(command -> command.contains("ci")
+                && command.contains("--ignore-scripts") && command.contains("--legacy-peer-deps")));
+        int installAt = -1;
+        for (int index = 0; index < runner.commands.size(); index++) {
+            if (runner.commands.get(index).contains("ci")) {
+                installAt = index;
+                break;
+            }
+        }
+        assertTrue(installAt >= 0);
+        assertTrue(runner.commands.subList(installAt + 1, runner.commands.size()).stream().anyMatch(command ->
+                command.stream().anyMatch(part -> part.endsWith("repair-shell-quote.js"))));
         assertTrue(runner.commands.stream().noneMatch(command -> command.contains("--licenses")));
         assertEquals(List.of("y\n"), runner.sdkPackageInputs);
         assertTrue(runner.commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));

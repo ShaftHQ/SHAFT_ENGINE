@@ -1,21 +1,28 @@
 #!/usr/bin/env node
 /**
- * Replace every nested shell-quote copy under node_modules with the hoisted
- * shell-quote@>=1.11.0 install. npm overrides cannot rewrite packages that
- * arrive via bundleDependencies (appium-windows-driver bundles teen_process,
- * which still vendors shell-quote@1.10.0). See #7451 / GHSA-pqg4-j6r4-53mv.
+ * Replace nested bundled copies that npm overrides cannot rewrite.
  *
- * Fails (exit 1) when any shell-quote tree remains below 1.11.0, including
- * inBundle copies. A missing hoisted install is only OK when no nested copy
- * below 1.11.0 exists.
+ * bundleDependencies (appium drivers) ignore overrides. shell-quote below
+ * 1.11.0, glob below 14.0.2, minimatch below 11.0.1, and follow-redirects
+ * below 1.16.2 are copied from the hoisted patched install at postinstall.
+ * Glob is repaired before minimatch so replacing a nested glob tree cannot
+ * leave a vulnerable minimatch behind inside it. See #7451 and the appium
+ * Dependabot alerts for the nested copies.
+ *
+ * Fails (exit 1) when a vulnerable nested copy remains and the hoisted
+ * install is missing or itself below the floor. No node_modules is success.
  */
 "use strict";
 
 const fs = require("fs");
 const path = require("path");
 
-const MIN = [1, 11, 0];
-const HOISTED = path.join("node_modules", "shell-quote");
+const TARGETS = [
+  { name: "glob", min: [14, 0, 2], label: ">=14.0.2" },
+  { name: "minimatch", min: [11, 0, 1], label: ">=11.0.1" },
+  { name: "follow-redirects", min: [1, 16, 2], label: ">=1.16.2" },
+  { name: "shell-quote", min: [1, 11, 0], label: ">=1.11.0" },
+];
 
 function readVersion(pkgDir) {
   const pkgPath = path.join(pkgDir, "package.json");
@@ -34,79 +41,79 @@ function parseSemver(version) {
   return parts.slice(0, 3);
 }
 
-function belowMin(version) {
+function belowMin(version, min) {
   const parts = parseSemver(version);
   if (parts === null) {
     return true;
   }
   for (let i = 0; i < 3; i++) {
-    if (parts[i] !== MIN[i]) {
-      return parts[i] < MIN[i];
+    if (parts[i] !== min[i]) {
+      return parts[i] < min[i];
     }
   }
   return false;
 }
 
-function collectShellQuoteDirs(dir, out) {
+function collectDirs(packageName, dir, out) {
   if (!fs.existsSync(dir)) {
     return;
   }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (!entry.isDirectory()) {
+    if (!entry.isDirectory() || entry.name === ".bin") {
       continue;
     }
-    if (entry.name === ".bin") {
-      continue;
-    }
-    if (entry.name === "shell-quote") {
+    if (entry.name === packageName) {
       out.push(full);
       continue;
     }
-    collectShellQuoteDirs(full, out);
+    collectDirs(packageName, full, out);
   }
 }
 
-const copies = [];
-collectShellQuoteDirs("node_modules", copies);
-const vulnerable = copies.filter((p) => belowMin(readVersion(p) || ""));
-
-if (vulnerable.length === 0) {
-  process.exit(0);
-}
-
-if (!fs.existsSync(HOISTED)) {
-  console.error(
-    "repair-shell-quote: node_modules/shell-quote is missing but nested copies below 1.11.0 remain:"
-  );
-  for (const p of vulnerable) {
-    console.error(`  ${p}@${readVersion(p)}`);
+function repairPackage(spec) {
+  const copies = [];
+  collectDirs(spec.name, "node_modules", copies);
+  const vulnerable = copies.filter((dir) => belowMin(readVersion(dir) || "", spec.min));
+  if (vulnerable.length === 0) {
+    return;
   }
-  process.exit(1);
-}
-
-const srcVersion = readVersion(HOISTED);
-if (belowMin(srcVersion || "")) {
-  console.error(`hoisted shell-quote is ${srcVersion}; need >=1.11.0`);
-  process.exit(1);
-}
-
-for (const full of copies) {
-  if (path.resolve(full) === path.resolve(HOISTED)) {
-    continue;
+  const hoisted = path.join("node_modules", spec.name);
+  const prefix = spec.name === "shell-quote" ? "repair-shell-quote" : "repair-bundled";
+  if (!fs.existsSync(hoisted)) {
+    console.error(
+      `${prefix}: node_modules/${spec.name} is missing but nested copies below ${spec.label} remain:`
+    );
+    for (const dir of vulnerable) {
+      console.error(`  ${dir}@${readVersion(dir)}`);
+    }
+    process.exit(1);
   }
-  fs.rmSync(full, { recursive: true, force: true });
-  fs.cpSync(HOISTED, full, { recursive: true });
-  console.log(`repaired ${full} -> ${srcVersion}`);
+  const srcVersion = readVersion(hoisted);
+  if (belowMin(srcVersion || "", spec.min)) {
+    console.error(`hoisted ${spec.name} is ${srcVersion}; need ${spec.label}`);
+    process.exit(1);
+  }
+  for (const full of vulnerable) {
+    if (path.resolve(full) === path.resolve(hoisted)) {
+      continue;
+    }
+    fs.rmSync(full, { recursive: true, force: true });
+    fs.cpSync(hoisted, full, { recursive: true });
+    console.log(`repaired ${full} -> ${srcVersion}`);
+  }
+  const remaining = [];
+  collectDirs(spec.name, "node_modules", remaining);
+  const stillBad = remaining.filter((dir) => belowMin(readVersion(dir) || "", spec.min));
+  if (stillBad.length > 0) {
+    console.error(`${prefix}: ${spec.name} below ${spec.label} remains after repair:`);
+    for (const dir of stillBad) {
+      console.error(`  ${dir}@${readVersion(dir)}`);
+    }
+    process.exit(1);
+  }
 }
 
-const remaining = [];
-collectShellQuoteDirs("node_modules", remaining);
-const stillBad = remaining.filter((p) => belowMin(readVersion(p) || ""));
-if (stillBad.length > 0) {
-  console.error("repair-shell-quote: shell-quote below 1.11.0 remains after repair:");
-  for (const p of stillBad) {
-    console.error(`  ${p}@${readVersion(p)}`);
-  }
-  process.exit(1);
+for (const spec of TARGETS) {
+  repairPackage(spec);
 }
