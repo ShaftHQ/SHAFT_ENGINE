@@ -134,7 +134,10 @@ class BuildRetryScriptTest(unittest.TestCase):
         os.chmod(script, 0o755)  # nosec B103 - test fixture the test itself runs.
         return "./fake-mvn.sh"
 
-    def _run(self, command: str, *, attempts: int = 3, pause: int = 0):
+    def _run(self, command: str, *, attempts: int = 3, pause: int = 0, path_prefix: str | None = None):
+        env = os.environ | {"HOME": "."}
+        if path_prefix is not None:
+            env["PATH"] = path_prefix + os.pathsep + env.get("PATH", "")
         completed = subprocess.run(  # nosec B603 - fixed bash invocation in a temp dir.
             [_bash(), "./retry.sh", str(attempts), str(pause), "bash", command],
             cwd=self.workspace,
@@ -142,7 +145,7 @@ class BuildRetryScriptTest(unittest.TestCase):
             text=True,
             # Relative HOME keeps $HOME/.m2 inside this workspace for Git Bash and
             # WSL. An absolute temp path is not the same string in both.
-            env=os.environ | {"HOME": "."},
+            env=env,
         )
         log = self.workspace / "attempts.log"
         made = len(log.read_text(encoding="utf-8").splitlines()) if log.is_file() else 0
@@ -213,6 +216,83 @@ class BuildRetryScriptTest(unittest.TestCase):
         self.assertEqual(2, attempts)
         self.assertEqual([], list(repo.rglob("*.lastUpdated")))
         self.assertEqual([], list(repo.rglob("resolver-status.properties")))
+
+    def _metadata_curl(self, http_code: str) -> str:
+        # Stands in for Central. The script builds the POM URL and asks curl;
+        # this fixture returns the injected status and does not contact Central.
+        script = self.workspace / "curl"
+        script.write_text(
+            "#!/usr/bin/env bash\n" f"printf '%s' '{http_code}'\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(script, 0o755)  # nosec B103 - test fixture the test itself runs.
+        return str(self.workspace)
+
+    def test_package_setup_recovers_a_published_artifact_after_a_poisoned_pom(self):
+        # Run 44833666425: build_retry.sh 2 60 mvn ... package. Maven said
+        # maven-enforcer-plugin 3.7.0 was missing while its POM is HTTP 200,
+        # because a non-POM file already occupied the release path.
+        (self.workspace / "failure.txt").write_text(
+            "Could not find artifact org.apache.maven.plugins:maven-enforcer-plugin:jar:3.7.0 "
+            "in central (https://repo.maven.apache.org/maven2)\n"
+            "The POM for org.apache.maven.plugins:maven-enforcer-plugin:jar:3.7.0 is missing, "
+            "no dependency information available\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        script = self.workspace / "fake-mvn.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "attempt" >> attempts.log\n'
+            "count=$(wc -l < attempts.log)\n"
+            'dir="$HOME/.m2/repository/org/apache/maven/plugins/maven-enforcer-plugin/3.7.0"\n'
+            'if [ "$count" -eq 1 ]; then\n'
+            '  mkdir -p "$dir"\n'
+            "  printf '<html>not a pom</html>' > \"$dir/maven-enforcer-plugin-3.7.0.pom\"\n"
+            "  cat failure.txt\n"
+            "  exit 1\n"
+            "fi\n"
+            'if [ -e "$dir/maven-enforcer-plugin-3.7.0.pom" ]; then\n'
+            "  echo 'poisoned pom still present'\n"
+            "  exit 1\n"
+            "fi\n"
+            'echo "BUILD SUCCESS"\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(script, 0o755)  # nosec B103 - test fixture the test itself runs.
+        completed, attempts = self._run(
+            "./fake-mvn.sh", attempts=2, pause=0, path_prefix=self._metadata_curl("200")
+        )
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+        self.assertIn("BUILD SUCCESS", completed.stdout)
+
+    def test_package_setup_still_fails_when_central_metadata_is_absent(self):
+        (self.workspace / "failure.txt").write_text(
+            "Could not find artifact org.apache.maven.surefire:surefire-testng:jar:9.9.9 "
+            "in central (https://repo.maven.apache.org/maven2)\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        script = self.workspace / "fake-mvn.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\n"
+            'echo "attempt" >> attempts.log\n'
+            "cat failure.txt\n"
+            "exit 1\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        os.chmod(script, 0o755)  # nosec B103 - test fixture the test itself runs.
+        completed, attempts = self._run(
+            "./fake-mvn.sh", attempts=2, pause=0, path_prefix=self._metadata_curl("404")
+        )
+        self.assertNotEqual(0, completed.returncode)
+        self.assertEqual(1, attempts)
+        self.assertNotIn("BUILD SUCCESS", completed.stdout)
+        self.assertIn("release is absent", completed.stderr)
 
     def test_a_genuine_failure_leaves_maven_resolution_markers(self):
         marker = self.workspace / ".m2" / "repository" / "keep.lastUpdated"

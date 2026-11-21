@@ -501,6 +501,39 @@ CHEAP_CI_CONTRACTS = (
 
 
 
+def _added_test_left_off_selector(selector: str, paths: list[str]) -> list[str]:
+    """Return added shaft-engine tests the PR Gate shards will not run (#8106).
+
+    ``*UnitTest`` classes are covered by the full-tree scan. This catches a
+    unit test such as ``WebScrollTest`` that does not end in ``UnitTest`` and
+    was left off ``-Dtest``. End-to-end and acceptance classes stay off this
+    list. JUnit smoke classes live under ``junitTestPackage``.
+    """
+    named: set[str] = set()
+    for entry in selector.split(","):
+        name = entry.strip()
+        if name.startswith("!"):
+            name = name[1:]
+        if not name or "*" in name or "/" in name:
+            continue
+        named.add(name.rsplit(".", 1)[-1])
+    prefix = "shaft-engine/src/test/java/"
+    missing: list[str] = []
+    for path in paths:
+        norm = path.replace("\\", "/").removeprefix("./")
+        if not norm.startswith(prefix) or not norm.endswith("Test.java"):
+            continue
+        relative = norm[len(prefix):]
+        if relative.startswith("com/shaft/test/unittests/") or "junitTestPackage/" in relative:
+            continue
+        stem = relative.rsplit("/", 1)[-1][: -len(".java")]
+        if stem.endswith("UnitTest") or "E2E" in stem or "Acceptance" in stem:
+            continue
+        if stem not in named:
+            missing.append(norm)
+    return missing
+
+
 def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
     """Refuse a *UnitTest that no PR Gate shard selects (#7310 / #7529).
 
@@ -515,7 +548,9 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
 
     normalized = [path.replace("\\", "/").removeprefix("./") for path in changed]
     if not any(
-        is_unit_test_source_name(path) or path.endswith(".github/workflows/pr-gate.yml")
+        is_unit_test_source_name(path)
+        or path.endswith(".github/workflows/pr-gate.yml")
+        or (path.startswith("shaft-engine/src/test/java/") and path.endswith("Test.java"))
         for path in normalized
     ):
         return []
@@ -533,15 +568,24 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
         if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
         missing.append(relative)
-    if not missing:
-        return []
-    return [
-        "UnitTest class not selected by PR Gate shards (#7310): "
-        + missing[0]
-        + (" (+%d more)" % (len(missing) - 1) if len(missing) > 1 else "")
-        + "; add the class name to -Dtest in .github/workflows/pr-gate.yml "
-        "and a matching !%regex exclusion in e2eTests.yml / e2eLocalTests.yml"
-    ]
+    failures = []
+    if missing:
+        failures.append(
+            "UnitTest class not selected by PR Gate shards (#7310): "
+            + missing[0]
+            + (" (+%d more)" % (len(missing) - 1) if len(missing) > 1 else "")
+            + "; add the class name to -Dtest in .github/workflows/pr-gate.yml "
+            "and a matching !%regex exclusion in e2eTests.yml / e2eLocalTests.yml"
+        )
+    left_off = _added_test_left_off_selector(match.group(1), normalized)
+    if left_off:
+        failures.append(
+            "Test class added off the PR Gate shard list (#8106): "
+            + left_off[0]
+            + (" (+%d more)" % (len(left_off) - 1) if len(left_off) > 1 else "")
+            + "; add the class name to -Dtest in .github/workflows/pr-gate.yml"
+        )
+    return failures
 
 
 def _assertion_detail(trace: str) -> str:
