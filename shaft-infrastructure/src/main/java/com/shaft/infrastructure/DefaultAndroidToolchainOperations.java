@@ -153,9 +153,11 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
             // rejects a plain npm ci. --legacy-peer-deps installs the reviewed lock.
             // --ignore-scripts still extracts bundleDependencies, which ignore the lockfile
             // version rewrite. The shipped repair copies the hoisted patched tree.
+            // Empty stdin: the repair script does not read it, and a null input is a new
+            // NullAway finding against the shrink-only ratchet.
             requireSuccess(run(List.of(nodeExecutable().toString(),
                             staging.resolve("repair-shell-quote.js").toString()),
-                    staging, null, log, Duration.ofMinutes(2)),
+                    staging, "", log, Duration.ofMinutes(2)),
                     "Appium bundled dependency repair failed");
             requireExactPackage(staging.resolve("node_modules/appium/package.json"),
                     AndroidSetupPlanner.APPIUM_VERSION);
