@@ -144,8 +144,9 @@ final class DefaultDesktopMobileToolchainOperations implements DesktopMobileTool
                     "--legacy-peer-deps"));
             if (offline) install.add("--offline");
             requireSuccess(run(install, staging, log, Duration.ofMinutes(10)), "Appium npm installation failed");
-            // The drivers peer-depend on Appium 4 while this lock pins Appium 3, so npm 11
-            // rejects a plain npm ci. --legacy-peer-deps installs the reviewed lock.
+            // appium-windows-driver 6.3.1 peers on Appium ^3 while the iOS driver peers on
+            // Appium ^4. This lock pins Appium 4, so npm 11 rejects a plain npm ci on the
+            // windows profile. --legacy-peer-deps installs the reviewed lock.
             // --ignore-scripts still extracts bundleDependencies, which ignore the lockfile
             // version rewrite. The shipped repair copies the hoisted patched tree.
             requireSuccess(run(List.of(nodeExecutable().toString(),

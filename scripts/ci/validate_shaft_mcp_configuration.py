@@ -327,6 +327,17 @@ def validate(root: Path = ROOT) -> list[str]:
     return errors
 
 
+# Read before LoggerContext exists. The XML listener is installed too late for
+# the version-status line StatusPrinter writes to stdout.
+STATUS_LISTENER_PROPERTY = "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener"
+LAUNCH_SITES = (
+    "scripts/ci/validate_shaft_mcp_transports.py",
+    "scripts/mcp/install_shaft_agentic_tools.py",
+    ".github/actions/build-shaft-mcp-live-jar/action.yml",
+    ".github/workflows/guided-workflows-live.yml",
+)
+
+
 def validate_logback_stdio_contract(root: Path = ROOT) -> list[str]:
     """Keep MCP JSON-RPC stdout clean: logs on stderr, no Logback StatusPrinter.
 
@@ -342,6 +353,16 @@ def validate_logback_stdio_contract(root: Path = ROOT) -> list[str]:
             "shaft-mcp logging must register NopStatusListener so Logback status "
             "never writes to stdout (MCP JSON-RPC)"
         )
+    for dockerfile in sorted((root / "shaft-mcp").glob("Dockerfile*")):
+        if STATUS_LISTENER_PROPERTY not in dockerfile.read_text(encoding="utf-8"):
+            errors.append(
+                f"{dockerfile.name} must set {STATUS_LISTENER_PROPERTY} "
+                "before Logback creates a LoggerContext"
+            )
+    for relative in LAUNCH_SITES:
+        path = root / relative
+        if path.is_file() and STATUS_LISTENER_PROPERTY not in path.read_text(encoding="utf-8"):
+            errors.append(f"{relative} must pass {STATUS_LISTENER_PROPERTY} on the JVM command line")
     return errors
 
 

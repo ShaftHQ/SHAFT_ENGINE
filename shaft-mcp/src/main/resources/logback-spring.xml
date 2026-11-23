@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <!-- MCP speaks JSON-RPC on stdout. StatusPrinter defaults to System.out and
-         poisons the protocol (see #7541/#7542 after logback-core 1.6.6). -->
+         poisons the protocol (see #7541/#7542 after logback-core 1.6.6).
+         This listener is installed during XML configuration, which is after the
+         version-status line. Launchers also set logback.statusListenerClass. -->
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
 
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>

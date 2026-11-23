@@ -1205,6 +1205,11 @@ class InstallShaftMcpTest(unittest.TestCase):
             content = args.read_text(encoding="utf-8")
             self.assertIn(
                 MODULE.java_argfile_quote(
+                    "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener"),
+                content,
+            )
+            self.assertIn(
+                MODULE.java_argfile_quote(
                     f"-D{MODULE.FALLBACK_WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
                 content,
             )

@@ -46,6 +46,7 @@ runs:
         JAR=$(ls shaft-mcp/target/shaft-mcp-*.jar | grep -v -e sources -e javadoc -e original | head -1)
         CLASSPATH="$(realpath "$JAR"):$(realpath shaft-mcp/target/dependency)/*"
         {
+          printf '"-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener"\n'
           printf '"-cp"\n'
           printf '"%s"\n' "$CLASSPATH"
           printf '"-DheadlessExecution=true"\n'

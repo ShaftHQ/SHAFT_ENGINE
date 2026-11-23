@@ -28,9 +28,10 @@ INSTALLED_FLOORS = {
     "shell-quote": (1, 11, 0),
 }
 # npm ci --ignore-scripts extracts these bundled copies even when the lock node was rewritten.
+# xcuitest 13.1.3 no longer bundles glob 13.0.6; it still bundles minimatch 10.2.6 under readdir-glob.
 NPM_CI_STILL_EXTRACTS = {
     "appium": ("appium-uiautomator2-driver", "minimatch", "10.2.6"),
-    "appium-ios": ("appium-xcuitest-driver", "glob", "13.0.6"),
+    "appium-ios": ("appium-xcuitest-driver", "minimatch", "10.2.6"),
     "appium-windows": ("appium-windows-driver", "follow-redirects", "1.16.1"),
 }
 
@@ -210,6 +211,104 @@ class ValidateNpmLockAdvisoriesTest(unittest.TestCase):
 
     def test_repo_locks_currently_pass(self):
         self.assertEqual(0, advisories.main([]))
+
+    def test_rewrite_fixes_dependabot_shell_quote_declaration_and_inbundle_floor(self):
+        """Dependabot emits exact shell-quote@1.8.4 and a below-floor inBundle node.
+
+        The rewrite copies the hoisted patched lock node (the e928e92 shape) and
+        must not invent a version when that hoisted node is absent.
+        """
+        from scripts.ci import rewrite_npm_lock_advisories as rewrite
+
+        hoisted_minimatch = {
+            "version": "11.0.5",
+            "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-11.0.5.tgz",
+            "integrity": "sha512-hoisted",
+            "license": "BlueOak-1.0.0",
+            "dependencies": {
+                "@isaacs/nonrecursive-glob-match": "^1.1.0",
+                "brace-expansion": "^5.0.12",
+            },
+            "engines": {"node": "20 || >=22"},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            lock_dir = root / "shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium"
+            lock_dir.mkdir(parents=True)
+            lock = {
+                "name": "shaft-managed-appium",
+                "lockfileVersion": 3,
+                "requires": True,
+                "packages": {
+                    "": {"name": "shaft-managed-appium"},
+                    "node_modules/@appium/support": {
+                        "version": "7.0.0",
+                        "dependencies": {"shell-quote": "1.8.4"},
+                    },
+                    "node_modules/shell-quote": {
+                        "version": "1.11.0",
+                        "resolved": "https://registry.npmjs.org/shell-quote/-/shell-quote-1.11.0.tgz",
+                        "integrity": "sha512-shell",
+                    },
+                    "node_modules/appium-windows-driver/node_modules/shell-quote": {
+                        "version": "1.11.0",
+                        "resolved": "https://registry.npmjs.org/shell-quote/-/shell-quote-1.11.0.tgz",
+                        "integrity": "sha512-shell",
+                        "inBundle": True,
+                    },
+                    "node_modules/minimatch": hoisted_minimatch,
+                    "node_modules/appium-uiautomator2-driver/node_modules/minimatch": {
+                        "version": "10.2.6",
+                        "inBundle": True,
+                        "license": "BlueOak-1.0.0",
+                        "dependencies": {"brace-expansion": "^5.0.8"},
+                        "engines": {"node": "18 || 20 || >=22"},
+                    },
+                },
+            }
+            lock_path = lock_dir / "package-lock.json"
+            lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
+            (lock_dir / "package.json").write_text(
+                json.dumps({"overrides": {"shell-quote": "1.11.0", "minimatch": "11.0.5"}}),
+                encoding="utf-8",
+            )
+            self.assertEqual(1, rewrite.main(["--root", str(root), "--check"]))
+            self.assertEqual(0, rewrite.main(["--root", str(root), "--write"]))
+            packages = json.loads(lock_path.read_text(encoding="utf-8"))["packages"]
+            self.assertEqual(
+                "1.11.0",
+                packages["node_modules/@appium/support"]["dependencies"]["shell-quote"],
+            )
+            nested = packages["node_modules/appium-uiautomator2-driver/node_modules/minimatch"]
+            self.assertEqual(hoisted_minimatch, nested)
+            self.assertNotIn("inBundle", nested)
+            bundled_claim = packages["node_modules/appium-windows-driver/node_modules/shell-quote"]
+            self.assertEqual(packages["node_modules/shell-quote"], bundled_claim)
+            self.assertNotIn("inBundle", bundled_claim)
+            self.assertEqual([], advisories.audit_lock(lock_path, root))
+            written = lock_path.read_bytes()
+            self.assertEqual(0, rewrite.main(["--root", str(root), "--check"]))
+            self.assertEqual(written, lock_path.read_bytes())
+
+            bare = lock_dir / "package-lock.json"
+            bare.write_text(
+                json.dumps(
+                    {
+                        "packages": {
+                            "node_modules/appium-uiautomator2-driver/node_modules/minimatch": {
+                                "version": "10.2.6",
+                                "inBundle": True,
+                            }
+                        }
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            untouched = bare.read_bytes()
+            self.assertEqual(1, rewrite.main(["--root", str(root), "--write"]))
+            self.assertEqual(untouched, bare.read_bytes())
 
     def test_installers_run_the_shipped_repair_after_npm_ci_ignore_scripts(self):
         for relative in (

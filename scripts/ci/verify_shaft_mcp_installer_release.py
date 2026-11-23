@@ -188,6 +188,7 @@ def verify_argfile(args: Path, jar: Path) -> None:
     text = args.read_text(encoding="utf-8")
     runtime_root = jar.parent.parent.parent / "work"
     required = {
+        '"-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener"',
         f'"-Dshaft.mcp.fallbackWorkspaceRoot={runtime_root.as_posix()}"',
         "-cp",
         "com.shaft.mcp.ShaftMcpApplication",

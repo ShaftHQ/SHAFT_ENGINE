@@ -130,6 +130,26 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
         self.assertIn('versions: ["3.6.x"]', maven)
         self.assertNotIn("multi-ecosystem-groups", text)
 
+    def test_logback_group_is_not_swallowed_by_the_catch_all(self) -> None:
+        """Dependabot uses the first matching group. The catch-all groups by name,
+        which is how classic and core opened as separate pull requests."""
+        text = (self.ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+        maven = text.split('package-ecosystem: "maven"', 1)[1]
+        self.assertLess(maven.index("\n      logback:"), maven.index("\n      aligned-maven-dependencies:"))
+        self.assertLess(maven.index("\n      logback-security:"), maven.index("\n      aligned-maven-security:"))
+        version = maven.split("\n      logback:", 1)[1].split("\n      aligned-maven-dependencies:", 1)[0]
+        security = maven.split("\n      logback-security:", 1)[1].split("\n      aligned-maven-security:", 1)[0]
+        catch_all = maven.split("\n      aligned-maven-dependencies:", 1)[1].split("\n      ", 1)[0]
+        security_catch_all = maven.split("\n      aligned-maven-security:", 1)[1]
+        for name in ("ch.qos.logback:logback-classic", "ch.qos.logback:logback-core"):
+            self.assertIn(name, version)
+            self.assertIn(name, security)
+            self.assertNotIn(name, catch_all)
+            self.assertNotIn(name, security_catch_all)
+        self.assertNotIn("group-by:", version)
+        self.assertIn("applies-to: security-updates", security)
+        self.assertNotIn('- "*"', version)
+
     def test_refresh_job_guards_bot_token_and_names_fallback(self):
         text = (self.ROOT / ".github/workflows/setup-lock-pins-push.yml").read_text(encoding="utf-8")
         self.assertIn("Verify BOT_TOKEN can push", text)
@@ -149,6 +169,18 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
         self.assertIn("SetupPlanner", push)
         self.assertIn("core.hooksPath /dev/null", push)
         self.assertIn("refresh_setup_lock_pins.py --root . --check", push)
+        self.assertIn("rewrite_npm_lock_advisories.py --root . --check", push)
+        self.assertIn(
+            "appium(-ios|-windows)?/package-lock\\.json",
+            push,
+        )
+        self.assertNotIn("head/scripts", push)
+        refresh = compute.split("Refresh pins with the base script", 1)[1]
+        self.assertLess(
+            refresh.index("rewrite_npm_lock_advisories.py --root head --write"),
+            refresh.index("refresh_setup_lock_pins.py --root head --write"),
+        )
+        self.assertIn("base/scripts/ci/rewrite_npm_lock_advisories.py", refresh)
 
     def test_check_job_skips_dependabot_prs(self) -> None:
         text = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")

@@ -13,9 +13,11 @@ name: Setup Lock Pins
 #   --verify-artifacts` (downloads the planned tarballs from npm).
 # * `compute` runs on the same `pull_request` event for same-repository
 #   Dependabot pull requests, with no secrets and a read-only token. It runs the
-#   trusted base script against the pull-request tree (it only reads and hashes
-#   files) and uploads the resulting pin patch as the `setup-lock-pins-patch`
-#   artifact.
+#   trusted base scripts against the pull-request tree (they only read and write
+#   JSON and Java pin constants) and uploads the resulting patch as the
+#   `setup-lock-pins-patch` artifact. The rewrite copies hoisted patched lock
+#   nodes over vulnerable shell-quote declarations and below-floor inBundle
+#   nodes. It does not execute pull-request code.
 # * `setup-lock-pins-push.yml` (workflow_run) validates that patch, applies it
 #   to the Dependabot branch and pushes with `BOT_TOKEN`. It never checks out or
 #   executes pull-request code (#7035, Scorecard Dangerous-Workflow). A PAT push
@@ -29,6 +31,7 @@ on:
       - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/**/package.json'
       - 'shaft-infrastructure/src/main/java/com/shaft/infrastructure/*SetupPlanner.java'
       - 'scripts/ci/refresh_setup_lock_pins.py'
+      - 'scripts/ci/rewrite_npm_lock_advisories.py'
       - 'tests/scripts/test_refresh_setup_lock_pins.py'
       - '.github/workflows/setup-lock-pins.yml'
 
@@ -87,7 +90,9 @@ jobs:
         with:
           python-version: "3.14"
       - name: Refresh pins with the base script
-        run: python3 base/scripts/ci/refresh_setup_lock_pins.py --root head --write
+        run: |
+          python3 base/scripts/ci/rewrite_npm_lock_advisories.py --root head --write
+          python3 base/scripts/ci/refresh_setup_lock_pins.py --root head --write
       - name: Write pin patch
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}

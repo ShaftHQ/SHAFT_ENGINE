@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /** Release-coupled plans for existing iOS Simulator and Windows desktop hosts. */
 final class DesktopMobileSetupPlanner {
-    static final String XCUITEST_VERSION = "13.0.8";
+    static final String XCUITEST_VERSION = "13.1.3";
     static final String WINDOWS_DRIVER_VERSION = "6.3.1";
     static final String WINAPPDRIVER_VERSION = "1.2.1";
     private static final Pattern IOS_SPEC = Pattern.compile(
@@ -20,19 +20,19 @@ final class DesktopMobileSetupPlanner {
     private static final Pattern WINDOWS_SPEC = Pattern.compile(
             "wad=" + Pattern.quote(WINAPPDRIVER_VERSION) + ",appiumPort=([0-9]+)");
     static final String IOS_LOCK_SHA256 =
-            "sha256:bd232df0fbe008f3170f4341cb1ccd3c3c0aff961cb36c27d5ba9775f4c9893d";
+            "sha256:a1b8146ad76f354ba9bfc48bbc203b59dce38a7bee8f8c73e55a7dd45acdd5e4";
     static final String WINDOWS_LOCK_SHA256 =
-            "sha256:a85f31c99c818bd8448331107f6bcfcccb8f8aceb5fb628eb0ff07f378ba6ce4";
+            "sha256:8488e59cf3cdcdb55adf6e78f613ab358c4f19b98cf6c100595b95799957fc7a";
 
     private static final String APPIUM_SHA256 =
-            "9157726cb1dbc86090168b7fd559a80313151d28bb31ee115c73c8bc4ac601d1";
+            "9edb822db5aa25d966e32ceaeba210aa64b25adeb2cd255cc0771b0060abf4ad";
     private static final String INSPECTOR_SHA256 =
-            "bdb772259ad7678fd3debc6b5b23216faef09a6f6d57dfda46035e1a2abf2b05";
+            "731b9edb7fb9f5590cd8452614ecf682b01bda2598138bd9e068b0b87227dcc7";
     private static final String XCUITEST_SHA256 =
-            "1503c1ddb63f2fd3b1ad31711cd8f14712b212f30949290d0efb468a9e8ab269";
+            "ebb5fecededeeb2aaddb93ba5c808de7d66ac90f75a8c97ffbfed6c1822fcbde";
     private static final String WINDOWS_DRIVER_SHA256 =
             "2bbb3056635601b73a03d9337ec18cee6d03ed1aed980bb4611bde8e3b1c2812";
-    private static final long XCUITEST_ARTIFACT_BYTES = 22614868L;
+    private static final long XCUITEST_ARTIFACT_BYTES = 13115187L;
     private static final long WINDOWS_DRIVER_ARTIFACT_BYTES = 1408788L;
     private static final String WINAPPDRIVER_SHA256 =
             "a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe";

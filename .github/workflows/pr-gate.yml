@@ -323,6 +323,7 @@ jobs:
               - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
               - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
               - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'scripts/ci/rewrite_npm_lock_advisories.py'
               - 'tests/scripts/test_validate_npm_lock_advisories.py'
               - 'scripts/ci/repair_bundled_shell_quote.js'
               - 'tests/fixtures/npm_lock_advisories/**'
@@ -335,6 +336,7 @@ jobs:
               - 'scripts/ci/dependency_review_changes.py'
               - 'tests/scripts/test_ci_python_dependencies.py'
               - 'tests/scripts/test_dependency_review_changes.py'
+              - 'tests/scripts/test_logback_version_alignment.py'
             # Core Java modules with a unit-test leg (issue #3849): shaft-engine and
             # its downstream Pilot-family modules. shaft-cli/shaft-intellij already have
             # dedicated legs above and are intentionally not repeated here. shaft-capture
@@ -469,6 +471,7 @@ jobs:
               # (#4529 shape — a guard blind to edits of itself / its locks
               # is unbound). Lock-only or validator-only edits must not skip it.
               - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'scripts/ci/rewrite_npm_lock_advisories.py'
               - 'tests/scripts/test_validate_npm_lock_advisories.py'
               - 'scripts/ci/repair_bundled_shell_quote.js'
               - 'tests/fixtures/npm_lock_advisories/**'
@@ -1284,6 +1287,7 @@ jobs:
           tests.scripts.test_pit_diff_scope
           tests.scripts.test_flaky_report
           tests.scripts.test_consumer_transitive_pins
+          tests.scripts.test_logback_version_alignment
           tests.scripts.test_validate_npm_lock_advisories
           tests.scripts.test_pr_title_lint
           tests.scripts.test_jmh_compare

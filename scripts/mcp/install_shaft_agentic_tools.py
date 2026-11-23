@@ -1873,6 +1873,7 @@ def write_launcher_args(jar: Path, dependencies: list[Path]) -> Path:
     # The fallback property only kicks in when the launch directory is unusable (protected
     # system paths, the bare user home) - e.g. Claude Desktop.
     content = "\n".join((
+        java_argfile_quote("-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener"),
         java_argfile_quote(f"-D{FALLBACK_WORKSPACE_SYSTEM_PROPERTY}={runtime_root}"),
         "-cp",
         java_argfile_quote(classpath),

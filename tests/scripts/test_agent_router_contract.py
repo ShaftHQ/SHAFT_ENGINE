@@ -1406,6 +1406,7 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 "requirements-ci.txt",
                 "scripts/ci/dependency_review_changes.py",
                 "scripts/ci/repair_bundled_shell_quote.js",
+                "scripts/ci/rewrite_npm_lock_advisories.py",
                 "scripts/ci/validate_npm_lock_advisories.py",
                 "shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package-lock.json",
                 "shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package.json",
@@ -1419,6 +1420,7 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 "tests/fixtures/npm_lock_advisories/**",
                 "tests/scripts/test_ci_python_dependencies.py",
                 "tests/scripts/test_dependency_review_changes.py",
+                "tests/scripts/test_logback_version_alignment.py",
                 "tests/scripts/test_validate_npm_lock_advisories.py",
             },
         )
