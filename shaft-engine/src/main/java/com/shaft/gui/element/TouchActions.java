@@ -1938,43 +1938,8 @@ public class TouchActions extends FluentWebDriverAction {
 
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                boolean moved;
-                if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
-                    // #7680: SwiftUI lists need dragFromToForDuration on the tallest ScrollView.
-                    // #8127: later steps aim at the rectangle even when the page source changed.
-                    if (!isFirstAttempt.get()) {
-                        SwipeDirection towardTarget = iosOffscreenDirection(targetElementLocator);
-                        if (towardTarget != null) {
-                            activeDirection[0] = towardTarget;
-                        }
-                    }
-                    Integer yBefore = iosTargetTop(targetElementLocator);
-                    boolean windowDrag = windowDragPending[0];
-                    if (windowDrag) {
-                        performIosWindowClampedDrag(iosDriver, activeDirection[0], targetElementLocator);
-                        windowDragPending[0] = false;
-                        moved = false;
-                    } else {
-                        moved = performIosSwipeIntoViewStep(activeDirection[0], scrollableElementLocator, recoveredScrollable);
-                    }
-                    isFirstAttempt.set(false);
-                    Integer yAfter = iosTargetTop(targetElementLocator);
-                    if (yBefore != null && yAfter != null && !yBefore.equals(yAfter)) {
-                        moved = true;
-                    } else if (yBefore != null && yBefore.equals(yAfter)
-                            && (windowDrag || recoveredScrollable[0] != null)) {
-                        // Page-source churn is not progress when this drag left the target y unchanged.
-                        moved = false;
-                        if (!windowDrag) {
-                            windowDragPending[0] = true;
-                        }
-                    }
-                } else {
-                    var scrollParameters = recoveredScrollable[0] != null
-                            ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
-                            : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
-                    moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
-                }
+                boolean moved = performSwipeIntoViewGesture(scrollableElementLocator, targetElementLocator,
+                        isFirstAttempt, activeDirection, windowDragPending, recoveredScrollable);
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
                 ScrollMotion.Step step = ScrollMotion.step(moved, movedEarlier[0], oppositeTried[0]);
@@ -2021,6 +1986,61 @@ public class TouchActions extends FluentWebDriverAction {
         }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * One swipe-into-view gesture. iOS drags the scroll view, then one window-clamped drag when the
+     * target y does not move (#8127). Android keeps {@code mobile: scrollGesture}.
+     */
+    private boolean performSwipeIntoViewGesture(By scrollableElementLocator,
+                                                By targetElementLocator, AtomicBoolean isFirstAttempt,
+                                                SwipeDirection[] activeDirection, boolean[] windowDragPending,
+                                                WebElement[] recoveredScrollable) {
+        if (driverFactoryHelper.getDriver() instanceof IOSDriver iosDriver) {
+            return performIosSwipeIntoViewGesture(iosDriver, scrollableElementLocator, targetElementLocator,
+                    isFirstAttempt, activeDirection, windowDragPending, recoveredScrollable);
+        }
+        var scrollParameters = recoveredScrollable[0] != null
+                ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
+                : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+        return performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+    }
+
+    private boolean performIosSwipeIntoViewGesture(IOSDriver iosDriver, By scrollableElementLocator,
+                                                   By targetElementLocator, AtomicBoolean isFirstAttempt,
+                                                   SwipeDirection[] activeDirection, boolean[] windowDragPending,
+                                                   WebElement[] recoveredScrollable) {
+        // #7680: SwiftUI lists need dragFromToForDuration on the tallest ScrollView.
+        // #8127: later steps aim at the rectangle even when the page source changed.
+        if (!isFirstAttempt.get()) {
+            SwipeDirection towardTarget = iosOffscreenDirection(targetElementLocator);
+            if (towardTarget != null) {
+                activeDirection[0] = towardTarget;
+            }
+        }
+        Integer yBefore = iosTargetTop(targetElementLocator);
+        boolean windowDrag = windowDragPending[0];
+        boolean moved;
+        if (windowDrag) {
+            performIosWindowClampedDrag(iosDriver, activeDirection[0], targetElementLocator);
+            windowDragPending[0] = false;
+            moved = false;
+        } else {
+            moved = performIosSwipeIntoViewStep(activeDirection[0], scrollableElementLocator, recoveredScrollable);
+        }
+        isFirstAttempt.set(false);
+        Integer yAfter = iosTargetTop(targetElementLocator);
+        if (yBefore != null && yAfter != null && !yBefore.equals(yAfter)) {
+            moved = true;
+        } else if (yBefore != null && yBefore.equals(yAfter)
+                && (windowDrag || recoveredScrollable[0] != null)) {
+            // Page-source churn is not progress when this drag left the target y unchanged.
+            moved = false;
+            if (!windowDrag) {
+                windowDragPending[0] = true;
+            }
+        }
+        return moved;
     }
 
     /**
@@ -2264,33 +2284,39 @@ public class TouchActions extends FluentWebDriverAction {
         if (matches == null || matches.isEmpty()) {
             return false;
         }
-        WebElement element = matches.get(0);
         try {
-            boolean displayed = element.isDisplayed();
-            boolean ios = driverFactoryHelper.getDriver() instanceof IOSDriver;
-            if (!displayed && !ios) {
-                return false;
-            }
-            Rectangle rect = element.getRect();
-            if (rect.getWidth() <= 0 || rect.getHeight() <= 0) {
-                return false;
-            }
-            Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
-            // #8127: an iOS node can sit fully in the window while XCUI still reports visible=false.
-            if (ios && rectFullyInsideWindow(rect, window)) {
-                return true;
-            }
-            if (!displayed) {
-                return false;
-            }
-            int left = Math.max(rect.getX(), 0);
-            int top = Math.max(rect.getY(), 0);
-            int right = Math.min(rect.getX() + rect.getWidth(), window.getWidth());
-            int bottom = Math.min(rect.getY() + rect.getHeight(), window.getHeight());
-            return right > left && bottom > top;
+            return elementIntersectsViewport(matches.get(0));
         } catch (RuntimeException ignored) {
             return false;
         }
+    }
+
+    /**
+     * iOS accepts a rectangle fully inside the window even when {@code isDisplayed()} is false (#8127).
+     * Every other case keeps the displayed-and-intersecting test.
+     */
+    private boolean elementIntersectsViewport(WebElement element) {
+        boolean displayed = element.isDisplayed();
+        boolean ios = driverFactoryHelper.getDriver() instanceof IOSDriver;
+        if (!displayed && !ios) {
+            return false;
+        }
+        Rectangle rect = element.getRect();
+        if (rect.getWidth() <= 0 || rect.getHeight() <= 0) {
+            return false;
+        }
+        Dimension window = driverFactoryHelper.getDriver().manage().window().getSize();
+        if (ios && rectFullyInsideWindow(rect, window)) {
+            return true;
+        }
+        if (!displayed) {
+            return false;
+        }
+        int left = Math.max(rect.getX(), 0);
+        int top = Math.max(rect.getY(), 0);
+        int right = Math.min(rect.getX() + rect.getWidth(), window.getWidth());
+        int bottom = Math.min(rect.getY() + rect.getHeight(), window.getHeight());
+        return right > left && bottom > top;
     }
 
     private static boolean rectFullyInsideWindow(Rectangle rect, Dimension window) {
