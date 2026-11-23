@@ -125,7 +125,7 @@
         <gson.version>2.15.0</gson.version>
         <httpclient.version>4.5.14</httpclient.version>
         <httpclient5.version>5.6.5</httpclient5.version>
-        <httpcore5.version>5.4.4</httpcore5.version>
+        <httpcore5.version>5.5</httpcore5.version>
         <rest.assured.version>6.3.0</rest.assured.version>
         <!-- REST Assured 6.3.0 and openapi-request-validator-core 3.0.0 still call
              SchemaRegistry.getSchema(com.fasterxml.jackson.databind.JsonNode). networknt 3.x
