@@ -9,7 +9,7 @@ status line on stdout before MCP JSON-RPC.
 from __future__ import annotations
 
 import unittest
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 - parses a repository-owned POM
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,7 +19,7 @@ ARTIFACTS = ("logback-classic", "logback-core")
 
 
 def managed_version(pom: Path, artifact: str) -> str:
-    root = ET.parse(pom).getroot()
+    root = ET.parse(pom).getroot()  # nosec B314 - repository-owned POM
     for dependency in root.findall("m:dependencyManagement/m:dependencies/m:dependency", NS):
         group = (dependency.findtext("m:groupId", namespaces=NS) or "").strip()
         name = (dependency.findtext("m:artifactId", namespaces=NS) or "").strip()
