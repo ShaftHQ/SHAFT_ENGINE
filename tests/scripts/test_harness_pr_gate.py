@@ -905,7 +905,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         self.assertIn("harness-platform-contracts:", scheduled)
         self.assertIn("tests.scripts.test_build_retry", scheduled)
         self.assertIn("tests.scripts.test_agent_harness_portability", scheduled)
-        self.assertIn("tests.scripts.test_omniroute", scheduled)
+        self.assertNotIn("tests.scripts.test_omniroute", scheduled)
 
     def test_scheduled_suite_retains_exhaustive_harness_coverage(self) -> None:
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(
@@ -915,21 +915,23 @@ class OutputAndWorkflowTest(unittest.TestCase):
             "  harness-platform-contracts:", 1
         )[0]
         self.assertIn("tests.scripts.test_agent_harness_portability", deterministic)
-        omniroute_modules = (
+        empty_modules = (
+            "tests.scripts.test_deja_store_6183",
             "tests.scripts.test_omniroute",
             "tests.scripts.test_omniroute_workflow_contract",
             "tests.scripts.test_omniroute_orchestrator_docs",
             "tests.scripts.test_omniroute_tdd_pdca",
             "tests.scripts.test_omniroute_portability",
+            "tests.scripts.test_pre_done_review",
+            "tests.scripts.test_job_apply_skill",
+            "tests.scripts.test_job_search_skill",
         )
-        for module in omniroute_modules:
-            self.assertIn(module, deterministic)
-
         platform = scheduled.split("  harness-platform-contracts:", 1)[1].split(
             "  agnix-conformance:", 1
         )[0]
-        for module in omniroute_modules:
-            self.assertIn(module, platform)
+        for module in empty_modules:
+            self.assertNotIn(module, deterministic)
+            self.assertNotIn(module, platform)
         self.assertIn("tests.scripts.test_guard_lifecycle", deterministic)
         self.assertIn("tests.scripts.test_harness_pr_gate", deterministic)
 

@@ -91,13 +91,7 @@ jobs:
             tests.scripts.test_prefetch_kind_toolcache
             tests.scripts.test_grid_cdp_contract
             tests.scripts.test_mcp_builder_python
-            tests.scripts.test_deja_store_6183
             tests.scripts.test_epic_autoclose
-            tests.scripts.test_omniroute
-            tests.scripts.test_omniroute_workflow_contract
-            tests.scripts.test_omniroute_orchestrator_docs
-            tests.scripts.test_omniroute_tdd_pdca
-            tests.scripts.test_omniroute_portability
             tests.scripts.test_delivery_status
             tests.scripts.test_execution_class_skills
             tests.scripts.test_extract_allure_failures
@@ -124,9 +118,6 @@ jobs:
             tests.scripts.test_rerun_failures_skill_script
             tests.scripts.test_shaft_skills_content
             tests.scripts.test_sync_user_harness
-            tests.scripts.test_pre_done_review
-            tests.scripts.test_job_apply_skill
-            tests.scripts.test_job_search_skill
             tests.scripts.test_validate_agent_guidance
             tests.scripts.test_validate_agent_ownership
             tests.scripts.test_validate_agent_plugins
@@ -186,6 +177,10 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14'
+      - name: Install managed CI Python dependencies
+        run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
+      - name: Fetch pinned ChaosEngine harness overlay
+        run: bash scripts/ci/fetch_harness_overlay.sh
       - name: Run platform-sensitive harness contracts
         run: >-
           python -m unittest
@@ -193,11 +188,6 @@ jobs:
           tests.scripts.test_prefetch_kind_toolcache
           tests.scripts.test_extract_allure_failures
           tests.scripts.test_intellij_recording_powershell
-          tests.scripts.test_omniroute
-          tests.scripts.test_omniroute_workflow_contract
-          tests.scripts.test_omniroute_orchestrator_docs
-          tests.scripts.test_omniroute_tdd_pdca
-          tests.scripts.test_omniroute_portability
           -v
 
   agnix-conformance:
@@ -213,6 +203,8 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.14'
+      - name: Fetch pinned ChaosEngine harness overlay
+        run: bash scripts/ci/fetch_harness_overlay.sh
       - name: Resolve pinned agnix contract
         run: python scripts/ci/agnix_conformance.py --github-env "$GITHUB_ENV"
       - name: Verify and run pinned agnix

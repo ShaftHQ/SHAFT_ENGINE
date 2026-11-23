@@ -266,9 +266,13 @@ def generated_overlay(source_root: Path) -> Path | None:
 
     Host files such as `.claude/settings.json` are generated and untracked
     (#5713), so a fresh checkout cannot stage them from the source tree.
+    A moved checkout has no `chaos-engine/install.py`; use the pinned fetch
+    at `.chaos-engine/install.py` (#8139).
     """
     source = Path(source_root).resolve()
-    if not (source / "chaos-engine/install.py").is_file():
+    tracked = source / "chaos-engine" / "install.py"
+    pinned = source / ".chaos-engine" / "install.py"
+    if not tracked.is_file() and not pinned.is_file():
         return None
     try:
         from scripts.ci.overlay_in_temp import materialize_overlay
