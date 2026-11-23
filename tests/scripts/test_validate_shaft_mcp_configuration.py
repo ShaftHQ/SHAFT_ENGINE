@@ -489,9 +489,29 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             errors = MODULE.validate_logback_stdio_contract(root)
 
         self.assertTrue(
-            any("NopStatusListener" in error for error in errors),
+            any("must register NopStatusListener" in error for error in errors),
             errors,
         )
+
+    def test_launch_sites_must_set_status_listener_before_logger_context(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_mcp_root(root)
+            _write_text(root / "scripts/ci/validate_shaft_mcp_transports.py", "java\n")
+
+            errors = MODULE.validate_logback_stdio_contract(root)
+
+        self.assertTrue(
+            any(error.startswith("Dockerfile must set -Dlogback.statusListenerClass=") for error in errors),
+            errors,
+        )
+        self.assertTrue(
+            any("validate_shaft_mcp_transports.py must pass -Dlogback.statusListenerClass=" in error for error in errors),
+            errors,
+        )
+
+    def test_repository_launch_sites_set_status_listener(self):
+        self.assertEqual([], MODULE.validate_logback_stdio_contract(MODULE.ROOT))
 
     def test_server_json_must_derive_version_from_reactor(self):
         with tempfile.TemporaryDirectory() as temp:

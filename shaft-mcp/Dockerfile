@@ -38,4 +38,4 @@ COPY --from=builder /build/shaft-mcp-lib /app/lib
 
 ENV REMOTE_DRIVER_ADDRESS=""
 
-CMD ["java", "-DheadlessExecution=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]
+CMD ["java", "-DheadlessExecution=true", "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]
