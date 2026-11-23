@@ -1420,6 +1420,7 @@ class CiGateIsBlockingTest(unittest.TestCase):
                 "tests/fixtures/npm_lock_advisories/**",
                 "tests/scripts/test_ci_python_dependencies.py",
                 "tests/scripts/test_dependency_review_changes.py",
+                "tests/scripts/test_logback_version_alignment.py",
                 "tests/scripts/test_validate_npm_lock_advisories.py",
             },
         )
