@@ -15,7 +15,7 @@ class PlaywrightArtifactManifestTest {
         PlaywrightArtifactManifest manifest = PlaywrightArtifactManifest.load();
         List<PlaywrightArtifactManifest.Artifact> artifacts = manifest.requirePlatform("win64");
 
-        assertEquals("1.65.0", manifest.playwrightVersion());
+        assertEquals("1.65.1", manifest.playwrightVersion());
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg", "winldd"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
         assertTrue(artifacts.stream().allMatch(artifact -> artifact.source().getScheme().equals("https")));
@@ -66,6 +66,6 @@ class PlaywrightArtifactManifestTest {
                         "https://cdn.playwright.dev/", "https://example.invalid/")));
         assertThrows(IllegalArgumentException.class,
                 () -> PlaywrightArtifactManifest.parse(canonical.replaceFirst(
-                        "b796e8a6231463d1a150ee679fd7cb0168b3728162d2d19bf7bbd867d60d55e2", "bad")));
+                        "3e2514fddb71f6727e2079369e03a6a4e105adcb28f05a6bfd875b782bddc431", "bad")));
     }
 }

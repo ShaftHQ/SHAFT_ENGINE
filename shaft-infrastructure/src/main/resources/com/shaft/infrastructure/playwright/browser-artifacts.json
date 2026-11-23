@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "playwrightVersion": "1.65.0",
+  "playwrightVersion": "1.65.1",
   "platforms": [
     {
       "hostPlatform": "win64",
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/win64/chrome-win64.zip",
-          "sha256": "b796e8a6231463d1a150ee679fd7cb0168b3728162d2d19bf7bbd867d60d55e2",
-          "size": 215820284
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/win64/chrome-win64.zip",
+          "sha256": "3e2514fddb71f6727e2079369e03a6a4e105adcb28f05a6bfd875b782bddc431",
+          "size": 217364368
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/win64/chrome-headless-shell-win64.zip",
-          "sha256": "fdd3721ad0299ddd419d170ce8ab89aecf8631d157b85215474b4a70c8dcd061",
-          "size": 129186142
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/win64/chrome-headless-shell-win64.zip",
+          "sha256": "5db6a6948e6d1299ea3bc87c420d467bf343feae186a316921c930ce02056af5",
+          "size": 129830431
         },
         {
           "name": "firefox",
@@ -54,17 +54,17 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/linux64/chrome-linux64.zip",
-          "sha256": "c6cb06e1574ac2f6c5c38e31551157fbcaa67e6366c89974084553c5a5772592",
-          "size": 207460506
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/linux64/chrome-linux64.zip",
+          "sha256": "370601106c1b5619aae5f06f7a3fdc60836486135934779461e2a208d777f596",
+          "size": 208987836
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/linux64/chrome-headless-shell-linux64.zip",
-          "sha256": "18352d22cb0cdf520cbff2ad8c41391f0e02a72886cb53b0fde4bdfc4bd075d6",
-          "size": 131998580
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/linux64/chrome-headless-shell-linux64.zip",
+          "sha256": "77a6442fd3c8acd3bef9e1067fc26f5ef464277d22f0e8cb58dc3e4077a3e458",
+          "size": 131851262
         },
         {
           "name": "firefox",
@@ -94,17 +94,17 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-x64/chrome-mac-x64.zip",
-          "sha256": "8208cc4d3c9a06fb893e028180fac019eac7092814aaac8b0fd9a8d82fb1d168",
-          "size": 212863194
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/mac-x64/chrome-mac-x64.zip",
+          "sha256": "6864109aa423785d5d5d52fd06bc1138e02b002fcd400955a2011358c5a8321f",
+          "size": 212536310
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-x64/chrome-headless-shell-mac-x64.zip",
-          "sha256": "81d6496c4e9b7c6a9f8d9cb18beef47d7da8eb235d1d5089f7385d19c1e378be",
-          "size": 112215846
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/mac-x64/chrome-headless-shell-mac-x64.zip",
+          "sha256": "89c56fb080ab4e9ba76656d5669af2b2dfc313c11434871e8f4e351c08a5ffca",
+          "size": 111689718
         },
         {
           "name": "firefox",
@@ -134,17 +134,17 @@
       "artifacts": [
         {
           "name": "chromium",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-arm64/chrome-mac-arm64.zip",
-          "sha256": "15d54783d40732983653ebc2171af38c6b5b5ab055a9afbf48d47c2b57836da9",
-          "size": 199683801
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/mac-arm64/chrome-mac-arm64.zip",
+          "sha256": "43609676a41e29d1c7667935eb914a422eca98b2e49dcbfd6f3e9794202de12a",
+          "size": 201252789
         },
         {
           "name": "chromium-headless-shell",
-          "revision": "1254",
-          "url": "https://cdn.playwright.dev/builds/cft/158.0.8127.18/mac-arm64/chrome-headless-shell-mac-arm64.zip",
-          "sha256": "f34261d2aad94fb71b336597acabf20166ee5a2f14926c731f33d04c5da6cd3f",
-          "size": 104957869
+          "revision": "1255",
+          "url": "https://cdn.playwright.dev/builds/cft/159.0.8154.6/mac-arm64/chrome-headless-shell-mac-arm64.zip",
+          "sha256": "b08e7beaf02a19e2ee5ed6955f9c3853ab9176cd5bb57ba87afbb82e9f81cc29",
+          "size": 105717002
         },
         {
           "name": "firefox",
