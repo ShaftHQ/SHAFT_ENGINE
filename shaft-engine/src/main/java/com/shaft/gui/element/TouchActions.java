@@ -2032,9 +2032,10 @@ public class TouchActions extends FluentWebDriverAction {
         Integer yAfter = iosTargetTop(targetElementLocator);
         if (yBefore != null && yAfter != null && !yBefore.equals(yAfter)) {
             moved = true;
-        } else if (yBefore != null && yBefore.equals(yAfter)
+        } else if ((activeDirection[0] == SwipeDirection.UP || activeDirection[0] == SwipeDirection.DOWN)
+                && yBefore != null && yBefore.equals(yAfter)
                 && (windowDrag || recoveredScrollable[0] != null)) {
-            // Page-source churn is not progress when this drag left the target y unchanged.
+            // Unchanged y overrides page-source progress for vertical drags only.
             moved = false;
             if (!windowDrag) {
                 windowDragPending[0] = true;

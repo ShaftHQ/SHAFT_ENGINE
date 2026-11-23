@@ -1585,6 +1585,47 @@ public class AndroidTouchActionsCoverageUnitTest {
         Assert.assertEquals(((Number) drags.get(1).get("toY")).intValue(), 851, String.valueOf(drags));
     }
 
+    @Test
+    public void iosHorizontalSwipeKeepsCallerDirectionWhenTargetYIsUnchanged() throws Exception {
+        // Stable y on a horizontal list must not cancel a changing page source.
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(393, 852));
+        AtomicInteger sources = new AtomicInteger();
+        when(driver.getPageSource()).thenAnswer(invocation -> "page-" + sources.incrementAndGet());
+
+        WebElement list = mock(WebElement.class);
+        when(list.isDisplayed()).thenReturn(true);
+        when(list.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 100, 220, 393));
+
+        WebElement row = mock(WebElement.class);
+        when(row.isDisplayed()).thenReturn(false);
+        when(row.getRect()).thenReturn(new org.openqa.selenium.Rectangle(-200, 100, 40, 80));
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of(list);
+            }
+            return List.of(row);
+        });
+        doAnswer(invocation -> null).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        double previousTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        try {
+            touchActionsWithScreenshots(driver)
+                    .swipeElementIntoView(By.id("row"), TouchActions.SwipeDirection.LEFT);
+        } finally {
+            SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(previousTimeout);
+        }
+
+        List<Map<Object, Object>> drags = capturedGestureMaps(driver, "mobile: dragFromToForDuration");
+        Map<String, Object> expected = IosScrollView.dragParameters(TouchActions.SwipeDirection.LEFT, list.getRect());
+        Assert.assertTrue(drags.size() >= 2, "horizontal swipe must keep dragging LEFT: " + drags);
+        for (Map<Object, Object> drag : drags) {
+            Assert.assertEquals(drag, expected, String.valueOf(drags));
+        }
+    }
+
     private void assertIosScrollMapsStayDirectionOnly() throws Exception {
         // Null-container with no XCUIElementTypeScrollView keeps the mobile: scroll fallback (#7680).
         IOSDriver driver = createMockIOSDriver();
