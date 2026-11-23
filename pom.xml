@@ -88,7 +88,7 @@
              still pulls 1.18.14. Manage the higher version for dependencyConvergence. -->
         <byte.buddy.version>1.18.17</byte.buddy.version>
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
-        <playwright.version>1.65.0</playwright.version>
+        <playwright.version>1.65.1</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
         <grpc.version>1.85.1</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
