@@ -81,10 +81,7 @@ def _hoisted(packages: dict, name: str, floor: tuple[int, int, int]) -> dict:
     return meta
 
 
-def rewrite_packages(packages: dict, overrides: dict | None = None) -> list[str]:
-    """Return drift lines. Mutates ``packages``. Raises ``RewriteError`` if a copy source is missing."""
-    overrides = overrides or {}
-    notes: list[str] = []
+def _index_compliant_hoisted(packages: dict, overrides: dict) -> dict[str, dict]:
     hoisted: dict[str, dict] = {}
     for key, meta in list(packages.items()):
         if not isinstance(meta, dict):
@@ -97,6 +94,12 @@ def rewrite_packages(packages: dict, overrides: dict | None = None) -> list[str]
         if parse_exact(str(version or "")) is None or _below(version, floor):
             continue
         hoisted[name] = meta
+    return hoisted
+
+
+def _rewrite_declarations_and_nested(
+    packages: dict, overrides: dict, hoisted: dict[str, dict], notes: list[str]
+) -> None:
     for key, meta in list(packages.items()):
         if not isinstance(meta, dict):
             continue
@@ -126,6 +129,9 @@ def rewrite_packages(packages: dict, overrides: dict | None = None) -> list[str]
         notes.append(
             f"{key} {name}@{meta.get('version')} -> {source.get('version')} (hoisted registry node, inBundle dropped)"
         )
+
+
+def _drop_matching_inbundle(packages: dict, hoisted: dict[str, dict], notes: list[str]) -> None:
     for key, meta in list(packages.items()):
         if not isinstance(meta, dict) or not meta.get("inBundle") or not meta.get("resolved"):
             continue
@@ -139,6 +145,15 @@ def rewrite_packages(packages: dict, overrides: dict | None = None) -> list[str]
             continue
         packages[key] = copy.deepcopy(source)
         notes.append(f"{key} drops inBundle; registry node matches hoisted {name}@{source.get('version')}")
+
+
+def rewrite_packages(packages: dict, overrides: dict | None = None) -> list[str]:
+    """Return drift lines. Mutates ``packages``. Raises ``RewriteError`` if a copy source is missing."""
+    overrides = overrides or {}
+    notes: list[str] = []
+    hoisted = _index_compliant_hoisted(packages, overrides)
+    _rewrite_declarations_and_nested(packages, overrides, hoisted, notes)
+    _drop_matching_inbundle(packages, hoisted, notes)
     return notes
 
 
