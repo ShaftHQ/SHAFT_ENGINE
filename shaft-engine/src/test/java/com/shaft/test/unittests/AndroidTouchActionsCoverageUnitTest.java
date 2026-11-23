@@ -1424,6 +1424,88 @@ public class AndroidTouchActionsCoverageUnitTest {
                 IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, container.getRect()));
     }
 
+    @Test
+    public void iosSwipeElementIntoViewReversesWhenTargetRemainsAboveViewport() throws Exception {
+        // #8127: row stays at y=-44 while page source changes; caller DOWN must still finger-down.
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(393, 852));
+        AtomicInteger sources = new AtomicInteger();
+        when(driver.getPageSource()).thenAnswer(invocation -> "page-" + sources.incrementAndGet());
+
+        WebElement list = mock(WebElement.class);
+        when(list.isDisplayed()).thenReturn(true);
+        when(list.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 80, 700, 393));
+
+        WebElement above = mock(WebElement.class);
+        when(above.isDisplayed()).thenReturn(false);
+        when(above.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, -44, 101, 393));
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of(list);
+            }
+            return List.of(above);
+        });
+        doAnswer(invocation -> null).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        double previousTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        try {
+            touchActionsWithScreenshots(driver)
+                    .swipeElementIntoView(By.id("serviceType"), TouchActions.SwipeDirection.DOWN);
+        } finally {
+            SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(previousTimeout);
+        }
+
+        Assert.assertTrue(
+                capturedGestureMaps(driver, "mobile: dragFromToForDuration").stream().anyMatch(drag ->
+                        ((Number) drag.get("fromY")).intValue() < ((Number) drag.get("toY")).intValue()),
+                "row at y=-44 must produce a finger-down drag");
+    }
+
+    @Test
+    public void iosSwipeElementIntoViewWindowDragWhenApplyYUnchanged() throws Exception {
+        // #8127: Apply stays at y=1035 (height 49, bottom 1084). Gap below an 852 window is 232px.
+        IOSDriver driver = createMockIOSDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(393, 852));
+        AtomicInteger sources = new AtomicInteger();
+        when(driver.getPageSource()).thenAnswer(invocation -> "page-" + sources.incrementAndGet());
+
+        WebElement list = mock(WebElement.class);
+        when(list.isDisplayed()).thenReturn(true);
+        when(list.getRect()).thenReturn(new org.openqa.selenium.Rectangle(0, 100, 220, 393));
+
+        WebElement apply = mock(WebElement.class);
+        when(apply.isDisplayed()).thenReturn(false);
+        when(apply.getRect()).thenReturn(new org.openqa.selenium.Rectangle(16, 1035, 49, 214));
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("XCUIElementTypeScrollView")) {
+                return List.of(list);
+            }
+            return List.of(apply);
+        });
+        doAnswer(invocation -> null).when(driver).executeScript(eq("mobile: dragFromToForDuration"), anyMap());
+
+        double previousTimeout = SHAFT.Properties.timeouts.defaultElementIdentificationTimeout();
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        try {
+            touchActionsWithScreenshots(driver)
+                    .swipeElementIntoView(By.id("apply"), TouchActions.SwipeDirection.DOWN);
+        } finally {
+            SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(previousTimeout);
+        }
+
+        List<Map<Object, Object>> drags = capturedGestureMaps(driver, "mobile: dragFromToForDuration");
+        Assert.assertEquals(drags.getFirst(),
+                IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, list.getRect()));
+        Assert.assertTrue(drags.stream().skip(1).anyMatch(drag -> {
+            int fromY = ((Number) drag.get("fromY")).intValue();
+            int toY = ((Number) drag.get("toY")).intValue();
+            return fromY >= 0 && toY >= 0 && fromY < 852 && toY < 852 && Math.abs(fromY - toY) >= 232;
+        }), "unchanged y=1035 needs a later in-window drag of at least 232px: " + drags);
+    }
+
     private void assertIosScrollMapsStayDirectionOnly() throws Exception {
         // Null-container with no XCUIElementTypeScrollView keeps the mobile: scroll fallback (#7680).
         IOSDriver driver = createMockIOSDriver();
