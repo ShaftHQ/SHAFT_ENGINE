@@ -1457,10 +1457,10 @@ public class AndroidTouchActionsCoverageUnitTest {
             SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(previousTimeout);
         }
 
+        List<Map<Object, Object>> drags = capturedGestureMaps(driver, "mobile: dragFromToForDuration");
         Assert.assertTrue(
-                capturedGestureMaps(driver, "mobile: dragFromToForDuration").stream().anyMatch(drag ->
-                        ((Number) drag.get("fromY")).intValue() < ((Number) drag.get("toY")).intValue()),
-                "row at y=-44 must produce a finger-down drag");
+                ((Number) drags.get(1).get("fromY")).intValue() < ((Number) drags.get(1).get("toY")).intValue(),
+                "row at y=-44 must produce a finger-down drag: " + drags);
     }
 
     @Test
@@ -1499,11 +1499,10 @@ public class AndroidTouchActionsCoverageUnitTest {
         List<Map<Object, Object>> drags = capturedGestureMaps(driver, "mobile: dragFromToForDuration");
         Assert.assertEquals(drags.getFirst(),
                 IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, list.getRect()));
-        Assert.assertTrue(drags.stream().skip(1).anyMatch(drag -> {
-            int fromY = ((Number) drag.get("fromY")).intValue();
-            int toY = ((Number) drag.get("toY")).intValue();
-            return fromY >= 0 && toY >= 0 && fromY < 852 && toY < 852 && Math.abs(fromY - toY) >= 232;
-        }), "unchanged y=1035 needs a later in-window drag of at least 232px: " + drags);
+        int fromY = ((Number) drags.get(1).get("fromY")).intValue();
+        int toY = ((Number) drags.get(1).get("toY")).intValue();
+        Assert.assertTrue(fromY >= 0 && toY >= 0 && fromY < 852 && toY < 852 && Math.abs(fromY - toY) >= 232,
+                "unchanged y=1035 needs a later in-window drag of at least 232px: " + drags);
     }
 
     @Test
@@ -1542,11 +1541,8 @@ public class AndroidTouchActionsCoverageUnitTest {
         List<Map<Object, Object>> drags = capturedGestureMaps(driver, "mobile: dragFromToForDuration");
         Assert.assertEquals(drags.getFirst(),
                 IosScrollView.dragParameters(TouchActions.SwipeDirection.DOWN, list.getRect()));
-        Assert.assertTrue(
-                capturedGestureMaps(driver, "mobile: dragFromToForDuration").stream().anyMatch(drag ->
-                        ((Number) drag.get("fromY")).intValue() == 851
-                                && ((Number) drag.get("toY")).intValue() == 0),
-                "a target at y=2000 must clamp the window drag to the top edge");
+        Assert.assertEquals(((Number) drags.get(1).get("fromY")).intValue(), 851, String.valueOf(drags));
+        Assert.assertEquals(((Number) drags.get(1).get("toY")).intValue(), 0, String.valueOf(drags));
     }
 
     private void assertIosScrollMapsStayDirectionOnly() throws Exception {
