@@ -20,7 +20,7 @@ class PlaywrightTraceViewerAssetsTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final List<ExpectedAsset> EXPECTED_ASSETS = List.of(
             new ExpectedAsset("driver/package/lib/vite/traceViewer/index.html", 2451,
-                    "91ca3298b7beaf6fb7ed8448de516870fe7b625e57af10eba574fe009cc12157"),
+                    "8c62d0abbc39be5ecbfa799cdfd181a53d92f93c08c8bfbe622c2e96fece9a95"),
             new ExpectedAsset("driver/package/lib/vite/traceViewer/snapshot.html", 389,
                     "7b889f89c715eadd359d10462e3d8b6292cc632a7a86de75b07e8fc9934d1972"),
             new ExpectedAsset("driver/package/lib/vite/traceViewer/sw.bundle.js", 96720,
@@ -32,19 +32,19 @@ class PlaywrightTraceViewerAssetsTest {
 
         Assert.assertEquals(manifest.path("schemaVersion").asText(), "1.0");
         Assert.assertEquals(manifest.path("name").asText(), "Microsoft Playwright Trace Viewer");
-        Assert.assertEquals(manifest.path("version").asText(), "1.65.0");
-        Assert.assertEquals(manifest.path("tag").asText(), "v1.65.0");
+        Assert.assertEquals(manifest.path("version").asText(), "1.65.1");
+        Assert.assertEquals(manifest.path("tag").asText(), "v1.65.1");
         Assert.assertEquals(manifest.path("commit").asText(),
-                "a1f35e1955976e84411f9c10358228a80b763ebe");
+                "bbd948344ea9a60bf1e6f125c02ca99b2b51593b");
         Assert.assertEquals(manifest.path("repository").asText(), "https://github.com/microsoft/playwright");
         Assert.assertEquals(manifest.path("sourcePath").asText(), "packages/trace-viewer");
         Assert.assertEquals(manifest.path("license").asText(), "Apache-2.0");
         Assert.assertEquals(manifest.path("licenseUrl").asText(),
-                "https://github.com/microsoft/playwright/blob/v1.65.0/LICENSE");
+                "https://github.com/microsoft/playwright/blob/v1.65.1/LICENSE");
         Assert.assertEquals(manifest.path("licenseResource").asText(),
-                "META-INF/shaft/licenses/playwright-1.65.0-LICENSE.txt");
+                "META-INF/shaft/licenses/playwright-1.65.1-LICENSE.txt");
         Assert.assertEquals(manifest.path("noticeResource").asText(),
-                "META-INF/shaft/licenses/playwright-1.65.0-NOTICE.txt");
+                "META-INF/shaft/licenses/playwright-1.65.1-NOTICE.txt");
         Assert.assertEquals(strings(manifest.path("intendedIntegrationBoundary")), List.of(
                 "packages/trace-viewer", "packages/isomorphic/trace"));
         Assert.assertTrue(manifest.path("bundledUpstreamMaterial").isArray());
@@ -65,7 +65,7 @@ class PlaywrightTraceViewerAssetsTest {
                         .map(asset -> new ExpectedAsset(asset.path("path").asText(), asset.path("size").asInt(),
                                 asset.path("sha256").asText()))
                         .toList(), EXPECTED_ASSETS);
-        Assert.assertEquals(driverVersion(), "1.65.0");
+        Assert.assertEquals(driverVersion(), "1.65.1");
         for (ExpectedAsset asset : EXPECTED_ASSETS) {
             try (InputStream input = contextLoader().getResourceAsStream(asset.path())) {
                 Assert.assertNotNull(input,

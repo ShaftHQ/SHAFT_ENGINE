@@ -38,10 +38,10 @@ enum PlaywrightHostPlatform {
     List<String> requiredPaths(SetupTarget target) {
         return switch (this) {
             case WIN64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1254/INSTALLATION_COMPLETE",
-                        "chromium-1254/chrome-win64/chrome.exe",
-                        "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1254/chrome-headless-shell-win64/chrome-headless-shell.exe",
+                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
+                        "chromium-1255/chrome-win64/chrome.exe",
+                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1255/chrome-headless-shell-win64/chrome-headless-shell.exe",
                         "winldd-1007/INSTALLATION_COMPLETE", "winldd-1007/PrintDeps.exe");
                 case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
                         "firefox-1572/firefox/firefox.exe");
@@ -51,10 +51,10 @@ enum PlaywrightHostPlatform {
                 default -> List.of();
             };
             case UBUNTU_24_04_X64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1254/INSTALLATION_COMPLETE",
-                        "chromium-1254/chrome-linux64/chrome",
-                        "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1254/chrome-headless-shell-linux64/chrome-headless-shell");
+                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
+                        "chromium-1255/chrome-linux64/chrome",
+                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell");
                 case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
                         "firefox-1572/firefox/firefox");
                 case PLAYWRIGHT_WEBKIT -> List.of("webkit-2388/INSTALLATION_COMPLETE", "webkit-2388/pw_run.sh");
@@ -62,11 +62,11 @@ enum PlaywrightHostPlatform {
                 default -> List.of();
             };
             case MAC15, MAC15_ARM64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1254/INSTALLATION_COMPLETE",
-                        "chromium-1254/" + macArchitectureDirectory("chrome")
+                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
+                        "chromium-1255/" + macArchitectureDirectory("chrome")
                                 + "/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-                        "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1254/" + macArchitectureDirectory("chrome-headless-shell")
+                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1255/" + macArchitectureDirectory("chrome-headless-shell")
                                 + "/chrome-headless-shell");
                 case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
                         "firefox-1572/firefox/Nightly.app/Contents/MacOS/firefox");

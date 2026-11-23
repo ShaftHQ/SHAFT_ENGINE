@@ -60,10 +60,10 @@ final class PlaywrightSetupProcessProbe {
     }
 
     private static void createReadyLayout(Path root) throws java.io.IOException {
-        for (String relative : List.of("chromium-1254/INSTALLATION_COMPLETE",
-                "chromium-1254/chrome-win64/chrome.exe",
-                "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1254/chrome-headless-shell-win64/chrome-headless-shell.exe",
+        for (String relative : List.of("chromium-1255/INSTALLATION_COMPLETE",
+                "chromium-1255/chrome-win64/chrome.exe",
+                "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                "chromium_headless_shell-1255/chrome-headless-shell-win64/chrome-headless-shell.exe",
                 "firefox-1572/INSTALLATION_COMPLETE", "firefox-1572/firefox/firefox.exe",
                 "webkit-2388/INSTALLATION_COMPLETE", "webkit-2388/Playwright.exe",
                 "ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-win64.exe",

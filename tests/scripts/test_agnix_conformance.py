@@ -531,6 +531,64 @@ class AgnixConformanceTest(unittest.TestCase):
         self.assertIn("AGNIX_ARTIFACT_URL=https://github.com/agent-sh/agnix/", values)
         self.assertIn("AGNIX_IMAGE_ID=sha256:", values)
 
+    def test_generated_overlay_materializes_pinned_installer_when_origin_has_none(self):
+        """#8139: a moved checkout has no chaos-engine/install.py; the fetch does."""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source"
+            pinned = source / ".chaos-engine"
+            pinned.mkdir(parents=True)
+            (pinned / "install.py").write_text(
+                "def install_with_dependencies(project, source, commit, provisioner=None):\n"
+                "    settings = project / '.claude' / 'settings.json'\n"
+                "    settings.parent.mkdir(parents=True)\n"
+                "    settings.write_text('{}\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+
+            overlay = generated_overlay(source)
+
+        self.addCleanup(lambda: shutil.rmtree(overlay, ignore_errors=True) if overlay else None)
+        self.assertIsInstance(overlay, Path)
+        self.assertTrue(overlay.is_dir())
+        self.assertTrue((overlay / ".claude" / "settings.json").is_file())
+        self.assertEqual((overlay / ".claude" / "settings.json").read_text(encoding="utf-8"), "{}\n")
+        self.assertFalse(overlay.resolve().is_relative_to(source.resolve()))
+
+    def test_generated_overlay_prefers_tracked_installer_when_both_exist(self):
+        """chaos-engine/install.py wins when .chaos-engine/install.py is also present."""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source"
+            tracked = source / "chaos-engine"
+            pinned = source / ".chaos-engine"
+            tracked.mkdir(parents=True)
+            pinned.mkdir(parents=True)
+            (tracked / "install.py").write_text(
+                "def install_with_dependencies(project, source, commit, provisioner=None):\n"
+                "    settings = project / '.claude' / 'settings.json'\n"
+                "    settings.parent.mkdir(parents=True)\n"
+                "    settings.write_text('{\"from\":\"tracked\"}\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            (pinned / "install.py").write_text(
+                "def install_with_dependencies(project, source, commit, provisioner=None):\n"
+                "    settings = project / '.claude' / 'settings.json'\n"
+                "    settings.parent.mkdir(parents=True)\n"
+                "    settings.write_text('{\"from\":\"pinned\"}\\n', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+
+            overlay = generated_overlay(source)
+
+        self.addCleanup(lambda: shutil.rmtree(overlay, ignore_errors=True) if overlay else None)
+        self.assertIsInstance(overlay, Path)
+        self.assertTrue(overlay.is_dir())
+        self.assertTrue((overlay / ".claude" / "settings.json").is_file())
+        self.assertEqual(
+            (overlay / ".claude" / "settings.json").read_text(encoding="utf-8"),
+            '{"from":"tracked"}\n',
+        )
+        self.assertFalse(overlay.resolve().is_relative_to(source.resolve()))
+
 
 if __name__ == "__main__":
     unittest.main()

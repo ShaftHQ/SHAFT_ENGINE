@@ -1,11 +1,11 @@
 """Managed Selenium Grid images must speak a CDP major the client supports.
 
-Selenium 4.52's bundled DevTools majors are 154, 155, and 156. A grid image
-whose Edge is 152 makes createSession a no-op, so network interception fails
+Selenium 4.53 publishes DevTools v155, v156, and v157. A grid image whose
+Edge is 152 makes createSession a no-op, so network interception fails
 before the local image assertion. The compose file and the planner must share
-one tag. This tag ships Edge 156. The same image's Chrome is 157. The
-interception test itself stays on the local fixture; this contract does not
-swallow DevToolsException.
+one tag. Image 4.53.0-20261120 ships Edge 158.0.4370.33 and Chrome
+158.0.8127.36, one major past that set. The interception test itself stays
+on the local fixture; this contract does not swallow DevToolsException.
 """
 
 import re
@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-GRID_TAG = "4.52.0-20261101"
+GRID_TAG = "4.53.0-20261120"
 
 
 class GridCdpContractTest(unittest.TestCase):

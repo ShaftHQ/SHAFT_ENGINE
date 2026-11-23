@@ -21,6 +21,10 @@ def load_installer(source: Path):
 
 def materialize_overlay(origin: Path, *, copy_pom: bool = False) -> Path:
     source = origin / "chaos-engine"
+    if not (source / "install.py").is_file():
+        pinned = origin / ".chaos-engine"
+        if (pinned / "install.py").is_file():
+            source = pinned
     installer = load_installer(source)
     temporary = Path(tempfile.mkdtemp(prefix="ce-overlay-"))
     if copy_pom:

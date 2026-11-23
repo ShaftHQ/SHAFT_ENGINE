@@ -24,6 +24,7 @@ EXPECTED_INSTALLS = {
     ".github/workflows/agent-plugin-acceptance.yml": (
         "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
         "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
+        "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/mavenCentral_cd.yml": (
         "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",

@@ -13,12 +13,13 @@ import java.util.regex.Pattern;
 /** Release-coupled plans for a SHAFT-owned Selenium Grid compose project. */
 final class SeleniumGridSetupPlanner {
     /**
-     * Selenium 4.52 speaks CDP majors 154, 155, and 156. An older grid release shipped
-     * Edge 152, so a new DevTools session was a no-op and network interception failed
-     * before the image assertion. This tag ships Edge 156, which that client can speak.
-     * The same image's Chrome is 157, one major past the bundled DevTools set.
+     * Selenium 4.53 publishes DevTools v155, v156, and v157; selenium-devtools-latest
+     * depends on v157. Image 4.53.0-20261120 (SeleniumHQ/docker-selenium, 2026-11-20)
+     * ships Edge 158.0.4370.33 and Chrome 158.0.8127.36, one major past that set.
+     * An older grid release shipped Edge 152, so a new DevTools session was a no-op
+     * and network interception failed before the image assertion.
      */
-    static final String IMAGE_TAG = "4.52.0-20261101";
+    static final String IMAGE_TAG = "4.53.0-20261120";
     static final String PROJECT = "shaft-selenium-grid";
     static final int DEFAULT_PORT = 4444;
     static final int DEFAULT_CHROME = 1;

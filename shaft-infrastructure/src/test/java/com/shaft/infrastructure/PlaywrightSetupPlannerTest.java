@@ -25,10 +25,10 @@ class PlaywrightSetupPlannerTest {
         SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
 
-        assertEquals("1.65.0", PlaywrightSetupPlanner.PLAYWRIGHT_VERSION);
+        assertEquals("1.65.1", PlaywrightSetupPlanner.PLAYWRIGHT_VERSION);
         assertTrue(canonical.contains("\"hostPlatform\": \"win64\""));
         assertTrue(canonical.contains("\"name\": \"chromium-headless-shell\""));
-        assertTrue(canonical.contains("fdd3721ad0299ddd419d170ce8ab89aecf8631d157b85215474b4a70c8dcd061"));
+        assertTrue(canonical.contains("5db6a6948e6d1299ea3bc87c420d467bf343feae186a316921c930ce02056af5"));
         assertTrue(canonical.contains("\"name\": \"winldd\""));
         assertTrue(canonical.contains("0069f0d11d4ad6df068a068c003d22fe7dbec192a47bba64b2e115e9c8ce41d8"));
         assertTrue(plan.actions().stream().skip(1)
@@ -79,9 +79,9 @@ class PlaywrightSetupPlannerTest {
 
     @Test
     void everyHostPublishesThePinnedPayloadDirectories() {
-        assertEquals(List.of("chromium-1254/INSTALLATION_COMPLETE", "chromium-1254/chrome-win64/chrome.exe",
-                        "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1254/chrome-headless-shell-win64/chrome-headless-shell.exe",
+        assertEquals(List.of("chromium-1255/INSTALLATION_COMPLETE", "chromium-1255/chrome-win64/chrome.exe",
+                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1255/chrome-headless-shell-win64/chrome-headless-shell.exe",
                         "winldd-1007/INSTALLATION_COMPLETE", "winldd-1007/PrintDeps.exe"),
                 PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM));
         assertEquals(List.of("firefox-1572/INSTALLATION_COMPLETE", "firefox-1572/firefox/firefox.exe"),
@@ -91,9 +91,9 @@ class PlaywrightSetupPlannerTest {
         assertEquals(List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-win64.exe"),
                 PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.FFMPEG));
 
-        assertEquals(List.of("chromium-1254/INSTALLATION_COMPLETE", "chromium-1254/chrome-linux64/chrome",
-                        "chromium_headless_shell-1254/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1254/chrome-headless-shell-linux64/chrome-headless-shell"),
+        assertEquals(List.of("chromium-1255/INSTALLATION_COMPLETE", "chromium-1255/chrome-linux64/chrome",
+                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell"),
                 PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM));
         assertEquals(List.of("firefox-1572/INSTALLATION_COMPLETE", "firefox-1572/firefox/firefox"),
                 PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.PLAYWRIGHT_FIREFOX));
@@ -103,9 +103,9 @@ class PlaywrightSetupPlannerTest {
                 PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.FFMPEG));
 
         assertTrue(PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM).contains(
-                "chromium-1254/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
+                "chromium-1255/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
         assertTrue(PlaywrightHostPlatform.MAC15_ARM64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM).contains(
-                "chromium-1254/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
+                "chromium-1255/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
         assertEquals(List.of("firefox-1572/INSTALLATION_COMPLETE",
                         "firefox-1572/firefox/Nightly.app/Contents/MacOS/firefox"),
                 PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_FIREFOX));
