@@ -323,6 +323,7 @@ jobs:
               - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
               - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
               - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'scripts/ci/rewrite_npm_lock_advisories.py'
               - 'tests/scripts/test_validate_npm_lock_advisories.py'
               - 'scripts/ci/repair_bundled_shell_quote.js'
               - 'tests/fixtures/npm_lock_advisories/**'
@@ -469,6 +470,7 @@ jobs:
               # (#4529 shape — a guard blind to edits of itself / its locks
               # is unbound). Lock-only or validator-only edits must not skip it.
               - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'scripts/ci/rewrite_npm_lock_advisories.py'
               - 'tests/scripts/test_validate_npm_lock_advisories.py'
               - 'scripts/ci/repair_bundled_shell_quote.js'
               - 'tests/fixtures/npm_lock_advisories/**'

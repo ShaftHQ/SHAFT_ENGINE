@@ -149,6 +149,18 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
         self.assertIn("SetupPlanner", push)
         self.assertIn("core.hooksPath /dev/null", push)
         self.assertIn("refresh_setup_lock_pins.py --root . --check", push)
+        self.assertIn("rewrite_npm_lock_advisories.py --root . --check", push)
+        self.assertIn(
+            "appium(-ios|-windows)?/package-lock\\.json",
+            push,
+        )
+        self.assertNotIn("head/scripts", push)
+        refresh = compute.split("Refresh pins with the base script", 1)[1]
+        self.assertLess(
+            refresh.index("rewrite_npm_lock_advisories.py --root head --write"),
+            refresh.index("refresh_setup_lock_pins.py --root head --write"),
+        )
+        self.assertIn("base/scripts/ci/rewrite_npm_lock_advisories.py", refresh)
 
     def test_check_job_skips_dependabot_prs(self) -> None:
         text = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")

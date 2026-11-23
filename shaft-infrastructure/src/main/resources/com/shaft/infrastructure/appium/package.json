@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "appium": "3.9.0",
-    "appium-inspector-plugin": "2026.11.3",
-    "appium-uiautomator2-driver": "9.0.2"
+    "appium": "4.0.0",
+    "appium-inspector-plugin": "2026.11.6",
+    "appium-uiautomator2-driver": "9.2.2"
   },
   "overrides": {
     "body-parser": "2.4.0",

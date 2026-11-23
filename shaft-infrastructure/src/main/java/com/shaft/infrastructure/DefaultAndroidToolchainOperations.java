@@ -149,8 +149,8 @@ final class DefaultAndroidToolchainOperations implements AndroidToolchainOperati
             if (offline) install.add("--offline");
             requireSuccess(run(install, staging, null, log, Duration.ofMinutes(10)),
                     "Appium npm installation failed");
-            // The drivers peer-depend on Appium 4 while this lock pins Appium 3, so npm 11
-            // rejects a plain npm ci. --legacy-peer-deps installs the reviewed lock.
+            // uiautomator2 peers on Appium ^4, which this lock now pins. --legacy-peer-deps
+            // stays so npm 11 cannot reject the reviewed lock on a peer mismatch.
             // --ignore-scripts still extracts bundleDependencies, which ignore the lockfile
             // version rewrite. The shipped repair copies the hoisted patched tree.
             // Empty stdin: the repair script does not read it, and a null input is a new
