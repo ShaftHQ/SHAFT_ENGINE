@@ -133,6 +133,7 @@ def java_command(jar: Path, name: str, *application_args: str) -> list[str]:
     argfile = jar.parent / f"shaft-mcp-{name}.args"
     argfile.write_text(
         "\n".join([
+            "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener",
             "-cp",
             java_argfile_quote(classpath_for(jar)),
             MAIN_CLASS,

@@ -27,6 +27,12 @@ public class ShaftMcpApplication {
      * @param args command-line arguments
      */
 	public static void main(String[] args) throws IOException {
+        // Logback prints version status before logback-spring.xml is read.
+        if (System.getProperty("logback.statusListenerClass") == null) {
+            System.setProperty(
+                    "logback.statusListenerClass",
+                    "ch.qos.logback.core.status.NopStatusListener");
+        }
         if (args.length > 0 && "doctor".equalsIgnoreCase(args[0])) {
             int exitCode = DoctorCli.run(Arrays.copyOfRange(args, 1, args.length));
             if (exitCode != 0) {

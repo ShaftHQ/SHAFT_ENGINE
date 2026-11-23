@@ -17,4 +17,4 @@ ENV SPRING_PROFILES_ACTIVE=http
 ENTRYPOINT ["dumb-init", "--"]
 # Chrome's sandbox can't start in this container as a non-root user, so turn
 # on SHAFT's recommended Chrome options, which include --no-sandbox.
-CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-DheadlessExecution=true", "-DautomaticallyAddRecommendedChromeOptions=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]
+CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-DheadlessExecution=true", "-DautomaticallyAddRecommendedChromeOptions=true", "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]

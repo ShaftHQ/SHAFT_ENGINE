@@ -37,4 +37,4 @@ EXPOSE 8080
 ENV SPRING_PROFILES_ACTIVE=http
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-DheadlessExecution=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]
+CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:MaxMetaspaceSize=64m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-Dspring.main.lazy-initialization=true", "-DheadlessExecution=true", "-Dlogback.statusListenerClass=ch.qos.logback.core.status.NopStatusListener", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]

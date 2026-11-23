@@ -153,6 +153,13 @@ updates:
           - "org.codehaus.mojo:versions-maven-plugin"
           - "org.apache.maven.plugins:maven-jar-plugin"
           - "org.apache.maven.plugins:maven-install-plugin"
+      # classic and core share one release. A lone bump fails context load
+      # (OptionHelper) or prints a version status line on MCP stdout.
+      # Listed before the catch-all: Dependabot assigns the first matching group.
+      logback:
+        patterns:
+          - "ch.qos.logback:logback-classic"
+          - "ch.qos.logback:logback-core"
       # Version updates. One pull request per dependency name across directories.
       aligned-maven-dependencies:
         group-by: dependency-name
@@ -165,6 +172,12 @@ updates:
           - "org.codehaus.mojo:versions-maven-plugin"
           - "org.apache.maven.plugins:maven-jar-plugin"
           - "org.apache.maven.plugins:maven-install-plugin"
+      # Security twin of logback. Security jobs ignore version-only groups.
+      logback-security:
+        applies-to: security-updates
+        patterns:
+          - "ch.qos.logback:logback-classic"
+          - "ch.qos.logback:logback-core"
       # Security updates do not use the version group above. Same dependency
       # version across modules stays in one pull request.
       aligned-maven-security:
