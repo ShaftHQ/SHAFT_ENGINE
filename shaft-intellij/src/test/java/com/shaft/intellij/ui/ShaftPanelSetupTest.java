@@ -1010,7 +1010,7 @@ class ShaftPanelSetupTest {
                     () -> assertTrue(command instanceof JBTextArea),
                     () -> assertTrue(((JBTextArea) command).getRows() >= 4),
                     () -> assertFalse(findByAccessibleName(panel, "MCP installer target", JComboBox.class).isVisible()),
-                    () -> assertEquals(7, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
+                    () -> assertEquals(12, findByAccessibleName(panel, "MCP installer target", JComboBox.class)
                             .getItemCount()),
                     () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(
                             findByAccessibleName(panel, "MCP installer target", JComboBox.class))),
@@ -1063,7 +1063,7 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(manualTarget),
                 () -> assertFalse(manualTarget.isVisible()),
                 () -> assertFalse(target.isVisible()),
-                () -> assertEquals(8, agent.getItemCount()),
+                () -> assertEquals(9, agent.getItemCount()),
                 () -> assertEquals("Claude Code", String.valueOf(agent.getItemAt(0))),
                 () -> assertEquals("GitHub Copilot in IntelliJ", String.valueOf(agent.getItemAt(6))),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
@@ -1112,10 +1112,11 @@ class ShaftPanelSetupTest {
             installerTargetTokens.add(String.valueOf(target.getItemAt(index)));
         }
         assertAll(
-                () -> assertEquals(7, target.getItemCount()),
+                () -> assertEquals(12, target.getItemCount()),
                 () -> assertEquals("INTELLIJ_PLUGIN", lastComboItem(target)),
                 () -> assertEquals(List.of("CODEX", "CLAUDE_CODE", "CLAUDE_DESKTOP", "COPILOT_CLI",
-                        "COPILOT_INTELLIJ", "GROK", "INTELLIJ_PLUGIN"), installerTargetTokens));
+                        "COPILOT_INTELLIJ", "GROK", "ANTIGRAVITY", "VSCODE", "OPENCODE", "GEMINI",
+                        "CURSOR", "INTELLIJ_PLUGIN"), installerTargetTokens));
 
         // The disambiguated label must not collapse back to a bare peer-agent name, and the
         // distinct IDE_PLUGIN runtime token (used by the runtime combo, not this target combo)
@@ -1135,7 +1136,12 @@ class ShaftPanelSetupTest {
                 () -> assertEquals("copilot", installerArgumentFor("COPILOT_CLI")),
                 () -> assertEquals("copilot-intellij", installerArgumentFor("COPILOT_INTELLIJ")),
                 () -> assertEquals("intellij-plugin", installerArgumentFor("INTELLIJ_PLUGIN")),
-                () -> assertEquals("grok", installerArgumentFor("GROK")));
+                () -> assertEquals("grok", installerArgumentFor("GROK")),
+                () -> assertEquals("antigravity", installerArgumentFor("ANTIGRAVITY")),
+                () -> assertEquals("vscode", installerArgumentFor("VSCODE")),
+                () -> assertEquals("opencode", installerArgumentFor("OPENCODE")),
+                () -> assertEquals("gemini", installerArgumentFor("GEMINI")),
+                () -> assertEquals("cursor", installerArgumentFor("CURSOR")));
         for (String token : installerTargetTokens) {
             String argument = installerArgumentFor(token);
             String command = installerCommandFor(argument);
@@ -3173,7 +3179,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNotNull(agent),
                 () -> assertTrue(agent.isVisible()),
-                () -> assertEquals(8, agent.getItemCount()),
+                () -> assertEquals(9, agent.getItemCount()),
                 () -> assertFalse(family.isVisible()),
                 () -> assertFalse(runtime.isVisible()));
     }
@@ -7191,9 +7197,9 @@ class ShaftPanelSetupTest {
                 () -> assertEquals(1L, launchAttempted.getCount()),
                 () -> assertNotNull(findByAccessibleName(panel, "Repair SHAFT skills and resend", JButton.class)),
                 () -> assertTrue(containsText(panel, "shaft-developer")),
-                () -> assertTrue(containsText(panel, "shaft-recording-codegen")));
+                () -> assertFalse(containsText(panel, "shaft-recording-codegen")));
 
-        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+        for (String skill : List.of("shaft-developer")) {
             Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
             Files.createDirectories(skillDirectory);
             Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);
@@ -7206,7 +7212,7 @@ class ShaftPanelSetupTest {
 
     @Test
     void assistantFamilySwitchRefreshesSkillHealth(@TempDir Path projectRoot) throws Exception {
-        for (String skill : List.of("shaft-developer", "shaft-recording-codegen")) {
+        for (String skill : List.of("shaft-developer")) {
             Path skillDirectory = projectRoot.resolve(".agents/skills").resolve(skill);
             Files.createDirectories(skillDirectory);
             Files.writeString(skillDirectory.resolve("SKILL.md"), "name: " + skill);

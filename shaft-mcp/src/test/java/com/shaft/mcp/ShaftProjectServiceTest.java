@@ -7,6 +7,7 @@ import org.w3c.dom.Element;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -23,6 +24,7 @@ import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -226,30 +228,102 @@ class ShaftProjectServiceTest {
         assertTrue(result.warnings().isEmpty());
         String agents = Files.readString(repo.resolve("AGENTS.md"));
         assertHostAdapter(repo.resolve("AGENTS.md"), ".agents/skills/shaft-developer/SKILL.md");
-        assertTrue(agents.contains("SHAFT-MANAGED:BEGIN shaft-developer:grok"));
+        assertEquals(1, countOf(agents, "SHAFT-MANAGED:BEGIN"));
+        assertTrue(agents.contains("SHAFT-MANAGED:BEGIN shaft-developer:agents"));
+        assertFalse(agents.contains("shaft-developer:grok"));
+        assertFalse(agents.contains("shaft-developer:codex"));
+        assertFalse(agents.contains("shaft-developer:opencode"));
         assertHostAdapter(repo.resolve("CLAUDE.md"), ".claude/skills/shaft-developer/SKILL.md");
         assertHostAdapter(repo.resolve(".github/copilot-instructions.md"),
-                "instructions/shaft-developer/SKILL.md");
-        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
+                ".agents/skills/shaft-developer/SKILL.md");
+        assertEquals(1, skillMarkdownCount(repo.resolve(".agents/skills")));
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/references/routing.md")));
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/references/sources.md")));
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/agents/openai.yaml")));
-        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring/references/playbook.md")));
-        assertTrue(Files.exists(repo.resolve(".agents/skills/references/shaft-mcp-tools.md")));
-        assertTrue(Files.exists(repo.resolve(".agents/skills/evaluation-prompts.md")));
-        assertTrue(Files.exists(repo.resolve(".claude/skills/shaft-developer/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".opencode/skills/shaft-developer/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer/SKILL.md")));
+        assertFalse(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring")));
+        assertFalse(Files.exists(repo.resolve(".agents/skills/references/shaft-mcp-tools.md")));
+        assertFalse(Files.exists(repo.resolve(".agents/skills/evaluation-prompts.md")));
+        assertFalse(Files.exists(repo.resolve(".agents/skills/ce-pack")));
+        assertFalse(Files.exists(repo.resolve(".agents/skills/ce-addons")));
+        assertEquals(1, skillMarkdownCount(repo.resolve(".claude/skills")));
+        assertEquals(1, skillMarkdownCount(repo.resolve(".opencode/skills")));
+        assertFalse(Files.exists(repo.resolve(".github/instructions")));
         assertTrue(Files.readString(repo.resolve(".agents/skills/shaft-developer/SKILL.md"))
                 .contains("name: shaft-developer"));
-        assertFalse(Files.readString(repo.resolve(".agents/skills/shaft-automated-test-authoring/SKILL.md"))
-                .contains("SHAFT bridge"));
         assertFalse(Files.exists(repo.resolve(".agents/skills/act-as-shaft-dev")));
         assertFalse(Files.exists(repo.resolve(".claude/skills/act-as-shaft-dev")));
         assertFalse(Files.exists(repo.resolve(".github/instructions/act-as-shaft-dev.instructions.md")));
         assertFalse(Files.exists(repo.resolve(".codex")));
         assertFalse(Files.exists(repo.resolve("SHAFT-AGENTS.md")));
+    }
+
+    @Test
+    void bundledSkillsAreTheSingleShaftDeveloperEntrypoint() throws Exception {
+        URL resource = ShaftProjectService.class.getClassLoader().getResource("META-INF/shaft-mcp/shaft-skills");
+        assertNotNull(resource);
+        assertEquals("file", resource.getProtocol());
+        Path root = Path.of(resource.toURI());
+        assertEquals(1, skillMarkdownCount(root));
+        assertTrue(Files.isRegularFile(root.resolve("shaft-developer/SKILL.md")));
+        try (var paths = Files.walk(root)) {
+            boolean contributorPack = paths.map(path -> path.toString().replace('\\', '/'))
+                    .anyMatch(path -> path.contains("/ce-pack") || path.contains("/ce-addons"));
+            assertFalse(contributorPack);
+        }
+    }
+
+    @Test
+    void initAgentsAcceptsCursorAntigravityGeminiAndCopilot() throws Exception {
+        ShaftProjectService service = projectService();
+        for (String loop : List.of("cursor", "antigravity", "gemini", "copilot", "vscode")) {
+            service.initAgents(loop, loop + "-repo", false);
+            Path repo = temp.resolve(loop + "-repo");
+            assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")), loop);
+            assertFalse(Files.exists(repo.resolve(".github/instructions")), loop);
+            if ("vscode".equals(loop)) {
+                assertHostAdapter(repo.resolve(".github/copilot-instructions.md"),
+                        ".agents/skills/shaft-developer/SKILL.md");
+                assertFalse(Files.exists(repo.resolve("AGENTS.md")), loop);
+            } else {
+                assertHostAdapter(repo.resolve("AGENTS.md"), ".agents/skills/shaft-developer/SKILL.md");
+                assertEquals(1, countOf(Files.readString(repo.resolve("AGENTS.md")), "SHAFT-MANAGED:BEGIN"), loop);
+            }
+        }
+    }
+
+    @Test
+    void initAgentsDoesNotForceCodexWhenClaudeIsRequestedBesidePlainAgentsMd() throws Exception {
+        ShaftProjectService service = projectService();
+        Path repo = Files.createDirectories(temp.resolve("plain-agents"));
+        Files.writeString(repo.resolve("AGENTS.md"), "# team notes\n");
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("claude", "plain-agents", false);
+
+        assertEquals("# team notes\n", Files.readString(repo.resolve("AGENTS.md")));
+        assertFalse(Files.exists(repo.resolve(".agents")));
+        assertTrue(Files.exists(repo.resolve(".claude/skills/shaft-developer/SKILL.md")));
+        assertTrue(result.warnings().isEmpty());
+    }
+
+    @Test
+    void initAgentsRemovesOwnedRetiredSkillsAndKeepsUnownedCustomSkills() throws Exception {
+        ShaftProjectService service = projectService();
+        Path repo = Files.createDirectories(temp.resolve("legacy-skills"));
+        writeOwnedRetiredSkill(repo.resolve(".agents/skills/shaft-automated-test-authoring"),
+                "shaft-automated-test-authoring");
+        writeOwnedRetiredSkill(repo.resolve(".github/skills/writing-shaft-tests"), "writing-shaft-tests");
+        writeOwnedRetiredSkill(repo.resolve(".github/instructions/shaft-cli"), "shaft-cli");
+        Path custom = repo.resolve(".claude/skills/team-notes");
+        Files.createDirectories(custom);
+        Files.writeString(custom.resolve("SKILL.md"), "custom skill");
+
+        service.initAgents("codex", "legacy-skills", true);
+
+        assertFalse(Files.exists(repo.resolve(".agents/skills/shaft-automated-test-authoring")));
+        assertFalse(Files.exists(repo.resolve(".github/skills/writing-shaft-tests")));
+        assertFalse(Files.exists(repo.resolve(".github/instructions/shaft-cli")));
+        assertEquals("custom skill", Files.readString(custom.resolve("SKILL.md")));
+        assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
     }
 
     @Test
@@ -267,7 +341,7 @@ class ShaftProjectServiceTest {
         Path agents = repo.resolve("AGENTS.md");
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
         assertHostAdapter(agents, ".agents/skills/shaft-developer/SKILL.md");
-        assertTrue(Files.readString(agents).contains("SHAFT-MANAGED:BEGIN shaft-developer:grok"));
+        assertTrue(Files.readString(agents).contains("SHAFT-MANAGED:BEGIN shaft-developer:agents"));
         assertFalse(Files.exists(repo.resolve(".grok")));
         assertFalse(Files.exists(repo.resolve("SHAFT-AGENTS.md")));
     }
@@ -298,7 +372,7 @@ class ShaftProjectServiceTest {
                 temp.resolve("upgrade_to_modular_shaft.py"),
                 List.of("python"));
 
-        assertThrows(IllegalArgumentException.class, () -> service.initAgents("cursor", "repo", false));
+        assertThrows(IllegalArgumentException.class, () -> service.initAgents("claude-desktop", "repo", false));
     }
 
     @Test
@@ -352,9 +426,15 @@ class ShaftProjectServiceTest {
         Path agents = repo.resolve("AGENTS.md");
         Path claude = repo.resolve("CLAUDE.md");
         Path copilot = Files.createDirectories(repo.resolve(".github")).resolve("copilot-instructions.md");
-        Files.writeString(agents, "codex user text");
-        Files.writeString(claude, "claude user text");
-        Files.writeString(copilot, "copilot user text");
+        Files.writeString(agents, "codex user text\n"
+                + "<!-- SHAFT-MANAGED:BEGIN shaft-developer:codex -->\nold\n"
+                + "<!-- SHAFT-MANAGED:END shaft-developer:codex -->\n");
+        Files.writeString(claude, "claude user text\n"
+                + "<!-- SHAFT-MANAGED:BEGIN shaft-developer:claude -->\nold\n"
+                + "<!-- SHAFT-MANAGED:END shaft-developer:claude -->\n");
+        Files.writeString(copilot, "copilot user text\n"
+                + "<!-- SHAFT-MANAGED:BEGIN shaft-developer:vscode -->\nold\n"
+                + "<!-- SHAFT-MANAGED:END shaft-developer:vscode -->\n");
 
         service.initAgents("claude", "mixed-repo", false);
 
@@ -362,11 +442,12 @@ class ShaftProjectServiceTest {
         assertTrue(Files.readString(claude).startsWith("claude user text"));
         assertTrue(Files.readString(copilot).startsWith("copilot user text"));
         assertHostAdapter(agents, ".agents/skills/shaft-developer/SKILL.md");
+        assertEquals(1, countOf(Files.readString(agents), "SHAFT-MANAGED:BEGIN"));
         assertHostAdapter(claude, ".claude/skills/shaft-developer/SKILL.md");
-        assertHostAdapter(copilot, "instructions/shaft-developer/SKILL.md");
+        assertHostAdapter(copilot, ".agents/skills/shaft-developer/SKILL.md");
         assertTrue(Files.exists(repo.resolve(".agents/skills/shaft-developer/SKILL.md")));
         assertTrue(Files.exists(repo.resolve(".claude/skills/shaft-developer/SKILL.md")));
-        assertTrue(Files.exists(repo.resolve(".github/instructions/shaft-developer/SKILL.md")));
+        assertFalse(Files.exists(repo.resolve(".github/instructions")));
         assertFalse(Files.exists(repo.resolve(".opencode")));
     }
 
@@ -387,10 +468,10 @@ class ShaftProjectServiceTest {
         assertEquals(first.keySet(), second.keySet());
         first.forEach((path, bytes) -> assertTrue(java.util.Arrays.equals(bytes, second.get(path)), path.toString()));
         String agents = Files.readString(repo.resolve("AGENTS.md"));
-        String codexMarker = "SHAFT-MANAGED:BEGIN shaft-developer:codex";
-        String openCodeMarker = "SHAFT-MANAGED:BEGIN shaft-developer:opencode";
-        assertEquals(agents.indexOf(codexMarker), agents.lastIndexOf(codexMarker));
-        assertEquals(agents.indexOf(openCodeMarker), agents.lastIndexOf(openCodeMarker));
+        String marker = "SHAFT-MANAGED:BEGIN shaft-developer:agents";
+        assertEquals(agents.indexOf(marker), agents.lastIndexOf(marker));
+        assertFalse(agents.contains("shaft-developer:codex"));
+        assertFalse(agents.contains("shaft-developer:opencode"));
     }
 
     @Test
@@ -421,7 +502,7 @@ class ShaftProjectServiceTest {
         Path repo = Files.createDirectories(temp.resolve("existing-repo"));
         Path adapter = repo.resolve("CLAUDE.md");
         Files.writeString(adapter, "custom instructions");
-        Path skill = Files.createDirectories(repo.resolve(".claude/skills/shaft-automated-test-authoring"))
+        Path skill = Files.createDirectories(repo.resolve(".claude/skills/shaft-developer"))
                 .resolve("SKILL.md");
         Files.writeString(skill, "custom skill");
 
@@ -429,7 +510,7 @@ class ShaftProjectServiceTest {
 
         assertEquals("custom skill", Files.readString(skill));
         assertTrue(Files.readString(adapter).startsWith("custom instructions"));
-        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("shaft-automated-test-authoring")));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("shaft-developer")));
 
         McpShaftProjectInitAgentsResult refreshed = service.initAgents("claude", "existing-repo", true);
 
@@ -447,12 +528,12 @@ class ShaftProjectServiceTest {
                 List.of("python"));
 
         service.initAgents("claude", "managed-repo", true);
-        Path skill = temp.resolve("managed-repo/.claude/skills/shaft-automated-test-authoring/SKILL.md");
+        Path skill = temp.resolve("managed-repo/.claude/skills/shaft-developer/SKILL.md");
         Files.writeString(skill, "stale generated skill");
 
         service.initAgents("claude", "managed-repo", true);
 
-        assertTrue(Files.readString(skill).contains("# SHAFT Automated Test Authoring"));
+        assertTrue(Files.readString(skill).contains("name: shaft-developer"));
     }
 
     @Test
@@ -523,6 +604,39 @@ class ShaftProjectServiceTest {
             assertEquals("ARGS_FILE", ((Element) shorteners.item(0)).getAttribute("name"), templateFile.toString());
         }
         assertEquals(expectedTypes, actualTypes);
+    }
+
+    private ShaftProjectService projectService() {
+        return new ShaftProjectService(
+                McpWorkspacePolicy.of(temp),
+                new FakeRunner(),
+                temp.resolve("upgrade_to_modular_shaft.py"),
+                List.of("python"));
+    }
+
+    private static void writeOwnedRetiredSkill(Path directory, String name) throws Exception {
+        Files.createDirectories(directory.resolve("agents"));
+        Files.writeString(directory.resolve("SKILL.md"), "---\nname: " + name + "\n---\n");
+        Files.writeString(directory.resolve("agents/openai.yaml"), "interface:\n  display_name: legacy\n");
+    }
+
+    private static int skillMarkdownCount(Path root) throws Exception {
+        if (!Files.isDirectory(root)) {
+            return 0;
+        }
+        try (var paths = Files.walk(root)) {
+            return (int) paths.filter(path -> "SKILL.md".equals(path.getFileName().toString())).count();
+        }
+    }
+
+    private static int countOf(String content, String needle) {
+        int count = 0;
+        int index = 0;
+        while ((index = content.indexOf(needle, index)) >= 0) {
+            count++;
+            index += needle.length();
+        }
+        return count;
     }
 
     private static void assertHostAdapter(Path adapter, String routerPath) throws Exception {

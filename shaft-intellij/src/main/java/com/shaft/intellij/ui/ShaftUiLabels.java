@@ -63,6 +63,9 @@ public final class ShaftUiLabels {
             case "COPILOT_CLI" -> "GitHub Copilot CLI";
             case "COPILOT_INTELLIJ" -> "GitHub Copilot in IntelliJ";
             case "INTELLIJ_PLUGIN" -> "SHAFT IntelliJ plugin (this plugin only - no external agent)";
+            case "VSCODE" -> "VS Code";
+            case "OPENCODE" -> "OpenCode";
+            case "CURSOR" -> "Cursor";
             case "CLI" -> "CLI";
             case "IDE_PLUGIN" -> "IDE plugin";
             case "DESKTOP_APP" -> "Desktop app";

@@ -79,6 +79,11 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             "COPILOT_CLI",
             "COPILOT_INTELLIJ",
             "GROK",
+            "ANTIGRAVITY",
+            "VSCODE",
+            "OPENCODE",
+            "GEMINI",
+            "CURSOR",
             "INTELLIJ_PLUGIN"
     };
     private static final String GUIDE_SETUP_STEP =
@@ -1721,6 +1726,7 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
             case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
             case "CODEX" -> "CODEX";
             default -> "";
         };
@@ -1759,8 +1765,12 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "INTELLIJ_PLUGIN" -> "intellij-plugin";
             case "GROK" -> "grok";
             case "ANTIGRAVITY" -> "antigravity";
+            case "VSCODE" -> "vscode";
+            case "OPENCODE" -> "opencode";
+            case "GEMINI" -> "gemini";
+            case "CURSOR" -> "cursor";
             case "CODEX" -> "codex";
-            default -> "codex";
+            default -> throw new IllegalArgumentException("Unsupported SHAFT installer target: " + target);
         };
     }
 

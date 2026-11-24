@@ -12,11 +12,12 @@ public enum AssistantAgentRoute {
     CLAUDE_CODE("Claude Code", "LOCAL", "CLAUDE", "CLI", "CLAUDE_CODE", "CLAUDE_CODE"),
     CLAUDE_DESKTOP("Claude Desktop", "LOCAL", "CLAUDE", "DESKTOP_APP", "CLAUDE_CODE", "CLAUDE_DESKTOP"),
     CODEX_CLI("Codex CLI", "LOCAL", "CODEX", "CLI", "CODEX", "CODEX"),
-    GEMINI_INTELLIJ("Gemini in IntelliJ", "CLOUD", "GEMINI", "IDE_PLUGIN", "CODEX", "INTELLIJ_PLUGIN"),
+    GEMINI_INTELLIJ("Gemini in IntelliJ", "CLOUD", "GEMINI", "IDE_PLUGIN", "GEMINI", "INTELLIJ_PLUGIN"),
     GROK("Grok CLI", "LOCAL", "GROK", "CLI", "GROK", "GROK"),
     COPILOT_CLI("GitHub Copilot CLI", "LOCAL", "COPILOT", "CLI", "COPILOT_CLI", "COPILOT_CLI"),
     COPILOT_INTELLIJ("GitHub Copilot in IntelliJ", "LOCAL", "COPILOT", "IDE_PLUGIN", "COPILOT_CLI", "COPILOT_INTELLIJ"),
-    ANTIGRAVITY("Antigravity", "LOCAL", "ANTIGRAVITY", "CLI", "ANTIGRAVITY", "ANTIGRAVITY");
+    ANTIGRAVITY("Antigravity", "LOCAL", "ANTIGRAVITY", "CLI", "ANTIGRAVITY", "ANTIGRAVITY"),
+    GEMINI_CLI("Gemini CLI", "LOCAL", "GEMINI", "CLI", "GEMINI", "GEMINI");
 
     private final String displayName;
     private final String providerType;
@@ -102,26 +103,35 @@ public enum AssistantAgentRoute {
             return GEMINI_INTELLIJ;
         }
         String family = normalize(settings.assistantFamily, "");
-        String client = settings.defaultAutobotClient == null ? "" : settings.defaultAutobotClient.trim();
         if (family.isBlank()) {
-            family = switch (client.toUpperCase(Locale.ROOT)) {
-                case "CLAUDE_CODE" -> "CLAUDE";
-                case "COPILOT_CLI" -> "COPILOT";
-                case "GROK" -> "GROK";
-                case "ANTIGRAVITY" -> "ANTIGRAVITY";
-                case "CODEX" -> "CODEX";
-                default -> "";
-            };
+            family = familyFromClient(settings.defaultAutobotClient);
         }
         if (family.isBlank()) {
             return null;
         }
-        String runtime = normalize(settings.assistantRuntime, "CLI");
+        return routeFor(family, normalize(settings.assistantRuntime, "CLI"));
+    }
+
+    private static String familyFromClient(String client) {
+        String normalized = client == null ? "" : client.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "CLAUDE_CODE" -> "CLAUDE";
+            case "COPILOT_CLI" -> "COPILOT";
+            case "GROK" -> "GROK";
+            case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
+            case "CODEX" -> "CODEX";
+            default -> "";
+        };
+    }
+
+    private static AssistantAgentRoute routeFor(String family, String runtime) {
         return switch (family) {
             case "CLAUDE" -> "DESKTOP_APP".equals(runtime) ? CLAUDE_DESKTOP : CLAUDE_CODE;
             case "COPILOT" -> "IDE_PLUGIN".equals(runtime) ? COPILOT_INTELLIJ : COPILOT_CLI;
             case "GROK" -> GROK;
             case "ANTIGRAVITY" -> ANTIGRAVITY;
+            case "GEMINI" -> "CLI".equals(runtime) ? GEMINI_CLI : GEMINI_INTELLIJ;
             case "CODEX" -> CODEX_CLI;
             default -> null;
         };

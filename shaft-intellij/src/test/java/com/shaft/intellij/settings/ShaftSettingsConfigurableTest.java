@@ -261,7 +261,7 @@ class ShaftSettingsConfigurableTest {
         JLabel agentLabel = (JLabel) getField(configurable, "assistantAgentLabel");
         JLabel githubKeyLabel = (JLabel) getField(configurable, "githubKeyLabel");
 
-        assertEquals(8, agent.getItemCount());
+        assertEquals(9, agent.getItemCount());
         assertNotEquals(agentLabel.getDisplayedMnemonic(), githubKeyLabel.getDisplayedMnemonic());
         selectDisplayValue(agent, "Claude Desktop");
         configurable.apply();
