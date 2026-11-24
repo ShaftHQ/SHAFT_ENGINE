@@ -1,201 +1,628 @@
 {
   "package": "shaft-skills",
   "supported_clients": [
+    "Codex CLI / IDE",
     "Claude Code",
-    "Codex CLI"
+    "Claude Desktop",
+    "GitHub Copilot CLI",
+    "GitHub Copilot for IntelliJ IDEA",
+    "Grok CLI",
+    "Antigravity CLI",
+    "VS Code",
+    "OpenCode",
+    "Gemini CLI",
+    "Cursor",
+    "SHAFT IntelliJ IDEA plugin"
   ],
   "context_budget": {
     "max_description_chars": 180,
-    "max_total_description_chars": 5600,
+    "max_total_description_chars": 500,
     "max_skill_md_lines": 50
   },
+  "specialist_references": [
+    "shaft-developer/references/specialists/accessibility-testing.md",
+    "shaft-developer/references/specialists/api-testing.md",
+    "shaft-developer/references/specialists/assertions.md",
+    "shaft-developer/references/specialists/automated-test-authoring.md",
+    "shaft-developer/references/specialists/change-verification.md",
+    "shaft-developer/references/specialists/cli.md",
+    "shaft-developer/references/specialists/database-testing.md",
+    "shaft-developer/references/specialists/defect-reporting.md",
+    "shaft-developer/references/specialists/execution-reporting.md",
+    "shaft-developer/references/specialists/failure-analysis.md",
+    "shaft-developer/references/specialists/flaky-test-analysis.md",
+    "shaft-developer/references/specialists/journey-coverage-map.md",
+    "shaft-developer/references/specialists/locator-design.md",
+    "shaft-developer/references/specialists/mcp.md",
+    "shaft-developer/references/specialists/mobile-actions.md",
+    "shaft-developer/references/specialists/mobile-retest-hygiene.md",
+    "shaft-developer/references/specialists/mobile-runtime.md",
+    "shaft-developer/references/specialists/nonfunctional-test-design.md",
+    "shaft-developer/references/specialists/page-objects.md",
+    "shaft-developer/references/specialists/recording-codegen.md",
+    "shaft-developer/references/specialists/requirements-analysis.md",
+    "shaft-developer/references/specialists/shaft-docs-hygiene.md",
+    "shaft-developer/references/specialists/stakeholder-reporting.md",
+    "shaft-developer/references/specialists/test-case-design.md",
+    "shaft-developer/references/specialists/test-completion.md",
+    "shaft-developer/references/specialists/test-data-design.md",
+    "shaft-developer/references/specialists/test-environment.md",
+    "shaft-developer/references/specialists/test-execution.md",
+    "shaft-developer/references/specialists/test-monitoring.md",
+    "shaft-developer/references/specialists/test-planning.md",
+    "shaft-developer/references/specialists/test-recording.md",
+    "shaft-developer/references/specialists/web-actions.md"
+  ],
   "skills": {
-    "shaft-accessibility-testing": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-nonfunctional-test-design"],
-      "notes": "WCAG and assistive-use triggers separate this specialist from broad nonfunctional design."
-    },
-    "shaft-api-testing": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-automated-test-authoring"],
-      "notes": "HTTP request and response evidence gives this implementation specialist a clear boundary."
-    },
-    "shaft-assertions": {
-      "scores": {"trigger_precision": 4, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 3},
-      "confusion_with": ["shaft-automated-test-authoring"],
-      "notes": "Oracle and verification wording is precise, but the description needs context compression."
-    },
-    "shaft-automated-test-authoring": {
-      "scores": {"trigger_precision": 4, "sibling_overlap": 3, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-change-verification", "shaft-web-actions"],
-      "notes": "Executable Java test ownership is clear; modality specialists remain intentional siblings."
-    },
-    "shaft-change-verification": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-automated-test-authoring"],
-      "notes": "Diff, guardrail, compile, and verdict triggers distinguish verification from authoring."
-    },
-    "shaft-cli": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-mcp"],
-      "notes": "One-shot machine-readable commands form the tested boundary against stateful MCP use."
-    },
-    "shaft-database-testing": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-automated-test-authoring"],
-      "notes": "Persisted-state and query terms route database work without claiming general authoring."
-    },
-    "shaft-defect-reporting": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 2},
-      "confusion_with": ["shaft-execution-reporting"],
-      "notes": "Confirmed product finding language is distinct, but the listing description is oversized."
-    },
     "shaft-developer": {
-      "scores": {"trigger_precision": 4, "sibling_overlap": 3, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 3},
-      "confusion_with": ["shaft-automated-test-authoring"],
+      "scores": {
+        "trigger_precision": 4,
+        "sibling_overlap": 3,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 5,
+        "context_cost": 3
+      },
+      "confusion_with": [
+        "shaft-automated-test-authoring"
+      ],
       "notes": "The router intentionally overlaps every specialist and must select exactly one owner."
-    },
-    "shaft-execution-reporting": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-stakeholder-reporting"],
-      "notes": "Engineering counts and evidence distinguish this report from decision-oriented summaries."
-    },
-    "shaft-failure-analysis": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-flaky-test-analysis"],
-      "notes": "Consistent failure and root-cause ownership are the reviewed boundary against flakiness."
-    },
-    "shaft-flaky-test-analysis": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 3},
-      "confusion_with": ["shaft-failure-analysis"],
-      "notes": "Equivalent-condition variance and retry history uniquely identify intermittent failures."
-    },
-    "shaft-fluent-api": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-web-actions", "shaft-assertions"],
-      "notes": "Fluent chain composition is narrow and concise despite adjacent web and assertion APIs."
-    },
-    "shaft-guide-search": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 5, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-developer"],
-      "notes": "Official-current guidance and citation requirements create a unique retrieval trigger."
-    },
-    "shaft-locator-design": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-page-objects"],
-      "notes": "DOM and accessibility evidence distinguish locator design from object architecture."
-    },
-    "shaft-mcp": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-cli"],
-      "notes": "Stateful interactive tool calls are a crisp complement to one-shot CLI behavior."
-    },
-    "shaft-mobile-actions": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-web-actions"],
-      "notes": "Native contexts, gestures, and app lifecycle terms keep mobile action routing specific."
-    },
-    "shaft-nonfunctional-test-design": {
-      "scores": {"trigger_precision": 4, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-accessibility-testing", "shaft-test-planning"],
-      "notes": "Measurable quality attributes define the scope; accessibility has a deeper specialist."
-    },
-    "shaft-page-objects": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-locator-design"],
-      "notes": "Reusable object and user-intent method ownership separates architecture from locators."
-    },
-    "shaft-recording-codegen": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-test-recording"],
-      "notes": "Persisted recording input and compilable Java output distinguish transformation from capture."
-    },
-    "shaft-requirements-analysis": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 3},
-      "confusion_with": ["shaft-test-planning", "shaft-test-case-design"],
-      "notes": "Pre-planning testability and gap analysis is clear, though the description needs compression."
-    },
-    "shaft-stakeholder-reporting": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-execution-reporting"],
-      "notes": "Business decisions and residual risk distinguish this from engineering result detail."
-    },
-    "shaft-test-case-design": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-test-planning", "shaft-requirements-analysis"],
-      "notes": "Concrete scenarios, data, steps, and expected outcomes bound this design specialist."
-    },
-    "shaft-test-completion": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 3, "context_cost": 5},
-      "confusion_with": ["shaft-test-monitoring", "shaft-stakeholder-reporting"],
-      "notes": "Cycle closure (exit criteria, archive, testware decisions, handover) is distinct from live monitoring and business reporting."
-    },
-    "shaft-test-data-design": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 5, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-database-testing"],
-      "notes": "Isolation, seeding, uniqueness, and cleanup identify data design rather than DB checks."
-    },
-    "shaft-test-environment": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 5, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-test-execution"],
-      "notes": "Readiness, parity, versions, and drift route environment work before execution."
-    },
-    "shaft-test-execution": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-test-monitoring"],
-      "notes": "Running approved scope with preflight and cleanup differs from observing active runs."
-    },
-    "shaft-test-monitoring": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-test-execution"],
-      "notes": "Progress, gates, health, and completion signals clearly indicate runtime monitoring."
-    },
-    "shaft-test-planning": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-requirements-analysis", "shaft-test-case-design"],
-      "notes": "Scope, resources, estimates, schedule, and criteria distinguish planning from analysis."
-    },
-    "shaft-test-recording": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 5},
-      "confusion_with": ["shaft-recording-codegen"],
-      "notes": "Approved live-flow capture and privacy-safe evidence separate recording from generation."
-    },
-    "shaft-web-actions": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 5, "context_cost": 4},
-      "confusion_with": ["shaft-mobile-actions", "shaft-fluent-api"],
-      "notes": "Browser navigation and interaction primitives are specific despite fluent API overlap."
-
-    },
-    "shaft-mobile-env": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-test-environment", "shaft-browserstack-native"],
-      "notes": "Local JDK/Appium/SDK/emulator doctor loop is distinct from cloud BrowserStack setup."
-    },
-    "shaft-browserstack-native": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"],
-      "notes": "App Automate secrets, device pins, and bs:// app ids bound cloud native runs."
-    },
-    "shaft-ios-ipa-acceptance": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-browserstack-native", "shaft-android-apk-select"],
-      "notes": "iphoneos Info.plist gate before upload is narrower than general BrowserStack config."
+    }
+  },
+  "routing_reviews": {
+    "shaft-accessibility-testing": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-nonfunctional-test-design"
+      ],
+      "notes": "WCAG and assistive-use triggers separate this specialist from broad nonfunctional design.",
+      "reference": "accessibility-testing.md"
     },
     "shaft-android-apk-select": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 5, "context_cost": 5},
-      "confusion_with": ["shaft-mobile-env", "shaft-ios-ipa-acceptance"],
-      "notes": "ABI vs universal APK choice for emulator versus arm64 cloud is a crisp artifact decision."
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-mobile-env",
+        "shaft-ios-ipa-acceptance"
+      ],
+      "notes": "ABI vs universal APK choice for emulator versus arm64 cloud is a crisp artifact decision.",
+      "reference": "mobile-runtime.md"
+    },
+    "shaft-api-testing": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-automated-test-authoring"
+      ],
+      "notes": "HTTP request and response evidence gives this implementation specialist a clear boundary.",
+      "reference": "api-testing.md"
+    },
+    "shaft-assertions": {
+      "scores": {
+        "trigger_precision": 4,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 3
+      },
+      "confusion_with": [
+        "shaft-automated-test-authoring"
+      ],
+      "notes": "Oracle and verification wording is precise, but the description needs context compression.",
+      "reference": "assertions.md"
+    },
+    "shaft-automated-test-authoring": {
+      "scores": {
+        "trigger_precision": 4,
+        "sibling_overlap": 3,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-change-verification",
+        "shaft-web-actions"
+      ],
+      "notes": "Executable Java test ownership is clear; modality specialists remain intentional siblings.",
+      "reference": "automated-test-authoring.md"
+    },
+    "shaft-browserstack-native": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-mobile-env",
+        "shaft-ios-ipa-acceptance"
+      ],
+      "notes": "App Automate secrets, device pins, and bs:// app ids bound cloud native runs.",
+      "reference": "mobile-runtime.md"
+    },
+    "shaft-change-verification": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-automated-test-authoring"
+      ],
+      "notes": "Diff, guardrail, compile, and verdict triggers distinguish verification from authoring.",
+      "reference": "change-verification.md"
+    },
+    "shaft-cli": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-mcp"
+      ],
+      "notes": "One-shot machine-readable commands form the tested boundary against stateful MCP use.",
+      "reference": "cli.md"
+    },
+    "shaft-database-testing": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-automated-test-authoring"
+      ],
+      "notes": "Persisted-state and query terms route database work without claiming general authoring.",
+      "reference": "database-testing.md"
+    },
+    "shaft-defect-reporting": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 2
+      },
+      "confusion_with": [
+        "shaft-execution-reporting"
+      ],
+      "notes": "Confirmed product finding language is distinct, but the listing description is oversized.",
+      "reference": "defect-reporting.md"
     },
     "shaft-docs-hygiene": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 3, "context_cost": 4},
-      "confusion_with": ["shaft-test-completion", "shaft-stakeholder-reporting"],
-      "notes": "SoT trio, three-status vocabulary, and hours math are docs process, not cycle closure reports."
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 3,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-test-completion",
+        "shaft-stakeholder-reporting"
+      ],
+      "notes": "SoT trio, three-status vocabulary, and hours math are docs process, not cycle closure reports.",
+      "reference": "shaft-docs-hygiene.md"
+    },
+    "shaft-execution-reporting": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-stakeholder-reporting"
+      ],
+      "notes": "Engineering counts and evidence distinguish this report from decision-oriented summaries.",
+      "reference": "execution-reporting.md"
+    },
+    "shaft-failure-analysis": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-flaky-test-analysis"
+      ],
+      "notes": "Consistent failure and root-cause ownership are the reviewed boundary against flakiness.",
+      "reference": "failure-analysis.md"
+    },
+    "shaft-flaky-test-analysis": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 3
+      },
+      "confusion_with": [
+        "shaft-failure-analysis"
+      ],
+      "notes": "Equivalent-condition variance and retry history uniquely identify intermittent failures.",
+      "reference": "flaky-test-analysis.md"
+    },
+    "shaft-fluent-api": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-web-actions",
+        "shaft-assertions"
+      ],
+      "notes": "Fluent chain composition is narrow and concise despite adjacent web and assertion APIs.",
+      "reference": "web-actions.md"
+    },
+    "shaft-guide-search": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 5,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-developer"
+      ],
+      "notes": "Official-current guidance and citation requirements create a unique retrieval trigger.",
+      "reference": "cli.md"
+    },
+    "shaft-ios-ipa-acceptance": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-browserstack-native",
+        "shaft-android-apk-select"
+      ],
+      "notes": "iphoneos Info.plist gate before upload is narrower than general BrowserStack config.",
+      "reference": "mobile-runtime.md"
+    },
+    "shaft-locator-design": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-page-objects"
+      ],
+      "notes": "DOM and accessibility evidence distinguish locator design from object architecture.",
+      "reference": "locator-design.md"
+    },
+    "shaft-mcp": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-cli"
+      ],
+      "notes": "Stateful interactive tool calls are a crisp complement to one-shot CLI behavior.",
+      "reference": "mcp.md"
+    },
+    "shaft-mobile-actions": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-web-actions"
+      ],
+      "notes": "Native contexts, gestures, and app lifecycle terms keep mobile action routing specific.",
+      "reference": "mobile-actions.md"
+    },
+    "shaft-mobile-env": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-test-environment",
+        "shaft-browserstack-native"
+      ],
+      "notes": "Local JDK/Appium/SDK/emulator doctor loop is distinct from cloud BrowserStack setup.",
+      "reference": "mobile-runtime.md"
     },
     "shaft-mobile-retest-hygiene": {
-      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 5, "runnable_evidence": 4, "context_cost": 4},
-      "confusion_with": ["shaft-failure-analysis", "shaft-mobile-actions"],
-      "notes": "Map no-op triage, picker probes, and mixed-bytecode journals specialize mobile retest analysis."
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 5,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-failure-analysis",
+        "shaft-mobile-actions"
+      ],
+      "notes": "Map no-op triage, picker probes, and mixed-bytecode journals specialize mobile retest analysis.",
+      "reference": "mobile-retest-hygiene.md"
+    },
+    "shaft-nonfunctional-test-design": {
+      "scores": {
+        "trigger_precision": 4,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-accessibility-testing",
+        "shaft-test-planning"
+      ],
+      "notes": "Measurable quality attributes define the scope; accessibility has a deeper specialist.",
+      "reference": "nonfunctional-test-design.md"
+    },
+    "shaft-page-objects": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-locator-design"
+      ],
+      "notes": "Reusable object and user-intent method ownership separates architecture from locators.",
+      "reference": "page-objects.md"
+    },
+    "shaft-recording-codegen": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-test-recording"
+      ],
+      "notes": "Persisted recording input and compilable Java output distinguish transformation from capture.",
+      "reference": "recording-codegen.md"
+    },
+    "shaft-requirements-analysis": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 3
+      },
+      "confusion_with": [
+        "shaft-test-planning",
+        "shaft-test-case-design"
+      ],
+      "notes": "Pre-planning testability and gap analysis is clear, though the description needs compression.",
+      "reference": "requirements-analysis.md"
+    },
+    "shaft-stakeholder-reporting": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-execution-reporting"
+      ],
+      "notes": "Business decisions and residual risk distinguish this from engineering result detail.",
+      "reference": "stakeholder-reporting.md"
+    },
+    "shaft-test-case-design": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-test-planning",
+        "shaft-requirements-analysis"
+      ],
+      "notes": "Concrete scenarios, data, steps, and expected outcomes bound this design specialist.",
+      "reference": "test-case-design.md"
+    },
+    "shaft-test-completion": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 3,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-test-monitoring",
+        "shaft-stakeholder-reporting"
+      ],
+      "notes": "Cycle closure (exit criteria, archive, testware decisions, handover) is distinct from live monitoring and business reporting.",
+      "reference": "test-completion.md"
+    },
+    "shaft-test-data-design": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 5,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-database-testing"
+      ],
+      "notes": "Isolation, seeding, uniqueness, and cleanup identify data design rather than DB checks.",
+      "reference": "test-data-design.md"
+    },
+    "shaft-test-environment": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 5,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-test-execution"
+      ],
+      "notes": "Readiness, parity, versions, and drift route environment work before execution.",
+      "reference": "test-environment.md"
+    },
+    "shaft-test-execution": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-test-monitoring"
+      ],
+      "notes": "Running approved scope with preflight and cleanup differs from observing active runs.",
+      "reference": "test-execution.md"
+    },
+    "shaft-test-monitoring": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-test-execution"
+      ],
+      "notes": "Progress, gates, health, and completion signals clearly indicate runtime monitoring.",
+      "reference": "test-monitoring.md"
+    },
+    "shaft-test-planning": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-requirements-analysis",
+        "shaft-test-case-design"
+      ],
+      "notes": "Scope, resources, estimates, schedule, and criteria distinguish planning from analysis.",
+      "reference": "test-planning.md"
+    },
+    "shaft-test-recording": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 4,
+        "context_cost": 5
+      },
+      "confusion_with": [
+        "shaft-recording-codegen"
+      ],
+      "notes": "Approved live-flow capture and privacy-safe evidence separate recording from generation.",
+      "reference": "test-recording.md"
+    },
+    "shaft-web-actions": {
+      "scores": {
+        "trigger_precision": 5,
+        "sibling_overlap": 4,
+        "dependency_depth": 5,
+        "reference_freshness": 4,
+        "runnable_evidence": 5,
+        "context_cost": 4
+      },
+      "confusion_with": [
+        "shaft-mobile-actions",
+        "shaft-fluent-api"
+      ],
+      "notes": "Browser navigation and interaction primitives are specific despite fluent API overlap.",
+      "reference": "web-actions.md"
     }
   }
 }
-

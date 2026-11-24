@@ -42,18 +42,6 @@ class ShaftSkillQualityTest(unittest.TestCase):
             "shaft-skills/example/references/playbook.md",
             "# Playbook\n\nRun `python -m unittest` and assert the result.\n",
         )
-        self.write(
-            "shaft-skills/other/SKILL.md",
-            "---\n"
-            "name: other\n"
-            "description: Use when another workflow needs a separate result.\n"
-            "---\n\n"
-            "# Other\n\nRead [the playbook](references/playbook.md).\n",
-        )
-        self.write(
-            "shaft-skills/other/references/playbook.md",
-            "# Playbook\n\nVerify the output with a focused check.\n",
-        )
         self.review = {
             "package": "shaft-skills",
             "supported_clients": ["Claude Code", "Codex CLI"],
@@ -63,8 +51,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
                 "max_skill_md_lines": 50,
             },
             "skills": {
-                "example": self.skill_review("other"),
-                "other": self.skill_review("example"),
+                "example": self.skill_review(),
             },
         }
         self.write_review()
@@ -80,7 +67,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
 
     @staticmethod
-    def skill_review(confusion_with: str) -> dict:
+    def skill_review(confusion_with: str | None = None) -> dict:
         return {
             "scores": {
                 "trigger_precision": 5,
@@ -90,7 +77,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
                 "runnable_evidence": 4,
                 "context_cost": 5,
             },
-            "confusion_with": [confusion_with],
+            "confusion_with": [] if confusion_with is None else [confusion_with],
             "notes": "Distinct trigger and current reference evidence were reviewed.",
         }
 
@@ -148,10 +135,34 @@ class ShaftSkillQualityTest(unittest.TestCase):
         self.assertIn("example", report)
 
     def test_missing_review_row_is_reported(self):
-        del self.review["skills"]["other"]
+        del self.review["skills"]["example"]
         self.write_review()
 
         self.assertDefect("review-skill-set")
+
+    def test_extra_discoverable_skill_fails_closed(self):
+        self.write(
+            "shaft-skills/other/SKILL.md",
+            "---\n"
+            "name: other\n"
+            "description: Use when another workflow needs a separate result.\n"
+            "---\n\n"
+            "# Other\n",
+        )
+
+        self.assertDefect("entrypoint-count")
+
+    def test_description_ceiling_fails_closed(self):
+        self.review["context_budget"]["max_description_chars"] = 181
+        self.write_review()
+
+        self.assertDefect("description-ceiling")
+
+    def test_listing_ceiling_fails_closed(self):
+        self.review["context_budget"]["max_total_description_chars"] = 501
+        self.write_review()
+
+        self.assertDefect("listing-ceiling")
 
     def test_unknown_review_row_is_reported(self):
         self.review["skills"]["ghost"] = self.skill_review("example")

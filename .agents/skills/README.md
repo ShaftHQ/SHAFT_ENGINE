@@ -325,9 +325,11 @@ is, [routing](../../shaft-skills/ce-pack/references/routing.md) says.
 ### The product pack
 
 `shaft-skills/` is a separate, published pack that teaches an agent to *use*
-SHAFT rather than to work on it. Its own router, `shaft-developer`, selects one
-of 31 specialist references. The routing table hands off to it and does not
-duplicate its rows.
+SHAFT rather than to work on it. One discoverable product skill,
+[`shaft-developer`](../../shaft-skills/shaft-developer/SKILL.md), selects exactly
+one of 31 specialist references. `shaft-skills/ce-pack/` is the contributor
+split, not a second product skill. The routing table hands off to
+`shaft-developer` and does not duplicate its rows.
 
 ## Importing these skills
 

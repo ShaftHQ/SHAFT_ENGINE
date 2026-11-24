@@ -39,6 +39,7 @@ FIRST_PARTY_GLOBS = (
     "chaos-engine/skills/*/SKILL.md",
     "chaos-engine/addons/*/SKILL.md",
     "chaos-engine/plugin-adapters/*/SKILL.md",
+    "shaft-skills/shaft-developer/SKILL.md",
 )
 BLOCK_SEVERITIES = frozenset({"HIGH", "CRITICAL"})
 MAX_SCORE = 50
@@ -58,6 +59,12 @@ def skill_dirs_from_paths(paths: list[str]) -> list[Path]:
     seen: set[Path] = set()
     for raw in paths:
         normalized = raw.replace("\\", "/").removeprefix("./")
+        if normalized.startswith("shaft-skills/shaft-developer/"):
+            skill_dir = Path("shaft-skills/shaft-developer")
+            if skill_dir not in seen:
+                seen.add(skill_dir)
+                found.append(skill_dir)
+            continue
         if not normalized.startswith("chaos-engine/"):
             continue
         parts = Path(normalized).parts

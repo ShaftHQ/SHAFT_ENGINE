@@ -109,4 +109,28 @@ def validate_skill_inventory(root: Path) -> list[dict[str, str]]:
                     "shaft-skills must stay a separate product pack",
                 )
             )
+    errors.extend(product_entrypoint_issues(root))
     return errors
+
+
+def product_entrypoint_issues(root: Path) -> list[dict[str, str]]:
+    """Fail closed unless shaft-skills publishes exactly the shaft-developer entrypoint."""
+    skills = root / "shaft-skills"
+    if not skills.is_dir():
+        return []
+    found = []
+    for path in sorted(skills.rglob("SKILL.md")):
+        relative = path.relative_to(skills)
+        if relative.parts and relative.parts[0] in {"ce-pack", "ce-addons"}:
+            continue
+        found.append(path.relative_to(root).as_posix())
+    if found == ["shaft-skills/shaft-developer/SKILL.md"]:
+        return []
+    shown = ", ".join(found) if found else "none"
+    return [
+        issue(
+            "skill-product-entrypoint",
+            "shaft-skills/shaft-developer/SKILL.md",
+            f"expected exactly shaft-skills/shaft-developer/SKILL.md, found {shown}",
+        )
+    ]

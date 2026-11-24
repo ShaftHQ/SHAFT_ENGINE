@@ -4,6 +4,8 @@
 
 **Agents:** load `shaft-skills/shaft-developer/SKILL.md` for product work, or `AGENTS.md` at the repository root when changing this repository. Do not treat these prompts as policy. Skip them unless the task evaluates skill routing.
 
+Every prompt below is a routing case for the single discoverable product skill `shaft-developer`. The `$shaft-...` token names the one specialist reference to load, not a second discoverable skill.
+
 Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding partner` first. Fresh agent sessions are fallback coverage when subagent or model-evaluation access is approved. They are not a substitute for the repo validation checks; they pressure-test whether agents apply the skills under realistic drift.
 
 ## `shaft-automated-test-authoring`

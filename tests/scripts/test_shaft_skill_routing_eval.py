@@ -228,11 +228,19 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
         self.assertEqual(defects, [])
         corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
+        universe = set(review["skills"]) | set(review["routing_reviews"])
+        specialists = ROOT / "shaft-skills/shaft-developer/references/specialists"
+        domains = {
+            path.name
+            for path in specialists.glob("*.md")
+            if path.name != "journey-coverage-map.md"
+        }
+        referenced = {row["reference"] for row in review["routing_reviews"].values()}
         self.assertEqual(len(corpus["cases"]), 37)
-        self.assertEqual(
-            {case["expected_skill"] for case in corpus["cases"]},
-            set(review["skills"]),
-        )
+        self.assertEqual({case["expected_skill"] for case in corpus["cases"]}, universe)
+        self.assertEqual(len(universe), 37)
+        self.assertEqual(referenced, domains)
+        self.assertEqual(len(domains), 31)
 
     def test_generated_drift_is_reported(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -259,7 +267,9 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
 
             defects = validate_repository(root)
 
-        self.assertIn("generated-drift", {defect["code"] for defect in defects})
+        codes = {defect["code"] for defect in defects}
+        self.assertIn("generated-drift", codes)
+        self.assertIn("entrypoint-count", codes)
 
 
 class OwnerGenerateFromScenarioRoutingTest(unittest.TestCase):
@@ -309,8 +319,9 @@ class NamedSituationRoutingTest(unittest.TestCase):
                 if line.startswith("|") and situation in line
             ]
             self.assertEqual(len(rows), 1, situation)
-            linked = re.findall(r"\]\(\.\./\.\./(shaft-[a-z0-9-]+)/SKILL\.md\)", rows[0])
-            self.assertEqual(linked, [skill], situation)
+            named = re.findall(r"`(shaft-[a-z0-9-]+)`", rows[0])
+            self.assertEqual(named, [skill], situation)
+            self.assertRegex(rows[0], r"\]\(specialists/[a-z0-9-]+\.md(?:#[a-z0-9-]+)?\)")
 
 
 if __name__ == "__main__":

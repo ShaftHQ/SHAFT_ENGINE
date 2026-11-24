@@ -8,8 +8,9 @@ description: Use when any SHAFT testing task starts, to load exactly one special
 ## Routing
 
 Read [the deterministic routing map](references/routing.md) and load exactly one
-specialist reference: the single row for the current deliverable. Do not open a
-second specialist in that turn. Return here only when the user asks for a distinct
+specialist reference: the single row for the current deliverable. Select exactly
+one lifecycle, implementation, or tool specialist. Do not open a second
+specialist in that turn. Return here only when the user asks for a distinct
 next deliverable.
 
 A lane with no row is no skill. Desktop automation has no skill. Do not load
