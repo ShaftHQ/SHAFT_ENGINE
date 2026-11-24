@@ -327,6 +327,54 @@ class ShaftProjectServiceTest {
     }
 
     @Test
+    void initAgentsRefusesToOverwriteAManagedSkillThroughAnInRepoSymlink() throws Exception {
+        ShaftProjectService service = projectService();
+        service.initAgents("codex", "symlink-skill", true);
+        Path repo = temp.resolve("symlink-skill");
+        Path skills = repo.resolve(".agents/skills");
+        Path skill = skills.resolve("shaft-developer/SKILL.md");
+        Path sentinel = skills.resolve("NOTES.md");
+        Files.writeString(sentinel, "sentinel-contents");
+        Files.delete(skill);
+        try {
+            Files.createSymbolicLink(skill, sentinel);
+        } catch (UnsupportedOperationException | SecurityException | java.io.IOException exception) {
+            assumeTrue(false, "Symlink creation is unavailable: " + exception.getMessage());
+            return;
+        }
+
+        McpShaftProjectInitAgentsResult result = service.initAgents("codex", "symlink-skill", true);
+
+        assertEquals("sentinel-contents", Files.readString(sentinel));
+        assertTrue(Files.isSymbolicLink(skill));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("symlink or junction")),
+                result.warnings().toString());
+    }
+
+    @Test
+    void initAgentsUnlinksNestedRetiredSkillSymlinkWithoutDeletingItsTarget() throws Exception {
+        ShaftProjectService service = projectService();
+        Path repo = Files.createDirectories(temp.resolve("nested-link"));
+        Path retired = repo.resolve(".github/instructions/shaft-cli");
+        writeOwnedRetiredSkill(retired, "shaft-cli");
+        Path secret = temp.resolve("outside-secret.txt");
+        Files.writeString(secret, "do-not-delete");
+        Path nested = retired.resolve("leak");
+        try {
+            Files.createSymbolicLink(nested, secret);
+        } catch (UnsupportedOperationException | SecurityException | java.io.IOException exception) {
+            assumeTrue(false, "Symlink creation is unavailable: " + exception.getMessage());
+            return;
+        }
+
+        service.initAgents("codex", "nested-link", true);
+
+        assertEquals("do-not-delete", Files.readString(secret));
+        assertFalse(Files.exists(retired));
+        assertFalse(Files.exists(nested));
+    }
+
+    @Test
     void initAgentsScaffoldsGrokLoopOnAgentsMdOnly() throws Exception {
         ShaftProjectService service = new ShaftProjectService(
                 McpWorkspacePolicy.of(temp),

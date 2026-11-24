@@ -16,7 +16,8 @@ class RequirementsPlaybookContractTest {
 
     @Test
     void livePlaybookStillHasTenNumberedPracticesMappedByRules() throws Exception {
-        Path playbook = Path.of("..", "shaft-skills", "shaft-requirements-analysis", "references", "playbook.md");
+        Path playbook = Path.of(
+                "..", "shaft-skills", "shaft-developer", "references", "specialists", "requirements-analysis.md");
         String text = Files.readString(playbook);
         TreeSet<Integer> numbered = new TreeSet<>();
         Matcher matcher = PRACTICE.matcher(text);

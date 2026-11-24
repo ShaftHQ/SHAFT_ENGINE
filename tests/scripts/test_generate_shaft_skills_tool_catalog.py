@@ -237,7 +237,7 @@ class HumanHeadingTest(unittest.TestCase):
 
 
 class RealRepositoryDriftGateTest(unittest.TestCase):
-    """Compares the checked-in catalog with the projection of canonical tool-index.json."""
+    """Compare the checked-in catalog with the projection of canonical tool-index.json."""
 
     def test_check_mode_passes_against_committed_catalog(self):
         stdout = io.StringIO()

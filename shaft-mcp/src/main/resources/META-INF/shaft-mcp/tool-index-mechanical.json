@@ -2483,7 +2483,7 @@
   }, {
     "name" : "shaft_project_init_agents",
     "service" : "ShaftProjectService",
-    "description" : "scaffolds SHAFT skill bridges and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files",
+    "description" : "installs the shaft-developer skill and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files",
     "params" : [ {
       "name" : "loop",
       "type" : "string",

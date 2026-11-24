@@ -168,9 +168,16 @@ def product_skill_errors(root: Path, budget: dict) -> list[dict[str, str]]:
         if relative.parts and relative.parts[0] in {"ce-pack", "ce-addons"}:
             continue
         found.append(path)
-    if not found:
-        return []
     expected = skills / "shaft-developer" / "SKILL.md"
+    if not found or not expected.is_file():
+        shown = ", ".join(path.relative_to(root).as_posix() for path in found) or "none"
+        return [
+            issue(
+                "product-entrypoint",
+                "shaft-skills/shaft-developer/SKILL.md",
+                f"expected exactly shaft-skills/shaft-developer/SKILL.md, found {shown}",
+            )
+        ]
     errors: list[dict[str, str]] = []
     if found != [expected]:
         shown = ", ".join(path.relative_to(root).as_posix() for path in found)

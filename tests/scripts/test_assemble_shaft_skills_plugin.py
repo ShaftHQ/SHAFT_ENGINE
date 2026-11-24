@@ -193,20 +193,61 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
 
     def test_assembly_is_deterministic_and_ignores_untracked_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
-        untracked = CANONICAL_SKILLS / "session-notes.md"
-        untracked.write_text("host state", encoding="utf-8")
-        self.addCleanup(untracked.unlink)
         second_root = self.package_root.parent / "second"
 
         assemble(ROOT, self.package_root)
         assemble(ROOT, second_root)
 
-        self.assertFalse((self.package_root / "skills/session-notes.md").exists())
         first = sorted(path.relative_to(self.package_root) for path in self.package_root.rglob("*") if path.is_file())
         second = sorted(path.relative_to(second_root) for path in second_root.rglob("*") if path.is_file())
         self.assertEqual(first, second)
         for path in first:
             self.assertEqual((self.package_root / path).read_bytes(), (second_root / path).read_bytes(), path)
+        self._assert_untracked_skill_note_stays_out_of_an_isolated_package()
+
+    def _assert_untracked_skill_note_stays_out_of_an_isolated_package(self):
+        """Assemble a committed temp repo and ignore an untracked session note."""
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "Git is required for portable assembly")
+        source_root = self.package_root.parent / "untracked-source"
+        skill = source_root / "shaft-skills/shaft-developer/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: shaft-developer\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/shaft-skills/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
+        changelog.write_text("# Test changelog\n", encoding="utf-8")
+        compatibility = source_root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+        compatibility.write_text("# Test compatibility\n", encoding="utf-8")
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"shaft-skills","version":"1.2.3"}]}\n',
+            encoding="utf-8",
+        )
+        write_test_pom(source_root, "1.2.3")
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
+        subprocess.run([git, "add", "."], cwd=source_root, check=True)  # nosec B603
+        subprocess.run(  # nosec B603
+            [git, "-c", "user.email=test@example.com", "-c", "user.name=Test",
+             "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "seed shaft-developer"],
+            cwd=source_root,
+            check=True,
+        )
+        untracked = source_root / "shaft-skills/session-notes.md"
+        untracked.write_text("host state", encoding="utf-8")
+        nested_untracked = source_root / "shaft-skills/shaft-developer/references/session-notes.md"
+        nested_untracked.parent.mkdir(parents=True, exist_ok=True)
+        nested_untracked.write_text("host state inside the consumer tree", encoding="utf-8")
+        isolated_package = self.package_root.parent / "untracked-package"
+
+        assemble(source_root, isolated_package)
+
+        self.assertFalse((isolated_package / "skills/session-notes.md").exists())
+        self.assertFalse((isolated_package / "skills/shaft-developer/references/session-notes.md").exists())
+        self.assertEqual(
+            skill.read_text(encoding="utf-8"),
+            (isolated_package / "skills/shaft-developer/SKILL.md").read_text(encoding="utf-8"),
+        )
 
     def test_assembly_keeps_every_relative_markdown_link_inside_the_package(self):
         self.assertTrue(callable(assemble), "assemble must be available")

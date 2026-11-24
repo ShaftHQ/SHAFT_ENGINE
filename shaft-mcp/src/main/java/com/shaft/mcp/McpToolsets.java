@@ -76,41 +76,27 @@ final class McpToolsets {
         return envValue == null ? "" : envValue;
     }
 
-    static Map<String, List<ToolCallback>> groupServices(
-            EngineService engineService,
-            BrowserService browserService,
-            ElementService elementService,
-            MobileService mobileService,
-            CaptureService captureService,
-            DoctorService doctorService,
-            TraceService traceService,
-            HealerService healerService,
-            GuideService guideService,
-            ShaftProjectService shaftProjectService,
-            TestAutomationService testAutomationService,
-            CodingPartnerService codingPartnerService,
-            AutobotService autobotService,
-            PlannerService plannerService,
-            InfrastructureMcpService infrastructureMcpService,
-            DesignService designService) {
+    static Map<String, List<ToolCallback>> groupServices(List<?> services) {
         Map<String, List<ToolCallback>> grouped = new LinkedHashMap<>();
-        grouped.put("engine", callbacksOf(engineService));
-        grouped.put("browser", callbacksOf(browserService));
-        grouped.put("element", callbacksOf(elementService));
-        grouped.put("mobile", callbacksOf(mobileService));
-        grouped.put("capture", callbacksOf(captureService));
-        grouped.put("doctor", callbacksOf(doctorService));
-        grouped.put("trace", callbacksOf(traceService));
-        grouped.put("healer", callbacksOf(healerService));
-        grouped.put("guide", callbacksOf(guideService));
-        grouped.put("project", callbacksOf(shaftProjectService));
-        grouped.put("test-automation", callbacksOf(testAutomationService));
-        grouped.put("coding-partner", callbacksOf(codingPartnerService));
-        grouped.put("autobot", callbacksOf(autobotService));
-        grouped.put("planner", callbacksOf(plannerService));
-        grouped.put("infrastructure", callbacksOf(infrastructureMcpService));
-        grouped.put("design", callbacksOf(designService));
+        for (ServiceGroup group : GROUPS) {
+            Object service = serviceFor(services, group.type());
+            if (service != null) {
+                grouped.put(group.key(), callbacksOf(service));
+            }
+        }
         return grouped;
+    }
+
+    private static @Nullable Object serviceFor(List<?> services, Class<?> type) {
+        if (services == null) {
+            return null;
+        }
+        for (Object service : services) {
+            if (type.isInstance(service)) {
+                return service;
+            }
+        }
+        return null;
     }
 
     static List<ToolCallback> exposeCallbacks(

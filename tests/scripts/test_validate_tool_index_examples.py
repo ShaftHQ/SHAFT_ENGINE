@@ -203,7 +203,19 @@ class DeliveredSkillContractTest(unittest.TestCase):
         )
         self._write(
             "shaft-developer/references/routing.md",
-            "# Routing\n\n- [Write tests](../../shaft-write-tests/SKILL.md)\n",
+            "# Routing\n\n- [Write tests](../../shaft-write-tests/SKILL.md)\n"
+            "- [Write tests specialist](specialists/write-tests.md)\n",
+        )
+        self._write(
+            "shaft-developer/references/specialists/write-tests.md",
+            "# Write tests\n\n## Ten practices\n\n"
+            "1. Keep one assertion intent.\n"
+            "2. Use the current guide.\n\n"
+            "## Valid examples\n\n"
+            "- Write a focused browser test from acceptance criteria.\n"
+            "- Repair a test while preserving its assertion intent.\n\n"
+            "## Boundary\n\n"
+            "- Do not invent a product skill outside shaft-developer.\n",
         )
         self._write_skill(
             "shaft-developer",
@@ -382,6 +394,65 @@ class DeliveredSkillContractTest(unittest.TestCase):
         self.assertTrue(
             any("shaft-developer/SKILL.md is required" in problem for problem in self.problems())
         )
+
+    def test_missing_specialists_directory_fails_closed(self):
+        shutil.rmtree(self.skills_root / "shaft-developer" / "references" / "specialists")
+
+        self.assertTrue(
+            any("shaft-developer/references/specialists is required" in problem for problem in self.problems())
+        )
+
+    def test_specialist_missing_from_routing_fails_closed(self):
+        routing = self.skills_root / "shaft-developer" / "references" / "routing.md"
+        routing.write_text(
+            routing.read_text(encoding="utf-8").replace(
+                "- [Write tests specialist](specialists/write-tests.md)\n",
+                "",
+            ),
+            encoding="utf-8",
+        )
+
+        self.assertTrue(
+            any("missing specialist link write-tests.md" in problem for problem in self.problems())
+        )
+
+    def test_duplicate_specialist_table_links_fail_closed(self):
+        routing = self.skills_root / "shaft-developer" / "references" / "routing.md"
+        routing.write_text(
+            routing.read_text(encoding="utf-8")
+            + "\n| One | [Write tests](specialists/write-tests.md) |\n"
+            + "| Two | [Write tests again](specialists/write-tests.md) |\n",
+            encoding="utf-8",
+        )
+
+        self.assertTrue(
+            any("duplicate specialist link specialists/write-tests.md" in problem for problem in self.problems())
+        )
+
+    def test_prose_repeat_and_distinct_anchors_are_not_duplicate_specialist_links(self):
+        routing = self.skills_root / "shaft-developer" / "references" / "routing.md"
+        routing.write_text(
+            routing.read_text(encoding="utf-8")
+            + "\nSee [write tests](specialists/write-tests.md) again.\n"
+            + "| Chain | [Fluent](specialists/write-tests.md#fluent) |\n"
+            + "| Guide | [Guide](specialists/write-tests.md#guide) |\n",
+            encoding="utf-8",
+        )
+
+        self.assertFalse(
+            any("duplicate specialist link" in problem for problem in self.problems())
+        )
+
+    def test_specialist_missing_examples_or_boundary_fails_closed(self):
+        self._write(
+            "shaft-developer/references/specialists/write-tests.md",
+            "# Write tests\n\n## Valid examples\n\n- Only one example.\n",
+        )
+
+        problems = self.problems()
+
+        self.assertTrue(any("missing required section Boundary" in problem for problem in problems), problems)
+        self.assertTrue(any("missing required examples" in problem for problem in problems), problems)
 
 
 if __name__ == "__main__":

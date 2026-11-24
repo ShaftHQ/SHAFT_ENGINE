@@ -396,6 +396,29 @@ class ValidateSkillsTest(unittest.TestCase):
 
         self.assertIn("product-entrypoint", self.codes())
 
+    def test_empty_product_skill_pack_fails_closed(self):
+        (self.root / "shaft-skills").mkdir()
+
+        errors = validate_repository(self.root, self.budget_path)
+
+        self.assertTrue(any(
+            error["code"] == "product-entrypoint" and "found none" in error["message"]
+            for error in errors
+        ), errors)
+
+    def test_product_pack_without_shaft_developer_fails_closed(self):
+        self.write(
+            "shaft-skills/other/SKILL.md",
+            "---\nname: other\ndescription: Use when the hub is missing.\n---\n\n# Other\n",
+        )
+
+        errors = validate_repository(self.root, self.budget_path)
+
+        self.assertTrue(any(
+            error["code"] == "product-entrypoint" and "shaft-skills/other/SKILL.md" in error["message"]
+            for error in errors
+        ), errors)
+
     def test_shipped_validator_ignores_a_project_without_a_marketplace_manifest(self):
         """The shipped validator must stay clean in a user project (#4478 F1).
 

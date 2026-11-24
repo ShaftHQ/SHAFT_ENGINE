@@ -13,7 +13,6 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -74,34 +73,28 @@ class ToolsCommandTest {
     }
 
     @Test
-    void firstSentenceReturnsEmptyForNullDescription() throws Exception {
-        assertEquals("", invokeFirstSentence(null));
+    void firstSentenceReturnsEmptyForNullDescription() {
+        assertEquals("", ToolsCommand.firstSentence(null));
     }
 
     @Test
-    void firstSentenceReturnsEmptyForBlankDescription() throws Exception {
-        assertEquals("", invokeFirstSentence("   "));
+    void firstSentenceReturnsEmptyForBlankDescription() {
+        assertEquals("", ToolsCommand.firstSentence("   "));
     }
 
     @Test
-    void firstSentenceCutsAtTheFirstPeriodSpace() throws Exception {
-        assertEquals("First sentence.", invokeFirstSentence("First sentence. Second sentence."));
+    void firstSentenceCutsAtTheFirstPeriodSpace() {
+        assertEquals("First sentence.", ToolsCommand.firstSentence("First sentence. Second sentence."));
     }
 
     @Test
-    void firstSentenceCutsAtANewlineWhenItComesBeforeAnyPeriod() throws Exception {
-        assertEquals("First line", invokeFirstSentence("First line\nSecond line. Third."));
+    void firstSentenceCutsAtANewlineWhenItComesBeforeAnyPeriod() {
+        assertEquals("First line", ToolsCommand.firstSentence("First line\nSecond line. Third."));
     }
 
     @Test
-    void firstSentenceReturnsTheWholeStrippedDescriptionWhenNoTerminatorExists() throws Exception {
-        assertEquals("No terminator here", invokeFirstSentence("  No terminator here  "));
-    }
-
-    private static String invokeFirstSentence(String description) throws Exception {
-        Method method = ToolsCommand.class.getDeclaredMethod("firstSentence", String.class);
-        method.setAccessible(true);
-        return (String) method.invoke(null, (Object) description);
+    void firstSentenceReturnsTheWholeStrippedDescriptionWhenNoTerminatorExists() {
+        assertEquals("No terminator here", ToolsCommand.firstSentence("  No terminator here  "));
     }
 
     private static final class FakeMcpClient implements McpClient {

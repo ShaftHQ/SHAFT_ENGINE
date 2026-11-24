@@ -13,6 +13,7 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
@@ -556,7 +557,7 @@ public class ShaftProjectService {
         Path current = base;
         for (Path part : Path.of(relative)) {
             current = current.resolve(part.toString());
-            if (Files.isSymbolicLink(current)) {
+            if (isLinkOrJunction(current)) {
                 return null;
             }
         }
@@ -567,8 +568,8 @@ public class ShaftProjectService {
         Path agents = directory.resolve("agents");
         Path skill = directory.resolve("SKILL.md");
         Path descriptor = agents.resolve("openai.yaml");
-        if (Files.isSymbolicLink(directory) || Files.isSymbolicLink(agents)
-                || Files.isSymbolicLink(skill) || Files.isSymbolicLink(descriptor)) {
+        if (isLinkOrJunction(directory) || isLinkOrJunction(agents)
+                || isLinkOrJunction(skill) || isLinkOrJunction(descriptor)) {
             return false;
         }
         if (!Files.isDirectory(directory) || !Files.isRegularFile(skill) || !Files.isRegularFile(descriptor)) {
@@ -588,15 +589,61 @@ public class ShaftProjectService {
     }
 
     private static void deleteRecursively(Path root) throws IOException {
-        if (Files.isSymbolicLink(root) || !Files.exists(root)) {
+        if (isLinkOrJunction(root) || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        try (var walk = Files.walk(root)) {
-            List<Path> paths = walk.sorted(Comparator.reverseOrder()).toList();
-            for (Path path : paths) {
-                Files.deleteIfExists(path);
+        if (Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
+            List<Path> children = new ArrayList<>();
+            try (var stream = Files.newDirectoryStream(root)) {
+                for (Path child : stream) {
+                    children.add(child);
+                }
+            }
+            for (Path child : children) {
+                if (isLinkOrJunction(child)) {
+                    Files.deleteIfExists(child);
+                } else {
+                    deleteRecursively(child);
+                }
             }
         }
+        Files.deleteIfExists(root);
+    }
+
+    private static boolean isLinkOrJunction(Path path) {
+        if (Files.isSymbolicLink(path)) {
+            return true;
+        }
+        if (!isWindows()) {
+            return false;
+        }
+        try {
+            if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                return false;
+            }
+            return Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS).isOther();
+        } catch (IOException exception) {
+            return true;
+        }
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static boolean containsLinkOrJunction(Path path, Path root) {
+        Path current = path.toAbsolutePath().normalize();
+        Path boundary = root.toAbsolutePath().normalize();
+        while (current != null && current.startsWith(boundary)) {
+            if (isLinkOrJunction(current)) {
+                return true;
+            }
+            if (current.equals(boundary)) {
+                break;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     private static boolean writeGeneratedFile(
@@ -608,6 +655,10 @@ public class ShaftProjectService {
             boolean overwrite,
             List<Path> generatedFiles,
             List<String> warnings) throws IOException {
+        if (containsLinkOrJunction(destination, targetRoot)) {
+            warnings.add("Refusing to write through a symlink or junction: " + destination);
+            return false;
+        }
         Path normalized = safeDestination(destination, targetRoot);
         if (Files.exists(normalized) && !overwrite) {
             warnings.add("Skipped existing file (overwrite=false): " + normalized);

@@ -941,6 +941,26 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertIn("custom-skill", installed_names)
             self.assertTrue(installed_names.isdisjoint(demoted))
 
+    def test_remove_retired_shaft_skills_keeps_tree_when_a_nested_entry_is_a_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            retired = root / ".agents" / "skills" / "shaft-cli"
+            (retired / "agents").mkdir(parents=True)
+            (retired / "SKILL.md").write_text("---\nname: shaft-cli\n---\n", encoding="utf-8")
+            (retired / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+            secret = root / "secret.txt"
+            secret.write_text("do-not-delete", encoding="utf-8")
+            try:
+                (retired / "leak").symlink_to(secret)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            MODULE.remove_retired_shaft_skills(root / ".agents" / "skills")
+
+            self.assertEqual("do-not-delete", secret.read_text(encoding="utf-8"))
+            self.assertTrue(retired.is_dir())
+            self.assertTrue((retired / "leak").is_symlink())
+
     def test_install_shaft_skills_rejects_linked_native_parent_before_legacy_cleanup(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -1451,6 +1471,54 @@ class InstallShaftMcpTest(unittest.TestCase):
             before = (copied / "shaft-developer" / "SKILL.md").stat().st_mtime_ns
             MODULE.copy_shaft_skills(source, target)
             self.assertEqual(before, (copied / "shaft-developer" / "SKILL.md").stat().st_mtime_ns)
+
+    def test_skills_copy_refuses_a_destination_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "shaft-skills"
+            skill = source / "shaft-developer"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: shaft-developer\n---\npacked\n", encoding="utf-8")
+            outside = root / "outside-skill.md"
+            outside.write_text("outside sentinel\n", encoding="utf-8")
+            target = root / "dest"
+            destination_dir = target / "shaft-developer"
+            destination_dir.mkdir(parents=True)
+            link = destination_dir / "SKILL.md"
+            try:
+                link.symlink_to(outside)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                MODULE.copy_shaft_skills(source, target)
+
+            self.assertEqual("outside sentinel\n", outside.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+
+    def test_skills_copy_refuses_a_symlinked_parent_under_the_skill_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "shaft-skills"
+            skill = source / "shaft-developer"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: shaft-developer\n---\npacked\n", encoding="utf-8")
+            outside = root / "outside-skill"
+            outside.mkdir()
+            sentinel = outside / "SKILL.md"
+            sentinel.write_text("outside sentinel\n", encoding="utf-8")
+            target = root / "dest"
+            target.mkdir()
+            try:
+                (target / "shaft-developer").symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                MODULE.copy_shaft_skills(source, target)
+
+            self.assertEqual("outside sentinel\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue((target / "shaft-developer").is_symlink())
 
     def test_replace_with_retry_recovers_after_transient_denial(self):
         with tempfile.TemporaryDirectory() as temp_dir:

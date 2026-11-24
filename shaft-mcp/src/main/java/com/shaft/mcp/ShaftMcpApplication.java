@@ -2,8 +2,9 @@ package com.shaft.mcp;
 
 import com.shaft.capture.cli.CaptureCli;
 import com.shaft.doctor.cli.DoctorCli;
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,6 +24,13 @@ import java.util.stream.Collectors;
 
 @SpringBootApplication
 public class ShaftMcpApplication {
+
+    /**
+     * Blank when unset so {@link McpToolsets#resolve} still honors {@code SHAFT_MCP_TOOLSETS}.
+     * {@code new ShaftMcpApplication()} leaves this unset and exposes every toolset.
+     */
+    @Autowired(required = false)
+    private @Nullable Environment environment;
 
     /**
      * The main entry point for the ShaftMcpApplication.
@@ -85,9 +93,8 @@ public class ShaftMcpApplication {
             AutobotService autobotService,
             PlannerService plannerService,
             InfrastructureMcpService infrastructureMcpService,
-            DesignService designService,
-            @Value("${shaft.mcp.toolsets:}") String toolsets) {
-        return McpToolsets.exposeCallbacks(toolsets, McpToolsets.groupServices(
+            DesignService designService) {
+        return McpToolsets.exposeCallbacks(selectedToolsets(), McpToolsets.groupServices(List.of(
                 engineService,
                 browserService,
                 elementService,
@@ -103,8 +110,16 @@ public class ShaftMcpApplication {
                 autobotService,
                 plannerService,
                 infrastructureMcpService,
-                designService));
+                designService)));
 	}
+
+    private String selectedToolsets() {
+        if (environment == null) {
+            return "all";
+        }
+        String configured = environment.getProperty("shaft.mcp.toolsets");
+        return configured == null ? "" : configured;
+    }
 
     /**
      * Drops {@code @McpTool} specs whose service is outside {@code shaft.mcp.toolsets} and removes

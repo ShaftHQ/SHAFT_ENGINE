@@ -224,6 +224,8 @@ def configuration_path(client: str, root: Path, home: Path, environment: dict[st
     if client == "copilot-intellij":
         if system == "Windows":
             return root / "local-app-data" / "github-copilot" / "intellij" / "mcp.json"
+        if system == "Darwin":
+            return home / "Library" / "Application Support" / "github-copilot" / "intellij" / "mcp.json"
         return Path(environment["XDG_CONFIG_HOME"]) / "github-copilot" / "intellij" / "mcp.json"
     if client == "claude-desktop":
         if system == "Windows":

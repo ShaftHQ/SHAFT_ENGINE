@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""Write the thin on-demand MCP and CLI caches from tool-index.json.
-
-The 122-tool catalog lives once, in shaft-skills/shaft-developer/references/shaft-mcp-tools.md.
-These caches only point at it. The MCP cache is the service-group summary an
-agent needs before choosing SHAFT_MCP_TOOLSETS. The CLI cache is the curated
-command index, so ordinary discovery does not run --help.
-
-    python3 scripts/mcp/generate_shaft_skill_tool_caches.py
-    python3 scripts/mcp/generate_shaft_skill_tool_caches.py --check
-
-"""
+"""Write the thin on-demand MCP and CLI caches from tool-index.json."""
+# The full catalog lives once, in shaft-skills/shaft-developer/references/shaft-mcp-tools.md.
+# These caches only point at it. The MCP cache is the service-group summary an
+# agent needs before choosing SHAFT_MCP_TOOLSETS. The CLI cache is the curated
+# command index, so ordinary discovery does not run --help.
+#
+#     python3 scripts/mcp/generate_shaft_skill_tool_caches.py
+#     python3 scripts/mcp/generate_shaft_skill_tool_caches.py --check
 
 from __future__ import annotations
 
@@ -78,6 +75,12 @@ class CacheError(RuntimeError):
     """Raised when tool-index.json cannot be projected into the thin caches."""
 
 
+def _tool_count(index: dict) -> int:
+    """Return how many tools the index publishes."""
+    tools = index.get("tools") or []
+    return len(tools)
+
+
 def _counts(index: dict) -> dict[str, int]:
     counts: dict[str, int] = {}
     for tool in index.get("tools") or []:
@@ -97,11 +100,12 @@ def _counts(index: dict) -> dict[str, int]:
 
 def render_mcp(index: dict) -> str:
     counts = _counts(index)
+    count = _tool_count(index)
     lines = [
         "# MCP cache",
         "",
         (
-            "Do not paste the full 122-tool catalog into prompts. "
+            f"Do not paste the full {count}-tool catalog into prompts. "
             "Use `SHAFT_MCP_TOOLSETS=<groups>` for a focused session."
         ),
         "",
@@ -126,13 +130,14 @@ def render_cli(index: dict) -> str:
     missing = [name for name in COLLISION_TOOLS if name not in names]
     if missing:
         raise CacheError(f"slash-alias collision tools missing from tool-index.json: {missing}")
+    count = _tool_count(index)
     forms = "\n".join(f"- `{form}`" for form in CLI_FORMS)
     return "\n".join([
         "# CLI cache",
         "",
         (
             "Do not run `--help` for ordinary discovery. "
-            "Do not paste the 122-tool catalog into prompts. "
+            f"Do not paste the {count}-tool catalog into prompts. "
             f"Names and summaries: {CATALOG_LINK}."
         ),
         "",

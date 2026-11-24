@@ -123,7 +123,7 @@ Use MCP `doctor_cause_label` / CLI `shaft-cli doctor cause-label` to confirm or 
 
 ## Token use and completeness (#6909)
 
-The captured list is `shaft-skills/references/efficiency-contract.md`.
+These efficiency rules are embedded directly in this router and its linked specialist references. A consumer install does not open a separate efficiency-contract file.
 
 - Load one specialist SKILL.md and its playbook; do not open a second skill in the same turn.
 - Do not paste MCP JSON schemas into the prompt; call the tool by its exact name.

@@ -9,10 +9,12 @@ Installers, `shaft_project_init_agents`, and the IntelliJ setup wizard share one
 | Host | Skill root | Instruction file |
 | --- | --- | --- |
 | Claude Code, Claude Desktop | `.claude/skills` | `CLAUDE.md` for Claude Code |
-| Codex, Cursor, VS Code, Grok, Antigravity, Gemini, GitHub Copilot, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md`, or `.github/copilot-instructions.md` for VS Code and Copilot |
+| Codex, Cursor, Grok, Antigravity, Gemini, GitHub Copilot CLI, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md` |
+| VS Code | `.agents/skills` | `.github/copilot-instructions.md` |
+| GitHub Copilot for IntelliJ IDEA | `.agents/skills` | Skills only. Copilot IntelliJ reads `.agents/skills` and does not use `.github/copilot-instructions.md`. |
 | OpenCode | `.opencode/skills` | `AGENTS.md` |
 
-Cursor, OpenCode, VS Code, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.
+VS Code instructions live in `.github/copilot-instructions.md`. GitHub Copilot CLI reads `AGENTS.md`. GitHub Copilot for IntelliJ IDEA uses the `.agents/skills` tree and does not read the VS Code instruction file. Cursor, OpenCode, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.
 
 | Client | Package validation | Marketplace discovery | Install / enable | Real load |
 | --- | --- | --- | --- | --- |

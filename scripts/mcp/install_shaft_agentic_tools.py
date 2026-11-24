@@ -1744,10 +1744,10 @@ def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
     agents = directory / "agents"
     descriptor = agents / "openai.yaml"
     if (
-        directory.is_symlink()
-        or skill.is_symlink()
-        or agents.is_symlink()
-        or descriptor.is_symlink()
+        is_link_or_junction(directory)
+        or is_link_or_junction(skill)
+        or is_link_or_junction(agents)
+        or is_link_or_junction(descriptor)
         or not (directory.is_dir() and skill.is_file() and descriptor.is_file())
     ):
         return False
@@ -1760,19 +1760,41 @@ def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
 
 def remove_retired_shaft_skills(target: Path) -> None:
     """Remove only verifiably SHAFT-owned legacy skill directories from a target."""
-    target = target.resolve()
+    if is_link_or_junction(target):
+        return
+    target = Path(os.path.abspath(target))
     for name in RETIRED_SHAFT_SKILL_DIRECTORIES:
         candidate = target / name
+        if _removal_blocked_by_link(target, candidate):
+            continue
         if is_owned_retired_shaft_skill(candidate, name):
             shutil.rmtree(candidate)
+
+
+def _removal_blocked_by_link(root: Path, candidate: Path) -> bool:
+    """Return whether candidate, an ancestor, or any entry is a link or junction."""
+    current = candidate
+    while True:
+        if is_link_or_junction(current):
+            return True
+        if current == root or current.parent == current:
+            break
+        current = current.parent
+    if not candidate.exists() or not candidate.is_dir():
+        return False
+    try:
+        for entry in candidate.rglob("*"):
+            if is_link_or_junction(entry):
+                return True
+    except OSError:
+        return True
+    return False
 
 
 def consumer_skill_relative(relative: str) -> bool:
     """True for the single consumer entrypoint, shaft-developer/**."""
     posix = relative.replace("\\", "/")
     if posix in CONSUMER_SKILL_EXCLUDED or not posix.startswith(CONSUMER_SKILL_PREFIX):
-        return False
-    if posix.startswith(("ce-pack/", "ce-addons/")):
         return False
     name = posix.rsplit("/", 1)[-1]
     return name not in CONSUMER_SKILL_EXCLUDED
@@ -1888,18 +1910,49 @@ def _skip_skill_copy(source_file: Path, destination: Path, relative: str) -> boo
 
 def copy_shaft_skills(source: Path, target: Path) -> Path:
     source = source.resolve()
-    target = target.resolve()
+    if is_link_or_junction(target):
+        fail(f"Refusing to copy SHAFT skills through a symlink or junction: {target}", 4)
+    target = Path(os.path.abspath(target))
     if source == target:
         return target
     target.mkdir(parents=True, exist_ok=True)
     for relative in shaft_skill_files(source):
         destination = target / relative
         source_file = source / relative
+        if _linked_between(target, destination):
+            fail(f"Refusing to write SHAFT skills through a symlink or junction: {destination}", 4)
         if _skip_skill_copy(source_file, destination, relative):
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_file, destination)
+        if _linked_between(target, destination):
+            fail(f"Refusing to write SHAFT skills through a symlink or junction: {destination}", 4)
+        _atomic_copy_skill_file(source_file, destination)
     return target
+
+
+def _linked_between(root: Path, path: Path) -> bool:
+    """Return whether path or a parent down to root is a symlink or junction."""
+    current = path
+    while True:
+        if is_link_or_junction(current):
+            return True
+        if current == root or current.parent == current:
+            return False
+        current = current.parent
+
+
+def _atomic_copy_skill_file(source_file: Path, destination: Path) -> None:
+    """Write skill bytes via a temp file in the destination directory, then replace."""
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as output:
+            output.write(source_file.read_bytes())
+        os.chmod(temporary, source_file.stat().st_mode & 0o777)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def shaft_skills_raw_file_url(relative: str) -> str:
@@ -1939,13 +1992,10 @@ def download_shaft_skills_files(target: Path) -> Path:
 
 
 def has_agent_guidance_scaffold(target: Path) -> bool:
-    """Whether the target project already carries the AGENTS.md guidance
-    scaffold this validator suite is designed to check. The suite validates
-    project-specific conventions (README.md content, host-context files,
-    guidance file budgets, etc.) that only exist in a project that has
-    deliberately adopted this scaffold -- installing it into an unrelated
-    project makes the onboarding-referenced validator crash on missing files
-    it has no reason to expect."""
+    """Return whether the project already carries the AGENTS.md guidance scaffold."""
+    # The suite checks project conventions that exist only after that scaffold
+    # is adopted. Installing it into an unrelated project makes the validator
+    # crash on files it has no reason to expect.
     return (target / AGENT_GUIDANCE_SCAFFOLD_MARKER).is_file()
 
 
@@ -2008,10 +2058,8 @@ def shaft_skills_targets(current_directory: Path, client: str | None) -> list[Pa
 
 
 def cleanup_owned_retired_skills(current_directory: Path) -> None:
-    """Delete owned retired skill directories under every legacy root.
-
-    A linked root is skipped so cleanup cannot follow a symlink out of the project.
-    """
+    """Delete owned retired skill directories under every legacy root."""
+    # A linked root is skipped so cleanup cannot follow a symlink out of the project.
     for relative in LEGACY_SKILL_CLEANUP_ROOTS:
         root = Path(os.path.abspath(current_directory))
         linked = False
@@ -2485,7 +2533,7 @@ def claude_desktop_config_path(name: str, user_home: Path) -> Path:
 
 
 def copilot_intellij_config_path(name: str, user_home: Path) -> Path:
-    """GitHub Copilot IntelliJ MCP config, including the macOS Application Support path."""
+    """Configure the GitHub Copilot IntelliJ MCP path, including macOS Application Support."""
     if name == "Windows":
         local_app_data = os.environ.get("LOCALAPPDATA")
         if not local_app_data:
@@ -2581,7 +2629,7 @@ def stdio_entry(java: Path, args_file: Path, copilot: bool = False) -> dict[str,
 
 
 def mcp_root_property(client: str) -> str:
-    """JSON object that holds MCP server entries for this client."""
+    """Return the JSON object that holds MCP server entries for this client."""
     if client in {"copilot-intellij", "vscode"}:
         return "servers"
     if client == "opencode":

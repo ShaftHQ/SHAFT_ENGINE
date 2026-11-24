@@ -147,9 +147,13 @@ def write_adapters(package_root: Path, version: str) -> None:
         "| Host | Skill root | Instruction file |\n"
         "| --- | --- | --- |\n"
         "| Claude Code, Claude Desktop | `.claude/skills` | `CLAUDE.md` for Claude Code |\n"
-        "| Codex, Cursor, VS Code, Grok, Antigravity, Gemini, GitHub Copilot, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md`, or `.github/copilot-instructions.md` for VS Code and Copilot |\n"
+        "| Codex, Cursor, Grok, Antigravity, Gemini, GitHub Copilot CLI, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md` |\n"
+        "| VS Code | `.agents/skills` | `.github/copilot-instructions.md` |\n"
+        "| GitHub Copilot for IntelliJ IDEA | `.agents/skills` | Skills only. Copilot IntelliJ reads `.agents/skills` and does not use `.github/copilot-instructions.md`. |\n"
         "| OpenCode | `.opencode/skills` | `AGENTS.md` |\n\n"
-        "Cursor, OpenCode, VS Code, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.\n"
+        "VS Code instructions live in `.github/copilot-instructions.md`. GitHub Copilot CLI reads `AGENTS.md`. "
+        "GitHub Copilot for IntelliJ IDEA uses the `.agents/skills` tree and does not read the VS Code instruction file. "
+        "Cursor, OpenCode, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.\n"
         "Contributor packs (`ce-pack`, `ce-addons`) and CI scorecards are not part of this package.\n",
         encoding="utf-8",
     )

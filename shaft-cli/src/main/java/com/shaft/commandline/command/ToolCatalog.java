@@ -214,6 +214,9 @@ final class ToolCatalog {
 
     static boolean matches(String name, String service, String group) {
         String key = group.trim().toLowerCase(Locale.ROOT);
+        if (key.isEmpty()) {
+            return true;
+        }
         if (key.indexOf('_') >= 0) {
             return name.toLowerCase(Locale.ROOT).startsWith(key);
         }
@@ -221,7 +224,11 @@ final class ToolCatalog {
             return true;
         }
         String aliased = SERVICE_ALIASES.getOrDefault(key, "");
-        return !aliased.isEmpty() && service.equalsIgnoreCase(aliased);
+        if (!aliased.isEmpty() && service.equalsIgnoreCase(aliased)) {
+            return true;
+        }
+        return service.isBlank() && !aliased.isEmpty()
+                && name.toLowerCase(Locale.ROOT).startsWith(key + "_");
     }
 
     private static String serviceOf(String name, String advertised, Map<String, String> services) {

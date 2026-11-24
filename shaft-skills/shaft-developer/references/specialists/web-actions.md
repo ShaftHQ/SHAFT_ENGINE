@@ -31,7 +31,7 @@ An action that returns without an exception is not proof the control fired.
 
 ## Fluent chains
 
-## Ten practices
+### Fluent chain practices
 
 1. Confirm the exact chain in the current guide or repository before editing; fluent return types differ by action family and version. [`SHAFT-GUIDE`]
 2. Start from the correct facade and surface: `driver.browser()`, `driver.element()`, `driver.touch()`, `driver.assertThat()`, `driver.verifyThat()`, or `SHAFT.Validations`. [`SHAFT-GUIDE`]
@@ -44,12 +44,12 @@ An action that returns without an exception is not proof the control fired.
 9. Do not mix raw Selenium/Appium/REST-assured calls or third-party assertions into a SHAFT chain. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
 10. Compile the exact chain and run the nearest test; use `test_code_guardrails_check` before accepting generated code. [`SHAFT-MCP`, `ISTQB-CTFL`]
 
-## Valid examples
+### Fluent chain examples
 
 - Navigate with `driver.browser().navigateToURL(url)`, then assert visibility with `driver.element().assertThat(title).isVisible()`.
 - Chain form actions through `driver.element().type(email, user).and().type(password, pass).and().click(submit)`.
 - Replace an unfinished browser assertion builder with `driver.assertThat().browser().url().contains("/dashboard")`.
 
-## Boundary
+### Fluent chain boundary
 
 - Fluent composition does not choose the locator, page-object owner, or business oracle; route locator, page-object, and oracle decisions to [locator design](locator-design.md), [page objects](page-objects.md), and [assertions](assertions.md) before polishing the chain. Touch chains: [mobile actions](mobile-actions.md).

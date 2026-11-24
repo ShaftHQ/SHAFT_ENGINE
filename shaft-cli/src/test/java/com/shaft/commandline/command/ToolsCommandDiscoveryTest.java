@@ -156,9 +156,11 @@ class ToolsCommandDiscoveryTest {
         Result prefix = run(client, "--group", "browser_", "--compact");
         Result json = run(client, "--json", "--group", "browser_");
 
+        Result aliasJson = run(client, "--json", "--group", "browser");
+
         assertEquals(0, compact.exit, compact.err);
         assertTrue(compact.out.contains("browser_navigate (targetUrl)"), compact.out);
-        assertFalse(compact.out.contains("browser_custom"), compact.out);
+        assertTrue(compact.out.contains("browser_custom (url)"), compact.out);
         assertFalse(compact.out.contains("element_click"), compact.out);
         assertFalse(compact.out.contains("Navigates"), compact.out);
         assertTrue(prefix.out.contains("browser_custom (url)"), prefix.out);
@@ -166,7 +168,171 @@ class ToolsCommandDiscoveryTest {
         assertFalse(prefix.out.contains("element_click"), prefix.out);
         assertEquals(0, json.exit, json.err);
         assertTrue(json.out.contains("browser_navigate"), json.out);
+        assertTrue(json.out.contains("browser_custom"), json.out);
         assertFalse(json.out.contains("element_click"), json.out);
+        assertEquals(0, aliasJson.exit, aliasJson.err);
+        assertTrue(aliasJson.out.contains("browser_custom"), aliasJson.out);
+        assertTrue(aliasJson.out.contains("browser_navigate"), aliasJson.out);
+        assertFalse(aliasJson.out.contains("element_click"), aliasJson.out);
+        assertTrue(client.closed);
+    }
+
+    @Test
+    void liveReportAliasMatchesUnknownPrefixedToolAndSkipsCachedTraceReport() {
+        ObjectNode schema = Json.newObject();
+        schema.putArray("required").add("path");
+        ObjectNode raw = Json.newObject();
+        var tools = raw.putArray("tools");
+        tools.addObject().put("name", "report_custom").put("description", "Custom report tool. Extra.");
+        tools.addObject().put("name", "report_open").put("description", "Opens a report. Extra.");
+        tools.addObject().put("name", "test_automation_scenarios").put("description", "Lists scenarios. Extra.");
+        FakeClient client = new FakeClient(List.of(
+                new Tool("report_custom", "Custom report tool. Extra.", schema),
+                new Tool("report_open", "Opens a report. Extra.", null),
+                new Tool("test_automation_scenarios", "Lists scenarios. Extra.", null)
+        ), raw);
+
+        Result compact = run(client, "--group", "report", "--compact");
+
+        assertEquals(0, compact.exit, compact.err);
+        assertTrue(compact.out.contains("report_custom (path)"), compact.out);
+        assertTrue(compact.out.contains("test_automation_scenarios"), compact.out);
+        assertFalse(compact.out.contains("report_open"), compact.out);
+    }
+
+    @Test
+    void groupMatchCoversAliasPrefixFallbackAndKnownServiceExclusion() {
+        assertTrue(ToolCatalog.matches("browser_navigate", "BrowserService", "  "));
+        assertTrue(ToolCatalog.matches("browser_custom", "", "browser"));
+        assertTrue(ToolCatalog.matches("Browser_Custom", "", "BROWSER"));
+        assertTrue(ToolCatalog.matches("browser_navigate", "BrowserService", "browser"));
+        assertTrue(ToolCatalog.matches("browser_navigate", "BrowserService", "BrowserService"));
+        assertFalse(ToolCatalog.matches("report_open", "TraceService", "report"));
+        assertTrue(ToolCatalog.matches("report_open", "TraceService", "report_"));
+        assertFalse(ToolCatalog.matches("element_click", "", "browser"));
+        assertFalse(ToolCatalog.matches("browser_custom", "ElementService", "browser"));
+    }
+
+    @Test
+    void renderCachedFiltersJsonAndTextAndRejectsAnUnknownGroup() throws Exception {
+        JsonNode index = Json.MAPPER.readTree("""
+                {
+                  "schemaVersion": "1.0",
+                  "tools": [
+                    {
+                      "name": "browser_navigate",
+                      "service": "BrowserService",
+                      "description": "Navigates to a URL. Extra.",
+                      "params": [{"name": "targetUrl", "type": "string", "required": true, "description": "page url"}],
+                      "cliCommand": "browser navigate",
+                      "slashAlias": null,
+                      "example": {"request": {}}
+                    },
+                    {
+                      "name": "element_click",
+                      "service": "ElementService",
+                      "description": "Clicks.",
+                      "params": []
+                    }
+                  ]
+                }
+                """);
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+        PrintWriter outWriter = new PrintWriter(out, true);
+        PrintWriter errWriter = new PrintWriter(err, true);
+
+        assertEquals(0, ToolCatalog.renderCached(index, outWriter, errWriter, true, false, "browser"));
+        assertTrue(out.toString().contains("browser_navigate"), out.toString());
+        assertFalse(out.toString().contains("element_click"), out.toString());
+
+        out.getBuffer().setLength(0);
+        assertEquals(0, ToolCatalog.renderCached(index, outWriter, errWriter, false, false, "browser"));
+        assertTrue(out.toString().contains("browser_navigate — Navigates to a URL."), out.toString());
+        assertFalse(out.toString().contains("Extra."), out.toString());
+
+        out.getBuffer().setLength(0);
+        err.getBuffer().setLength(0);
+        assertEquals(2, ToolCatalog.renderCached(index, outWriter, errWriter, false, true, "missing-group"));
+        assertTrue(err.toString().contains("missing-group"), err.toString());
+
+        JsonNode broken = Json.MAPPER.readTree("{\"schemaVersion\":\"1.0\",\"tools\":{}}");
+        out.getBuffer().setLength(0);
+        err.getBuffer().setLength(0);
+        assertEquals(2, ToolCatalog.renderCached(broken, outWriter, errWriter, false, true, "browser"));
+        assertTrue(err.toString().contains("browser"), err.toString());
+    }
+
+    @Test
+    void renderLivePrintsSentencesAndRejectsBadOrEmptyJson() {
+        ObjectNode schema = Json.newObject();
+        schema.putArray("required").add("url");
+        FakeClient client = new FakeClient(List.of(
+                new Tool("browser_custom", "Custom browser tool. Extra detail.", schema)
+        ), Json.MAPPER.readTree("[]"));
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+        PrintWriter outWriter = new PrintWriter(out, true);
+        PrintWriter errWriter = new PrintWriter(err, true);
+
+        assertEquals(0, ToolCatalog.renderLive(client, outWriter, errWriter, false, false, "browser"));
+        assertTrue(out.toString().contains("browser_custom — Custom browser tool."), out.toString());
+        assertFalse(out.toString().contains("Extra detail."), out.toString());
+
+        out.getBuffer().setLength(0);
+        err.getBuffer().setLength(0);
+        assertEquals(1, ToolCatalog.renderLive(client, outWriter, errWriter, true, false, "browser"));
+        assertTrue(err.toString().contains("not a JSON object"), err.toString());
+
+        FakeClient empty = new FakeClient(List.of(), Json.newObject());
+        out.getBuffer().setLength(0);
+        err.getBuffer().setLength(0);
+        assertEquals(2, ToolCatalog.renderLive(empty, outWriter, errWriter, true, false, "browser"));
+        assertTrue(err.toString().contains("browser"), err.toString());
+
+        out.getBuffer().setLength(0);
+        err.getBuffer().setLength(0);
+        assertEquals(2, ToolCatalog.renderLive(client, outWriter, errWriter, false, true, "no-such-group"));
+        assertTrue(err.toString().contains("no-such-group"), err.toString());
+    }
+
+    @Test
+    void describeAutobotClientsPrintsTheRecordedExample() {
+        Result described = run("describe", "autobot_local_agent_clients");
+
+        assertEquals(0, described.exit, described.err);
+        assertTrue(described.out.contains("example:"), described.out);
+        assertTrue(described.out.contains("- (none)"), described.out);
+        assertFalse(described.out.contains("cli:"), described.out);
+    }
+
+    @Test
+    void cachedCompactWithoutGroupAndGroupedTextStayOffline() {
+        Result compact = run("--cached", "--compact");
+        Result grouped = run("--cached", "--group", "browser");
+
+        assertEquals(0, compact.exit, compact.err);
+        assertTrue(compact.out.contains("browser_navigate"), compact.out);
+        assertFalse(compact.out.contains(" — "), compact.out);
+        assertEquals(0, grouped.exit, grouped.err);
+        assertTrue(grouped.out.contains("browser_navigate — "), grouped.out);
+        assertFalse(grouped.out.contains("element_click"), grouped.out);
+    }
+
+    @Test
+    void liveCompactWithoutGroupListsEveryReturnedTool() {
+        ObjectNode schema = Json.newObject();
+        schema.putArray("required").add("targetUrl");
+        FakeClient client = new FakeClient(List.of(
+                new Tool("browser_navigate", "Navigates to a URL. Extra detail.", schema),
+                new Tool("element_click", "Clicks an element.", null)
+        ), rawTools());
+
+        Result compact = run(client, "--compact");
+
+        assertEquals(0, compact.exit, compact.err);
+        assertTrue(compact.out.contains("browser_navigate (targetUrl)"), compact.out);
+        assertTrue(compact.out.contains("element_click"), compact.out);
         assertTrue(client.closed);
     }
 

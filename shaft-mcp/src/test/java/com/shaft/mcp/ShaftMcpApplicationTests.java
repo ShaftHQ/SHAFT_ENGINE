@@ -713,7 +713,7 @@ class ShaftMcpApplicationTests {
     }
 
     private Map<String, List<ToolCallback>> groupedServices() {
-        return McpToolsets.groupServices(
+        return McpToolsets.groupServices(List.of(
                 context.getBean(EngineService.class),
                 context.getBean(BrowserService.class),
                 context.getBean(ElementService.class),
@@ -729,6 +729,6 @@ class ShaftMcpApplicationTests {
                 context.getBean(AutobotService.class),
                 context.getBean(PlannerService.class),
                 context.getBean(InfrastructureMcpService.class),
-                context.getBean(DesignService.class));
+                context.getBean(DesignService.class)));
     }
 }
