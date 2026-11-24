@@ -231,7 +231,7 @@ write files and does not fetch URLs (issue #5947).</div>
 <h3>ingest</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="design_ingest",
-      description="turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs")
+      description="turns pasted story text or a workspace file into a Design pack with actor, outcome, and numbered AC IDs; writes nothing")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpDesignPack.html" title="class in com.shaft.mcp">McpDesignPack</a></span>&nbsp;<span class="element-name">ingest</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl)</span></div>
@@ -252,7 +252,7 @@ write files and does not fetch URLs (issue #5947).</div>
 <h3>analyze</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="design_analyze",
-      description="runs the requirements-analysis playbook on a story or workspace file and returns a gap register with stable GAP IDs; never writes files and does not generate Gherkin")
+      description="runs the requirements playbook on a story or workspace file and returns GAP IDs; writes nothing and does not draft Gherkin")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpDesignAnalysis.html" title="class in com.shaft.mcp">McpDesignAnalysis</a></span>&nbsp;<span class="element-name">analyze</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,
@@ -376,7 +376,7 @@ write files and does not fetch URLs (issue #5947).</div>
 <h3>handoff</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="design_handoff",
-      description="serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user \u2014 never invents locators/URLs or writes Java")
+      description="serializes a Ready Design pack for Automation prefill; sourceUrl is used only when the user supplied it, and it writes no Java")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpDesignHandoff.html" title="class in com.shaft.mcp">McpDesignHandoff</a></span>&nbsp;<span class="element-name">handoff</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceUrl,

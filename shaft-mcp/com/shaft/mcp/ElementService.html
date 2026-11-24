@@ -341,7 +341,7 @@ code path; only Playwright uses a distinct driver instance.</div>
 <h3>click</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_click",
-      description="clicks an element; optional mode selects single (default) | double | long; dispatches to the active engine and records the step when a mobile or Playwright recording is active")
+      description="clicks an element; mode is single (default), double, or long, and records the step on mobile or Playwright")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">click</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  @ToolParam(required=false)
@@ -415,7 +415,7 @@ Not exposed as an MCP tool because semantic names may contain sensitive applicat
 <h3>type</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_type",
-      description="types text into an element; optional append (default false) appends instead of clearing first, optional clear (default true; false behaves like append=true) controls whether the field is cleared before typing; dispatches to the active engine and records the step when a mobile or Playwright recording is active")
+      description="types text into an element; append adds text and clear=false keeps existing text; records the step on mobile or Playwright")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">type</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorValue,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text,
@@ -539,7 +539,7 @@ use the same code path; only Playwright uses a distinct driver instance.</div>
 <h3>dragAndDrop</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="element_drag_and_drop",
-      description="drags and drops an element from source to a target locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine and records the step when a Playwright recording is active")
+      description="drags an element onto a target locator, or by offsetX and offsetY when no target is given; records the step on Playwright")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ElementActionResult.html" title="class in com.shaft.mcp">ElementActionResult</a></span>&nbsp;<span class="element-name">dragAndDrop</span><wbr><span class="parameters">(<a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;sourceLocatorStrategy,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sourceLocatorValue,
  @ToolParam(required=false)

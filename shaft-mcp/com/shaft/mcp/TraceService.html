@@ -412,7 +412,7 @@ summary. See <a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/d
 <h3>reportHistory</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_history",
-      description="ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state")
+      description="ingests Allure history.jsonl and optional Doctor JSON for cross-run history; missing history is an empty state, not a failure")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/AllureHistoryModels.HistoryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">AllureHistoryModels.HistoryView</a></span>&nbsp;<span class="element-name">reportHistory</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
  @ToolParam(required=false)
@@ -443,7 +443,7 @@ attempts discovered in the current allure-results tree.</div>
 <h3>reportFlake</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_flake",
-      description="builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional")
+      description="builds separate intra-run and cross-launch flake tables; unknown history stays explicit, and CI commit metadata is optional")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/FlakeModels.FlakeTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">FlakeModels.FlakeTable</a></span>&nbsp;<span class="element-name">reportFlake</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
  @ToolParam(required=false)
@@ -475,7 +475,7 @@ Insufficient history is <code>unknown</code>, not a fabricated 0% rate; 100% fai
 <h3>reportSmartTags</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_smart_tags",
-      description="computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist")
+      description="tags Allure history as New, Always-failing, Flaky, Regressed, or Fixed; a first failure is New, and thin history is not Flaky")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/SmartTagModels.SmartTagTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">SmartTagModels.SmartTagTable</a></span>&nbsp;<span class="element-name">reportSmartTags</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;historyPath,
  @ToolParam(required=false)
@@ -531,7 +531,7 @@ Deterministic — no cloud ML. Empty results yield empty-state.</div>
 <h3>reportHeal</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_heal",
-      description="dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators")
+      description="dashboards Heal decisions with a persist-on-pass review gate; RECOVERED plus pass is reviewable, and it never writes locators")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/HealInsightModels.HealInsightsTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">HealInsightModels.HealInsightsTable</a></span>&nbsp;<span class="element-name">reportHeal</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportsPath,
  @ToolParam(required=false)
@@ -558,7 +558,7 @@ apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
 <h3>reportOpen</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_open",
-      description="opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure")
+      description="opens the newest Allure HTML report, or names generate_test_report when none exists; never rewrites the HTML")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.OpenView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.OpenView</a></span>&nbsp;<span class="element-name">reportOpen</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;reportPath,
  @ToolParam(required=false)
@@ -583,7 +583,7 @@ apply-to-source primary action. NO_CANDIDATES is shown, not silent. Reuse
 <h3>reportSummary</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_summary",
-      description="builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA")
+      description="builds engineer and stakeholder report summaries from Allure, flake, and heal counts, and never includes secrets")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/ReportSummaryModels.SummaryView.html" title="class or interface in com.shaft.doctor.history" class="external-link">ReportSummaryModels.SummaryView</a></span>&nbsp;<span class="element-name">reportSummary</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;allureResultsPath,
  @ToolParam(required=false)
@@ -617,7 +617,7 @@ Reuses shaft-execution-reporting / shaft-stakeholder-reporting playbook shapes. 
 <h3>reportMute</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="report_mute",
-      description="local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file")
+      description="mutes a local flake with a required reason until N local passes; the store is gitignored .shaft/local-mutes.json unless a path is set")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://shafthq.github.io/shaft-doctor/apidocs/com/shaft/doctor/history/LocalMuteModels.MuteTable.html" title="class or interface in com.shaft.doctor.history" class="external-link">LocalMuteModels.MuteTable</a></span>&nbsp;<span class="element-name">reportMute</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  @ToolParam(required=false)

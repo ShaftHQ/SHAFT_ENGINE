@@ -649,7 +649,7 @@ same actionable message when the device or toolchain is not ready.</div>
 <h3>inspectorRecordStatus</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="mobile_inspector_record_status",
-      description="returns the wrapped Appium Inspector recording status; optional action (pause|resume|checkpoint|stop|discard) performs that control first, absorbing mobile_inspector_record_control")
+      description="returns Appium Inspector recording status; optional action pause, resume, checkpoint, stop, or discard runs that control first")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileInspectorRecordingStatus.html" title="class in com.shaft.mcp">McpMobileInspectorRecordingStatus</a></span>&nbsp;<span class="element-name">inspectorRecordStatus</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  @ToolParam(required=false)
@@ -867,7 +867,7 @@ redacted from the recording, so ordinary inputs such as search boxes stay replay
 <h3>swipe</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="mobile_swipe",
-      description="swipes on the mobile screen; dispatches on whichever optional params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | locator alone (swipe element into view, optional direction) | startX/startY/endX/endY (coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/mobile_swipe_element_into_view/mobile_swipe_text_into_view")
+      description="swipes on the mobile screen by text, a locator, a locator offset, or start and end coordinates")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileActionResult.html" title="class in com.shaft.mcp">McpMobileActionResult</a></span>&nbsp;<span class="element-name">swipe</span><wbr><span class="parameters">(@ToolParam(required=false)
  <a href="locatorStrategy.html" title="enum class in com.shaft.mcp">locatorStrategy</a>&nbsp;locatorStrategy,
  @ToolParam(required=false)

@@ -141,7 +141,7 @@
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
  boolean&nbsp;overwrite)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.</div>
+<div class="block">Installs the self-contained <code>shaft-developer</code> skill and host instruction files.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="McpShaftProjectUpgradeResult.html" title="class in com.shaft.mcp">McpShaftProjectUpgradeResult</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#upgradeProject(java.lang.String,java.lang.String,boolean,boolean,java.lang.String,java.lang.String,int,boolean,boolean)" class="member-name-link">upgradeProject</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectRoot,
@@ -298,27 +298,22 @@
 <h3>initAgents</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="shaft_project_init_agents",
-      description="scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true")
+      description="installs the shaft-developer skill and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpShaftProjectInitAgentsResult.html" title="class in com.shaft.mcp">McpShaftProjectInitAgentsResult</a></span>&nbsp;<span class="element-name">initAgents</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;loop,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetDirectory,
  boolean&nbsp;overwrite)</span></div>
-<div class="block">Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.
+<div class="block">Installs the self-contained <code>shaft-developer</code> skill and host instruction files.
 
-<p>Every bridge is generated at call time from the bundled <code>shaft-skills/&amp;lt;skill&amp;gt;/SKILL.md</code>
-guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
-so the set of skills and their descriptions always tracks <code>shaft-skills/</code> as of the shaft-mcp
-build. Existing skill files are left untouched unless <code>overwrite</code> is <code>true</code>; host
-instruction files always preserve user-authored bytes outside SHAFT's managed block. Existing
-recognized host adapters are refreshed alongside the selected loop, and <code>all</code> installs every
-supported host adapter.
-
-<p>A bundled skill whose <code>SKILL.md</code> frontmatter declares <code>distribution: full</code> is a
-methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
-thin bridge: verbatim for claude/codex/opencode, and with an injected <code>applyTo: "**"</code> frontmatter
-key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.</div>
+<p>The canonical tree is <code>.agents/skills/shaft-developer/</code>. Claude also receives
+<code>.claude/skills/shaft-developer/</code>, and OpenCode receives
+<code>.opencode/skills/shaft-developer/</code>, only when that host is selected. VS Code writes
+<code>.github/copilot-instructions.md</code> pointing at the canonical <code>SKILL.md</code>. Skills are
+not copied into <code>.github/instructions/</code>. Hosts that share <code>AGENTS.md</code> receive one
+SHAFT managed block. A plain user instruction file does not add another host. Owned legacy
+skill directories are removed; unowned skills stay.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>loop</code> - all, claude, codex, opencode, vscode, or grok</dd>
+<dd><code>loop</code> - <code>all</code>, or one <code>initAgentsSupported</code> host from <code>scripts/mcp/agent_hosts.json</code></dd>
 <dd><code>targetDirectory</code> - workspace-relative existing test repo directory</dd>
 <dd><code>overwrite</code> - whether existing SHAFT-owned skill files may be replaced</dd>
 <dt>Returns:</dt>

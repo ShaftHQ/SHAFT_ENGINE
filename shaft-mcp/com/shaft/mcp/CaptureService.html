@@ -440,7 +440,7 @@ Java callers and tests that construct this class without Spring.</div>
 <h3>start</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_start",
-      description="starts a recording, dispatching to the active engine: WEB (or no active session) always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while it is active, element_* tools drive the recorded browser directly (no driver_initialize needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver (targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only. IMPORTANT: this tool takes no engine/platform argument of its own -- with no active session (the default), it ALWAYS launches a desktop Chrome/Edge browser, never a mobile app, even when the caller's intent is to record on a mobile device or emulator; to record a mobile app, call driver_initialize(engine=mobile_native) or driver_initialize(engine=mobile_web) FIRST to make that engine active, then call capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead")
+      description="starts a recording on the active engine; with no session it launches desktop web CDP capture and element_* drive that browser; codegenOptions is WEB-only")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureUnionStatus.html" title="class in com.shaft.mcp">McpCaptureUnionStatus</a></span>&nbsp;<span class="element-name">start</span><wbr><span class="parameters">(@ToolParam(required=false,description="initial http, https, or file URL; blank opens an empty browser; WEB/NONE only")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  @ToolParam(required=false,description="Chrome or Edge; blank selects Chrome; WEB/NONE only")
@@ -518,7 +518,7 @@ tool names since commit 4).</div>
 <h3>status</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_status",
-      description="returns recorder status for the active engine: WEB (or no active session) returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status (when no session is active the warnings list persisted recordings that can be turned into code without a live session); PLAYWRIGHT/mobile return that engine's own recorder status; the union's engine field names which is populated")
+      description="returns recorder status for the active web, Playwright, or mobile engine; the union's engine field names which status is set")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureUnionStatus.html" title="class in com.shaft.mcp">McpCaptureUnionStatus</a></span>&nbsp;<span class="element-name">status</span>()</div>
 <div class="block">Returns safe recorder status, dispatching on the MCP session's active engine (design doc
 amendment A3): the returned union's <code>engine</code> discriminator names which recording family
@@ -535,7 +535,7 @@ amendment A3): the returned union's <code>engine</code> discriminator names whic
 <h3>stop</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_stop",
-      description="stops the active recording for the active engine; after WEB reaches COMPLETED, show outputPath and generate replay-proven code by passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the union's engine field names which recorder was stopped")
+      description="stops the active engine's recording; pass the WEB outputPath to capture_generate_replay to prove the generated code")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureUnionStatus.html" title="class in com.shaft.mcp">McpCaptureUnionStatus</a></span>&nbsp;<span class="element-name">stop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
 <div class="block">Stops the active recording, dispatching on the MCP session's active engine (design doc
 amendment A3); see <a href="#status()"><code>status()</code></a> for the union return shape.</div>
@@ -553,7 +553,7 @@ amendment A3); see <a href="#status()"><code>status()</code></a> for the union r
 <h3>stepDelete</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_step_delete",
-      description="deletes a recorded step by its stable stepId from the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor")
+      description="deletes a Playwright or mobile recorded step by stepId; a WEB CDP recording has no step editor")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepDelete</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId)</span></div>
 <div class="block">Deletes a recorded step by its stable stepId from the active Playwright or mobile recording,
 dispatching on the MCP session's active engine. A WEB CDP <code>capture_start</code> session has no
@@ -574,7 +574,7 @@ active engine instead.</div>
 <h3>stepReorder</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_step_reorder",
-      description="moves a recorded step up or down by its stable stepId (direction: up|down) within the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor")
+      description="moves a Playwright or mobile recorded step up or down by stepId; a WEB CDP recording has no step editor")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpMobileRecordingStatus.html" title="class in com.shaft.mcp">McpMobileRecordingStatus</a></span>&nbsp;<span class="element-name">stepReorder</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;stepId,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;direction)</span></div>
 <div class="block">Moves a recorded step up or down by its stable stepId within the active Playwright or mobile
@@ -606,7 +606,7 @@ why a WEB CDP session returns an actionable error instead.</div>
 <h3>apiStart</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_start",
-      description="starts SHAFT Capture with API network recording enabled; dispatches to the mobile loopback MITM proxy when a mobile engine is active OR mobilePlatform is explicitly given (the mobile proxy never requires a live Appium/WebDriver session), absorbing mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and ignored on WEB)")
+      description="starts API network capture; uses the mobile MITM proxy when a mobile engine or mobilePlatform is set, otherwise WEB capture")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureApiUnionStatus.html" title="class in com.shaft.mcp">McpCaptureApiUnionStatus</a></span>&nbsp;<span class="element-name">apiStart</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;browser,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&nbsp;headless,
@@ -636,7 +636,7 @@ why a WEB CDP session returns an actionable error instead.</div>
 <h3>apiStatus</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_status",
-      description="returns SHAFT Capture session status including network transaction count and recent endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running")
+      description="returns API capture status, transaction count, and recent endpoints for the active WEB or mobile MITM session")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureApiUnionStatus.html" title="class in com.shaft.mcp">McpCaptureApiUnionStatus</a></span>&nbsp;<span class="element-name">apiStatus</span>()</div>
 <div class="block">Returns safe recorder status with network transaction count and recent endpoints.</div>
 <dl class="notes">
@@ -651,7 +651,7 @@ why a WEB CDP session returns an actionable error instead.</div>
 <h3>apiStop</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_stop",
-      description="stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running")
+      description="stops API capture for the active WEB session or a running mobile MITM session, using the same single-session lock as capture_stop")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureApiUnionStatus.html" title="class in com.shaft.mcp">McpCaptureApiUnionStatus</a></span>&nbsp;<span class="element-name">apiStop</span><wbr><span class="parameters">(boolean&nbsp;discard)</span></div>
 <div class="block">Stops the active API capture recording.</div>
 <dl class="notes">
@@ -668,7 +668,7 @@ why a WEB CDP session returns an actionable error instead.</div>
 <h3>apiTransactions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_transactions",
-      description="returns captured network transactions without bodies or sensitive headers; supports filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions when a mobile engine is active, or when a standalone mobile API session is already running (includeAssets/excludePattern are WEB-only there)")
+      description="lists captured API transactions without bodies or sensitive headers; mobile reads the MITM proxy, and WEB can filter asset noise")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://shafthq.github.io/shaft-capture/apidocs/com/shaft/capture/runtime/NetworkTransaction.html" title="class or interface in com.shaft.capture.runtime" class="external-link">NetworkTransaction</a>&gt;</span>&nbsp;<span class="element-name">apiTransactions</span><wbr><span class="parameters">(boolean&nbsp;includeAssets,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;excludePattern)</span></div>
 <div class="block">Returns sanitized summaries of captured network transactions.</div>
@@ -738,7 +738,7 @@ session's API transactions.</div>
 <h3>apiResponseLeaves</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_api_response_leaves",
-      description="returns classified response-body leaves (stable/volatile/sensitive) per transaction for a recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted")
+      description="classifies a session's response-body leaves as stable, volatile, or sensitive without generating test source")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://shafthq.github.io/shaft-capture/apidocs/com/shaft/capture/generate/api/ApiCaptureGenerator.TransactionLeaves.html" title="class or interface in com.shaft.capture.generate.api" class="external-link">ApiCaptureGenerator.TransactionLeaves</a>&gt;</span>&nbsp;<span class="element-name">apiResponseLeaves</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;excludedTransactionIds)</span></div>
 <div class="block">Lists classified response leaves (stable/volatile/sensitive) per transaction for a recorded
@@ -861,7 +861,7 @@ white-box tests); the MCP-exposed tool is <a href="#generateReplay(java.lang.Str
 <h3>generateReplay</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@McpTool(name="capture_generate_replay",
-         description="generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/mobile_replay_recording)")
+         description="generates, compiles, and optionally replays SHAFT code from a saved recording; backend web, playwright, or mobile defaults to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">generateReplay</span><wbr><span class="parameters">(@McpToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  @McpToolParam(required=false,description="generated project root inside the MCP workspace; blank defaults to generated-tests under the workspace")
@@ -917,7 +917,7 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 <h3>codeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_code_blocks",
-      description="generates a Java full-class snippet plus agent guidance for repo-aware insertion from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)")
+      description="generates a Java class snippet and insertion guidance from a saved recording; backend web, playwright, or mobile defaults to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">codeBlocks</span><wbr><span class="parameters">(@ToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  @ToolParam(required=false,description="generated project root inside the MCP workspace; defaults to generated-tests under the workspace")
@@ -953,7 +953,7 @@ streaming best-effort milestone progress over the MCP exchange when the caller r
 <h3>recordAtTargetCodeBlocks</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="capture_record_at_target_code_blocks",
-      description="generates focused Capture snippets for insertion at an existing Java source anchor; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)")
+      description="generates Capture snippets for an existing Java source anchor; backend web, playwright, or mobile defaults to the active engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCaptureReplayResult.html" title="class in com.shaft.mcp">McpCaptureReplayResult</a></span>&nbsp;<span class="element-name">recordAtTargetCodeBlocks</span><wbr><span class="parameters">(@ToolParam(required=false,description="persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/")
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;sessionPath,
  @ToolParam(required=false,description="generated project root inside the MCP workspace; defaults to generated-tests under the workspace")

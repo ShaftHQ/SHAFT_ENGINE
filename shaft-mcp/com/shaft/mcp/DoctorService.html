@@ -262,7 +262,7 @@
 <h3>analyzeFailedAllure</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_analyze_failed_allure",
-      description="analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
+      description="analyzes failed Allure evidence into actions and copy-paste fixes; empty paths use the newest workspace evidence; backend web or playwright")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">analyzeFailedAllure</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allureResultPaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;historicalBundlePaths,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;outputDirectory,
@@ -303,7 +303,7 @@
 <h3>causeLabel</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_cause_label",
-      description="confirms or suggests persisted Doctor defect labels keyed by signature (PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; override replaces; evidence paths redacted; no cloud ML")
+      description="confirms or suggests a persisted Doctor defect label for a signature; the store is local, and evidence paths are redacted")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpCauseLabelResult.html" title="class in com.shaft.mcp">McpCauseLabelResult</a></span>&nbsp;<span class="element-name">causeLabel</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signature,
  @ToolParam(required=false)
@@ -330,7 +330,7 @@ are redacted and never written. Override replaces the stored label.</div>
 <h3>suggestFix</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="annotations">@Tool(name="doctor_suggest_fix",
-      description="returns copy-paste remediation code blocks from an existing SHAFT Doctor report; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_doctor_suggest_fix")
+      description="returns copy-paste remediation blocks from an existing Doctor report; backend web or playwright selects the snippet engine")
 </span><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="McpAnalysisReport.html" title="class in com.shaft.mcp">McpAnalysisReport</a></span>&nbsp;<span class="element-name">suggestFix</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;jsonReportPath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;repositoryRoot,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;allowedSourcePaths,

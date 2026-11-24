@@ -197,7 +197,9 @@
  <a href="PlannerService.html" title="class in com.shaft.mcp">PlannerService</a>&nbsp;plannerService,
  <a href="InfrastructureMcpService.html" title="class in com.shaft.mcp">InfrastructureMcpService</a>&nbsp;infrastructureMcpService,
  <a href="DesignService.html" title="class in com.shaft.mcp">DesignService</a>&nbsp;designService)</span></div>
-<div class="block">Registers the ShaftService tool callbacks. <a href="PlaywrightService.html" title="class in com.shaft.mcp"><code>PlaywrightService</code></a> and
+<div class="block">Registers the ShaftService tool callbacks. <code>shaft.mcp.toolsets</code>
+(<code>SHAFT_MCP_TOOLSETS</code>) defaults to every service; an unknown group fails closed.
+<a href="PlaywrightService.html" title="class in com.shaft.mcp"><code>PlaywrightService</code></a> and
 <code>NaturalActionService</code>'s former <code>natural_act</code>/<code>mobile_natural_act</code> tools are
 deliberately absent: since commit 4 of the tool architecture sweep (design doc Decision 2),
 every <code>playwright_*</code> tool is absorbed into the unified <code>element_*</code>/<code>browser_*</code>/
