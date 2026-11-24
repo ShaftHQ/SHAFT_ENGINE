@@ -20,6 +20,7 @@ import org.testng.annotations.Test;
 import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 
 public class DriverFactoryCoverageUnitTest {
@@ -202,6 +203,28 @@ public class DriverFactoryCoverageUnitTest {
                     .isEqualTo("from-xml").perform();
             SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo("WINDOWS").perform();
             SHAFT.Validations.assertThat().object(helperConstruction.constructed().size()).isEqualTo(1).perform();
+        }
+    }
+
+    @Test
+    public void getHelperShouldInferLinuxForEachBrowserNameAndLeaveOtherNamesAlone() {
+        DriverFactory factory = new DriverFactory();
+        XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+        org.mockito.Mockito.when(xmlTest.getAllParameters()).thenReturn(Map.of());
+
+        for (String testName : List.of("Smoke_Firefox", "Smoke_Safari", "ApiOnly")) {
+            SHAFT.Properties.platform.set().targetPlatform("WINDOWS");
+            try (MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
+                 MockedConstruction<DriverFactoryHelper> ignoredHelpers = org.mockito.Mockito.mockConstruction(DriverFactoryHelper.class)) {
+                listenerHelper.when(TestNGListenerHelper::getXmlTest).thenReturn(xmlTest);
+                listenerHelper.when(TestNGListenerHelper::getTestName).thenReturn(testName);
+
+                factory.getHelper(DriverFactory.DriverType.CHROME, customDriverOptions);
+
+                String expected = "ApiOnly".equals(testName) ? "WINDOWS" : "LINUX";
+                SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo(expected).perform();
+            }
         }
     }
 
