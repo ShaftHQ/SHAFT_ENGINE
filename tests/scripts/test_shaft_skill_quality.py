@@ -330,11 +330,9 @@ TOOL_INDEX = (
     REPOSITORY
     / "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json"
 )
-CACHE_RULE = (
-    "Compact cache rule: name, when to use, and essential arguments only. "
-    "Do not embed a JSON schema. Load this file only when the shaft skills "
-    "entrypoint selects this skill."
-)
+CATALOG = REPOSITORY / "shaft-skills/references/shaft-mcp-tools.md"
+MCP_CACHE = REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md"
+CLI_CACHE = REPOSITORY / "shaft-skills/shaft-cli/references/cache.md"
 SKILL_NAME = re.compile(r"^shaft-[a-z0-9]+(?:-[a-z0-9]+)*$")
 HELP_INSTRUCTION = re.compile(r"(?i)\b(do not|never|don't)\b")
 
@@ -388,10 +386,10 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         for heading, cache in _cache_files():
             self.assertTrue(cache.is_file(), cache)
             text = cache.read_text(encoding="utf-8")
-            self.assertIn(CACHE_RULE, text)
             self.assertNotIn("inputSchema", text)
             self.assertNotIn('"properties"', text)
             self.assertNotIn('"type":', text)
+            self.assertNotIn("| Tool | When |", text)
             if heading == "# MCP cache":
                 kinds.append("mcp")
             elif heading == "# CLI cache":
@@ -400,19 +398,29 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
                 self.fail(f"unexpected cache heading {heading!r} in {cache}")
         self.assertEqual(kinds, ["cli", "mcp"])
 
-    def test_mcp_cache_recovers_index_names_without_schemas(self):
+    def test_canonical_catalog_recovers_index_names_without_schemas(self):
         index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
         names = [tool["name"] for tool in index["tools"]]
         self.assertGreaterEqual(len(names), 100)
-        cache = (
-            REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn(names[0], cache)
-        missing = [name for name in names if f"`{name}`" not in cache]
-        extra = re.findall(r"(?m)^\| `([a-z][a-z0-9_]*)` \|", cache)
+        catalog = CATALOG.read_text(encoding="utf-8")
+        self.assertNotIn("inputSchema", catalog)
+        missing = [name for name in names if f"`{name}`" not in catalog]
+        extra = re.findall(r"(?m)^\| `([a-z][a-z0-9_]*)` \|", catalog)
         self.assertEqual(missing, [])
         self.assertEqual(sorted(extra), sorted(names))
-        self.assertLess(len(cache.encode("utf-8")), TOOL_INDEX.stat().st_size // 2)
+        self.assertLess(len(catalog.encode("utf-8")), TOOL_INDEX.stat().st_size // 2)
+
+    def test_mcp_cache_is_a_service_group_index(self):
+        cache = MCP_CACHE.read_text(encoding="utf-8")
+        rows = re.findall(r"(?m)^\| ([A-Za-z]+Service) \| ([a-z][a-z0-9, -]*) \| (\d+) \|$", cache)
+        self.assertEqual(16, len(rows))
+        self.assertIn("SHAFT_MCP_TOOLSETS=<groups>", cache)
+        self.assertIn("../../references/shaft-mcp-tools.md", cache)
+        self.assertIn("shaft-cli tools describe <tool> [--json]", cache)
+        self.assertNotIn("`browser_navigate`", cache)
+        size = len(cache.encode("utf-8"))
+        self.assertGreaterEqual(size, 400)
+        self.assertLessEqual(size, 900)
 
     def test_cli_cache_recovers_a_catalog_command_without_help_discovery(self):
         reference = (
@@ -420,7 +428,7 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         ).read_text(encoding="utf-8")
         form = re.search(r"shaft-cli call <TOOL>[^\n`]*", reference)
         self.assertIsNotNone(form)
-        cache_path = REPOSITORY / "shaft-skills/shaft-cli/references/cache.md"
+        cache_path = CLI_CACHE
         skill = (REPOSITORY / "shaft-skills/shaft-cli/SKILL.md").read_text(encoding="utf-8")
         cache = cache_path.read_text(encoding="utf-8")
         self.assertIn(form.group(0).strip(), cache)
@@ -446,31 +454,33 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         self.assertIn("Record and playback", readme)
         self.assertIn("Code generation", readme)
 
-    def test_on_demand_caches_keep_the_full_when_text(self):
-        generator = REPOSITORY / "scripts/mcp/generate_shaft_skill_tool_caches.py"
+    def test_catalog_keeps_the_full_when_text_and_caches_do_not_duplicate_it(self):
+        generator = REPOSITORY / "scripts/mcp/generate_shaft_skills_tool_catalog.py"
         spec = importlib.util.spec_from_file_location(
-            "generate_shaft_skill_tool_caches_7858", generator
+            "generate_shaft_skills_tool_catalog_8151", generator
         )
         module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
         spec.loader.exec_module(module)
         index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
-        caches = [
-            path.read_text(encoding="utf-8")
-            for path in (
-                REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md",
-                REPOSITORY / "shaft-skills/shaft-cli/references/cache.md",
-            )
-        ]
+        catalog = CATALOG.read_text(encoding="utf-8")
+        caches = [MCP_CACHE.read_text(encoding="utf-8"), CLI_CACHE.read_text(encoding="utf-8")]
         for tool in index["tools"]:
-            description = str(tool.get("description") or "")
-            when = module._when(description)
-            self.assertEqual(
-                when,
-                description.replace("|", "/").replace("`", "'").replace("\n", " ").strip(),
-            )
-            row = f"| `{tool['name']}` | {when} |"
-            for cache in caches:
-                self.assertIn(row, cache)
+            when = module.markdown_cell(str(tool.get("description") or ""))
+            self.assertIn(f"| `{tool['name']}` | {when} |", catalog)
+        for cache in caches:
+            self.assertNotIn("| Tool | When | Key args |", cache)
+            self.assertNotIn("`browser_navigate`", cache)
+        cli = caches[1]
+        self.assertIn("shaft-cli design ingest|analyze|gherkin|examples|lexicon|coverage|lint|gap-map|readiness|handoff", cli)
+        self.assertIn("shaft-cli report generate|open|summary|history|flake|tags|clusters|heal|mute|unmute|mutes", cli)
+        self.assertIn("shaft-cli doctor analyze|suggest|local-ai-status|cause-label", cli)
+        self.assertIn("`generate_test_report`", cli)
+        self.assertIn("`healer_run_failed_test`", cli)
+        self.assertIn("`capture_start`", cli)
+        size = len(cli.encode("utf-8"))
+        self.assertGreaterEqual(size, 1500)
+        self.assertLessEqual(size, 2500)
 
     def test_description_listing_and_progressive_disclosure_budgets_hold(self):
         self.assertEqual(validate_repository(REPOSITORY), [])

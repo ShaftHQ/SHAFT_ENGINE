@@ -50,7 +50,7 @@ EXAMPLE_SECTION_PATTERN = re.compile(
     r"(?ms)^## .*?(?:[Ee]xamples|[Uu]se cases)\s*$\n(.*?)(?=^## |\Z)"
 )
 EXAMPLE_ITEM_PATTERN = re.compile(r"(?m)^\s*(?:[-*]|\d+[.)])\s+\S|^###\s+\S")
-CATALOG_TOOL_PATTERN = re.compile(r"(?m)^- `([a-z][a-z0-9_]*)`\s+—")
+CATALOG_TOOL_PATTERN = re.compile(r"(?m)^\| `([a-z][a-z0-9_]*)` \|")
 EXPLICIT_TOOL_PATTERNS = (
     re.compile(r"shaft-mcp:([a-z][a-z0-9_]*)"),
     re.compile(r"mcp__shaft-mcp__([a-z][a-z0-9_]*)"),

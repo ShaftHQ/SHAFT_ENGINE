@@ -53,9 +53,17 @@ shaft-mcp version shipped with that CLI; use the live command only when the
 running server may be a different version.
 `shaft-cli tools --group <service-or-prefix>` keeps one service (`browser`,
 `CaptureService`) or one tool-name prefix (`browser_`, `report_`, `design_`).
+`--group report` selects `TestAutomationService`. The `report_*` tools live on
+`TraceService` (`--group trace`).
 `shaft-cli tools --compact` prints one line per tool with required argument
-names only. `shaft-cli tools describe <tool> [--json]` prints one bundled tool
-offline.
+names only. Offline filters combine:
+
+```text
+shaft-cli tools --cached --group <group> --compact
+shaft-cli tools describe <tool> [--json]
+```
+
+`shaft-cli tools describe <tool> [--json]` prints one bundled tool offline.
 
 ## Codegen (deterministic, no MCP session)
 
@@ -107,6 +115,26 @@ require the exact `SetupPlan` and `SetupApproval`. Defaults remain
 `EXTERNAL`, `offline=false`, and `autoStart=false`. An explicit remote
 execution address wins for web, Grid, and mobile endpoint profiles.
 
+## Design (stateless)
+
+```text
+shaft-cli design ingest|analyze|gherkin|examples|lexicon|coverage|lint|gap-map|readiness|handoff
+```
+
+Each action aliases the matching `design_*` tool (`gherkin` is `design_gherkin_draft`,
+`gap-map` is `design_gap_map`). No session.
+
+## Reporting
+
+```text
+shaft-cli report generate|open|summary|history|flake|tags|clusters|heal|mute|unmute|mutes
+```
+
+`generate` rebuilds the single-file Allure report from an existing results
+directory (`--results`) inside this process. It does not call MCP. The other
+actions alias `report_*` tools. `heal` is `report_heal`. `mute`, `unmute`, and
+`mutes` all alias `report_mute`.
+
 ## Curated aliases
 
 Shortcuts over `call`, same options:
@@ -116,3 +144,14 @@ Shortcuts over `call`, same options:
 - `shaft-cli capture start|stop|status|code|step-delete|step-reorder` (session required)
 - `shaft-cli guide search` (stateless)
 - `shaft-cli doctor analyze|suggest|local-ai-status|cause-label` (stateless)
+
+`cause-label` aliases `doctor_cause_label`. It confirms or suggests a persisted
+local Doctor defect label and does not need a session.
+
+## Slash aliases are not these CLI commands
+
+| Alias | MCP tool | CLI |
+| --- | --- | --- |
+| `/report` | `generate_test_report` | `shaft-cli report` |
+| `/heal` | `healer_run_failed_test` | `shaft-cli report heal` |
+| `/start`, `/stop`, `/status` | `capture_start`, `capture_stop`, `capture_status` | `shaft-cli session` or `shaft-cli setup` |

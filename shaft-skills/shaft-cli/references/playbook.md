@@ -1,8 +1,8 @@
 # CLI playbook
 
 Use SHAFT CLI when a deterministic command, exit code, JSON result, or shell
-pipeline is the deliverable. Exact command forms, tool names, and essential
-arguments live in the [command cache](cache.md).
+pipeline is the deliverable. Exact command forms live in the [command cache](cache.md).
+Tool names and essential arguments live in the [tool catalog](../../references/shaft-mcp-tools.md).
 
 Assistants without MCP access (shell only) use the same tools through the
 installer's stable `~/.local/bin/shaft-cli` shim: `shaft-cli tools --cached`, then
@@ -12,7 +12,7 @@ definition for MCP hosts it did not configure.
 ## Ten practices
 
 1. Prefer CLI for stateless, repeatable, scriptable work; prefer direct MCP for interactive work or state that already lives in the connected client. [`SHAFT-MCP`]
-2. Use curated aliases for common intent and `shaft-cli call <tool>` for parity with every exact tool name in the command cache. [`SHAFT-MCP`]
+2. Use curated aliases for common intent and `shaft-cli call <tool>` for parity with every exact tool name in the [tool catalog](../../references/shaft-mcp-tools.md). [`SHAFT-MCP`]
 3. Treat generic `call` as name dispatch only: it does not infer that browser, element, driver, mobile, or capture tools need persistent state. Start a session first for any such sequence. [`SHAFT-MCP`]
 4. Run `shaft-cli session start`, confirm `session status`, execute every related stateful command, then `session stop`; one-shot child processes cannot share state. [`SHAFT-MCP`]
 5. On curated stateful aliases, use `--stdio-ok` only for a deliberately disposable call; generic `call` already falls back to one-shot and does not use this flag as a state-safety gate. [`SHAFT-MCP`]
@@ -33,7 +33,7 @@ definition for MCP hosts it did not configure.
 ## Boundary
 
 - If the task is exploratory, already owns an MCP connection, needs direct schema-guided calls, or must keep live state without managing a CLI daemon, route to `shaft-mcp`.
-- Three-stage CLI families (#5943): `shaft design` (Design), `shaft capture` + offline `shaft codegen` (Automation), `shaft report` + `shaft doctor` (Reporting). Healing belongs to Reporting (Stage 3), not record/codegen.
+- Three-stage CLI families (#5943): `shaft-cli design` (Design), `shaft-cli capture` + offline `shaft-cli codegen` (Automation), `shaft-cli report` + `shaft-cli doctor` (Reporting). Healing belongs to Reporting (Stage 3), not record/codegen.
 
 ## CLI usage (#6909)
 

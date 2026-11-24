@@ -2,7 +2,8 @@
 
 Use direct SHAFT MCP calls when the client must retain live tool state or when
 structured schemas and interactive results are more valuable than a shell
-transcript. Exact names and essential arguments live in the [tool cache](cache.md).
+transcript. Exact names and essential arguments live in the [tool catalog](../../references/shaft-mcp-tools.md).
+The [tool cache](cache.md) lists service groups only; do not paste the catalog into the prompt.
 
 ## Ten practices
 

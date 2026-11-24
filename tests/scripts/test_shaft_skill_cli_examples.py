@@ -19,6 +19,24 @@ TOOL_INDEX = (
 )
 
 
+COMMANDS = ROOT / "shaft-skills" / "references" / "shaft-cli-commands.md"
+
+
+class ShaftCliCommandReferenceTest(unittest.TestCase):
+    def test_reference_documents_design_report_doctor_and_tools_discovery(self):
+        text = COMMANDS.read_text(encoding="utf-8")
+        forms = (
+            "shaft-cli tools --cached --group <group> --compact",
+            "shaft-cli tools describe <tool> [--json]",
+            "shaft-cli design ingest|analyze|gherkin|examples|lexicon|coverage|lint|gap-map|readiness|handoff",
+            "shaft-cli report generate|open|summary|history|flake|tags|clusters|heal|mute|unmute|mutes",
+            "shaft-cli doctor analyze|suggest|local-ai-status|cause-label",
+            "doctor_cause_label",
+        )
+        for form in forms:
+            self.assertIn(form, text)
+
+
 class ShaftSkillCliExamplesTest(unittest.TestCase):
     def test_guide_search_examples_supply_every_required_tool_argument(self):
         playbook = CLI_PLAYBOOK.read_text(encoding="utf-8")

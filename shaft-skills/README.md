@@ -47,8 +47,8 @@ shaft-developer
 │   ├── shaft-change-verification — preview, guardrail, apply, verify
 │   └── shaft-docs-hygiene — plan, journey, and issue vocabulary
 └── Tool caches (load only when selected)
-    ├── shaft-mcp — compact MCP names and arguments; defer JSON schemas
-    └── shaft-cli — compact CLI forms and arguments; do not use --help for discovery
+    ├── shaft-mcp — service-group index; names in references/shaft-mcp-tools.md; defer JSON schemas
+    └── shaft-cli — curated command forms; do not use --help for discovery
 ```
 
 ## How they relate
