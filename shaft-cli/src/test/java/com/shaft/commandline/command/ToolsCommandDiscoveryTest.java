@@ -43,12 +43,28 @@ class ToolsCommandDiscoveryTest {
         assertFalse(result.out.contains("opens a URL"), result.out);
         assertFalse(result.out.contains("newWindow"), result.out);
         assertTrue(result.out.contains("browser_navigate (targetUrl)"), result.out);
-        assertTrue(result.out.contains("browser_refresh\n"), result.out);
-        for (String line : result.out.split("\\R")) {
-            if (!line.isBlank()) {
-                assertTrue(line.startsWith("browser_"), line);
+        assertCompactBrowserLines(result.out);
+        // PrintWriter uses the platform separator. The same lines must match when stdout is CRLF.
+        assertCompactBrowserLines(result.out.replace("\r\n", "\n").replace("\n", "\r\n"));
+    }
+
+    /**
+     * Compact browser lines match after {@link String#lines()} drops CR, LF, and CRLF.
+     * A {@code '\n'} split would leave a trailing {@code '\r'} on Windows.
+     */
+    private static void assertCompactBrowserLines(String output) {
+        boolean sawRefresh = false;
+        for (String line : output.lines().toList()) {
+            if (line.isBlank()) {
+                continue;
+            }
+            assertFalse(line.contains("\r"), line);
+            assertTrue(line.startsWith("browser_"), line);
+            if ("browser_refresh".equals(line)) {
+                sawRefresh = true;
             }
         }
+        assertTrue(sawRefresh, output);
     }
 
     @Test
