@@ -24,6 +24,8 @@ import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -34,6 +36,9 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * JUnit Platform launcher listener that connects Jupiter execution to SHAFT reporting.
@@ -60,17 +65,13 @@ public class JunitListener implements LauncherSessionListener {
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        // Surefire 3.6.1 runs TestNG on the JUnit Platform testng-engine. The SPI
-        // Allure listener is deactivated and replaced with a filtered copy so
-        // Jupiter reporting stays while TestNG remains on AllureTestNg.
-        if (isAllureJunitPlatformDeactivated()) {
-            TestExecutionListener allureListener = newAllureJunitPlatformListener();
-            if (allureListener != null) {
-                session.getLauncher().registerTestExecutionListeners(createFilteredAllureListener(allureListener));
-            }
-        }
+        // Surefire 3.6.1 runs TestNG on the JUnit Platform testng-engine. Register
+        // one listener: SHAFT lifecycle plus an optional filtered Allure copy that
+        // replaces the deactivated SPI listener. A second registration would break
+        // the single-listener contract once the engine is ready.
         if (!isEngineReady) {
-            session.getLauncher().registerTestExecutionListeners(new ShaftJunitExecutionListener());
+            session.getLauncher().registerTestExecutionListeners(
+                    new ShaftJunitExecutionListener(createOptionalFilteredAllureListener()));
         }
     }
 
@@ -86,9 +87,42 @@ public class JunitListener implements LauncherSessionListener {
     }
 
     static boolean hasNonTestNgTests(TestPlan testPlan) {
-        return testPlan.getRoots().stream().anyMatch(root -> !isTestNgEngine(root)
-                && (root.isTest() || testPlan.getDescendants(root).stream()
-                .anyMatch(id -> id.isTest() && !isTestNgEngine(id))));
+        return testPlan.getRoots().stream().anyMatch(root -> hasNonTestNgWork(testPlan, root));
+    }
+
+    private static boolean hasNonTestNgWork(TestPlan testPlan, TestIdentifier node) {
+        if (isTestNgEngine(node)) {
+            return false;
+        }
+        if (node.isTest()) {
+            return true;
+        }
+        for (TestIdentifier child : testPlan.getChildren(node)) {
+            if (hasNonTestNgChildWork(testPlan, child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasNonTestNgChildWork(TestPlan testPlan, TestIdentifier child) {
+        if (isTestNgEngine(child)) {
+            return false;
+        }
+        if (child.isTest()) {
+            return true;
+        }
+        Set<TestIdentifier> grandchildren = testPlan.getChildren(child);
+        if (grandchildren.isEmpty()) {
+            // Leaf non-TestNG container (for example @ParameterizedTest, @RepeatedTest, @TestFactory).
+            return true;
+        }
+        for (TestIdentifier grandchild : grandchildren) {
+            if (hasNonTestNgChildWork(testPlan, grandchild)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static TestExecutionListener createFilteredAllureListener(TestExecutionListener delegate) {
@@ -96,19 +130,30 @@ public class JunitListener implements LauncherSessionListener {
     }
 
     /**
+     * Surefire deactivates the SPI Allure listener. When that deactivation is active
+     * and the runtime class exists, return the filtered copy SHAFT forwards to.
+     */
+    private static Optional<TestExecutionListener> createOptionalFilteredAllureListener() {
+        if (!isAllureJunitPlatformDeactivated()) {
+            return Optional.empty();
+        }
+        return newAllureJunitPlatformListener().map(JunitListener::createFilteredAllureListener);
+    }
+
+    /**
      * allure-jupiter depends on allure-junit-platform at runtime, so the listener
      * class is not visible to shaft-engine compilation.
      */
-    private static TestExecutionListener newAllureJunitPlatformListener() {
+    private static Optional<TestExecutionListener> newAllureJunitPlatformListener() {
         try {
             Class<?> type = Class.forName("io.qameta.allure.junitplatform.AllureJunitPlatform");
             Object listener = type.getDeclaredConstructor().newInstance();
             if (listener instanceof TestExecutionListener executionListener) {
-                return executionListener;
+                return Optional.of(executionListener);
             }
-            return null;
+            return Optional.empty();
         } catch (ClassNotFoundException exception) {
-            return null;
+            return Optional.empty();
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Unable to construct AllureJunitPlatform.", exception);
         }
@@ -130,11 +175,38 @@ public class JunitListener implements LauncherSessionListener {
                 || classpathDeactivatesAllureJunitPlatform();
     }
 
-    private static boolean deactivatesAllureJunitPlatform(String raw) {
+    static boolean deactivatesAllureJunitPlatform(@Nullable String raw) {
         if (raw == null || raw.isBlank()) {
             return false;
         }
-        return raw.contains("AllureJunitPlatform") || raw.contains("*");
+        int start = 0;
+        for (int index = 0; index <= raw.length(); index++) {
+            if (index == raw.length() || raw.charAt(index) == ',') {
+                String token = raw.substring(start, index).trim();
+                if (matchesDeactivatePattern(token, ALLURE_JUNIT_PLATFORM_LISTENER)) {
+                    return true;
+                }
+                start = index + 1;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesDeactivatePattern(String token, String className) {
+        if (token.isEmpty()) {
+            return false;
+        }
+        StringBuilder pattern = new StringBuilder("^");
+        for (int index = 0; index < token.length(); index++) {
+            char character = token.charAt(index);
+            if (character == '*') {
+                pattern.append('.').append('*');
+            } else {
+                pattern.append(Pattern.quote(String.valueOf(character)));
+            }
+        }
+        pattern.append('$');
+        return Pattern.compile(pattern.toString()).matcher(className).matches();
     }
 
     private static boolean classpathDeactivatesAllureJunitPlatform() {
@@ -278,10 +350,20 @@ public class JunitListener implements LauncherSessionListener {
     }
 
     private final class ShaftJunitExecutionListener implements TestExecutionListener {
+        private final Optional<TestExecutionListener> filteredAllureListener;
         private boolean activeForCurrentPlan = false;
+
+        private ShaftJunitExecutionListener(Optional<TestExecutionListener> filteredAllureListener) {
+            this.filteredAllureListener = filteredAllureListener;
+        }
+
+        private void forwardAllure(Consumer<TestExecutionListener> call) {
+            filteredAllureListener.ifPresent(call);
+        }
 
         @Override
         public void testPlanExecutionStarted(TestPlan testPlan) {
+            forwardAllure(listener -> listener.testPlanExecutionStarted(testPlan));
             if (!hasNonTestNgTests(testPlan)) {
                 activeForCurrentPlan = false;
                 return;
@@ -298,6 +380,7 @@ public class JunitListener implements LauncherSessionListener {
 
         @Override
         public void testPlanExecutionFinished(TestPlan testPlan) {
+            forwardAllure(listener -> listener.testPlanExecutionFinished(testPlan));
             if (!activeForCurrentPlan) {
                 return;
             }
@@ -306,7 +389,13 @@ public class JunitListener implements LauncherSessionListener {
         }
 
         @Override
+        public void dynamicTestRegistered(TestIdentifier testIdentifier) {
+            forwardAllure(listener -> listener.dynamicTestRegistered(testIdentifier));
+        }
+
+        @Override
         public void executionSkipped(TestIdentifier testIdentifier, String reason) {
+            forwardAllure(listener -> listener.executionSkipped(testIdentifier, reason));
             if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
                 return;
             }
@@ -326,6 +415,7 @@ public class JunitListener implements LauncherSessionListener {
 
         @Override
         public void executionStarted(TestIdentifier testIdentifier) {
+            forwardAllure(listener -> listener.executionStarted(testIdentifier));
             if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
                 return;
             }
@@ -340,6 +430,7 @@ public class JunitListener implements LauncherSessionListener {
 
         @Override
         public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+            forwardAllure(listener -> listener.executionFinished(testIdentifier, testExecutionResult));
             if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
                 return;
             }
@@ -375,6 +466,16 @@ public class JunitListener implements LauncherSessionListener {
             } finally {
                 ReportContext.clearPreservingSensitiveEvidence();
             }
+        }
+
+        @Override
+        public void reportingEntryPublished(TestIdentifier testIdentifier, ReportEntry entry) {
+            forwardAllure(listener -> listener.reportingEntryPublished(testIdentifier, entry));
+        }
+
+        @Override
+        public void fileEntryPublished(TestIdentifier testIdentifier, FileEntry file) {
+            forwardAllure(listener -> listener.fileEntryPublished(testIdentifier, file));
         }
     }
 

@@ -132,7 +132,7 @@ public class JunitListenerApiCoverageUnitTest {
             new JunitListener().launcherSessionOpened(session);
             TestExecutionListener executionListener = capturedListener.get();
             Assert.assertNotNull(executionListener, "A TestExecutionListener should be registered on first session open.");
-            Assert.assertEquals(executionListener.getClass().getName(), "com.shaft.listeners.JunitListener$1");
+            Assert.assertEquals(executionListener.getClass().getName(), "com.shaft.listeners.JunitListener$ShaftJunitExecutionListener");
 
             executionListener.testPlanExecutionStarted(testPlan);
             executionListener.executionStarted(methodTest);
