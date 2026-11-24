@@ -2,6 +2,7 @@
 
 import json
 import inspect
+import os
 import re
 import shutil
 import subprocess
@@ -225,12 +226,16 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
             encoding="utf-8",
         )
         write_test_pom(source_root, "1.2.3")
-        subprocess.run([git, "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
-        subprocess.run([git, "add", "."], cwd=source_root, check=True)  # nosec B603
+        git_env = os.environ.copy()
+        for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR"):
+            git_env.pop(name, None)
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, env=git_env, check=True)  # nosec B603
+        subprocess.run([git, "add", "."], cwd=source_root, env=git_env, check=True)  # nosec B603
         subprocess.run(  # nosec B603
             [git, "-c", "user.email=test@example.com", "-c", "user.name=Test",
              "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "seed shaft-developer"],
             cwd=source_root,
+            env=git_env,
             check=True,
         )
         untracked = source_root / "shaft-skills/session-notes.md"

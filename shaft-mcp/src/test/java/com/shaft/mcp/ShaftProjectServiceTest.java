@@ -352,6 +352,31 @@ class ShaftProjectServiceTest {
     }
 
     @Test
+    void initAgentsRefusesToOverwriteAnInRepoAgentsSymlinkTarget() throws Exception {
+        ShaftProjectService service = projectService();
+        for (boolean overwrite : List.of(false, true)) {
+            String directory = "agents-link-" + overwrite;
+            Path repo = Files.createDirectories(temp.resolve(directory));
+            Path notes = repo.resolve("NOTES.md");
+            Files.writeString(notes, "sentinel-contents");
+            Path agents = repo.resolve("AGENTS.md");
+            try {
+                Files.createSymbolicLink(agents, notes);
+            } catch (UnsupportedOperationException | SecurityException | java.io.IOException exception) {
+                assumeTrue(false, "Symlink creation is unavailable: " + exception.getMessage());
+                return;
+            }
+
+            IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
+                    () -> service.initAgents("codex", directory, overwrite));
+
+            assertTrue(refusal.getMessage().contains("symlink or junction"), refusal.getMessage());
+            assertEquals("sentinel-contents", Files.readString(notes), directory);
+            assertTrue(Files.isSymbolicLink(agents), directory);
+        }
+    }
+
+    @Test
     void initAgentsUnlinksNestedRetiredSkillSymlinkWithoutDeletingItsTarget() throws Exception {
         ShaftProjectService service = projectService();
         Path repo = Files.createDirectories(temp.resolve("nested-link"));

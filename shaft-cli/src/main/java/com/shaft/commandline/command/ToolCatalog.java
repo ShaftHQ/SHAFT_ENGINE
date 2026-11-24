@@ -177,7 +177,7 @@ final class ToolCatalog {
         if (tools.isArray()) {
             collectLiveMatches(tools, services, group, kept);
         }
-        if (kept.isEmpty()) {
+        if (!group.isBlank() && kept.isEmpty()) {
             printUnknownGroup(err, group, indexForGroups());
             return 2;
         }

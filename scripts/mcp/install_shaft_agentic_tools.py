@@ -1908,37 +1908,47 @@ def _skip_skill_copy(source_file: Path, destination: Path, relative: str) -> boo
     return filecmp.cmp(source_file, destination, shallow=False)
 
 
+def _ensure_unlinked_destination(root: Path, relative: str) -> Path:
+    """Fail before resolve or write when root or the relative path is linked."""
+    # abspath does not follow links. resolve() would, so it must not run first.
+    if Path(relative).is_absolute():
+        fail(f"Refusing an unsafe destination path: {relative}", 4)
+    current = Path(os.path.abspath(root))
+    if is_link_or_junction(current):
+        fail(f"Refusing to write SHAFT skills through a symlink or junction: {current}", 4)
+    for part in Path(relative).parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            fail(f"Refusing an unsafe destination path: {relative}", 4)
+        current = current / part
+        if is_link_or_junction(current):
+            fail(f"Refusing to write SHAFT skills through a symlink or junction: {current}", 4)
+    return current
+
+
+def _refuse_escaping_relative(relative: str, message: str) -> None:
+    """Fail closed when a manifest path is absolute or climbs with '..'."""
+    path = Path(relative)
+    if path.is_absolute() or ".." in path.parts:
+        fail(message, 4)
+
+
 def copy_shaft_skills(source: Path, target: Path) -> Path:
     source = source.resolve()
-    if is_link_or_junction(target):
-        fail(f"Refusing to copy SHAFT skills through a symlink or junction: {target}", 4)
-    target = Path(os.path.abspath(target))
+    target = _ensure_unlinked_destination(target, "")
     if source == target:
         return target
     target.mkdir(parents=True, exist_ok=True)
     for relative in shaft_skill_files(source):
-        destination = target / relative
+        destination = _ensure_unlinked_destination(target, relative)
         source_file = source / relative
-        if _linked_between(target, destination):
-            fail(f"Refusing to write SHAFT skills through a symlink or junction: {destination}", 4)
         if _skip_skill_copy(source_file, destination, relative):
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if _linked_between(target, destination):
-            fail(f"Refusing to write SHAFT skills through a symlink or junction: {destination}", 4)
+        destination = _ensure_unlinked_destination(target, relative)
         _atomic_copy_skill_file(source_file, destination)
     return target
-
-
-def _linked_between(root: Path, path: Path) -> bool:
-    """Return whether path or a parent down to root is a symlink or junction."""
-    current = path
-    while True:
-        if is_link_or_junction(current):
-            return True
-        if current == root or current.parent == current:
-            return False
-        current = current.parent
 
 
 def _atomic_copy_skill_file(source_file: Path, destination: Path) -> None:
@@ -1970,14 +1980,13 @@ def shaft_agent_validation_raw_file_url(relative: str) -> str:
 
 
 def download_shaft_skills_files(target: Path) -> Path:
-    target = target.resolve()
+    target = _ensure_unlinked_destination(target, "")
     target.mkdir(parents=True, exist_ok=True)
     for relative, blob_sha in remote_shaft_skill_entries():
         if not consumer_skill_relative(relative):
             continue
-        destination = (target / relative).resolve()
-        if target != destination and target not in destination.parents:
-            fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
+        _refuse_escaping_relative(relative, f"SHAFT skills manifest contains an unsafe path: {relative}")
+        destination = _ensure_unlinked_destination(target, relative)
         if _keep_installed_skill_file(destination, relative, blob_sha):
             continue
         download_file(
@@ -2000,12 +2009,12 @@ def has_agent_guidance_scaffold(target: Path) -> bool:
 
 
 def download_agent_validation_script_files(target: Path) -> Path:
-    target = target.resolve()
+    target = _ensure_unlinked_destination(target, "")
     target.mkdir(parents=True, exist_ok=True)
     for relative in AGENT_VALIDATION_SCRIPT_FILES:
-        destination = (target / relative).resolve()
-        if target != destination and target not in destination.parents:
-            fail(f"Agent validation script manifest contains an unsafe path: {relative}", 4)
+        _refuse_escaping_relative(
+            relative, f"Agent validation script manifest contains an unsafe path: {relative}")
+        destination = _ensure_unlinked_destination(target, relative)
         download_file(
             shaft_agent_validation_raw_file_url(relative),
             destination,
@@ -2013,9 +2022,8 @@ def download_agent_validation_script_files(target: Path) -> Path:
             show_progress=False,
         )
     for relative in RETIRED_AGENT_VALIDATION_SCRIPT_FILES:
-        retired = (target / relative).resolve()
-        if target != retired and target not in retired.parents:
-            fail(f"Retired agent validation path escapes target: {relative}", 4)
+        _refuse_escaping_relative(relative, f"Retired agent validation path escapes target: {relative}")
+        retired = _ensure_unlinked_destination(target, relative)
         retired.unlink(missing_ok=True)
     # Verify the main entry point was downloaded
     main_script = target / "scripts" / "ci" / "validate_agent_setup.py"

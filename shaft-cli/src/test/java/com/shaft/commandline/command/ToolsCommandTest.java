@@ -97,6 +97,25 @@ class ToolsCommandTest {
         assertEquals("No terminator here", ToolsCommand.firstSentence("  No terminator here  "));
     }
 
+    @Test
+    void liveJsonWithABlankGroupPrintsAnEmptyListInsteadOfAnUnknownGroup() {
+        FakeMcpClient client = new FakeMcpClient(List.of(), Json.newObject());
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+
+        int exit = ToolCatalog.renderLive(
+                client,
+                new PrintWriter(out, true),
+                new PrintWriter(err, true),
+                true,
+                false,
+                "  ");
+
+        assertEquals(0, exit);
+        assertEquals("", err.toString());
+        assertTrue(out.toString().contains("\"tools\""), out.toString());
+    }
+
     private static final class FakeMcpClient implements McpClient {
         private final List<Tool> tools;
         private final JsonNode raw;

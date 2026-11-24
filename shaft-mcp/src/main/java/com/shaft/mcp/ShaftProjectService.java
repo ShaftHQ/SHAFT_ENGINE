@@ -491,6 +491,11 @@ public class ShaftProjectService {
         Set<String> managedFiles = managedSkillFiles(skillRoot, target, warnings);
         for (Map.Entry<String, String> skillFile : skillFiles.entrySet()) {
             String relativePath = skillFile.getKey();
+            Path planned = skillRoot.resolve(relativePath);
+            if (containsLinkOrJunction(planned, target)) {
+                warnings.add("Refusing to write through a symlink or junction: " + planned);
+                continue;
+            }
             Path destination = safeArchiveDestination(skillRoot, relativePath);
             if (writeGeneratedFile(destination, target, skillFile.getValue(), relativePath,
                     managedFiles, overwrite, generatedFiles, warnings)) {
@@ -1151,6 +1156,7 @@ public class ShaftProjectService {
         if (!normalized.startsWith(root)) {
             throw new IllegalArgumentException("Generated project file escaped the output directory.");
         }
+        refuseLinkedWrite(normalized, root);
         try {
             Path existingRoot = root;
             while (existingRoot != null && !Files.exists(existingRoot)) {
@@ -1171,6 +1177,13 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Generated project file could not be safely resolved.", exception);
         }
         return normalized;
+    }
+
+    private static void refuseLinkedWrite(Path destination, Path root) {
+        // realpath containment still allows a link whose target sits inside the project.
+        if (containsLinkOrJunction(destination, root)) {
+            throw new IllegalArgumentException("Refusing to write through a symlink or junction: " + destination);
+        }
     }
 
     private static URL resource(String resourceName) throws IOException {

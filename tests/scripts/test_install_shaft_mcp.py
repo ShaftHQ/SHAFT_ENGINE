@@ -23,6 +23,11 @@ MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install
 REPO_ROOT = MODULE_PATH.parents[2]
 
 
+def _resolved(paths):
+    """Canonicalize paths so macOS /var and Windows 8.3 short names compare equal."""
+    return [Path(path).resolve() for path in paths]
+
+
 def _overlay_or_repo(relative) -> Path:
     """Read a manifest path from the repo, or the harness overlay after #8057.
 
@@ -801,7 +806,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             with temporary_current_directory(root):
                 installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap", "codex")
 
-            self.assertEqual([(root / ".agents" / "skills").resolve()], installed)
+            self.assertEqual(_resolved([root / ".agents" / "skills"]), _resolved(installed))
             self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
             self.assertTrue((installed[0] / "shaft-developer" / "agents" / "openai.yaml").is_file())
             self.assertEqual(1, len(list(installed[0].glob("*/SKILL.md"))))
@@ -812,11 +817,11 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             installed = MODULE.install_shaft_skills(root, root / "bootstrap", None)
 
-            self.assertEqual([
-                (root / ".agents" / "skills").resolve(),
-                (root / ".claude" / "skills").resolve(),
-                (root / ".opencode" / "skills").resolve(),
-            ], installed)
+            self.assertEqual(_resolved([
+                root / ".agents" / "skills",
+                root / ".claude" / "skills",
+                root / ".opencode" / "skills",
+            ]), _resolved(installed))
             for target in installed:
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
                 self.assertEqual(1, len(list(target.glob("*/SKILL.md"))))
@@ -913,11 +918,11 @@ class InstallShaftMcpTest(unittest.TestCase):
             first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
             second = MODULE.install_shaft_skills(root, root / "bootstrap", None)
 
-            self.assertEqual([
-                (root / ".agents" / "skills").resolve(),
-                (root / ".claude" / "skills").resolve(),
-                (root / ".opencode" / "skills").resolve(),
-            ], first)
+            self.assertEqual(_resolved([
+                root / ".agents" / "skills",
+                root / ".claude" / "skills",
+                root / ".opencode" / "skills",
+            ]), _resolved(first))
             self.assertEqual(first, second)
             for relative in MODULE.LEGACY_SKILL_CLEANUP_ROOTS:
                 target = root / relative
@@ -1056,7 +1061,10 @@ class InstallShaftMcpTest(unittest.TestCase):
                 MODULE.remote_shaft_skill_entries = original_discovery
 
             self.assertEqual(len(consumer_files), len(calls))
-            self.assertEqual([(root / "project" / ".claude" / "skills").resolve()], installed)
+            self.assertEqual(
+                _resolved([root / "project" / ".claude" / "skills"]),
+                _resolved(installed),
+            )
             self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
             self.assertTrue((installed[0] / "shaft-developer" / "agents" / "openai.yaml").is_file())
             self.assertFalse((installed[0] / "shaft-mcp").exists())
@@ -1519,6 +1527,69 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             self.assertEqual("outside sentinel\n", sentinel.read_text(encoding="utf-8"))
             self.assertTrue((target / "shaft-developer").is_symlink())
+
+    def test_download_agent_validation_script_files_refuses_an_in_project_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            sentinel = target / "sentinel.txt"
+            sentinel.write_text("do-not-touch\n", encoding="utf-8")
+            relative = MODULE.AGENT_VALIDATION_SCRIPT_FILES[0]
+            link = target / relative
+            link.parent.mkdir(parents=True)
+            retired_relative = MODULE.RETIRED_AGENT_VALIDATION_SCRIPT_FILES[0]
+            retired = target / retired_relative
+            try:
+                link.symlink_to(sentinel)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=AssertionError("download")):
+                with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                    MODULE.download_agent_validation_script_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+            link.unlink()
+            retired.parent.mkdir(parents=True, exist_ok=True)
+            retired.symlink_to(sentinel)
+
+            def write_payload(_url, destination, _label, **_kwargs):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("payload\n", encoding="utf-8")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=write_payload):
+                with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                    MODULE.download_agent_validation_script_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(retired.is_symlink())
+
+    def test_download_shaft_skills_files_refuses_an_interior_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / ".agents" / "skills"
+            interior = target / "shaft-developer"
+            interior.mkdir(parents=True)
+            sentinel = root / "sentinel.md"
+            sentinel.write_text("do-not-touch\n", encoding="utf-8")
+            link = interior / "SKILL.md"
+            try:
+                link.symlink_to(sentinel)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            entries = (
+                ("shaft-developer/SKILL.md", "abc"),
+                ("shaft-developer/agents/openai.yaml", "def"),
+            )
+            with mock.patch.object(MODULE, "remote_shaft_skill_entries", return_value=entries):
+                with mock.patch.object(MODULE, "download_file", side_effect=AssertionError("download")):
+                    with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                        MODULE.download_shaft_skills_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+            self.assertFalse((interior / "agents" / "openai.yaml").exists())
 
     def test_replace_with_retry_recovers_after_transient_denial(self):
         with tempfile.TemporaryDirectory() as temp_dir:
