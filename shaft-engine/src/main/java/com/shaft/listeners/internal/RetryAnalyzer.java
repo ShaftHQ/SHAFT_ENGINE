@@ -32,6 +32,11 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     @Override
     public boolean retry(ITestResult iTestResult) {
         try {
+            // Discovery dry-run failures are not real attempts. Retrying them doubles the
+            // "should have thrown" result that testng-engine reports for expectedExceptions.
+            if (org.testng.internal.RuntimeBehavior.isDryRun()) {
+                return false;
+            }
             if (InfraFailureGuard.isInfra(iTestResult.getThrowable())) {
                 ReportManager.logDiscrete("Not retrying " + iTestResult.getMethod().getMethodName()
                         + ": infrastructure setup failure (" + iTestResult.getThrowable().getClass().getSimpleName() + ").");

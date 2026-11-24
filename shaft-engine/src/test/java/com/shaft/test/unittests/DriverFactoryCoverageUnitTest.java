@@ -8,6 +8,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.LambdaTestHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.mockito.MockedConstruction;
@@ -19,6 +20,7 @@ import org.testng.annotations.Test;
 import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Map;
 
 public class DriverFactoryCoverageUnitTest {
@@ -178,6 +180,51 @@ public class DriverFactoryCoverageUnitTest {
 
             SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo("LINUX").perform();
             SHAFT.Validations.assertThat().object(helperConstruction.constructed().size()).isEqualTo(1).perform();
+        }
+    }
+
+    @Test
+    public void getHelperShouldApplyXmlParametersWhenTestNameIsNull() {
+        SHAFT.Properties.platform.set().targetPlatform("WINDOWS");
+        DriverFactory factory = new DriverFactory();
+        XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+
+        try (MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
+             MockedConstruction<DriverFactoryHelper> helperConstruction = org.mockito.Mockito.mockConstruction(DriverFactoryHelper.class)) {
+            listenerHelper.when(TestNGListenerHelper::getXmlTest).thenReturn(xmlTest);
+            org.mockito.Mockito.when(xmlTest.getAllParameters()).thenReturn(Map.of("customLastMinuteKey", "from-xml"));
+            listenerHelper.when(TestNGListenerHelper::getTestName).thenReturn(null);
+
+            DriverFactoryHelper helper = factory.getHelper(DriverFactory.DriverType.CHROME, customDriverOptions);
+            org.mockito.Mockito.verify(helper).initializeDriver(DriverFactory.DriverType.CHROME, customDriverOptions);
+
+            SHAFT.Validations.assertThat().object(ThreadLocalPropertiesManager.getProperty("customLastMinuteKey"))
+                    .isEqualTo("from-xml").perform();
+            SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo("WINDOWS").perform();
+            SHAFT.Validations.assertThat().object(helperConstruction.constructed().size()).isEqualTo(1).perform();
+        }
+    }
+
+    @Test
+    public void getHelperShouldInferLinuxForEachBrowserNameAndLeaveOtherNamesAlone() {
+        DriverFactory factory = new DriverFactory();
+        XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+        org.mockito.Mockito.when(xmlTest.getAllParameters()).thenReturn(Map.of());
+
+        for (String testName : List.of("Smoke_Firefox", "Smoke_Safari", "ApiOnly")) {
+            SHAFT.Properties.platform.set().targetPlatform("WINDOWS");
+            try (MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
+                 MockedConstruction<DriverFactoryHelper> ignoredHelpers = org.mockito.Mockito.mockConstruction(DriverFactoryHelper.class)) {
+                listenerHelper.when(TestNGListenerHelper::getXmlTest).thenReturn(xmlTest);
+                listenerHelper.when(TestNGListenerHelper::getTestName).thenReturn(testName);
+
+                factory.getHelper(DriverFactory.DriverType.CHROME, customDriverOptions);
+
+                String expected = "ApiOnly".equals(testName) ? "WINDOWS" : "LINUX";
+                SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo(expected).perform();
+            }
         }
     }
 

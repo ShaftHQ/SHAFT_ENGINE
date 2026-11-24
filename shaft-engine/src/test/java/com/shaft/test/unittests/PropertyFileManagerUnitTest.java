@@ -3,6 +3,7 @@ package com.shaft.test.unittests;
 import com.shaft.driver.SHAFT;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -256,6 +257,47 @@ public class PropertyFileManagerUnitTest {
                             // best-effort temp cleanup
                         }
                     });
+        }
+    }
+
+    @Test(description = "A property reload must not republish testng.mode.dryrun")
+    public void readCustomPropertyFilesStripsTestNgDryRun() throws Exception {
+        String dryRun = "testng.mode.dryrun";
+        String marker = "repro.dryrun.marker";
+        String previousDryRun = System.getProperty(dryRun);
+        String previousMarker = System.getProperty(marker);
+        String previousFolder = System.getProperty("propertiesFolderPath");
+        String originalPropertiesPath = SHAFT.Properties.paths.properties();
+        Path propertiesDirectory = Files.createTempDirectory("shaft-dry-run-properties");
+        System.clearProperty(dryRun);
+        try {
+            Files.writeString(propertiesDirectory.resolve("custom.properties"),
+                    dryRun + "=true" + System.lineSeparator() + marker + "=kept" + System.lineSeparator());
+            ThreadLocalPropertiesManager.setProperty(dryRun, "true");
+            SHAFT.Properties.paths.set().properties(propertiesDirectory + File.separator);
+
+            PropertyFileManager.readCustomPropertyFiles();
+
+            Assert.assertNull(System.getProperty(dryRun),
+                    "Reloading properties must not put testng.mode.dryrun back onto the JVM.");
+            Assert.assertEquals(ThreadLocalPropertiesManager.getProperty(dryRun), "true");
+            Assert.assertEquals(System.getProperty(marker), "kept");
+        } finally {
+            restoreSystemProperty(dryRun, previousDryRun);
+            restoreSystemProperty(marker, previousMarker);
+            restoreSystemProperty("propertiesFolderPath", previousFolder);
+            SHAFT.Properties.paths.set().properties(originalPropertiesPath);
+            Properties.clearForCurrentThread();
+            try (var walk = Files.walk(propertiesDirectory)) {
+                walk.sorted(java.util.Comparator.reverseOrder())
+                        .forEach(path -> {
+                            try {
+                                Files.deleteIfExists(path);
+                            } catch (Exception ignored) {
+                                // best-effort temp cleanup
+                            }
+                        });
+            }
         }
     }
 

@@ -103,9 +103,11 @@ jobs:
         continue-on-error: true
         # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
         shell: bash
+        env:
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*ChromePlaywrightActionsE2ETest.*], !%regex[.*FirefoxPlaywrightActionsE2ETest.*], !%regex[.*WebKitPlaywrightActionsE2ETest.*], !%regex[.*GalaxyS26UltraPlaywrightActionsE2ETest.*], !%regex[.*IPhone17ProMaxPlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*ChromePlaywrightActionsE2ETest.*], !%regex[.*FirefoxPlaywrightActionsE2ETest.*], !%regex[.*WebKitPlaywrightActionsE2ETest.*], !%regex[.*GalaxyS26UltraPlaywrightActionsE2ETest.*], !%regex[.*IPhone17ProMaxPlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=$SHAFT_TEST_SELECTOR"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -145,9 +147,12 @@ jobs:
         continue-on-error: true
         # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
         shell: bash
+        env:
+          SHAFT_SAFARI_SHARD: ${{ github.event.inputs.tests != '' && '1/1' || '1/2' }}
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=${{ github.event.inputs.tests != '' && '1/1' || '1/2' }}" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=$SHAFT_SAFARI_SHARD" "-DgenerateAllureReportArchive=true" "-Dtest=$SHAFT_TEST_SELECTOR"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -189,7 +194,7 @@ jobs:
         shell: bash
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=2/2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=safari" "-Dshaft.shard=2/2" "-DgenerateAllureReportArchive=true" "-Dtest=${{ format('{0}, !%regex[.*MobileEmulation.*], !%regex[.*PlaywrightActionsE2ETest.*]', env.GLOBAL_TESTING_SCOPE) }}"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -233,9 +238,11 @@ jobs:
         continue-on-error: true
         # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
         shell: bash
+        env:
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=chrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=$SHAFT_TEST_SELECTOR"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -396,6 +403,8 @@ jobs:
       - name: Start Appium server and run Windows desktop flow
         continue-on-error: true
         shell: powershell
+        env:
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}
         run: |
           # The Appium server and the test MUST run in the same step. When the
           # server was started via Start-Job in a *separate* step, that job's
@@ -431,7 +440,7 @@ jobs:
             }
             throw "Appium server did not become ready."
           }
-          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:/Windows/System32/notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'WindowsDesktopAppiumE2ETest' }}"
+          mvn -pl shaft-engine -am -e test "-DrunWindowsDesktopE2E=true" "-DdefaultElementIdentificationTimeout=5" "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=http://127.0.0.1:4723" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=WindowsApp" "-DheadlessExecution=false" "-DplatformName=Windows" "-Dmobile_automationName=Windows" "-Dmobile_app=C:/Windows/System32/notepad.exe" "-DautomaticallyOpen=false" "-DopenLighthouseReportWhileExecution=false" "-DgenerateAllureReportArchive=true" "-Dtest=$env:SHAFT_TEST_SELECTOR"
       - name: Dump Appium server log
         if: always()
         shell: powershell
@@ -491,9 +500,11 @@ jobs:
         continue-on-error: true
         # bash, not pwsh: mvn.cmd goes through cmd.exe (8191-char cap) and the scope is longer.
         shell: bash
+        env:
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DforceBrowserDownload=true" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || env.GLOBAL_TESTING_SCOPE }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DincludeVisualTestRuntime" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=chrome" "-DforceBrowserDownload=true" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=$SHAFT_TEST_SELECTOR"
       - name: Post-Test Report and Check
         id: post_test_report
         if: always()
@@ -531,9 +542,11 @@ jobs:
       - name: Run tests
         continue-on-error: true
         shell: bash
+        env:
+          SHAFT_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}
         run: >-
           bash scripts/ci/build_retry.sh 2 60
-          mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
+          mvn -pl shaft-engine -am -e test "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=$SHAFT_TEST_SELECTOR"
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:

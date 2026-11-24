@@ -59,11 +59,15 @@ public class DriverFactory {
         if (TestNGListenerHelper.getXmlTest() != null) {
             var allParameters = TestNGListenerHelper.getXmlTest().getAllParameters();
             allParameters.forEach(ThreadLocalPropertiesManager::setProperty);
-            var testName = TestNGListenerHelper.getTestName().toLowerCase();
-            if (testName.contains("firefox")
-                    || testName.contains("chrome")
-                    || testName.contains("safari")) {
-                SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+            // getXmlTest() is static and can be set while this thread's test name is still null (#8170).
+            String testName = TestNGListenerHelper.getTestName();
+            if (testName != null) {
+                String normalizedTestName = testName.toLowerCase();
+                if (normalizedTestName.contains("firefox")
+                        || normalizedTestName.contains("chrome")
+                        || normalizedTestName.contains("safari")) {
+                    SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
+                }
             }
         }
     }

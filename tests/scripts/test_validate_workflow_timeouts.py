@@ -4,9 +4,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+
 import yaml
 
 from scripts.ci.validate_workflow_timeouts import validate_repository
+
+
+def _step_command_text(step):
+    """Join a step script with env values the script expands, so selector checks survive zizmor env moves."""
+    env = step.get("env") or {}
+    return " ".join([str(step.get("run", "")), *(str(value) for value in env.values())])
 
 
 class ValidateWorkflowTimeoutsTest(unittest.TestCase):
@@ -143,7 +151,7 @@ jobs:
             self.assertEqual(safari_job.get("timeout-minutes"), 120)
             self.assertEqual(set(safari_job["outputs"]), expected_outputs)
             self.assertIn(",MacOSX_Safari_Local,", safari_job["if"])
-            commands = " ".join(str(step.get("run", "")) for step in safari_job["steps"])
+            commands = " ".join(_step_command_text(step) for step in safari_job["steps"])
             self.assertIn("-DsetParallelMode=NONE", commands)
             report_step = next(
                 step for step in safari_job["steps"] if step.get("id") == "post_test_report"
@@ -155,11 +163,11 @@ jobs:
             )
             self.assertEqual(report_step["with"]["job-name"], expected_report_name)
 
-        first_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[0]]["steps"])
+        first_commands = " ".join(_step_command_text(step) for step in jobs[safari_ids[0]]["steps"])
         self.assertIn("github.event.inputs.tests != '' && '1/1' || '1/2'", first_commands)
         # Safari local is a Selenium job. PlaywrightActionsE2ETest classes install
         # browsers from cdn.playwright.dev and failed MacOSX_Safari_Local_1 (#6534).
-        for commands in (first_commands, " ".join(str(step.get("run", "")) for step in jobs[safari_ids[1]]["steps"])):
+        for commands in (first_commands, " ".join(_step_command_text(step) for step in jobs[safari_ids[1]]["steps"])):
             self.assertIn("!%regex[.*PlaywrightActionsE2ETest.*]", commands)
         second_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[1]]["steps"])
         self.assertIn("-Dshaft.shard=2/2", second_commands)

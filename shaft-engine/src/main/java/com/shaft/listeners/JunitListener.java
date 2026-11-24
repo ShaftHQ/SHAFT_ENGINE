@@ -367,7 +367,7 @@ public class JunitListener implements LauncherSessionListener {
 
     private final class ShaftJunitExecutionListener implements TestExecutionListener {
         private final Optional<TestExecutionListener> filteredAllureListener;
-        private boolean activeForCurrentPlan = false;
+        private volatile boolean activeForCurrentPlan = false;
 
         private ShaftJunitExecutionListener(Optional<TestExecutionListener> filteredAllureListener) {
             this.filteredAllureListener = filteredAllureListener;
@@ -497,7 +497,7 @@ public class JunitListener implements LauncherSessionListener {
 
     private static final class FilteredAllureListener implements TestExecutionListener {
         private final TestExecutionListener delegate;
-        private boolean activeForCurrentPlan = false;
+        private volatile boolean activeForCurrentPlan = false;
 
         private FilteredAllureListener(TestExecutionListener delegate) {
             this.delegate = delegate;

@@ -365,6 +365,9 @@ public final class PropertyFileManager {
      */
     private static void applyLoadedPropertiesToSystem(java.util.Properties loadedFromFiles) {
         loadedFromFiles.putAll(ThreadLocalPropertiesManager.getEffectiveProperties());
+        // Never republish testng-engine's discovery flag. A later reload would otherwise
+        // put testng.mode.dryrun=true back and skip real @Test(expectedExceptions) bodies.
+        loadedFromFiles.remove("testng.mode.dryrun");
         ThreadLocalPropertiesManager.applyCompatibilityAliases(loadedFromFiles);
         System.getProperties().putAll(loadedFromFiles);
     }
