@@ -123,7 +123,7 @@
   }, {
     "name" : "browser_accessibility_audit",
     "service" : "BrowserService",
-    "description" : "runs a non-asserting axe-core WCAG accessibility audit on the current page and returns the violations found; never fails the call when violations exist; dispatches to the active engine",
+    "description" : "runs a non-failing axe-core WCAG audit of the current page and returns the violations it finds",
     "params" : [ {
       "name" : "wcagTags",
       "type" : "array",
@@ -178,7 +178,7 @@
   }, {
     "name" : "browser_navigate",
     "service" : "BrowserService",
-    "description" : "opens a URL in the active engine's browser session; optional newWindow (default false) opens the URL in a new window instead of navigating the current one, absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine",
+    "description" : "opens a URL in the active browser; newWindow=true opens that URL in a new window instead of the current one",
     "params" : [ {
       "name" : "newWindow",
       "type" : "boolean",
@@ -203,7 +203,7 @@
   }, {
     "name" : "browser_network_requests",
     "service" : "BrowserService",
-    "description" : "lists the active browser session's observed network transactions (method, URL, status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that single transaction and populates its full detail (headers and a bounded, redacted response preview or explicit safe-boundary omission), absorbing the former browser_network_request tool; requires the DevTools-based network trace capture that is on by default (shaft.trace.enabled and shaft.trace.includeNetwork); not supported on the Playwright engine",
+    "description" : "lists the active browser's network transactions without bodies; optional id returns one redacted detail; DevTools trace only, not Playwright",
     "params" : [ {
       "name" : "id",
       "type" : "integer",
@@ -253,7 +253,7 @@
   }, {
     "name" : "browser_route",
     "service" : "BrowserService",
-    "description" : "registers a mock network route on the active browser session, matching by optional HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the given status/body/headers instead of the real network response; returns a route id for reference (individual removal is not supported -- browser_unroute always clears every route)",
+    "description" : "mocks one browser request by method and URL glob and returns the given status, body, and headers; browser_unroute clears every route",
     "params" : [ {
       "name" : "method",
       "type" : "string",
@@ -288,7 +288,7 @@
   }, {
     "name" : "browser_set_window_size",
     "service" : "BrowserService",
-    "description" : "sets the browser window to a specific size; optional mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing browser_maximize_window/browser_fullscreen_window; dispatches to the active engine",
+    "description" : "sets the browser window size; mode is custom with width and height, maximize, or fullscreen",
     "params" : [ {
       "name" : "height",
       "type" : "integer",
@@ -308,7 +308,7 @@
   }, {
     "name" : "browser_storage_state_load",
     "service" : "BrowserService",
-    "description" : "loads cookies, localStorage, and sessionStorage from a JSON file into the active browser session; navigate to the target origin first; dispatches to the active engine",
+    "description" : "loads cookies, localStorage, and sessionStorage from JSON into the active browser; open the target origin first",
     "params" : [ {
       "name" : "filePath",
       "type" : "string",
@@ -343,7 +343,7 @@
   }, {
     "name" : "browser_unroute",
     "service" : "BrowserService",
-    "description" : "clears registered browser mock routes for the active session; routeId is accepted for reference but every route is cleared because SHAFT's network interceptor does not support removing a single rule yet",
+    "description" : "clears every mock route on the active browser session; routeId is reference-only because a single rule cannot be removed",
     "params" : [ {
       "name" : "routeId",
       "type" : "string",
@@ -413,7 +413,7 @@
   }, {
     "name" : "capture_api_response_leaves",
     "service" : "CaptureService",
-    "description" : "returns classified response-body leaves (stable/volatile/sensitive) per transaction for a recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted",
+    "description" : "classifies a session's response-body leaves as stable, volatile, or sensitive without generating test source",
     "params" : [ {
       "name" : "excludedTransactionIds",
       "type" : "array",
@@ -428,7 +428,7 @@
   }, {
     "name" : "capture_api_start",
     "service" : "CaptureService",
-    "description" : "starts SHAFT Capture with API network recording enabled; dispatches to the mobile loopback MITM proxy when a mobile engine is active OR mobilePlatform is explicitly given (the mobile proxy never requires a live Appium/WebDriver session), absorbing mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and ignored on WEB)",
+    "description" : "starts API network capture; uses the mobile MITM proxy when a mobile engine or mobilePlatform is set, otherwise WEB capture",
     "params" : [ {
       "name" : "browser",
       "type" : "string",
@@ -468,12 +468,12 @@
   }, {
     "name" : "capture_api_status",
     "service" : "CaptureService",
-    "description" : "returns SHAFT Capture session status including network transaction count and recent endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running",
+    "description" : "returns API capture status, transaction count, and recent endpoints for the active WEB or mobile MITM session",
     "params" : [ ]
   }, {
     "name" : "capture_api_stop",
     "service" : "CaptureService",
-    "description" : "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a standalone mobile API session (started with no active engine) is already running",
+    "description" : "stops API capture for the active WEB session or a running mobile MITM session, using the same single-session lock as capture_stop",
     "params" : [ {
       "name" : "discard",
       "type" : "boolean",
@@ -483,7 +483,7 @@
   }, {
     "name" : "capture_api_transactions",
     "service" : "CaptureService",
-    "description" : "returns captured network transactions without bodies or sensitive headers; supports filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions when a mobile engine is active, or when a standalone mobile API session is already running (includeAssets/excludePattern are WEB-only there)",
+    "description" : "lists captured API transactions without bodies or sensitive headers; mobile reads the MITM proxy, and WEB can filter asset noise",
     "params" : [ {
       "name" : "excludePattern",
       "type" : "string",
@@ -548,7 +548,7 @@
   }, {
     "name" : "capture_code_blocks",
     "service" : "CaptureService",
-    "description" : "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)",
+    "description" : "generates a Java class snippet and insertion guidance from a saved recording; backend web, playwright, or mobile defaults to the active engine",
     "params" : [ {
       "name" : "backend",
       "type" : "string",
@@ -618,7 +618,7 @@
   }, {
     "name" : "capture_generate_replay",
     "service" : "CaptureService",
-    "description" : "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a persisted recording JSON (sessionPath); works on any recording file, no active capture session required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/mobile_replay_recording)",
+    "description" : "generates, compiles, and optionally replays SHAFT code from a saved recording; backend web, playwright, or mobile defaults to the active engine",
     "params" : [ {
       "name" : "allowLocalAi",
       "type" : "boolean",
@@ -688,7 +688,7 @@
   }, {
     "name" : "capture_record_at_target_code_blocks",
     "service" : "CaptureService",
-    "description" : "generates focused Capture snippets for insertion at an existing Java source anchor; optional backend (web|playwright|mobile) selects the codegen target, defaulting to the active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)",
+    "description" : "generates Capture snippets for an existing Java source anchor; backend web, playwright, or mobile defaults to the active engine",
     "params" : [ {
       "name" : "backend",
       "type" : "string",
@@ -748,7 +748,7 @@
   }, {
     "name" : "capture_start",
     "service" : "CaptureService",
-    "description" : "starts a recording, dispatching to the active engine: WEB (or no active session) always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while it is active, element_* tools drive the recorded browser directly (no driver_initialize needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver (targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only. IMPORTANT: this tool takes no engine/platform argument of its own -- with no active session (the default), it ALWAYS launches a desktop Chrome/Edge browser, never a mobile app, even when the caller's intent is to record on a mobile device or emulator; to record a mobile app, call driver_initialize(engine=mobile_native) or driver_initialize(engine=mobile_web) FIRST to make that engine active, then call capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead",
+    "description" : "starts a recording on the active engine; with no session it launches desktop web CDP capture and element_* drive that browser; codegenOptions is WEB-only",
     "params" : [ {
       "name" : "browser",
       "type" : "string",
@@ -783,12 +783,12 @@
   }, {
     "name" : "capture_status",
     "service" : "CaptureService",
-    "description" : "returns recorder status for the active engine: WEB (or no active session) returns SHAFT Capture session, browser, URL, event count, pending debounced-signal count, warnings, and output status (when no session is active the warnings list persisted recordings that can be turned into code without a live session); PLAYWRIGHT/mobile return that engine's own recorder status; the union's engine field names which is populated",
+    "description" : "returns recorder status for the active web, Playwright, or mobile engine; the union's engine field names which status is set",
     "params" : [ ]
   }, {
     "name" : "capture_step_delete",
     "service" : "CaptureService",
-    "description" : "deletes a recorded step by its stable stepId from the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor",
+    "description" : "deletes a Playwright or mobile recorded step by stepId; a WEB CDP recording has no step editor",
     "params" : [ {
       "name" : "stepId",
       "type" : "string",
@@ -798,7 +798,7 @@
   }, {
     "name" : "capture_step_reorder",
     "service" : "CaptureService",
-    "description" : "moves a recorded step up or down by its stable stepId (direction: up|down) within the active Playwright or mobile recording; returns an actionable error naming the active engine for a WEB CDP capture_start session, whose recording format has no step editor",
+    "description" : "moves a Playwright or mobile recorded step up or down by stepId; a WEB CDP recording has no step editor",
     "params" : [ {
       "name" : "direction",
       "type" : "string",
@@ -813,7 +813,7 @@
   }, {
     "name" : "capture_stop",
     "service" : "CaptureService",
-    "description" : "stops the active recording for the active engine; after WEB reaches COMPLETED, show outputPath and generate replay-proven code by passing it as sessionPath to capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the union's engine field names which recorder was stopped",
+    "description" : "stops the active engine's recording; pass the WEB outputPath to capture_generate_replay to prove the generated code",
     "params" : [ {
       "name" : "discard",
       "type" : "boolean",
@@ -838,7 +838,7 @@
   }, {
     "name" : "design_analyze",
     "service" : "DesignService",
-    "description" : "runs the requirements-analysis playbook on a story or workspace file and returns a gap register with stable GAP IDs; never writes files and does not generate Gherkin",
+    "description" : "runs the requirements playbook on a story or workspace file and returns GAP IDs; writes nothing and does not draft Gherkin",
     "params" : [ {
       "name" : "acceptedGapIds",
       "type" : "string",
@@ -983,7 +983,7 @@
   }, {
     "name" : "design_handoff",
     "service" : "DesignService",
-    "description" : "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user — never invents locators/URLs or writes Java",
+    "description" : "serializes a Ready Design pack for Automation prefill; sourceUrl is used only when the user supplied it, and it writes no Java",
     "params" : [ {
       "name" : "accept",
       "type" : "string",
@@ -1033,7 +1033,7 @@
   }, {
     "name" : "design_ingest",
     "service" : "DesignService",
-    "description" : "turns pasted user-story or acceptance-criteria text, or a workspace file, into a structured Design pack with actor, outcome, and numbered AC IDs; never writes files and does not fetch URLs",
+    "description" : "turns pasted story text or a workspace file into a Design pack with actor, outcome, and numbered AC IDs; writes nothing",
     "params" : [ {
       "name" : "filePath",
       "type" : "string",
@@ -1158,7 +1158,7 @@
   }, {
     "name" : "doctor_analyze_failed_allure",
     "service" : "DoctorService",
-    "description" : "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; accepts allure-results directories, individual *-result.json files, or a SHAFT single-file AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such evidence found in the workspace; optional backend (web|playwright, defaults to web) selects the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure",
+    "description" : "analyzes failed Allure evidence into actions and copy-paste fixes; empty paths use the newest workspace evidence; backend web or playwright",
     "params" : [ {
       "name" : "allowLocalAi",
       "type" : "boolean",
@@ -1243,7 +1243,7 @@
   }, {
     "name" : "doctor_cause_label",
     "service" : "DoctorService",
-    "description" : "confirms or suggests persisted Doctor defect labels keyed by signature (PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; override replaces; evidence paths redacted; no cloud ML",
+    "description" : "confirms or suggests a persisted Doctor defect label for a signature; the store is local, and evidence paths are redacted",
     "params" : [ {
       "name" : "action",
       "type" : "string",
@@ -1333,7 +1333,7 @@
   }, {
     "name" : "doctor_suggest_fix",
     "service" : "DoctorService",
-    "description" : "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_doctor_suggest_fix",
+    "description" : "returns copy-paste remediation blocks from an existing Doctor report; backend web or playwright selects the snippet engine",
     "params" : [ {
       "name" : "allowLocalAi",
       "type" : "boolean",
@@ -1378,7 +1378,7 @@
   }, {
     "name" : "driver_initialize",
     "service" : "EngineService",
-    "description" : "launches browser, Playwright, or a mobile session; optional engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, optional nested mobileOptions carries native/web-emulation parameters, absorbing mobile_initialize_native/mobile_initialize_web_emulation",
+    "description" : "launches a web, Playwright, or mobile session; engine is web, playwright, mobile_native, or mobile_web, and mobileOptions carries device setup",
     "params" : [ {
       "name" : "engine",
       "type" : "string",
@@ -1418,7 +1418,7 @@
   }, {
     "name" : "element_click",
     "service" : "ElementService",
-    "description" : "clicks an element; optional mode selects single (default) | double | long; dispatches to the active engine and records the step when a mobile or Playwright recording is active",
+    "description" : "clicks an element; mode is single (default), double, or long, and records the step on mobile or Playwright",
     "params" : [ {
       "name" : "locatorStrategy",
       "type" : "string",
@@ -1453,7 +1453,7 @@
   }, {
     "name" : "element_drag_and_drop",
     "service" : "ElementService",
-    "description" : "drags and drops an element from source to a target locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine and records the step when a Playwright recording is active",
+    "description" : "drags an element onto a target locator, or by offsetX and offsetY when no target is given; records the step on Playwright",
     "params" : [ {
       "name" : "offsetX",
       "type" : "integer",
@@ -1563,7 +1563,7 @@
   }, {
     "name" : "element_type",
     "service" : "ElementService",
-    "description" : "types text into an element; optional append (default false) appends instead of clearing first, optional clear (default true; false behaves like append=true) controls whether the field is cleared before typing; dispatches to the active engine and records the step when a mobile or Playwright recording is active",
+    "description" : "types text into an element; append adds text and clear=false keeps existing text; records the step on mobile or Playwright",
     "params" : [ {
       "name" : "append",
       "type" : "boolean",
@@ -1618,7 +1618,7 @@
   }, {
     "name" : "healer_run_failed_test",
     "service" : "HealerService",
-    "description" : "reruns a failing SHAFT/Selenium test, analyzes fresh Allure evidence, and returns review-only fixes plus agent replay guidance; optional backend (web|playwright, defaults to web) selects the generated snippets' engine, absorbing playwright_healer_run_failed_test",
+    "description" : "reruns a failing SHAFT test, reads fresh Allure evidence, and returns review-only fixes; backend web or playwright",
     "params" : [ {
       "name" : "allowLocalAi",
       "type" : "boolean",
@@ -1833,7 +1833,7 @@
   }, {
     "name" : "mobile_inspector_record_status",
     "service" : "MobileService",
-    "description" : "returns the wrapped Appium Inspector recording status; optional action (pause|resume|checkpoint|stop|discard) performs that control first, absorbing mobile_inspector_record_control",
+    "description" : "returns Appium Inspector recording status; optional action pause, resume, checkpoint, stop, or discard runs that control first",
     "params" : [ {
       "name" : "action",
       "type" : "string",
@@ -1878,7 +1878,7 @@
   }, {
     "name" : "mobile_swipe",
     "service" : "MobileService",
-    "description" : "swipes on the mobile screen; dispatches on whichever optional params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | locator alone (swipe element into view, optional direction) | startX/startY/endX/endY (coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/mobile_swipe_element_into_view/mobile_swipe_text_into_view",
+    "description" : "swipes on the mobile screen by text, a locator, a locator offset, or start and end coordinates",
     "params" : [ {
       "name" : "direction",
       "type" : "string",
@@ -1988,7 +1988,7 @@
   }, {
     "name" : "report_flake",
     "service" : "TraceService",
-    "description" : "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional",
+    "description" : "builds separate intra-run and cross-launch flake tables; unknown history stays explicit, and CI commit metadata is optional",
     "params" : [ {
       "name" : "allureResultsPath",
       "type" : "string",
@@ -2018,7 +2018,7 @@
   }, {
     "name" : "report_heal",
     "service" : "TraceService",
-    "description" : "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators",
+    "description" : "dashboards Heal decisions with a persist-on-pass review gate; RECOVERED plus pass is reviewable, and it never writes locators",
     "params" : [ {
       "name" : "proposalsPath",
       "type" : "string",
@@ -2033,7 +2033,7 @@
   }, {
     "name" : "report_history",
     "service" : "TraceService",
-    "description" : "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state",
+    "description" : "ingests Allure history.jsonl and optional Doctor JSON for cross-run history; missing history is an empty state, not a failure",
     "params" : [ {
       "name" : "allureResultsPath",
       "type" : "string",
@@ -2073,7 +2073,7 @@
   }, {
     "name" : "report_mute",
     "service" : "TraceService",
-    "description" : "local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file",
+    "description" : "mutes a local flake with a required reason until N local passes; the store is gitignored .shaft/local-mutes.json unless a path is set",
     "params" : [ {
       "name" : "action",
       "type" : "string",
@@ -2113,7 +2113,7 @@
   }, {
     "name" : "report_open",
     "service" : "TraceService",
-    "description" : "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure",
+    "description" : "opens the newest Allure HTML report, or names generate_test_report when none exists; never rewrites the HTML",
     "params" : [ {
       "name" : "allureResultsPath",
       "type" : "string",
@@ -2133,7 +2133,7 @@
   }, {
     "name" : "report_smart_tags",
     "service" : "TraceService",
-    "description" : "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist",
+    "description" : "tags Allure history as New, Always-failing, Flaky, Regressed, or Fixed; a first failure is New, and thin history is not Flaky",
     "params" : [ {
       "name" : "allureResultsPath",
       "type" : "string",
@@ -2163,7 +2163,7 @@
   }, {
     "name" : "report_summary",
     "service" : "TraceService",
-    "description" : "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA",
+    "description" : "builds engineer and stakeholder report summaries from Allure, flake, and heal counts, and never includes secrets",
     "params" : [ {
       "name" : "allureResultsPath",
       "type" : "string",
@@ -2343,7 +2343,7 @@
   }, {
     "name" : "shaft_coding_partner_diff",
     "service" : "CodingPartnerService",
-    "description" : "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an existing Java target at a chosen method or textual anchor; never writes files",
+    "description" : "previews a unified diff that inserts reviewed SHAFT code at a Java method or text anchor; never writes files",
     "params" : [ {
       "name" : "codeBlocks",
       "type" : "array",
@@ -2368,7 +2368,7 @@
   }, {
     "name" : "shaft_coding_partner_plan",
     "service" : "CodingPartnerService",
-    "description" : "plans a repository-aware SHAFT IntelliJ coding-partner workflow using current source, selected text, existing page objects/tests, capture evidence, and verification guidance",
+    "description" : "plans a repository-aware SHAFT coding-partner workflow from source, selection, page objects, capture evidence, and verification",
     "params" : [ {
       "name" : "artifactPaths",
       "type" : "array",
@@ -2483,7 +2483,7 @@
   }, {
     "name" : "shaft_project_init_agents",
     "service" : "ShaftProjectService",
-    "description" : "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); preserves user-authored instruction text and only overwrites SHAFT-owned skill files when overwrite=true",
+    "description" : "scaffolds SHAFT skill bridges and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files",
     "params" : [ {
       "name" : "loop",
       "type" : "string",
@@ -2553,7 +2553,7 @@
   }, {
     "name" : "test_automation_scenarios",
     "service" : "TestAutomationService",
-    "description" : "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails, and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work",
+    "description" : "returns SHAFT MCP scenarios, actions, patterns, guardrails, and done criteria for API, GUI, mobile, capture, Doctor, and CI",
     "params" : [ {
       "name" : "area",
       "type" : "string",
@@ -2573,7 +2573,7 @@
   }, {
     "name" : "test_code_guardrails_check",
     "service" : "TestAutomationService",
-    "description" : "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators, raw driver calls, headed setup, direct system properties, and obvious secrets",
+    "description" : "checks SHAFT test code for sleeps, brittle locators, raw driver calls, headed setup, direct properties, and obvious secrets",
     "params" : [ {
       "name" : "code",
       "type" : "string",
@@ -2588,7 +2588,7 @@
   }, {
     "name" : "test_plan_explore",
     "service" : "PlannerService",
-    "description" : "crawls the active SHAFT browser session breadth-first from a URL, discovering forms, primary navigation actions, and same-origin links, and writes one deterministic Markdown test plan per discovered flow into specs/ (no AI calls)",
+    "description" : "crawls the active SHAFT browser from a URL and writes one deterministic Markdown test plan per discovered flow under specs/",
     "params" : [ {
       "name" : "goal",
       "type" : "string",
@@ -2658,7 +2658,7 @@
   }, {
     "name" : "verify_run_focused",
     "service" : "HealerService",
-    "description" : "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify, package) headlessly inside the MCP workspace and returns a bounded pass/fail summary; release and deploy goals are rejected",
+    "description" : "runs guarded Maven compile, test-compile, test, verify, or package in the workspace and returns a bounded pass or fail summary",
     "params" : [ {
       "name" : "command",
       "type" : "array",

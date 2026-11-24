@@ -88,9 +88,7 @@ public class PlannerService {
      * @return pages visited, the plan files written, and any bounded-crawl warnings
      */
     @Tool(name = "test_plan_explore",
-            description = "crawls the active SHAFT browser session breadth-first from a URL, discovering forms, "
-                    + "primary navigation actions, and same-origin links, and writes one deterministic Markdown "
-                    + "test plan per discovered flow into specs/ (no AI calls)")
+            description = "crawls the active SHAFT browser from a URL and writes one deterministic Markdown test plan per discovered flow under specs/")
     /**
      * Explores the site from the URL and drafts a test plan for the goal.
      */

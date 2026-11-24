@@ -120,9 +120,7 @@ public class BrowserService {
      *                  one (absorbs {@code playwright_browser_new_window}'s window-opening behavior
      *                  on the Playwright engine); blank/omitted defaults to false
      */
-    @Tool(name = "browser_navigate", description = "opens a URL in the active engine's browser session; optional "
-            + "newWindow (default false) opens the URL in a new window instead of navigating the current one, "
-            + "absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine")
+    @Tool(name = "browser_navigate", description = "opens a URL in the active browser; newWindow=true opens that URL in a new window instead of the current one")
     /**
      * Navigates the current browser to the URL, optionally in a new window.
      */
@@ -230,9 +228,7 @@ public class BrowserService {
      * @param mode   custom (default, uses width/height) | maximize | fullscreen, absorbing
      *               {@code browser_maximize_window}/{@code browser_fullscreen_window}
      */
-    @Tool(name = "browser_set_window_size", description = "sets the browser window to a specific size; optional "
-            + "mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing "
-            + "browser_maximize_window/browser_fullscreen_window; dispatches to the active engine")
+    @Tool(name = "browser_set_window_size", description = "sets the browser window size; mode is custom with width and height, maximize, or fullscreen")
     /**
      * Resizes the browser window, or maximizes it or switches it to full screen.
      */
@@ -527,8 +523,7 @@ public class BrowserService {
      * @return a short confirmation including the resolved path and restored cookie count
      */
     @Tool(name = "browser_storage_state_load",
-            description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
-                    + "browser session; navigate to the target origin first; dispatches to the active engine")
+            description = "loads cookies, localStorage, and sessionStorage from JSON into the active browser; open the target origin first")
     /**
      * Loads browser storage state from a file.
      */
@@ -561,13 +556,7 @@ public class BrowserService {
      * @return matching transactions in observed order, newest last
      */
     @Tool(name = "browser_network_requests",
-            description = "lists the active browser session's observed network transactions (method, URL, "
-                    + "status, mimeType, sizes, timestamp; never bodies); optional id narrows the listing to that "
-                    + "single transaction and populates its full detail (headers and a bounded, redacted response "
-                    + "preview or explicit safe-boundary omission), absorbing the former "
-                    + "browser_network_request tool; requires the "
-                    + "DevTools-based network trace capture that is on by default (shaft.trace.enabled and "
-                    + "shaft.trace.includeNetwork); not supported on the Playwright engine")
+            description = "lists the active browser's network transactions without bodies; optional id returns one redacted detail; DevTools trace only, not Playwright")
     /**
      * Lists recorded network requests, filtered by URL, or returns one request by id.
      */
@@ -633,10 +622,7 @@ public class BrowserService {
      * @return a route id for reference in logs and reports
      */
     @Tool(name = "browser_route",
-            description = "registers a mock network route on the active browser session, matching by optional "
-                    + "HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the "
-                    + "given status/body/headers instead of the real network response; returns a route id for "
-                    + "reference (individual removal is not supported -- browser_unroute always clears every route)")
+            description = "mocks one browser request by method and URL glob and returns the given status, body, and headers; browser_unroute clears every route")
     /**
      * Adds a network route that answers matching requests with the given response.
      *
@@ -669,9 +655,7 @@ public class BrowserService {
      * @return a confirmation message documenting the clear-all behavior
      */
     @Tool(name = "browser_unroute",
-            description = "clears registered browser mock routes for the active session; routeId is accepted "
-                    + "for reference but every route is cleared because SHAFT's network interceptor does not "
-                    + "support removing a single rule yet")
+            description = "clears every mock route on the active browser session; routeId is reference-only because a single rule cannot be removed")
     /**
      * Removes the network route with the given id.
      */
@@ -733,9 +717,7 @@ public class BrowserService {
      * @return the audit result, including a violation count and a per-violation summary
      */
     @Tool(name = "browser_accessibility_audit",
-            description = "runs a non-asserting axe-core WCAG accessibility audit on the current page and "
-                    + "returns the violations found; never fails the call when violations exist; dispatches to "
-                    + "the active engine")
+            description = "runs a non-failing axe-core WCAG audit of the current page and returns the violations it finds")
     /**
      * Runs an accessibility audit on the current page for the given WCAG tags.
      */

@@ -317,10 +317,7 @@ public class ShaftProjectService {
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
-            description = "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing "
-                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); "
-                    + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
-                    + "overwrite=true")
+            description = "scaffolds SHAFT skill bridges and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files")
     /**
      * Writes the AI agent instruction files for the chosen loop into the target folder.
      */

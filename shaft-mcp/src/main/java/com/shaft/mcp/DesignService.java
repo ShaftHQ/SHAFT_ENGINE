@@ -46,9 +46,7 @@ public class DesignService {
      * @return pack; {@code wroteFiles} is always false
      */
     @Tool(name = "design_ingest",
-            description = "turns pasted user-story or acceptance-criteria text, or a workspace file, "
-                    + "into a structured Design pack with actor, outcome, and numbered AC IDs; never "
-                    + "writes files and does not fetch URLs")
+            description = "turns pasted story text or a workspace file into a Design pack with actor, outcome, and numbered AC IDs; writes nothing")
     /**
      * Ingests a requirements or design document from text, a file or a URL.
      */
@@ -74,9 +72,7 @@ public class DesignService {
      * @return analysis; {@code wroteFiles} is always false and Gherkin is never emitted
      */
     @Tool(name = "design_analyze",
-            description = "runs the requirements-analysis playbook on a story or workspace file and "
-                    + "returns a gap register with stable GAP IDs; never writes files and does not "
-                    + "generate Gherkin")
+            description = "runs the requirements playbook on a story or workspace file and returns GAP IDs; writes nothing and does not draft Gherkin")
     /**
      * Analyzes a design document for testable behaviors and gaps.
      */
@@ -190,7 +186,7 @@ public class DesignService {
 
 
     @Tool(name = "design_handoff",
-            description = "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user — never invents locators/URLs or writes Java")
+            description = "serializes a Ready Design pack for Automation prefill; sourceUrl is used only when the user supplied it, and it writes no Java")
     /**
      * Builds the automation handoff package for a design document.
      */

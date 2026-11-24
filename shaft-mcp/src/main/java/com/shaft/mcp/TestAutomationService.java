@@ -81,8 +81,7 @@ public class TestAutomationService {
      * @return scenario catalog result
      */
     @Tool(name = "test_automation_scenarios",
-            description = "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails,"
-                    + " and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work")
+            description = "returns SHAFT MCP scenarios, actions, patterns, guardrails, and done criteria for API, GUI, mobile, capture, Doctor, and CI")
     /**
      * Finds test automation scenarios for the area and intent.
      */
@@ -120,8 +119,7 @@ public class TestAutomationService {
      * @return code guardrail result
      */
     @Tool(name = "test_code_guardrails_check",
-            description = "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators,"
-                    + " raw driver calls, headed setup, direct system properties, and obvious secrets")
+            description = "checks SHAFT test code for sleeps, brittle locators, raw driver calls, headed setup, direct properties, and obvious secrets")
     /**
      * Checks generated test code against SHAFT's guardrails.
      */

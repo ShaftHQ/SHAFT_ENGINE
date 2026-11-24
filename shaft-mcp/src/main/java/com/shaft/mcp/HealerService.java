@@ -73,10 +73,7 @@ public class HealerService {
      * @return guarded rerun attempts plus review-only remediation
      */
     @Tool(name = "healer_run_failed_test",
-            description = "reruns a failing SHAFT/Selenium test, analyzes fresh Allure evidence,"
-                    + " and returns review-only fixes plus agent replay guidance; optional backend "
-                    + "(web|playwright, defaults to web) selects the generated snippets' engine, "
-                    + "absorbing playwright_healer_run_failed_test")
+            description = "reruns a failing SHAFT test, reads fresh Allure evidence, and returns review-only fixes; backend web or playwright")
     /**
      * Reruns a failed test, applying locator healing between attempts.
      */
@@ -302,9 +299,7 @@ public class HealerService {
      * @return guarded verification result
      */
     @Tool(name = "verify_run_focused",
-            description = "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify,"
-                    + " package) headlessly inside the MCP workspace and returns a bounded pass/fail summary;"
-                    + " release and deploy goals are rejected")
+            description = "runs guarded Maven compile, test-compile, test, verify, or package in the workspace and returns a bounded pass or fail summary")
     /**
      * Runs a focused verification command in the repository.
      */
