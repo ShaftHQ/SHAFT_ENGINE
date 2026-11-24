@@ -192,6 +192,10 @@ public class JunitListener implements LauncherSessionListener {
         return false;
     }
 
+    /**
+     * JUnit 6.1.3 {@code ClassNamePatternFilterUtils}: {@code .} matches {@code .} or
+     * {@code $}, {@code *} is one or more characters, and every other character is literal.
+     */
     private static boolean matchesDeactivatePattern(String token, String className) {
         if (token.isEmpty()) {
             return false;
@@ -200,7 +204,9 @@ public class JunitListener implements LauncherSessionListener {
         for (int index = 0; index < token.length(); index++) {
             char character = token.charAt(index);
             if (character == '*') {
-                pattern.append('.').append('*');
+                pattern.append(".+");
+            } else if (character == '.') {
+                pattern.append("[.$]");
             } else {
                 pattern.append(Pattern.quote(String.valueOf(character)));
             }
