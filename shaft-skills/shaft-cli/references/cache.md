@@ -10,7 +10,8 @@ Do not run `--help` for ordinary discovery.
 - `shaft-cli session start`
 - `shaft-cli session status`
 - `shaft-cli session stop`
-- `shaft-cli tools --cached [--json]`
+- `shaft-cli tools --cached [--group <service-or-prefix>] [--compact] [--json]`
+- `shaft-cli tools describe <tool> [--json]`
 - `shaft-cli codegen [--session <path>]`
 - `shaft-cli setup catalog|profiles [--json]`
 - `shaft-cli setup doctor|status|verify --profile REPORTING [--json]`
@@ -22,7 +23,7 @@ Do not run `--help` for ordinary discovery.
 - `shaft-cli element click|type|hover`
 - `shaft-cli capture start|stop|status|code|step-delete|step-reorder`
 - `shaft-cli guide search`
-- `shaft-cli doctor analyze|suggest|local-ai-status`
+- `shaft-cli doctor analyze|suggest|local-ai-status|cause-label`
 
 Browser, element, capture, and driver commands need `shaft-cli session start` unless the call is a deliberately disposable one-shot.
 

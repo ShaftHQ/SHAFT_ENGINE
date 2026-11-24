@@ -51,7 +51,7 @@
     },
     {
       "name": "tools",
-      "description": "List the tools exposed by shaft-mcp."
+      "description": "List the tools exposed by shaft-mcp. Filter with --group, print one line per tool with --compact, or run describe <tool> for one tool."
     }
   ]
 }

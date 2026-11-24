@@ -51,6 +51,11 @@ canonical `tool-index.json` with no MCP server or one-shot child process. Its
 names, descriptions, parameter schemas, and curated metadata exactly match the
 shaft-mcp version shipped with that CLI; use the live command only when the
 running server may be a different version.
+`shaft-cli tools --group <service-or-prefix>` keeps one service (`browser`,
+`CaptureService`) or one tool-name prefix (`browser_`, `report_`, `design_`).
+`shaft-cli tools --compact` prints one line per tool with required argument
+names only. `shaft-cli tools describe <tool> [--json]` prints one bundled tool
+offline.
 
 ## Codegen (deterministic, no MCP session)
 
@@ -110,4 +115,4 @@ Shortcuts over `call`, same options:
 - `shaft-cli element click|type|hover` (session required)
 - `shaft-cli capture start|stop|status|code|step-delete|step-reorder` (session required)
 - `shaft-cli guide search` (stateless)
-- `shaft-cli doctor analyze|suggest|local-ai-status` (stateless)
+- `shaft-cli doctor analyze|suggest|local-ai-status|cause-label` (stateless)

@@ -283,7 +283,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": "url",
-      "cliCommand": null,
+      "cliCommand": "browser url",
       "example": null
     },
     {
@@ -303,7 +303,7 @@
       "sensitive": true,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "browser dom",
       "example": null
     },
     {
@@ -345,7 +345,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": "nav",
-      "cliCommand": null,
+      "cliCommand": "browser navigate",
       "example": {
         "request": {
           "targetUrl": "https://demo.example.com/checkout"
@@ -625,7 +625,7 @@
       "sensitive": true,
       "intentKeywords": [],
       "slashAlias": "screenshot",
-      "cliCommand": null,
+      "cliCommand": "browser screenshot",
       "example": null
     },
     {
@@ -1047,7 +1047,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "capture code",
       "example": null
     },
     {
@@ -1371,7 +1371,7 @@
         "record my browser actions"
       ],
       "slashAlias": "start",
-      "cliCommand": null,
+      "cliCommand": "capture start",
       "example": {
         "request": {
           "targetUrl": "https://demo.example.com/checkout",
@@ -1391,7 +1391,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": "status",
-      "cliCommand": null,
+      "cliCommand": "capture status",
       "example": {
         "request": {},
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
@@ -1414,7 +1414,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "capture step-delete",
       "example": null
     },
     {
@@ -1441,7 +1441,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "capture step-reorder",
       "example": null
     },
     {
@@ -1461,7 +1461,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": "stop",
-      "cliCommand": null,
+      "cliCommand": "capture stop",
       "example": {
         "request": {
           "discard": true
@@ -1827,7 +1827,7 @@
       "sensitive": true,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "design handoff",
       "example": null
     },
     {
@@ -2205,7 +2205,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "doctor analyze",
       "example": null
     },
     {
@@ -2270,7 +2270,7 @@
         "local model status"
       ],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "doctor local-ai-status",
       "example": null
     },
     {
@@ -2435,7 +2435,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "doctor suggest",
       "example": {
         "request": {
           "jsonReportPath": "target/shaft-doctor/doctor-report.json",
@@ -2568,7 +2568,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": "click",
-      "cliCommand": null,
+      "cliCommand": "element click",
       "example": {
         "request": {
           "locatorStrategy": "ID",
@@ -2710,7 +2710,7 @@
       "sensitive": false,
       "intentKeywords": [],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "element hover",
       "example": null
     },
     {
@@ -2839,7 +2839,7 @@
       "sensitive": true,
       "intentKeywords": [],
       "slashAlias": "type",
-      "cliCommand": null,
+      "cliCommand": "element type",
       "example": {
         "request": {
           "locatorStrategy": "ID",
@@ -4398,7 +4398,7 @@
         "docs for"
       ],
       "slashAlias": null,
-      "cliCommand": null,
+      "cliCommand": "guide search",
       "example": {
         "request": {
           "query": "page object model",

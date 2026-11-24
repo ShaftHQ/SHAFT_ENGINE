@@ -11,15 +11,20 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 import tools.jackson.databind.JsonNode;
 
-import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
- * Lists the tools shaft-mcp exposes via {@code tools/list}.
+ * Lists the tools shaft-mcp exposes. {@code --cached} reads the bundled index offline.
+ * {@code --group} filters by service or tool-name prefix, {@code --compact} prints required
+ * argument names only, and {@code describe} prints one tool.
  */
 @Command(mixinStandardHelpOptions = true,
-        name = "tools", description = "List the tools exposed by shaft-mcp.")
+        name = "tools",
+        description = "List the tools exposed by shaft-mcp. Filter with --group, "
+                + "print one line per tool with --compact, or run describe <tool> for one tool.",
+        subcommands = {ToolsDescribeCommand.class})
 public final class ToolsCommand implements Callable<Integer> {
 
     /** Classpath location of the offline catalog snapshot read by {@code --cached}. */
@@ -32,6 +37,14 @@ public final class ToolsCommand implements Callable<Integer> {
             description = "List the generated tool-index snapshot bundled with this shaft-cli version, "
                     + "without connecting to a live shaft-mcp server.")
     private boolean cached;
+
+    @Option(names = "--group", paramLabel = "SERVICE_OR_PREFIX",
+            description = "Keep tools in one service (CaptureService or capture) or with one name prefix (browser_).")
+    private String group = "";
+
+    @Option(names = "--compact",
+            description = "Print one line per tool: the name, plus required argument names. Omits descriptions.")
+    private boolean compact;
 
     @Spec
     private CommandSpec spec;
@@ -55,59 +68,48 @@ public final class ToolsCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         PrintWriter out = spec.commandLine().getOut();
+        PrintWriter err = spec.commandLine().getErr();
         if (cached) {
-            return callCached(out);
+            return callCached(out, err);
         }
-        try (McpClient client = factory.connect(false, true)) {
-            if (json) {
-                out.println(Json.MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(client.listToolsRaw()));
-                out.flush();
-                return 0;
-            }
-            for (Tool tool : client.listTools()) {
-                out.println(tool.name() + " — " + firstSentence(tool.description()));
-            }
-            out.flush();
-            return 0;
-        }
+        return callLive(out, err);
     }
 
     /**
      * Renders the bundled generated copy of
      * {@code shaft-mcp/.../META-INF/shaft-mcp/tool-index.json} without opening an MCP connection.
      */
-    private Integer callCached(PrintWriter out) {
-        PrintWriter err = spec.commandLine().getErr();
-        JsonNode index;
-        try (InputStream stream = ToolsCommand.class.getResourceAsStream(CACHED_INDEX_RESOURCE)) {
-            if (stream == null) {
-                err.println("Cached tool index not found on the classpath: " + CACHED_INDEX_RESOURCE);
-                err.flush();
-                return 1;
-            }
-            index = Json.MAPPER.readTree(stream);
-        } catch (java.io.IOException exception) {
-            err.println("Cached tool index could not be read: " + exception.getMessage());
-            err.flush();
-            return 1;
-        } catch (RuntimeException exception) {
-            err.println("Cached tool index is not valid JSON: " + exception.getMessage());
-            err.flush();
+    private Integer callCached(PrintWriter out, PrintWriter err) {
+        Optional<JsonNode> loaded = ToolCatalog.readCached(err);
+        if (loaded.isEmpty()) {
             return 1;
         }
-        if (json) {
-            out.println(Json.MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(index));
-            out.flush();
-            return 0;
-        }
-        for (JsonNode tool : index.path("tools")) {
-            out.println(tool.path("name").asText("") + " — " + firstSentence(tool.path("description").asText("")));
-        }
-        out.flush();
-        return 0;
+        return ToolCatalog.renderCached(loaded.get(), out, err, json, compact, group);
     }
 
-    private static String firstSentence(String description) {
+    private Integer callLive(PrintWriter out, PrintWriter err) {
+        try (McpClient client = factory.connect(false, true)) {
+            if (json && group.isBlank()) {
+                out.println(Json.MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(client.listToolsRaw()));
+                out.flush();
+                return 0;
+            }
+            if (!json && !compact && group.isBlank()) {
+                writeLegacyLive(client, out);
+                return 0;
+            }
+            return ToolCatalog.renderLive(client, out, err, json, compact, group);
+        }
+    }
+
+    private void writeLegacyLive(McpClient client, PrintWriter out) {
+        for (Tool tool : client.listTools()) {
+            out.println(tool.name() + " — " + firstSentence(tool.description()));
+        }
+        out.flush();
+    }
+
+    static String firstSentence(String description) {
         if (description == null || description.isBlank()) {
             return "";
         }
