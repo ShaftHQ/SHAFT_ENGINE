@@ -12,12 +12,16 @@ from pathlib import Path
 
 try:
     from scripts.ci.assemble_shaft_skills_plugin import (
+        CONSUMER_SKILL_PACKAGE_PATH,
         assemble,
+        include_in_consumer_package,
         package_path_for_source,
         tracked_source_files,
     )
 except ModuleNotFoundError:
+    CONSUMER_SKILL_PACKAGE_PATH = None
     assemble = None
+    include_in_consumer_package = None
     package_path_for_source = None
     tracked_source_files = None
 
@@ -67,9 +71,34 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
                 "license": "MIT",
             },
         )
+        packaged_skills = []
         for source in tracked_source_files(ROOT):
+            relative = source.relative_to(CANONICAL_SKILLS).as_posix()
             target = self.package_root / package_path_for_source(CANONICAL_SKILLS, source)
-            self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+            if include_in_consumer_package(relative):
+                self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+                packaged_skills.append("skills/" + relative)
+            else:
+                self.assertFalse(target.exists(), relative)
+        skill_files = sorted(
+            path.relative_to(self.package_root).as_posix()
+            for path in self.package_root.rglob("*")
+            if path.is_file() and "skills/" in path.relative_to(self.package_root).as_posix()
+        )
+        self.assertEqual(sorted(packaged_skills), [path for path in skill_files if path.startswith("skills/")])
+        self.assertEqual(
+            ["skills/shaft-developer/SKILL.md"],
+            [path for path in skill_files if path.endswith("SKILL.md")],
+        )
+        self.assertEqual(0, sum(path.startswith("skills/ce-pack/") for path in skill_files))
+        self.assertEqual(0, sum(path.startswith("skills/ce-addons/") for path in skill_files))
+        for banned in (
+            "skills/INVENTORY.md",
+            "skills/QUALITY.md",
+            "skills/quality-review.json",
+            "skills/evaluation-prompts.md",
+        ):
+            self.assertNotIn(banned, skill_files)
 
     def test_routing_evals_package_as_metadata_not_as_a_fake_skill(self):
         assemble(ROOT, self.package_root)
@@ -94,6 +123,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         marketplace = json.loads((self.package_root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
 
         self.assertEqual(claude["name"], "shaft-skills")
+        self.assertEqual(claude["skills"], CONSUMER_SKILL_PACKAGE_PATH)
         self.assertEqual(claude_marketplace["name"], "shaft-skills")
         self.assertEqual(claude_marketplace["owner"], {"name": "ShaftHQ"})
         self.assertEqual(claude_marketplace["description"], "Official SHAFT test-automation skills.")
@@ -103,16 +133,25 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
                 {
                     "name": "shaft-skills",
                     "source": "./",
+                    "skills": CONSUMER_SKILL_PACKAGE_PATH,
                     "description": "User-facing SHAFT test-automation skills.",
                     "version": ENGINE_VERSION,
                 }
             ],
         )
-        self.assertEqual(codex, {"name": "shaft-skills", "version": ENGINE_VERSION, "skills": "./skills/"})
+        self.assertEqual(
+            codex,
+            {"name": "shaft-skills", "version": ENGINE_VERSION, "skills": CONSUMER_SKILL_PACKAGE_PATH},
+        )
         self.assertEqual(
             marketplace["plugins"],
-            [{"name": "shaft-skills", "source": {"source": "local", "path": "./"}}],
+            [{
+                "name": "shaft-skills",
+                "source": {"source": "local", "path": "./"},
+                "skills": CONSUMER_SKILL_PACKAGE_PATH,
+            }],
         )
+        self.assertEqual("./skills/shaft-developer", CONSUMER_SKILL_PACKAGE_PATH)
 
     def test_assembly_uses_the_declared_release_version_and_release_files(self):
         self.assertTrue(callable(assemble), "assemble must be available")

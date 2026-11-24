@@ -345,7 +345,6 @@ def main() -> int:
         skills_paths = [Path(str(path)).resolve() for path in shaft_skills.get("paths", ())]
         expected_skills_paths = {
             (root / ".agents" / "skills").resolve(),
-            (root / ".claude" / "skills").resolve(),
         }
         if set(skills_paths) != expected_skills_paths:
             raise RuntimeError(f"Expected native SHAFT skill paths, got: {skills_paths}")

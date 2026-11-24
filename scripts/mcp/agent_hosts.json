@@ -1,0 +1,157 @@
+{
+  "hosts": [
+    {
+      "id": "codex",
+      "displayName": "Codex CLI / IDE",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CODEX"
+    },
+    {
+      "id": "claude",
+      "displayName": "Claude Code",
+      "skillRoot": ".claude/skills",
+      "instructionFile": "CLAUDE.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CLAUDE_CODE"
+    },
+    {
+      "id": "claude-desktop",
+      "displayName": "Claude Desktop",
+      "skillRoot": ".claude/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "CLAUDE_DESKTOP"
+    },
+    {
+      "id": "copilot",
+      "displayName": "GitHub Copilot CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "COPILOT_CLI"
+    },
+    {
+      "id": "copilot-intellij",
+      "displayName": "GitHub Copilot for IntelliJ IDEA",
+      "skillRoot": ".agents/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "COPILOT_INTELLIJ"
+    },
+    {
+      "id": "grok",
+      "displayName": "Grok CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "GROK"
+    },
+    {
+      "id": "antigravity",
+      "displayName": "Antigravity CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "ANTIGRAVITY"
+    },
+    {
+      "id": "vscode",
+      "displayName": "VS Code",
+      "skillRoot": ".agents/skills",
+      "instructionFile": ".github/copilot-instructions.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "VSCODE"
+    },
+    {
+      "id": "opencode",
+      "displayName": "OpenCode",
+      "skillRoot": ".opencode/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "OPENCODE"
+    },
+    {
+      "id": "gemini",
+      "displayName": "Gemini CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "GEMINI"
+    },
+    {
+      "id": "cursor",
+      "displayName": "Cursor",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CURSOR"
+    },
+    {
+      "id": "intellij-plugin",
+      "displayName": "SHAFT IntelliJ IDEA plugin",
+      "skillRoot": ".agents/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "INTELLIJ_PLUGIN"
+    }
+  ],
+  "retiredSkillDirectories": [
+    "act-as-shaft-dev",
+    "analyzing-shaft-failures",
+    "choosing-shaft-locators",
+    "planning-shaft-tests",
+    "recording-shaft-tests-with-mcp",
+    "shaft-accessibility-testing",
+    "shaft-android-apk-select",
+    "shaft-api-testing",
+    "shaft-assertions",
+    "shaft-automated-test-authoring",
+    "shaft-browserstack-native",
+    "shaft-change-verification",
+    "shaft-cli",
+    "shaft-database-testing",
+    "shaft-defect-reporting",
+    "shaft-docs-hygiene",
+    "shaft-execution-reporting",
+    "shaft-failure-analysis",
+    "shaft-flaky-test-analysis",
+    "shaft-fluent-api",
+    "shaft-guide-search",
+    "shaft-ios-ipa-acceptance",
+    "shaft-locator-design",
+    "shaft-mcp",
+    "shaft-mobile-actions",
+    "shaft-mobile-env",
+    "shaft-mobile-retest-hygiene",
+    "shaft-nonfunctional-test-design",
+    "shaft-page-objects",
+    "shaft-recording-codegen",
+    "shaft-requirements-analysis",
+    "shaft-stakeholder-reporting",
+    "shaft-test-case-design",
+    "shaft-test-completion",
+    "shaft-test-data-design",
+    "shaft-test-environment",
+    "shaft-test-execution",
+    "shaft-test-monitoring",
+    "shaft-test-planning",
+    "shaft-test-recording",
+    "shaft-web-actions",
+    "verifying-and-applying-shaft-changes",
+    "writing-shaft-tests"
+  ]
+}

@@ -1,6 +1,18 @@
 # Compatibility
 
-Evidence applies to `shaft-skills` 10.3.20260817 as of 2026-08-17. Package versions match the canonical SHAFT engine version. Each column is an independent evidence level; a pass in one column never implies a pass in another.
+Evidence applies to `shaft-skills` 10.4.20261121 as of 2026-11-21. Package versions match the canonical SHAFT engine version. The consumer package ships one self-contained entrypoint, `shaft-developer`. Each column is an independent evidence level; a pass in one column never implies a pass in another.
+
+## Host matrix
+
+Installers, `shaft_project_init_agents`, and the IntelliJ setup wizard share one host registry. They install `shaft-developer` into the host skill root and do not copy contributor packs or CI scorecards.
+
+| Host | Skill root | Instruction file |
+| --- | --- | --- |
+| Claude Code, Claude Desktop | `.claude/skills` | `CLAUDE.md` for Claude Code |
+| Codex, Cursor, VS Code, Grok, Antigravity, Gemini, GitHub Copilot, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md`, or `.github/copilot-instructions.md` for VS Code and Copilot |
+| OpenCode | `.opencode/skills` | `AGENTS.md` |
+
+Cursor, OpenCode, VS Code, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.
 
 | Client | Package validation | Marketplace discovery | Install / enable | Real load |
 | --- | --- | --- | --- | --- |
