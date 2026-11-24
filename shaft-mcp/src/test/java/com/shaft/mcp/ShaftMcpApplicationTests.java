@@ -7,6 +7,7 @@ import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
@@ -666,6 +668,41 @@ class ShaftMcpApplicationTests {
         int subsetBytes = McpToolsets.compactToolsListBytes(
                 McpToolsets.views(subset, filteredSpecs instanceof List<?> list ? list : List.of()));
         assertTrue(subsetBytes <= 20 * 1024, "browser,element,engine tools/list is " + subsetBytes + " bytes");
+    }
+
+    @Test
+    void toolSpecPostProcessorStripsDialectUrlAndLeavesOtherBeansUntouched() {
+        BeanPostProcessor processor = context.getBean("shaftMcpExposedToolSpecs", BeanPostProcessor.class);
+        Object marker = new Object();
+        assertSame(marker, processor.postProcessAfterInitialization(marker, "toolSpecs"));
+        List<String> unrelated = List.of("leave-me");
+        assertSame(unrelated, processor.postProcessAfterInitialization(unrelated, "shaftTools"));
+
+        Map<String, Object> schema = new java.util.LinkedHashMap<>();
+        schema.put("$schema", "https://json-schema.org/draft/2020-12/schema");
+        schema.put("type", "object");
+        McpSchema.Tool sampleTool = McpSchema.Tool.builder("sample_tool", schema).description("sample").build();
+        McpServerFeatures.SyncToolSpecification sampleSpec = McpServerFeatures.SyncToolSpecification.builder()
+                .tool(sampleTool)
+                .callHandler((exchange, request) -> {
+                    throw new IllegalStateException("tool call is not part of this test");
+                })
+                .build();
+
+        Object processed = processor.postProcessAfterInitialization(List.of(sampleSpec), "toolSpecs");
+
+        assertTrue(processed instanceof List<?>);
+        List<?> exposed = (List<?>) processed;
+        assertEquals(1, exposed.size());
+        assertTrue(exposed.get(0) instanceof McpServerFeatures.SyncToolSpecification);
+        McpServerFeatures.SyncToolSpecification exposedSpec =
+                (McpServerFeatures.SyncToolSpecification) exposed.get(0);
+        assertEquals("sample_tool", exposedSpec.tool().name());
+        assertEquals("sample", exposedSpec.tool().description());
+        assertFalse(exposedSpec.tool().inputSchema().containsKey("$schema"),
+                exposedSpec.tool().inputSchema().toString());
+        assertEquals("object", exposedSpec.tool().inputSchema().get("type"));
+        assertTrue(sampleTool.inputSchema().containsKey("$schema"));
     }
 
     private List<McpToolsets.ToolView> exposedViews() {

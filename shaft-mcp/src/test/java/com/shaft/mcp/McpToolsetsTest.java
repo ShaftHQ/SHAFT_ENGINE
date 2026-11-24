@@ -1,6 +1,10 @@
 package com.shaft.mcp;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.DefaultToolDefinition;
+import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.ai.tool.metadata.ToolMetadata;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,6 +12,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,6 +68,42 @@ class McpToolsetsTest {
         assertTrue(stripped.contains("\"description\":\"page\""), stripped);
         assertTrue(stripped.contains("\"required\":[\"url\"]"), stripped);
         assertFalse(stripped.contains("$schema"), stripped);
+    }
+
+    @Test
+    void strippedCallbackReturnsTheDelegateToolMetadata() {
+        ToolMetadata directMetadata = ToolMetadata.builder().returnDirect(true).build();
+        String rawSchema = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\"}";
+        ToolCallback sourceCallback = new ToolCallback() {
+            @Override
+            public ToolDefinition getToolDefinition() {
+                return DefaultToolDefinition.builder()
+                        .name("driver_initialize")
+                        .description("start a driver")
+                        .inputSchema(rawSchema)
+                        .build();
+            }
+
+            @Override
+            public ToolMetadata getToolMetadata() {
+                return directMetadata;
+            }
+
+            @Override
+            public String call(String toolInput) {
+                return toolInput;
+            }
+        };
+
+        List<ToolCallback> exposed = McpToolsets.exposeCallbacks("engine", Map.of("engine", List.of(sourceCallback)));
+
+        assertEquals(1, exposed.size());
+        ToolCallback exposedCallback = exposed.get(0);
+        assertSame(directMetadata, exposedCallback.getToolMetadata());
+        assertTrue(exposedCallback.getToolMetadata().returnDirect());
+        assertFalse(exposedCallback.getToolDefinition().inputSchema().contains("$schema"),
+                exposedCallback.getToolDefinition().inputSchema());
+        assertTrue(sourceCallback.getToolDefinition().inputSchema().contains("$schema"));
     }
 
     private static Map<String, List<String>> sample() {
