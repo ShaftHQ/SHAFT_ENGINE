@@ -8,6 +8,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.LambdaTestHelper;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import com.shaft.properties.internal.PropertiesHelper;
 import com.shaft.tools.io.internal.ProjectStructureManager;
 import org.mockito.MockedConstruction;
@@ -177,6 +178,29 @@ public class DriverFactoryCoverageUnitTest {
             org.mockito.Mockito.verify(helper).initializeDriver(DriverFactory.DriverType.CHROME, customDriverOptions);
 
             SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo("LINUX").perform();
+            SHAFT.Validations.assertThat().object(helperConstruction.constructed().size()).isEqualTo(1).perform();
+        }
+    }
+
+    @Test
+    public void getHelperShouldApplyXmlParametersWhenTestNameIsNull() {
+        SHAFT.Properties.platform.set().targetPlatform("WINDOWS");
+        DriverFactory factory = new DriverFactory();
+        XmlTest xmlTest = org.mockito.Mockito.mock(XmlTest.class);
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+
+        try (MockedStatic<TestNGListenerHelper> listenerHelper = org.mockito.Mockito.mockStatic(TestNGListenerHelper.class);
+             MockedConstruction<DriverFactoryHelper> helperConstruction = org.mockito.Mockito.mockConstruction(DriverFactoryHelper.class)) {
+            listenerHelper.when(TestNGListenerHelper::getXmlTest).thenReturn(xmlTest);
+            org.mockito.Mockito.when(xmlTest.getAllParameters()).thenReturn(Map.of("customLastMinuteKey", "from-xml"));
+            listenerHelper.when(TestNGListenerHelper::getTestName).thenReturn(null);
+
+            DriverFactoryHelper helper = factory.getHelper(DriverFactory.DriverType.CHROME, customDriverOptions);
+            org.mockito.Mockito.verify(helper).initializeDriver(DriverFactory.DriverType.CHROME, customDriverOptions);
+
+            SHAFT.Validations.assertThat().object(ThreadLocalPropertiesManager.getProperty("customLastMinuteKey"))
+                    .isEqualTo("from-xml").perform();
+            SHAFT.Validations.assertThat().object(SHAFT.Properties.platform.targetPlatform()).isEqualTo("WINDOWS").perform();
             SHAFT.Validations.assertThat().object(helperConstruction.constructed().size()).isEqualTo(1).perform();
         }
     }

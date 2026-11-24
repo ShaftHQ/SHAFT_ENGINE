@@ -20,6 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.IResultListener2;
+import org.testng.internal.RuntimeBehavior;
 import org.testng.xml.XmlSuite;
 
 import javax.annotation.Nullable;
@@ -76,6 +77,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static final ThreadLocal<Class<?>> activeTestClass = new ThreadLocal<>();
     // Not a static ITestResult: EI_EXPOSE_STATIC_REP2 flags a static store of the caller's instance.
     private static final BoundResult BOUND_RESULT = new BoundResult();
+    private static final String JUNIT_PLATFORM_EXECUTION_LISTENER =
+            "org.junit.support.testng.engine.ExecutionListener";
 
     /**
      * Binds the result tests read through {@code getITestResult()}.
@@ -236,6 +239,44 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         }
     }
 
+    /**
+     * Drops a leaked {@code testng.mode.dryrun} flag for the JUnit Platform execution phase.
+     * Discovery runs do not register {@code ExecutionListener}, so they stay dry and do not
+     * invoke browser tests a second time.
+     */
+    private static void releaseLeakedTestNgDryRun(ITestContext context) {
+        if (!RuntimeBehavior.isDryRun() || !(context instanceof TestRunner runner)) {
+            return;
+        }
+        if (!hasJUnitPlatformExecutionListener(runner.getTestListeners())) {
+            return;
+        }
+        System.clearProperty(RuntimeBehavior.TESTNG_MODE_DRYRUN);
+    }
+
+    private static boolean hasJUnitPlatformExecutionListener(List<ITestListener> listeners) {
+        if (listeners == null) {
+            return false;
+        }
+        for (ITestListener listener : listeners) {
+            if (isJUnitPlatformExecutionListener(listener)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isJUnitPlatformExecutionListener(ITestListener listener) {
+        Class<?> type = listener == null ? null : listener.getClass();
+        while (type != null && type != Object.class) {
+            if (JUNIT_PLATFORM_EXECUTION_LISTENER.equals(type.getName())) {
+                return true;
+            }
+            type = type.getSuperclass();
+        }
+        return false;
+    }
+
     private static boolean canSuppressFollowingTest(ITestNGMethod method) {
         return method == null || !(method.isAfterMethodConfiguration()
                 || method.isAfterClassConfiguration()
@@ -349,6 +390,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult iTestResult, ITestContext iTestContext) {
+        // testng-engine sets testng.mode.dryrun around discovery and must clear it before
+        // execution. A leaked true value skips the method body, then ExpectedExceptionsHolder
+        // fails @Test(expectedExceptions=...) with noException. Clear it only when the JUnit
+        // execution listener is attached, so discovery itself stays dry.
+        releaseLeakedTestNgDryRun(iTestContext);
         ReportContext.start(toTestExecutionInfo(iTestResult));
         ReportContext.setLogSink(log -> Reporter.log(log, false));
         ReportContext.setStatus(io.qameta.allure.model.Status.PASSED);

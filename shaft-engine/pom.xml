@@ -35,6 +35,12 @@
         <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
     </scm>
 
+    <properties>
+        <!-- Blank keeps both JUnit Platform engines on ordinary mvn test / pr-gate runs.
+             Local browser jobs pass junit-jupiter so TestNG suites do not also launch Jupiter tests. -->
+        <shaft.surefire.excludeJUnitEngines></shaft.surefire.excludeJUnitEngines>
+    </properties>
+
     <dependencies>
         <!-- SHAFT.API.grpc (#6406): reflection client; already on the runtime classpath via tink-gcpkms, version from grpc-bom. -->
         <dependency>
@@ -889,6 +895,11 @@
                                     <name>listener</name>
                                     <value>com.shaft.listeners.TestNGListener</value>
                                 </property>
+                                <!-- Surefire 3.6.1 JUnitPlatformProvider key (blank = no engine filter). -->
+                                <property>
+                                    <name>excludejunit5engines</name>
+                                    <value>${shaft.surefire.excludeJUnitEngines}</value>
+                                </property>
                             </properties>
                         </configuration>
                     </plugin>
@@ -1099,6 +1110,11 @@
                                 <property>
                                     <name>listener</name>
                                     <value>com.shaft.listeners.JunitListener</value>
+                                </property>
+                                <!-- Jupiter only: Junit* and MoonTests. Leaves the TestNG engine out of Ubuntu_JUnit_E2E. -->
+                                <property>
+                                    <name>includejunit5engines</name>
+                                    <value>junit-jupiter</value>
                                 </property>
                             </properties>
                         </configuration>
