@@ -211,7 +211,7 @@ def _literal_tool_names(path: Path, content: str, skills_root: Path) -> set[str]
         for name in pattern.findall(content)
     }
     names.update(match.group(1) for match in MARKER_PATTERN.finditer(content))
-    if path == skills_root / "references" / "shaft-mcp-tools.md":
+    if path == skills_root / "shaft-developer" / "references" / "shaft-mcp-tools.md":
         names.update(CATALOG_TOOL_PATTERN.findall(content))
     return names
 
@@ -361,9 +361,9 @@ def _validate_local_references(skills_root: Path, canonical_names: set[str]) -> 
 
 
 def _validate_tool_catalog(skills_root: Path, canonical_names: set[str]) -> list[str]:
-    catalog_path = skills_root / "references" / "shaft-mcp-tools.md"
+    catalog_path = skills_root / "shaft-developer" / "references" / "shaft-mcp-tools.md"
     if not catalog_path.is_file():
-        return ["references/shaft-mcp-tools.md: generated MCP catalog is required"]
+        return ["shaft-developer/references/shaft-mcp-tools.md: generated MCP catalog is required"]
 
     catalog_names = CATALOG_TOOL_PATTERN.findall(catalog_path.read_text(encoding="utf-8"))
     missing = sorted(canonical_names - set(catalog_names))
@@ -371,7 +371,7 @@ def _validate_tool_catalog(skills_root: Path, canonical_names: set[str]) -> list
     duplicates = sorted(name for name in set(catalog_names) if catalog_names.count(name) > 1)
     if missing or extra or duplicates:
         return [
-            "references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
+            "shaft-developer/references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
             f"(missing={missing}, extra={extra}, duplicates={duplicates})"
         ]
     return []

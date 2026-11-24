@@ -256,28 +256,42 @@ class ShaftSkillQualityTest(unittest.TestCase):
 MAP = (
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-test-case-design"
+    / "shaft-developer"
     / "references"
+    / "specialists"
     / "journey-coverage-map.md"
 )
 MAP_POINTERS = (
-    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-case-design" / "SKILL.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-requirements-analysis"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
+    / "specialists"
+    / "test-case-design.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-automated-test-authoring"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
-    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-planning" / "references" / "playbook.md",
+    / "specialists"
+    / "requirements-analysis.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-stakeholder-reporting"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
+    / "specialists"
+    / "automated-test-authoring.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-developer"
+    / "references"
+    / "specialists"
+    / "test-planning.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-developer"
+    / "references"
+    / "specialists"
+    / "stakeholder-reporting.md",
 )
 
 
@@ -330,9 +344,9 @@ TOOL_INDEX = (
     REPOSITORY
     / "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json"
 )
-CATALOG = REPOSITORY / "shaft-skills/references/shaft-mcp-tools.md"
-MCP_CACHE = REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md"
-CLI_CACHE = REPOSITORY / "shaft-skills/shaft-cli/references/cache.md"
+CATALOG = REPOSITORY / "shaft-skills/shaft-developer/references/shaft-mcp-tools.md"
+MCP_CACHE = REPOSITORY / "shaft-skills/shaft-developer/references/mcp-cache.md"
+CLI_CACHE = REPOSITORY / "shaft-skills/shaft-developer/references/cli-cache.md"
 SKILL_NAME = re.compile(r"^shaft-[a-z0-9]+(?:-[a-z0-9]+)*$")
 HELP_INSTRUCTION = re.compile(r"(?i)\b(do not|never|don't)\b")
 
@@ -355,11 +369,9 @@ def _entrypoint_text() -> str:
 
 def _cache_files() -> list[tuple[str, Path]]:
     found = []
-    for skill in sorted((REPOSITORY / "shaft-skills").glob("*/SKILL.md")):
-        body = skill.read_text(encoding="utf-8")
-        if "references/cache.md" not in body:
-            continue
-        cache = skill.parent / "references/cache.md"
+    references = REPOSITORY / "shaft-skills/shaft-developer/references"
+    for name in ("cli-cache.md", "mcp-cache.md"):
+        cache = references / name
         heading = ""
         if cache.is_file():
             heading = cache.read_text(encoding="utf-8").splitlines()[0]
@@ -415,7 +427,7 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         rows = re.findall(r"(?m)^\| ([A-Za-z]+Service) \| ([a-z][a-z0-9, -]*) \| (\d+) \|$", cache)
         self.assertEqual(16, len(rows))
         self.assertIn("SHAFT_MCP_TOOLSETS=<groups>", cache)
-        self.assertIn("../../references/shaft-mcp-tools.md", cache)
+        self.assertIn("](shaft-mcp-tools.md)", cache)
         self.assertIn("shaft-cli tools describe <tool> [--json]", cache)
         self.assertNotIn("`browser_navigate`", cache)
         size = len(cache.encode("utf-8"))
@@ -424,15 +436,17 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
 
     def test_cli_cache_recovers_a_catalog_command_without_help_discovery(self):
         reference = (
-            REPOSITORY / "shaft-skills/references/shaft-cli-commands.md"
+            REPOSITORY / "shaft-skills/shaft-developer/references/shaft-cli-commands.md"
         ).read_text(encoding="utf-8")
         form = re.search(r"shaft-cli call <TOOL>[^\n`]*", reference)
         self.assertIsNotNone(form)
         cache_path = CLI_CACHE
-        skill = (REPOSITORY / "shaft-skills/shaft-cli/SKILL.md").read_text(encoding="utf-8")
+        skill = (
+            REPOSITORY / "shaft-skills/shaft-developer/references/specialists/cli.md"
+        ).read_text(encoding="utf-8")
         cache = cache_path.read_text(encoding="utf-8")
         self.assertIn(form.group(0).strip(), cache)
-        self.assertIn("references/cache.md", skill)
+        self.assertIn("cli-cache.md", skill)
         for label, text in (("skill", skill), ("cache", cache)):
             instructed = [
                 line

@@ -6,7 +6,7 @@
 
 # SHAFT skills mindmap
 
-Human map of the pack. An agent loads `shaft-developer` and that entrypoint selects exactly one skill. The other skills stay unloaded until that choice.
+Human map of the pack. An agent loads `shaft-developer` and that entrypoint selects exactly one skill. Each name below is a specialist reference under `shaft-developer/references/specialists/`, loaded only after that choice.
 
 ```text
 shaft-developer
@@ -47,7 +47,7 @@ shaft-developer
 │   ├── shaft-change-verification — preview, guardrail, apply, verify
 │   └── shaft-docs-hygiene — plan, journey, and issue vocabulary
 └── Tool caches (load only when selected)
-    ├── shaft-mcp — service-group index; names in references/shaft-mcp-tools.md; defer JSON schemas
+    ├── shaft-mcp — service-group index; names in shaft-developer/references/shaft-mcp-tools.md; defer JSON schemas
     └── shaft-cli — curated command forms; do not use --help for discovery
 ```
 

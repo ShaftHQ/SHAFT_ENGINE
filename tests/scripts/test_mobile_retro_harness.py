@@ -509,7 +509,7 @@ class RuntimeCliFailClosedPinTest(unittest.TestCase):
 
 class ShellLivePathPresenceTest(unittest.TestCase):
     def test_rerun_failures_and_flutter_reference_runtime(self) -> None:
-        rerun = (ROOT / "shaft-skills/shaft-test-execution/scripts/rerun-failures.sh").read_text(
+        rerun = (ROOT / "shaft-skills/shaft-developer/scripts/rerun-failures.sh").read_text(
             encoding="utf-8"
         )
         flutter = (ROOT / "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh").read_text(encoding="utf-8")

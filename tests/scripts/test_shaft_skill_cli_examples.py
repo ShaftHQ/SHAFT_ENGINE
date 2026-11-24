@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CLI_PLAYBOOK = ROOT / "shaft-skills" / "shaft-cli" / "references" / "playbook.md"
+CLI_PLAYBOOK = ROOT / "shaft-skills" / "shaft-developer" / "references" / "specialists" / "cli.md"
 TOOL_INDEX = (
     ROOT
     / "shaft-mcp"
@@ -19,7 +19,7 @@ TOOL_INDEX = (
 )
 
 
-COMMANDS = ROOT / "shaft-skills" / "references" / "shaft-cli-commands.md"
+COMMANDS = ROOT / "shaft-skills" / "shaft-developer" / "references" / "shaft-cli-commands.md"
 
 
 class ShaftCliCommandReferenceTest(unittest.TestCase):

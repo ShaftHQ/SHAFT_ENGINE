@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "shaft-skills/shaft-execution-reporting/scripts/allure_compose.py"
+SCRIPT = ROOT / "shaft-skills/shaft-developer/scripts/allure_compose.py"
 
 
 def load():

@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 PLAYBOOK = (Path(__file__).resolve().parents[2] / "shaft-skills"
-            / "shaft-automated-test-authoring" / "references" / "playbook.md")
+            / "shaft-developer" / "references" / "specialists" / "automated-test-authoring.md")
 
 
 class AutomatedTestAuthoringContentTest(unittest.TestCase):

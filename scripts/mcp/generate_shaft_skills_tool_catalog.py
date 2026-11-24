@@ -2,7 +2,7 @@
 """Write the single compact SHAFT MCP tool catalog from canonical tool-index.json.
 
 This is a deterministic, offline generator: no LLM, no Maven, no network. The checked-in
-catalog at shaft-skills/references/shaft-mcp-tools.md is one projection of
+catalog at shaft-skills/shaft-developer/references/shaft-mcp-tools.md is one projection of
 shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json: every tool, grouped by
 service, with the when-text and key argument names. It does not embed a JSON schema.
 
@@ -29,7 +29,7 @@ SOURCE_DIR = REPO_ROOT / "shaft-mcp" / "src" / "main" / "java" / "com" / "shaft"
 TOOL_INDEX = (
     REPO_ROOT / "shaft-mcp" / "src" / "main" / "resources" / "META-INF" / "shaft-mcp" / "tool-index.json"
 )
-OUTPUT_PATH = REPO_ROOT / "shaft-skills" / "references" / "shaft-mcp-tools.md"
+OUTPUT_PATH = REPO_ROOT / "shaft-skills" / "shaft-developer" / "references" / "shaft-mcp-tools.md"
 GENERATOR_RELATIVE_PATH = "scripts/mcp/generate_shaft_skills_tool_catalog.py"
 TOOL_MARKER = "@Tool("
 # Spring AI exposes MCP tools via two annotations: the plain @Tool (registered through

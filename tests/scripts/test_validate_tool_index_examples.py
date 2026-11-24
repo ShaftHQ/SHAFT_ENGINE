@@ -191,14 +191,14 @@ class DeliveredSkillContractTest(unittest.TestCase):
             ],
         }
         self._write(
-            "references/shaft-mcp-tools.md",
+            "shaft-developer/references/shaft-mcp-tools.md",
             "# SHAFT MCP Tool Catalog\n\n"
             "| Tool | When | Key args |\n"
             "| --- | --- | --- |\n"
             "| `shaft_guide_search` | Searches the guide. | query |\n",
         )
         self._write(
-            "references/shaft-cli-commands.md",
+            "shaft-developer/references/shaft-cli-commands.md",
             "# SHAFT CLI Commands\n\nUse `shaft-cli call <TOOL>`.\n",
         )
         self._write(

@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "shaft-skills/shaft-test-execution/scripts/rerun-failures.sh"
+SCRIPT = ROOT / "shaft-skills/shaft-developer/scripts/rerun-failures.sh"
 
 SUITE = """<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="S"><test name="T"><classes><class name="a.C"/></classes></test></suite>

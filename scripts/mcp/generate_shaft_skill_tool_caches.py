@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write the thin on-demand MCP and CLI caches from tool-index.json.
 
-The 122-tool catalog lives once, in shaft-skills/references/shaft-mcp-tools.md.
+The 122-tool catalog lives once, in shaft-skills/shaft-developer/references/shaft-mcp-tools.md.
 These caches only point at it. The MCP cache is the service-group summary an
 agent needs before choosing SHAFT_MCP_TOOLSETS. The CLI cache is the curated
 command index, so ordinary discovery does not run --help.
@@ -22,9 +22,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOL_INDEX = (
     REPO_ROOT / "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json"
 )
-MCP_CACHE = REPO_ROOT / "shaft-skills/shaft-mcp/references/cache.md"
-CLI_CACHE = REPO_ROOT / "shaft-skills/shaft-cli/references/cache.md"
-CATALOG_LINK = "[shaft-mcp-tools.md](../../references/shaft-mcp-tools.md)"
+MCP_CACHE = REPO_ROOT / "shaft-skills/shaft-developer/references/mcp-cache.md"
+CLI_CACHE = REPO_ROOT / "shaft-skills/shaft-developer/references/cli-cache.md"
+CATALOG_LINK = "[shaft-mcp-tools.md](shaft-mcp-tools.md)"
 # Primary SHAFT_MCP_TOOLSETS key first, then the extra aliases McpToolsets accepts.
 SERVICE_TOOLSETS = {
     "AutobotService": "autobot",

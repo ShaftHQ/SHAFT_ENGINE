@@ -326,8 +326,8 @@ is, [routing](../../shaft-skills/ce-pack/references/routing.md) says.
 
 `shaft-skills/` is a separate, published pack that teaches an agent to *use*
 SHAFT rather than to work on it. Its own router, `shaft-developer`, selects one
-of exactly 30 lifecycle, implementation, and tool specialists. The routing
-table hands off to it and does not duplicate its rows.
+of 31 specialist references. The routing table hands off to it and does not
+duplicate its rows.
 
 ## Importing these skills
 
@@ -520,13 +520,13 @@ Generated skill index ([`harness_index.py`](https://github.com/ShaftHQ/chaosengi
 Reachability gate: `tests/scripts/test_ce_entry_coverage.py`. Inventory:
 [`shaft-skills/INVENTORY.md`](../../shaft-skills/INVENTORY.md).
 
-New mobile / hygiene specialists (also listed in the inventory):
-[shaft-mobile-env](../../shaft-skills/shaft-mobile-env/SKILL.md),
-[shaft-browserstack-native](../../shaft-skills/shaft-browserstack-native/SKILL.md),
-[shaft-ios-ipa-acceptance](../../shaft-skills/shaft-ios-ipa-acceptance/SKILL.md),
-[shaft-android-apk-select](../../shaft-skills/shaft-android-apk-select/SKILL.md),
-[shaft-docs-hygiene](../../shaft-skills/shaft-docs-hygiene/SKILL.md),
-[shaft-mobile-retest-hygiene](../../shaft-skills/shaft-mobile-retest-hygiene/SKILL.md).
+Specialist references inside the one entrypoint (also named in the inventory):
+[shaft-mobile-env](../../shaft-skills/shaft-developer/references/specialists/mobile-runtime.md#local-environment),
+[shaft-browserstack-native](../../shaft-skills/shaft-developer/references/specialists/mobile-runtime.md#browserstack-app-automate),
+[shaft-ios-ipa-acceptance](../../shaft-skills/shaft-developer/references/specialists/mobile-runtime.md#ios-ipa-acceptance),
+[shaft-android-apk-select](../../shaft-skills/shaft-developer/references/specialists/mobile-runtime.md#android-apk-selection),
+[shaft-docs-hygiene](../../shaft-skills/shaft-developer/references/specialists/shaft-docs-hygiene.md),
+[shaft-mobile-retest-hygiene](../../shaft-skills/shaft-developer/references/specialists/mobile-retest-hygiene.md).
 
 ## Tool path routes (entry coverage)
 

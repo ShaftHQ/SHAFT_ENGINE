@@ -14,7 +14,14 @@ def text(relative: str) -> str:
 class ExecutionClassSkillTest(unittest.TestCase):
     def test_named_skills_state_each_rule(self):
         required = {
-            "shaft-test-execution/references/playbook.md": [
+            "shaft-developer/references/mobile-session-policy.md": [
+                "pressure-or-wedge",
+                "-no-snapshot-load",
+                "-no-snapshot-save` is not a cold boot",
+                "one Appium session and one Maven run",
+                "No host qemu time-versus-memory measurement",
+            ],
+            "shaft-developer/references/specialists/test-execution.md": [
                 "default run is the test being fixed",
                 "consumer contract",
                 "Do not restart a cohort",
@@ -24,8 +31,7 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "Do not add a TestNG XML",
                 "One watcher",
                 "unclassified skip",
-                "pressure-or-wedge",
-                "one Appium session and one Maven run",
+                "mobile-session-policy.md",
                 "allure.cleanResultsDirectory",
                 "target/allure-results-kept",
                 "A retest of an open defect uses `--force`",
@@ -40,57 +46,55 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "all-green filter must not",
                 "Done",
             ],
-            "shaft-test-monitoring/references/playbook.md": [
+            "shaft-developer/references/specialists/test-monitoring.md": [
                 "default run is the test being fixed",
                 "consumer contract",
                 "Do not restart a cohort",
                 "Surefire or TestNG report",
                 "One watcher",
-                "Do not add a TestNG XML",
+                "Test selection follows",
             ],
             "shaft-developer/SKILL.md": [
                 "exactly one",
                 "no skill",
                 "shaft-web-actions",
-                "Do not add a TestNG XML",
-                "-Dtest",
             ],
             "shaft-developer/references/routing.md": [
                 "no skill",
                 "shaft-web-actions",
-                "Load exactly this skill",
+                "Load exactly this reference",
             ],
-            "shaft-cli/references/playbook.md": [
-                "pressure-or-wedge",
-                "-no-snapshot-load",
-                "-no-snapshot-save` is not a cold boot",
-                "one Appium session and one Maven run",
-                "No host qemu time-versus-memory measurement",
+            "shaft-developer/references/specialists/cli.md": [
+                "mobile-session-policy.md",
             ],
-            "shaft-test-environment/references/playbook.md": [
-                "pressure-or-wedge",
+            "shaft-developer/references/specialists/mobile-runtime.md": [
+                "mobile-session-policy.md",
+            ],
+            "shaft-developer/references/specialists/test-environment.md": [
+                "mobile-session-policy.md",
                 "versionCode",
                 "Do not compile the app",
                 "iphonesimulator",
                 "immutable uploaded build id",
                 "x86_64",
-                "one Appium session and one Maven run",
             ],
-            "shaft-fluent-api/references/playbook.md": [
+            "shaft-developer/references/specialists/web-actions.md": [
                 "part of the thrown `AssertionError`",
                 "accumulated soft-assert",
                 "forceFail",
                 "does not throw",
             ],
-            "shaft-locator-design/references/playbook.md": [
+            "shaft-developer/references/specialists/locator-design.md": [
                 "not a skip",
                 "Content description",
                 "not(...)",
             ],
-            "shaft-mobile-actions/references/playbook.md": [
+            "shaft-developer/references/specialists/mobile-actions.md": [
+                "mobile-session-policy.md",
                 "not a skip",
                 "not(...)",
                 "in-memory count",
+                "when save is the scenario",
                 "#6940",
                 "Do not claim that it did",
                 "#6908",
@@ -102,17 +106,17 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "isPresent(By, Duration)",
                 "getElementsCount",
             ],
-            "shaft-test-data-design/references/playbook.md": [
+            "shaft-developer/references/specialists/test-data-design.md": [
                 "in-memory count",
-                "when save is the scenario",
+                "mobile-actions.md",
             ],
-            "shaft-failure-analysis/references/playbook.md": [
+            "shaft-developer/references/specialists/failure-analysis.md": [
                 "#6940",
                 "Do not claim that it did",
                 "#6908",
                 "null container",
             ],
-            "shaft-assertions/references/playbook.md": [
+            "shaft-developer/references/specialists/assertions.md": [
                 "visible `text`",
                 "matchesReferenceImageWhenStable",
                 "matchesReferenceImage",
@@ -122,7 +126,7 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "before state",
                 "stated way to fail",
             ],
-            "shaft-execution-reporting/references/playbook.md": [
+            "shaft-developer/references/specialists/execution-reporting.md": [
                 "historyId",
                 "testCaseId",
                 "whole tokens",
@@ -136,13 +140,13 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "lists each test name",
                 "does not match the visible names",
             ],
-            "shaft-defect-reporting/references/playbook.md": [
+            "shaft-developer/references/specialists/defect-reporting.md": [
                 "whole tokens",
                 "#6947",
                 "Every inventoried id has YYYY-MM-DD on its own catalogue row (still-open, unblocked, or closed).",
                 'A parent "blocks these ids" sentence is not a status for the children.',
             ],
-            "shaft-test-completion/references/playbook.md": [
+            "shaft-developer/references/specialists/test-completion.md": [
                 "Every inventoried id has YYYY-MM-DD on its own catalogue row (still-open, unblocked, or closed).",
                 'A parent "blocks these ids" sentence is not a status for the children.',
             ],
@@ -153,14 +157,14 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 "#3407",
                 "Do not `Files.readString`",
             ],
-            "shaft-stakeholder-reporting/references/playbook.md": [
+            "shaft-developer/references/specialists/stakeholder-reporting.md": [
                 "failed with a named id",
                 "all-green filter must not",
                 "passing run",
                 "lists each test name",
                 "does not match the visible names",
             ],
-            "shaft-test-case-design/references/journey-coverage-map.md": [
+            "shaft-developer/references/specialists/journey-coverage-map.md": [
                 "delete",
                 "cancel as a final action",
                 "state-changing API",
@@ -198,7 +202,7 @@ class ExecutionClassSkillTest(unittest.TestCase):
 
         own_file = "tests/scripts/test_execution_class_skills.py"
         paths = (
-            "shaft-skills/shaft-test-execution/references/playbook.md",
+            "shaft-skills/shaft-developer/references/specialists/test-execution.md",
             own_file,
         )
         for path in paths:

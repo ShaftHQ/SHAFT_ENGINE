@@ -801,7 +801,8 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             self.assertEqual([(root / ".agents" / "skills").resolve()], installed)
             self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
-            self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
+            self.assertTrue((installed[0] / "shaft-developer" / "agents" / "openai.yaml").is_file())
+            self.assertEqual(1, len(list(installed[0].glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_without_client_covers_all_native_roots(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -815,7 +816,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             ], installed)
             for target in installed:
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
-                self.assertEqual(37, len(list(target.glob("*/SKILL.md"))))
+                self.assertEqual(1, len(list(target.glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_prunes_identical_github_copies_but_keeps_user_skills(self):
         # #6817: one canonical copy; stale `.github/skills` pack copies go, edited/user skills stay.
@@ -824,8 +825,9 @@ class InstallShaftMcpTest(unittest.TestCase):
             first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
             legacy = root / ".github" / "skills"
             shutil.copytree(first[0] / "shaft-developer", legacy / "shaft-developer")
-            shutil.copytree(first[0] / "shaft-mcp", legacy / "shaft-mcp")
-            (legacy / "shaft-mcp" / "SKILL.md").write_text("locally edited\n", encoding="utf-8")
+            edited = legacy / "shaft-mcp"
+            edited.mkdir(parents=True)
+            (edited / "SKILL.md").write_text("locally edited\n", encoding="utf-8")
             (legacy / "my-skill").mkdir()
             (legacy / "my-skill" / "SKILL.md").write_text("mine\n", encoding="utf-8")
 
@@ -1077,7 +1079,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         manifest = MODULE.shaft_skill_files(source)
 
         self.assertEqual(tuple(sorted(manifest)), manifest)
-        self.assertEqual(37, sum(relative.endswith("/SKILL.md") for relative in manifest))
+        self.assertEqual(1, sum(relative.endswith("/SKILL.md") for relative in manifest))
         for relative in manifest:
             self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
@@ -1139,8 +1141,8 @@ class InstallShaftMcpTest(unittest.TestCase):
 
         self.assertIn("`$shaft-developer`", readme)
         self.assertIn("https://shafthq.github.io/", readme)
-        self.assertIn("shaft-skills/references/shaft-mcp-tools.md", readme)
-        self.assertIn("shaft-skills/references/shaft-cli-commands.md", readme)
+        self.assertIn("shaft-skills/shaft-developer/references/shaft-mcp-tools.md", readme)
+        self.assertIn("shaft-skills/shaft-developer/references/shaft-cli-commands.md", readme)
         self.assertNotIn("act-as-shaft-dev", readme)
         self.assertNotIn("writing-shaft-tests", readme)
 
