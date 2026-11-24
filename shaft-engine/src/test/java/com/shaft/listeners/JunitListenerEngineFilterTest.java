@@ -19,9 +19,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -115,14 +112,11 @@ public class JunitListenerEngineFilterTest {
     }
 
     @Test
-    public void dotInDeactivatePatternMatchesInnerClassSeparator() throws Exception {
-        Method matches = JunitListener.class.getDeclaredMethod(
-                "matchesDeactivatePattern", String.class, String.class);
-        matches.setAccessible(true);
-        Assert.assertTrue((Boolean) matches.invoke(null,
+    public void dotInDeactivatePatternMatchesInnerClassSeparator() {
+        Assert.assertTrue(JunitListener.matchesDeactivatePattern(
                 "io.qameta.allure.junitplatform.AllureJunitPlatform",
                 "io.qameta.allure.junitplatform$AllureJunitPlatform"));
-        Assert.assertFalse((Boolean) matches.invoke(null, "",
+        Assert.assertFalse(JunitListener.matchesDeactivatePattern("",
                 "io.qameta.allure.junitplatform.AllureJunitPlatform"));
     }
 
@@ -136,31 +130,31 @@ public class JunitListenerEngineFilterTest {
     }
 
     @Test
-    public void publishAllureDeactivationPropertyCoversBlankAppendAndActiveProperty() throws Exception {
+    public void publishAllureDeactivationPropertyCoversBlankAppendAndActiveProperty() {
         String original = System.getProperty(ALLURE_LISTENER_DEACTIVATE);
         ClassLoader originalLoader = Thread.currentThread().getContextClassLoader();
         try {
             System.setProperty(ALLURE_LISTENER_DEACTIVATE, ALLURE_JUNIT_PLATFORM_LISTENER);
-            publishAllureDeactivationProperty();
+            JunitListener.publishAllureDeactivationProperty();
             Assert.assertEquals(System.getProperty(ALLURE_LISTENER_DEACTIVATE), ALLURE_JUNIT_PLATFORM_LISTENER);
-            Assert.assertTrue(isAllureJunitPlatformDeactivated());
+            Assert.assertTrue(JunitListener.isAllureJunitPlatformDeactivated());
 
             System.setProperty(ALLURE_LISTENER_DEACTIVATE, "com.example.Other");
-            publishAllureDeactivationProperty();
+            JunitListener.publishAllureDeactivationProperty();
             Assert.assertEquals(System.getProperty(ALLURE_LISTENER_DEACTIVATE),
                     "com.example.Other," + ALLURE_JUNIT_PLATFORM_LISTENER);
 
             System.setProperty(ALLURE_LISTENER_DEACTIVATE, "   ");
-            publishAllureDeactivationProperty();
+            JunitListener.publishAllureDeactivationProperty();
             Assert.assertEquals(System.getProperty(ALLURE_LISTENER_DEACTIVATE), ALLURE_JUNIT_PLATFORM_LISTENER);
 
             System.clearProperty(ALLURE_LISTENER_DEACTIVATE);
-            Assert.assertTrue(isAllureJunitPlatformDeactivated());
-            publishAllureDeactivationProperty();
+            Assert.assertTrue(JunitListener.isAllureJunitPlatformDeactivated());
+            JunitListener.publishAllureDeactivationProperty();
             Assert.assertEquals(System.getProperty(ALLURE_LISTENER_DEACTIVATE), ALLURE_JUNIT_PLATFORM_LISTENER);
 
             Thread.currentThread().setContextClassLoader(new EmptyResourceLoader());
-            Assert.assertTrue(classpathDeactivatesAllureJunitPlatform());
+            Assert.assertTrue(JunitListener.classpathDeactivatesAllureJunitPlatform());
         } finally {
             Thread.currentThread().setContextClassLoader(originalLoader);
             restoreDeactivateProperty(original);
@@ -168,13 +162,10 @@ public class JunitListenerEngineFilterTest {
     }
 
     @Test
-    public void resourcesDeactivateAllureRejectsNullEmptyAndUnreadableLoaders() throws Exception {
-        Method resources = JunitListener.class.getDeclaredMethod("resourcesDeactivateAllure", ClassLoader.class);
-        resources.setAccessible(true);
-        Object[] noLoader = new Object[1];
-        Assert.assertFalse((Boolean) resources.invoke(null, noLoader));
-        Assert.assertFalse(resourcesDeactivateAllure(new EmptyResourceLoader()));
-        Assert.assertFalse(resourcesDeactivateAllure(new BrokenResourceLoader()));
+    public void resourcesDeactivateAllureRejectsNullEmptyAndUnreadableLoaders() {
+        Assert.assertFalse(JunitListener.resourcesDeactivateAllure(null));
+        Assert.assertFalse(JunitListener.resourcesDeactivateAllure(new EmptyResourceLoader()));
+        Assert.assertFalse(JunitListener.resourcesDeactivateAllure(new BrokenResourceLoader()));
     }
 
     @Test
@@ -189,12 +180,12 @@ public class JunitListenerEngineFilterTest {
                 Files.writeString(propertyFile, "junit.jupiter.extensions.autodetection.enabled=true\n");
             }
             System.setProperty(ALLURE_LISTENER_DEACTIVATE, "com.example.Other");
-            publishAllureDeactivationProperty();
+            JunitListener.publishAllureDeactivationProperty();
             Assert.assertEquals(System.getProperty(ALLURE_LISTENER_DEACTIVATE), "com.example.Other");
 
             System.clearProperty(ALLURE_LISTENER_DEACTIVATE);
-            Assert.assertFalse(isAllureJunitPlatformDeactivated());
-            Assert.assertEquals(createOptionalFilteredAllureListener(), Optional.empty());
+            Assert.assertFalse(JunitListener.isAllureJunitPlatformDeactivated());
+            Assert.assertEquals(JunitListener.createOptionalFilteredAllureListener(), Optional.empty());
         } finally {
             for (int index = 0; index < originals.size(); index++) {
                 Files.write(propertyFiles.get(index), originals.get(index));
@@ -204,7 +195,7 @@ public class JunitListenerEngineFilterTest {
     }
 
     @Test
-    public void shaftListenerSkipsTestNgOnlyPlansAndForwardsReportingEvents() throws Exception {
+    public void shaftListenerSkipsTestNgOnlyPlansAndForwardsReportingEvents() {
         TestExecutionListener delegate = Mockito.mock(TestExecutionListener.class);
         TestExecutionListener shaft = newShaftListener(delegate);
         TestIdentifier testNgTest = identifier(TESTNG_METHOD, true);
@@ -242,14 +233,13 @@ public class JunitListenerEngineFilterTest {
     }
 
     @Test
-    public void shaftListenerRecordsVerificationFailureForSuccessfulTest() throws Exception {
+    public void shaftListenerRecordsVerificationFailureForSuccessfulTest() {
         TestExecutionListener delegate = Mockito.mock(TestExecutionListener.class);
         TestExecutionListener shaft = newShaftListener(delegate);
         TestIdentifier jupiterTest = reportingIdentifier(JUPITER_METHOD);
-        ThreadLocal<AssertionError> verificationErrors = verificationErrors();
         try (OutcomeSnapshot ignored = OutcomeSnapshot.capture()) {
             setActive(shaft, true);
-            verificationErrors.set(new AssertionError("soft failures"));
+            ValidationsHelper.recordVerificationFailure("soft failures");
             try (MockedStatic<ExecutionLifecycleHelper> lifecycle = Mockito.mockStatic(ExecutionLifecycleHelper.class);
                  MockedStatic<ReportManagerHelper> reports = Mockito.mockStatic(ReportManagerHelper.class)) {
                 shaft.executionFinished(jupiterTest, TestExecutionResult.successful());
@@ -259,7 +249,7 @@ public class JunitListenerEngineFilterTest {
             Mockito.verify(delegate).executionFinished(jupiterTest, TestExecutionResult.successful());
             Assert.assertFalse(JunitListener.getIsLastFinishedTestOK());
         } finally {
-            verificationErrors.remove();
+            ValidationsHelper.resetVerificationStateAfterFailing();
         }
     }
 
@@ -381,47 +371,12 @@ public class JunitListenerEngineFilterTest {
         return testIdentifier;
     }
 
-    private static TestExecutionListener newShaftListener(TestExecutionListener delegate) throws Exception {
-        Class<?> type = Class.forName("com.shaft.listeners.JunitListener$ShaftJunitExecutionListener");
-        Constructor<?> constructor = type.getDeclaredConstructor(JunitListener.class, Optional.class);
-        constructor.setAccessible(true);
-        return (TestExecutionListener) constructor.newInstance(new JunitListener(), Optional.of(delegate));
+    private static TestExecutionListener newShaftListener(TestExecutionListener delegate) {
+        return JunitListener.createShaftExecutionListenerForTest(Optional.of(delegate));
     }
 
-    private static void setActive(TestExecutionListener shaft, boolean active) throws Exception {
-        Field field = shaft.getClass().getDeclaredField("activeForCurrentPlan");
-        field.setAccessible(true);
-        field.set(shaft, active);
-    }
-
-    private static void publishAllureDeactivationProperty() throws Exception {
-        Method method = JunitListener.class.getDeclaredMethod("publishAllureDeactivationProperty");
-        method.setAccessible(true);
-        method.invoke(null);
-    }
-
-    private static boolean isAllureJunitPlatformDeactivated() throws Exception {
-        Method method = JunitListener.class.getDeclaredMethod("isAllureJunitPlatformDeactivated");
-        method.setAccessible(true);
-        return (Boolean) method.invoke(null);
-    }
-
-    private static boolean classpathDeactivatesAllureJunitPlatform() throws Exception {
-        Method method = JunitListener.class.getDeclaredMethod("classpathDeactivatesAllureJunitPlatform");
-        method.setAccessible(true);
-        return (Boolean) method.invoke(null);
-    }
-
-    private static boolean resourcesDeactivateAllure(ClassLoader loader) throws Exception {
-        Method method = JunitListener.class.getDeclaredMethod("resourcesDeactivateAllure", ClassLoader.class);
-        method.setAccessible(true);
-        return (Boolean) method.invoke(null, loader);
-    }
-
-    private static Optional<?> createOptionalFilteredAllureListener() throws Exception {
-        Method method = JunitListener.class.getDeclaredMethod("createOptionalFilteredAllureListener");
-        method.setAccessible(true);
-        return (Optional<?>) method.invoke(null);
+    private static void setActive(TestExecutionListener shaft, boolean active) {
+        JunitListener.setShaftListenerActiveForTest(shaft, active);
     }
 
     private static void restoreDeactivateProperty(String original) {
@@ -449,13 +404,6 @@ public class JunitListenerEngineFilterTest {
         return paths;
     }
 
-    @SuppressWarnings("unchecked")
-    private static ThreadLocal<AssertionError> verificationErrors() throws Exception {
-        Field field = ValidationsHelper.class.getDeclaredField("verificationError");
-        field.setAccessible(true);
-        return (ThreadLocal<AssertionError>) field.get(null);
-    }
-
     private static final class EmptyResourceLoader extends ClassLoader {
         @Override
         public Enumeration<URL> getResources(String name) {
@@ -475,87 +423,41 @@ public class JunitListenerEngineFilterTest {
         private final List<TestIdentifier> passed;
         private final List<TestIdentifier> failed;
         private final List<TestIdentifier> skipped;
-        private final Set<String> passedIds;
-        private final Set<String> failedIds;
-        private final Set<String> skippedIds;
+        private final ExecutionCountsTracker countsTracker;
 
         private OutcomeSnapshot(Boolean lastFinishedOk, List<TestIdentifier> passed, List<TestIdentifier> failed,
-                                List<TestIdentifier> skipped, Set<String> passedIds, Set<String> failedIds,
-                                Set<String> skippedIds) {
+                                List<TestIdentifier> skipped, ExecutionCountsTracker countsTracker) {
             this.lastFinishedOk = lastFinishedOk;
             this.passed = passed;
             this.failed = failed;
             this.skipped = skipped;
-            this.passedIds = passedIds;
-            this.failedIds = failedIds;
-            this.skippedIds = skippedIds;
+            this.countsTracker = countsTracker;
         }
 
-        private static OutcomeSnapshot capture() throws Exception {
-            ExecutionCountsTracker tracker = countsTracker();
-            return new OutcomeSnapshot(
-                    JunitListener.getIsLastFinishedTestOK(),
-                    List.copyOf(identifierList("passedTests")),
-                    List.copyOf(identifierList("failedTests")),
-                    List.copyOf(identifierList("skippedTests")),
-                    Set.copyOf(trackerIds(tracker, "passedIds")),
-                    Set.copyOf(trackerIds(tracker, "failedIds")),
-                    Set.copyOf(trackerIds(tracker, "skippedIds")));
+        private static OutcomeSnapshot capture() {
+            Boolean lastFinishedOk = JunitListener.isLastFinishedTestOK;
+            List<TestIdentifier> passed = List.copyOf(JunitListener.passedTests);
+            List<TestIdentifier> failed = List.copyOf(JunitListener.failedTests);
+            List<TestIdentifier> skipped = List.copyOf(JunitListener.skippedTests);
+            ExecutionCountsTracker previous = JunitListener.countsTracker;
+            JunitListener.countsTracker = new ExecutionCountsTracker();
+            return new OutcomeSnapshot(lastFinishedOk, passed, failed, skipped, previous);
         }
 
         @Override
         public void close() {
-            try {
-                replaceIdentifiers("passedTests", passed);
-                replaceIdentifiers("failedTests", failed);
-                replaceIdentifiers("skippedTests", skipped);
-                ExecutionCountsTracker tracker = countsTracker();
-                replaceIds(tracker, "passedIds", passedIds);
-                replaceIds(tracker, "failedIds", failedIds);
-                replaceIds(tracker, "skippedIds", skippedIds);
-                Field field = JunitListener.class.getDeclaredField("isLastFinishedTestOK");
-                field.setAccessible(true);
-                field.set(null, lastFinishedOk);
-            } catch (ReflectiveOperationException exception) {
-                throw new IllegalStateException("Unable to restore JunitListener outcome state.", exception);
-            }
+            replaceIdentifiers(JunitListener.passedTests, passed);
+            replaceIdentifiers(JunitListener.failedTests, failed);
+            replaceIdentifiers(JunitListener.skippedTests, skipped);
+            JunitListener.countsTracker = countsTracker;
+            JunitListener.isLastFinishedTestOK = lastFinishedOk;
         }
     }
 
-    private static ExecutionCountsTracker countsTracker() throws ReflectiveOperationException {
-        Field field = JunitListener.class.getDeclaredField("countsTracker");
-        field.setAccessible(true);
-        return (ExecutionCountsTracker) field.get(null);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<TestIdentifier> identifierList(String fieldName) throws ReflectiveOperationException {
-        Field field = JunitListener.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return (List<TestIdentifier>) field.get(null);
-    }
-
-    private static void replaceIdentifiers(String fieldName, List<TestIdentifier> values)
-            throws ReflectiveOperationException {
-        List<TestIdentifier> live = identifierList(fieldName);
+    private static void replaceIdentifiers(List<TestIdentifier> live, List<TestIdentifier> values) {
         synchronized (live) {
             live.clear();
             live.addAll(values);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Set<String> trackerIds(ExecutionCountsTracker tracker, String fieldName)
-            throws ReflectiveOperationException {
-        Field field = ExecutionCountsTracker.class.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        return (Set<String>) field.get(tracker);
-    }
-
-    private static void replaceIds(ExecutionCountsTracker tracker, String fieldName, Set<String> values)
-            throws ReflectiveOperationException {
-        Set<String> live = trackerIds(tracker, fieldName);
-        live.clear();
-        live.addAll(values);
     }
 }

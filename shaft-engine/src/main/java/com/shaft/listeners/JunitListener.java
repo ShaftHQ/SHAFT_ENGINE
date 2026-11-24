@@ -44,16 +44,17 @@ import java.util.regex.Pattern;
  * JUnit Platform launcher listener that connects Jupiter execution to SHAFT reporting.
  */
 public class JunitListener implements LauncherSessionListener {
-    private static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
-    private static final List<TestIdentifier> failedTests = Collections.synchronizedList(new ArrayList<>());
-    private static final List<TestIdentifier> skippedTests = Collections.synchronizedList(new ArrayList<>());
-    private static final ExecutionCountsTracker countsTracker = new ExecutionCountsTracker();
+    static final List<TestIdentifier> passedTests = Collections.synchronizedList(new ArrayList<>());
+    static final List<TestIdentifier> failedTests = Collections.synchronizedList(new ArrayList<>());
+    static final List<TestIdentifier> skippedTests = Collections.synchronizedList(new ArrayList<>());
+    // Same-package tests replace this instance, then restore the previous one.
+    static ExecutionCountsTracker countsTracker = new ExecutionCountsTracker();
     private static long executionStartTime;
     private static boolean isEngineReady = false;
     private static final String ALLURE_LISTENER_DEACTIVATE = "junit.platform.execution.listeners.deactivate";
     private static final String ALLURE_JUNIT_PLATFORM_LISTENER = "io.qameta.allure.junitplatform.AllureJunitPlatform";
     @Getter
-    private static volatile Boolean isLastFinishedTestOK = true;
+    static volatile Boolean isLastFinishedTestOK = true;
 
     static {
         // JUnit keeps only the first junit-platform.properties on the classpath.
@@ -129,11 +130,20 @@ public class JunitListener implements LauncherSessionListener {
         return new FilteredAllureListener(delegate);
     }
 
+    static TestExecutionListener createShaftExecutionListenerForTest(
+            Optional<TestExecutionListener> filteredAllureListener) {
+        return new JunitListener().new ShaftJunitExecutionListener(filteredAllureListener);
+    }
+
+    static void setShaftListenerActiveForTest(TestExecutionListener listener, boolean active) {
+        ((ShaftJunitExecutionListener) listener).activeForCurrentPlan = active;
+    }
+
     /**
      * Surefire deactivates the SPI Allure listener. When that deactivation is active
      * and the runtime class exists, return the filtered copy SHAFT forwards to.
      */
-    private static Optional<TestExecutionListener> createOptionalFilteredAllureListener() {
+    static Optional<TestExecutionListener> createOptionalFilteredAllureListener() {
         if (!isAllureJunitPlatformDeactivated()) {
             return Optional.empty();
         }
@@ -159,7 +169,7 @@ public class JunitListener implements LauncherSessionListener {
         }
     }
 
-    private static void publishAllureDeactivationProperty() {
+    static void publishAllureDeactivationProperty() {
         String current = System.getProperty(ALLURE_LISTENER_DEACTIVATE);
         if (deactivatesAllureJunitPlatform(current) || !classpathDeactivatesAllureJunitPlatform()) {
             return;
@@ -170,7 +180,7 @@ public class JunitListener implements LauncherSessionListener {
         System.setProperty(ALLURE_LISTENER_DEACTIVATE, updated);
     }
 
-    private static boolean isAllureJunitPlatformDeactivated() {
+    static boolean isAllureJunitPlatformDeactivated() {
         return deactivatesAllureJunitPlatform(System.getProperty(ALLURE_LISTENER_DEACTIVATE))
                 || classpathDeactivatesAllureJunitPlatform();
     }
@@ -196,7 +206,7 @@ public class JunitListener implements LauncherSessionListener {
      * JUnit 6.1.3 {@code ClassNamePatternFilterUtils}: {@code .} matches {@code .} or
      * {@code $}, {@code *} is one or more characters, and every other character is literal.
      */
-    private static boolean matchesDeactivatePattern(String token, String className) {
+    static boolean matchesDeactivatePattern(String token, String className) {
         if (token.isEmpty()) {
             return false;
         }
@@ -215,12 +225,12 @@ public class JunitListener implements LauncherSessionListener {
         return Pattern.compile(pattern.toString()).matcher(className).matches();
     }
 
-    private static boolean classpathDeactivatesAllureJunitPlatform() {
+    static boolean classpathDeactivatesAllureJunitPlatform() {
         return resourcesDeactivateAllure(Thread.currentThread().getContextClassLoader())
                 || resourcesDeactivateAllure(JunitListener.class.getClassLoader());
     }
 
-    private static boolean resourcesDeactivateAllure(ClassLoader loader) {
+    static boolean resourcesDeactivateAllure(ClassLoader loader) {
         if (loader == null) {
             return false;
         }
