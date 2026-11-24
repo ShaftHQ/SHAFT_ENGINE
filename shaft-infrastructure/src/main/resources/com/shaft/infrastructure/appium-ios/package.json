@@ -5,7 +5,7 @@
   "dependencies": {
     "appium": "4.0.0",
     "appium-inspector-plugin": "2026.11.6",
-    "appium-xcuitest-driver": "13.3.0"
+    "appium-xcuitest-driver": "13.5.0"
   },
   "overrides": {
     "body-parser": "2.4.0",
