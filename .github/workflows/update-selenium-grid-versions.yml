@@ -135,11 +135,9 @@ jobs:
             && [ "$NEW_CHROME" = "$NEW_EDGE" ] \
             && [ "$NEW_EDGE" = "$NEW_FIREFOX" ] \
             && [ "$NEW_FIREFOX" = "$NEW_HUB" ]; then
-            echo "Sharing tag $NEW_HUB with the planner and the grid contract"
+            echo "Sharing tag $NEW_HUB with the planner"
             sed -i "s|static final String IMAGE_TAG = \".*\";|static final String IMAGE_TAG = \"$NEW_HUB\";|" \
               shaft-infrastructure/src/main/java/com/shaft/infrastructure/SeleniumGridSetupPlanner.java
-            sed -i "s|GRID_TAG = \".*\"|GRID_TAG = \"$NEW_HUB\"|" \
-              tests/scripts/test_grid_cdp_contract.py
           fi
           
           if [ "$CHANGES_MADE" = true ]; then

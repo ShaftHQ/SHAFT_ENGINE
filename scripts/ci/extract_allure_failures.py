@@ -484,7 +484,12 @@ def _mobile_retro_named_blocks(allure_failures: list) -> None:
     if spec is None or spec.loader is None:
         return
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    except ModuleNotFoundError as exc:
+        if exc.name == "mobile_retro":
+            return
+        raise
     scenarios: list[tuple[str, str, str]] = []
     for failure in allure_failures:
         # AllureFailure fields vary; tolerate attribute or dict-like

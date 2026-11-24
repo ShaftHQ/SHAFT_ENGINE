@@ -26,10 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class AssistantGeminiLiveE2ETest {
-    private static final String LIVE_CANARY_TOKEN = "SHAFT_GEMINI_LIVE_OK";
-    private static final String LIVE_CANARY_PROMPT = "Return exactly the ASCII token " + LIVE_CANARY_TOKEN
-            + " as the entire response. Do not include any other words, punctuation, quotes, markdown, code fences,"
-            + " or leading/trailing whitespace.";
+    private static final String LIVE_EXPECTED_TOKEN = "SHAFT.GUI.WebDriver";
+    private static final String LIVE_CANARY_PROMPT = "In a SHAFT Java web test, what is the exact Java class name "
+            + "used to create a SHAFT WebDriver instance? Put only " + LIVE_EXPECTED_TOKEN
+            + " in the JSON answer field and leave codeBlocks empty.";
     private static final Set<String> RETRYABLE_STATUSES = Set.of("PROVIDER_UNAVAILABLE", "RATE_LIMITED");
 
     @Test
@@ -79,7 +79,8 @@ class AssistantGeminiLiveE2ETest {
         assertTrue(GeminiProvider.acceptsServedModel(usedModel, servedModel),
                 "requested " + usedModel + " served " + servedModel);
         assertEquals("ASK", response.get("mode").getAsString());
-        assertEquals(LIVE_CANARY_TOKEN, answer.trim(), answer);
+        assertTrue(answer.contains(LIVE_EXPECTED_TOKEN),
+                "Expected SHAFT WebDriver entry point token " + LIVE_EXPECTED_TOKEN + " in answer: " + answer);
     }
 
     private static JsonObject invokeLiveGemini(

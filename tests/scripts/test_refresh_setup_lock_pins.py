@@ -125,9 +125,8 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
             self.assertIn(name, security)
         self.assertIn("com.networknt:json-schema-validator", maven)
         self.assertIn("version-update:semver-major", maven)
-        self.assertIn("org.apache.maven.plugins:maven-surefire-plugin", maven)
-        self.assertIn("org.apache.maven.surefire:surefire-testng", maven)
-        self.assertIn('versions: ["3.6.x"]', maven)
+        self.assertNotIn("org.apache.maven.surefire:surefire-testng", maven)
+        self.assertNotIn('versions: ["3.6.x"]', maven)
         self.assertNotIn("multi-ecosystem-groups", text)
 
     def test_logback_group_is_not_swallowed_by_the_catch_all(self) -> None:

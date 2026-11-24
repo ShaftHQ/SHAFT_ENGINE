@@ -816,7 +816,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.10.1
+          maven-version: 3.10.2
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       # pr-gate has no earlier install step for this module set, unlike the
@@ -974,15 +974,28 @@ jobs:
         # exits 0 even when tests genuinely fail. Every other module in this
         # matrix has no such override, so only shaft-engine needs this check.
         if: matrix.module == 'shaft-engine'
+        env:
+          MATRIX_LEG: ${{ matrix.leg }}
         run: |
-          python3 -c "
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse('shaft-engine/target/surefire-reports/testng-results.xml').getroot()
-          failed = int(root.get('failed', '0'))
-          total = int(root.get('total', '0'))
-          print(f'shaft-engine unit tests (${{ matrix.leg }}): total={total} failed={failed}')
+          python3 - <<'PY'
+          import os, sys, xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          reports = Path('shaft-engine/target/surefire-reports')
+          xmls = sorted(reports.glob('TEST-*.xml'))
+          if xmls:
+              total = failed = 0
+              for path in xmls:
+                  root = ET.parse(path).getroot()
+                  total += int(root.get('tests', '0'))
+                  failed += int(root.get('failures', '0')) + int(root.get('errors', '0'))
+          else:
+              root = ET.parse(reports / 'testng-results.xml').getroot()
+              failed = int(root.get('failed', '0'))
+              total = int(root.get('total', '0'))
+          print(f"shaft-engine unit tests ({os.environ['MATRIX_LEG']}): total={total} failed={failed}")
           sys.exit(1 if failed or total == 0 else 0)
-          "
+          PY
       - name: Run ${{ matrix.module }} tests
         if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
         run: >-
@@ -1039,7 +1052,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.10.1
+          maven-version: 3.10.2
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Run template-coupled shaft-mcp tests

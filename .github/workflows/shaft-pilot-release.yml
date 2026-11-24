@@ -156,7 +156,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.10.1
+          maven-version: 3.10.2
       - name: Install SHAFT Pilot prerequisites without tests
         run: >-
           mvn --batch-mode
@@ -208,7 +208,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.10.1
+          maven-version: 3.10.2
       - name: Install SHAFT Pilot prerequisites without tests
         run: >-
           mvn --batch-mode
@@ -249,7 +249,7 @@ jobs:
       - name: Set up Maven
         uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
-          maven-version: 3.10.1
+          maven-version: 3.10.2
       - name: Package the complete reactor
         run: mvn --batch-mode clean install -DskipTests -Dgpg.skip
       - name: Validate packaged release outputs and MCP transports
