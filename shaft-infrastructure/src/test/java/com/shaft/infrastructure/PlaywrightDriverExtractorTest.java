@@ -22,10 +22,10 @@ class PlaywrightDriverExtractorTest {
 
         assertTrue(Files.isRegularFile(destination.resolve("package/cli.js")));
         String browsers = Files.readString(destination.resolve("package/browsers.json"));
-        assertTrue(browsers.contains("\"revision\": \"1255\""));
-        assertTrue(browsers.contains("\"revision\": \"1572\""));
-        assertTrue(browsers.contains("\"revision\": \"2388\""));
-        assertTrue(browsers.contains("\"revision\": \"1013\""));
+        assertTrue(browsers.contains("\"revision\": \"" + PlaywrightSetupPlanner.CHROMIUM_REVISION + "\""));
+        assertTrue(browsers.contains("\"revision\": \"" + PlaywrightSetupPlanner.FIREFOX_REVISION + "\""));
+        assertTrue(browsers.contains("\"revision\": \"" + PlaywrightSetupPlanner.WEBKIT_REVISION + "\""));
+        assertTrue(browsers.contains("\"revision\": \"" + PlaywrightSetupPlanner.FFMPEG_REVISION + "\""));
         assertFalse(Files.exists(destination.resolve("node.exe")));
         assertEquals(propertyBefore, System.getProperty("playwright.nodejs.path"));
     }

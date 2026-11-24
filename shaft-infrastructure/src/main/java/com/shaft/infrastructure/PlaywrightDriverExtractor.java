@@ -67,9 +67,12 @@ final class PlaywrightDriverExtractor {
             throw new IOException("Packaged Playwright driver is incomplete.");
         }
         String metadata = Files.readString(browsers);
-        for (String required : java.util.List.of("\"revision\": \"1255\"", "\"revision\": \"1572\"",
-                "\"revision\": \"2388\"", "\"revision\": \"1013\"")) {
-            if (!metadata.contains(required)) {
+        for (String revision : java.util.List.of(
+                PlaywrightSetupPlanner.CHROMIUM_REVISION,
+                PlaywrightSetupPlanner.FIREFOX_REVISION,
+                PlaywrightSetupPlanner.WEBKIT_REVISION,
+                PlaywrightSetupPlanner.FFMPEG_REVISION)) {
+            if (!metadata.contains("\"revision\": \"" + revision + "\"")) {
                 throw new IOException("Packaged Playwright driver does not match release "
                         + PlaywrightSetupPlanner.PLAYWRIGHT_VERSION + '.');
             }

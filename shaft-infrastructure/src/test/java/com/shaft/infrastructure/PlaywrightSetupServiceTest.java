@@ -304,7 +304,8 @@ class PlaywrightSetupServiceTest {
                 SetupMode.MANAGED);
         SetupApproval approval = new SetupApproval(plan.digest(), Instant.EPOCH, Set.of());
         service.install(plan, approval);
-        Path knownGood = service.browserRoot().resolve("chromium-1255/chrome-win64/chrome.exe");
+        Path knownGood = service.browserRoot().resolve(
+                "chromium-" + PlaywrightSetupPlanner.CHROMIUM_REVISION + "/chrome-win64/chrome.exe");
         Path quarantine = service.browserRoot().resolveSibling(service.browserRoot().getFileName() + ".quarantine");
         Path external = Files.createDirectory(temp.resolve("external-quarantine"));
         try {
@@ -473,39 +474,28 @@ class PlaywrightSetupServiceTest {
     }
 
     private static void createReadyWindowsLayout(Path root) throws java.io.IOException {
-        for (String marker : List.of("chromium-1255/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1255/INSTALLATION_COMPLETE", "firefox-1572/INSTALLATION_COMPLETE",
-                "webkit-2388/INSTALLATION_COMPLETE", "ffmpeg-1013/INSTALLATION_COMPLETE",
-                "winldd-1007/INSTALLATION_COMPLETE")) {
-            Path file = root.resolve(marker);
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, "");
-        }
-        for (String executable : List.of("chromium-1255/chrome-win64/chrome.exe",
-                "chromium_headless_shell-1255/chrome-headless-shell-win64/chrome-headless-shell.exe",
-                "firefox-1572/firefox/firefox.exe", "webkit-2388/Playwright.exe",
-                "ffmpeg-1013/ffmpeg-win64.exe", "winldd-1007/PrintDeps.exe")) {
-            Path file = root.resolve(executable);
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, "binary");
+        for (SetupTarget target : List.of(SetupTarget.PLAYWRIGHT_CHROMIUM, SetupTarget.PLAYWRIGHT_FIREFOX,
+                SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG)) {
+            for (String relative : PlaywrightHostPlatform.WIN64.requiredPaths(target)) {
+                Path file = root.resolve(relative);
+                Files.createDirectories(file.getParent());
+                Files.writeString(file, relative.endsWith("INSTALLATION_COMPLETE") ? "" : "binary");
+            }
         }
     }
 
     private static void createReadyUbuntuLayout(Path root) throws java.io.IOException {
-        for (String marker : List.of("chromium-1255/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1255/INSTALLATION_COMPLETE", "firefox-1572/INSTALLATION_COMPLETE",
-                "webkit-2388/INSTALLATION_COMPLETE", "ffmpeg-1013/INSTALLATION_COMPLETE")) {
-            Path file = root.resolve(marker);
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, "");
-        }
-        for (String executable : List.of("chromium-1255/chrome-linux64/chrome",
-                "chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell",
-                "firefox-1572/firefox/firefox", "webkit-2388/pw_run.sh", "ffmpeg-1013/ffmpeg-linux")) {
-            Path file = root.resolve(executable);
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, "binary");
-            assertTrue(file.toFile().setExecutable(true));
+        for (SetupTarget target : List.of(SetupTarget.PLAYWRIGHT_CHROMIUM, SetupTarget.PLAYWRIGHT_FIREFOX,
+                SetupTarget.PLAYWRIGHT_WEBKIT, SetupTarget.FFMPEG)) {
+            for (String relative : PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(target)) {
+                Path file = root.resolve(relative);
+                Files.createDirectories(file.getParent());
+                boolean isMarker = relative.endsWith("INSTALLATION_COMPLETE");
+                Files.writeString(file, isMarker ? "" : "binary");
+                if (!isMarker) {
+                    assertTrue(file.toFile().setExecutable(true));
+                }
+            }
         }
     }
 

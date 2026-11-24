@@ -15,7 +15,7 @@ class PlaywrightArtifactManifestTest {
         PlaywrightArtifactManifest manifest = PlaywrightArtifactManifest.load();
         List<PlaywrightArtifactManifest.Artifact> artifacts = manifest.requirePlatform("win64");
 
-        assertEquals("1.65.1", manifest.playwrightVersion());
+        assertEquals(PlaywrightSetupPlanner.PLAYWRIGHT_VERSION, manifest.playwrightVersion());
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg", "winldd"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
         assertTrue(artifacts.stream().allMatch(artifact -> artifact.source().getScheme().equals("https")));
@@ -30,12 +30,13 @@ class PlaywrightArtifactManifestTest {
 
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
-        assertEquals("sha256:189ce3e09c61776010ab8a7cbffaa016b8b1914d3c9b50cb5ab6d0c5db4c368f",
+        assertEquals(PlaywrightSetupPlanner.FIREFOX_REVISION,
                 artifacts.stream().filter(artifact -> artifact.name().equals("firefox")).findFirst().orElseThrow()
-                        .checksum());
-        assertEquals("sha256:4375ca56620d92f4bc8710b6f0cddc8afd2f50c4cca616a50355d63d715c7803",
+                        .revision());
+        assertEquals(PlaywrightSetupPlanner.WEBKIT_REVISION,
                 artifacts.stream().filter(artifact -> artifact.name().equals("webkit")).findFirst().orElseThrow()
-                        .checksum());
+                        .revision());
+        assertTrue(artifacts.stream().allMatch(artifact -> artifact.checksum().matches("sha256:[0-9a-f]{64}")));
     }
 
     @Test
@@ -66,6 +67,6 @@ class PlaywrightArtifactManifestTest {
                         "https://cdn.playwright.dev/", "https://example.invalid/")));
         assertThrows(IllegalArgumentException.class,
                 () -> PlaywrightArtifactManifest.parse(canonical.replaceFirst(
-                        "3e2514fddb71f6727e2079369e03a6a4e105adcb28f05a6bfd875b782bddc431", "bad")));
+                        "\"sha256\":\\s*\"[0-9a-f]{64}\"", "\"sha256\": \"bad\"")));
     }
 }

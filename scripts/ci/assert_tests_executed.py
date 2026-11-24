@@ -44,9 +44,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"::error::expected report not found: {report} -- the test class this report "
                   "belongs to never ran (or never produced output); check the test selector, and "
                   "whether it matched multiple classes causing this report to land somewhere else "
-                  "(e.g. Surefire's TestNG provider writes per-class reports under "
-                  "surefire-reports/junitreports/ instead of the top-level directory when more "
-                  "than one class matches -Dtest)")
+                  "(Surefire 3.6.1 with testng-engine writes TEST-<FQCN>.xml directly under "
+                  "surefire-reports/)")
             return 1
         tests, failures, errors, skipped = summarize(report)
         executed = tests - skipped

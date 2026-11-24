@@ -6,10 +6,12 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.extract_allure_failures import (
+    AllureFailure,
+    _mobile_retro_named_blocks,
     extract_failures,
     extract_surefire_failures,
     main,
@@ -411,6 +413,41 @@ class ExtractAllureFailuresTests(unittest.TestCase):
             failures = extract_failures([Path(temp_dir)])
 
         self.assertEqual([failure.method for failure in failures], ["pkg.ReportTest.visible"])
+
+    def test_mobile_retro_named_blocks_skips_when_mobile_retro_is_missing(self):
+        failure = AllureFailure("result.json", "failed", "pkg.Example.fails", "gap", "trace")
+        loader = Mock()
+        loader.exec_module.side_effect = ModuleNotFoundError(name="mobile_retro")
+        spec = Mock(loader=loader)
+        runtime_module = Mock()
+        with patch(
+            "scripts.ci.extract_allure_failures.importlib.util.spec_from_file_location",
+            return_value=spec,
+        ), patch(
+            "scripts.ci.extract_allure_failures.importlib.util.module_from_spec",
+            return_value=runtime_module,
+        ):
+            result = _mobile_retro_named_blocks([failure])
+
+        self.assertIsNone(result)
+        runtime_module.report_named_blocks_from_failures.assert_not_called()
+
+    def test_mobile_retro_named_blocks_reraises_unrelated_missing_dependency(self):
+        failure = AllureFailure("result.json", "failed", "pkg.Example.fails", "gap", "trace")
+        loader = Mock()
+        loader.exec_module.side_effect = ModuleNotFoundError(name="unrelated_missing_dep")
+        spec = Mock(loader=loader)
+        with patch(
+            "scripts.ci.extract_allure_failures.importlib.util.spec_from_file_location",
+            return_value=spec,
+        ), patch(
+            "scripts.ci.extract_allure_failures.importlib.util.module_from_spec",
+            return_value=Mock(),
+        ):
+            with self.assertRaises(ModuleNotFoundError) as caught:
+                _mobile_retro_named_blocks([failure])
+
+        self.assertEqual(caught.exception.name, "unrelated_missing_dep")
 
 
 if __name__ == "__main__":

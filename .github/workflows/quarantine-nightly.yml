@@ -66,11 +66,21 @@ jobs:
           python3 - <<'PY'
           import sys, xml.etree.ElementTree as ET
           from pathlib import Path
-          report = Path('shaft-engine/target/surefire-reports/testng-results.xml')
-          if not report.exists():
-              print('No quarantined tests ran.'); sys.exit(0)
-          root = ET.parse(report).getroot()
-          failed, total = int(root.get('failed', '0')), int(root.get('total', '0'))
+
+          reports = Path('shaft-engine/target/surefire-reports')
+          xmls = sorted(reports.glob('TEST-*.xml'))
+          if xmls:
+              total = failed = 0
+              for path in xmls:
+                  root = ET.parse(path).getroot()
+                  total += int(root.get('tests', '0'))
+                  failed += int(root.get('failures', '0')) + int(root.get('errors', '0'))
+          else:
+              report = reports / 'testng-results.xml'
+              if not report.exists():
+                  print('No quarantined tests ran.'); sys.exit(0)
+              root = ET.parse(report).getroot()
+              failed, total = int(root.get('failed', '0')), int(root.get('total', '0'))
           print(f'quarantined tests: total={total} failed={failed}')
           sys.exit(1 if failed else 0)
           PY

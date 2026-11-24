@@ -36,42 +36,47 @@ enum PlaywrightHostPlatform {
     boolean requiresExecutablePermission() { return this != WIN64; }
 
     List<String> requiredPaths(SetupTarget target) {
+        String chromium = "chromium-" + PlaywrightSetupPlanner.CHROMIUM_REVISION;
+        String headlessShell = "chromium_headless_shell-" + PlaywrightSetupPlanner.CHROMIUM_REVISION;
+        String firefox = "firefox-" + PlaywrightSetupPlanner.FIREFOX_REVISION;
+        String webkit = "webkit-" + PlaywrightSetupPlanner.WEBKIT_REVISION;
+        String ffmpeg = "ffmpeg-" + PlaywrightSetupPlanner.FFMPEG_REVISION;
         return switch (this) {
             case WIN64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
-                        "chromium-1255/chrome-win64/chrome.exe",
-                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1255/chrome-headless-shell-win64/chrome-headless-shell.exe",
+                case PLAYWRIGHT_CHROMIUM -> List.of(chromium + "/INSTALLATION_COMPLETE",
+                        chromium + "/chrome-win64/chrome.exe",
+                        headlessShell + "/INSTALLATION_COMPLETE",
+                        headlessShell + "/chrome-headless-shell-win64/chrome-headless-shell.exe",
                         "winldd-1007/INSTALLATION_COMPLETE", "winldd-1007/PrintDeps.exe");
-                case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
-                        "firefox-1572/firefox/firefox.exe");
-                case PLAYWRIGHT_WEBKIT -> List.of("webkit-2388/INSTALLATION_COMPLETE",
-                        "webkit-2388/Playwright.exe");
-                case FFMPEG -> List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-win64.exe");
+                case PLAYWRIGHT_FIREFOX -> List.of(firefox + "/INSTALLATION_COMPLETE",
+                        firefox + "/firefox/firefox.exe");
+                case PLAYWRIGHT_WEBKIT -> List.of(webkit + "/INSTALLATION_COMPLETE",
+                        webkit + "/Playwright.exe");
+                case FFMPEG -> List.of(ffmpeg + "/INSTALLATION_COMPLETE", ffmpeg + "/ffmpeg-win64.exe");
                 default -> List.of();
             };
             case UBUNTU_24_04_X64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
-                        "chromium-1255/chrome-linux64/chrome",
-                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1255/chrome-headless-shell-linux64/chrome-headless-shell");
-                case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
-                        "firefox-1572/firefox/firefox");
-                case PLAYWRIGHT_WEBKIT -> List.of("webkit-2388/INSTALLATION_COMPLETE", "webkit-2388/pw_run.sh");
-                case FFMPEG -> List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-linux");
+                case PLAYWRIGHT_CHROMIUM -> List.of(chromium + "/INSTALLATION_COMPLETE",
+                        chromium + "/chrome-linux64/chrome",
+                        headlessShell + "/INSTALLATION_COMPLETE",
+                        headlessShell + "/chrome-headless-shell-linux64/chrome-headless-shell");
+                case PLAYWRIGHT_FIREFOX -> List.of(firefox + "/INSTALLATION_COMPLETE",
+                        firefox + "/firefox/firefox");
+                case PLAYWRIGHT_WEBKIT -> List.of(webkit + "/INSTALLATION_COMPLETE", webkit + "/pw_run.sh");
+                case FFMPEG -> List.of(ffmpeg + "/INSTALLATION_COMPLETE", ffmpeg + "/ffmpeg-linux");
                 default -> List.of();
             };
             case MAC15, MAC15_ARM64 -> switch (target) {
-                case PLAYWRIGHT_CHROMIUM -> List.of("chromium-1255/INSTALLATION_COMPLETE",
-                        "chromium-1255/" + macArchitectureDirectory("chrome")
+                case PLAYWRIGHT_CHROMIUM -> List.of(chromium + "/INSTALLATION_COMPLETE",
+                        chromium + "/" + macArchitectureDirectory("chrome")
                                 + "/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
-                        "chromium_headless_shell-1255/INSTALLATION_COMPLETE",
-                        "chromium_headless_shell-1255/" + macArchitectureDirectory("chrome-headless-shell")
+                        headlessShell + "/INSTALLATION_COMPLETE",
+                        headlessShell + "/" + macArchitectureDirectory("chrome-headless-shell")
                                 + "/chrome-headless-shell");
-                case PLAYWRIGHT_FIREFOX -> List.of("firefox-1572/INSTALLATION_COMPLETE",
-                        "firefox-1572/firefox/Nightly.app/Contents/MacOS/firefox");
-                case PLAYWRIGHT_WEBKIT -> List.of("webkit-2388/INSTALLATION_COMPLETE", "webkit-2388/pw_run.sh");
-                case FFMPEG -> List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-mac");
+                case PLAYWRIGHT_FIREFOX -> List.of(firefox + "/INSTALLATION_COMPLETE",
+                        firefox + "/firefox/Nightly.app/Contents/MacOS/firefox");
+                case PLAYWRIGHT_WEBKIT -> List.of(webkit + "/INSTALLATION_COMPLETE", webkit + "/pw_run.sh");
+                case FFMPEG -> List.of(ffmpeg + "/INSTALLATION_COMPLETE", ffmpeg + "/ffmpeg-mac");
                 default -> List.of();
             };
         };
