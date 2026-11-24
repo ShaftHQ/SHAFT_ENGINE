@@ -6,8 +6,8 @@ Decision: keep the current single `shaft-skills` package unchanged, with an
 The post-compression evidence contains no measured reason to split, but it is not yet
 complete enough to claim that retention is proven:
 
-- the deterministic corpus covers all 30 skills and all 37 reviewed directed confusion
-  boundaries at a required 100% case and positive-skill threshold;
+- the deterministic corpus covers the single `shaft-developer` entrypoint, 36 routed specialist references across 31 files, and every reviewed directed confusion boundary
+  at a required 100% case and positive-skill threshold;
 - both pinned native clients validate, discover, install, enable, and clean up the package
   without a context-budget warning;
 - the available Codex live routing proof selected the expected requirements specialist;

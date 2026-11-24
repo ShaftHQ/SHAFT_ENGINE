@@ -133,21 +133,7 @@ public class CaptureService {
      * @return union recorder status; {@link McpCaptureUnionStatus#engine()} names the dispatched engine
      */
     @Tool(name = "capture_start",
-            description = "starts a recording, dispatching to the active engine: WEB (or no active session) "
-                    + "always launches its own privacy-safe SHAFT-managed browser via CDP capture, and while "
-                    + "it is active, element_* tools drive the recorded browser directly (no driver_initialize "
-                    + "needed); PLAYWRIGHT/mobile sessions instead record actions on the already-active driver "
-                    + "(targetUrl/browser/headless are WEB-only; sessionGoal names the generated test on WEB, "
-                    + "or is used as the recorder's mode label on PLAYWRIGHT/mobile); optional nested "
-                    + "codegenOptions replaces the flat targetUrl/browser/outputPath/headless/sessionGoal args "
-                    + "with the full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, "
-                    + "etc.), absorbing the former capture_start_codegen tool -- WEB/NONE only. IMPORTANT: this "
-                    + "tool takes no engine/platform argument of its own -- with no active session (the "
-                    + "default), it ALWAYS launches a desktop Chrome/Edge browser, never a mobile app, even "
-                    + "when the caller's intent is to record on a mobile device or emulator; to record a "
-                    + "mobile app, call driver_initialize(engine=mobile_native) or "
-                    + "driver_initialize(engine=mobile_web) FIRST to make that engine active, then call "
-                    + "capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead")
+            description = "starts a recording on the active engine; with no session it launches desktop web CDP capture and element_* drive that browser; codegenOptions is WEB-only")
     /**
      * Starts a recording session for web, mobile or API capture.
      */
@@ -271,63 +257,62 @@ public class CaptureService {
      * Structured request fields for the Playwright-codegen-compatible MCP start tool.
      */
     public static final class CaptureCodegenStartRequest {
-        @ToolParam(description = "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank")
+        @ToolParam(required = false, description = "initial http, https, or file URL; blank opens about:blank")
         public String targetUrl;
-        @ToolParam(description = "Chrome or Edge; blank selects Chrome")
+        @ToolParam(required = false, description = "Chrome or Edge; blank selects Chrome")
         public String browser;
-        @ToolParam(description = "recording/capture JSON output path; blank selects a timestamped recording")
+        @ToolParam(required = false, description = "capture JSON path; blank uses a timestamped recording")
         public String outputPath;
-        @ToolParam(description = "whether to launch without a visible browser window; unspecified defaults to headless per repo policy")
-        public boolean headless;
-        @ToolParam(description = "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java")
+        // Omitted JSON keeps this true so a partial codegenOptions object stays headless.
+        @ToolParam(required = false, description = "launch without a visible window; omitted stays headless")
+        public boolean headless = true;
+        @ToolParam(required = false, description = "codegen language metadata; SHAFT emits Java only")
         public String targetLanguage;
-        @ToolParam(description = "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements")
+        @ToolParam(required = false, description = "preferred test id attribute, such as data-testid")
         public String testIdAttribute;
-        @ToolParam(description = "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection")
+        @ToolParam(required = false, description = "Chromium channel, such as chrome or msedge")
         public String channel;
-        @ToolParam(description = "device emulation hint")
+        @ToolParam(required = false, description = "device emulation hint")
         public String deviceName;
-        @ToolParam(description = "viewport size as width,height in pixels (e.g. 1280,720)")
+        @ToolParam(required = false, description = "viewport as width,height pixels, such as 1280,720")
         public String viewportSize;
-        @ToolParam(description = "preferred color scheme hint (e.g. light or dark)")
+        @ToolParam(required = false, description = "color scheme hint, such as light or dark")
         public String colorScheme;
-        @ToolParam(description = "geolocation as latitude,longitude")
+        @ToolParam(required = false, description = "geolocation as latitude,longitude")
         public String geolocation;
-        @ToolParam(description = "whether HTTPS certificate errors are ignored")
+        @ToolParam(required = false, description = "ignore HTTPS certificate errors")
         public boolean ignoreHttpsErrors;
-        @ToolParam(description = "whether service workers should be blocked")
+        @ToolParam(required = false, description = "block service workers")
         public boolean blockServiceWorkers;
-        @ToolParam(description = "storage-state input path to restore cookies/local storage from before recording starts")
+        @ToolParam(required = false, description = "storage-state file to restore before recording")
         public String loadStoragePath;
-        @ToolParam(description = "storage-state output path to persist cookies/local storage to when the session ends")
+        @ToolParam(required = false, description = "storage-state file to write when the session ends")
         public String saveStoragePath;
-        @ToolParam(description = "locale/language hint (e.g. en-US)")
+        @ToolParam(required = false, description = "locale hint, such as en-US")
         public String language;
-        @ToolParam(description = "timezone hint (e.g. America/Los_Angeles)")
+        @ToolParam(required = false, description = "timezone hint, such as America/Los_Angeles")
         public String timezone;
-        @ToolParam(description = "proxy server URL")
+        @ToolParam(required = false, description = "proxy server URL")
         public String proxyServer;
-        @ToolParam(description = "comma-separated proxy bypass list")
+        @ToolParam(required = false, description = "comma-separated proxy bypass list")
         public String proxyBypass;
-        @ToolParam(description = "HAR output path; blank disables HAR capture")
+        @ToolParam(required = false, description = "HAR output path; blank disables HAR")
         public String saveHarPath;
-        @ToolParam(description = "HAR URL glob filter restricting which requests are written to the HAR")
+        @ToolParam(required = false, description = "URL glob limiting which requests enter the HAR")
         public String saveHarGlob;
-        @ToolParam(description = "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout")
+        @ToolParam(required = false, description = "browser timeout in milliseconds; 0 means none")
         public long timeoutMillis;
-        @ToolParam(description = "user-agent override")
+        @ToolParam(required = false, description = "user-agent override")
         public String userAgent;
-        @ToolParam(description = "persistent browser profile directory; blank uses a temporary profile")
+        @ToolParam(required = false, description = "persistent profile directory; blank uses a temp profile")
         public String userDataDirectory;
-        @ToolParam(description = "optional user intent for the journey; drives generated test class and method names")
+        @ToolParam(required = false, description = "journey intent used for generated test names")
         public String sessionGoal;
-        @ToolParam(description = "whether API network recording is enabled for this session")
+        @ToolParam(required = false, description = "enable API network recording for this session")
         public boolean apiCapture;
-        @ToolParam(description = "network capture filtering options; ignored unless apiCapture is set")
+        @ToolParam(required = false, description = "network filters; ignored unless apiCapture is set")
         public NetworkCaptureOptions networkOptions;
-        @ToolParam(description = "HAR body-content emission mode: blank or none (the default) keeps truncated "
-                + "network-trace preview bodies, full emits complete request/response bodies from "
-                + "API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII")
+        @ToolParam(required = false, description = "HAR bodies: none (default, truncated) or full (unredacted)")
         public String saveHarContent;
     }
 
@@ -353,11 +338,7 @@ public class CaptureService {
      * @return current or final recorder status for the active engine
      */
     @Tool(name = "capture_status",
-            description = "returns recorder status for the active engine: WEB (or no active session) returns "
-                    + "SHAFT Capture session, browser, URL, event count, pending debounced-signal count, "
-                    + "warnings, and output status (when no session is active the warnings list persisted "
-                    + "recordings that can be turned into code without a live session); PLAYWRIGHT/mobile "
-                    + "return that engine's own recorder status; the union's engine field names which is populated")
+            description = "returns recorder status for the active web, Playwright, or mobile engine; the union's engine field names which status is set")
     /**
      * Returns the status of the active recording session.
      */
@@ -468,10 +449,7 @@ public class CaptureService {
      * @return final recorder status for the active engine
      */
     @Tool(name = "capture_stop",
-            description = "stops the active recording for the active engine; after WEB reaches COMPLETED, show "
-                    + "outputPath and generate replay-proven code by passing it as sessionPath to "
-                    + "capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the "
-                    + "union's engine field names which recorder was stopped")
+            description = "stops the active engine's recording; pass the WEB outputPath to capture_generate_replay to prove the generated code")
     /**
      * Stops the active recording session, optionally discarding it.
      */
@@ -496,9 +474,7 @@ public class CaptureService {
      * @return updated recorder status for the active engine
      */
     @Tool(name = "capture_step_delete",
-            description = "deletes a recorded step by its stable stepId from the active Playwright or mobile "
-                    + "recording; returns an actionable error naming the active engine for a WEB CDP "
-                    + "capture_start session, whose recording format has no step editor")
+            description = "deletes a Playwright or mobile recorded step by stepId; a WEB CDP recording has no step editor")
     /**
      * Deletes a recorded step.
      */
@@ -521,9 +497,7 @@ public class CaptureService {
      * @return updated recorder status for the active engine
      */
     @Tool(name = "capture_step_reorder",
-            description = "moves a recorded step up or down by its stable stepId (direction: up|down) within "
-                    + "the active Playwright or mobile recording; returns an actionable error naming the "
-                    + "active engine for a WEB CDP capture_start session, whose recording format has no step editor")
+            description = "moves a Playwright or mobile recorded step up or down by stepId; a WEB CDP recording has no step editor")
     /**
      * Moves a recorded step up or down.
      */
@@ -561,11 +535,7 @@ public class CaptureService {
      * @return safe recorder status with network transaction count
      */
     @Tool(name = "capture_api_start",
-            description = "starts SHAFT Capture with API network recording enabled; dispatches to the mobile "
-                    + "loopback MITM proxy when a mobile engine is active OR mobilePlatform is explicitly given "
-                    + "(the mobile proxy never requires a live Appium/WebDriver session), absorbing "
-                    + "mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and "
-                    + "ignored on WEB)")
+            description = "starts API network capture; uses the mobile MITM proxy when a mobile engine or mobilePlatform is set, otherwise WEB capture")
     /**
      * Starts capturing API traffic from a browser session.
      */
@@ -613,9 +583,7 @@ public class CaptureService {
      * @return current recorder status including network metrics
      */
     @Tool(name = "capture_api_status",
-            description = "returns SHAFT Capture session status including network transaction count and recent "
-                    + "endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or "
-                    + "when a standalone mobile API session (started with no active engine) is already running")
+            description = "returns API capture status, transaction count, and recent endpoints for the active WEB or mobile MITM session")
     /**
      * Returns the status of the active API capture.
      */
@@ -633,9 +601,7 @@ public class CaptureService {
      * @return final recorder status
      */
     @Tool(name = "capture_api_stop",
-            description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; "
-                    + "dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a "
-                    + "standalone mobile API session (started with no active engine) is already running")
+            description = "stops API capture for the active WEB session or a running mobile MITM session, using the same single-session lock as capture_stop")
     /**
      * Stops the active API capture, optionally discarding it.
      */
@@ -654,10 +620,7 @@ public class CaptureService {
      * @return ordered, bounded list of transaction summaries without sensitive data
      */
     @Tool(name = "capture_api_transactions",
-            description = "returns captured network transactions without bodies or sensitive headers; supports "
-                    + "filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions "
-                    + "when a mobile engine is active, or when a standalone mobile API session is already running "
-                    + "(includeAssets/excludePattern are WEB-only there)")
+            description = "lists captured API transactions without bodies or sensitive headers; mobile reads the MITM proxy, and WEB can filter asset noise")
     /**
      * Lists captured API transactions, optionally including static assets.
      */
@@ -783,8 +746,7 @@ public class CaptureService {
      * @return one entry per renderable transaction, each carrying its classified leaves
      */
     @Tool(name = "capture_api_response_leaves",
-            description = "returns classified response-body leaves (stable/volatile/sensitive) per transaction for a "
-                    + "recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted")
+            description = "classifies a session's response-body leaves as stable, volatile, or sensitive without generating test source")
     /**
      * Lists the response fields of captured transactions that generated tests can assert on.
      */
@@ -1039,11 +1001,7 @@ public class CaptureService {
      * @return generation report plus copy-paste code blocks
      */
     @McpTool(name = "capture_generate_replay",
-            description = "generates, compiles, optionally replays, and returns copy-paste SHAFT code blocks from a "
-                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session "
-                    + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
-                    + "the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/"
-                    + "mobile_replay_recording)")
+            description = "generates, compiles, and optionally replays SHAFT code from a saved recording; backend web, playwright, or mobile defaults to the active engine")
     /**
      * Generates replayable test code from a saved capture session.
      */
@@ -1147,10 +1105,7 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_code_blocks",
-            description = "generates a Java full-class snippet plus agent guidance for repo-aware insertion from a "
-                    + "persisted recording JSON (sessionPath); works on any recording file, no active capture session "
-                    + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
-                    + "the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)")
+            description = "generates a Java class snippet and insertion guidance from a saved recording; backend web, playwright, or mobile defaults to the active engine")
     /**
      * Returns generated code blocks for a capture session without writing files.
      */
@@ -1218,9 +1173,7 @@ public class CaptureService {
      * @return generated snippets and report
      */
     @Tool(name = "capture_record_at_target_code_blocks",
-            description = "generates focused Capture snippets for insertion at an existing Java source anchor; "
-                    + "optional backend (web|playwright|mobile) selects the codegen target, defaulting to the "
-                    + "active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)")
+            description = "generates Capture snippets for an existing Java source anchor; backend web, playwright, or mobile defaults to the active engine")
     /**
      * Returns generated code blocks for inserting at a target position in existing code.
      */

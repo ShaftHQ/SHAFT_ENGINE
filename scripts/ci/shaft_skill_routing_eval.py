@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SUPPORTED_CLIENTS = {"Claude Code", "Codex CLI"}
+HOSTS_RELATIVE = Path("scripts/mcp/agent_hosts.json")
+NATIVE_EVIDENCE_LABELS = {"claude": "Claude Code", "codex": "Codex CLI"}
 CORPUS_RELATIVE = Path("agent-plugins/shaft-skills/evals/cases.json")
 REVIEW_RELATIVE = Path("shaft-skills/quality-review.json")
 CLAUDE_RELATIVE = Path("agent-plugins/shaft-skills/evals/claude/evals.json")
@@ -311,6 +313,142 @@ def package_decision(reports: list[dict]) -> dict:
     }
 
 
+def registry_hosts(root: Path = ROOT) -> list[dict]:
+    """Return host records from the canonical registry, or an empty list."""
+    path = root / HOSTS_RELATIVE
+    if not path.is_file():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    hosts = payload.get("hosts") if isinstance(payload, dict) else None
+    if not isinstance(hosts, list):
+        return []
+    return [host for host in hosts if isinstance(host, dict)]
+
+
+def registry_display_names(root: Path = ROOT) -> list[str]:
+    """Display names in registry order."""
+    return [host["displayName"] for host in registry_hosts(root) if isinstance(host.get("displayName"), str)]
+
+
+def native_evidence_clients(root: Path = ROOT) -> set[str]:
+    """Native routing clients. Labels stay stable when the registry display name starts with them."""
+    by_id = {host.get("id"): host.get("displayName", "") for host in registry_hosts(root)}
+    if not by_id:
+        return set(NATIVE_EVIDENCE_LABELS.values())
+    labels = set()
+    for host_id, label in NATIVE_EVIDENCE_LABELS.items():
+        display = by_id.get(host_id, "")
+        if isinstance(display, str) and (display == label or display.startswith(label)):
+            labels.add(label)
+        elif isinstance(display, str) and display:
+            labels.add(display)
+    return labels
+
+
+SUPPORTED_CLIENTS = native_evidence_clients()
+
+
+def _coverage_review(review: dict) -> dict:
+    """Score the entrypoint and every routed specialist as one routing universe."""
+    skills = dict(review.get("skills") or {})
+    extra = review.get("routing_reviews")
+    if isinstance(extra, dict):
+        for name, row in extra.items():
+            if isinstance(name, str) and isinstance(row, dict):
+                skills.setdefault(name, row)
+    return {**review, "skills": skills}
+
+
+def _product_skill_paths(root: Path) -> list[str]:
+    skills = root / "shaft-skills"
+    if not skills.is_dir():
+        return []
+    found = []
+    for path in sorted(skills.rglob("SKILL.md")):
+        relative = path.relative_to(skills)
+        if relative.parts and relative.parts[0] in {"ce-pack", "ce-addons"}:
+            continue
+        found.append(path.relative_to(root).as_posix())
+    return found
+
+
+def _specialist_domains(root: Path) -> set[str]:
+    specialists = root / "shaft-skills/shaft-developer/references/specialists"
+    if not specialists.is_dir():
+        return set()
+    return {path.name for path in specialists.glob("*.md") if path.name != "journey-coverage-map.md"}
+
+
+def _entrypoint_defects(root: Path) -> list[dict]:
+    if not (root / "shaft-skills").is_dir():
+        return []
+    found = _product_skill_paths(root)
+    if found == ["shaft-skills/shaft-developer/SKILL.md"]:
+        return []
+    return [_defect("entrypoint-count", f"expected shaft-skills/shaft-developer/SKILL.md only, found {found or ['none']}")]
+
+
+def _specialist_coverage_defects(root: Path, review: dict) -> list[dict]:
+    domains = _specialist_domains(root)
+    if not domains:
+        return []
+    routing_reviews = review.get("routing_reviews")
+    if not isinstance(routing_reviews, dict):
+        return [_defect("routing-reviews", "routing_reviews must map each logical specialist to one reference file")]
+    referenced = {
+        row.get("reference")
+        for row in routing_reviews.values()
+        if isinstance(row, dict) and isinstance(row.get("reference"), str)
+    }
+    defects = []
+    missing = sorted(domains - referenced)
+    unknown = sorted(item for item in referenced if isinstance(item, str) and item not in domains)
+    if missing or unknown:
+        defects.append(_defect("specialist-coverage", f"routing review references drifted; missing={missing}, extra={unknown}"))
+    routing = root / "shaft-skills/shaft-developer/references/routing.md"
+    if not routing.is_file():
+        defects.append(_defect("specialist-routing", "routing.md is missing"))
+        return defects
+    linked = set(re.findall(r"specialists/([a-z0-9-]+\.md)", routing.read_text(encoding="utf-8")))
+    if linked != domains:
+        defects.append(
+            _defect(
+                "specialist-routing",
+                f"routing.md specialist files drifted; linked={sorted(linked)}, domains={sorted(domains)}",
+            )
+        )
+    return defects
+
+
+def _client_defects(root: Path, review: dict) -> list[dict]:
+    path = root / HOSTS_RELATIVE
+    if not path.is_file():
+        return []
+    expected = registry_display_names(root)
+    if not expected or review.get("supported_clients") != expected:
+        return [_defect("supported-clients", "supported_clients drifted from scripts/mcp/agent_hosts.json display names")]
+    missing_ids = sorted(set(NATIVE_EVIDENCE_LABELS) - {host.get("id") for host in registry_hosts(root)})
+    if missing_ids:
+        return [_defect("supported-clients", f"agent_hosts.json is missing native evidence hosts: {missing_ids}")]
+    return []
+
+
+def _generated_defects(root: Path, corpus: dict) -> list[dict]:
+    defects = []
+    for relative, expected in _generated(corpus).items():
+        path = root / relative
+        try:
+            actual = path.read_text(encoding="utf-8")
+        except OSError:
+            actual = ""
+        if actual != expected:
+            defects.append(_defect("generated-drift", f"regenerate {relative.as_posix()}"))
+    return defects
+
+
 def _generated(corpus: dict) -> dict[Path, str]:
     codex_cases, schema = compile_codex_cases(corpus)
     return {
@@ -324,29 +462,13 @@ def validate_repository(root: Path = ROOT) -> list[dict]:
     try:
         corpus = json.loads((root / CORPUS_RELATIVE).read_text(encoding="utf-8"))
         review = json.loads((root / REVIEW_RELATIVE).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         return [_defect("source", str(error))]
-    defects = validate_corpus(corpus, review)
-    live_skills = {
-        path.parent.name
-        for path in (root / "shaft-skills").glob("shaft-*/SKILL.md")
-    }
-    reviewed_skills = set(review.get("skills", {}))
-    if live_skills != reviewed_skills:
-        defects.append(
-            _defect(
-                "live-skill-drift",
-                f"live/reviewed skills differ: live={sorted(live_skills)}, reviewed={sorted(reviewed_skills)}",
-            )
-        )
-    for relative, expected in _generated(corpus).items():
-        path = root / relative
-        try:
-            actual = path.read_text(encoding="utf-8")
-        except OSError:
-            actual = ""
-        if actual != expected:
-            defects.append(_defect("generated-drift", f"regenerate {relative.as_posix()}"))
+    defects = validate_corpus(corpus, _coverage_review(review))
+    defects.extend(_entrypoint_defects(root))
+    defects.extend(_specialist_coverage_defects(root, review))
+    defects.extend(_client_defects(root, review))
+    defects.extend(_generated_defects(root, corpus))
     return defects
 
 
@@ -361,6 +483,7 @@ def write_generated(root: Path = ROOT) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="refresh client-native generated files")
+    parser.add_argument("--check", action="store_true", help="validate the single-entrypoint routing corpus")
     arguments = parser.parse_args()
     if arguments.write:
         write_generated()

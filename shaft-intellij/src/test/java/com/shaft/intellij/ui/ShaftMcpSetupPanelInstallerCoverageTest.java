@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -41,10 +42,15 @@ class ShaftMcpSetupPanelInstallerCoverageTest {
                 () -> assertEquals("intellij-plugin", ShaftMcpSetupPanel.installerArgumentFor("INTELLIJ_PLUGIN")),
                 () -> assertEquals("grok", ShaftMcpSetupPanel.installerArgumentFor("GROK")),
                 () -> assertEquals("antigravity", ShaftMcpSetupPanel.installerArgumentFor("ANTIGRAVITY")),
+                () -> assertEquals("vscode", ShaftMcpSetupPanel.installerArgumentFor("VSCODE")),
+                () -> assertEquals("opencode", ShaftMcpSetupPanel.installerArgumentFor("OPENCODE")),
+                () -> assertEquals("gemini", ShaftMcpSetupPanel.installerArgumentFor("GEMINI")),
+                () -> assertEquals("cursor", ShaftMcpSetupPanel.installerArgumentFor("CURSOR")),
                 () -> assertEquals("codex", ShaftMcpSetupPanel.installerArgumentFor("CODEX")),
                 () -> assertEquals("", ShaftMcpSetupPanel.installerArgumentFor("")),
                 () -> assertEquals("", ShaftMcpSetupPanel.installerArgumentFor(null)),
-                () -> assertEquals("codex", ShaftMcpSetupPanel.installerArgumentFor("UNKNOWN_TARGET")));
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> ShaftMcpSetupPanel.installerArgumentFor("UNKNOWN_TARGET")));
         for (String name : names) {
             String argument = ShaftMcpSetupPanel.installerArgumentFor(name);
             assertFalse(argument.isBlank(), name);

@@ -90,7 +90,7 @@ Run `mvn test`. The Allure report opens with every step, screenshot, and log.
 - **Writing tests:** the **[User Guide](https://shafthq.github.io/)** has setup, the full API, and examples.
 - **Using IntelliJ:** [shaft-intellij](shaft-intellij/README.md).
 - **Contributing or maintaining:** [CONTRIBUTING.md](CONTRIBUTING.md) is the entry point to the maintainers guide.
-- **AI agents:** [AGENTS.md](AGENTS.md). Start with `$shaft-developer`, then the [MCP tools](shaft-skills/references/shaft-mcp-tools.md) or [CLI commands](shaft-skills/references/shaft-cli-commands.md).
+- **AI agents:** [AGENTS.md](AGENTS.md). Start with `$shaft-developer`, then the [MCP tools](shaft-skills/shaft-developer/references/shaft-mcp-tools.md) or [CLI commands](shaft-skills/shaft-developer/references/shaft-cli-commands.md).
 - **Training:** hands-on courses at [automatest.org](https://www.automatest.org).
 
 <div align="center">

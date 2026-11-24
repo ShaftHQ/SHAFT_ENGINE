@@ -42,18 +42,6 @@ class ShaftSkillQualityTest(unittest.TestCase):
             "shaft-skills/example/references/playbook.md",
             "# Playbook\n\nRun `python -m unittest` and assert the result.\n",
         )
-        self.write(
-            "shaft-skills/other/SKILL.md",
-            "---\n"
-            "name: other\n"
-            "description: Use when another workflow needs a separate result.\n"
-            "---\n\n"
-            "# Other\n\nRead [the playbook](references/playbook.md).\n",
-        )
-        self.write(
-            "shaft-skills/other/references/playbook.md",
-            "# Playbook\n\nVerify the output with a focused check.\n",
-        )
         self.review = {
             "package": "shaft-skills",
             "supported_clients": ["Claude Code", "Codex CLI"],
@@ -63,8 +51,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
                 "max_skill_md_lines": 50,
             },
             "skills": {
-                "example": self.skill_review("other"),
-                "other": self.skill_review("example"),
+                "example": self.skill_review(),
             },
         }
         self.write_review()
@@ -80,7 +67,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
 
     @staticmethod
-    def skill_review(confusion_with: str) -> dict:
+    def skill_review(confusion_with: str | None = None) -> dict:
         return {
             "scores": {
                 "trigger_precision": 5,
@@ -90,7 +77,7 @@ class ShaftSkillQualityTest(unittest.TestCase):
                 "runnable_evidence": 4,
                 "context_cost": 5,
             },
-            "confusion_with": [confusion_with],
+            "confusion_with": [] if confusion_with is None else [confusion_with],
             "notes": "Distinct trigger and current reference evidence were reviewed.",
         }
 
@@ -148,10 +135,34 @@ class ShaftSkillQualityTest(unittest.TestCase):
         self.assertIn("example", report)
 
     def test_missing_review_row_is_reported(self):
-        del self.review["skills"]["other"]
+        del self.review["skills"]["example"]
         self.write_review()
 
         self.assertDefect("review-skill-set")
+
+    def test_extra_discoverable_skill_fails_closed(self):
+        self.write(
+            "shaft-skills/other/SKILL.md",
+            "---\n"
+            "name: other\n"
+            "description: Use when another workflow needs a separate result.\n"
+            "---\n\n"
+            "# Other\n",
+        )
+
+        self.assertDefect("entrypoint-count")
+
+    def test_description_ceiling_fails_closed(self):
+        self.review["context_budget"]["max_description_chars"] = 181
+        self.write_review()
+
+        self.assertDefect("description-ceiling")
+
+    def test_listing_ceiling_fails_closed(self):
+        self.review["context_budget"]["max_total_description_chars"] = 501
+        self.write_review()
+
+        self.assertDefect("listing-ceiling")
 
     def test_unknown_review_row_is_reported(self):
         self.review["skills"]["ghost"] = self.skill_review("example")
@@ -256,28 +267,42 @@ class ShaftSkillQualityTest(unittest.TestCase):
 MAP = (
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-test-case-design"
+    / "shaft-developer"
     / "references"
+    / "specialists"
     / "journey-coverage-map.md"
 )
 MAP_POINTERS = (
-    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-case-design" / "SKILL.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-requirements-analysis"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
+    / "specialists"
+    / "test-case-design.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-automated-test-authoring"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
-    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-planning" / "references" / "playbook.md",
+    / "specialists"
+    / "requirements-analysis.md",
     Path(__file__).resolve().parents[2]
     / "shaft-skills"
-    / "shaft-stakeholder-reporting"
+    / "shaft-developer"
     / "references"
-    / "playbook.md",
+    / "specialists"
+    / "automated-test-authoring.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-developer"
+    / "references"
+    / "specialists"
+    / "test-planning.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-developer"
+    / "references"
+    / "specialists"
+    / "stakeholder-reporting.md",
 )
 
 
@@ -330,11 +355,9 @@ TOOL_INDEX = (
     REPOSITORY
     / "shaft-mcp/src/main/resources/META-INF/shaft-mcp/tool-index.json"
 )
-CACHE_RULE = (
-    "Compact cache rule: name, when to use, and essential arguments only. "
-    "Do not embed a JSON schema. Load this file only when the shaft skills "
-    "entrypoint selects this skill."
-)
+CATALOG = REPOSITORY / "shaft-skills/shaft-developer/references/shaft-mcp-tools.md"
+MCP_CACHE = REPOSITORY / "shaft-skills/shaft-developer/references/mcp-cache.md"
+CLI_CACHE = REPOSITORY / "shaft-skills/shaft-developer/references/cli-cache.md"
 SKILL_NAME = re.compile(r"^shaft-[a-z0-9]+(?:-[a-z0-9]+)*$")
 HELP_INSTRUCTION = re.compile(r"(?i)\b(do not|never|don't)\b")
 
@@ -357,11 +380,9 @@ def _entrypoint_text() -> str:
 
 def _cache_files() -> list[tuple[str, Path]]:
     found = []
-    for skill in sorted((REPOSITORY / "shaft-skills").glob("*/SKILL.md")):
-        body = skill.read_text(encoding="utf-8")
-        if "references/cache.md" not in body:
-            continue
-        cache = skill.parent / "references/cache.md"
+    references = REPOSITORY / "shaft-skills/shaft-developer/references"
+    for name in ("cli-cache.md", "mcp-cache.md"):
+        cache = references / name
         heading = ""
         if cache.is_file():
             heading = cache.read_text(encoding="utf-8").splitlines()[0]
@@ -388,10 +409,10 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         for heading, cache in _cache_files():
             self.assertTrue(cache.is_file(), cache)
             text = cache.read_text(encoding="utf-8")
-            self.assertIn(CACHE_RULE, text)
             self.assertNotIn("inputSchema", text)
             self.assertNotIn('"properties"', text)
             self.assertNotIn('"type":', text)
+            self.assertNotIn("| Tool | When |", text)
             if heading == "# MCP cache":
                 kinds.append("mcp")
             elif heading == "# CLI cache":
@@ -400,31 +421,43 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
                 self.fail(f"unexpected cache heading {heading!r} in {cache}")
         self.assertEqual(kinds, ["cli", "mcp"])
 
-    def test_mcp_cache_recovers_index_names_without_schemas(self):
+    def test_canonical_catalog_recovers_index_names_without_schemas(self):
         index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
         names = [tool["name"] for tool in index["tools"]]
         self.assertGreaterEqual(len(names), 100)
-        cache = (
-            REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md"
-        ).read_text(encoding="utf-8")
-        self.assertIn(names[0], cache)
-        missing = [name for name in names if f"`{name}`" not in cache]
-        extra = re.findall(r"(?m)^\| `([a-z][a-z0-9_]*)` \|", cache)
+        catalog = CATALOG.read_text(encoding="utf-8")
+        self.assertNotIn("inputSchema", catalog)
+        missing = [name for name in names if f"`{name}`" not in catalog]
+        extra = re.findall(r"(?m)^\| `([a-z][a-z0-9_]*)` \|", catalog)
         self.assertEqual(missing, [])
         self.assertEqual(sorted(extra), sorted(names))
-        self.assertLess(len(cache.encode("utf-8")), TOOL_INDEX.stat().st_size // 2)
+        self.assertLess(len(catalog.encode("utf-8")), TOOL_INDEX.stat().st_size // 2)
+
+    def test_mcp_cache_is_a_service_group_index(self):
+        cache = MCP_CACHE.read_text(encoding="utf-8")
+        rows = re.findall(r"(?m)^\| ([A-Za-z]+Service) \| ([a-z][a-z0-9, -]*) \| (\d+) \|$", cache)
+        self.assertEqual(16, len(rows))
+        self.assertIn("SHAFT_MCP_TOOLSETS=<groups>", cache)
+        self.assertIn("](shaft-mcp-tools.md)", cache)
+        self.assertIn("shaft-cli tools describe <tool> [--json]", cache)
+        self.assertNotIn("`browser_navigate`", cache)
+        size = len(cache.encode("utf-8"))
+        self.assertGreaterEqual(size, 400)
+        self.assertLessEqual(size, 900)
 
     def test_cli_cache_recovers_a_catalog_command_without_help_discovery(self):
         reference = (
-            REPOSITORY / "shaft-skills/references/shaft-cli-commands.md"
+            REPOSITORY / "shaft-skills/shaft-developer/references/shaft-cli-commands.md"
         ).read_text(encoding="utf-8")
         form = re.search(r"shaft-cli call <TOOL>[^\n`]*", reference)
         self.assertIsNotNone(form)
-        cache_path = REPOSITORY / "shaft-skills/shaft-cli/references/cache.md"
-        skill = (REPOSITORY / "shaft-skills/shaft-cli/SKILL.md").read_text(encoding="utf-8")
+        cache_path = CLI_CACHE
+        skill = (
+            REPOSITORY / "shaft-skills/shaft-developer/references/specialists/cli.md"
+        ).read_text(encoding="utf-8")
         cache = cache_path.read_text(encoding="utf-8")
         self.assertIn(form.group(0).strip(), cache)
-        self.assertIn("references/cache.md", skill)
+        self.assertIn("cli-cache.md", skill)
         for label, text in (("skill", skill), ("cache", cache)):
             instructed = [
                 line
@@ -446,31 +479,33 @@ class ShaftSkillsOptimization7858Test(unittest.TestCase):
         self.assertIn("Record and playback", readme)
         self.assertIn("Code generation", readme)
 
-    def test_on_demand_caches_keep_the_full_when_text(self):
-        generator = REPOSITORY / "scripts/mcp/generate_shaft_skill_tool_caches.py"
+    def test_catalog_keeps_the_full_when_text_and_caches_do_not_duplicate_it(self):
+        generator = REPOSITORY / "scripts/mcp/generate_shaft_skills_tool_catalog.py"
         spec = importlib.util.spec_from_file_location(
-            "generate_shaft_skill_tool_caches_7858", generator
+            "generate_shaft_skills_tool_catalog_8151", generator
         )
         module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
         spec.loader.exec_module(module)
         index = json.loads(TOOL_INDEX.read_text(encoding="utf-8"))
-        caches = [
-            path.read_text(encoding="utf-8")
-            for path in (
-                REPOSITORY / "shaft-skills/shaft-mcp/references/cache.md",
-                REPOSITORY / "shaft-skills/shaft-cli/references/cache.md",
-            )
-        ]
+        catalog = CATALOG.read_text(encoding="utf-8")
+        caches = [MCP_CACHE.read_text(encoding="utf-8"), CLI_CACHE.read_text(encoding="utf-8")]
         for tool in index["tools"]:
-            description = str(tool.get("description") or "")
-            when = module._when(description)
-            self.assertEqual(
-                when,
-                description.replace("|", "/").replace("`", "'").replace("\n", " ").strip(),
-            )
-            row = f"| `{tool['name']}` | {when} |"
-            for cache in caches:
-                self.assertIn(row, cache)
+            when = module.markdown_cell(str(tool.get("description") or ""))
+            self.assertIn(f"| `{tool['name']}` | {when} |", catalog)
+        for cache in caches:
+            self.assertNotIn("| Tool | When | Key args |", cache)
+            self.assertNotIn("`browser_navigate`", cache)
+        cli = caches[1]
+        self.assertIn("shaft-cli design ingest|analyze|gherkin|examples|lexicon|coverage|lint|gap-map|readiness|handoff", cli)
+        self.assertIn("shaft-cli report generate|open|summary|history|flake|tags|clusters|heal|mute|unmute|mutes", cli)
+        self.assertIn("shaft-cli doctor analyze|suggest|local-ai-status|cause-label", cli)
+        self.assertIn("`generate_test_report`", cli)
+        self.assertIn("`healer_run_failed_test`", cli)
+        self.assertIn("`capture_start`", cli)
+        size = len(cli.encode("utf-8"))
+        self.assertGreaterEqual(size, 1500)
+        self.assertLessEqual(size, 2500)
 
     def test_description_listing_and_progressive_disclosure_budgets_hold(self):
         self.assertEqual(validate_repository(REPOSITORY), [])

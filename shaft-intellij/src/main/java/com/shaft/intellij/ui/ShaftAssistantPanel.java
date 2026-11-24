@@ -5823,6 +5823,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
             case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
             case "CODEX" -> "CODEX";
             default -> "";
         };
@@ -5838,6 +5839,7 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
             case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
             case "CODEX" -> "CODEX";
             default -> "";
         };

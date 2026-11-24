@@ -4,7 +4,7 @@ This local contract explains how maintainers regenerate and verify portable
 client fixtures. Users install and verify the skill pack through the
 [official skills guide](https://shafthq.github.io/docs/agentic/skills).
 
-`cases.json` is the reviewed source for all 30 routing cases. Each prompt expects one
+`cases.json` is the reviewed source for all 37 routing cases. Each prompt expects one
 specialist and rejects every sibling recorded in `shaft-skills/quality-review.json`, so the same
 case proves positive routing and the directed negative boundary without naming the
 answer in the prompt.

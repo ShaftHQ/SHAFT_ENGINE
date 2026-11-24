@@ -321,7 +321,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         cloudCredentialSource.getAccessibleContext().setAccessibleName("Assistant cloud credential source");
         cloudCredentialSource.getAccessibleContext().setAccessibleDescription(
                 "Use a provider-standard environment variable without storing its secret value, or use Password Safe.");
-        defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI", "GROK"));
+        defaultClient = new JComboBox<>(model("CODEX", "CLAUDE_CODE", "COPILOT_CLI", "GROK", "GEMINI"));
         ShaftUiLabels.applyFriendlyRenderer(defaultClient);
         defaultClient.getAccessibleContext().setAccessibleName("Default assistant provider");
         defaultClient.getAccessibleContext().setAccessibleDescription("Default assistant provider used when opening the assistant panel.");
@@ -778,6 +778,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
             case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
             case "CODEX" -> "CODEX";
             default -> "";
         };
@@ -793,6 +794,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
             case "ANTIGRAVITY" -> "ANTIGRAVITY";
+            case "GEMINI" -> "GEMINI";
             case "CODEX" -> "CODEX";
             default -> "";
         };

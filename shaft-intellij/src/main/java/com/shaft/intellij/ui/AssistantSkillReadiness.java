@@ -7,8 +7,7 @@ import java.util.Locale;
 
 /** Verifies the project-local SHAFT skills that local agent runs depend on. */
 final class AssistantSkillReadiness {
-    private static final List<String> REQUIRED_SKILLS =
-            List.of("shaft-developer", "shaft-recording-codegen");
+    private static final List<String> REQUIRED_SKILLS = List.of("shaft-developer");
 
     private AssistantSkillReadiness() {
     }
@@ -27,7 +26,13 @@ final class AssistantSkillReadiness {
     static String repairLoop(String family) {
         return switch (normalize(family)) {
             case "CLAUDE", "CLAUDE_CODE" -> "claude";
-            case "COPILOT", "COPILOT_CLI" -> "vscode";
+            case "COPILOT", "COPILOT_CLI" -> "copilot";
+            case "OPENCODE" -> "opencode";
+            case "GEMINI" -> "gemini";
+            case "CURSOR" -> "cursor";
+            case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "antigravity";
+            case "VSCODE" -> "vscode";
             default -> "codex";
         };
     }
@@ -35,7 +40,7 @@ final class AssistantSkillReadiness {
     private static Path skillsDirectory(String family) {
         return switch (normalize(family)) {
             case "CLAUDE", "CLAUDE_CODE" -> Path.of(".claude", "skills");
-            case "COPILOT", "COPILOT_CLI" -> Path.of(".github", "instructions");
+            case "OPENCODE" -> Path.of(".opencode", "skills");
             default -> Path.of(".agents", "skills");
         };
     }

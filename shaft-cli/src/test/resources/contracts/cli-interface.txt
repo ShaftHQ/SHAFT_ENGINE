@@ -281,6 +281,13 @@ shaft-cli setup verify
   option -h,--help arity=0
 shaft-cli tools
   option --cached arity=0
+  option --compact arity=0
+  option --group arity=1
   option --json arity=0
   option -V,--version arity=0
   option -h,--help arity=0
+shaft-cli tools describe
+  option --json arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 TOOL arity=1 required

@@ -32,6 +32,18 @@ class SkillDirsFromPathsTest(TestCase):
             },
         )
 
+    def test_maps_product_entrypoint_and_ignores_contributor_pack(self) -> None:
+        dirs = {
+            path.as_posix()
+            for path in skill_dirs_from_paths(
+                [
+                    "shaft-skills/shaft-developer/references/routing.md",
+                    "shaft-skills/ce-pack/entrypoint.md",
+                ]
+            )
+        }
+        self.assertEqual(dirs, {"shaft-skills/shaft-developer"})
+
 
 class EvaluateReportTest(TestCase):
     def test_score_over_threshold_fails(self) -> None:

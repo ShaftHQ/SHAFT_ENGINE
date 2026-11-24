@@ -224,6 +224,8 @@ def configuration_path(client: str, root: Path, home: Path, environment: dict[st
     if client == "copilot-intellij":
         if system == "Windows":
             return root / "local-app-data" / "github-copilot" / "intellij" / "mcp.json"
+        if system == "Darwin":
+            return home / "Library" / "Application Support" / "github-copilot" / "intellij" / "mcp.json"
         return Path(environment["XDG_CONFIG_HOME"]) / "github-copilot" / "intellij" / "mcp.json"
     if client == "claude-desktop":
         if system == "Windows":
@@ -345,7 +347,6 @@ def main() -> int:
         skills_paths = [Path(str(path)).resolve() for path in shaft_skills.get("paths", ())]
         expected_skills_paths = {
             (root / ".agents" / "skills").resolve(),
-            (root / ".claude" / "skills").resolve(),
         }
         if set(skills_paths) != expected_skills_paths:
             raise RuntimeError(f"Expected native SHAFT skill paths, got: {skills_paths}")

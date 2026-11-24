@@ -107,16 +107,36 @@ class ParseToolAnnotationTest(unittest.TestCase):
 
 
 class CatalogContentsTest(unittest.TestCase):
-    def test_contents_links_every_service_heading(self):
-        content, _, services = MODULE.build()
-        contents = content.split("## Contents", 1)[1].split("\n## ", 1)[0]
-        links = [line for line in contents.splitlines() if line.startswith("- [")]
-        self.assertEqual(services, len(links))
-        for line in links:
-            anchor = line.split("](#", 1)[1].split(")", 1)[0]
-            heading = line[3:].split("](", 1)[0]
-            self.assertIn(f"\n## {heading}\n", content)
-            self.assertEqual(anchor, MODULE.heading_anchor(heading))
+    def test_compact_tables_group_every_service(self):
+        content, total, service_count = MODULE.build()
+
+        self.assertEqual(122, total)
+        self.assertEqual(16, service_count)
+        self.assertEqual(service_count, content.count("\n## "))
+        self.assertEqual(service_count, content.count("| Tool | When | Key args |"))
+        self.assertIn("shaft-cli tools describe <tool> [--json]", content)
+        self.assertIn("shaft-cli tools --cached --group <group> --compact", content)
+        self.assertIn("SHAFT_MCP_TOOLSETS=<groups>", content)
+        self.assertNotIn("## Contents", content)
+        self.assertIn("\n## Browser (BrowserService)\n", content)
+
+    def test_table_cells_escape_pipes_and_backticks(self):
+        content = MODULE.render_index_catalog({
+            "tools": [{
+                "name": "browser_navigate",
+                "service": "BrowserService",
+                "description": "opens a `quoted` URL | or pipe",
+                "params": [
+                    {"name": "targetUrl", "required": True},
+                    {"name": "newWindow", "required": False},
+                ],
+            }],
+        })
+
+        self.assertIn(
+            "| `browser_navigate` | opens a 'quoted' URL \\| or pipe | targetUrl, newWindow? |",
+            content,
+        )
 
     def test_heading_anchor_matches_github(self):
         self.assertEqual("coding-partner-codingpartnerservice",
@@ -217,9 +237,7 @@ class HumanHeadingTest(unittest.TestCase):
 
 
 class RealRepositoryDriftGateTest(unittest.TestCase):
-    """Runs the real generator over the real shaft-mcp sources and compares against the
-    checked-in catalog file: this is the drift gate that keeps the committed markdown in sync
-    with the Java @Tool annotations."""
+    """Compare the checked-in catalog with the projection of canonical tool-index.json."""
 
     def test_check_mode_passes_against_committed_catalog(self):
         stdout = io.StringIO()
@@ -228,8 +246,8 @@ class RealRepositoryDriftGateTest(unittest.TestCase):
 
         self.assertEqual(0, exit_code, stdout.getvalue())
 
-    def test_real_sources_parse_to_expected_magnitude(self):
-        content, total, service_count = MODULE.build(MODULE.SOURCE_DIR)
+    def test_real_index_projects_to_expected_magnitude(self):
+        content, total, service_count = MODULE.build()
 
         self.assertEqual(122, total)
         self.assertEqual(16, service_count)
@@ -238,8 +256,8 @@ class RealRepositoryDriftGateTest(unittest.TestCase):
 
 class DeterminismTest(unittest.TestCase):
     def test_generating_twice_yields_identical_bytes(self):
-        first, _, _ = MODULE.build(MODULE.SOURCE_DIR)
-        second, _, _ = MODULE.build(MODULE.SOURCE_DIR)
+        first, _, _ = MODULE.build()
+        second, _, _ = MODULE.build()
 
         self.assertEqual(first.encode("utf-8"), second.encode("utf-8"))
 

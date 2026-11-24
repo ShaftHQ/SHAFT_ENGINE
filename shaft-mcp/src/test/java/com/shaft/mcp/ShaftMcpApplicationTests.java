@@ -7,6 +7,7 @@ import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = "spring.ai.mcp.server.enabled=false")
@@ -473,36 +476,34 @@ class ShaftMcpApplicationTests {
         JsonNode properties = codegenOptionsSchema.path("properties");
 
         Map<String, String> expectedDescriptions = Map.ofEntries(
-                Map.entry("targetUrl", "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank"),
+                Map.entry("targetUrl", "initial http, https, or file URL; blank opens about:blank"),
                 Map.entry("browser", "Chrome or Edge; blank selects Chrome"),
-                Map.entry("outputPath", "recording/capture JSON output path; blank selects a timestamped recording"),
-                Map.entry("headless", "whether to launch without a visible browser window; unspecified defaults to headless per repo policy"),
-                Map.entry("targetLanguage", "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java"),
-                Map.entry("testIdAttribute", "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements"),
-                Map.entry("channel", "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection"),
+                Map.entry("outputPath", "capture JSON path; blank uses a timestamped recording"),
+                Map.entry("headless", "launch without a visible window; omitted stays headless"),
+                Map.entry("targetLanguage", "codegen language metadata; SHAFT emits Java only"),
+                Map.entry("testIdAttribute", "preferred test id attribute, such as data-testid"),
+                Map.entry("channel", "Chromium channel, such as chrome or msedge"),
                 Map.entry("deviceName", "device emulation hint"),
-                Map.entry("viewportSize", "viewport size as width,height in pixels (e.g. 1280,720)"),
-                Map.entry("colorScheme", "preferred color scheme hint (e.g. light or dark)"),
+                Map.entry("viewportSize", "viewport as width,height pixels, such as 1280,720"),
+                Map.entry("colorScheme", "color scheme hint, such as light or dark"),
                 Map.entry("geolocation", "geolocation as latitude,longitude"),
-                Map.entry("ignoreHttpsErrors", "whether HTTPS certificate errors are ignored"),
-                Map.entry("blockServiceWorkers", "whether service workers should be blocked"),
-                Map.entry("loadStoragePath", "storage-state input path to restore cookies/local storage from before recording starts"),
-                Map.entry("saveStoragePath", "storage-state output path to persist cookies/local storage to when the session ends"),
-                Map.entry("language", "locale/language hint (e.g. en-US)"),
-                Map.entry("timezone", "timezone hint (e.g. America/Los_Angeles)"),
+                Map.entry("ignoreHttpsErrors", "ignore HTTPS certificate errors"),
+                Map.entry("blockServiceWorkers", "block service workers"),
+                Map.entry("loadStoragePath", "storage-state file to restore before recording"),
+                Map.entry("saveStoragePath", "storage-state file to write when the session ends"),
+                Map.entry("language", "locale hint, such as en-US"),
+                Map.entry("timezone", "timezone hint, such as America/Los_Angeles"),
                 Map.entry("proxyServer", "proxy server URL"),
                 Map.entry("proxyBypass", "comma-separated proxy bypass list"),
-                Map.entry("saveHarPath", "HAR output path; blank disables HAR capture"),
-                Map.entry("saveHarGlob", "HAR URL glob filter restricting which requests are written to the HAR"),
-                Map.entry("timeoutMillis", "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout"),
+                Map.entry("saveHarPath", "HAR output path; blank disables HAR"),
+                Map.entry("saveHarGlob", "URL glob limiting which requests enter the HAR"),
+                Map.entry("timeoutMillis", "browser timeout in milliseconds; 0 means none"),
                 Map.entry("userAgent", "user-agent override"),
-                Map.entry("userDataDirectory", "persistent browser profile directory; blank uses a temporary profile"),
-                Map.entry("sessionGoal", "optional user intent for the journey; drives generated test class and method names"),
-                Map.entry("apiCapture", "whether API network recording is enabled for this session"),
-                Map.entry("networkOptions", "network capture filtering options; ignored unless apiCapture is set"),
-                Map.entry("saveHarContent", "HAR body-content emission mode: blank or none (the default) keeps truncated "
-                        + "network-trace preview bodies, full emits complete request/response bodies from "
-                        + "API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII"));
+                Map.entry("userDataDirectory", "persistent profile directory; blank uses a temp profile"),
+                Map.entry("sessionGoal", "journey intent used for generated test names"),
+                Map.entry("apiCapture", "enable API network recording for this session"),
+                Map.entry("networkOptions", "network filters; ignored unless apiCapture is set"),
+                Map.entry("saveHarContent", "HAR bodies: none (default, truncated) or full (unredacted)"));
 
         for (Map.Entry<String, String> expected : expectedDescriptions.entrySet()) {
             JsonNode field = properties.path(expected.getKey());
@@ -511,6 +512,11 @@ class ShaftMcpApplicationTests {
             assertEquals(expected.getValue(), field.path("description").asText(),
                     "codegenOptions schema field '" + expected.getKey() + "' has an unexpected description");
         }
+        List<String> requiredNames = new java.util.ArrayList<>();
+        codegenOptionsSchema.path("required").forEach(node -> requiredNames.add(node.asText()));
+        assertTrue(requiredNames.isEmpty(),
+                "codegenOptions schema still requires: " + requiredNames
+                        + " -- a partial codegenOptions object must succeed schema validation");
     }
 
     @SuppressWarnings("unchecked")
@@ -608,5 +614,121 @@ class ShaftMcpApplicationTests {
                 "mobileOptions schema still requires: " + requiredNames
                         + " -- a MOBILE_WEB caller that never sends native-only fields (or vice versa) "
                         + "must still pass schema validation: " + schema);
+    }
+
+    @Test
+    void exposedToolDescriptionsAreShortAndSchemasOmitTheDialectUrl() throws Exception {
+        List<McpToolsets.ToolView> views = exposedViews();
+        assertEquals(122, views.size());
+        int closedSchemas = 0;
+        ObjectMapper mapper = new ObjectMapper();
+        for (McpToolsets.ToolView view : views) {
+            assertNotNull(view.description(), view.name());
+            assertFalse(view.description().isBlank(), view.name());
+            assertTrue(view.description().length() <= 160,
+                    view.name() + " description is " + view.description().length() + " characters");
+            JsonNode schema = mapper.readTree(view.inputSchema());
+            assertFalse(schema.has("$schema"), view.name() + " still publishes $schema: " + schema);
+            JsonNode additionalProperties = schema.get("additionalProperties");
+            if (additionalProperties != null && additionalProperties.isBoolean() && !additionalProperties.booleanValue()) {
+                closedSchemas++;
+            } else {
+                assertTrue(additionalProperties == null || additionalProperties.isNull(),
+                        view.name() + " additionalProperties changed: " + additionalProperties);
+            }
+        }
+        assertEquals(121, closedSchemas);
+    }
+
+    @Test
+    void defaultToolsetStaysCompleteAndANamedSubsetShrinksTheToolsList() {
+        Map<String, List<ToolCallback>> grouped = groupedServices();
+        assertEquals(121, McpToolsets.filter(null, grouped).size());
+        assertEquals(121, McpToolsets.filter("", grouped).size());
+        assertEquals(121, McpToolsets.filter("all", grouped).size());
+
+        List<McpToolsets.ToolView> exposed = exposedViews();
+        int defaultBytes = McpToolsets.compactToolsListBytes(exposed);
+        assertTrue(defaultBytes <= 68_500, "compact tools/list is " + defaultBytes + " bytes");
+        assertTrue(McpToolsets.PRE_8152_COMPACT_TOOLS_LIST_BYTES - defaultBytes >= 11_000,
+                "before=" + McpToolsets.PRE_8152_COMPACT_TOOLS_LIST_BYTES + " after=" + defaultBytes);
+
+        List<ToolCallback> subset = McpToolsets.filter("browser,element,engine", grouped);
+        assertEquals(32, subset.size());
+        Set<String> names = subset.stream()
+                .map(callback -> callback.getToolDefinition().name())
+                .collect(Collectors.toSet());
+        assertTrue(names.contains("driver_initialize"));
+        assertTrue(names.contains("browser_navigate"));
+        assertTrue(names.contains("element_click"));
+        assertFalse(names.contains("capture_start"));
+        assertFalse(names.contains("mobile_swipe"));
+        List<?> specs = context.getBean("toolSpecs", List.class);
+        Object filteredSpecs = McpToolsets.exposeToolSpecs("browser,element,engine", specs);
+        int subsetBytes = McpToolsets.compactToolsListBytes(
+                McpToolsets.views(subset, filteredSpecs instanceof List<?> list ? list : List.of()));
+        assertTrue(subsetBytes <= 20 * 1024, "browser,element,engine tools/list is " + subsetBytes + " bytes");
+    }
+
+    @Test
+    void toolSpecPostProcessorStripsDialectUrlAndLeavesOtherBeansUntouched() {
+        BeanPostProcessor processor = context.getBean("shaftMcpExposedToolSpecs", BeanPostProcessor.class);
+        Object marker = new Object();
+        assertSame(marker, processor.postProcessAfterInitialization(marker, "toolSpecs"));
+        List<String> unrelated = List.of("leave-me");
+        assertSame(unrelated, processor.postProcessAfterInitialization(unrelated, "shaftTools"));
+
+        Map<String, Object> schema = new java.util.LinkedHashMap<>();
+        schema.put("$schema", "https://json-schema.org/draft/2020-12/schema");
+        schema.put("type", "object");
+        McpSchema.Tool sampleTool = McpSchema.Tool.builder("sample_tool", schema).description("sample").build();
+        McpServerFeatures.SyncToolSpecification sampleSpec = McpServerFeatures.SyncToolSpecification.builder()
+                .tool(sampleTool)
+                .callHandler((exchange, request) -> {
+                    throw new IllegalStateException("tool call is not part of this test");
+                })
+                .build();
+
+        Object processed = processor.postProcessAfterInitialization(List.of(sampleSpec), "toolSpecs");
+
+        assertTrue(processed instanceof List<?>);
+        List<?> exposed = (List<?>) processed;
+        assertEquals(1, exposed.size());
+        assertTrue(exposed.get(0) instanceof McpServerFeatures.SyncToolSpecification);
+        McpServerFeatures.SyncToolSpecification exposedSpec =
+                (McpServerFeatures.SyncToolSpecification) exposed.get(0);
+        assertEquals("sample_tool", exposedSpec.tool().name());
+        assertEquals("sample", exposedSpec.tool().description());
+        assertFalse(exposedSpec.tool().inputSchema().containsKey("$schema"),
+                exposedSpec.tool().inputSchema().toString());
+        assertEquals("object", exposedSpec.tool().inputSchema().get("type"));
+        assertTrue(sampleTool.inputSchema().containsKey("$schema"));
+    }
+
+    private List<McpToolsets.ToolView> exposedViews() {
+        @SuppressWarnings("unchecked")
+        List<ToolCallback> callbacks = context.getBean("shaftTools", List.class);
+        List<?> specs = context.getBean("toolSpecs", List.class);
+        return McpToolsets.views(callbacks, specs);
+    }
+
+    private Map<String, List<ToolCallback>> groupedServices() {
+        return McpToolsets.groupServices(List.of(
+                context.getBean(EngineService.class),
+                context.getBean(BrowserService.class),
+                context.getBean(ElementService.class),
+                context.getBean(MobileService.class),
+                context.getBean(CaptureService.class),
+                context.getBean(DoctorService.class),
+                context.getBean(TraceService.class),
+                context.getBean(HealerService.class),
+                context.getBean(GuideService.class),
+                context.getBean(ShaftProjectService.class),
+                context.getBean(TestAutomationService.class),
+                context.getBean(CodingPartnerService.class),
+                context.getBean(AutobotService.class),
+                context.getBean(PlannerService.class),
+                context.getBean(InfrastructureMcpService.class),
+                context.getBean(DesignService.class)));
     }
 }

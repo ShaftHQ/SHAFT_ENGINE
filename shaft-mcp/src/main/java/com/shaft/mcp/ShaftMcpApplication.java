@@ -2,11 +2,14 @@ package com.shaft.mcp;
 
 import com.shaft.capture.cli.CaptureCli;
 import com.shaft.doctor.cli.DoctorCli;
-import org.springframework.ai.support.ToolCallbacks;
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,6 +24,13 @@ import java.util.stream.Collectors;
 
 @SpringBootApplication
 public class ShaftMcpApplication {
+
+    /**
+     * Blank when unset so {@link McpToolsets#resolve} still honors {@code SHAFT_MCP_TOOLSETS}.
+     * {@code new ShaftMcpApplication()} leaves this unset and exposes every toolset.
+     */
+    @Autowired(required = false)
+    private @Nullable Environment environment;
 
     /**
      * The main entry point for the ShaftMcpApplication.
@@ -53,7 +63,9 @@ public class ShaftMcpApplication {
 	}
 
     /**
-     * Registers the ShaftService tool callbacks. {@link PlaywrightService} and
+     * Registers the ShaftService tool callbacks. {@code shaft.mcp.toolsets}
+     * ({@code SHAFT_MCP_TOOLSETS}) defaults to every service; an unknown group fails closed.
+     * {@link PlaywrightService} and
      * {@code NaturalActionService}'s former {@code natural_act}/{@code mobile_natural_act} tools are
      * deliberately absent: since commit 4 of the tool architecture sweep (design doc Decision 2),
      * every {@code playwright_*} tool is absorbed into the unified {@code element_*}/{@code browser_*}/
@@ -82,42 +94,49 @@ public class ShaftMcpApplication {
             PlannerService plannerService,
             InfrastructureMcpService infrastructureMcpService,
             DesignService designService) {
-        var engineServiceList = List.of(ToolCallbacks.from(engineService));
-        var browserServiceList = List.of(ToolCallbacks.from(browserService));
-        var elementServiceList = List.of(ToolCallbacks.from(elementService));
-        var mobileServiceList = List.of(ToolCallbacks.from(mobileService));
-        var captureServiceList = List.of(ToolCallbacks.from(captureService));
-        var doctorServiceList = List.of(ToolCallbacks.from(doctorService));
-        var traceServiceList = List.of(ToolCallbacks.from(traceService));
-        var healerServiceList = List.of(ToolCallbacks.from(healerService));
-        var guideServiceList = List.of(ToolCallbacks.from(guideService));
-        var shaftProjectServiceList = List.of(ToolCallbacks.from(shaftProjectService));
-        var testAutomationServiceList = List.of(ToolCallbacks.from(testAutomationService));
-        var codingPartnerServiceList = List.of(ToolCallbacks.from(codingPartnerService));
-        var autobotServiceList = List.of(ToolCallbacks.from(autobotService));
-        var plannerServiceList = List.of(ToolCallbacks.from(plannerService));
-        var infrastructureMcpServiceList = List.of(ToolCallbacks.from(infrastructureMcpService));
-        var designServiceList = List.of(ToolCallbacks.from(designService));
-
-        var serviceList = new java.util.ArrayList<ToolCallback>();
-        serviceList.addAll(engineServiceList);
-        serviceList.addAll(browserServiceList);
-        serviceList.addAll(elementServiceList);
-        serviceList.addAll(mobileServiceList);
-        serviceList.addAll(captureServiceList);
-        serviceList.addAll(doctorServiceList);
-        serviceList.addAll(traceServiceList);
-        serviceList.addAll(healerServiceList);
-        serviceList.addAll(guideServiceList);
-        serviceList.addAll(shaftProjectServiceList);
-        serviceList.addAll(testAutomationServiceList);
-        serviceList.addAll(codingPartnerServiceList);
-        serviceList.addAll(autobotServiceList);
-        serviceList.addAll(plannerServiceList);
-        serviceList.addAll(infrastructureMcpServiceList);
-        serviceList.addAll(designServiceList);
-        return serviceList;
+        return McpToolsets.exposeCallbacks(selectedToolsets(), McpToolsets.groupServices(List.of(
+                engineService,
+                browserService,
+                elementService,
+                mobileService,
+                captureService,
+                doctorService,
+                traceService,
+                healerService,
+                guideService,
+                shaftProjectService,
+                testAutomationService,
+                codingPartnerService,
+                autobotService,
+                plannerService,
+                infrastructureMcpService,
+                designService)));
 	}
+
+    private String selectedToolsets() {
+        if (environment == null) {
+            return "all";
+        }
+        String configured = environment.getProperty("shaft.mcp.toolsets");
+        return configured == null ? "" : configured;
+    }
+
+    /**
+     * Drops {@code @McpTool} specs whose service is outside {@code shaft.mcp.toolsets} and removes
+     * the top-level {@code $schema} dialect URL from every exposed input schema.
+     */
+    @Bean
+    static BeanPostProcessor shaftMcpExposedToolSpecs(Environment environment) {
+        return new BeanPostProcessor() {
+            @Override
+            public Object postProcessAfterInitialization(Object bean, String beanName) {
+                if (!"toolSpecs".equals(beanName) || !(bean instanceof List<?> specs)) {
+                    return bean;
+                }
+                return McpToolsets.exposeToolSpecs(environment.getProperty("shaft.mcp.toolsets"), specs);
+            }
+        };
+    }
 
     private static List<String> captureLaunchPrefix() throws IOException {
         return captureLaunchPrefix(

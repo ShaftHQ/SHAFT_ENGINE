@@ -45,11 +45,13 @@
       "sensitive": false
     },
     "browser_get_current_url": {
+      "cliCommand": "browser url",
       "mutation": false,
       "sensitive": false,
       "slashAlias": "url"
     },
     "browser_get_page_dom": {
+      "cliCommand": "browser dom",
       "mutation": false,
       "sensitive": true
     },
@@ -63,6 +65,7 @@
       }
     },
     "browser_navigate": {
+      "cliCommand": "browser navigate",
       "mutation": true,
       "sensitive": false,
       "slashAlias": "nav",
@@ -119,6 +122,7 @@
       "sensitive": true
     },
     "browser_take_screenshot": {
+      "cliCommand": "browser screenshot",
       "mutation": true,
       "sensitive": true,
       "slashAlias": "screenshot"
@@ -183,6 +187,7 @@
       "sensitive": false
     },
     "capture_code_blocks": {
+      "cliCommand": "capture code",
       "mutation": true,
       "sensitive": false
     },
@@ -211,6 +216,7 @@
       "sensitive": false
     },
     "capture_start": {
+      "cliCommand": "capture start",
       "example": {
         "request": {
           "targetUrl": "https://demo.example.com/checkout",
@@ -236,6 +242,7 @@
       "slashAlias": "start"
     },
     "capture_status": {
+      "cliCommand": "capture status",
       "example": {
         "request": {},
         "response": "recorded live 2026-07-21 via ShaftAssistantPanelLive*ToolE2ETest (see shaft-skills Example calls)"
@@ -245,14 +252,17 @@
       "slashAlias": "status"
     },
     "capture_step_delete": {
+      "cliCommand": "capture step-delete",
       "mutation": true,
       "sensitive": false
     },
     "capture_step_reorder": {
+      "cliCommand": "capture step-reorder",
       "mutation": true,
       "sensitive": false
     },
     "capture_stop": {
+      "cliCommand": "capture stop",
       "mutation": true,
       "sensitive": false,
       "slashAlias": "stop",
@@ -401,10 +411,12 @@
       "sensitive": false
     },
     "doctor_analyze_trace": {
+      "cliCommand": "doctor analyze",
       "mutation": false,
       "sensitive": false
     },
     "doctor_managed_local_ai_status": {
+      "cliCommand": "doctor local-ai-status",
       "intentKeywords": [
         "managed local ai status",
         "local ai status",
@@ -422,6 +434,7 @@
       "sensitive": false
     },
     "doctor_suggest_fix": {
+      "cliCommand": "doctor suggest",
       "example": {
         "request": {
           "jsonReportPath": "target/shaft-doctor/doctor-report.json",
@@ -470,6 +483,7 @@
       "slashAlias": "clear"
     },
     "element_click": {
+      "cliCommand": "element click",
       "mutation": true,
       "sensitive": false,
       "slashAlias": "click",
@@ -486,6 +500,7 @@
       "sensitive": false
     },
     "element_hover": {
+      "cliCommand": "element hover",
       "mutation": true,
       "sensitive": false
     },
@@ -502,6 +517,7 @@
       "sensitive": false
     },
     "element_type": {
+      "cliCommand": "element type",
       "mutation": true,
       "sensitive": true,
       "slashAlias": "type",
@@ -666,6 +682,7 @@
       "sensitive": false
     },
     "shaft_guide_search": {
+      "cliCommand": "guide search",
       "example": {
         "request": {
           "query": "page object model",
@@ -906,6 +923,7 @@
       }
     },
     "design_handoff": {
+      "cliCommand": "design handoff",
       "mutation": false,
       "sensitive": true,
       "deprecated": false

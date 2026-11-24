@@ -47,31 +47,187 @@ BOOTSTRAP_BANNER_SHOWN = "SHAFT_MCP_BOOTSTRAP_BANNER_SHOWN"
 _OVERALL_TTY = [False]
 SHAFT_SKILLS_DIRECTORY = "shaft-skills"
 SHAFT_SKILLS_ROUTER = "shaft-developer"
-SHAFT_SKILLS_NATIVE_DIRECTORIES = {
-    "codex": (".agents/skills",),
-    "claude": (".claude/skills",),
-    "claude-desktop": (".claude/skills",),
-    "copilot": (".agents/skills",),
-    "copilot-intellij": (".agents/skills",),
-    "grok": (".agents/skills",),
-    "antigravity": (".agents/skills",),
-    "intellij-plugin": (".agents/skills", ".claude/skills"),
-}
-# One canonical copy (#6817): `.agents/skills` is read by Codex, Gemini, Grok, Antigravity and
-# Copilot (CLI/cloud/IDE). Claude Code reads only `.claude/skills`, so it is the one extra root.
-# `.github/skills` is retired: Copilot reads `.agents/skills` and first-found-wins duplicates drift.
-SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills")
-DEFAULT_KEPT_VERSIONS = 2
+CONSUMER_SKILL_PREFIX = "shaft-developer/"
+CONSUMER_SKILL_EXCLUDED = frozenset((
+    "INVENTORY.md",
+    "QUALITY.md",
+    "quality-review.json",
+    "evaluation-prompts.md",
+    "README.md",
+))
+# Owned-signature cleanup roots. Retired directories are removed here even when the
+# current pack does not ship that directory name. Unowned user skills stay.
+LEGACY_SKILL_CLEANUP_ROOTS = (
+    ".agents/skills",
+    ".claude/skills",
+    ".opencode/skills",
+    ".github/skills",
+    ".github/instructions",
+)
+# `.github/skills` no longer receives a pack copy. Identical leftovers are pruned.
 RETIRED_SHAFT_SKILLS_NATIVE_DIRECTORIES = (".github/skills",)
-RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
+DEFAULT_KEPT_VERSIONS = 2
+# Standalone curl of this file has no sibling registry. The repo copy stays in sync
+# with scripts/mcp/agent_hosts.json; validate_installer_contract.py checks that.
+EMBEDDED_AGENT_HOSTS_JSON = r"""
+{
+  "hosts": [
+    {
+      "id": "codex",
+      "displayName": "Codex CLI / IDE",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CODEX"
+    },
+    {
+      "id": "claude",
+      "displayName": "Claude Code",
+      "skillRoot": ".claude/skills",
+      "instructionFile": "CLAUDE.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CLAUDE_CODE"
+    },
+    {
+      "id": "claude-desktop",
+      "displayName": "Claude Desktop",
+      "skillRoot": ".claude/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "CLAUDE_DESKTOP"
+    },
+    {
+      "id": "copilot",
+      "displayName": "GitHub Copilot CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "COPILOT_CLI"
+    },
+    {
+      "id": "copilot-intellij",
+      "displayName": "GitHub Copilot for IntelliJ IDEA",
+      "skillRoot": ".agents/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "COPILOT_INTELLIJ"
+    },
+    {
+      "id": "grok",
+      "displayName": "Grok CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "GROK"
+    },
+    {
+      "id": "antigravity",
+      "displayName": "Antigravity CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "ANTIGRAVITY"
+    },
+    {
+      "id": "vscode",
+      "displayName": "VS Code",
+      "skillRoot": ".agents/skills",
+      "instructionFile": ".github/copilot-instructions.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "VSCODE"
+    },
+    {
+      "id": "opencode",
+      "displayName": "OpenCode",
+      "skillRoot": ".opencode/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "OPENCODE"
+    },
+    {
+      "id": "gemini",
+      "displayName": "Gemini CLI",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "GEMINI"
+    },
+    {
+      "id": "cursor",
+      "displayName": "Cursor",
+      "skillRoot": ".agents/skills",
+      "instructionFile": "AGENTS.md",
+      "initAgentsSupported": true,
+      "installerTarget": true,
+      "intellijTarget": "CURSOR"
+    },
+    {
+      "id": "intellij-plugin",
+      "displayName": "SHAFT IntelliJ IDEA plugin",
+      "skillRoot": ".agents/skills",
+      "instructionFile": null,
+      "initAgentsSupported": false,
+      "installerTarget": true,
+      "intellijTarget": "INTELLIJ_PLUGIN"
+    }
+  ],
+  "retiredSkillDirectories": [
     "act-as-shaft-dev",
     "analyzing-shaft-failures",
     "choosing-shaft-locators",
     "planning-shaft-tests",
     "recording-shaft-tests-with-mcp",
+    "shaft-accessibility-testing",
+    "shaft-android-apk-select",
+    "shaft-api-testing",
+    "shaft-assertions",
+    "shaft-automated-test-authoring",
+    "shaft-browserstack-native",
+    "shaft-change-verification",
+    "shaft-cli",
+    "shaft-database-testing",
+    "shaft-defect-reporting",
+    "shaft-docs-hygiene",
+    "shaft-execution-reporting",
+    "shaft-failure-analysis",
+    "shaft-flaky-test-analysis",
+    "shaft-fluent-api",
+    "shaft-guide-search",
+    "shaft-ios-ipa-acceptance",
+    "shaft-locator-design",
+    "shaft-mcp",
+    "shaft-mobile-actions",
+    "shaft-mobile-env",
+    "shaft-mobile-retest-hygiene",
+    "shaft-nonfunctional-test-design",
+    "shaft-page-objects",
+    "shaft-recording-codegen",
+    "shaft-requirements-analysis",
+    "shaft-stakeholder-reporting",
+    "shaft-test-case-design",
+    "shaft-test-completion",
+    "shaft-test-data-design",
+    "shaft-test-environment",
+    "shaft-test-execution",
+    "shaft-test-monitoring",
+    "shaft-test-planning",
+    "shaft-test-recording",
+    "shaft-web-actions",
     "verifying-and-applying-shaft-changes",
-    "writing-shaft-tests",
-))
+    "writing-shaft-tests"
+  ]
+}
+"""
 # Every module validate_agent_setup.py imports at module scope must be listed
 # here, or the installed validator dies on ImportError in the user's project.
 # tests/scripts/test_install_shaft_mcp.py reads the real import statements and
@@ -111,17 +267,33 @@ RETIRED_AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/learning_loop.py",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
-TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "antigravity", "intellij-plugin")
-TARGET_CHOICES = (
-    ("codex", "Codex CLI / IDE"),
-    ("claude", "Claude Code"),
-    ("claude-desktop", "Claude Desktop"),
-    ("copilot", "GitHub Copilot CLI"),
-    ("copilot-intellij", "GitHub Copilot for IntelliJ IDEA"),
-    ("grok", "Grok CLI"),
-    ("antigravity", "Antigravity CLI"),
-    ("intellij-plugin", "SHAFT IntelliJ IDEA plugin"),
-)
+
+
+def load_agent_host_registry() -> dict[str, Any]:
+    """Load the canonical host registry, or the embedded copy when this file is alone."""
+    path = Path(__file__).with_name("agent_hosts.json")
+    if path.is_file():
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    else:
+        loaded = json.loads(EMBEDDED_AGENT_HOSTS_JSON)
+    if not isinstance(loaded, dict) or not isinstance(loaded.get("hosts"), list):
+        raise ValueError("agent host registry must contain a hosts array")
+    return loaded
+
+
+AGENT_HOST_REGISTRY = load_agent_host_registry()
+AGENT_HOSTS = tuple(AGENT_HOST_REGISTRY["hosts"])
+RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset(AGENT_HOST_REGISTRY["retiredSkillDirectories"])
+SHAFT_SKILLS_NATIVE_DIRECTORIES = {
+    host["id"]: (host["skillRoot"],)
+    for host in AGENT_HOSTS
+    if host.get("installerTarget") and host.get("skillRoot")
+}
+SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = tuple(dict.fromkeys(
+    host["skillRoot"] for host in AGENT_HOSTS if host.get("skillRoot")
+))
+TARGETS = tuple(host["id"] for host in AGENT_HOSTS if host.get("installerTarget"))
+TARGET_CHOICES = tuple((host["id"], host["displayName"]) for host in AGENT_HOSTS if host.get("installerTarget"))
 
 # Lifecycle surface (#6644): match ChaosEngine installer commands with SHAFT Engine branding.
 LIFECYCLE_COMMANDS = ("install", "status", "doctor", "repair", "rollback", "uninstall")
@@ -285,7 +457,7 @@ def choose_component(prompt: str, default: bool) -> bool:
 THREE_STAGE_UX_EPILOG = (
     "Product stages (Design, Automation, Reporting):\n"
     "  Design     — analysis and handoff into Automation\n"
-    "  Automation — live record via MCP capture_* plus shaft capture / shaft codegen\n"
+    "  Automation — live record via MCP capture_* plus shaft-cli capture / shaft-cli codegen\n"
     "               (codegen stays offline; no plugin-only recording protocol)\n"
     "  Reporting  — Allure, Doctor, and healer (Stage 3; healing is never folded into record)"
 )
@@ -495,7 +667,7 @@ def host_config_drift(record: dict[str, Any]) -> str | None:
         if client in {"codex", "grok"}:
             verify_grok_entry(path, java, args_file)
         else:
-            verify_json_entry(path, "servers" if client == "copilot-intellij" else "mcpServers", java, args_file)
+            verify_json_entry(path, mcp_root_property(client), java, args_file)
     except (InstallError, OSError, ValueError) as exc:
         return f"host configuration drift in {path}: {exc}"
     if not java.is_file():
@@ -767,7 +939,7 @@ def remove_host_entry(client: str, path: Path) -> bool:
     except (json.JSONDecodeError, InstallError):
         log(f"Left {path} unchanged: it is not valid JSON.")
         return False
-    servers = root.get("servers" if client == "copilot-intellij" else "mcpServers")
+    servers = root.get(mcp_root_property(client))
     if not isinstance(servers, dict) or SERVER_NAME not in servers:
         return False
     del servers[SERVER_NAME]
@@ -775,14 +947,23 @@ def remove_host_entry(client: str, path: Path) -> bool:
     return True
 
 
+_PROJECT_PREFERRED_CLIENTS = frozenset({
+    "grok",
+    "antigravity",
+    "codex",
+    "cursor",
+    "vscode",
+    "opencode",
+    "gemini",
+})
+
+
 def host_config_path(client: str | None) -> Path | None:
     """The file configure_client writes for this client (project override aware)."""
     if not client or client == "intellij-plugin":
         return None
-    if client == "grok":
-        return grok_write_path()
-    if client == "antigravity":
-        return antigravity_write_path()
+    if client in _PROJECT_PREFERRED_CLIENTS:
+        return preferred_project_config(client)
     return configuration_path(client).resolve()
 
 
@@ -848,12 +1029,17 @@ def build_install_parser() -> argparse.ArgumentParser:
         default=DEFAULT_KEPT_VERSIONS,
         help="Installed shaft-mcp/shaft-cli versions to keep after a successful install (default 2; 0 keeps all).",
     )
+    parser.add_argument(
+        "--verify-client",
+        action="store_true",
+        help="After the file merge, probe the codex or claude binary. Off by default so a missing CLI does not fail install.",
+    )
     for target, _ in TARGET_CHOICES:
         parser.add_argument(f"--{target}", action="store_true", dest=target.replace("-", "_"))
     parser.add_argument(
         "target",
         nargs="?",
-        help="Optional target name: codex, claude, claude-desktop, copilot, copilot-intellij, grok, or antigravity.",
+        help="Optional target name: " + ", ".join(TARGETS) + ".",
     )
     return parser
 
@@ -890,7 +1076,7 @@ def normalize_install_namespace(args: argparse.Namespace) -> argparse.Namespace:
     if args.install_mcp and args.client is None:
         args.client = choose_client()
     if args.client is not None and args.client not in TARGETS:
-        fail("Usage: install_shaft_agentic_tools.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|grok|antigravity|intellij-plugin>]", 2)
+        fail("Usage: install_shaft_agentic_tools.py [--client <" + "|".join(TARGETS) + ">]", 2)
     if not hasattr(args, "dry_run"):
         args.dry_run = False
     args.command = getattr(args, "command", "install")
@@ -1555,8 +1741,15 @@ def is_shaft_skills_source(path: Path) -> bool:
 def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
     """Recognize the two-file signature used by SHAFT's retired skill packages."""
     skill = directory / "SKILL.md"
-    descriptor = directory / "agents" / "openai.yaml"
-    if directory.is_symlink() or not (directory.is_dir() and skill.is_file() and descriptor.is_file()):
+    agents = directory / "agents"
+    descriptor = agents / "openai.yaml"
+    if (
+        is_link_or_junction(directory)
+        or is_link_or_junction(skill)
+        or is_link_or_junction(agents)
+        or is_link_or_junction(descriptor)
+        or not (directory.is_dir() and skill.is_file() and descriptor.is_file())
+    ):
         return False
     try:
         content = skill.read_text(encoding="utf-8")
@@ -1567,24 +1760,56 @@ def is_owned_retired_shaft_skill(directory: Path, name: str) -> bool:
 
 def remove_retired_shaft_skills(target: Path) -> None:
     """Remove only verifiably SHAFT-owned legacy skill directories from a target."""
-    target = target.resolve()
+    if is_link_or_junction(target):
+        return
+    target = Path(os.path.abspath(target))
     for name in RETIRED_SHAFT_SKILL_DIRECTORIES:
         candidate = target / name
+        if _removal_blocked_by_link(target, candidate):
+            continue
         if is_owned_retired_shaft_skill(candidate, name):
             shutil.rmtree(candidate)
 
 
+def _removal_blocked_by_link(root: Path, candidate: Path) -> bool:
+    """Return whether candidate, an ancestor, or any entry is a link or junction."""
+    current = candidate
+    while True:
+        if is_link_or_junction(current):
+            return True
+        if current == root or current.parent == current:
+            break
+        current = current.parent
+    if not candidate.exists() or not candidate.is_dir():
+        return False
+    try:
+        for entry in candidate.rglob("*"):
+            if is_link_or_junction(entry):
+                return True
+    except OSError:
+        return True
+    return False
+
+
+def consumer_skill_relative(relative: str) -> bool:
+    """True for the single consumer entrypoint, shaft-developer/**."""
+    posix = relative.replace("\\", "/")
+    if posix in CONSUMER_SKILL_EXCLUDED or not posix.startswith(CONSUMER_SKILL_PREFIX):
+        return False
+    name = posix.rsplit("/", 1)[-1]
+    return name not in CONSUMER_SKILL_EXCLUDED
+
+
 def shaft_skill_files(source: Path) -> tuple[str, ...]:
-    """Discover the portable pack from its canonical skill directories."""
+    """Discover only the self-contained shaft-developer tree."""
     source = source.resolve()
-    skill_directories = {skill.parent for skill in source.glob("*/SKILL.md")}
-    files = {path for path in source.iterdir() if path.is_file()}
-    references = source / "references"
-    if references.is_dir():
-        files.update(path for path in references.rglob("*") if path.is_file())
-    for directory in skill_directories:
-        files.update(path for path in directory.rglob("*") if path.is_file())
-    return tuple(sorted(path.relative_to(source).as_posix() for path in files))
+    router = source / SHAFT_SKILLS_ROUTER
+    if not router.is_dir():
+        return ()
+    return tuple(sorted(
+        relative for path in router.rglob("*")
+        if path.is_file() and consumer_skill_relative(relative := path.relative_to(source).as_posix())
+    ))
 
 
 def remote_shaft_skill_entries() -> tuple[tuple[str, str], ...]:
@@ -1603,18 +1828,10 @@ def remote_shaft_skill_entries() -> tuple[tuple[str, str], ...]:
         for entry in payload.get("tree", ())
         if entry.get("type") == "blob" and str(entry.get("path") or "").startswith("shaft-skills/")
     ))
-    skill_directories = {
-        path.split("/", 2)[1]
-        for path, _sha in tree_paths
-        if path.count("/") == 2 and path.endswith("/SKILL.md")
-    }
     files = tuple(
         (relative, sha)
         for path, sha in tree_paths
-        if (relative := path.removeprefix("shaft-skills/"))
-        and ("/" not in relative
-             or relative.startswith("references/")
-             or relative.split("/", 1)[0] in skill_directories)
+        if (relative := path.removeprefix("shaft-skills/")) and consumer_skill_relative(relative)
     )
     if f"{SHAFT_SKILLS_ROUTER}/SKILL.md" not in {relative for relative, _sha in files}:
         fail("SHAFT skills manifest did not contain the shaft-developer router.", 4)
@@ -1691,20 +1908,61 @@ def _skip_skill_copy(source_file: Path, destination: Path, relative: str) -> boo
     return filecmp.cmp(source_file, destination, shallow=False)
 
 
+def _ensure_unlinked_destination(root: Path, relative: str) -> Path:
+    """Fail before resolve or write when root or the relative path is linked."""
+    # abspath does not follow links. resolve() would, so it must not run first.
+    if Path(relative).is_absolute():
+        fail(f"Refusing an unsafe destination path: {relative}", 4)
+    current = Path(os.path.abspath(root))
+    if is_link_or_junction(current):
+        fail(f"Refusing to write SHAFT skills through a symlink or junction: {current}", 4)
+    for part in Path(relative).parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            fail(f"Refusing an unsafe destination path: {relative}", 4)
+        current = current / part
+        if is_link_or_junction(current):
+            fail(f"Refusing to write SHAFT skills through a symlink or junction: {current}", 4)
+    return current
+
+
+def _refuse_escaping_relative(relative: str, message: str) -> None:
+    """Fail closed when a manifest path is absolute or climbs with '..'."""
+    path = Path(relative)
+    if path.is_absolute() or ".." in path.parts:
+        fail(message, 4)
+
+
 def copy_shaft_skills(source: Path, target: Path) -> Path:
     source = source.resolve()
-    target = target.resolve()
+    target = _ensure_unlinked_destination(target, "")
     if source == target:
         return target
     target.mkdir(parents=True, exist_ok=True)
     for relative in shaft_skill_files(source):
-        destination = target / relative
+        destination = _ensure_unlinked_destination(target, relative)
         source_file = source / relative
         if _skip_skill_copy(source_file, destination, relative):
             continue
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_file, destination)
+        destination = _ensure_unlinked_destination(target, relative)
+        _atomic_copy_skill_file(source_file, destination)
     return target
+
+
+def _atomic_copy_skill_file(source_file: Path, destination: Path) -> None:
+    """Write skill bytes via a temp file in the destination directory, then replace."""
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as output:
+            output.write(source_file.read_bytes())
+        os.chmod(temporary, source_file.stat().st_mode & 0o777)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def shaft_skills_raw_file_url(relative: str) -> str:
@@ -1722,12 +1980,13 @@ def shaft_agent_validation_raw_file_url(relative: str) -> str:
 
 
 def download_shaft_skills_files(target: Path) -> Path:
-    target = target.resolve()
+    target = _ensure_unlinked_destination(target, "")
     target.mkdir(parents=True, exist_ok=True)
     for relative, blob_sha in remote_shaft_skill_entries():
-        destination = (target / relative).resolve()
-        if target != destination and target not in destination.parents:
-            fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
+        if not consumer_skill_relative(relative):
+            continue
+        _refuse_escaping_relative(relative, f"SHAFT skills manifest contains an unsafe path: {relative}")
+        destination = _ensure_unlinked_destination(target, relative)
         if _keep_installed_skill_file(destination, relative, blob_sha):
             continue
         download_file(
@@ -1742,23 +2001,20 @@ def download_shaft_skills_files(target: Path) -> Path:
 
 
 def has_agent_guidance_scaffold(target: Path) -> bool:
-    """Whether the target project already carries the AGENTS.md guidance
-    scaffold this validator suite is designed to check. The suite validates
-    project-specific conventions (README.md content, host-context files,
-    guidance file budgets, etc.) that only exist in a project that has
-    deliberately adopted this scaffold -- installing it into an unrelated
-    project makes the onboarding-referenced validator crash on missing files
-    it has no reason to expect."""
+    """Return whether the project already carries the AGENTS.md guidance scaffold."""
+    # The suite checks project conventions that exist only after that scaffold
+    # is adopted. Installing it into an unrelated project makes the validator
+    # crash on files it has no reason to expect.
     return (target / AGENT_GUIDANCE_SCAFFOLD_MARKER).is_file()
 
 
 def download_agent_validation_script_files(target: Path) -> Path:
-    target = target.resolve()
+    target = _ensure_unlinked_destination(target, "")
     target.mkdir(parents=True, exist_ok=True)
     for relative in AGENT_VALIDATION_SCRIPT_FILES:
-        destination = (target / relative).resolve()
-        if target != destination and target not in destination.parents:
-            fail(f"Agent validation script manifest contains an unsafe path: {relative}", 4)
+        _refuse_escaping_relative(
+            relative, f"Agent validation script manifest contains an unsafe path: {relative}")
+        destination = _ensure_unlinked_destination(target, relative)
         download_file(
             shaft_agent_validation_raw_file_url(relative),
             destination,
@@ -1766,9 +2022,8 @@ def download_agent_validation_script_files(target: Path) -> Path:
             show_progress=False,
         )
     for relative in RETIRED_AGENT_VALIDATION_SCRIPT_FILES:
-        retired = (target / relative).resolve()
-        if target != retired and target not in retired.parents:
-            fail(f"Retired agent validation path escapes target: {relative}", 4)
+        _refuse_escaping_relative(relative, f"Retired agent validation path escapes target: {relative}")
+        retired = _ensure_unlinked_destination(target, relative)
         retired.unlink(missing_ok=True)
     # Verify the main entry point was downloaded
     main_script = target / "scripts" / "ci" / "validate_agent_setup.py"
@@ -1803,15 +2058,32 @@ def native_skill_target(current_directory: Path, directory: str) -> Path:
 
 
 def shaft_skills_targets(current_directory: Path, client: str | None) -> list[Path]:
-    directories = (SHAFT_SKILLS_NATIVE_DIRECTORIES.get(client, SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
-                   if client else SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
+    if client:
+        directories = SHAFT_SKILLS_NATIVE_DIRECTORIES.get(client, ())
+    else:
+        directories = SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES
     return [native_skill_target(current_directory, directory) for directory in directories]
+
+
+def cleanup_owned_retired_skills(current_directory: Path) -> None:
+    """Delete owned retired skill directories under every legacy root."""
+    # A linked root is skipped so cleanup cannot follow a symlink out of the project.
+    for relative in LEGACY_SKILL_CLEANUP_ROOTS:
+        root = Path(os.path.abspath(current_directory))
+        linked = False
+        for component in Path(relative).parts:
+            root /= component
+            if is_link_or_junction(root):
+                linked = True
+                break
+        if linked or not root.is_dir():
+            continue
+        remove_retired_shaft_skills(root)
 
 
 def install_shaft_skills(current_directory: Path, root: Path, client: str | None = None) -> list[Path]:
     targets = shaft_skills_targets(current_directory, client)
-    for target in targets:
-        remove_retired_shaft_skills(target)
+    cleanup_owned_retired_skills(current_directory)
     source = local_shaft_skills_source()
     if source is not None:
         installed = [copy_shaft_skills(source, target) for target in targets]
@@ -1950,19 +2222,47 @@ def prune_installed_versions(version: str | None, keep: int) -> list[Path]:
     return removed
 
 
-def install_shaft_cli_shim(wrapper: Path) -> Path | None:
-    """Put a stable ``shaft-cli`` on PATH (``~/.local/bin``) that follows upgrades (#6819)."""
+def _launcher_alias_body(wrapper: Path) -> tuple[str, str]:
+    """Return ``(filename, script)`` for the ``shaft`` alias of a shaft-cli launcher."""
     if system_name() == "Windows":
-        return None
-    shim = home() / ".local" / "bin" / "shaft-cli"
+        return "shaft.cmd", f'@echo off\r\n@"{wrapper}" %*\r\n'
+    return "shaft", f'#!/usr/bin/env sh\nexec "{wrapper}" "$@"\n'
+
+
+def write_shaft_alias(wrapper: Path) -> Path:
+    """Write ``shaft`` (Unix) or ``shaft.cmd`` (Windows) beside the shaft-cli launcher."""
+    name, content = _launcher_alias_body(wrapper)
+    alias = wrapper.with_name(name)
+    if is_link_or_junction(alias):
+        log(f"Left existing linked {alias} untouched.")
+        return alias
+    write_text_with_replace(alias, content)
+    if system_name() != "Windows":
+        alias.chmod(alias.stat().st_mode | 0o111)
+    return alias.resolve()
+
+
+def _install_unix_path_shim(bin_directory: Path, name: str, wrapper: Path) -> Path | None:
+    shim = bin_directory / name
     if is_link_or_junction(shim):
         log(f"Left existing linked {shim} untouched.")
         return None
-    shim.parent.mkdir(parents=True, exist_ok=True)
     write_text_with_replace(shim, f'#!/usr/bin/env sh\nexec "{wrapper}" "$@"\n')
     shim.chmod(shim.stat().st_mode | 0o111)
-    if str(shim.parent) not in os.environ.get("PATH", "").split(os.pathsep):
-        log(f"Add {shim.parent} to PATH to run shaft-cli from any shell.")
+    return shim
+
+
+def install_shaft_cli_shim(wrapper: Path) -> Path | None:
+    """Put ``shaft-cli`` and the ``shaft`` alias on PATH (Unix) or beside the launcher (Windows)."""
+    alias = write_shaft_alias(wrapper)
+    if system_name() == "Windows":
+        return alias
+    bin_directory = home() / ".local" / "bin"
+    bin_directory.mkdir(parents=True, exist_ok=True)
+    shim = _install_unix_path_shim(bin_directory, "shaft-cli", wrapper)
+    _install_unix_path_shim(bin_directory, "shaft", wrapper)
+    if shim is not None and str(bin_directory) not in os.environ.get("PATH", "").split(os.pathsep):
+        log(f"Add {bin_directory} to PATH to run shaft-cli from any shell.")
     return shim
 
 
@@ -2104,6 +2404,7 @@ def write_shaft_cli_launcher(java: Path, jar: Path) -> Path:
     write_text_with_replace(wrapper, wrapper_content)
     if system_name() != "Windows":
         wrapper.chmod(wrapper.stat().st_mode | 0o111)
+    write_shaft_alias(wrapper.resolve())
     return wrapper.resolve()
 
 
@@ -2226,36 +2527,65 @@ def run_checked(command: list[str], message: str, allow_failure: bool = False) -
     return result
 
 
-def configuration_path(client: str) -> Path:
-    name = system_name()
-    user_home = home()
+def claude_desktop_config_path(name: str, user_home: Path) -> Path:
+    """Claude Desktop config. Linux uses the XDG path instead of failing closed."""
+    if name == "Windows":
+        appdata = os.environ.get("APPDATA")
+        if not appdata:
+            fail("APPDATA is unavailable.", 3)
+        return Path(appdata) / "Claude" / "claude_desktop_config.json"
+    if name == "Darwin":
+        return user_home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or user_home / ".config")
+    return config_home / "Claude" / "claude_desktop_config.json"
+
+
+def copilot_intellij_config_path(name: str, user_home: Path) -> Path:
+    """Configure the GitHub Copilot IntelliJ MCP path, including macOS Application Support."""
+    if name == "Windows":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if not local_app_data:
+            fail("LOCALAPPDATA is unavailable.", 3)
+        return Path(local_app_data) / "github-copilot" / "intellij" / "mcp.json"
+    if name == "Darwin":
+        return user_home / "Library" / "Application Support" / "github-copilot" / "intellij" / "mcp.json"
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or user_home / ".config")
+    return config_home / "github-copilot" / "intellij" / "mcp.json"
+
+
+def _user_config_path(client: str, user_home: Path) -> Path | None:
     if client == "codex":
         return Path(os.environ.get("CODEX_HOME") or user_home / ".codex") / "config.toml"
     if client == "claude":
         return user_home / ".claude.json"
-    if client == "claude-desktop":
-        if name == "Windows":
-            appdata = os.environ.get("APPDATA")
-            if not appdata:
-                fail("APPDATA is unavailable.", 3)
-            return Path(appdata) / "Claude" / "claude_desktop_config.json"
-        if name == "Darwin":
-            return user_home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-        fail("Claude Desktop automatic configuration is supported on Windows and macOS.", 3)
     if client == "copilot":
         return Path(os.environ.get("COPILOT_HOME") or user_home / ".copilot") / "mcp-config.json"
-    if client == "copilot-intellij":
-        if name == "Windows":
-            local_app_data = os.environ.get("LOCALAPPDATA")
-            if not local_app_data:
-                fail("LOCALAPPDATA is unavailable.", 3)
-            return Path(local_app_data) / "github-copilot" / "intellij" / "mcp.json"
-        return Path(os.environ.get("XDG_CONFIG_HOME") or user_home / ".config") / "github-copilot" / "intellij" / "mcp.json"
     if client == "grok":
         return Path(os.environ.get("GROK_HOME") or user_home / ".grok") / "config.toml"
     if client == "antigravity":
         return user_home / ".gemini" / "config" / "mcp_config.json"
-    fail(f"Unsupported client: {client}", 2)
+    if client == "gemini":
+        return user_home / ".gemini" / "settings.json"
+    if client == "cursor":
+        return user_home / ".cursor" / "mcp.json"
+    if client == "vscode":
+        return Path.cwd().resolve() / ".vscode" / "mcp.json"
+    if client == "opencode":
+        return Path.cwd().resolve() / "opencode.json"
+    return None
+
+
+def configuration_path(client: str) -> Path:
+    name = system_name()
+    user_home = home()
+    if client == "claude-desktop":
+        return claude_desktop_config_path(name, user_home)
+    if client == "copilot-intellij":
+        return copilot_intellij_config_path(name, user_home)
+    path = _user_config_path(client, user_home)
+    if path is None:
+        fail(f"Unsupported client: {client}", 2)
+    return path
 
 
 def read_json_object(path: Path) -> dict[str, Any]:
@@ -2306,6 +2636,23 @@ def stdio_entry(java: Path, args_file: Path, copilot: bool = False) -> dict[str,
     return entry
 
 
+def mcp_root_property(client: str) -> str:
+    """Return the JSON object that holds MCP server entries for this client."""
+    if client in {"copilot-intellij", "vscode"}:
+        return "servers"
+    if client == "opencode":
+        return "mcp"
+    return "mcpServers"
+
+
+def _json_entry_matches(entry: dict[str, Any], java: Path, args_file: Path) -> bool:
+    expected_arg = f"@{args_file}"
+    command = entry.get("command")
+    if command == str(java) and entry.get("args") == [expected_arg]:
+        return True
+    return command == [str(java), expected_arg]
+
+
 def verify_json_entry(path: Path, root_property: str, java: Path, args_file: Path) -> None:
     root = read_json_object(path)
     servers = root.get(root_property)
@@ -2314,9 +2661,7 @@ def verify_json_entry(path: Path, root_property: str, java: Path, args_file: Pat
     entry = servers[SERVER_NAME]
     if not isinstance(entry, dict):
         fail("The resulting shaft-mcp entry is not an object.", 5)
-    if entry.get("command") != str(java):
-        fail("The resulting shaft-mcp Java command is incorrect.", 5)
-    if entry.get("args") != [f"@{args_file}"]:
+    if not _json_entry_matches(entry, java, args_file):
         fail("The resulting shaft-mcp launcher arguments are incorrect.", 5)
 
 
@@ -2360,31 +2705,30 @@ def project_entry_exists(path: Path, client: str) -> bool:
         root = read_json_object(path)
     except json.JSONDecodeError:
         fail(f"Project MCP configuration is malformed: {path}", 5)
-    for property_name in ("mcpServers", "servers"):
+    for property_name in ("mcpServers", "servers", "mcp"):
         node = root.get(property_name)
         if isinstance(node, dict) and SERVER_NAME in node:
             return True
     return False
 
 
+_PROJECT_CONFIG_RELATIVES = {
+    "codex": (".codex/config.toml",),
+    "grok": (".grok/config.toml",),
+    "antigravity": (".agents/mcp_config.json",),
+    "claude": (".mcp.json",),
+    "claude-desktop": (".mcp.json",),
+    "copilot": (".github/mcp.json", ".mcp.json"),
+    "copilot-intellij": (".github/copilot/mcp.json", ".github/mcp.json", ".mcp.json"),
+    "vscode": (".vscode/mcp.json",),
+    "opencode": ("opencode.json",),
+    "cursor": (".cursor/mcp.json",),
+    "gemini": (".gemini/settings.json",),
+}
+
+
 def project_candidates(directory: Path, client: str) -> list[Path]:
-    if client == "codex":
-        return [directory / ".codex" / "config.toml"]
-    if client == "grok":
-        return [directory / ".grok" / "config.toml"]
-    if client == "antigravity":
-        return [directory / ".agents" / "mcp_config.json"]
-    if client in {"claude", "claude-desktop"}:
-        return [directory / ".mcp.json"]
-    if client == "copilot":
-        return [directory / ".github" / "mcp.json", directory / ".mcp.json"]
-    if client == "copilot-intellij":
-        return [
-            directory / ".github" / "copilot" / "mcp.json",
-            directory / ".github" / "mcp.json",
-            directory / ".mcp.json",
-        ]
-    return []
+    return [directory / relative for relative in _PROJECT_CONFIG_RELATIVES.get(client, ())]
 
 
 def detect_project_override(client: str) -> None:
@@ -2404,18 +2748,61 @@ def detect_project_override(client: str) -> None:
         directory = directory.parent
 
 
-def configure_codex(java: Path, args_file: Path) -> None:
+def verify_codex_client(java: Path, args_file: Path) -> None:
+    """Opt-in probe of the codex binary. File merge does not require it."""
     codex = require_command("codex", "Codex")
-    run_checked([str(codex), "mcp", "remove", SERVER_NAME], "Codex could not remove the previous shaft-mcp entry.", True)
-    run_checked([str(codex), "mcp", "add", SERVER_NAME, "--", str(java), f"@{args_file}"], "Codex MCP configuration command failed.")
-    result = run_checked([str(codex), "mcp", "get", SERVER_NAME, "--json"], "Codex could not verify the shaft-mcp entry.")
+    result = run_checked(
+        [str(codex), "mcp", "get", SERVER_NAME, "--json"],
+        "Codex could not verify the shaft-mcp entry.",
+    )
     try:
         entry = json.loads(result.stdout).get("transport", {})
     except json.JSONDecodeError as exc:
         fail(f"Codex verification returned malformed JSON: {exc}", 5)
     if entry.get("command") != str(java) or entry.get("args") != [f"@{args_file}"]:
         fail("Codex verification returned an unexpected shaft-mcp command.", 5)
-    ensure_codex_auto_approval(configuration_path("codex"))
+
+
+def verify_claude_client() -> None:
+    """Opt-in probe of the claude binary. File merge does not require it."""
+    claude = require_command("claude", "Claude Code")
+    run_checked([str(claude), "mcp", "get", SERVER_NAME], "Claude Code could not verify the shaft-mcp entry.")
+
+
+def configure_mcp_object(path: Path, root_property: str, entry: dict[str, Any], java: Path, args_file: Path) -> None:
+    """Merge one shaft-mcp JSON entry, with a backup restored on failure."""
+
+    def mutate() -> None:
+        root = read_json_object(path)
+        servers = root.setdefault(root_property, {})
+        if not isinstance(servers, dict):
+            fail(f"Configuration property must be an object: {root_property}", 5)
+        servers[SERVER_NAME] = entry
+        write_json_atomically(path, root)
+
+    update_json_configuration(
+        path, mutate, lambda: verify_json_entry(path, root_property, java, args_file)
+    )
+
+
+def configure_codex(java: Path, args_file: Path, *, verify_client: bool = False) -> None:
+    configuration = preferred_project_config("codex")
+
+    def mutate() -> None:
+        existed = configuration.exists() and configuration.stat().st_size > 0
+        existing = configuration.read_text(encoding="utf-8") if existed else ""
+        if existed:
+            read_toml_mapping(configuration)
+        text = replace_or_append_grok_section(existing, grok_shaft_mcp_section(java, args_file))
+        write_text_atomically(configuration, text if text.endswith("\n") else text + "\n")
+
+    def verify() -> None:
+        verify_grok_entry(configuration, java, args_file)
+        ensure_codex_auto_approval(configuration)
+
+    update_json_configuration(configuration, mutate, verify)
+    if verify_client:
+        verify_codex_client(java, args_file)
 
 
 def ensure_codex_auto_approval(path: Path) -> None:
@@ -2435,19 +2822,11 @@ def ensure_codex_auto_approval(path: Path) -> None:
     write_text_atomically(path, text[:header.end()] + section + text[section_end:])
 
 
-def configure_claude_code(java: Path, args_file: Path) -> None:
-    claude = require_command("claude", "Claude Code")
+def configure_claude_code(java: Path, args_file: Path, *, verify_client: bool = False) -> None:
     configuration = configuration_path("claude")
-    try:
-        root = read_json_object(configuration)
-    except json.JSONDecodeError:
-        fail("Claude Code configuration is malformed.", 5)
-    existing = isinstance(root.get("mcpServers"), dict) and SERVER_NAME in root["mcpServers"]
-    if existing:
-        run_checked([str(claude), "mcp", "remove", SERVER_NAME, "-s", "user"],
-                    "Claude Code could not remove the previous shaft-mcp entry.", True)
-    run_checked([str(claude), "mcp", "add", "-s", "user", SERVER_NAME, "--", str(java), f"@{args_file}"], "Claude Code MCP configuration command failed.")
-    verify_json_entry(configuration, "mcpServers", java, args_file)
+    configure_mcp_object(configuration, "mcpServers", stdio_entry(java, args_file), java, args_file)
+    if verify_client:
+        verify_claude_client()
 
 
 def configure_claude_desktop(java: Path, args_file: Path) -> None:
@@ -2565,43 +2944,31 @@ def git_root(start: Path) -> Path | None:
         directory = directory.parent
 
 
-def grok_write_path() -> Path:
-    user_config = configuration_path("grok").resolve()
+def preferred_project_config(client: str) -> Path:
+    """Use a project file that already defines shaft-mcp, else the user or cwd config."""
+    user_config = configuration_path(client).resolve()
     directory = Path.cwd().resolve()
     stop = git_root(directory)
     while True:
-        for candidate in project_candidates(directory, "grok"):
+        for candidate in project_candidates(directory, client):
             resolved = candidate.resolve()
             if resolved == user_config:
                 continue
-            if project_entry_exists(candidate, "grok"):
+            if project_entry_exists(candidate, client):
                 return resolved
         if stop is None or directory == stop or directory.parent == directory:
             break
         directory = directory.parent
     return user_config
+
+
+def grok_write_path() -> Path:
+    return preferred_project_config("grok")
 
 
 def antigravity_write_path() -> Path:
-    """Prefer a workspace mcp_config that already names shaft-mcp.
-
-    Antigravity CLI reads ~/.gemini/config/mcp_config.json and
-    <workspace>/.agents/mcp_config.json (mcpServers JSON).
-    """
-    user_config = configuration_path("antigravity").resolve()
-    directory = Path.cwd().resolve()
-    stop = git_root(directory)
-    while True:
-        for candidate in project_candidates(directory, "antigravity"):
-            resolved = candidate.resolve()
-            if resolved == user_config:
-                continue
-            if project_entry_exists(candidate, "antigravity"):
-                return resolved
-        if stop is None or directory == stop or directory.parent == directory:
-            break
-        directory = directory.parent
-    return user_config
+    """Prefer a workspace mcp_config that already names shaft-mcp."""
+    return preferred_project_config("antigravity")
 
 
 def configure_antigravity(java: Path, args_file: Path) -> None:
@@ -2651,37 +3018,73 @@ def configure_grok(java: Path, args_file: Path) -> None:
     )
 
 
-def configure_client(client: str, java: Path, args_file: Path) -> None:
-    if client == "intellij-plugin":
-        return
-    if client == "codex":
-        configure_codex(java, args_file)
-    elif client == "claude":
-        configure_claude_code(java, args_file)
-    elif client == "claude-desktop":
-        configure_claude_desktop(java, args_file)
-    elif client == "copilot":
-        configure_copilot(java, args_file)
-    elif client == "copilot-intellij":
-        configure_copilot_intellij(java, args_file)
-    elif client == "grok":
-        configure_grok(java, args_file)
-    elif client == "antigravity":
-        configure_antigravity(java, args_file)
+def stdio_server_entry(java: Path, args_file: Path) -> dict[str, Any]:
+    return {"type": "stdio", "command": str(java), "args": [f"@{args_file}"]}
+
+
+def opencode_entry(java: Path, args_file: Path) -> dict[str, Any]:
+    return {"type": "local", "command": [str(java), f"@{args_file}"], "enabled": True}
+
+
+def configure_json_client(client: str, java: Path, args_file: Path, entry: dict[str, Any]) -> None:
+    if client in _PROJECT_PREFERRED_CLIENTS:
+        configuration = preferred_project_config(client)
     else:
+        configuration = configuration_path(client)
+    configure_mcp_object(configuration, mcp_root_property(client), entry, java, args_file)
+
+
+def configure_vscode(java: Path, args_file: Path) -> None:
+    configure_json_client("vscode", java, args_file, stdio_server_entry(java, args_file))
+
+
+def configure_opencode(java: Path, args_file: Path) -> None:
+    configure_json_client("opencode", java, args_file, opencode_entry(java, args_file))
+
+
+def configure_cursor(java: Path, args_file: Path) -> None:
+    configure_json_client("cursor", java, args_file, stdio_entry(java, args_file))
+
+
+def configure_gemini(java: Path, args_file: Path) -> None:
+    configure_json_client("gemini", java, args_file, stdio_entry(java, args_file))
+
+
+def configure_client(client: str, java: Path, args_file: Path, *, verify_client: bool = False) -> None:
+    configurators = {
+        "intellij-plugin": lambda: None,
+        "codex": lambda: configure_codex(java, args_file, verify_client=verify_client),
+        "claude": lambda: configure_claude_code(java, args_file, verify_client=verify_client),
+        "claude-desktop": lambda: configure_claude_desktop(java, args_file),
+        "copilot": lambda: configure_copilot(java, args_file),
+        "copilot-intellij": lambda: configure_copilot_intellij(java, args_file),
+        "grok": lambda: configure_grok(java, args_file),
+        "antigravity": lambda: configure_antigravity(java, args_file),
+        "vscode": lambda: configure_vscode(java, args_file),
+        "opencode": lambda: configure_opencode(java, args_file),
+        "cursor": lambda: configure_cursor(java, args_file),
+        "gemini": lambda: configure_gemini(java, args_file),
+    }
+    action = configurators.get(client)
+    if action is None:
         fail(f"Unsupported client: {client}", 2)
+    action()
+
+
+_ACTIVATION_HINTS = {
+    "intellij-plugin": "Return to the SHAFT IntelliJ IDEA plugin and test the connection.",
+    "claude-desktop": "Restart Claude Desktop, then open a new chat and use the shaft-mcp tools.",
+    "copilot-intellij": "Restart IntelliJ IDEA or reload Copilot Chat, then use the shaft-mcp tools.",
+    "antigravity": "Start a fresh Antigravity CLI session, then use the shaft-mcp tools.",
+    "vscode": "Reload VS Code, then use the shaft-mcp tools.",
+    "opencode": "Start a fresh OpenCode session, then use the shaft-mcp tools.",
+    "cursor": "Reload Cursor, then use the shaft-mcp tools.",
+    "gemini": "Start a fresh Gemini CLI session, then use the shaft-mcp tools.",
+}
 
 
 def activation_hint(client: str) -> str:
-    if client == "intellij-plugin":
-        return "Return to the SHAFT IntelliJ IDEA plugin and test the connection."
-    if client == "claude-desktop":
-        return "Restart Claude Desktop, then open a new chat and use the shaft-mcp tools."
-    if client == "copilot-intellij":
-        return "Restart IntelliJ IDEA or reload Copilot Chat, then use the shaft-mcp tools."
-    if client == "antigravity":
-        return "Start a fresh Antigravity CLI session, then use the shaft-mcp tools."
-    return "Start a fresh client session, then use the shaft-mcp tools."
+    return _ACTIVATION_HINTS.get(client, "Start a fresh client session, then use the shaft-mcp tools.")
 
 
 def install(args: argparse.Namespace) -> None:
@@ -2744,7 +3147,12 @@ def install(args: argparse.Namespace) -> None:
     if args.install_mcp and args.client != "intellij-plugin":
         log(f"Configuring shaft-mcp for {args.client}...")
         host_config = host_config_path(args.client)
-        configure_client(args.client, java, args_file)
+        configure_client(
+            args.client,
+            java,
+            args_file,
+            verify_client=bool(getattr(args, "verify_client", False)),
+        )
     current_directory = Path.cwd().resolve()
     skills_paths = shaft_skills_targets(current_directory, args.client)
     skills_path = skills_paths[0]

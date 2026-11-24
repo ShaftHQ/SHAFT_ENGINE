@@ -1,13 +1,11 @@
 {
   "autobot_local_agent_clients" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "autobot_local_agent_run" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowSourceMutation" : {
@@ -42,7 +40,6 @@
     "type" : "object"
   },
   "autobot_provider_chat" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowSourceMutation" : {
@@ -71,7 +68,6 @@
     "type" : "object"
   },
   "autobot_provider_models" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "model" : {
@@ -85,7 +81,6 @@
     "type" : "object"
   },
   "autobot_provider_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "model" : {
@@ -99,7 +94,6 @@
     "type" : "object"
   },
   "browser_accessibility_audit" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "wcagTags" : {
@@ -113,7 +107,6 @@
     "type" : "object"
   },
   "browser_aria_snapshot" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -128,7 +121,6 @@
     "type" : "object"
   },
   "browser_delete_cookies" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "name" : {
@@ -139,14 +131,12 @@
     "type" : "object"
   },
   "browser_get_current_url" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "browser_get_page_dom" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxCharacters" : {
@@ -157,14 +147,12 @@
     "type" : "object"
   },
   "browser_get_title" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "browser_navigate" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "newWindow" : {
@@ -178,21 +166,18 @@
     "type" : "object"
   },
   "browser_navigate_back" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "browser_navigate_forward" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "browser_network_requests" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "id" : {
@@ -209,7 +194,6 @@
     "type" : "object"
   },
   "browser_open_intent" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxCharacters" : {
@@ -229,14 +213,12 @@
     "type" : "object"
   },
   "browser_refresh" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "browser_route" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "method" : {
@@ -262,7 +244,6 @@
     "type" : "object"
   },
   "browser_set_window_size" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "height" : {
@@ -280,7 +261,6 @@
     "type" : "object"
   },
   "browser_storage_state_load" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "filePath" : {
@@ -291,7 +271,6 @@
     "type" : "object"
   },
   "browser_storage_state_save" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "filePath" : {
@@ -302,7 +281,6 @@
     "type" : "object"
   },
   "browser_take_screenshot" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "includeBase64" : {
@@ -316,7 +294,6 @@
     "type" : "object"
   },
   "browser_unroute" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "routeId" : {
@@ -327,7 +304,6 @@
     "type" : "object"
   },
   "capture_api_generate" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "className" : {
@@ -374,7 +350,6 @@
     "type" : "object"
   },
   "capture_api_response_leaves" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "excludedTransactionIds" : {
@@ -391,7 +366,6 @@
     "type" : "object"
   },
   "capture_api_start" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "browser" : {
@@ -441,14 +415,12 @@
     "type" : "object"
   },
   "capture_api_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "capture_api_stop" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "discard" : {
@@ -459,7 +431,6 @@
     "type" : "object"
   },
   "capture_api_transactions" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "excludePattern" : {
@@ -473,7 +444,6 @@
     "type" : "object"
   },
   "capture_backend_comparison" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "className" : {
@@ -499,7 +469,6 @@
     "type" : "object"
   },
   "capture_checkpoint" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "description" : {
@@ -513,7 +482,6 @@
     "type" : "object"
   },
   "capture_code_blocks" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "backend" : {
@@ -549,14 +517,12 @@
     "type" : "object"
   },
   "capture_codegen_features" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "capture_evidence_pack" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "reportPath" : {
@@ -579,7 +545,6 @@
     "type" : "object"
   },
   "capture_generate_replay" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "properties" : {
       "allowLocalAi" : {
         "description" : "explicit approval for local inference",
@@ -630,7 +595,6 @@
     "type" : "object"
   },
   "capture_pick_locator" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "candidates" : {
@@ -664,7 +628,6 @@
     "type" : "object"
   },
   "capture_record_at_target_code_blocks" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "backend" : {
@@ -706,7 +669,6 @@
     "type" : "object"
   },
   "capture_set_mode" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "mode" : {
@@ -717,7 +679,6 @@
     "type" : "object"
   },
   "capture_start" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "browser" : {
@@ -729,11 +690,11 @@
         "description" : "full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, API capture, etc.); when supplied, its own fields replace targetUrl/browser/outputPath/headless/sessionGoal entirely; WEB/NONE only, absorbs capture_start_codegen",
         "properties" : {
           "apiCapture" : {
-            "description" : "whether API network recording is enabled for this session",
+            "description" : "enable API network recording for this session",
             "type" : "boolean"
           },
           "blockServiceWorkers" : {
-            "description" : "whether service workers should be blocked",
+            "description" : "block service workers",
             "type" : "boolean"
           },
           "browser" : {
@@ -741,11 +702,11 @@
             "type" : "string"
           },
           "channel" : {
-            "description" : "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection",
+            "description" : "Chromium channel, such as chrome or msedge",
             "type" : "string"
           },
           "colorScheme" : {
-            "description" : "preferred color scheme hint (e.g. light or dark)",
+            "description" : "color scheme hint, such as light or dark",
             "type" : "string"
           },
           "deviceName" : {
@@ -757,24 +718,24 @@
             "type" : "string"
           },
           "headless" : {
-            "description" : "whether to launch without a visible browser window; unspecified defaults to headless per repo policy",
+            "description" : "launch without a visible window; omitted stays headless",
             "type" : "boolean"
           },
           "ignoreHttpsErrors" : {
-            "description" : "whether HTTPS certificate errors are ignored",
+            "description" : "ignore HTTPS certificate errors",
             "type" : "boolean"
           },
           "language" : {
-            "description" : "locale/language hint (e.g. en-US)",
+            "description" : "locale hint, such as en-US",
             "type" : "string"
           },
           "loadStoragePath" : {
-            "description" : "storage-state input path to restore cookies/local storage from before recording starts",
+            "description" : "storage-state file to restore before recording",
             "type" : "string"
           },
           "networkOptions" : {
             "additionalProperties" : false,
-            "description" : "network capture filtering options; ignored unless apiCapture is set",
+            "description" : "network filters; ignored unless apiCapture is set",
             "properties" : {
               "captureRequestBodies" : {
                 "type" : "boolean"
@@ -798,7 +759,7 @@
             "type" : "object"
           },
           "outputPath" : {
-            "description" : "recording/capture JSON output path; blank selects a timestamped recording",
+            "description" : "capture JSON path; blank uses a timestamped recording",
             "type" : "string"
           },
           "proxyBypass" : {
@@ -810,44 +771,44 @@
             "type" : "string"
           },
           "saveHarContent" : {
-            "description" : "HAR body-content emission mode: blank or none (the default) keeps truncated network-trace preview bodies, full emits complete request/response bodies from API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII",
+            "description" : "HAR bodies: none (default, truncated) or full (unredacted)",
             "type" : "string"
           },
           "saveHarGlob" : {
-            "description" : "HAR URL glob filter restricting which requests are written to the HAR",
+            "description" : "URL glob limiting which requests enter the HAR",
             "type" : "string"
           },
           "saveHarPath" : {
-            "description" : "HAR output path; blank disables HAR capture",
+            "description" : "HAR output path; blank disables HAR",
             "type" : "string"
           },
           "saveStoragePath" : {
-            "description" : "storage-state output path to persist cookies/local storage to when the session ends",
+            "description" : "storage-state file to write when the session ends",
             "type" : "string"
           },
           "sessionGoal" : {
-            "description" : "optional user intent for the journey; drives generated test class and method names",
+            "description" : "journey intent used for generated test names",
             "type" : "string"
           },
           "targetLanguage" : {
-            "description" : "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java",
+            "description" : "codegen language metadata; SHAFT emits Java only",
             "type" : "string"
           },
           "targetUrl" : {
-            "description" : "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank",
+            "description" : "initial http, https, or file URL; blank opens about:blank",
             "type" : "string"
           },
           "testIdAttribute" : {
-            "description" : "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements",
+            "description" : "preferred test id attribute, such as data-testid",
             "type" : "string"
           },
           "timeoutMillis" : {
-            "description" : "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout",
+            "description" : "browser timeout in milliseconds; 0 means none",
             "format" : "int64",
             "type" : "integer"
           },
           "timezone" : {
-            "description" : "timezone hint (e.g. America/Los_Angeles)",
+            "description" : "timezone hint, such as America/Los_Angeles",
             "type" : "string"
           },
           "userAgent" : {
@@ -855,15 +816,14 @@
             "type" : "string"
           },
           "userDataDirectory" : {
-            "description" : "persistent browser profile directory; blank uses a temporary profile",
+            "description" : "persistent profile directory; blank uses a temp profile",
             "type" : "string"
           },
           "viewportSize" : {
-            "description" : "viewport size as width,height in pixels (e.g. 1280,720)",
+            "description" : "viewport as width,height pixels, such as 1280,720",
             "type" : "string"
           }
         },
-        "required" : [ "apiCapture", "blockServiceWorkers", "browser", "channel", "colorScheme", "deviceName", "geolocation", "headless", "ignoreHttpsErrors", "language", "loadStoragePath", "networkOptions", "outputPath", "proxyBypass", "proxyServer", "saveHarContent", "saveHarGlob", "saveHarPath", "saveStoragePath", "sessionGoal", "targetLanguage", "targetUrl", "testIdAttribute", "timeoutMillis", "timezone", "userAgent", "userDataDirectory", "viewportSize" ],
         "type" : "object"
       },
       "headless" : {
@@ -887,14 +847,12 @@
     "type" : "object"
   },
   "capture_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "capture_step_delete" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "stepId" : {
@@ -905,7 +863,6 @@
     "type" : "object"
   },
   "capture_step_reorder" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "direction" : {
@@ -919,7 +876,6 @@
     "type" : "object"
   },
   "capture_stop" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "discard" : {
@@ -930,7 +886,6 @@
     "type" : "object"
   },
   "capture_target_candidates" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxResults" : {
@@ -944,7 +899,6 @@
     "type" : "object"
   },
   "design_analyze" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -964,7 +918,6 @@
     "type" : "object"
   },
   "design_coverage" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -990,7 +943,6 @@
     "type" : "object"
   },
   "design_examples" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -1013,7 +965,6 @@
     "type" : "object"
   },
   "design_gap_map" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -1036,7 +987,6 @@
     "type" : "object"
   },
   "design_gherkin_draft" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -1056,7 +1006,6 @@
     "type" : "object"
   },
   "design_handoff" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "accept" : {
@@ -1091,7 +1040,6 @@
     "type" : "object"
   },
   "design_ingest" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "filePath" : {
@@ -1108,7 +1056,6 @@
     "type" : "object"
   },
   "design_lexicon" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "action" : {
@@ -1125,7 +1072,6 @@
     "type" : "object"
   },
   "design_lint" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedGapIds" : {
@@ -1151,7 +1097,6 @@
     "type" : "object"
   },
   "design_readiness" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "accept" : {
@@ -1186,7 +1131,6 @@
     "type" : "object"
   },
   "doctor_analyze_failed_allure" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowLocalAi" : {
@@ -1242,7 +1186,6 @@
     "type" : "object"
   },
   "doctor_analyze_trace" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "backend" : {
@@ -1256,7 +1199,6 @@
     "type" : "object"
   },
   "doctor_cause_label" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "action" : {
@@ -1276,14 +1218,12 @@
     "type" : "object"
   },
   "doctor_managed_local_ai_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "doctor_propose_advisory_locator" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "healingReportPath" : {
@@ -1306,7 +1246,6 @@
     "type" : "object"
   },
   "doctor_propose_healed_locator" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "healingReportPath" : {
@@ -1329,7 +1268,6 @@
     "type" : "object"
   },
   "doctor_suggest_fix" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowLocalAi" : {
@@ -1364,7 +1302,6 @@
     "type" : "object"
   },
   "driver_initialize" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "engine" : {
@@ -1441,14 +1378,12 @@
     "type" : "object"
   },
   "driver_quit" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "element_clear" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1463,7 +1398,6 @@
     "type" : "object"
   },
   "element_click" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1482,7 +1416,6 @@
     "type" : "object"
   },
   "element_count" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1497,7 +1430,6 @@
     "type" : "object"
   },
   "element_drag_and_drop" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "offsetX" : {
@@ -1525,7 +1457,6 @@
     "type" : "object"
   },
   "element_highlight" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1540,7 +1471,6 @@
     "type" : "object"
   },
   "element_hover" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1555,7 +1485,6 @@
     "type" : "object"
   },
   "element_is_displayed" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1570,7 +1499,6 @@
     "type" : "object"
   },
   "element_is_enabled" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1585,7 +1513,6 @@
     "type" : "object"
   },
   "element_is_selected" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "locatorStrategy" : {
@@ -1600,7 +1527,6 @@
     "type" : "object"
   },
   "element_type" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "append" : {
@@ -1624,7 +1550,6 @@
     "type" : "object"
   },
   "element_upload_file" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "filePath" : {
@@ -1642,14 +1567,12 @@
     "type" : "object"
   },
   "generate_test_report" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "healer_run_failed_test" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowLocalAi" : {
@@ -1702,7 +1625,6 @@
     "type" : "object"
   },
   "mobile_activate_app" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "appId" : {
@@ -1713,7 +1635,6 @@
     "type" : "object"
   },
   "mobile_background_app" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "seconds" : {
@@ -1724,7 +1645,6 @@
     "type" : "object"
   },
   "mobile_get_accessibility_tree" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxCharacters" : {
@@ -1735,7 +1655,6 @@
     "type" : "object"
   },
   "mobile_get_contexts" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxCharacters" : {
@@ -1746,14 +1665,12 @@
     "type" : "object"
   },
   "mobile_hide_keyboard" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "mobile_inspector_record_start" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "androidAbi" : {
@@ -1818,7 +1735,6 @@
     "type" : "object"
   },
   "mobile_inspector_record_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "action" : {
@@ -1832,7 +1748,6 @@
     "type" : "object"
   },
   "mobile_inspector_record_stop" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "discard" : {
@@ -1843,7 +1758,6 @@
     "type" : "object"
   },
   "mobile_keyboard_key" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "key" : {
@@ -1854,7 +1768,6 @@
     "type" : "object"
   },
   "mobile_rotate" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "orientation" : {
@@ -1865,7 +1778,6 @@
     "type" : "object"
   },
   "mobile_swipe" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "direction" : {
@@ -1907,7 +1819,6 @@
     "type" : "object"
   },
   "mobile_switch_context" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "contextName" : {
@@ -1918,7 +1829,6 @@
     "type" : "object"
   },
   "mobile_tap_coordinates" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "x" : {
@@ -1932,7 +1842,6 @@
     "type" : "object"
   },
   "mobile_toolchain_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "platformName" : {
@@ -1943,7 +1852,6 @@
     "type" : "object"
   },
   "report_clusters" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -1957,7 +1865,6 @@
     "type" : "object"
   },
   "report_flake" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -1980,7 +1887,6 @@
     "type" : "object"
   },
   "report_heal" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "proposalsPath" : {
@@ -1994,7 +1900,6 @@
     "type" : "object"
   },
   "report_history" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -2014,7 +1919,6 @@
     "type" : "object"
   },
   "report_merge_shards" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "outputDirectory" : {
@@ -2031,7 +1935,6 @@
     "type" : "object"
   },
   "report_mute" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "action" : {
@@ -2060,7 +1963,6 @@
     "type" : "object"
   },
   "report_open" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -2077,7 +1979,6 @@
     "type" : "object"
   },
   "report_smart_tags" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -2100,7 +2001,6 @@
     "type" : "object"
   },
   "report_summary" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allureResultsPath" : {
@@ -2126,14 +2026,12 @@
     "type" : "object"
   },
   "setup_catalog" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : { },
     "required" : [ ],
     "type" : "object"
   },
   "setup_doctor" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "request" : {
@@ -2191,7 +2089,6 @@
     "type" : "object"
   },
   "setup_install" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedLicenses" : {
@@ -2264,7 +2161,6 @@
     "type" : "object"
   },
   "setup_logs" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "profile" : {
@@ -2326,7 +2222,6 @@
     "type" : "object"
   },
   "setup_plan" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "request" : {
@@ -2384,7 +2279,6 @@
     "type" : "object"
   },
   "setup_start" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedLicenses" : {
@@ -2461,7 +2355,6 @@
     "type" : "object"
   },
   "setup_status" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "request" : {
@@ -2519,7 +2412,6 @@
     "type" : "object"
   },
   "setup_stop" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "acceptedLicenses" : {
@@ -2596,7 +2488,6 @@
     "type" : "object"
   },
   "setup_verify" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "request" : {
@@ -2654,7 +2545,6 @@
     "type" : "object"
   },
   "shaft_coding_partner_diff" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "codeBlocks" : {
@@ -2677,7 +2567,6 @@
     "type" : "object"
   },
   "shaft_coding_partner_plan" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "artifactPaths" : {
@@ -2709,7 +2598,6 @@
     "type" : "object"
   },
   "shaft_guide_search" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxResults" : {
@@ -2723,7 +2611,6 @@
     "type" : "object"
   },
   "shaft_project_create" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "artifactId" : {
@@ -2767,7 +2654,6 @@
     "type" : "object"
   },
   "shaft_project_init_agents" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "loop" : {
@@ -2784,7 +2670,6 @@
     "type" : "object"
   },
   "shaft_project_upgrade" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "allowAiRepair" : {
@@ -2819,7 +2704,6 @@
     "type" : "object"
   },
   "test_automation_scenarios" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "area" : {
@@ -2836,7 +2720,6 @@
     "type" : "object"
   },
   "test_code_guardrails_check" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "code" : {
@@ -2850,7 +2733,6 @@
     "type" : "object"
   },
   "test_plan_explore" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "goal" : {
@@ -2870,7 +2752,6 @@
     "type" : "object"
   },
   "trace_latest" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxResults" : {
@@ -2881,7 +2762,6 @@
     "type" : "object"
   },
   "trace_open_viewer" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "tracePath" : {
@@ -2892,7 +2772,6 @@
     "type" : "object"
   },
   "trace_read" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "maxCharacters" : {
@@ -2906,7 +2785,6 @@
     "type" : "object"
   },
   "trace_summarize" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "tracePath" : {
@@ -2917,7 +2795,6 @@
     "type" : "object"
   },
   "verify_run_focused" : {
-    "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
       "command" : {

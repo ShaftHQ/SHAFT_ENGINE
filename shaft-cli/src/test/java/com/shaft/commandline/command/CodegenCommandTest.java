@@ -90,7 +90,7 @@ class CodegenCommandTest {
 
     @Test
     void defaultCommandWiresCaptureCliWithoutMcp() throws Exception {
-        // Issue #5966 / S2-10 FR-001 / SC-001: shaft codegen stays offline (CaptureCli, no MCP).
+        // Issue #5966 / S2-10 FR-001 / SC-001: shaft-cli codegen stays offline (CaptureCli, no MCP).
         CodegenCommand command = new CodegenCommand();
         var field = CodegenCommand.class.getDeclaredField("delegate");
         field.setAccessible(true);

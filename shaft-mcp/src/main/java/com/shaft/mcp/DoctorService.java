@@ -102,11 +102,7 @@ public class DoctorService {
      * @return deterministic diagnosis, action records, code blocks, report paths, and provider metadata
      */
     @Tool(name = "doctor_analyze_failed_allure",
-            description = "analyzes failed Allure results and returns deterministic actions plus copy-paste code blocks; "
-                    + "accepts allure-results directories, individual *-result.json files, or a SHAFT single-file "
-                    + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
-                    + "evidence found in the workspace; optional backend (web|playwright, defaults to web) selects "
-                    + "the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
+            description = "analyzes failed Allure evidence into actions and copy-paste fixes; empty paths use the newest workspace evidence; backend web or playwright")
     /**
      * Analyzes failed Allure results and groups failures by likely cause.
      */
@@ -217,9 +213,7 @@ public class DoctorService {
      * @return confirm or suggest projection
      */
     @Tool(name = "doctor_cause_label",
-            description = "confirms or suggests persisted Doctor defect labels keyed by signature "
-                    + "(PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; "
-                    + "override replaces; evidence paths redacted; no cloud ML")
+            description = "confirms or suggests a persisted Doctor defect label for a signature; the store is local, and evidence paths are redacted")
     /**
      * Lists, sets or clears the cause label of a failure signature.
      */
@@ -253,9 +247,7 @@ public class DoctorService {
     }
 
     @Tool(name = "doctor_suggest_fix",
-            description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; "
-                    + "optional backend (web|playwright, defaults to web) selects the generated snippets' engine, "
-                    + "absorbing playwright_doctor_suggest_fix")
+            description = "returns copy-paste remediation blocks from an existing Doctor report; backend web or playwright selects the snippet engine")
     /**
      * Suggests source fixes for an analysis report, optionally using AI.
      */

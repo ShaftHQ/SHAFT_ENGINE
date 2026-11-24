@@ -284,7 +284,7 @@ public class TraceService {
      * @return append-only history view for the IDE Reporting canvas / CLI
      */
     @Tool(name = "report_history",
-            description = "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state")
+            description = "ingests Allure history.jsonl and optional Doctor JSON for cross-run history; missing history is an empty state, not a failure")
     /**
      * Returns the Allure history view.
      */
@@ -315,7 +315,7 @@ public class TraceService {
      * @return flake table with independent retry-hidden and transition assessments
      */
     @Tool(name = "report_flake",
-            description = "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional")
+            description = "builds separate intra-run and cross-launch flake tables; unknown history stays explicit, and CI commit metadata is optional")
     /**
      * Returns the flaky test table from Allure history.
      */
@@ -350,7 +350,7 @@ public class TraceService {
      * @return smart-tag table for Reporting / SHAFT Tests
      */
     @Tool(name = "report_smart_tags",
-            description = "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist")
+            description = "tags Allure history as New, Always-failing, Flaky, Regressed, or Fixed; a first failure is New, and thin history is not Flaky")
     /**
      * Returns the smart tags table from Allure history.
      */
@@ -410,7 +410,7 @@ public class TraceService {
      * @return heal insights table for the IDE Reporting canvas / CLI
      */
     @Tool(name = "report_heal",
-            description = "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators")
+            description = "dashboards Heal decisions with a persist-on-pass review gate; RECOVERED plus pass is reviewable, and it never writes locators")
     /**
      * Returns insights from healing reports and proposals.
      */
@@ -436,7 +436,7 @@ public class TraceService {
      * @return open view with path or generate_test_report CTA
      */
     @Tool(name = "report_open",
-            description = "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure")
+            description = "opens the newest Allure HTML report, or names generate_test_report when none exists; never rewrites the HTML")
     /**
      * Opens the report and returns where to view it.
      */
@@ -486,7 +486,7 @@ public class TraceService {
      * @return dual-audience summary with reconciled counts
      */
     @Tool(name = "report_summary",
-            description = "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA")
+            description = "builds engineer and stakeholder report summaries from Allure, flake, and heal counts, and never includes secrets")
     /**
      * Summarizes the test results.
      */
@@ -554,7 +554,7 @@ public class TraceService {
      * @return mute table (active mutes; observe may include a RECOVERED row)
      */
     @Tool(name = "report_mute",
-            description = "local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file")
+            description = "mutes a local flake with a required reason until N local passes; the store is gitignored .shaft/local-mutes.json unless a path is set")
     /**
      * Lists, adds or removes local test mutes.
      */

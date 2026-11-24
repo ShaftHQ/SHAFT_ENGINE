@@ -82,9 +82,7 @@ public class ElementService {
      *             Playwright engine.
      * @return the active engine and, when a recording is active, the recorded step's code block
      */
-    @Tool(name = "element_click", description = "clicks an element; optional mode selects single (default) | "
-            + "double | long; dispatches to the active engine and records the step when a mobile or "
-            + "Playwright recording is active")
+    @Tool(name = "element_click", description = "clicks an element; mode is single (default), double, or long, and records the step on mobile or Playwright")
     /**
      * Clicks the located element with the given click mode.
      */
@@ -170,10 +168,7 @@ public class ElementService {
      *              blank/omitted defaults to true
      * @return the active engine and, when a recording is active, the recorded step's code block
      */
-    @Tool(name = "element_type", description = "types text into an element; optional append (default false) "
-            + "appends instead of clearing first, optional clear (default true; false behaves like append=true) "
-            + "controls whether the field is cleared before typing; dispatches to the active engine and records "
-            + "the step when a mobile or Playwright recording is active")
+    @Tool(name = "element_type", description = "types text into an element; append adds text and clear=false keeps existing text; records the step on mobile or Playwright")
     /**
      * Types text into the located element, optionally appending.
      */
@@ -317,9 +312,7 @@ public class ElementService {
      * @param offsetY vertical offset from the source element; used only when no target locator is given
      * @return the active engine and, when a recording is active, the recorded step's code block
      */
-    @Tool(name = "element_drag_and_drop", description = "drags and drops an element from source to a target "
-            + "locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine "
-            + "and records the step when a Playwright recording is active")
+    @Tool(name = "element_drag_and_drop", description = "drags an element onto a target locator, or by offsetX and offsetY when no target is given; records the step on Playwright")
     /**
      * Drags the source element onto the target element or by an offset.
      */

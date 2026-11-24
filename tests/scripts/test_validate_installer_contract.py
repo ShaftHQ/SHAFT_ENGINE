@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -276,6 +277,29 @@ class ValidateInstallerContractTest(unittest.TestCase):
             # CODEX should be mapped to "codex" via the default arm
             self.assertEqual("codex", mapping.get("CODEX"))
             self.assertEqual("claude", mapping.get("CLAUDE_CODE"))
+
+    def test_dynamic_targets_follow_the_sibling_host_registry(self):
+        """TARGETS = tuple(...) is the registry's installerTarget host ids."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry = {
+                "hosts": [
+                    {"id": "codex", "installerTarget": True},
+                    {"id": "claude-desktop", "installerTarget": False},
+                    {"id": "cursor", "installerTarget": True},
+                ]
+            }
+            (root / "agent_hosts.json").write_text(json.dumps(registry), encoding="utf-8")
+            installer = root / "install_shaft_agentic_tools.py"
+            installer.write_text(
+                'TARGETS = tuple(host["id"] for host in AGENT_HOSTS if host.get("installerTarget"))\n',
+                encoding="utf-8",
+            )
+            self.assertEqual({"codex", "cursor"}, MODULE.parse_targets_from_python(installer))
+
+    def test_repository_contract_matches_the_canonical_host_registry(self):
+        errors = MODULE.validate(MODULE.ROOT)
+        self.assertEqual([], errors, f"Unexpected errors: {errors}")
 
 
 if __name__ == "__main__":

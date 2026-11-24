@@ -11,7 +11,7 @@
         "name": "ShaftHQ"
       },
       "category": "testing",
-      "description": "Official SHAFT agent skills: methodology router, locator strategy, test planning and authoring, MCP-driven recording, failure analysis, and change verification.",
+      "description": "Official SHAFT agent skill. One self-contained entrypoint, shaft-developer, for every supported host.",
       "homepage": "https://shafthq.github.io/docs/start/overview",
       "keywords": [
         "shaft",
@@ -27,73 +27,10 @@
       "name": "shaft-skills",
       "repository": "https://github.com/ShaftHQ/SHAFT_ENGINE",
       "skills": [
-        "./shaft-accessibility-testing",
-        "./shaft-android-apk-select",
-        "./shaft-api-testing",
-        "./shaft-assertions",
-        "./shaft-automated-test-authoring",
-        "./shaft-browserstack-native",
-        "./shaft-change-verification",
-        "./shaft-cli",
-        "./shaft-database-testing",
-        "./shaft-defect-reporting",
-        "./shaft-developer",
-        "./shaft-docs-hygiene",
-        "./shaft-execution-reporting",
-        "./shaft-failure-analysis",
-        "./shaft-flaky-test-analysis",
-        "./shaft-fluent-api",
-        "./shaft-guide-search",
-        "./shaft-ios-ipa-acceptance",
-        "./shaft-locator-design",
-        "./shaft-mcp",
-        "./shaft-mobile-actions",
-        "./shaft-mobile-env",
-        "./shaft-mobile-retest-hygiene",
-        "./shaft-nonfunctional-test-design",
-        "./shaft-page-objects",
-        "./shaft-recording-codegen",
-        "./shaft-requirements-analysis",
-        "./shaft-stakeholder-reporting",
-        "./shaft-test-case-design",
-        "./shaft-test-completion",
-        "./shaft-test-data-design",
-        "./shaft-test-environment",
-        "./shaft-test-execution",
-        "./shaft-test-monitoring",
-        "./shaft-test-planning",
-        "./shaft-test-recording",
-        "./shaft-web-actions"
+        "./shaft-developer"
       ],
       "source": "./shaft-skills",
       "strict": false
-    },
-    {
-      "description": "Neutral project-local agent harness.",
-      "name": "chaos-engine",
-      "skills": [
-        "./chaos-engine"
-      ],
-      "source": "./plugins/chaos-engine",
-      "version": "1.0.4199879328"
-    },
-    {
-      "description": "Ultra-compressed communication mode.",
-      "name": "caveman",
-      "skills": [
-        "./caveman"
-      ],
-      "source": "./plugins/caveman",
-      "version": "0.1.0"
-    },
-    {
-      "description": "Laziest solution that actually works.",
-      "name": "ponytail",
-      "skills": [
-        "./ponytail"
-      ],
-      "source": "./plugins/ponytail",
-      "version": "0.1.0"
     }
   ]
 }

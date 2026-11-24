@@ -489,9 +489,7 @@ public class MobileService {
      * @return current (or post-control) Inspector recording status
      */
     @Tool(name = "mobile_inspector_record_status",
-            description = "returns the wrapped Appium Inspector recording status; optional action "
-                    + "(pause|resume|checkpoint|stop|discard) performs that control first, absorbing "
-                    + "mobile_inspector_record_control")
+            description = "returns Appium Inspector recording status; optional action pause, resume, checkpoint, stop, or discard runs that control first")
     /**
      * Returns the Inspector recording status, or applies a recording action such as a checkpoint.
      */
@@ -824,11 +822,7 @@ public class MobileService {
      * @param endY coordinate swipe end y
      * @return recorded action metadata
      */
-    @Tool(name = "mobile_swipe", description = "swipes on the mobile screen; dispatches on whichever optional "
-            + "params are supplied -- text (swipe to text) | locator+offsetX/offsetY (swipe by offset) | "
-            + "locator alone (swipe element into view, optional direction) | startX/startY/endX/endY "
-            + "(coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/"
-            + "mobile_swipe_element_into_view/mobile_swipe_text_into_view")
+    @Tool(name = "mobile_swipe", description = "swipes on the mobile screen by text, a locator, a locator offset, or start and end coordinates")
     /**
      * Swipes on an element, between points or in a direction.
      */

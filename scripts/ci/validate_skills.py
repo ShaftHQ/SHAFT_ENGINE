@@ -157,6 +157,52 @@ def validate_skill(
     return errors
 
 
+def product_skill_errors(root: Path, budget: dict) -> list[dict[str, str]]:
+    """Fail closed unless the product pack has exactly one discoverable entrypoint."""
+    skills = root / "shaft-skills"
+    if not skills.is_dir():
+        return []
+    found = []
+    for path in sorted(skills.rglob("SKILL.md")):
+        relative = path.relative_to(skills)
+        if relative.parts and relative.parts[0] in {"ce-pack", "ce-addons"}:
+            continue
+        found.append(path)
+    expected = skills / "shaft-developer" / "SKILL.md"
+    if not found or not expected.is_file():
+        shown = ", ".join(path.relative_to(root).as_posix() for path in found) or "none"
+        return [
+            issue(
+                "product-entrypoint",
+                "shaft-skills/shaft-developer/SKILL.md",
+                f"expected exactly shaft-skills/shaft-developer/SKILL.md, found {shown}",
+            )
+        ]
+    errors: list[dict[str, str]] = []
+    if found != [expected]:
+        shown = ", ".join(path.relative_to(root).as_posix() for path in found)
+        errors.append(
+            issue(
+                "product-entrypoint",
+                "shaft-skills/shaft-developer/SKILL.md",
+                f"expected exactly shaft-skills/shaft-developer/SKILL.md, found {shown}",
+            )
+        )
+    if expected.is_file():
+        max_bytes = _root_budget(budget, expected.parent, root)
+        if max_bytes is None:
+            errors.append(
+                issue(
+                    "budget-config",
+                    "scripts/ci/agent_guidance_budget.json",
+                    f"skill_budgets[{SKILLS_ROOT!r}].max_skill_md_bytes is not configured",
+                )
+            )
+        else:
+            errors.extend(validate_skill(root, expected.parent, max_bytes))
+    return errors
+
+
 def skill_dirs(root: Path = ROOT) -> list[Path]:
     """Every skill directory under the configured roots (globs allowed)."""
     found: list[Path] = []
@@ -182,9 +228,13 @@ def validate_repository(
 ) -> list[dict[str, str]]:
     """Run every skill-hygiene check across canonical skills and return sorted issues."""
     budget = load_budget(budget_path or root / "scripts/ci/agent_guidance_budget.json")
+    product_errors = product_skill_errors(root, budget)
     directories = skill_dirs(root)
     if not directories and not any(any(root.glob(pattern)) for pattern in SKILLS_ROOTS):
-        return [issue("skill-root-missing", SKILLS_ROOT, "skills root is missing")]
+        return sorted(
+            [*product_errors, issue("skill-root-missing", SKILLS_ROOT, "skills root is missing")],
+            key=lambda item: (item["path"], item["code"], item["message"]),
+        )
 
     errors: list[dict[str, str]] = []
     for skill_dir in directories:
@@ -199,6 +249,7 @@ def validate_repository(
             ]
         errors.extend(validate_skill(root, skill_dir, max_skill_md_bytes))
 
+    errors.extend(product_errors)
     return sorted(errors, key=lambda item: (item["path"], item["code"], item["message"]))
 
 

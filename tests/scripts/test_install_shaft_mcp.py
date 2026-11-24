@@ -23,6 +23,11 @@ MODULE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "mcp" / "install
 REPO_ROOT = MODULE_PATH.parents[2]
 
 
+def _resolved(paths):
+    """Canonicalize paths so macOS /var and Windows 8.3 short names compare equal."""
+    return [Path(path).resolve() for path in paths]
+
+
 def _overlay_or_repo(relative) -> Path:
     """Read a manifest path from the repo, or the harness overlay after #8057.
 
@@ -118,8 +123,10 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertIn(stage, help_text, f"--help must mention {stage}")
         self.assertIn("Stage 3", help_text)
         self.assertIn("capture_", help_text)
-        self.assertIn("shaft capture", help_text)
-        self.assertIn("shaft codegen", help_text)
+        self.assertIn("shaft-cli capture", help_text)
+        self.assertIn("shaft-cli codegen", help_text)
+        self.assertNotIn("shaft capture", help_text)
+        self.assertNotIn("shaft codegen", help_text)
         self.assertIn(MODULE.THREE_STAGE_UX_EPILOG.splitlines()[0], help_text)
 
     def test_shaft_developer_routing_lists_three_stage_cli_mcp_parity(self):
@@ -131,9 +138,9 @@ class InstallShaftMcpTest(unittest.TestCase):
         text = routing.read_text(encoding="utf-8")
         self.assertIn("Product stages (Design, Automation, Reporting)", text)
         self.assertIn("design_ingest", text)
-        self.assertIn("shaft design ingest", text)
+        self.assertIn("shaft-cli design ingest", text)
         self.assertIn("report_history", text)
-        self.assertIn("shaft report history", text)
+        self.assertIn("shaft-cli report history", text)
         self.assertIn("shaft-mcp", text)
         self.assertIn("ChaosEngine", text)
 
@@ -799,9 +806,10 @@ class InstallShaftMcpTest(unittest.TestCase):
             with temporary_current_directory(root):
                 installed = MODULE.install_shaft_skills(Path.cwd(), root / "bootstrap", "codex")
 
-            self.assertEqual([(root / ".agents" / "skills").resolve()], installed)
+            self.assertEqual(_resolved([root / ".agents" / "skills"]), _resolved(installed))
             self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
-            self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
+            self.assertTrue((installed[0] / "shaft-developer" / "agents" / "openai.yaml").is_file())
+            self.assertEqual(1, len(list(installed[0].glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_without_client_covers_all_native_roots(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -809,13 +817,14 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             installed = MODULE.install_shaft_skills(root, root / "bootstrap", None)
 
-            self.assertEqual([
-                (root / ".agents" / "skills").resolve(),
-                (root / ".claude" / "skills").resolve(),
-            ], installed)
+            self.assertEqual(_resolved([
+                root / ".agents" / "skills",
+                root / ".claude" / "skills",
+                root / ".opencode" / "skills",
+            ]), _resolved(installed))
             for target in installed:
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
-                self.assertEqual(37, len(list(target.glob("*/SKILL.md"))))
+                self.assertEqual(1, len(list(target.glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_prunes_identical_github_copies_but_keeps_user_skills(self):
         # #6817: one canonical copy; stale `.github/skills` pack copies go, edited/user skills stay.
@@ -824,8 +833,9 @@ class InstallShaftMcpTest(unittest.TestCase):
             first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
             legacy = root / ".github" / "skills"
             shutil.copytree(first[0] / "shaft-developer", legacy / "shaft-developer")
-            shutil.copytree(first[0] / "shaft-mcp", legacy / "shaft-mcp")
-            (legacy / "shaft-mcp" / "SKILL.md").write_text("locally edited\n", encoding="utf-8")
+            edited = legacy / "shaft-mcp"
+            edited.mkdir(parents=True)
+            (edited / "SKILL.md").write_text("locally edited\n", encoding="utf-8")
             (legacy / "my-skill").mkdir()
             (legacy / "my-skill" / "SKILL.md").write_text("mine\n", encoding="utf-8")
 
@@ -868,7 +878,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         self.assertEqual(MODULE.DEFAULT_KEPT_VERSIONS, args.keep_versions)
 
     def test_install_shaft_skills_removes_only_owned_retired_skill_directories_idempotently(self):
-        retired = (
+        previously_retired = {
             "act-as-shaft-dev",
             "analyzing-shaft-failures",
             "choosing-shaft-locators",
@@ -876,41 +886,85 @@ class InstallShaftMcpTest(unittest.TestCase):
             "recording-shaft-tests-with-mcp",
             "verifying-and-applying-shaft-changes",
             "writing-shaft-tests",
-        )
+        }
+        retired = MODULE.RETIRED_SHAFT_SKILL_DIRECTORIES
+        demoted = {name for name in retired if name.startswith("shaft-")}
+        self.assertEqual(previously_retired, retired - demoted)
+        self.assertEqual(36, len(demoted))
+        self.assertEqual(7, len(previously_retired))
+        self.assertEqual(5, len(MODULE.LEGACY_SKILL_CLEANUP_ROOTS))
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            target = root / ".agents" / "skills"
-            for name in retired:
-                owned = target / name
-                (owned / "agents").mkdir(parents=True)
-                (owned / "SKILL.md").write_text(
-                    f"---\nname: {name}\n---\n# Retired SHAFT skill\n", encoding="utf-8")
-                (owned / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
-            protected = root / ".claude" / "skills" / retired[-1]
+            for relative in MODULE.LEGACY_SKILL_CLEANUP_ROOTS:
+                target = root / relative
+                for name in retired:
+                    owned = target / name
+                    (owned / "agents").mkdir(parents=True)
+                    (owned / "SKILL.md").write_text(
+                        f"---\nname: {name}\n---\n# Retired SHAFT skill\n", encoding="utf-8")
+                    (owned / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+                custom = target / "custom-skill"
+                custom.mkdir(parents=True)
+                (custom / "SKILL.md").write_text(
+                    f"---\nname: custom-skill\n---\n# mine in {relative}\n", encoding="utf-8")
+            protected = root / ".claude" / "skills" / "writing-shaft-tests"
+            shutil.rmtree(protected)
             protected.mkdir(parents=True)
             (protected / "SKILL.md").write_text(
                 "---\nname: writing-shaft-tests\n---\n# User-owned skill\n", encoding="utf-8")
-            custom = target / "custom-skill" / "notes.md"
-            custom.parent.mkdir(parents=True)
-            custom.write_text("keep me", encoding="utf-8")
-            top_level_user_file = target / "user-notes.md"
-            top_level_user_file.write_text("keep me too", encoding="utf-8")
+            notes = root / ".agents" / "skills" / "user-notes.md"
+            notes.write_text("keep me too", encoding="utf-8")
 
             first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
             second = MODULE.install_shaft_skills(root, root / "bootstrap", None)
 
-            self.assertEqual([
-                target.resolve(),
-                (root / ".claude" / "skills").resolve(),
-            ], first)
+            self.assertEqual(_resolved([
+                root / ".agents" / "skills",
+                root / ".claude" / "skills",
+                root / ".opencode" / "skills",
+            ]), _resolved(first))
             self.assertEqual(first, second)
-            self.assertEqual(frozenset(retired), MODULE.RETIRED_SHAFT_SKILL_DIRECTORIES)
-            for name in retired:
-                self.assertFalse((target / name).exists())
+            for relative in MODULE.LEGACY_SKILL_CLEANUP_ROOTS:
+                target = root / relative
+                for name in retired:
+                    candidate = target / name
+                    if candidate == protected:
+                        continue
+                    self.assertFalse(candidate.exists(), candidate)
+                self.assertEqual(
+                    f"---\nname: custom-skill\n---\n# mine in {relative}\n",
+                    (target / "custom-skill" / "SKILL.md").read_text(encoding="utf-8"),
+                )
             self.assertTrue(protected.is_dir())
-            self.assertEqual("keep me", custom.read_text(encoding="utf-8"))
-            self.assertEqual("keep me too", top_level_user_file.read_text(encoding="utf-8"))
-            self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
+            self.assertFalse((protected / "agents").exists())
+            self.assertEqual("keep me too", notes.read_text(encoding="utf-8"))
+            self.assertTrue((root / ".agents" / "skills" / "shaft-developer" / "SKILL.md").is_file())
+            installed_names = {
+                path.parent.name for path in (root / ".agents" / "skills").glob("*/SKILL.md")
+            }
+            self.assertIn("shaft-developer", installed_names)
+            self.assertIn("custom-skill", installed_names)
+            self.assertTrue(installed_names.isdisjoint(demoted))
+
+    def test_remove_retired_shaft_skills_keeps_tree_when_a_nested_entry_is_a_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            retired = root / ".agents" / "skills" / "shaft-cli"
+            (retired / "agents").mkdir(parents=True)
+            (retired / "SKILL.md").write_text("---\nname: shaft-cli\n---\n", encoding="utf-8")
+            (retired / "agents" / "openai.yaml").write_text("interface: {}\n", encoding="utf-8")
+            secret = root / "secret.txt"
+            secret.write_text("do-not-delete", encoding="utf-8")
+            try:
+                (retired / "leak").symlink_to(secret)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            MODULE.remove_retired_shaft_skills(root / ".agents" / "skills")
+
+            self.assertEqual("do-not-delete", secret.read_text(encoding="utf-8"))
+            self.assertTrue(retired.is_dir())
+            self.assertTrue((retired / "leak").is_symlink())
 
     def test_install_shaft_skills_rejects_linked_native_parent_before_legacy_cleanup(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -972,12 +1026,20 @@ class InstallShaftMcpTest(unittest.TestCase):
                 return None
 
             remote_files = (
-                "references/shaft-cli-commands.md",
+                "INVENTORY.md",
+                "QUALITY.md",
+                "quality-review.json",
+                "evaluation-prompts.md",
+                "ce-pack/profile.json",
+                "ce-addons/note.md",
                 "references/shaft-mcp-tools.md",
                 "shaft-developer/SKILL.md",
                 "shaft-developer/agents/openai.yaml",
                 "shaft-mcp/SKILL.md",
-                "shaft-mcp/agents/openai.yaml",
+            )
+            consumer_files = (
+                "shaft-developer/SKILL.md",
+                "shaft-developer/agents/openai.yaml",
             )
 
             def fake_download(url, target, label, **_kwargs):
@@ -998,12 +1060,19 @@ class InstallShaftMcpTest(unittest.TestCase):
                 MODULE.download_file = original_download_file
                 MODULE.remote_shaft_skill_entries = original_discovery
 
-            self.assertEqual(len(remote_files), len(calls))
-            self.assertEqual([(root / "project" / ".claude" / "skills").resolve()], installed)
+            self.assertEqual(len(consumer_files), len(calls))
+            self.assertEqual(
+                _resolved([root / "project" / ".claude" / "skills"]),
+                _resolved(installed),
+            )
             self.assertTrue((installed[0] / "shaft-developer" / "SKILL.md").is_file())
-            self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
-            self.assertTrue((installed[0] / "references" / "shaft-mcp-tools.md").is_file())
-            self.assertTrue((installed[0] / "references" / "shaft-cli-commands.md").is_file())
+            self.assertTrue((installed[0] / "shaft-developer" / "agents" / "openai.yaml").is_file())
+            self.assertFalse((installed[0] / "shaft-mcp").exists())
+            self.assertFalse((installed[0] / "ce-pack").exists())
+            self.assertFalse((installed[0] / "ce-addons").exists())
+            self.assertFalse((installed[0] / "INVENTORY.md").exists())
+            self.assertFalse((installed[0] / "references").exists())
+            self.assertEqual(1, len(list(installed[0].glob("*/SKILL.md"))))
 
     def test_stale_skill_file_is_downloaded_once_and_a_matching_blob_is_kept(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1050,7 +1119,12 @@ class InstallShaftMcpTest(unittest.TestCase):
     def test_remote_manifest_discovery_filters_to_complete_skill_pack(self):
         tree = {"truncated": False, "tree": [
             {"path": "README.md", "type": "blob"},
+            {"path": "shaft-skills/INVENTORY.md", "type": "blob"},
+            {"path": "shaft-skills/QUALITY.md", "type": "blob"},
+            {"path": "shaft-skills/quality-review.json", "type": "blob"},
             {"path": "shaft-skills/evaluation-prompts.md", "type": "blob"},
+            {"path": "shaft-skills/ce-pack/profile.json", "type": "blob"},
+            {"path": "shaft-skills/ce-addons/note.md", "type": "blob"},
             {"path": "shaft-skills/references/shaft-mcp-tools.md", "type": "blob"},
             {"path": "shaft-skills/shaft-developer/SKILL.md", "type": "blob"},
             {"path": "shaft-skills/shaft-developer/references/routing.md", "type": "blob"},
@@ -1063,12 +1137,8 @@ class InstallShaftMcpTest(unittest.TestCase):
             discovered = MODULE.remote_shaft_skill_files()
 
         self.assertEqual((
-            "evaluation-prompts.md",
-            "references/shaft-mcp-tools.md",
             "shaft-developer/SKILL.md",
             "shaft-developer/references/routing.md",
-            "shaft-mcp/SKILL.md",
-            "shaft-mcp/agents/openai.yaml",
         ), discovered)
 
     def test_shaft_skills_dynamic_manifest_is_sorted_and_complete(self):
@@ -1077,7 +1147,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         manifest = MODULE.shaft_skill_files(source)
 
         self.assertEqual(tuple(sorted(manifest)), manifest)
-        self.assertEqual(37, sum(relative.endswith("/SKILL.md") for relative in manifest))
+        self.assertEqual(1, sum(relative.endswith("/SKILL.md") for relative in manifest))
         for relative in manifest:
             self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
@@ -1085,12 +1155,20 @@ class InstallShaftMcpTest(unittest.TestCase):
         source = MODULE.local_shaft_skills_source()
         self.assertIsNotNone(source, "repo checkout should be detected as a shaft-skills source")
         manifest = set(MODULE.shaft_skill_files(source))
-        for skill_md in sorted(source.glob("*/SKILL.md")):
-            for file in skill_md.parent.rglob("*"):
-                if file.is_file():
-                    relative = file.relative_to(source).as_posix()
-                    self.assertIn(relative, manifest,
-                                  f"skill support file missing from download manifest: {relative}")
+        developer = source / "shaft-developer"
+        for file in developer.rglob("*"):
+            if not file.is_file():
+                continue
+            relative = file.relative_to(source).as_posix()
+            if file.name in MODULE.CONSUMER_SKILL_EXCLUDED:
+                self.assertNotIn(relative, manifest)
+            else:
+                self.assertIn(relative, manifest, f"shaft-developer file missing: {relative}")
+        for relative in manifest:
+            self.assertTrue(relative.startswith("shaft-developer/"), relative)
+            self.assertFalse(relative.startswith("ce-pack/") or relative.startswith("ce-addons/"), relative)
+            self.assertNotIn(relative.rsplit("/", 1)[-1], MODULE.CONSUMER_SKILL_EXCLUDED)
+        self.assertEqual(1, sum(relative.endswith("/SKILL.md") for relative in manifest))
 
     def test_marketplace_lists_every_canonical_skill_directory(self):
         """Directories first, `SKILL.md` required second, diff third (#4511).
@@ -1131,16 +1209,32 @@ class InstallShaftMcpTest(unittest.TestCase):
         )
         expected = [f"./{entry.name}" for entry in directories]
 
+        self.assertEqual(["./shaft-developer"], expected)
         self.assertEqual(expected, listed)
-        self.assertIn("./shaft-developer", listed)
+        self.assertEqual("./shaft-skills", next(
+            plugin["source"] for plugin in marketplace["plugins"] if plugin.get("name") == "shaft-skills"
+        ))
+        for plugin in marketplace["plugins"]:
+            source = plugin.get("source", "")
+            self.assertFalse(str(source).startswith("./plugins/"), source)
+            for skill in plugin.get("skills", []):
+                self.assertFalse(str(skill).startswith("./plugins/"), skill)
+        pom = (REPO_ROOT / "shaft-mcp" / "pom.xml").read_text(encoding="utf-8")
+        self.assertIn("<include>shaft-developer/**/*</include>", pom)
+        self.assertNotIn("<include>ce-pack", pom)
+        self.assertNotIn("<include>ce-addons", pom)
+        release = json.loads((REPO_ROOT / "agent-plugins" / "release.json").read_text(encoding="utf-8"))
+        version = next(item["version"] for item in release["packages"] if item["name"] == "shaft-skills")
+        compatibility = (REPO_ROOT / "agent-plugins" / "shaft-skills" / "COMPATIBILITY.md").read_text(encoding="utf-8")
+        self.assertIn(f"`shaft-skills` {version}", compatibility)
 
     def test_readme_routes_agent_setup_without_website_subpaths(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
         self.assertIn("`$shaft-developer`", readme)
         self.assertIn("https://shafthq.github.io/", readme)
-        self.assertIn("shaft-skills/references/shaft-mcp-tools.md", readme)
-        self.assertIn("shaft-skills/references/shaft-cli-commands.md", readme)
+        self.assertIn("shaft-skills/shaft-developer/references/shaft-mcp-tools.md", readme)
+        self.assertIn("shaft-skills/shaft-developer/references/shaft-cli-commands.md", readme)
         self.assertNotIn("act-as-shaft-dev", readme)
         self.assertNotIn("writing-shaft-tests", readme)
 
@@ -1386,6 +1480,117 @@ class InstallShaftMcpTest(unittest.TestCase):
             MODULE.copy_shaft_skills(source, target)
             self.assertEqual(before, (copied / "shaft-developer" / "SKILL.md").stat().st_mtime_ns)
 
+    def test_skills_copy_refuses_a_destination_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "shaft-skills"
+            skill = source / "shaft-developer"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: shaft-developer\n---\npacked\n", encoding="utf-8")
+            outside = root / "outside-skill.md"
+            outside.write_text("outside sentinel\n", encoding="utf-8")
+            target = root / "dest"
+            destination_dir = target / "shaft-developer"
+            destination_dir.mkdir(parents=True)
+            link = destination_dir / "SKILL.md"
+            try:
+                link.symlink_to(outside)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                MODULE.copy_shaft_skills(source, target)
+
+            self.assertEqual("outside sentinel\n", outside.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+
+    def test_skills_copy_refuses_a_symlinked_parent_under_the_skill_root(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "shaft-skills"
+            skill = source / "shaft-developer"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: shaft-developer\n---\npacked\n", encoding="utf-8")
+            outside = root / "outside-skill"
+            outside.mkdir()
+            sentinel = outside / "SKILL.md"
+            sentinel.write_text("outside sentinel\n", encoding="utf-8")
+            target = root / "dest"
+            target.mkdir()
+            try:
+                (target / "shaft-developer").symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                MODULE.copy_shaft_skills(source, target)
+
+            self.assertEqual("outside sentinel\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue((target / "shaft-developer").is_symlink())
+
+    def test_download_agent_validation_script_files_refuses_an_in_project_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            sentinel = target / "sentinel.txt"
+            sentinel.write_text("do-not-touch\n", encoding="utf-8")
+            relative = MODULE.AGENT_VALIDATION_SCRIPT_FILES[0]
+            link = target / relative
+            link.parent.mkdir(parents=True)
+            retired_relative = MODULE.RETIRED_AGENT_VALIDATION_SCRIPT_FILES[0]
+            retired = target / retired_relative
+            try:
+                link.symlink_to(sentinel)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=AssertionError("download")):
+                with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                    MODULE.download_agent_validation_script_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+            link.unlink()
+            retired.parent.mkdir(parents=True, exist_ok=True)
+            retired.symlink_to(sentinel)
+
+            def write_payload(_url, destination, _label, **_kwargs):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text("payload\n", encoding="utf-8")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=write_payload):
+                with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                    MODULE.download_agent_validation_script_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(retired.is_symlink())
+
+    def test_download_shaft_skills_files_refuses_an_interior_symlink(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / ".agents" / "skills"
+            interior = target / "shaft-developer"
+            interior.mkdir(parents=True)
+            sentinel = root / "sentinel.md"
+            sentinel.write_text("do-not-touch\n", encoding="utf-8")
+            link = interior / "SKILL.md"
+            try:
+                link.symlink_to(sentinel)
+            except OSError as error:
+                self.skipTest(f"symlinks unavailable: {error}")
+
+            entries = (
+                ("shaft-developer/SKILL.md", "abc"),
+                ("shaft-developer/agents/openai.yaml", "def"),
+            )
+            with mock.patch.object(MODULE, "remote_shaft_skill_entries", return_value=entries):
+                with mock.patch.object(MODULE, "download_file", side_effect=AssertionError("download")):
+                    with self.assertRaisesRegex(MODULE.InstallError, "symlink or junction"):
+                        MODULE.download_shaft_skills_files(target)
+
+            self.assertEqual("do-not-touch\n", sentinel.read_text(encoding="utf-8"))
+            self.assertTrue(link.is_symlink())
+            self.assertFalse((interior / "agents" / "openai.yaml").exists())
+
     def test_replace_with_retry_recovers_after_transient_denial(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -1544,9 +1749,14 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertIn(str(args_file.resolve()), launcher_content)
             if MODULE.system_name() == "Windows":
                 self.assertEqual("shaft-cli.cmd", launcher.name)
+                alias_name = "shaft.cmd"
             else:
                 self.assertEqual("shaft-cli", launcher.name)
                 self.assertTrue(os.access(launcher, os.X_OK))
+                alias_name = "shaft"
+            alias = launcher.with_name(alias_name)
+            self.assertTrue(alias.is_file(), alias)
+            self.assertIn(str(launcher), alias.read_text(encoding="utf-8"))
 
 
 class _UrlResponse:
@@ -1947,6 +2157,275 @@ class AgenticToolsCeParityTest(unittest.TestCase):
                 self.assertEqual(installed.client, "claude")
                 self.assertEqual(installed.version, "1.0.0")
                 self.assertTrue((root / "install-receipt.rolled-forward.json").is_file())
+
+
+@contextlib.contextmanager
+def isolated_client_home(root: Path):
+    """Home, cwd, and host-config env vars that cannot touch the real user profile."""
+    fake_home = root / "home"
+    cwd = root / "repo"
+    fake_home.mkdir(parents=True)
+    (cwd / ".git").mkdir(parents=True)
+    env = {
+        "HOME": str(fake_home),
+        "USERPROFILE": str(fake_home),
+        "CODEX_HOME": str(fake_home / ".codex"),
+        "GROK_HOME": str(fake_home / ".grok"),
+        "COPILOT_HOME": str(fake_home / ".copilot"),
+        "XDG_CONFIG_HOME": str(fake_home / ".config"),
+        "APPDATA": str(fake_home / "AppData" / "Roaming"),
+        "LOCALAPPDATA": str(fake_home / "AppData" / "Local"),
+    }
+    with temporary_environment(**env), mock.patch.object(
+        MODULE, "home", return_value=fake_home
+    ), temporary_current_directory(cwd):
+        yield fake_home, cwd
+
+
+def _forbid_client_binary(*_args, **_kwargs):
+    raise AssertionError("client binary must stay behind --verify-client")
+
+
+class ConsumerInstallerContractTest(unittest.TestCase):
+    def test_embedded_host_registry_matches_agent_hosts_json(self):
+        on_disk = json.loads(
+            (REPO_ROOT / "scripts" / "mcp" / "agent_hosts.json").read_text(encoding="utf-8")
+        )
+        embedded = json.loads(MODULE.EMBEDDED_AGENT_HOSTS_JSON)
+        self.assertEqual(on_disk, embedded)
+        self.assertEqual(
+            {
+                "codex", "claude", "claude-desktop", "grok", "copilot", "copilot-intellij",
+                "vscode", "opencode", "antigravity", "gemini", "cursor", "intellij-plugin",
+            },
+            {host["id"] for host in on_disk["hosts"]},
+        )
+
+    def test_verify_client_flag_is_off_unless_requested(self):
+        plain = MODULE.parse_args(["--codex"])
+        probed = MODULE.parse_args(["--claude", "--verify-client"])
+        self.assertFalse(plain.verify_client)
+        self.assertTrue(probed.verify_client)
+
+    def test_configure_codex_merges_toml_without_binary_and_rolls_back(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, _cwd):
+                config = fake_home / ".codex" / "config.toml"
+                config.parent.mkdir(parents=True)
+                original = '[mcp_servers.other]\ncommand = "keep"\n'
+                config.write_text(original, encoding="utf-8")
+                with mock.patch.object(MODULE, "require_command", side_effect=_forbid_client_binary):
+                    MODULE.configure_client("codex", java, args_file, verify_client=False)
+                text = config.read_text(encoding="utf-8")
+                parsed = tomllib.loads(text)
+                self.assertEqual(str(java), parsed["mcp_servers"]["shaft-mcp"]["command"])
+                self.assertEqual([f"@{args_file}"], parsed["mcp_servers"]["shaft-mcp"]["args"])
+                self.assertEqual("keep", parsed["mcp_servers"]["other"]["command"])
+                self.assertIn('default_tools_approval_mode = "auto"', text)
+                config.write_text(original, encoding="utf-8")
+                with mock.patch.object(
+                    MODULE, "verify_grok_entry", side_effect=MODULE.InstallError("bad", 5)
+                ):
+                    with self.assertRaises(MODULE.InstallError):
+                        MODULE.configure_codex(java, args_file)
+                self.assertEqual(original, config.read_text(encoding="utf-8"))
+                leftovers = [path.name for path in config.parent.iterdir() if "shaft-mcp-backup" in path.name]
+                self.assertEqual([], leftovers)
+
+    def test_configure_claude_merges_json_without_binary(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, _cwd):
+                config = fake_home / ".claude.json"
+                config.write_text(
+                    json.dumps({"theme": "dark", "mcpServers": {"other": {"command": "keep"}}}),
+                    encoding="utf-8",
+                )
+                with mock.patch.object(MODULE, "require_command", side_effect=_forbid_client_binary):
+                    MODULE.configure_client("claude", java, args_file, verify_client=False)
+                written = json.loads(config.read_text(encoding="utf-8"))
+                self.assertEqual("dark", written["theme"])
+                self.assertEqual("keep", written["mcpServers"]["other"]["command"])
+                self.assertEqual(str(java), written["mcpServers"]["shaft-mcp"]["command"])
+                self.assertEqual([f"@{args_file}"], written["mcpServers"]["shaft-mcp"]["args"])
+
+    def test_verify_client_probes_the_codex_and_claude_binaries(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            payload = json.dumps({"transport": {"command": str(java), "args": [f"@{args_file}"]}})
+            completed = subprocess.CompletedProcess(["client"], 0, payload, "")
+            with isolated_client_home(root), mock.patch.object(
+                MODULE, "require_command", return_value=Path("client")
+            ) as require, mock.patch.object(MODULE, "run_checked", return_value=completed):
+                MODULE.configure_codex(java, args_file, verify_client=True)
+                MODULE.configure_claude_code(java, args_file, verify_client=True)
+            probed = {call.args[0] for call in require.call_args_list}
+            self.assertEqual({"codex", "claude"}, probed)
+
+    def test_claude_desktop_uses_platform_config_paths(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, _cwd):
+                with mock.patch.object(MODULE, "system_name", return_value="Linux"):
+                    MODULE.configure_claude_desktop(java, args_file)
+                linux_path = fake_home / ".config" / "Claude" / "claude_desktop_config.json"
+                self.assertEqual(str(java), json.loads(linux_path.read_text())["mcpServers"]["shaft-mcp"]["command"])
+                with mock.patch.object(MODULE, "system_name", return_value="Darwin"):
+                    MODULE.configure_claude_desktop(java, args_file)
+                mac_path = fake_home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+                self.assertTrue(mac_path.is_file())
+                with mock.patch.object(MODULE, "system_name", return_value="Windows"):
+                    MODULE.configure_claude_desktop(java, args_file)
+                win_path = fake_home / "AppData" / "Roaming" / "Claude" / "claude_desktop_config.json"
+                self.assertTrue(win_path.is_file())
+
+    def test_copilot_intellij_uses_macos_application_support_and_windows_localappdata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, _cwd):
+                with mock.patch.object(MODULE, "system_name", return_value="Darwin"):
+                    MODULE.configure_copilot_intellij(java, args_file)
+                mac_path = (
+                    fake_home / "Library" / "Application Support"
+                    / "github-copilot" / "intellij" / "mcp.json"
+                )
+                entry = json.loads(mac_path.read_text(encoding="utf-8"))["servers"]["shaft-mcp"]
+                self.assertEqual("stdio", entry["type"])
+                self.assertEqual(str(java), entry["command"])
+                self.assertEqual([f"@{args_file}"], entry["args"])
+                with mock.patch.object(MODULE, "system_name", return_value="Windows"):
+                    MODULE.configure_copilot_intellij(java, args_file)
+                win_path = fake_home / "AppData" / "Local" / "github-copilot" / "intellij" / "mcp.json"
+                self.assertTrue(win_path.is_file())
+                with mock.patch.object(MODULE, "system_name", return_value="Linux"):
+                    MODULE.configure_copilot_intellij(java, args_file)
+                linux_path = fake_home / ".config" / "github-copilot" / "intellij" / "mcp.json"
+                self.assertTrue(linux_path.is_file())
+
+    def test_vscode_opencode_cursor_and_gemini_merge_project_or_user_json(self):
+        specs = (
+            ("vscode", ("repo", ".vscode", "mcp.json"), "servers"),
+            ("opencode", ("repo", "opencode.json"), "mcp"),
+            ("cursor", ("home", ".cursor", "mcp.json"), "mcpServers"),
+            ("gemini", ("home", ".gemini", "settings.json"), "mcpServers"),
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, cwd):
+                for client, parts, key in specs:
+                    base = fake_home if parts[0] == "home" else cwd
+                    path = base.joinpath(*parts[1:])
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(
+                        json.dumps({key: {"other": {"command": "keep"}}}),
+                        encoding="utf-8",
+                    )
+                    MODULE.configure_client(client, java, args_file)
+                    written = json.loads(path.read_text(encoding="utf-8"))
+                    entry = written[key]["shaft-mcp"]
+                    self.assertEqual("keep", written[key]["other"]["command"])
+                    if client == "opencode":
+                        self.assertEqual([str(java), f"@{args_file}"], entry["command"])
+                    else:
+                        self.assertEqual(str(java), entry["command"])
+                        self.assertEqual([f"@{args_file}"], entry["args"])
+
+    def test_cursor_project_file_wins_when_it_already_names_shaft(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, cwd):
+                project = cwd / ".cursor" / "mcp.json"
+                project.parent.mkdir(parents=True)
+                project.write_text(
+                    json.dumps({"mcpServers": {
+                        "shaft-mcp": {"command": "old", "args": ["@old"]},
+                        "other": {"command": "keep"},
+                    }}),
+                    encoding="utf-8",
+                )
+                MODULE.configure_cursor(java, args_file)
+                written = json.loads(project.read_text(encoding="utf-8"))
+                self.assertEqual(str(java), written["mcpServers"]["shaft-mcp"]["command"])
+                self.assertEqual("keep", written["mcpServers"]["other"]["command"])
+                self.assertFalse((fake_home / ".cursor" / "mcp.json").exists())
+
+    def test_configure_copilot_merges_without_dropping_siblings(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            completed = subprocess.CompletedProcess(["copilot"], 0, "ok", "")
+            with isolated_client_home(root) as (fake_home, _cwd), mock.patch.object(
+                MODULE, "require_command", return_value=Path("copilot")
+            ), mock.patch.object(MODULE, "run_checked", return_value=completed):
+                config = fake_home / ".copilot" / "mcp-config.json"
+                config.parent.mkdir(parents=True)
+                config.write_text(
+                    json.dumps({"mcpServers": {"other": {"command": "keep"}}}),
+                    encoding="utf-8",
+                )
+                MODULE.configure_copilot(java, args_file)
+            entry = json.loads(config.read_text(encoding="utf-8"))["mcpServers"]
+            self.assertEqual("keep", entry["other"]["command"])
+            self.assertEqual("local", entry["shaft-mcp"]["type"])
+            self.assertEqual(["*"], entry["shaft-mcp"]["tools"])
+            self.assertEqual(str(java), entry["shaft-mcp"]["command"])
+
+    def test_json_merge_restores_the_backup_when_verification_fails(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with isolated_client_home(root) as (fake_home, _cwd):
+                config = fake_home / ".claude.json"
+                original = '{"theme": "dark"}\n'
+                config.write_text(original, encoding="utf-8")
+                with mock.patch.object(
+                    MODULE, "verify_json_entry", side_effect=MODULE.InstallError("bad", 5)
+                ):
+                    with self.assertRaises(MODULE.InstallError):
+                        MODULE.configure_claude_code(java, args_file)
+                self.assertEqual(original, config.read_text(encoding="utf-8"))
+                leftovers = [path.name for path in config.parent.iterdir() if "shaft-mcp-backup" in path.name]
+                self.assertEqual([], leftovers)
+
+    def test_path_shim_installs_shaft_beside_shaft_cli(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            wrapper = root / "shaft-cli"
+            wrapper.write_text("#!/bin/sh\n", encoding="utf-8")
+            fake_home = root / "home"
+            with mock.patch.object(MODULE, "system_name", return_value="Linux"), mock.patch.object(
+                MODULE, "home", return_value=fake_home
+            ):
+                shim = MODULE.install_shaft_cli_shim(wrapper)
+            self.assertEqual(fake_home / ".local" / "bin" / "shaft-cli", shim)
+            for name in ("shaft", "shaft-cli"):
+                path = fake_home / ".local" / "bin" / name
+                self.assertIn(str(wrapper), path.read_text(encoding="utf-8"))
+                self.assertTrue(os.access(path, os.X_OK))
+            alias = wrapper.with_name("shaft")
+            self.assertTrue(alias.is_file())
+            self.assertIn(str(wrapper), alias.read_text(encoding="utf-8"))
+            with mock.patch.object(MODULE, "system_name", return_value="Windows"):
+                filename, body = MODULE._launcher_alias_body(wrapper)
+            self.assertEqual("shaft.cmd", filename)
+            self.assertIn(str(wrapper), body)
 
 
 if __name__ == "__main__":

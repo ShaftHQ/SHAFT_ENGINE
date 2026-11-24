@@ -201,10 +201,7 @@ public class EngineService {
      *                      parameters; only read when {@code engine} is a mobile engine; unset fields
      *                      resolve from {@code SHAFT.Properties} exactly as those tools did
      */
-    @Tool(name = "driver_initialize", description = "launches browser, Playwright, or a mobile session; optional "
-            + "engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, "
-            + "optional nested mobileOptions carries native/web-emulation parameters, absorbing "
-            + "mobile_initialize_native/mobile_initialize_web_emulation")
+    @Tool(name = "driver_initialize", description = "launches a web, Playwright, or mobile session; engine is web, playwright, mobile_native, or mobile_web, and mobileOptions carries device setup")
     /**
      * Starts a driver for the WEB or mobile engine with the given browser and options.
      */

@@ -8,6 +8,6 @@
   "requires": [],
   "router": "shaft-developer/SKILL.md",
   "include": [
-    {"from": "../..", "globs": ["shaft-*/**/*", "references/**/*"]}
+    {"from": "../..", "globs": ["shaft-developer/**/*"]}
   ]
 }

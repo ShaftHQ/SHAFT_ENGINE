@@ -15,6 +15,25 @@ SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 CANONICAL_SKILLS_DIRECTORY = "shaft-skills"
 CANONICAL_EVALS_DIRECTORY = "agent-plugins/shaft-skills/evals"
 PACKAGED_SKILLS_DIRECTORY = "skills"
+CONSUMER_SKILL_PREFIX = "shaft-developer/"
+CONSUMER_SKILL_PACKAGE_PATH = "./skills/shaft-developer"
+CONSUMER_EXCLUDED_PREFIXES = ("ce-pack/", "ce-addons/")
+CONSUMER_EXCLUDED_NAMES = frozenset({
+    "INVENTORY.md",
+    "QUALITY.md",
+    "quality-review.json",
+    "evaluation-prompts.md",
+    "README.md",
+})
+
+
+def include_in_consumer_package(relative: str) -> bool:
+    """True only for the shaft-developer consumer tree, never contributor packs or scorecards."""
+    posix = relative.replace("\\", "/")
+    if posix.startswith(CONSUMER_EXCLUDED_PREFIXES) or not posix.startswith(CONSUMER_SKILL_PREFIX):
+        return False
+    name = posix.rsplit("/", 1)[-1]
+    return name not in CONSUMER_EXCLUDED_NAMES
 
 
 def package_path_for_source(canonical_skills: Path, source: Path) -> Path:
@@ -96,6 +115,7 @@ def write_adapters(package_root: Path, version: str) -> None:
     (claude_adapter / "plugin.json").write_text(
         f'{{"name":"shaft-skills","version":"{version}",'
         '"description":"User-facing SHAFT test-automation skills.",'
+        f'"skills":"{CONSUMER_SKILL_PACKAGE_PATH}",'
         '"author":{"name":"ShaftHQ","url":"https://github.com/ShaftHQ/SHAFT_ENGINE"}}\n',
         encoding="utf-8",
     )
@@ -103,19 +123,38 @@ def write_adapters(package_root: Path, version: str) -> None:
         f'{{"name":"shaft-skills","owner":{{"name":"ShaftHQ"}},'
         f'"description":"Official SHAFT test-automation skills.","plugins":['
         f'{{"name":"shaft-skills","source":"./",'
+        f'"skills":"{CONSUMER_SKILL_PACKAGE_PATH}",'
         f'"description":"User-facing SHAFT test-automation skills.","version":"{version}"}}]}}\n',
         encoding="utf-8",
     )
     codex_adapter = package_root / ".codex-plugin"
     codex_adapter.mkdir()
     (codex_adapter / "plugin.json").write_text(
-        f'{{"name":"shaft-skills","version":"{version}","skills":"./skills/"}}\n', encoding="utf-8"
+        f'{{"name":"shaft-skills","version":"{version}","skills":"{CONSUMER_SKILL_PACKAGE_PATH}"}}\n',
+        encoding="utf-8",
     )
     marketplace = package_root / ".agents/plugins"
     marketplace.mkdir(parents=True)
     (marketplace / "marketplace.json").write_text(
         '{"name":"shaft-skills","plugins":['
-        '{"name":"shaft-skills","source":{"source":"local","path":"./"}}]}\n',
+        '{"name":"shaft-skills","source":{"source":"local","path":"./"},'
+        f'"skills":"{CONSUMER_SKILL_PACKAGE_PATH}"}}]}}\n',
+        encoding="utf-8",
+    )
+    (package_root / "HOSTS.md").write_text(
+        "# SHAFT skills host notes\n\n"
+        "The consumer package ships one entrypoint, `skills/shaft-developer/`.\n\n"
+        "| Host | Skill root | Instruction file |\n"
+        "| --- | --- | --- |\n"
+        "| Claude Code, Claude Desktop | `.claude/skills` | `CLAUDE.md` for Claude Code |\n"
+        "| Codex, Cursor, Grok, Antigravity, Gemini, GitHub Copilot CLI, SHAFT IntelliJ plugin | `.agents/skills` | `AGENTS.md` |\n"
+        "| VS Code | `.agents/skills` | `.github/copilot-instructions.md` |\n"
+        "| GitHub Copilot for IntelliJ IDEA | `.agents/skills` | Skills only. Copilot IntelliJ reads `.agents/skills` and does not use `.github/copilot-instructions.md`. |\n"
+        "| OpenCode | `.opencode/skills` | `AGENTS.md` |\n\n"
+        "VS Code instructions live in `.github/copilot-instructions.md`. GitHub Copilot CLI reads `AGENTS.md`. "
+        "GitHub Copilot for IntelliJ IDEA uses the `.agents/skills` tree and does not read the VS Code instruction file. "
+        "Cursor, OpenCode, Grok, Antigravity, and Gemini use that same `shaft-developer` tree.\n"
+        "Contributor packs (`ce-pack`, `ce-addons`) and CI scorecards are not part of this package.\n",
         encoding="utf-8",
     )
 
@@ -147,6 +186,9 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     write_adapters(package_root, version)
     for source in sorted(tracked_source_files(repository_root)):
         source = require_contained(canonical_skills, source, "canonical skill source")
+        relative = source.relative_to(canonical_skills).as_posix()
+        if not include_in_consumer_package(relative):
+            continue
         target = package_root / package_path_for_source(canonical_skills, source)
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)

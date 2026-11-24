@@ -1,5 +1,6 @@
 package com.shaft.mcp;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +13,7 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
@@ -19,6 +21,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,10 +45,69 @@ public class ShaftProjectService {
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
     private static final String ROUTER_SKILL_NAME = "shaft-developer";
+    private static final String CANONICAL_ROUTER_PATH = ".agents/skills/shaft-developer/SKILL.md";
+    private static final String OPENCODE_ROUTER_PATH = ".opencode/skills/shaft-developer/SKILL.md";
     private static final String SKILL_PACK_MANIFEST = ".shaft-mcp-managed-files";
     private static final String SKILL_PACK_MANIFEST_HEADER = "# SHAFT MCP managed skill files";
-    private static final List<String> ALL_AGENT_HOSTS = List.of("codex", "claude", "vscode", "opencode", "grok");
-    private static final Set<String> AGENT_LOOPS = Set.of("all", "claude", "codex", "opencode", "vscode", "grok");
+    private static final String SHARED_AGENTS_HOST = "agents";
+    /** Hosts with {@code initAgentsSupported} in {@code scripts/mcp/agent_hosts.json}. */
+    private static final List<String> ALL_AGENT_HOSTS = List.of(
+            "codex", "claude", "copilot", "grok", "antigravity", "vscode", "opencode", "gemini", "cursor");
+    /** Hosts whose skill root is the one canonical {@code .agents/skills} tree. */
+    private static final Set<String> CANONICAL_SKILL_HOSTS = Set.of(
+            "codex", "copilot", "grok", "antigravity", "vscode", "gemini", "cursor");
+    /** Hosts that share one managed block in {@code AGENTS.md}. */
+    private static final List<String> AGENTS_MD_HOSTS = List.of(
+            "codex", "copilot", "grok", "antigravity", "opencode", "gemini", "cursor");
+    private static final List<String> LEGACY_SKILL_CLEANUP_ROOTS = List.of(
+            ".agents/skills", ".claude/skills", ".opencode/skills", ".github/skills", ".github/instructions");
+    private static final Set<String> CONSUMER_EXCLUDED_NAMES = Set.of(
+            "INVENTORY.md", "QUALITY.md", "quality-review.json", "evaluation-prompts.md", "README.md");
+    /** Retired directory names from {@code scripts/mcp/agent_hosts.json}. */
+    private static final List<String> RETIRED_SHAFT_SKILL_DIRECTORIES = List.of(
+            "act-as-shaft-dev",
+            "analyzing-shaft-failures",
+            "choosing-shaft-locators",
+            "planning-shaft-tests",
+            "recording-shaft-tests-with-mcp",
+            "shaft-accessibility-testing",
+            "shaft-android-apk-select",
+            "shaft-api-testing",
+            "shaft-assertions",
+            "shaft-automated-test-authoring",
+            "shaft-browserstack-native",
+            "shaft-change-verification",
+            "shaft-cli",
+            "shaft-database-testing",
+            "shaft-defect-reporting",
+            "shaft-docs-hygiene",
+            "shaft-execution-reporting",
+            "shaft-failure-analysis",
+            "shaft-flaky-test-analysis",
+            "shaft-fluent-api",
+            "shaft-guide-search",
+            "shaft-ios-ipa-acceptance",
+            "shaft-locator-design",
+            "shaft-mcp",
+            "shaft-mobile-actions",
+            "shaft-mobile-env",
+            "shaft-mobile-retest-hygiene",
+            "shaft-nonfunctional-test-design",
+            "shaft-page-objects",
+            "shaft-recording-codegen",
+            "shaft-requirements-analysis",
+            "shaft-stakeholder-reporting",
+            "shaft-test-case-design",
+            "shaft-test-completion",
+            "shaft-test-data-design",
+            "shaft-test-environment",
+            "shaft-test-execution",
+            "shaft-test-monitoring",
+            "shaft-test-planning",
+            "shaft-test-recording",
+            "shaft-web-actions",
+            "verifying-and-applying-shaft-changes",
+            "writing-shaft-tests");
     private static final String SHAFT_ENGINE_MAVEN_METADATA_URL =
             "https://repo.maven.apache.org/maven2/io/github/shafthq/shaft-engine/maven-metadata.xml";
     private static final int DEFAULT_COMPILE_TIMEOUT_SECONDS = 900;
@@ -296,31 +358,23 @@ public class ShaftProjectService {
     }
 
     /**
-     * Scaffolds SHAFT agent/skill bridge definitions into an existing test repo for a coding-agent loop.
+     * Installs the self-contained {@code shaft-developer} skill and host instruction files.
      *
-     * <p>Every bridge is generated at call time from the bundled {@code shaft-skills/&lt;skill&gt;/SKILL.md}
-     * guides shipped inside the shaft-mcp jar, rather than a hand-duplicated copy of the full skill text,
-     * so the set of skills and their descriptions always tracks {@code shaft-skills/} as of the shaft-mcp
-     * build. Existing skill files are left untouched unless {@code overwrite} is {@code true}; host
-     * instruction files always preserve user-authored bytes outside SHAFT's managed block. Existing
-     * recognized host adapters are refreshed alongside the selected loop, and {@code all} installs every
-     * supported host adapter.
+     * <p>The canonical tree is {@code .agents/skills/shaft-developer/}. Claude also receives
+     * {@code .claude/skills/shaft-developer/}, and OpenCode receives
+     * {@code .opencode/skills/shaft-developer/}, only when that host is selected. VS Code writes
+     * {@code .github/copilot-instructions.md} pointing at the canonical {@code SKILL.md}. Skills are
+     * not copied into {@code .github/instructions/}. Hosts that share {@code AGENTS.md} receive one
+     * SHAFT managed block. A plain user instruction file does not add another host. Owned legacy
+     * skill directories are removed; unowned skills stay.
      *
-     * <p>A bundled skill whose {@code SKILL.md} frontmatter declares {@code distribution: full} is a
-     * methodology skill whose value lives in its text, so it is scaffolded as its full body instead of a
-     * thin bridge: verbatim for claude/codex/opencode, and with an injected {@code applyTo: "**"} frontmatter
-     * key (body otherwise verbatim) for vscode. Skills without that key keep the thin bridge.
-     *
-     * @param loop all, claude, codex, opencode, vscode, or grok
+     * @param loop {@code all}, or one {@code initAgentsSupported} host from {@code scripts/mcp/agent_hosts.json}
      * @param targetDirectory workspace-relative existing test repo directory
      * @param overwrite whether existing SHAFT-owned skill files may be replaced
      * @return generated agent-scaffolding details
      */
     @Tool(name = "shaft_project_init_agents",
-            description = "scaffolds SHAFT skill bridges and managed host-instruction blocks into an existing "
-                    + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); "
-                    + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
-                    + "overwrite=true")
+            description = "installs the shaft-developer skill and host instructions for one or all coding-agent loops; overwrite=true replaces only SHAFT-owned files")
     /**
      * Writes the AI agent instruction files for the chosen loop into the target folder.
      */
@@ -334,12 +388,8 @@ public class ShaftProjectService {
             Files.createDirectories(target);
             Set<String> hosts = agentHosts(target, selectedLoop);
             Map<String, String> skills = bundledSkillFiles();
-            for (String host : hosts) {
-                if ("grok".equals(host) && hosts.contains("codex")) {
-                    continue;
-                }
-                installSkills(target, host, skills, overwrite, generatedFiles, warnings);
-            }
+            cleanupOwnedRetiredSkills(target);
+            installSkillTrees(target, hosts, skills, overwrite, generatedFiles, warnings);
             installHostAdapters(target, hosts, generatedFiles, warnings);
             return new McpShaftProjectInitAgentsResult(
                     McpShaftProjectInitAgentsResult.CURRENT_SCHEMA_VERSION,
@@ -354,19 +404,10 @@ public class ShaftProjectService {
 
     private static String selectedAgentLoop(String value) {
         String normalized = text(value).toLowerCase(Locale.ROOT);
-        if (AGENT_LOOPS.contains(normalized)) {
+        if ("all".equals(normalized) || ALL_AGENT_HOSTS.contains(normalized)) {
             return normalized;
         }
         throw new IllegalArgumentException("Unsupported SHAFT agent loop: " + value);
-    }
-
-    private static String agentLoopSkillsDirectory(String loop) {
-        return switch (loop) {
-            case "codex", "grok" -> ".agents/skills";
-            case "claude" -> ".claude/skills";
-            case "opencode" -> ".opencode/skills";
-            default -> throw new IllegalArgumentException("Unsupported skill host: " + loop);
-        };
     }
 
     private static Set<String> agentHosts(Path target, String selectedLoop) throws IOException {
@@ -376,42 +417,85 @@ public class ShaftProjectService {
         } else {
             hosts.add(selectedLoop);
         }
-        Path agents = target.resolve("AGENTS.md");
-        if (Files.exists(agents)) {
-            String content = Files.readString(agents, StandardCharsets.UTF_8);
-            boolean openCodeManaged = content.contains(managedBlockStart("opencode"));
-            if (content.contains(managedBlockStart("codex")) || !openCodeManaged) {
-                hosts.add("codex");
-            }
-            if (openCodeManaged) {
-                hosts.add("opencode");
-            }
-            if (content.contains(managedBlockStart("grok"))) {
-                hosts.add("grok");
-            }
-        }
-        if (Files.exists(target.resolve("CLAUDE.md")) || Files.exists(target.resolve(".claude/CLAUDE.md"))) {
-            hosts.add("claude");
-        }
-        if (Files.exists(target.resolve(".github/copilot-instructions.md"))) {
-            hosts.add("vscode");
-        }
+        Path agentsFile = target.resolve("AGENTS.md");
+        recognizeManagedHosts(agentsFile, hosts, AGENTS_MD_HOSTS);
+        recognizeSharedAgentsBlock(agentsFile, hosts);
+        recognizeManagedHost(target.resolve("CLAUDE.md"), hosts, "claude");
+        recognizeManagedHost(target.resolve(".claude/CLAUDE.md"), hosts, "claude");
+        recognizeManagedHost(target.resolve(".github/copilot-instructions.md"), hosts, "vscode");
         return hosts;
     }
 
-    private static void installSkills(
+    private static void recognizeManagedHosts(Path file, Set<String> hosts, List<String> candidates) throws IOException {
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+        for (String host : candidates) {
+            if (content.contains(managedBlockStart(host))) {
+                hosts.add(host);
+            }
+        }
+    }
+
+    private static void recognizeSharedAgentsBlock(Path file, Set<String> hosts) throws IOException {
+        if (!containsManagedBlock(file, SHARED_AGENTS_HOST)) {
+            return;
+        }
+        String content = Files.readString(file, StandardCharsets.UTF_8);
+        if (content.contains(CANONICAL_ROUTER_PATH)) {
+            hosts.add("codex");
+            return;
+        }
+        if (content.contains(OPENCODE_ROUTER_PATH)) {
+            hosts.add("opencode");
+        }
+    }
+
+    private static void recognizeManagedHost(Path file, Set<String> hosts, String host) throws IOException {
+        if (containsManagedBlock(file, host)) {
+            hosts.add(host);
+        }
+    }
+
+    private static boolean containsManagedBlock(Path file, String host) throws IOException {
+        return Files.isRegularFile(file)
+                && Files.readString(file, StandardCharsets.UTF_8).contains(managedBlockStart(host));
+    }
+
+    private static void installSkillTrees(
             Path target,
-            String host,
+            Set<String> hosts,
             Map<String, String> skillFiles,
             boolean overwrite,
             List<Path> generatedFiles,
             List<String> warnings) throws IOException {
-        Path skillRoot = "vscode".equals(host)
-                ? target.resolve(".github/instructions")
-                : target.resolve(agentLoopSkillsDirectory(host));
+        if (hosts.stream().anyMatch(CANONICAL_SKILL_HOSTS::contains)) {
+            installSkills(target.resolve(".agents/skills"), target, skillFiles, overwrite, generatedFiles, warnings);
+        }
+        if (hosts.contains("claude")) {
+            installSkills(target.resolve(".claude/skills"), target, skillFiles, overwrite, generatedFiles, warnings);
+        }
+        if (hosts.contains("opencode")) {
+            installSkills(target.resolve(".opencode/skills"), target, skillFiles, overwrite, generatedFiles, warnings);
+        }
+    }
+
+    private static void installSkills(
+            Path skillRoot,
+            Path target,
+            Map<String, String> skillFiles,
+            boolean overwrite,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
         Set<String> managedFiles = managedSkillFiles(skillRoot, target, warnings);
         for (Map.Entry<String, String> skillFile : skillFiles.entrySet()) {
             String relativePath = skillFile.getKey();
+            Path planned = skillRoot.resolve(relativePath);
+            if (containsLinkOrJunction(planned, target)) {
+                warnings.add("Refusing to write through a symlink or junction: " + planned);
+                continue;
+            }
             Path destination = safeArchiveDestination(skillRoot, relativePath);
             if (writeGeneratedFile(destination, target, skillFile.getValue(), relativePath,
                     managedFiles, overwrite, generatedFiles, warnings)) {
@@ -426,17 +510,9 @@ public class ShaftProjectService {
             Set<String> hosts,
             List<Path> generatedFiles,
             List<String> warnings) throws IOException {
-        if (hosts.contains("codex")) {
-            writeManagedBlock(target.resolve("AGENTS.md"), target, "codex",
-                    ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
-        }
-        if (hosts.contains("grok")) {
-            writeManagedBlock(target.resolve("AGENTS.md"), target, "grok",
-                    ".agents/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
-        }
-        if (hosts.contains("opencode")) {
-            writeManagedBlock(target.resolve("AGENTS.md"), target, "opencode",
-                    ".opencode/skills/shaft-developer/SKILL.md", generatedFiles, warnings);
+        if (hosts.stream().anyMatch(AGENTS_MD_HOSTS::contains)) {
+            writeSharedAgentsBlock(target.resolve("AGENTS.md"), target, agentsRouterPath(hosts),
+                    generatedFiles, warnings);
         }
         if (hosts.contains("claude")) {
             Path rootAdapter = target.resolve("CLAUDE.md");
@@ -454,8 +530,125 @@ public class ShaftProjectService {
         }
         if (hosts.contains("vscode")) {
             writeManagedBlock(target.resolve(".github/copilot-instructions.md"), target, "vscode",
-                    "instructions/shaft-developer/SKILL.md", generatedFiles, warnings);
+                    CANONICAL_ROUTER_PATH, generatedFiles, warnings);
         }
+    }
+
+    private static String agentsRouterPath(Set<String> hosts) {
+        for (String host : hosts) {
+            if (CANONICAL_SKILL_HOSTS.contains(host)) {
+                return CANONICAL_ROUTER_PATH;
+            }
+        }
+        return OPENCODE_ROUTER_PATH;
+    }
+
+    private static void cleanupOwnedRetiredSkills(Path target) throws IOException {
+        for (String relative : LEGACY_SKILL_CLEANUP_ROOTS) {
+            Path root = unlinkedPath(target, relative);
+            if (root == null || !Files.isDirectory(root)) {
+                continue;
+            }
+            for (String name : RETIRED_SHAFT_SKILL_DIRECTORIES) {
+                Path candidate = root.resolve(name);
+                if (isOwnedRetiredShaftSkill(candidate, name)) {
+                    deleteRecursively(candidate);
+                }
+            }
+        }
+    }
+
+    private static @Nullable Path unlinkedPath(Path base, String relative) {
+        Path current = base;
+        for (Path part : Path.of(relative)) {
+            current = current.resolve(part.toString());
+            if (isLinkOrJunction(current)) {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    private static boolean isOwnedRetiredShaftSkill(Path directory, String name) throws IOException {
+        Path agents = directory.resolve("agents");
+        Path skill = directory.resolve("SKILL.md");
+        Path descriptor = agents.resolve("openai.yaml");
+        if (isLinkOrJunction(directory) || isLinkOrJunction(agents)
+                || isLinkOrJunction(skill) || isLinkOrJunction(descriptor)) {
+            return false;
+        }
+        if (!Files.isDirectory(directory) || !Files.isRegularFile(skill) || !Files.isRegularFile(descriptor)) {
+            return false;
+        }
+        return skillDeclaresName(skill, name);
+    }
+
+    private static boolean skillDeclaresName(Path skillFile, String name) throws IOException {
+        for (String line : Files.readAllLines(skillFile, StandardCharsets.UTF_8)) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("name:") && name.equals(trimmed.substring("name:".length()).trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void deleteRecursively(Path root) throws IOException {
+        if (isLinkOrJunction(root) || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        if (Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
+            List<Path> children = new ArrayList<>();
+            try (var stream = Files.newDirectoryStream(root)) {
+                for (Path child : stream) {
+                    children.add(child);
+                }
+            }
+            for (Path child : children) {
+                if (isLinkOrJunction(child)) {
+                    Files.deleteIfExists(child);
+                } else {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        Files.deleteIfExists(root);
+    }
+
+    private static boolean isLinkOrJunction(Path path) {
+        if (Files.isSymbolicLink(path)) {
+            return true;
+        }
+        if (!isWindows()) {
+            return false;
+        }
+        try {
+            if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                return false;
+            }
+            return Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS).isOther();
+        } catch (IOException exception) {
+            return true;
+        }
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static boolean containsLinkOrJunction(Path path, Path root) {
+        Path current = path.toAbsolutePath().normalize();
+        Path boundary = root.toAbsolutePath().normalize();
+        while (current != null && current.startsWith(boundary)) {
+            if (isLinkOrJunction(current)) {
+                return true;
+            }
+            if (current.equals(boundary)) {
+                break;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     private static boolean writeGeneratedFile(
@@ -467,6 +660,10 @@ public class ShaftProjectService {
             boolean overwrite,
             List<Path> generatedFiles,
             List<String> warnings) throws IOException {
+        if (containsLinkOrJunction(destination, targetRoot)) {
+            warnings.add("Refusing to write through a symlink or junction: " + destination);
+            return false;
+        }
         Path normalized = safeDestination(destination, targetRoot);
         if (Files.exists(normalized) && !overwrite) {
             warnings.add("Skipped existing file (overwrite=false): " + normalized);
@@ -531,6 +728,23 @@ public class ShaftProjectService {
         generatedFiles.add(manifest);
     }
 
+    private static void writeSharedAgentsBlock(
+            Path destination,
+            Path targetRoot,
+            String routerPath,
+            List<Path> generatedFiles,
+            List<String> warnings) throws IOException {
+        Path normalized = safeDestination(destination, targetRoot);
+        String current = Files.exists(normalized) ? Files.readString(normalized, StandardCharsets.UTF_8) : "";
+        if (agentsBlockMalformed(current)) {
+            warnings.add("Skipped file with malformed managed block: " + normalized);
+            return;
+        }
+        String newline = newline(current);
+        String updated = collapseAgentsBlocks(current, managedBlock(SHARED_AGENTS_HOST, routerPath, newline), newline);
+        writeChangedText(normalized, current, updated, generatedFiles);
+    }
+
     private static void writeManagedBlock(
             Path destination,
             Path targetRoot,
@@ -540,6 +754,47 @@ public class ShaftProjectService {
             List<String> warnings) throws IOException {
         Path normalized = safeDestination(destination, targetRoot);
         String current = Files.exists(normalized) ? Files.readString(normalized, StandardCharsets.UTF_8) : "";
+        if (malformedManagedBlock(current, host)) {
+            warnings.add("Skipped file with malformed managed block: " + normalized);
+            return;
+        }
+        String newline = newline(current);
+        String block = managedBlock(host, routerPath, newline);
+        String startMarker = managedBlockStart(host);
+        int start = current.indexOf(startMarker);
+        String updated = start < 0
+                ? current + managedBlockSeparator(current, newline) + block
+                : current.substring(0, start) + block
+                + current.substring(current.indexOf(managedBlockEnd(host), start) + managedBlockEnd(host).length());
+        writeChangedText(normalized, current, updated, generatedFiles);
+    }
+
+    private static void writeChangedText(Path destination, String current, String updated, List<Path> generatedFiles)
+            throws IOException {
+        if (current.equals(updated)) {
+            return;
+        }
+        Path parent = destination.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Files.writeString(destination, updated, StandardCharsets.UTF_8);
+        generatedFiles.add(destination);
+    }
+
+    private static boolean agentsBlockMalformed(String current) {
+        if (malformedManagedBlock(current, SHARED_AGENTS_HOST)) {
+            return true;
+        }
+        for (String host : AGENTS_MD_HOSTS) {
+            if (malformedManagedBlock(current, host)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean malformedManagedBlock(String current, String host) {
         String startMarker = managedBlockStart(host);
         String endMarker = managedBlockEnd(host);
         int start = current.indexOf(startMarker);
@@ -547,30 +802,54 @@ public class ShaftProjectService {
         int anyEnd = current.indexOf(endMarker);
         boolean duplicate = start >= 0 && (current.indexOf(startMarker, start + startMarker.length()) >= 0
                 || (end >= 0 && current.indexOf(endMarker, end + endMarker.length()) >= 0));
-        if ((start >= 0 && end < 0) || (start < 0 && anyEnd >= 0) || (anyEnd >= 0 && anyEnd < start) || duplicate) {
-            warnings.add("Skipped file with malformed managed block: " + normalized);
-            return;
-        }
+        return (start >= 0 && end < 0) || (start < 0 && anyEnd >= 0) || (anyEnd >= 0 && anyEnd < start) || duplicate;
+    }
 
-        String newline = newline(current);
-        String block = managedBlock(host, routerPath, newline);
-        String updated;
-        if (start >= 0) {
-            updated = current.substring(0, start) + block + current.substring(end + endMarker.length());
-        } else {
-            updated = current + managedBlockSeparator(current, newline) + block;
+    private static String collapseAgentsBlocks(String current, String block, String newline) {
+        List<ManagedSpan> spans = new ArrayList<>();
+        collectAgentsSpan(current, SHARED_AGENTS_HOST, spans);
+        for (String host : AGENTS_MD_HOSTS) {
+            collectAgentsSpan(current, host, spans);
         }
-        if (current.equals(updated)) {
+        if (spans.isEmpty()) {
+            return current + managedBlockSeparator(current, newline) + block;
+        }
+        spans.sort(Comparator.comparingInt(ManagedSpan::start));
+        StringBuilder updated = new StringBuilder();
+        int cursor = 0;
+        boolean inserted = false;
+        for (ManagedSpan span : spans) {
+            updated.append(current, cursor, span.start());
+            if (!inserted) {
+                updated.append(block);
+                inserted = true;
+            }
+            cursor = span.end();
+        }
+        updated.append(current.substring(cursor));
+        return updated.toString();
+    }
+
+    private static void collectAgentsSpan(String current, String host, List<ManagedSpan> spans) {
+        String startMarker = managedBlockStart(host);
+        int start = current.indexOf(startMarker);
+        if (start < 0) {
             return;
         }
-        Files.createDirectories(normalized.getParent());
-        Files.writeString(normalized, updated, StandardCharsets.UTF_8);
-        generatedFiles.add(normalized);
+        String endMarker = managedBlockEnd(host);
+        int end = current.indexOf(endMarker, start + startMarker.length());
+        if (end >= 0) {
+            spans.add(new ManagedSpan(start, end + endMarker.length()));
+        }
+    }
+
+    private record ManagedSpan(int start, int end) {
     }
 
     private static String managedBlock(String host, String routerPath, String newline) {
+        String heading = SHARED_AGENTS_HOST.equals(host) ? "SHAFT" : "SHAFT " + titleCase(host);
         return managedBlockStart(host) + newline
-                + "## SHAFT " + titleCase(host) + newline + newline
+                + "## " + heading + newline + newline
                 + "Before any SHAFT task, read and follow [`shaft-developer`](" + routerPath + ") as the "
                 + "mandatory router before using any other SHAFT skill or tool." + newline
                 + managedBlockEnd(host);
@@ -596,8 +875,7 @@ public class ShaftProjectService {
     }
 
     /**
-     * Reads the canonical skill pack verbatim so that relative links between the hub, specialist
-     * skills, playbooks, shared references, and examples remain valid in every supported host.
+     * Reads the self-contained {@code shaft-developer} tree. Contributor packs and scorecards stay out.
      */
     private static Map<String, String> bundledSkillFiles() throws IOException {
         Map<String, String> files = new LinkedHashMap<>();
@@ -626,6 +904,7 @@ public class ShaftProjectService {
                             .map(source::relativize)
                             .map(Path::toString)
                             .map(ShaftProjectService::normalizedSkillRelativePath)
+                            .filter(ShaftProjectService::consumerSkillRelative)
                             .sorted()
                             .toList();
                 }
@@ -637,8 +916,10 @@ public class ShaftProjectService {
                     Set<String> paths = new LinkedHashSet<>();
                     for (JarEntry entry : jar.stream().filter(candidate -> !candidate.isDirectory())
                             .filter(candidate -> candidate.getName().startsWith(prefix)).toList()) {
-                        String remainder = entry.getName().substring(prefix.length());
-                        paths.add(normalizedSkillRelativePath(remainder));
+                        String remainder = normalizedSkillRelativePath(entry.getName().substring(prefix.length()));
+                        if (consumerSkillRelative(remainder)) {
+                            paths.add(remainder);
+                        }
                     }
                     return paths.stream().sorted().toList();
                 }
@@ -664,6 +945,18 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Unsafe SHAFT skill resource: " + relativePath);
         }
         return normalized;
+    }
+
+    private static boolean consumerSkillRelative(String relativePath) {
+        if (!relativePath.startsWith(ROUTER_SKILL_NAME + "/")) {
+            return false;
+        }
+        if (relativePath.startsWith("ce-pack/") || relativePath.startsWith("ce-addons/")
+                || relativePath.contains("/ce-pack/") || relativePath.contains("/ce-addons/")) {
+            return false;
+        }
+        String name = relativePath.substring(relativePath.lastIndexOf('/') + 1);
+        return !CONSUMER_EXCLUDED_NAMES.contains(name);
     }
 
     private static String readResourceText(String resourceName) throws IOException {
@@ -863,6 +1156,7 @@ public class ShaftProjectService {
         if (!normalized.startsWith(root)) {
             throw new IllegalArgumentException("Generated project file escaped the output directory.");
         }
+        refuseLinkedWrite(normalized, root);
         try {
             Path existingRoot = root;
             while (existingRoot != null && !Files.exists(existingRoot)) {
@@ -883,6 +1177,13 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Generated project file could not be safely resolved.", exception);
         }
         return normalized;
+    }
+
+    private static void refuseLinkedWrite(Path destination, Path root) {
+        // realpath containment still allows a link whose target sits inside the project.
+        if (containsLinkOrJunction(destination, root)) {
+            throw new IllegalArgumentException("Refusing to write through a symlink or junction: " + destination);
+        }
     }
 
     private static URL resource(String resourceName) throws IOException {

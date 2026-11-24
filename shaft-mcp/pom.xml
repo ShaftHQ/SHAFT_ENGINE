@@ -288,16 +288,13 @@
             </resource>
             <resource>
                 <!--
-                    Bundles the SHAFT skill guides straight from shaft-skills/ so
-                    shaft_project_init_agents can generate loop-specific bridge files from the
-                    live skill content instead of a hand-duplicated copy that would go stale.
-                    The complete canonical pack is included so the installed hub retains its
-                    direct routing, specialist playbooks, catalogs, and examples.
+                    Bundles only the self-contained shaft-developer entrypoint.
+                    Contributor packs and CI scorecards stay out of the consumer JAR.
                 -->
                 <directory>${project.basedir}/../shaft-skills</directory>
                 <targetPath>META-INF/shaft-mcp/shaft-skills</targetPath>
                 <includes>
-                    <include>**/*</include>
+                    <include>shaft-developer/**/*</include>
                 </includes>
                 <filtering>false</filtering>
             </resource>

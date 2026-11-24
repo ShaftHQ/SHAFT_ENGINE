@@ -3,24 +3,52 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+JAVA_SETUP = Path("shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java")
+JAVA_SERVICE = Path("shaft-mcp/src/main/java/com/shaft/mcp/ShaftProjectService.java")
+ASSEMBLER = Path("scripts/ci/assemble_shaft_skills_plugin.py")
+HOST_REGISTRY = Path("scripts/mcp/agent_hosts.json")
 
 
 def parse_targets_from_python(py_file: Path) -> set[str]:
-    """Parse TARGETS tuple from install_shaft_mcp.py using regex."""
+    """Parse TARGETS from a literal tuple or from the host registry the installer loads."""
     content = py_file.read_text(encoding="utf-8")
-    # Match: TARGETS = ("codex", "claude", ...)
-    match = re.search(r'TARGETS\s*=\s*\((.*?)\)', content, re.DOTALL)
+    literal = re.search(r'TARGETS\s*=\s*\((.*?)\)', content, re.DOTALL)
+    if literal:
+        return set(re.findall(r'"([^"]+)"', literal.group(1)))
+    if re.search(r'TARGETS\s*=\s*tuple\(', content):
+        registry = registry_for_installer(py_file)
+        return installer_target_ids(registry) if registry else set()
+    return set()
+
+
+def registry_for_installer(py_file: Path) -> dict | None:
+    """Load the sibling host registry, or the JSON embedded in a standalone installer."""
+    sibling = py_file.with_name("agent_hosts.json")
+    if sibling.is_file():
+        return json.loads(sibling.read_text(encoding="utf-8"))
+    return embedded_registry(py_file.read_text(encoding="utf-8"))
+
+
+def embedded_registry(content: str) -> dict | None:
+    match = re.search(r'EMBEDDED_AGENT_HOSTS_JSON\s*=\s*r"""(.*?)"""', content, re.DOTALL)
     if not match:
-        return set()
-    targets_str = match.group(1)
-    # Extract quoted strings
-    targets = re.findall(r'"([^"]+)"', targets_str)
-    return set(targets)
+        return None
+    loaded = json.loads(match.group(1))
+    return loaded if isinstance(loaded, dict) else None
+
+
+def installer_target_ids(registry: dict) -> set[str]:
+    return {
+        str(host["id"])
+        for host in registry.get("hosts", [])
+        if isinstance(host, dict) and host.get("installerTarget")
+    }
 
 
 def parse_installer_targets_from_java(java_file: Path) -> dict[str, str]:
@@ -74,64 +102,92 @@ def parse_installer_targets_from_java(java_file: Path) -> dict[str, str]:
     return mapping
 
 
+def parse_java_string_list(java_text: str, constant: str) -> list[str]:
+    """Parse a List.of or Set.of string constant. Order follows the source."""
+    match = re.search(
+        rf"\b{re.escape(constant)}\s*=\s*(?:List|Set)\.of\((.*?)\)\s*;",
+        java_text,
+        re.DOTALL,
+    )
+    if not match:
+        return []
+    return re.findall(r'"([^"]+)"', match.group(1))
+
+
+def parse_installer_target_names(java_text: str) -> list[str]:
+    match = re.search(
+        r'static\s+final\s+String\[\]\s+INSTALLER_TARGETS\s*=\s*\{(.*?)\};',
+        java_text,
+        re.DOTALL,
+    )
+    if not match:
+        return []
+    return re.findall(r'"([^"]+)"', match.group(1))
+
+
+def python_installer(root: Path) -> Path | None:
+    primary = root / "scripts/mcp/install_shaft_agentic_tools.py"
+    if primary.is_file():
+        return primary
+    legacy = root / "scripts/mcp/install_shaft_mcp.py"
+    return legacy if legacy.is_file() else None
+
+
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-
-    # Parse TARGETS from the primary Python installer; the old filename is a shim.
-    py_installer = root / "scripts/mcp/install_shaft_agentic_tools.py"
-    if not py_installer.is_file():
-        py_installer = root / "scripts/mcp/install_shaft_mcp.py"
-    if not py_installer.is_file():
-        errors.append(f"missing Python installer: {py_installer}")
+    py_installer = python_installer(root)
+    if py_installer is None:
+        errors.append(f"missing Python installer: {root / 'scripts/mcp/install_shaft_agentic_tools.py'}")
         return errors
-
     targets = parse_targets_from_python(py_installer)
+    java_setup = root / JAVA_SETUP
+    errors.extend(validate_target_parity(py_installer, java_setup, targets))
+    if java_setup.is_file():
+        errors.extend(validate_installer_command(java_setup))
+    errors.extend(validate_installer_scripts(root))
+    errors.extend(validate_registry_parity(root, py_installer))
+    return errors
+
+
+def validate_target_parity(py_installer: Path, java_setup: Path, targets: set[str]) -> list[str]:
+    errors: list[str] = []
     if not targets:
         errors.append(f"unable to parse TARGETS from {py_installer}")
         return errors
-
-    # Parse installer argument mapping from Java
-    java_setup = root / "shaft-intellij/src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java"
     if not java_setup.is_file():
         errors.append(f"missing Java setup panel: {java_setup}")
         return errors
-
-    installer_targets_mapping = parse_installer_targets_from_java(java_setup)
-    if not installer_targets_mapping:
+    mapping = parse_installer_targets_from_java(java_setup)
+    if not mapping:
         errors.append(f"unable to parse INSTALLER_TARGETS or installerArgumentFor from {java_setup}")
         return errors
-
-    # Extract the set of mapped values from Java mapping
-    java_targets = set(installer_targets_mapping.values())
-
-    # Verify set equality
-    if targets != java_targets:
-        missing_in_java = targets - java_targets
-        extra_in_java = java_targets - targets
-
-        if missing_in_java:
-            for target in sorted(missing_in_java):
-                errors.append(
-                    f"target '{target}' is in TARGETS ({py_installer}) "
-                    f"but missing from installerArgumentFor mapping ({java_setup})"
-                )
-
-        if extra_in_java:
-            for target in sorted(extra_in_java):
-                errors.append(
-                    f"target '{target}' is in installerArgumentFor mapping ({java_setup}) "
-                    f"but missing from TARGETS ({py_installer})"
-                )
-
-    # Verify every installer target resolves through the mapping
-    for installer_target, mapped_value in installer_targets_mapping.items():
+    errors.extend(target_set_errors(targets, set(mapping.values()), py_installer, java_setup))
+    for installer_target, mapped_value in mapping.items():
         if mapped_value not in targets:
             errors.append(
                 f"installerArgumentFor('{installer_target}') maps to '{mapped_value}' "
                 f"which is not in TARGETS; check {java_setup} and {py_installer}"
             )
+    return errors
 
-    # Parse and verify installer command references in Java
+
+def target_set_errors(targets: set[str], java_targets: set[str], py_installer: Path, java_setup: Path) -> list[str]:
+    errors: list[str] = []
+    for target in sorted(targets - java_targets):
+        errors.append(
+            f"target '{target}' is in TARGETS ({py_installer}) "
+            f"but missing from installerArgumentFor mapping ({java_setup})"
+        )
+    for target in sorted(java_targets - targets):
+        errors.append(
+            f"target '{target}' is in installerArgumentFor mapping ({java_setup}) "
+            f"but missing from TARGETS ({py_installer})"
+        )
+    return errors
+
+
+def validate_installer_command(java_setup: Path) -> list[str]:
+    errors: list[str] = []
     java_content = java_setup.read_text(encoding="utf-8")
     if "/scripts/mcp/install-shaft-agentic-tools" not in java_content:
         errors.append(
@@ -141,35 +197,134 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append(
             f"installerCommandFor must not copy install-shaft-mcp as the primary command in {java_setup}"
         )
+    return errors
 
-    # Primary inner scripts plus deprecation shims.
-    ps1_installer = root / "scripts/mcp/install-shaft-agentic-tools.ps1"
-    sh_installer = root / "scripts/mcp/install-shaft-agentic-tools.sh"
-    ps1_shim = root / "scripts/mcp/install-shaft-mcp.ps1"
-    sh_shim = root / "scripts/mcp/install-shaft-mcp.sh"
 
-    if not ps1_installer.is_file():
-        errors.append(f"missing Windows installer script: {ps1_installer}")
-    if not sh_installer.is_file():
-        errors.append(f"missing Unix installer script: {sh_installer}")
-    if not ps1_shim.is_file():
-        errors.append(f"missing Windows deprecation shim: {ps1_shim}")
-    elif "deprecat" not in ps1_shim.read_text(encoding="utf-8").casefold():
-        errors.append(f"Windows shim must mention deprecation: {ps1_shim}")
-    if not sh_shim.is_file():
-        errors.append(f"missing Unix deprecation shim: {sh_shim}")
-    elif "deprecat" not in sh_shim.read_text(encoding="utf-8").casefold():
-        errors.append(f"Unix shim must mention deprecation: {sh_shim}")
+def validate_installer_scripts(root: Path) -> list[str]:
+    errors: list[str] = []
+    errors.extend(require_text(root / "scripts/mcp/install-shaft-agentic-tools.ps1", None, "Windows installer script"))
+    errors.extend(require_text(root / "scripts/mcp/install-shaft-agentic-tools.sh", None, "Unix installer script"))
+    errors.extend(require_text(root / "scripts/mcp/install-shaft-mcp.ps1", "deprecat", "Windows deprecation shim"))
+    errors.extend(require_text(root / "scripts/mcp/install-shaft-mcp.sh", "deprecat", "Unix deprecation shim"))
+    errors.extend(one_liner_errors(root))
+    return errors
 
-    # Plugin may still copy the old name until the setup-panel slice; live primary
-    # one-liners must already download the Agentic Tools inner scripts.
-    one_liner_ps1 = root / "scripts/mcp/install.ps1"
-    one_liner_sh = root / "scripts/mcp/install.sh"
-    if one_liner_ps1.is_file() and "install-shaft-agentic-tools.ps1" not in one_liner_ps1.read_text(encoding="utf-8"):
-        errors.append(f"install.ps1 must download install-shaft-agentic-tools.ps1: {one_liner_ps1}")
-    if one_liner_sh.is_file() and "install-shaft-agentic-tools.sh" not in one_liner_sh.read_text(encoding="utf-8"):
-        errors.append(f"install.sh must download install-shaft-agentic-tools.sh: {one_liner_sh}")
 
+def require_text(path: Path, needle: str | None, label: str) -> list[str]:
+    if not path.is_file():
+        return [f"missing {label}: {path}"]
+    if needle is not None and needle not in path.read_text(encoding="utf-8").casefold():
+        return [f"{label} must mention deprecation: {path}"]
+    return []
+
+
+def one_liner_errors(root: Path) -> list[str]:
+    errors: list[str] = []
+    windows = root / "scripts/mcp/install.ps1"
+    unix = root / "scripts/mcp/install.sh"
+    if windows.is_file() and "install-shaft-agentic-tools.ps1" not in windows.read_text(encoding="utf-8"):
+        errors.append(f"install.ps1 must download install-shaft-agentic-tools.ps1: {windows}")
+    if unix.is_file() and "install-shaft-agentic-tools.sh" not in unix.read_text(encoding="utf-8"):
+        errors.append(f"install.sh must download install-shaft-agentic-tools.sh: {unix}")
+    return errors
+
+
+def validate_registry_parity(root: Path, py_installer: Path) -> list[str]:
+    """Exact host parity. Skipped when a fixture has no canonical registry."""
+    registry_path = root / HOST_REGISTRY
+    if not registry_path.is_file():
+        return []
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    errors = embedded_registry_errors(py_installer, registry)
+    errors.extend(service_registry_errors(root / JAVA_SERVICE, registry))
+    errors.extend(panel_registry_errors(root / JAVA_SETUP, registry))
+    errors.extend(assembler_registry_errors(root / ASSEMBLER, registry))
+    return errors
+
+
+def embedded_registry_errors(py_installer: Path, registry: dict) -> list[str]:
+    embedded = embedded_registry(py_installer.read_text(encoding="utf-8"))
+    if embedded is None:
+        return []
+    if embedded != registry:
+        return [f"embedded host registry in {py_installer} differs from {HOST_REGISTRY}"]
+    return []
+
+
+def service_registry_errors(java_service: Path, registry: dict) -> list[str]:
+    if not java_service.is_file():
+        return [f"missing ShaftProjectService: {java_service}"]
+    text = java_service.read_text(encoding="utf-8")
+    hosts = [host for host in registry.get("hosts", []) if isinstance(host, dict)]
+    errors = list_parity_errors(
+        text, "ALL_AGENT_HOSTS",
+        [str(host["id"]) for host in hosts if host.get("initAgentsSupported")],
+        java_service,
+    )
+    errors.extend(list_parity_errors(
+        text, "AGENTS_MD_HOSTS",
+        [str(host["id"]) for host in hosts if host.get("initAgentsSupported") and host.get("instructionFile") == "AGENTS.md"],
+        java_service,
+    ))
+    errors.extend(list_parity_errors(
+        text, "CANONICAL_SKILL_HOSTS",
+        [str(host["id"]) for host in hosts if host.get("initAgentsSupported") and host.get("skillRoot") == ".agents/skills"],
+        java_service,
+    ))
+    errors.extend(list_parity_errors(
+        text, "RETIRED_SHAFT_SKILL_DIRECTORIES",
+        [str(name) for name in registry.get("retiredSkillDirectories", [])],
+        java_service,
+    ))
+    if 'resolve(".github/instructions")' in text:
+        errors.append(f"{java_service} must not copy skills into .github/instructions")
+    if '".github/copilot-instructions.md"' not in text:
+        errors.append(f"{java_service} must write .github/copilot-instructions.md")
+    return errors
+
+
+def list_parity_errors(java_text: str, constant: str, expected: list[str], java_file: Path) -> list[str]:
+    actual = parse_java_string_list(java_text, constant)
+    if actual == expected:
+        return []
+    return [f"{java_file} {constant} is {actual}, expected {expected}"]
+
+
+def panel_registry_errors(java_setup: Path, registry: dict) -> list[str]:
+    if not java_setup.is_file():
+        return [f"missing Java setup panel: {java_setup}"]
+    text = java_setup.read_text(encoding="utf-8")
+    hosts = [host for host in registry.get("hosts", []) if isinstance(host, dict) and host.get("installerTarget")]
+    expected_names = [str(host["intellijTarget"]) for host in hosts]
+    actual_names = parse_installer_target_names(text)
+    errors: list[str] = []
+    if actual_names != expected_names:
+        errors.append(f"{java_setup} INSTALLER_TARGETS is {actual_names}, expected {expected_names}")
+    mapping = parse_installer_targets_from_java(java_setup)
+    for host in hosts:
+        targetName = str(host["intellijTarget"])
+        host_id = str(host["id"])
+        if mapping.get(targetName) != host_id:
+            errors.append(
+                f"{java_setup} installerArgumentFor('{targetName}') is {mapping.get(targetName)!r}, expected {host_id!r}"
+            )
+    return errors
+
+
+def assembler_registry_errors(assembler: Path, registry: dict) -> list[str]:
+    if not assembler.is_file():
+        return [f"missing skills assembler: {assembler}"]
+    text = assembler.read_text(encoding="utf-8")
+    errors: list[str] = []
+    if 'CONSUMER_SKILL_PREFIX = "shaft-developer/"' not in text:
+        errors.append(f"{assembler} must package only shaft-developer/")
+    hosts = [host for host in registry.get("hosts", []) if isinstance(host, dict)]
+    for skill_root in sorted({str(host["skillRoot"]) for host in hosts if host.get("skillRoot")}):
+        if skill_root not in text:
+            errors.append(f"{assembler} is missing skill root {skill_root}")
+    for instruction in sorted({str(host["instructionFile"]) for host in hosts if host.get("instructionFile")}):
+        if instruction not in text and Path(instruction).name not in text:
+            errors.append(f"{assembler} is missing instruction file {instruction}")
     return errors
 
 

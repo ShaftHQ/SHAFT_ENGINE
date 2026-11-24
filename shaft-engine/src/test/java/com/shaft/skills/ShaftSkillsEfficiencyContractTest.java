@@ -10,17 +10,16 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 /**
- * Reads the shipped shaft-skills text. The mobile skill must state the locator tap,
+ * Reads the shipped shaft-skills text. The mobile-actions reference must state the locator tap,
  * forbid coordinate taps, and tell the agent to file silent no-ops upstream.
- * Every #6909 contract row must appear in the skill file it names.
+ * Every #6909 contract row must appear in the single file it names.
  */
 public class ShaftSkillsEfficiencyContractTest {
     @Test
     public void mobileSkillAndEfficiencyContractMatchShippedText() throws Exception {
         Path skills = Path.of("..", "shaft-skills");
-        String mobile = Files.readString(skills.resolve("shaft-mobile-actions/SKILL.md"))
-                + "\n"
-                + Files.readString(skills.resolve("shaft-mobile-actions/references/playbook.md"));
+        String mobile = Files.readString(skills.resolve(
+                "shaft-developer/references/specialists/mobile-actions.md"));
         assertTrue(mobile.contains("driver.touch().tap(locator)"), mobile);
         assertTrue(mobile.contains("Coordinate taps are forbidden."), mobile);
         assertTrue(mobile.contains("File silent no-ops upstream."), mobile);

@@ -17,13 +17,23 @@ from typing import Callable, Mapping
 try:
     from scripts.ci.assemble_shaft_skills_plugin import assemble
     from scripts.ci.shaft_skill_routing_eval import (
+        NATIVE_EVIDENCE_LABELS,
         evaluate_results,
+        native_evidence_clients,
         output_schema,
         package_decision,
+        registry_hosts,
     )
 except ModuleNotFoundError:  # Direct script execution places scripts/ci on sys.path.
     from assemble_shaft_skills_plugin import assemble
-    from shaft_skill_routing_eval import evaluate_results, output_schema, package_decision
+    from shaft_skill_routing_eval import (
+        NATIVE_EVIDENCE_LABELS,
+        evaluate_results,
+        native_evidence_clients,
+        output_schema,
+        package_decision,
+        registry_hosts,
+    )
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_NAME = "shaft-skills"
@@ -33,8 +43,8 @@ LOAD_PROOF_TERMS = (
     "load no adjacent skill preemptively",
 )
 LOAD_PROMPT = (
-    "Use the installed SHAFT router for a request whose immediate output is testable "
-    "requirements and acceptance criteria. Respond in one short line with the chosen "
+    "Use the installed shaft-developer entrypoint for a request whose immediate output is "
+    "testable requirements and acceptance criteria. Respond in one short line with the chosen "
     "specialist's canonical name and the routing-map sentence governing proactive loading "
     "of sibling skills."
 )
@@ -810,7 +820,26 @@ def collect_evidence(
     return redacted
 
 
+def native_registry_error() -> str:
+    """Fail when the canonical host registry drops a native evidence client."""
+    hosts = registry_hosts()
+    if not hosts:
+        return ""
+    missing = sorted(set(NATIVE_EVIDENCE_LABELS) - {host.get("id") for host in hosts})
+    if missing:
+        return f"agent_hosts.json is missing native evidence hosts: {missing}"
+    labels = native_evidence_clients()
+    drifted = sorted(config["display_name"] for config in CLIENTS.values() if config["display_name"] not in labels)
+    if drifted:
+        return f"native client labels drifted from the host registry: {drifted}"
+    return ""
+
+
 def main() -> int:
+    registry_error = native_registry_error()
+    if registry_error:
+        print(registry_error)
+        return 1
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("smoke", "live"), default="smoke")
     parser.add_argument("--output", type=Path, default=Path("agent-plugin-client-evidence.json"))

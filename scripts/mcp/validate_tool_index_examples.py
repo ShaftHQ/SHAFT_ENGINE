@@ -50,7 +50,11 @@ EXAMPLE_SECTION_PATTERN = re.compile(
     r"(?ms)^## .*?(?:[Ee]xamples|[Uu]se cases)\s*$\n(.*?)(?=^## |\Z)"
 )
 EXAMPLE_ITEM_PATTERN = re.compile(r"(?m)^\s*(?:[-*]|\d+[.)])\s+\S|^###\s+\S")
-CATALOG_TOOL_PATTERN = re.compile(r"(?m)^- `([a-z][a-z0-9_]*)`\s+—")
+CATALOG_TOOL_PATTERN = re.compile(r"(?m)^\| `([a-z][a-z0-9_]*)` \|")
+TABLE_ROW_PATTERN = re.compile(r"(?m)^\|.+\|$")
+EXAMPLE_HEADING_PATTERN = re.compile(r"(?m)^## (?:Valid examples|Examples)\s*$")
+BOUNDARY_HEADING_PATTERN = re.compile(r"(?m)^## Boundary(?: case)?\s*$")
+JOURNEY_COVERAGE_MAP = "journey-coverage-map.md"
 EXPLICIT_TOOL_PATTERNS = (
     re.compile(r"shaft-mcp:([a-z][a-z0-9_]*)"),
     re.compile(r"mcp__shaft-mcp__([a-z][a-z0-9_]*)"),
@@ -211,7 +215,7 @@ def _literal_tool_names(path: Path, content: str, skills_root: Path) -> set[str]
         for name in pattern.findall(content)
     }
     names.update(match.group(1) for match in MARKER_PATTERN.finditer(content))
-    if path == skills_root / "references" / "shaft-mcp-tools.md":
+    if path == skills_root / "shaft-developer" / "references" / "shaft-mcp-tools.md":
         names.update(CATALOG_TOOL_PATTERN.findall(content))
     return names
 
@@ -361,9 +365,9 @@ def _validate_local_references(skills_root: Path, canonical_names: set[str]) -> 
 
 
 def _validate_tool_catalog(skills_root: Path, canonical_names: set[str]) -> list[str]:
-    catalog_path = skills_root / "references" / "shaft-mcp-tools.md"
+    catalog_path = skills_root / "shaft-developer" / "references" / "shaft-mcp-tools.md"
     if not catalog_path.is_file():
-        return ["references/shaft-mcp-tools.md: generated MCP catalog is required"]
+        return ["shaft-developer/references/shaft-mcp-tools.md: generated MCP catalog is required"]
 
     catalog_names = CATALOG_TOOL_PATTERN.findall(catalog_path.read_text(encoding="utf-8"))
     missing = sorted(canonical_names - set(catalog_names))
@@ -371,10 +375,92 @@ def _validate_tool_catalog(skills_root: Path, canonical_names: set[str]) -> list
     duplicates = sorted(name for name in set(catalog_names) if catalog_names.count(name) > 1)
     if missing or extra or duplicates:
         return [
-            "references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
+            "shaft-developer/references/shaft-mcp-tools.md: generated catalog differs from canonical tool-index.json "
             f"(missing={missing}, extra={extra}, duplicates={duplicates})"
         ]
     return []
+
+
+def _specialist_identity(raw: str) -> str:
+    """Return a specialists/*.md link, keeping its anchor when one is present."""
+    target = unquote(raw.strip().strip("<>"))
+    if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+        return ""
+    path, _, anchor = target.partition("#")
+    path = path.replace("\\", "/").split("?", 1)[0]
+    marker = "specialists/"
+    index = path.find(marker)
+    if index < 0 or not path.endswith(".md"):
+        return ""
+    relative = path[index:]
+    if anchor:
+        return f"{relative}#{anchor}"
+    return relative
+
+
+def _specialist_link_targets(text: str) -> list[str]:
+    """Collect specialist markdown links from one routing document or table."""
+    return [
+        identity
+        for raw in MARKDOWN_LINK_PATTERN.findall(text)
+        if (identity := _specialist_identity(raw))
+    ]
+
+
+def _duplicate_specialist_links(table_targets: list[str]) -> list[str]:
+    """Fail when one table repeats the same specialist path and anchor."""
+    counts: dict[str, int] = {}
+    for target in table_targets:
+        counts[target] = counts.get(target, 0) + 1
+    problems = []
+    for target, count in sorted(counts.items()):
+        if count > 1:
+            problems.append(
+                "shaft-developer/references/routing.md: "
+                f"duplicate specialist link {target} ({count} links)"
+            )
+    return problems
+
+
+def _specialist_section_problems(path: Path) -> list[str]:
+    """Require examples and a boundary on one routed specialist reference."""
+    text = path.read_text(encoding="utf-8")
+    display = f"shaft-developer/references/specialists/{path.name}"
+    problems: list[str] = []
+    if not EXAMPLE_HEADING_PATTERN.search(text):
+        problems.append(f"{display}: missing required section Valid examples or Examples")
+    if not BOUNDARY_HEADING_PATTERN.search(text):
+        problems.append(f"{display}: missing required section Boundary")
+    example_items = 0
+    for section in EXAMPLE_SECTION_PATTERN.findall(text):
+        example_items += len(EXAMPLE_ITEM_PATTERN.findall(section))
+    if example_items < 2:
+        problems.append(f"{display}: missing required examples")
+    return problems
+
+
+def _validate_routed_specialists(skills_root: Path) -> list[str]:
+    """Require routing.md to link every specialists/*.md file except the journey map."""
+    specialists_dir = skills_root / "shaft-developer" / "references" / "specialists"
+    if not specialists_dir.is_dir():
+        return ["shaft-developer/references/specialists is required"]
+    routing_path = skills_root / "shaft-developer" / "references" / "routing.md"
+    if not routing_path.is_file():
+        return ["shaft-developer/references/routing.md is required"]
+    routing = routing_path.read_text(encoding="utf-8")
+    linked = {target.split("#", 1)[0] for target in _specialist_link_targets(routing)}
+    table_text = "\n".join(TABLE_ROW_PATTERN.findall(routing))
+    problems = _duplicate_specialist_links(_specialist_link_targets(table_text))
+    for path in sorted(specialists_dir.glob("*.md")):
+        if path.name == JOURNEY_COVERAGE_MAP:
+            continue
+        if f"specialists/{path.name}" not in linked:
+            problems.append(
+                "shaft-developer/references/routing.md: "
+                f"missing specialist link {path.name}"
+            )
+        problems.extend(_specialist_section_problems(path))
+    return problems
 
 
 def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
@@ -393,6 +479,7 @@ def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
     return sorted(set(
         _validate_skill_contracts(skills_root, skill_dirs)
         + _validate_hub_contract(skills_root, specialist_names)
+        + _validate_routed_specialists(skills_root)
         + _validate_local_references(skills_root, canonical_names)
         + _validate_tool_catalog(skills_root, canonical_names)
     ))

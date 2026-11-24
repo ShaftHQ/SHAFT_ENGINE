@@ -14,36 +14,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AssistantSkillReadinessTest {
 
     @Test
-    void codexRequiresBothProjectLocalShaftSkills(@TempDir Path projectRoot) throws Exception {
+    void codexRequiresTheShaftDeveloperEntrypoint(@TempDir Path projectRoot) throws Exception {
         AssistantSkillReadiness.Result missing = AssistantSkillReadiness.inspect(projectRoot.toString(), "CODEX");
 
         Path skills = projectRoot.resolve(".agents/skills");
         Files.createDirectories(skills.resolve("shaft-developer"));
         Files.writeString(skills.resolve("shaft-developer/SKILL.md"), "name: shaft-developer");
-        AssistantSkillReadiness.Result partial = AssistantSkillReadiness.inspect(projectRoot.toString(), "CODEX");
-
-        Files.createDirectories(skills.resolve("shaft-recording-codegen"));
-        Files.writeString(skills.resolve("shaft-recording-codegen/SKILL.md"), "name: shaft-recording-codegen");
         AssistantSkillReadiness.Result ready = AssistantSkillReadiness.inspect(projectRoot.toString(), "CODEX");
 
         assertAll(
-                () -> assertEquals(2, missing.missingSkills().size()),
-                () -> assertEquals(java.util.List.of("shaft-recording-codegen"), partial.missingSkills()),
-                () -> assertFalse(partial.ready()),
+                () -> assertEquals(java.util.List.of("shaft-developer"), missing.missingSkills()),
+                () -> assertFalse(missing.ready()),
                 () -> assertTrue(ready.ready()),
                 () -> assertEquals("codex", AssistantSkillReadiness.repairLoop("CODEX")),
                 () -> assertEquals("claude", AssistantSkillReadiness.repairLoop("CLAUDE")),
-                () -> assertEquals("vscode", AssistantSkillReadiness.repairLoop("COPILOT")));
+                () -> assertEquals("copilot", AssistantSkillReadiness.repairLoop("COPILOT")),
+                () -> assertEquals("gemini", AssistantSkillReadiness.repairLoop("GEMINI")));
     }
 
     @Test
-    void copilotReadinessMatchesTheVscodeRepairDestination(@TempDir Path projectRoot) throws Exception {
-        Path skills = projectRoot.resolve(".github/instructions");
-        for (String skill : java.util.List.of("shaft-developer", "shaft-recording-codegen")) {
-            Files.createDirectories(skills.resolve(skill));
-            Files.writeString(skills.resolve(skill).resolve("SKILL.md"), "name: " + skill);
-        }
+    void copilotReadinessUsesTheCanonicalAgentsSkillRoot(@TempDir Path projectRoot) throws Exception {
+        Path skills = projectRoot.resolve(".agents/skills/shaft-developer");
+        Files.createDirectories(skills);
+        Files.writeString(skills.resolve("SKILL.md"), "name: shaft-developer");
 
         assertTrue(AssistantSkillReadiness.inspect(projectRoot.toString(), "COPILOT").ready());
+        assertFalse(AssistantSkillReadiness.inspect(projectRoot.toString(), "OPENCODE").ready());
     }
 }

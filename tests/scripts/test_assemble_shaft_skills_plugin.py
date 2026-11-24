@@ -2,6 +2,7 @@
 
 import json
 import inspect
+import os
 import re
 import shutil
 import subprocess
@@ -12,12 +13,16 @@ from pathlib import Path
 
 try:
     from scripts.ci.assemble_shaft_skills_plugin import (
+        CONSUMER_SKILL_PACKAGE_PATH,
         assemble,
+        include_in_consumer_package,
         package_path_for_source,
         tracked_source_files,
     )
 except ModuleNotFoundError:
+    CONSUMER_SKILL_PACKAGE_PATH = None
     assemble = None
+    include_in_consumer_package = None
     package_path_for_source = None
     tracked_source_files = None
 
@@ -67,9 +72,34 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
                 "license": "MIT",
             },
         )
+        packaged_skills = []
         for source in tracked_source_files(ROOT):
+            relative = source.relative_to(CANONICAL_SKILLS).as_posix()
             target = self.package_root / package_path_for_source(CANONICAL_SKILLS, source)
-            self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+            if include_in_consumer_package(relative):
+                self.assertEqual(target.read_bytes(), source.read_bytes(), target)
+                packaged_skills.append("skills/" + relative)
+            else:
+                self.assertFalse(target.exists(), relative)
+        skill_files = sorted(
+            path.relative_to(self.package_root).as_posix()
+            for path in self.package_root.rglob("*")
+            if path.is_file() and "skills/" in path.relative_to(self.package_root).as_posix()
+        )
+        self.assertEqual(sorted(packaged_skills), [path for path in skill_files if path.startswith("skills/")])
+        self.assertEqual(
+            ["skills/shaft-developer/SKILL.md"],
+            [path for path in skill_files if path.endswith("SKILL.md")],
+        )
+        self.assertEqual(0, sum(path.startswith("skills/ce-pack/") for path in skill_files))
+        self.assertEqual(0, sum(path.startswith("skills/ce-addons/") for path in skill_files))
+        for banned in (
+            "skills/INVENTORY.md",
+            "skills/QUALITY.md",
+            "skills/quality-review.json",
+            "skills/evaluation-prompts.md",
+        ):
+            self.assertNotIn(banned, skill_files)
 
     def test_routing_evals_package_as_metadata_not_as_a_fake_skill(self):
         assemble(ROOT, self.package_root)
@@ -94,6 +124,7 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
         marketplace = json.loads((self.package_root / ".agents/plugins/marketplace.json").read_text(encoding="utf-8"))
 
         self.assertEqual(claude["name"], "shaft-skills")
+        self.assertEqual(claude["skills"], CONSUMER_SKILL_PACKAGE_PATH)
         self.assertEqual(claude_marketplace["name"], "shaft-skills")
         self.assertEqual(claude_marketplace["owner"], {"name": "ShaftHQ"})
         self.assertEqual(claude_marketplace["description"], "Official SHAFT test-automation skills.")
@@ -103,16 +134,25 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
                 {
                     "name": "shaft-skills",
                     "source": "./",
+                    "skills": CONSUMER_SKILL_PACKAGE_PATH,
                     "description": "User-facing SHAFT test-automation skills.",
                     "version": ENGINE_VERSION,
                 }
             ],
         )
-        self.assertEqual(codex, {"name": "shaft-skills", "version": ENGINE_VERSION, "skills": "./skills/"})
+        self.assertEqual(
+            codex,
+            {"name": "shaft-skills", "version": ENGINE_VERSION, "skills": CONSUMER_SKILL_PACKAGE_PATH},
+        )
         self.assertEqual(
             marketplace["plugins"],
-            [{"name": "shaft-skills", "source": {"source": "local", "path": "./"}}],
+            [{
+                "name": "shaft-skills",
+                "source": {"source": "local", "path": "./"},
+                "skills": CONSUMER_SKILL_PACKAGE_PATH,
+            }],
         )
+        self.assertEqual("./skills/shaft-developer", CONSUMER_SKILL_PACKAGE_PATH)
 
     def test_assembly_uses_the_declared_release_version_and_release_files(self):
         self.assertTrue(callable(assemble), "assemble must be available")
@@ -154,20 +194,65 @@ class AssembleShaftSkillsPluginTest(unittest.TestCase):
 
     def test_assembly_is_deterministic_and_ignores_untracked_sources(self):
         self.assertTrue(callable(assemble), "assemble must be available")
-        untracked = CANONICAL_SKILLS / "session-notes.md"
-        untracked.write_text("host state", encoding="utf-8")
-        self.addCleanup(untracked.unlink)
         second_root = self.package_root.parent / "second"
 
         assemble(ROOT, self.package_root)
         assemble(ROOT, second_root)
 
-        self.assertFalse((self.package_root / "skills/session-notes.md").exists())
         first = sorted(path.relative_to(self.package_root) for path in self.package_root.rglob("*") if path.is_file())
         second = sorted(path.relative_to(second_root) for path in second_root.rglob("*") if path.is_file())
         self.assertEqual(first, second)
         for path in first:
             self.assertEqual((self.package_root / path).read_bytes(), (second_root / path).read_bytes(), path)
+        self._assert_untracked_skill_note_stays_out_of_an_isolated_package()
+
+    def _assert_untracked_skill_note_stays_out_of_an_isolated_package(self):
+        """Assemble a committed temp repo and ignore an untracked session note."""
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "Git is required for portable assembly")
+        source_root = self.package_root.parent / "untracked-source"
+        skill = source_root / "shaft-skills/shaft-developer/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("---\nname: shaft-developer\ndescription: Example.\n---\n", encoding="utf-8")
+        (source_root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        changelog = source_root / "agent-plugins/shaft-skills/CHANGELOG.md"
+        changelog.parent.mkdir(parents=True)
+        changelog.write_text("# Test changelog\n", encoding="utf-8")
+        compatibility = source_root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+        compatibility.write_text("# Test compatibility\n", encoding="utf-8")
+        manifest = source_root / "agent-plugins/release.json"
+        manifest.write_text(
+            '{"packages":[{"name":"shaft-skills","version":"1.2.3"}]}\n',
+            encoding="utf-8",
+        )
+        write_test_pom(source_root, "1.2.3")
+        git_env = os.environ.copy()
+        for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR"):
+            git_env.pop(name, None)
+        subprocess.run([git, "init", "--quiet"], cwd=source_root, env=git_env, check=True)  # nosec B603
+        subprocess.run([git, "add", "."], cwd=source_root, env=git_env, check=True)  # nosec B603
+        subprocess.run(  # nosec B603
+            [git, "-c", "user.email=test@example.com", "-c", "user.name=Test",
+             "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "seed shaft-developer"],
+            cwd=source_root,
+            env=git_env,
+            check=True,
+        )
+        untracked = source_root / "shaft-skills/session-notes.md"
+        untracked.write_text("host state", encoding="utf-8")
+        nested_untracked = source_root / "shaft-skills/shaft-developer/references/session-notes.md"
+        nested_untracked.parent.mkdir(parents=True, exist_ok=True)
+        nested_untracked.write_text("host state inside the consumer tree", encoding="utf-8")
+        isolated_package = self.package_root.parent / "untracked-package"
+
+        assemble(source_root, isolated_package)
+
+        self.assertFalse((isolated_package / "skills/session-notes.md").exists())
+        self.assertFalse((isolated_package / "skills/shaft-developer/references/session-notes.md").exists())
+        self.assertEqual(
+            skill.read_text(encoding="utf-8"),
+            (isolated_package / "skills/shaft-developer/SKILL.md").read_text(encoding="utf-8"),
+        )
 
     def test_assembly_keeps_every_relative_markdown_link_inside_the_package(self):
         self.assertTrue(callable(assemble), "assemble must be available")
