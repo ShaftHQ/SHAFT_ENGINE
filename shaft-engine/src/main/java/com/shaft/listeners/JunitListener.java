@@ -14,6 +14,9 @@ import com.shaft.validation.internal.ValidationsHelper;
 import io.qameta.allure.model.Status;
 import lombok.Getter;
 import org.junit.platform.engine.TestExecutionResult;
+import org.junit.platform.engine.UniqueId;
+import org.junit.platform.engine.reporting.FileEntry;
+import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.MethodSource;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
@@ -21,11 +24,16 @@ import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 
 /**
  * JUnit Platform launcher listener that connects Jupiter execution to SHAFT reporting.
@@ -37,93 +45,122 @@ public class JunitListener implements LauncherSessionListener {
     private static final ExecutionCountsTracker countsTracker = new ExecutionCountsTracker();
     private static long executionStartTime;
     private static boolean isEngineReady = false;
+    private static final String ALLURE_LISTENER_DEACTIVATE = "junit.platform.execution.listeners.deactivate";
+    private static final String ALLURE_JUNIT_PLATFORM_LISTENER = "io.qameta.allure.junitplatform.AllureJunitPlatform";
     @Getter
     private static volatile Boolean isLastFinishedTestOK = true;
 
+    static {
+        // JUnit keeps only the first junit-platform.properties on the classpath.
+        // shaft-engine tests also ship one under test resources, which would hide
+        // the deactivation in the main resource. System properties are consulted
+        // first, and this class is loaded before auto-registered listeners.
+        publishAllureDeactivationProperty();
+    }
+
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        if (!isEngineReady) {
-            session.getLauncher().registerTestExecutionListeners(new TestExecutionListener() {
-                @Override
-                public void testPlanExecutionStarted(TestPlan testPlan) {
-                    executionStartTime = System.currentTimeMillis();
-                    passedTests.clear();
-                    failedTests.clear();
-                    skippedTests.clear();
-                    countsTracker.clear();
-                    ExecutionLifecycleHelper.engineSetup(ProjectStructureManager.RunType.JUNIT);
-                    isEngineReady = true;
-                }
-
-                @Override
-                public void testPlanExecutionFinished(TestPlan testPlan) {
-                    engineTearDown();
-                }
-
-                @Override
-                public void executionSkipped(TestIdentifier testIdentifier, String reason) {
-                    if (testIdentifier.isTest()) {
-                        try {
-                            TestExecutionInfo info = toTestExecutionInfo(testIdentifier,
-                                    new org.opentest4j.TestAbortedException(reason));
-                            ReportContext.start(info);
-                            ReportContext.setStatus(Status.SKIPPED);
-                            afterInvocation(info);
-                            onTestSkipped(testIdentifier, reason, info);
-                        } finally {
-                            ReportContext.clearPreservingSensitiveEvidence();
-                        }
-                    }
-                }
-
-                @Override
-                public void executionStarted(TestIdentifier testIdentifier) {
-                    if (testIdentifier.isTest()) {
-                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, null);
-                        ReportContext.start(info);
-                        ReportContext.setStatus(Status.PASSED);
-                        JunitListenerHelper.setTestName(testIdentifier);
-                        ExecutionLifecycleHelper.logTestInformation(info);
-                    }
-                }
-
-                @Override
-                public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-                    if (!testIdentifier.isTest()) {
-                        return;
-                    }
-                    try {
-                        Throwable throwable = resolveThrowable(testExecutionResult);
-                        TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
-                        ReportContext.update(info);
-                        ReportContext.setStatus(toAllureStatus(testExecutionResult));
-                        switch (testExecutionResult.getStatus()) {
-                            case SUCCESSFUL -> {
-                                AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
-                                if (verificationError != null) {
-                                    ValidationsHelper.attachVerificationSummary();
-                                    ValidationsHelper.resetVerificationStateAfterFailing();
-                                    TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
-                                    ReportContext.update(failedInfo);
-                                    ReportContext.setStatus(Status.FAILED);
-                                    afterInvocation(failedInfo);
-                                    onTestFailure(testIdentifier, verificationError, failedInfo);
-                                } else {
-                                    afterInvocation(info);
-                                    onTestSuccess(testIdentifier, info);
-                                }
-                            }
-                            case FAILED, ABORTED -> {
-                                afterInvocation(info);
-                                onTestFailure(testIdentifier, throwable, info);
-                            }
-                        }
-                    } finally {
-                        ReportContext.clearPreservingSensitiveEvidence();
-                    }
-                }
-            });
+        // Surefire 3.6.1 runs TestNG on the JUnit Platform testng-engine. The SPI
+        // Allure listener is deactivated and replaced with a filtered copy so
+        // Jupiter reporting stays while TestNG remains on AllureTestNg.
+        if (isAllureJunitPlatformDeactivated()) {
+            TestExecutionListener allureListener = newAllureJunitPlatformListener();
+            if (allureListener != null) {
+                session.getLauncher().registerTestExecutionListeners(createFilteredAllureListener(allureListener));
+            }
         }
+        if (!isEngineReady) {
+            session.getLauncher().registerTestExecutionListeners(new ShaftJunitExecutionListener());
+        }
+    }
+
+    static boolean isTestNgEngine(TestIdentifier testIdentifier) {
+        List<UniqueId.Segment> segments = testIdentifier.getUniqueIdObject().getSegments();
+        for (int index = segments.size() - 1; index >= 0; index--) {
+            UniqueId.Segment segment = segments.get(index);
+            if ("engine".equals(segment.getType())) {
+                return "testng".equals(segment.getValue());
+            }
+        }
+        return false;
+    }
+
+    static boolean hasNonTestNgTests(TestPlan testPlan) {
+        return testPlan.getRoots().stream().anyMatch(root -> !isTestNgEngine(root)
+                && (root.isTest() || testPlan.getDescendants(root).stream()
+                .anyMatch(id -> id.isTest() && !isTestNgEngine(id))));
+    }
+
+    static TestExecutionListener createFilteredAllureListener(TestExecutionListener delegate) {
+        return new FilteredAllureListener(delegate);
+    }
+
+    /**
+     * allure-jupiter depends on allure-junit-platform at runtime, so the listener
+     * class is not visible to shaft-engine compilation.
+     */
+    private static TestExecutionListener newAllureJunitPlatformListener() {
+        try {
+            Class<?> type = Class.forName("io.qameta.allure.junitplatform.AllureJunitPlatform");
+            Object listener = type.getDeclaredConstructor().newInstance();
+            if (listener instanceof TestExecutionListener executionListener) {
+                return executionListener;
+            }
+            return null;
+        } catch (ClassNotFoundException exception) {
+            return null;
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to construct AllureJunitPlatform.", exception);
+        }
+    }
+
+    private static void publishAllureDeactivationProperty() {
+        String current = System.getProperty(ALLURE_LISTENER_DEACTIVATE);
+        if (deactivatesAllureJunitPlatform(current) || !classpathDeactivatesAllureJunitPlatform()) {
+            return;
+        }
+        String updated = current == null || current.isBlank()
+                ? ALLURE_JUNIT_PLATFORM_LISTENER
+                : current + "," + ALLURE_JUNIT_PLATFORM_LISTENER;
+        System.setProperty(ALLURE_LISTENER_DEACTIVATE, updated);
+    }
+
+    private static boolean isAllureJunitPlatformDeactivated() {
+        return deactivatesAllureJunitPlatform(System.getProperty(ALLURE_LISTENER_DEACTIVATE))
+                || classpathDeactivatesAllureJunitPlatform();
+    }
+
+    private static boolean deactivatesAllureJunitPlatform(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return false;
+        }
+        return raw.contains("AllureJunitPlatform") || raw.contains("*");
+    }
+
+    private static boolean classpathDeactivatesAllureJunitPlatform() {
+        return resourcesDeactivateAllure(Thread.currentThread().getContextClassLoader())
+                || resourcesDeactivateAllure(JunitListener.class.getClassLoader());
+    }
+
+    private static boolean resourcesDeactivateAllure(ClassLoader loader) {
+        if (loader == null) {
+            return false;
+        }
+        try {
+            Enumeration<URL> resources = loader.getResources("junit-platform.properties");
+            while (resources.hasMoreElements()) {
+                try (InputStream input = resources.nextElement().openStream()) {
+                    Properties properties = new Properties();
+                    properties.load(input);
+                    if (deactivatesAllureJunitPlatform(properties.getProperty(ALLURE_LISTENER_DEACTIVATE))) {
+                        return true;
+                    }
+                }
+            }
+        } catch (IOException ignored) {
+            return false;
+        }
+        return false;
     }
 
     private void engineTearDown() {
@@ -238,5 +275,179 @@ public class JunitListener implements LauncherSessionListener {
             case ABORTED -> Status.SKIPPED;
             default -> Status.PASSED;
         };
+    }
+
+    private final class ShaftJunitExecutionListener implements TestExecutionListener {
+        private boolean activeForCurrentPlan = false;
+
+        @Override
+        public void testPlanExecutionStarted(TestPlan testPlan) {
+            if (!hasNonTestNgTests(testPlan)) {
+                activeForCurrentPlan = false;
+                return;
+            }
+            activeForCurrentPlan = true;
+            executionStartTime = System.currentTimeMillis();
+            passedTests.clear();
+            failedTests.clear();
+            skippedTests.clear();
+            countsTracker.clear();
+            ExecutionLifecycleHelper.engineSetup(ProjectStructureManager.RunType.JUNIT);
+            isEngineReady = true;
+        }
+
+        @Override
+        public void testPlanExecutionFinished(TestPlan testPlan) {
+            if (!activeForCurrentPlan) {
+                return;
+            }
+            activeForCurrentPlan = false;
+            engineTearDown();
+        }
+
+        @Override
+        public void executionSkipped(TestIdentifier testIdentifier, String reason) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            if (testIdentifier.isTest()) {
+                try {
+                    TestExecutionInfo info = toTestExecutionInfo(testIdentifier,
+                            new org.opentest4j.TestAbortedException(reason));
+                    ReportContext.start(info);
+                    ReportContext.setStatus(Status.SKIPPED);
+                    afterInvocation(info);
+                    onTestSkipped(testIdentifier, reason, info);
+                } finally {
+                    ReportContext.clearPreservingSensitiveEvidence();
+                }
+            }
+        }
+
+        @Override
+        public void executionStarted(TestIdentifier testIdentifier) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            if (testIdentifier.isTest()) {
+                TestExecutionInfo info = toTestExecutionInfo(testIdentifier, null);
+                ReportContext.start(info);
+                ReportContext.setStatus(Status.PASSED);
+                JunitListenerHelper.setTestName(testIdentifier);
+                ExecutionLifecycleHelper.logTestInformation(info);
+            }
+        }
+
+        @Override
+        public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            if (!testIdentifier.isTest()) {
+                return;
+            }
+            try {
+                Throwable throwable = resolveThrowable(testExecutionResult);
+                TestExecutionInfo info = toTestExecutionInfo(testIdentifier, throwable);
+                ReportContext.update(info);
+                ReportContext.setStatus(toAllureStatus(testExecutionResult));
+                switch (testExecutionResult.getStatus()) {
+                    case SUCCESSFUL -> {
+                        AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
+                        if (verificationError != null) {
+                            ValidationsHelper.attachVerificationSummary();
+                            ValidationsHelper.resetVerificationStateAfterFailing();
+                            TestExecutionInfo failedInfo = toTestExecutionInfo(testIdentifier, verificationError);
+                            ReportContext.update(failedInfo);
+                            ReportContext.setStatus(Status.FAILED);
+                            afterInvocation(failedInfo);
+                            onTestFailure(testIdentifier, verificationError, failedInfo);
+                        } else {
+                            afterInvocation(info);
+                            onTestSuccess(testIdentifier, info);
+                        }
+                    }
+                    case FAILED, ABORTED -> {
+                        afterInvocation(info);
+                        onTestFailure(testIdentifier, throwable, info);
+                    }
+                }
+            } finally {
+                ReportContext.clearPreservingSensitiveEvidence();
+            }
+        }
+    }
+
+    private static final class FilteredAllureListener implements TestExecutionListener {
+        private final TestExecutionListener delegate;
+        private boolean activeForCurrentPlan = false;
+
+        private FilteredAllureListener(TestExecutionListener delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void testPlanExecutionStarted(TestPlan testPlan) {
+            activeForCurrentPlan = hasNonTestNgTests(testPlan);
+            if (activeForCurrentPlan) {
+                delegate.testPlanExecutionStarted(testPlan);
+            }
+        }
+
+        @Override
+        public void testPlanExecutionFinished(TestPlan testPlan) {
+            if (activeForCurrentPlan) {
+                activeForCurrentPlan = false;
+                delegate.testPlanExecutionFinished(testPlan);
+            }
+        }
+
+        @Override
+        public void dynamicTestRegistered(TestIdentifier testIdentifier) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.dynamicTestRegistered(testIdentifier);
+        }
+
+        @Override
+        public void executionSkipped(TestIdentifier testIdentifier, String reason) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.executionSkipped(testIdentifier, reason);
+        }
+
+        @Override
+        public void executionStarted(TestIdentifier testIdentifier) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.executionStarted(testIdentifier);
+        }
+
+        @Override
+        public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.executionFinished(testIdentifier, testExecutionResult);
+        }
+
+        @Override
+        public void reportingEntryPublished(TestIdentifier testIdentifier, ReportEntry entry) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.reportingEntryPublished(testIdentifier, entry);
+        }
+
+        @Override
+        public void fileEntryPublished(TestIdentifier testIdentifier, FileEntry file) {
+            if (!activeForCurrentPlan || isTestNgEngine(testIdentifier)) {
+                return;
+            }
+            delegate.fileEntryPublished(testIdentifier, file);
+        }
     }
 }

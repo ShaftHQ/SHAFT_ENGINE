@@ -105,8 +105,8 @@ table. Remove a row only in the same change that deletes its workflow.
   surface when those paths change.
 - `Unit Tests (shaft-engine-shard-1|2|3|4|5)` split the unchanged shaft-engine
   `-Dtest` selector with `scripts/ci/shard_test_selector.py` (package glob vs
-  named classes); each shard verifies `testng-results.xml` and uploads its own
-  coverage (#6188).
+  named classes); each shard verifies `TEST-*.xml` (with `testng-results.xml`
+  fallback) and uploads its own coverage (#6188).
 - Label and body edits re-run only `release-note-governance.yml`; PR Gate
   ignores them. Both `PR Gate Summary` and `Release-note governance` are
   required status checks (#6190).

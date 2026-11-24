@@ -68,10 +68,7 @@ class PlaywrightTraceViewerAssetsTest {
         String actualDriverVersion = driverVersion();
         Assert.assertTrue(actualDriverVersion.matches("\\d+\\.\\d+\\.\\d+"),
                 "Playwright driver version must be semantic x.y.z: " + actualDriverVersion);
-        Assert.assertEquals(actualDriverVersion.split("\\.")[0], manifestVersion.split("\\.")[0],
-                "Playwright driver major version drifted from provenance manifest: driver="
-                        + actualDriverVersion + ", manifest=" + manifestVersion);
-        boolean exactPin = actualDriverVersion.equals(manifestVersion);
+        Assert.assertEquals(actualDriverVersion, manifestVersion, "Playwright driver version drifted from provenance manifest: driver=" + actualDriverVersion + ", manifest=" + manifestVersion);
         for (ExpectedAsset asset : assets) {
             Assert.assertTrue(asset.size() > 0, "Manifest asset size must be positive: " + asset.path());
             Assert.assertTrue(asset.sha256().matches("[0-9a-f]{64}"),
@@ -81,10 +78,8 @@ class PlaywrightTraceViewerAssetsTest {
                         "The Playwright driver dependency is missing required trace-viewer asset " + asset.path());
                 byte[] bytes = input.readAllBytes();
                 Assert.assertTrue(bytes.length > 0, "Packaged trace-viewer asset is empty: " + asset.path());
-                if (exactPin) {
-                    Assert.assertEquals(bytes.length, asset.size(), "Asset size drift: " + asset.path());
-                    Assert.assertEquals(sha256(bytes), asset.sha256(), "Asset digest drift: " + asset.path());
-                }
+                Assert.assertEquals(bytes.length, asset.size(), "Asset size drift: " + asset.path());
+                Assert.assertEquals(sha256(bytes), asset.sha256(), "Asset digest drift: " + asset.path());
             }
         }
     }

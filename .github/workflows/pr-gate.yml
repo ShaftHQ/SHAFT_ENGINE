@@ -910,7 +910,7 @@ jobs:
   # scripts/ci/shard_test_selector.py puts the package glob in shard 1 and
   # deals the named classes across shards 2 through 5; their union is exactly the
   # selector (pinned by tests/scripts/test_shard_test_selector.py). Each shard
-  # verifies its own testng-results.xml and uploads its own coverage.
+  # verifies its own TEST-*.xml (with testng-results.xml fallback) and uploads its own coverage.
   unit-tests:
     name: Unit Tests (${{ matrix.leg || matrix.module }})
     needs: changes
