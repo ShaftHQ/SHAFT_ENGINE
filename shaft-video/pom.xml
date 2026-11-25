@@ -28,7 +28,7 @@
         <dependency>
             <groupId>ws.schild</groupId>
             <artifactId>jave-core</artifactId>
-            <version>3.5.0</version>
+            <version>4.2.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
