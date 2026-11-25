@@ -129,7 +129,7 @@
                 <dependency>
                     <groupId>ws.schild</groupId>
                     <artifactId>jave-nativebin-linux64</artifactId>
-                    <version>3.5.0</version>
+                    <version>4.2.0</version>
                 </dependency>
             </dependencies>
         </profile>
