@@ -143,52 +143,61 @@ jobs:
         run: >-
           bash scripts/ci/build_retry.sh 2 60
           mvn -pl shaft-visual -am -e install "-DskipTests" "-Dgpg.skip"
-      - name: Preflight and warm up Safari WebDriver
+      - name: Bisect Safari session failure (capabilities vs Selenium 4.52 vs Surefire fork)
         shell: bash
         run: |
-          sw_vers
-          safaridriver --version || true
-          defaults read /Applications/Safari.app/Contents/Info CFBundleShortVersionString || true
-          echo "=== Probe 1: bare safaridriver BEFORE --enable/warmup ==="
-          safaridriver -p 4444 >/tmp/sd1.log 2>&1 &
+          echo "=== Test A: curl with exact SHAFT capabilities ==="
+          killall -9 safaridriver Safari 2>/dev/null || true
+          safaridriver -p 4444 >/tmp/sd_a.log 2>&1 &
           SD_PID=$!
           sleep 2
-          curl -sS --max-time 65 -X POST http://127.0.0.1:4444/session \
+          curl -sS --max-time 45 -X POST http://127.0.0.1:4444/session \
             -H 'Content-Type: application/json' \
-            -d '{"capabilities":{"alwaysMatch":{"browserName":"safari"}}}' | tee /tmp/sd1_resp.json || true
+            -d '{"capabilities":{"firstMatch":[{"browserName":"safari","pageLoadStrategy":"eager","timeouts":{"pageLoad":30000,"script":30000},"unhandledPromptBehavior":"ignore"}]}}' | tee /tmp/sd_a_resp.json || true
           echo ""
-          SID=$(python3 -c 'import json; d=json.load(open("/tmp/sd1_resp.json")); print((d.get("value") or {}).get("sessionId",""))' 2>/dev/null || true)
+          SID=$(python3 -c 'import json; d=json.load(open("/tmp/sd_a_resp.json")); print((d.get("value") or {}).get("sessionId",""))' 2>/dev/null || true)
           if [ -n "$SID" ]; then
-            echo "Probe 1 SUCCEEDED (sessionId=$SID)"
+            echo "TEST_A_SHAFT_CAPS=PASS (sessionId=$SID)"
             curl -sS -X DELETE "http://127.0.0.1:4444/session/$SID" >/dev/null || true
           else
-            echo "Probe 1 FAILED; enabling safaridriver and warming Safari..."
-            kill $SD_PID 2>/dev/null || true
-            killall -9 safaridriver Safari 2>/dev/null || true
-            sudo safaridriver --enable || true
-            open -a Safari || true
-            sleep 5
-            osascript -e 'quit app "Safari"' 2>/dev/null || true
-            sleep 2
-            killall -9 safaridriver Safari 2>/dev/null || true
-            safaridriver -p 4445 >/tmp/sd2.log 2>&1 &
-            SD_PID=$!
-            sleep 2
-            echo "=== Probe 2: bare safaridriver AFTER --enable/warmup ==="
-            curl -sS --max-time 65 -X POST http://127.0.0.1:4445/session \
-              -H 'Content-Type: application/json' \
-              -d '{"capabilities":{"alwaysMatch":{"browserName":"safari"}}}' | tee /tmp/sd2_resp.json || true
-            echo ""
-            SID=$(python3 -c 'import json; d=json.load(open("/tmp/sd2_resp.json")); print((d.get("value") or {}).get("sessionId",""))' 2>/dev/null || true)
-            if [ -n "$SID" ]; then
-              echo "Probe 2 SUCCEEDED (sessionId=$SID)"
-              curl -sS -X DELETE "http://127.0.0.1:4445/session/$SID" >/dev/null || true
-            else
-              echo "Probe 2 FAILED too!"
-            fi
+            echo "TEST_A_SHAFT_CAPS=FAIL"
           fi
           kill $SD_PID 2>/dev/null || true
-          killall safaridriver Safari 2>/dev/null || true
+          killall -9 safaridriver Safari 2>/dev/null || true
+          sleep 2
+
+          echo "=== Test B: Maven with Selenium 4.52.0 (1 retry) ==="
+          mvn -pl shaft-engine -am -e test \
+            "-Dselenium.version=4.52.0" \
+            "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" \
+            "-DincludeVisualTestRuntime" \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DsetParallelMode=NONE" \
+            "-DretryMaximumNumberOfAttempts=0" \
+            "-DexecutionAddress=local" \
+            "-DtargetOperatingSystem=MAC" \
+            "-DtargetBrowserName=safari" \
+            "-Dshaft.shard=1/1" \
+            "-Dtest=testPackage.SHAFTWizard.FluentGuiActionsTest" \
+            "-DtestFailureIgnore=false" && echo "TEST_B_SELENIUM_4_52=PASS" || echo "TEST_B_SELENIUM_4_52=FAIL"
+          killall -9 safaridriver Safari 2>/dev/null || true
+          sleep 2
+
+          echo "=== Test C: Maven with Selenium 4.53.0 and forkCount=0 ==="
+          mvn -pl shaft-engine -am -e test \
+            "-DforkCount=0" \
+            "-Dshaft.surefire.excludeJUnitEngines=junit-jupiter" \
+            "-DincludeVisualTestRuntime" \
+            "-DdefaultElementIdentificationTimeout=5" \
+            "-DsetParallelMode=NONE" \
+            "-DretryMaximumNumberOfAttempts=0" \
+            "-DexecutionAddress=local" \
+            "-DtargetOperatingSystem=MAC" \
+            "-DtargetBrowserName=safari" \
+            "-Dshaft.shard=1/1" \
+            "-Dtest=testPackage.SHAFTWizard.FluentGuiActionsTest" \
+            "-DtestFailureIgnore=false" && echo "TEST_C_FORKCOUNT_0=PASS" || echo "TEST_C_FORKCOUNT_0=FAIL"
+          killall -9 safaridriver Safari 2>/dev/null || true
           sleep 2
       - name: Run tests
         continue-on-error: true
