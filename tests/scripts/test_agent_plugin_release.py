@@ -2,6 +2,9 @@
 
 import json
 import hashlib
+import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -68,6 +71,91 @@ class AgentPluginReleaseTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "stable SemVer"):
             load_release_manifest(root)
+
+    def test_release_manifest_accepts_same_day_hotfix_version(self):
+        version = "10.4.20261125.1"
+        root = self.write_manifest(
+            {"packages": [{"name": "shaft-skills", "version": version}]},
+            pom_version=version,
+        )
+
+        self.assertEqual(load_release_manifest(root), {"shaft-skills": version})
+
+    def test_release_manifest_rejects_unstable_and_malformed_versions(self):
+        for version in (
+            "10.4.20261125.0",
+            "10.4.20261125-alpha",
+            "10.4.20261125-SNAPSHOT",
+            "1.0.0-alpha",
+            "1.2.3.4.5",
+        ):
+            with self.subTest(version=version):
+                root = self.write_manifest(
+                    {"packages": [{"name": "shaft-skills", "version": version}]},
+                    pom_version=version,
+                )
+                with self.assertRaisesRegex(ValueError, "stable SemVer"):
+                    load_release_manifest(root)
+
+    def write_release_repository(self, version: str) -> Path:
+        """Create a tracked minimal source tree for one released version."""
+        temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary_directory.cleanup)
+        root = Path(temporary_directory.name)
+        (root / "agent-plugins/shaft-skills").mkdir(parents=True)
+        (root / "shaft-skills/shaft-developer").mkdir(parents=True)
+        (root / "pom.xml").write_text(
+            '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+            f'<modelVersion>4.0.0</modelVersion><version>{version}</version></project>',
+            encoding="utf-8",
+        )
+        (root / "agent-plugins/release.json").write_text(
+            json.dumps({"packages": [{"name": "shaft-skills", "version": version}]}),
+            encoding="utf-8",
+        )
+        (root / "LICENSE").write_text("test license\n", encoding="utf-8")
+        (root / "agent-plugins/shaft-skills/CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+        (root / "agent-plugins/shaft-skills/COMPATIBILITY.md").write_text(
+            f"# Compatibility\n\nEvidence applies to `shaft-skills` {version}.\n",
+            encoding="utf-8",
+        )
+        (root / "shaft-skills/shaft-developer/SKILL.md").write_text(
+            "---\nname: shaft-developer\ndescription: Example.\n---\n",
+            encoding="utf-8",
+        )
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        git_environment = os.environ.copy()
+        for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR"):
+            git_environment.pop(name, None)
+        subprocess.run([git, "init", "--quiet"], cwd=root, env=git_environment, check=True)  # nosec B603
+        subprocess.run([git, "add", "."], cwd=root, env=git_environment, check=True)  # nosec B603
+        return root
+
+    def test_build_release_artifacts_accepts_same_day_hotfix_version(self):
+        self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")
+        version = "10.4.20261125.1"
+        repository_root = self.write_release_repository(version)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output = Path(temporary_directory) / "assets"
+
+            artifacts = build_release_artifacts(repository_root, output)
+
+            self.assertEqual(
+                [path.name for path in artifacts],
+                [
+                    f"shaft-skills-{version}.zip",
+                    f"shaft-skills-{version}.zip.sha256",
+                ],
+            )
+            with zipfile.ZipFile(output / f"shaft-skills-{version}.zip") as package:
+                self.assertEqual(json.loads(package.read("plugin.json"))["version"], version)
+                self.assertEqual(json.loads(package.read(".claude-plugin/plugin.json"))["version"], version)
+                self.assertEqual(json.loads(package.read(".codex-plugin/plugin.json"))["version"], version)
+                self.assertEqual(
+                    package.read("COMPATIBILITY.md"),
+                    (repository_root / "agent-plugins/shaft-skills/COMPATIBILITY.md").read_bytes(),
+                )
 
     def test_build_release_artifacts_is_deterministic(self):
         self.assertTrue(callable(build_release_artifacts), "release artifact builder must be available")

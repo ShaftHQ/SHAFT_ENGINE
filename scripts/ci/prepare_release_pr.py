@@ -23,6 +23,9 @@ SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milestone|snapshot)")
 ANDROID_COMMAND_LINE_TOOLS = re.compile(r"commandlinetools-linux-(\d+)_latest\.zip")
 PLUGIN_VERSION = re.compile(r"^pluginVersion=.*$", re.MULTILINE)
+SHAFT_SKILLS_EVIDENCE = re.compile(
+    r"(?P<prefix>`shaft-skills` )\d+\.\d+\.\d+(?:\.\d+)?(?P<date> as of \d{4}-\d{2}-\d{2})?"
+)
 NPM_INTERNAL_VERSIONS = {
     "allure3Version": ("allure", 3),
     "appiumServerVersion": ("appium", None),
@@ -252,6 +255,23 @@ def _update_agent_plugin_versions(path: Path, version: str) -> bool:
     return changed
 
 
+def _update_compatibility_evidence(path: Path, version: str, release_date: str) -> bool:
+    """Refresh the `shaft-skills` evidence version and as-of date for a release."""
+    source = path.read_text(encoding="utf-8")
+
+    def replacement(match: re.Match[str]) -> str:
+        date = f" as of {release_date}" if match.group("date") else ""
+        return f"{match.group('prefix')}{version}{date}"
+
+    updated, count = SHAFT_SKILLS_EVIDENCE.subn(replacement, source)
+    if count == 0:
+        raise ValueError(f"{path}: expected `shaft-skills` evidence version was not found")
+    if updated == source:
+        return False
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
 def _module_poms(root: Path) -> list[Path]:
     parent = ET.parse(root / "pom.xml").getroot()
     return [
@@ -311,6 +331,12 @@ def prepare_release(
     plugin_release = root / "agent-plugins/release.json"
     if _update_agent_plugin_versions(plugin_release, release_version):
         changed.append(plugin_release)
+
+    compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+    if compatibility.is_file() and _update_compatibility_evidence(
+        compatibility, release_version, release_date
+    ):
+        changed.append(compatibility)
 
     return current_version, release_version, sorted(set(changed))
 

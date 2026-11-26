@@ -145,6 +145,25 @@ class ValidateAgentPluginsTest(unittest.TestCase):
 
         self.assertEqual(validate_package(self.root), [])
 
+    def test_accepts_a_dated_hotfix_release_version(self):
+        self.manifest["version"] = "10.4.20261125.1"
+        self.write_manifest()
+
+        self.assertEqual(validate_package(self.root), [])
+
+    def test_rejects_unstable_and_malformed_release_versions(self):
+        for version in (
+            "10.4.20261125.0",
+            "10.4.20261125-alpha",
+            "10.4.20261125-SNAPSHOT",
+            "1.0.0-alpha",
+            "1.2.3.4.5",
+        ):
+            with self.subTest(version=version):
+                self.manifest["version"] = version
+                self.write_manifest()
+                self.assertEqual(self.codes(), {"manifest-field"})
+
     def test_accepts_complete_crlf_skill_frontmatter(self):
         self.write_skill(line_ending="\r\n")
 

@@ -84,6 +84,13 @@ String androidCommandLineToolsVersion();
                 '{"name": "act-as-mohab", "version": "10.2.20260630"}, '
                 '{"name": "shaft-skills", "version": "10.2.20260630"}]}'
             )
+            compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+            _write(
+                compatibility,
+                "# Compatibility\n\n"
+                "Evidence applies to `shaft-skills` 10.2.20260630 as of 2026-06-30. "
+                "Package versions match the canonical SHAFT engine version.\n",
+            )
 
             old_version, release_version, changed = MODULE.prepare_release(
                 root,
@@ -121,9 +128,52 @@ String androidCommandLineToolsVersion();
                 {package["version"] for package in plugin_release["packages"]},
                 {release_version},
             )
+            compatibility_text = compatibility.read_text(encoding="utf-8")
+            self.assertIn(f"`shaft-skills` {release_version} as of 2026-07-02", compatibility_text)
+            self.assertNotIn("`shaft-skills` 10.2.20260630", compatibility_text)
+            self.assertIn(compatibility, changed)
             catalog = (root / "modular-era-feature-catalog.md").read_text(encoding="utf-8")
             self.assertEqual("Plugin 10.2.20260630\n", catalog)
             self.assertNotIn(root / "modular-era-feature-catalog.md", changed)
+
+    def test_updates_compatibility_header_on_same_day_hotfix(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            current = "10.4.20261124"
+            _write(
+                root / "pom.xml",
+                '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+                f"<version>{current}</version></project>",
+            )
+            _write(
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+                "interface Internal {\n"
+                f'@DefaultValue("{current}")\nString shaftEngineVersion();\n\n'
+                '@DefaultValue("1.0.0")\nString dummyVersion();\n}\n',
+            )
+            _write(root / "shaft-intellij/gradle.properties", f"pluginVersion={current}\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages":[{"name":"shaft-skills","version":"' + current + '"}]}',
+            )
+            compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+            _write(
+                compatibility,
+                f"# Compatibility\n\nEvidence applies to `shaft-skills` {current} as of 2026-11-24.\n",
+            )
+
+            _, release_version, changed = MODULE.prepare_release(
+                root,
+                "2026-11-24",
+                internal_versions={"dummyVersion": "2.0.0"},
+            )
+
+            self.assertEqual("10.4.20261124.1", release_version)
+            self.assertIn(
+                f"`shaft-skills` {release_version} as of 2026-11-24",
+                compatibility.read_text(encoding="utf-8"),
+            )
+            self.assertIn(compatibility, changed)
 
     def test_rejects_non_newer_release_date(self):
         with tempfile.TemporaryDirectory() as temp:
