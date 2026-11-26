@@ -24,7 +24,8 @@ UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milesto
 ANDROID_COMMAND_LINE_TOOLS = re.compile(r"commandlinetools-linux-(\d+)_latest\.zip")
 PLUGIN_VERSION = re.compile(r"^pluginVersion=.*$", re.MULTILINE)
 SHAFT_SKILLS_EVIDENCE = re.compile(
-    r"(?P<prefix>`shaft-skills` )\d+\.\d+\.\d+(?:\.\d+)?(?P<date> as of \d{4}-\d{2}-\d{2})?"
+    r"(?P<prefix>`shaft-skills` )\d+\.\d+\.\d+(?:\.\d+)?(?![0-9A-Za-z._-])"
+    r"(?P<date> as of \d{4}-\d{2}-\d{2})?"
 )
 NPM_INTERNAL_VERSIONS = {
     "allure3Version": ("allure", 3),
@@ -333,9 +334,7 @@ def prepare_release(
         changed.append(plugin_release)
 
     compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
-    if compatibility.is_file() and _update_compatibility_evidence(
-        compatibility, release_version, release_date
-    ):
+    if _update_compatibility_evidence(compatibility, release_version, release_date):
         changed.append(compatibility)
 
     return current_version, release_version, sorted(set(changed))

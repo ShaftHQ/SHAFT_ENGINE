@@ -13,9 +13,14 @@ from pathlib import Path
 from unittest import mock
 
 try:
-    from scripts.ci.agent_plugin_release import build_release_artifacts, load_release_manifest
+    from scripts.ci.agent_plugin_release import (
+        build_release_artifacts,
+        is_stable_release_version,
+        load_release_manifest,
+    )
 except ModuleNotFoundError:
     build_release_artifacts = None
+    is_stable_release_version = None
     load_release_manifest = None
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,6 +101,33 @@ class AgentPluginReleaseTest(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(ValueError, "stable SemVer"):
                     load_release_manifest(root)
+
+    def test_release_manifest_rejects_invalid_calendar_and_quarter_hotfixes(self):
+        for version in (
+            "10.4.20261399.1",
+            "10.4.20260230.1",
+            "10.4.00000000.1",
+            "10.1.20261125.1",
+        ):
+            with self.subTest(version=version):
+                root = self.write_manifest(
+                    {"packages": [{"name": "shaft-skills", "version": version}]},
+                    pom_version=version,
+                )
+                with self.assertRaisesRegex(ValueError, "stable SemVer"):
+                    load_release_manifest(root)
+
+    def test_is_stable_release_version_enforces_calendar_and_quarter(self):
+        self.assertTrue(callable(is_stable_release_version), "version predicate must be available")
+        self.assertTrue(is_stable_release_version("10.4.20261125.1"))
+        for version in (
+            "10.4.20261399.1",
+            "10.4.20260230.1",
+            "10.4.00000000.1",
+            "10.1.20261125.1",
+        ):
+            with self.subTest(version=version):
+                self.assertFalse(is_stable_release_version(version))
 
     def write_release_repository(self, version: str) -> Path:
         """Create a tracked minimal source tree for one released version."""

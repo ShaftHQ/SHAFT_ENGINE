@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import hashlib
@@ -15,7 +16,10 @@ from pathlib import Path
 
 REQUIRED_PACKAGES = ("shaft-skills",)
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-DATED_HOTFIX = re.compile(r"^(0|[1-9]\d*)\.[1-4]\.\d{8}\.[1-9]\d*$")
+DATED_HOTFIX = re.compile(
+    r"^(?P<major>0|[1-9]\d*)\.(?P<quarter>[1-4])\."
+    r"(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hotfix>[1-9]\d*)$"
+)
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]
 PORTABLE_TEXT_SUFFIXES = {".LICENSE", ".json", ".md", ".yaml", ".yml"}
@@ -26,10 +30,20 @@ if str(ROOT) not in sys.path:
 
 
 def is_stable_release_version(version: object) -> bool:
-    """Accept stable SemVer and same-day SHAFT hotfix versions (major.quarter.YYYYMMDD.N, #7700)."""
-    return isinstance(version, str) and (
-        SEMVER.fullmatch(version) is not None or DATED_HOTFIX.fullmatch(version) is not None
-    )
+    """Accept stable SemVer and calendar-valid, quarter-consistent dated hotfixes (#7700)."""
+    if not isinstance(version, str):
+        return False
+    if SEMVER.fullmatch(version) is not None:
+        return True
+    match = DATED_HOTFIX.fullmatch(version)
+    if match is None:
+        return False
+    month = int(match.group("month"))
+    try:
+        datetime.date(int(match.group("year")), month, int(match.group("day")))
+    except ValueError:
+        return False
+    return int(match.group("quarter")) == ((month - 1) // 3) + 1
 
 
 def load_release_manifest(repository_root: Path) -> dict[str, str]:

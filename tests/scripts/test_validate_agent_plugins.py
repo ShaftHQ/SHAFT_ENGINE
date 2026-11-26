@@ -164,6 +164,18 @@ class ValidateAgentPluginsTest(unittest.TestCase):
                 self.write_manifest()
                 self.assertEqual(self.codes(), {"manifest-field"})
 
+    def test_rejects_invalid_calendar_and_quarter_hotfix_versions(self):
+        for version in (
+            "10.4.20261399.1",
+            "10.4.20260230.1",
+            "10.4.00000000.1",
+            "10.1.20261125.1",
+        ):
+            with self.subTest(version=version):
+                self.manifest["version"] = version
+                self.write_manifest()
+                self.assertEqual(self.codes(), {"manifest-field"})
+
     def test_accepts_complete_crlf_skill_frontmatter(self):
         self.write_skill(line_ending="\r\n")
 
