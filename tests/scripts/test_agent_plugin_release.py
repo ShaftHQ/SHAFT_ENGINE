@@ -102,6 +102,23 @@ class AgentPluginReleaseTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "stable SemVer"):
                     load_release_manifest(root)
 
+    def test_rejects_non_ascii_digit_versions(self):
+        self.assertTrue(callable(is_stable_release_version), "version predicate must be available")
+        self.assertTrue(callable(load_release_manifest), "release manifest loader must be available")
+        for version in (
+            "10.4.\u0662\u0660\u0662\u0666\u0661\u0661\u0662\u0665.1",
+            "1\u0660.0.0",
+            "1.0.1\uff10",
+        ):
+            with self.subTest(version=version):
+                self.assertFalse(is_stable_release_version(version))
+                root = self.write_manifest(
+                    {"packages": [{"name": "shaft-skills", "version": version}]},
+                    pom_version=version,
+                )
+                with self.assertRaisesRegex(ValueError, "stable SemVer"):
+                    load_release_manifest(root)
+
     def test_release_manifest_rejects_invalid_calendar_and_quarter_hotfixes(self):
         for version in (
             "10.4.20261399.1",

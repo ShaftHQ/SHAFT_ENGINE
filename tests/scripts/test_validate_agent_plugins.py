@@ -164,6 +164,17 @@ class ValidateAgentPluginsTest(unittest.TestCase):
                 self.write_manifest()
                 self.assertEqual(self.codes(), {"manifest-field"})
 
+    def test_rejects_non_ascii_digit_release_versions(self):
+        for version in (
+            "10.4.\u0662\u0660\u0662\u0666\u0661\u0661\u0662\u0665.1",
+            "1\u0660.0.0",
+            "1.0.1\uff10",
+        ):
+            with self.subTest(version=version):
+                self.manifest["version"] = version
+                self.write_manifest()
+                self.assertEqual(self.codes(), {"manifest-field"})
+
     def test_rejects_invalid_calendar_and_quarter_hotfix_versions(self):
         for version in (
             "10.4.20261399.1",

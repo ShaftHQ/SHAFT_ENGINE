@@ -15,10 +15,11 @@ from pathlib import Path
 
 
 REQUIRED_PACKAGES = ("shaft-skills",)
-SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$", re.ASCII)
 DATED_HOTFIX = re.compile(
     r"^(?P<major>0|[1-9]\d*)\.(?P<quarter>[1-4])\."
-    r"(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hotfix>[1-9]\d*)$"
+    r"(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hotfix>[1-9]\d*)$",
+    re.ASCII,
 )
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]

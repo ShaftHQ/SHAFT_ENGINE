@@ -381,6 +381,64 @@ class CompatibilityEvidenceTest(unittest.TestCase):
             self.assertNotIn(current, text)
             self.assertIn(compatibility, changed)
 
+    def test_updates_sentence_ending_version_without_as_of(self):
+        for token in ("10.4.20261125", "10.4.20261125.1"):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "COMPATIBILITY.md"
+                    path.write_text(
+                        f"Evidence applies to `shaft-skills` {token}.\n", encoding="utf-8"
+                    )
+
+                    updated = MODULE._update_compatibility_evidence(
+                        path, "10.4.20261126", "2026-11-26"
+                    )
+
+                    self.assertTrue(updated)
+                    self.assertEqual(
+                        "Evidence applies to `shaft-skills` 10.4.20261126.\n",
+                        path.read_text(encoding="utf-8"),
+                    )
+
+    def test_rejects_non_version_suffixes_and_non_ascii_digits(self):
+        for token in (
+            "10.4.20261125+build",
+            "10.4.20261125/foo",
+            "10.4.20261125.0 as of 2026-11-25.",
+            "10.4.\u0662\u0660\u0662\u0666\u0661\u0661\u0662\u0665.1 as of 2026-11-25.",
+        ):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "COMPATIBILITY.md"
+                    original = f"Evidence applies to `shaft-skills` {token}\n"
+                    path.write_text(original, encoding="utf-8")
+
+                    with self.assertRaisesRegex(ValueError, "evidence version was not found"):
+                        MODULE._update_compatibility_evidence(
+                            path, "10.4.20261126", "2026-11-26"
+                        )
+
+                    self.assertEqual(original, path.read_text(encoding="utf-8"))
+
+    def test_updates_only_the_first_historical_mention(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "COMPATIBILITY.md"
+            historical = "Historically, `shaft-skills` 10.3.20261013 as of 2026-10-13 was verified."
+            path.write_text(
+                "Evidence applies to `shaft-skills` 10.4.20261125 as of 2026-11-25.\n"
+                f"{historical}\n",
+                encoding="utf-8",
+            )
+
+            updated = MODULE._update_compatibility_evidence(
+                path, "10.4.20261126", "2026-11-26"
+            )
+
+            self.assertTrue(updated)
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("`shaft-skills` 10.4.20261126 as of 2026-11-26", text)
+            self.assertIn(historical, text)
+
     def test_rejects_compatibility_without_evidence_header(self):
         current = "10.4.20261125"
         with tempfile.TemporaryDirectory() as temp:

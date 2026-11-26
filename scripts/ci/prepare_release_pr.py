@@ -24,8 +24,11 @@ UNSTABLE_VERSION = re.compile(r"(?i)(alpha|beta|rc|cr|m[0-9]+|ea|preview|milesto
 ANDROID_COMMAND_LINE_TOOLS = re.compile(r"commandlinetools-linux-(\d+)_latest\.zip")
 PLUGIN_VERSION = re.compile(r"^pluginVersion=.*$", re.MULTILINE)
 SHAFT_SKILLS_EVIDENCE = re.compile(
-    r"(?P<prefix>`shaft-skills` )\d+\.\d+\.\d+(?:\.\d+)?(?![0-9A-Za-z._-])"
-    r"(?P<date> as of \d{4}-\d{2}-\d{2})?"
+    r"(?P<prefix>`shaft-skills` )"
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.[1-9][0-9]*)?"
+    r"(?=$|[\s,;:)!?\]>]|\.(?=$|\s))"
+    r"(?P<date> as of [0-9]{4}-[0-9]{2}-[0-9]{2})?",
+    re.ASCII,
 )
 NPM_INTERNAL_VERSIONS = {
     "allure3Version": ("allure", 3),
@@ -264,7 +267,7 @@ def _update_compatibility_evidence(path: Path, version: str, release_date: str) 
         date = f" as of {release_date}" if match.group("date") else ""
         return f"{match.group('prefix')}{version}{date}"
 
-    updated, count = SHAFT_SKILLS_EVIDENCE.subn(replacement, source)
+    updated, count = SHAFT_SKILLS_EVIDENCE.subn(replacement, source, count=1)
     if count == 0:
         raise ValueError(f"{path}: expected `shaft-skills` evidence version was not found")
     if updated == source:
