@@ -8,6 +8,11 @@ from pathlib import Path
 
 import yaml
 
+try:
+    from scripts.ci.agent_plugin_release import is_stable_release_version
+except ModuleNotFoundError:
+    from agent_plugin_release import is_stable_release_version
+
 SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MANIFEST_PATH = "plugin.json"
 ALLOWED_MANIFEST_FIELDS = {
@@ -70,6 +75,14 @@ def manifest_field_errors(manifest: dict) -> list[dict[str, str]]:
     for field in sorted(string_fields & set(manifest)):
         if not isinstance(manifest[field], str):
             findings.append(issue("manifest-field", MANIFEST_PATH, f"{field} must be a string"))
+    if isinstance(manifest.get("version"), str) and not is_stable_release_version(manifest["version"]):
+        findings.append(
+            issue(
+                "manifest-field",
+                MANIFEST_PATH,
+                "version must be stable SemVer or a dated SHAFT hotfix",
+            )
+        )
     if "keywords" in manifest and (
         not isinstance(manifest["keywords"], list) or not all(isinstance(item, str) for item in manifest["keywords"])
     ):

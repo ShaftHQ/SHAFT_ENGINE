@@ -17,6 +17,30 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _write_release_fixture(root: Path, current: str, compatibility: str | None) -> Path:
+    """Create the minimal version-bearing tree needed by ``prepare_release``."""
+    _write(
+        root / "pom.xml",
+        '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+        f"<version>{current}</version></project>",
+    )
+    _write(
+        root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+        "interface Internal {\n"
+        f'@DefaultValue("{current}")\nString shaftEngineVersion();\n\n'
+        '@DefaultValue("1.0.0")\nString dummyVersion();\n}\n',
+    )
+    _write(root / "shaft-intellij/gradle.properties", f"pluginVersion={current}\n")
+    _write(
+        root / "agent-plugins/release.json",
+        '{"packages":[{"name":"shaft-skills","version":"' + current + '"}]}',
+    )
+    target = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+    if compatibility is not None:
+        _write(target, compatibility)
+    return target
+
+
 class PrepareReleasePrTest(unittest.TestCase):
     def test_updates_release_files_from_release_date_quarter(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -84,6 +108,13 @@ String androidCommandLineToolsVersion();
                 '{"name": "act-as-mohab", "version": "10.2.20260630"}, '
                 '{"name": "shaft-skills", "version": "10.2.20260630"}]}'
             )
+            compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+            _write(
+                compatibility,
+                "# Compatibility\n\n"
+                "Evidence applies to `shaft-skills` 10.2.20260630 as of 2026-06-30. "
+                "Package versions match the canonical SHAFT engine version.\n",
+            )
 
             old_version, release_version, changed = MODULE.prepare_release(
                 root,
@@ -121,9 +152,52 @@ String androidCommandLineToolsVersion();
                 {package["version"] for package in plugin_release["packages"]},
                 {release_version},
             )
+            compatibility_text = compatibility.read_text(encoding="utf-8")
+            self.assertIn(f"`shaft-skills` {release_version} as of 2026-07-02", compatibility_text)
+            self.assertNotIn("`shaft-skills` 10.2.20260630", compatibility_text)
+            self.assertIn(compatibility, changed)
             catalog = (root / "modular-era-feature-catalog.md").read_text(encoding="utf-8")
             self.assertEqual("Plugin 10.2.20260630\n", catalog)
             self.assertNotIn(root / "modular-era-feature-catalog.md", changed)
+
+    def test_updates_compatibility_header_on_same_day_hotfix(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            current = "10.4.20261124"
+            _write(
+                root / "pom.xml",
+                '<project xmlns="http://maven.apache.org/POM/4.0.0">'
+                f"<version>{current}</version></project>",
+            )
+            _write(
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+                "interface Internal {\n"
+                f'@DefaultValue("{current}")\nString shaftEngineVersion();\n\n'
+                '@DefaultValue("1.0.0")\nString dummyVersion();\n}\n',
+            )
+            _write(root / "shaft-intellij/gradle.properties", f"pluginVersion={current}\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages":[{"name":"shaft-skills","version":"' + current + '"}]}',
+            )
+            compatibility = root / "agent-plugins/shaft-skills/COMPATIBILITY.md"
+            _write(
+                compatibility,
+                f"# Compatibility\n\nEvidence applies to `shaft-skills` {current} as of 2026-11-24.\n",
+            )
+
+            _, release_version, changed = MODULE.prepare_release(
+                root,
+                "2026-11-24",
+                internal_versions={"dummyVersion": "2.0.0"},
+            )
+
+            self.assertEqual("10.4.20261124.1", release_version)
+            self.assertIn(
+                f"`shaft-skills` {release_version} as of 2026-11-24",
+                compatibility.read_text(encoding="utf-8"),
+            )
+            self.assertIn(compatibility, changed)
 
     def test_rejects_non_newer_release_date(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -135,6 +209,11 @@ String androidCommandLineToolsVersion();
 <version>10.3.20260702</version>
 </project>
 """,
+            )
+            _write_release_fixture(
+                root,
+                "10.3.20260702",
+                "# Compatibility\n\n`shaft-skills` 10.3.20260702 as of 2026-07-02.\n",
             )
 
             with self.assertRaises(ValueError):
@@ -256,6 +335,197 @@ class ReleaseCadenceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE._version_key("10.1.20261231")  # declared Q1 but December is Q4
 
+
+class ShaftSkillsEvidenceRegexTest(unittest.TestCase):
+    def _search(self, text: str):
+        return MODULE.SHAFT_SKILLS_EVIDENCE.search(text)
+
+    def test_matches_version_at_end_of_string(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+
+    def test_matches_version_with_trailing_period(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3.")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+
+    def test_matches_dated_version_at_end_of_string(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3 as of 2026-11-26")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3 as of 2026-11-26", match.group(0))
+        self.assertEqual(" as of 2026-11-26", match.group("date"))
+
+    def test_matches_dated_version_with_trailing_period(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3 as of 2026-11-26.")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3 as of 2026-11-26", match.group(0))
+        self.assertEqual(" as of 2026-11-26", match.group("date"))
+
+    def test_rejects_non_version_suffix(self):
+        self.assertIsNone(self._search("`shaft-skills` 1.2.3a"))
+
+    def test_does_not_over_match_invalid_date(self):
+        match = self._search("`shaft-skills` 1.2.3 as of 2026-11-269")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+        self.assertNotIn("2026-11-26", match.group(0))
+
+    def test_matches_full_hotfix_not_partial_version(self):
+        match = self._search("`shaft-skills` 1.2.3.4")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3.4", match.group(0))
+        self.assertIsNone(self._search("`shaft-skills` 1.2.3.4.5"))
+
+
+class CompatibilityEvidenceTest(unittest.TestCase):
+    """COMPATIBILITY.md evidence is mandatory and must carry a well-formed version."""
+
+    def prepare(self, root: Path, release_date: str) -> tuple[str, str, list]:
+        return MODULE.prepare_release(
+            root, release_date, internal_versions={"dummyVersion": "2.0.0"}
+        )
+
+    def test_updates_four_part_hotfix_on_same_day(self):
+        current = "10.4.20261124.1"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            compatibility = _write_release_fixture(
+                root,
+                current,
+                f"# Compatibility\n\nEvidence applies to `shaft-skills` {current} as of 2026-11-24.\n",
+            )
+
+            old_version, release_version, changed = self.prepare(root, "2026-11-24")
+
+            self.assertEqual(old_version, current)
+            self.assertEqual(release_version, "10.4.20261124.2")
+            text = compatibility.read_text(encoding="utf-8")
+            self.assertIn(f"`shaft-skills` {release_version} as of 2026-11-24", text)
+            self.assertNotIn(current, text)
+            self.assertIn(compatibility, changed)
+
+    def test_updates_four_part_hotfix_on_next_day(self):
+        current = "10.4.20261124.1"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            compatibility = _write_release_fixture(
+                root,
+                current,
+                f"# Compatibility\n\nEvidence applies to `shaft-skills` {current} as of 2026-11-24.\n",
+            )
+
+            _, release_version, changed = self.prepare(root, "2026-11-25")
+
+            self.assertEqual(release_version, "10.4.20261125")
+            text = compatibility.read_text(encoding="utf-8")
+            self.assertIn(f"`shaft-skills` {release_version} as of 2026-11-25", text)
+            self.assertNotIn(current, text)
+            self.assertIn(compatibility, changed)
+
+    def test_updates_sentence_ending_version_without_as_of(self):
+        for token in ("10.4.20261125", "10.4.20261125.1"):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "COMPATIBILITY.md"
+                    path.write_text(
+                        f"Evidence applies to `shaft-skills` {token}.\n", encoding="utf-8"
+                    )
+
+                    updated = MODULE._update_compatibility_evidence(
+                        path, "10.4.20261126", "2026-11-26"
+                    )
+
+                    self.assertTrue(updated)
+                    self.assertEqual(
+                        "Evidence applies to `shaft-skills` 10.4.20261126.\n",
+                        path.read_text(encoding="utf-8"),
+                    )
+
+    def test_rejects_non_version_suffixes_and_non_ascii_digits(self):
+        for token in (
+            "10.4.20261125+build",
+            "10.4.20261125/foo",
+            "10.4.20261125.0 as of 2026-11-25.",
+            "10.4.\u0662\u0660\u0662\u0666\u0661\u0661\u0662\u0665.1 as of 2026-11-25.",
+        ):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "COMPATIBILITY.md"
+                    original = f"Evidence applies to `shaft-skills` {token}\n"
+                    path.write_text(original, encoding="utf-8")
+
+                    with self.assertRaisesRegex(ValueError, "evidence version was not found"):
+                        MODULE._update_compatibility_evidence(
+                            path, "10.4.20261126", "2026-11-26"
+                        )
+
+                    self.assertEqual(original, path.read_text(encoding="utf-8"))
+
+    def test_updates_only_the_first_historical_mention(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "COMPATIBILITY.md"
+            historical = "Historically, `shaft-skills` 10.3.20261013 as of 2026-10-13 was verified."
+            path.write_text(
+                "Evidence applies to `shaft-skills` 10.4.20261125 as of 2026-11-25.\n"
+                f"{historical}\n",
+                encoding="utf-8",
+            )
+
+            updated = MODULE._update_compatibility_evidence(
+                path, "10.4.20261126", "2026-11-26"
+            )
+
+            self.assertTrue(updated)
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("`shaft-skills` 10.4.20261126 as of 2026-11-26", text)
+            self.assertIn(historical, text)
+
+    def test_rejects_compatibility_without_evidence_header(self):
+        current = "10.4.20261125"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            compatibility = _write_release_fixture(
+                root, current, "# Compatibility\n\nNo evidence header is declared.\n"
+            )
+
+            with self.assertRaisesRegex(ValueError, "evidence version was not found"):
+                self.prepare(root, "2026-11-25")
+
+            self.assertNotIn(current, compatibility.read_text(encoding="utf-8"))
+
+    def test_rejects_malformed_compatibility_version_tokens(self):
+        current = "10.4.20261125"
+        for token in ("10.4.20261125-alpha", "10.4.20261125.1.2"):
+            with self.subTest(token=token):
+                with tempfile.TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    compatibility = _write_release_fixture(
+                        root,
+                        current,
+                        f"# Compatibility\n\nEvidence applies to `shaft-skills` {token} as of 2026-11-25.\n",
+                    )
+
+                    with self.assertRaisesRegex(ValueError, "evidence version was not found"):
+                        self.prepare(root, "2026-11-25")
+
+                    self.assertEqual(
+                        f"# Compatibility\n\nEvidence applies to `shaft-skills` {token} as of 2026-11-25.\n",
+                        compatibility.read_text(encoding="utf-8"),
+                    )
+
+    def test_rejects_missing_compatibility_file(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            compatibility = _write_release_fixture(root, "10.4.20261125", None)
+
+            with self.assertRaises(FileNotFoundError):
+                self.prepare(root, "2026-11-25")
+
+            self.assertFalse(compatibility.exists())
 
 
 if __name__ == "__main__":

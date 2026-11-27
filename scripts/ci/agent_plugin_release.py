@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import hashlib
@@ -14,7 +15,12 @@ from pathlib import Path
 
 
 REQUIRED_PACKAGES = ("shaft-skills",)
-SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$", re.ASCII)
+DATED_HOTFIX = re.compile(
+    r"^(?P<major>0|[1-9]\d*)\.(?P<quarter>[1-4])\."
+    r"(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hotfix>[1-9]\d*)$",
+    re.ASCII,
+)
 RELEASE_MANIFEST = Path("agent-plugins/release.json")
 ROOT = Path(__file__).resolve().parents[2]
 PORTABLE_TEXT_SUFFIXES = {".LICENSE", ".json", ".md", ".yaml", ".yml"}
@@ -24,8 +30,25 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def is_stable_release_version(version: object) -> bool:
+    """Accept stable SemVer and calendar-valid, quarter-consistent dated hotfixes (#7700)."""
+    if not isinstance(version, str):
+        return False
+    if SEMVER.fullmatch(version) is not None:
+        return True
+    match = DATED_HOTFIX.fullmatch(version)
+    if match is None:
+        return False
+    month = int(match.group("month"))
+    try:
+        datetime.date(int(match.group("year")), month, int(match.group("day")))
+    except ValueError:
+        return False
+    return int(match.group("quarter")) == ((month - 1) // 3) + 1
+
+
 def load_release_manifest(repository_root: Path) -> dict[str, str]:
-    """Return the declared stable SemVer version for every portable package."""
+    """Return the declared stable release version for every portable package."""
     manifest_path = Path(repository_root) / RELEASE_MANIFEST
     try:
         document = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -43,8 +66,8 @@ def load_release_manifest(repository_root: Path) -> dict[str, str]:
         version = package.get("version")
         if not isinstance(name, str) or name not in REQUIRED_PACKAGES:
             raise ValueError("agent plugin release manifest has an unknown package")
-        if not isinstance(version, str) or not SEMVER.fullmatch(version):
-            raise ValueError(f"{name} version must be stable SemVer")
+        if not is_stable_release_version(version):
+            raise ValueError(f"{name} version must be stable SemVer or a dated SHAFT hotfix")
         if name in versions:
             raise ValueError(f"agent plugin release manifest duplicates {name}")
         versions[name] = version
