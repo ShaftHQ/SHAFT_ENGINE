@@ -266,6 +266,35 @@ public class CSVFileManagerUnitTest {
         Assert.assertNull(csv.getCellData(99, 1), "Invalid row should return null cell by index");
     }
 
+    @Test(description = "getSpecificColumnData(1) returns the first column using the 1-based index")
+    public void getSpecificColumnDataByIndexOneReturnsFirstColumn() {
+        List<String> data = csv.getSpecificColumnData(1);
+        Assert.assertTrue(data.contains("1234567890"), "First column should contain the first barCode");
+        Assert.assertEquals(data, new CSVFileManager(CSV_FILE).getSpecificColumnData("barCode"),
+                "Index 1 must map to the first column");
+    }
+
+    @Test(description = "getSpecificColumnData(2) returns the second column using the 1-based index")
+    public void getSpecificColumnDataByIndexTwoReturnsSecondColumn() {
+        Assert.assertEquals(csv.getSpecificColumnData(2), new CSVFileManager(CSV_FILE).getSpecificColumnData("aName"),
+                "Index 2 must map to the second column");
+    }
+
+    @Test(description = "getCellData(row, 1) returns the cell from the first column using the 1-based index")
+    public void getCellDataByRowAndColumnIndexOneReturnsFirstColumnCell() {
+        Assert.assertEquals(csv.getCellData(0, 1), "1234567890", "Row 0, column 1 should be the first barCode");
+        Assert.assertEquals(new CSVFileManager(CSV_FILE).getCellData(0, 2), "!InvalidName",
+                "Row 0, column 2 should be the first aName");
+    }
+
+    @Test(description = "getMaxCellValue returns the real maximum for a column with only negative values")
+    public void getMaxCellValueReturnsLargestNegativeValue() {
+        CSVFileManager negatives = new CSVFileManager("src/test/resources/testDataFiles/NegativeNumbers.csv");
+        Assert.assertEquals(negatives.getMaxCellValue("balance"), -1d, "Max of -5, -10, -1 is -1");
+        negatives = new CSVFileManager("src/test/resources/testDataFiles/NegativeNumbers.csv");
+        Assert.assertEquals(negatives.getMaxCellValue(2), -1.5d, "Max of -2.5, -1.5, -7 is -1.5 (index 2 is 0-based here)");
+    }
+
     @Test(description = "getFirstColumn returns null when columns are unavailable")
     public void getFirstColumnReturnsNullWhenColumnsAreUnavailable() {
         setPrivateField(csv, "records", null);

@@ -179,9 +179,9 @@ public class CSVFileManager {
      */
     public List<String> getSpecificColumnData(int ColumnIndex) {
         try {
-            return getColumnsWithData().get(getSpecificColumnName(ColumnIndex - 1));
+            return getColumnsWithData().get(getSpecificColumnName(ColumnIndex));
         } catch (Exception e) {
-            ReportManager.logDiscrete("Could not retrieve data for column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve data for column: " + getSpecificColumnName(ColumnIndex) + ". " + e.getMessage(), Level.ERROR);
             return Collections.emptyList();
         }
     }
@@ -215,9 +215,9 @@ public class CSVFileManager {
         try {
             String[] row = getRows().get(RowNum);
             List<String> columns = getColumns();
-            return row[columns.indexOf(getSpecificColumnName(ColumnIndex - 1))];
+            return row[columns.indexOf(getSpecificColumnName(ColumnIndex))];
         } catch (Exception e) {
-            ReportManager.logDiscrete("Could not retrieve cell data for Row: " + RowNum + ", Column: " + getSpecificColumnName(ColumnIndex - 1) + ". " + e.getMessage(), Level.ERROR);
+            ReportManager.logDiscrete("Could not retrieve cell data for Row: " + RowNum + ", Column: " + getSpecificColumnName(ColumnIndex) + ". " + e.getMessage(), Level.ERROR);
             return null;
         }
     }
@@ -295,7 +295,7 @@ public class CSVFileManager {
     public double getMaxCellValue(String columnName) {
         try {
             List<String> columnData = getColumnsWithData().get(columnName);
-            double max = Double.MIN_VALUE;
+            double max = Double.NEGATIVE_INFINITY;
             for (String value : columnData) {
                 double num = Double.parseDouble(value);
                 if (num > max) {
@@ -319,7 +319,7 @@ public class CSVFileManager {
     public double getMaxCellValue(int columnIndex) {
         try {
             List<String> columnData = getColumnsWithData().get(getColumns().get(columnIndex));
-            double max = Double.MIN_VALUE;
+            double max = Double.NEGATIVE_INFINITY;
             for (String value : columnData) {
                 double num = Double.parseDouble(value);
                 if (num > max) {
