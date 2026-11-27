@@ -295,8 +295,9 @@ public class ExcelFileManager {
                 return cell.getStringCellValue();
             } else if (cell.getCellType() == CellType.NUMERIC || cell.getCellType() == CellType.FORMULA) {
                 String cellValue = String.valueOf(cell.getNumericCellValue());
-                if (cellValue.contains(".0")) {
-                    cellValue = cellValue.split("\\.")[0];
+                if (cellValue.endsWith(".0")) {
+                    // only strip the trailing ".0" of whole numbers, so 10.05 is not truncated to 10
+                    cellValue = cellValue.substring(0, cellValue.length() - 2);
                 }
                 if (DateUtil.isCellDateFormatted(cell)) {
                     DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM/yy");

@@ -51,6 +51,12 @@ public class ExcelFileManagerCoverageUnitTest {
     }
 
     @Test
+    public void getCellDataShouldKeepTheFractionalPartOfDecimalNumbers() {
+        Assert.assertEquals(excelFileManager.get().getCellData("decimalRow", "testData1"), "10.05");
+        Assert.assertEquals(excelFileManager.get().getCellData("decimalTenthRow", "testData1"), "3.5");
+    }
+
+    @Test
     public void getCellDataShouldReturnEmptyStringWhenTargetCellIsMissing() {
         Assert.assertEquals(excelFileManager.get().getCellData("missingCellRow", "testData1"), "");
     }
@@ -113,6 +119,14 @@ public class ExcelFileManagerCoverageUnitTest {
 
             Row missingCellRow = sheet.createRow(5);
             missingCellRow.createCell(0).setCellValue("missingCellRow");
+
+            Row decimalRow = sheet.createRow(6);
+            decimalRow.createCell(0).setCellValue("decimalRow");
+            decimalRow.createCell(1).setCellValue(10.05);
+
+            Row decimalTenthRow = sheet.createRow(7);
+            decimalTenthRow.createCell(0).setCellValue("decimalTenthRow");
+            decimalTenthRow.createCell(1).setCellValue(3.5);
 
             workbook.write(outputStream);
         }
