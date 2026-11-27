@@ -1,6 +1,6 @@
 # Compatibility
 
-Evidence applies to `shaft-skills` 10.4.20261121 as of 2026-11-21. Package versions match the canonical SHAFT engine version. The consumer package ships one self-contained entrypoint, `shaft-developer`. Each column is an independent evidence level; a pass in one column never implies a pass in another.
+Evidence applies to `shaft-skills` 10.4.20261127 as of 2026-11-27. Package versions match the canonical SHAFT engine version. The consumer package ships one self-contained entrypoint, `shaft-developer`. Each column is an independent evidence level; a pass in one column never implies a pass in another.
 
 ## Host matrix
 
