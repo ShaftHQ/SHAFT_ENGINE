@@ -26,8 +26,8 @@ PLUGIN_VERSION = re.compile(r"^pluginVersion=.*$", re.MULTILINE)
 SHAFT_SKILLS_EVIDENCE = re.compile(
     r"(?P<prefix>`shaft-skills` )"
     r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.[1-9][0-9]*)?"
-    r"(?=$|[\s,;:)!?\]>]|\.(?=$|\s))"
-    r"(?P<date> as of [0-9]{4}-[0-9]{2}-[0-9]{2})?",
+    r"(?P<date> as of [0-9]{4}-[0-9]{2}-[0-9]{2})?"
+    r"(?=$|[\s,;:)!?\]>]|\.(?=$|\s))",
     re.ASCII,
 )
 NPM_INTERNAL_VERSIONS = {

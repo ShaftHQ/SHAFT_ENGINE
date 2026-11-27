@@ -336,6 +336,51 @@ class ReleaseCadenceTest(unittest.TestCase):
             MODULE._version_key("10.1.20261231")  # declared Q1 but December is Q4
 
 
+class ShaftSkillsEvidenceRegexTest(unittest.TestCase):
+    def _search(self, text: str):
+        return MODULE.SHAFT_SKILLS_EVIDENCE.search(text)
+
+    def test_matches_version_at_end_of_string(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+
+    def test_matches_version_with_trailing_period(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3.")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+
+    def test_matches_dated_version_at_end_of_string(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3 as of 2026-11-26")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3 as of 2026-11-26", match.group(0))
+        self.assertEqual(" as of 2026-11-26", match.group("date"))
+
+    def test_matches_dated_version_with_trailing_period(self):
+        match = self._search("Evidence applies to `shaft-skills` 1.2.3 as of 2026-11-26.")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3 as of 2026-11-26", match.group(0))
+        self.assertEqual(" as of 2026-11-26", match.group("date"))
+
+    def test_rejects_non_version_suffix(self):
+        self.assertIsNone(self._search("`shaft-skills` 1.2.3a"))
+
+    def test_does_not_over_match_invalid_date(self):
+        match = self._search("`shaft-skills` 1.2.3 as of 2026-11-269")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3", match.group(0))
+        self.assertIsNone(match.group("date"))
+        self.assertNotIn("2026-11-26", match.group(0))
+
+    def test_matches_full_hotfix_not_partial_version(self):
+        match = self._search("`shaft-skills` 1.2.3.4")
+        self.assertIsNotNone(match)
+        self.assertEqual("`shaft-skills` 1.2.3.4", match.group(0))
+        self.assertIsNone(self._search("`shaft-skills` 1.2.3.4.5"))
+
+
 class CompatibilityEvidenceTest(unittest.TestCase):
     """COMPATIBILITY.md evidence is mandatory and must carry a well-formed version."""
 
